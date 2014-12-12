@@ -1,0 +1,83 @@
+name:                thentos
+version:             0.0.1
+-- synopsis:
+-- description:
+license:             AGPL-3
+license-file:        LICENSE
+author:              Matthias Fischmann
+maintainer:          mf@zerobuzz.net
+-- copyright:
+-- category:
+build-type:          Simple
+cabal-version:       >= 1.10
+
+executable thentos
+  default-language:
+      Haskell2010
+  hs-source-dirs:
+      ./src/
+  main-is:
+      Main.hs
+  build-depends:
+      base >=4.7 && <4.8
+    , acid-state >=0.12 && <0.13
+    , aeson >=0.7 && <0.8
+    , aeson-pretty >=0.7 && <0.8
+    , containers >=0.5 && <0.6
+    , cryptohash >=0.7.10 && <0.8
+    , functor-infix >=0.0.1 && <0.2
+    , generic-aeson >=0.2 && <0.3
+    , json-schema >=0.7 && <0.8
+    , lens >=4.4 && <4.5
+    , mtl >=2.1 && <2.2
+    , rest-core >=0.33 && <0.34
+    , rest-wai >=0.1 && <0.2
+    , safe >=0.3 && <0.4
+    , safecopy >=0.8 && <0.9
+    , sandi >=0.3.1 && <0.4
+    , string-conversions >=0.3 && <0.4
+    , thyme >=0.3 && <0.4
+    , warp >=3.0 && <3.1
+
+    -- FIXME: without these, loading hspec test files into ghci fails.
+    -- is there a better way to get this to work?
+    , hspec
+    , system-fileio
+
+test-suite tests
+  default-language:
+      Haskell2010
+  type:
+      exitcode-stdio-1.0
+  hs-source-dirs:
+      ./tests/ ./src/
+  main-is:
+      TestMain.hs
+  ghc-options:
+      -Wall -threaded -rtsopts
+  cpp-options:
+      -DGHC_GENERICS
+  build-depends:
+      base >=4.7 && <4.8
+    , acid-state >=0.12 && <0.13
+    , aeson >=0.7 && <0.8
+    , aeson-pretty >=0.7 && <0.8
+    , containers >=0.5 && <0.6
+    , cryptohash >=0.7.10 && <0.8
+    , functor-infix >=0.0.1 && <0.2
+    , generic-aeson >=0.2 && <0.3
+    , json-schema >=0.7 && <0.8
+    , lens >=4.4 && <4.5
+    , mtl >=2.1 && <2.2
+    , rest-core >=0.33 && <0.34
+    , rest-wai >=0.1 && <0.2
+    , safe >=0.3 && <0.4
+    , safecopy >=0.8 && <0.9
+    , sandi >=0.3.1 && <0.4
+    , string-conversions >=0.3 && <0.4
+    , thyme >=0.3 && <0.4
+    , warp >=3.0 && <3.1
+
+    -- [packages only needed for testing]
+    , hspec
+    , system-fileio

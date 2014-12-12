@@ -1,0 +1,9 @@
+/.acid-state/
+/.cabal-sandbox/
+/cabal.sandbox.config
+/dist
+*~
+*.o
+*.hi
+*.dyn_o
+*.dyn_hi
