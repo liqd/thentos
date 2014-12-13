@@ -54,7 +54,7 @@ test-suite tests
   main-is:
       TestMain.hs
   ghc-options:
-      -Wall -threaded -rtsopts
+      -Wall -threaded -rtsopts -main-is TestMain
   cpp-options:
       -DGHC_GENERICS
   build-depends:
