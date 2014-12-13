@@ -28,17 +28,17 @@ data DB =
       , _dbServices    :: Map ServiceID Service
       , _dbSessions    :: Map SessionToken Session
 
-      , _dbFreshUserID :: UserID
-      , _dbRandomness  :: SBS
+      , _dbFreshUserID :: !UserID
+      , _dbRandomness  :: !SBS
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 data User =
     User
       { _userID       :: Maybe UserID
-      , _userName     :: UserName
-      , _userPassword :: UserPass
-      , _userEmail    :: UserEmail
+      , _userName     :: !UserName
+      , _userPassword :: !UserPass
+      , _userEmail    :: !UserEmail
       , _userGroups   :: [Group]
       , _userSession  :: Maybe Session
       }
@@ -52,10 +52,10 @@ type Group = ST
 
 data Session =
     Session
-      { _sessionToken  :: SessionToken
-      , _sessionUser   :: UserID
-      , _sessionStart  :: UTCTime
-      , _sessionEnd    :: UTCTime
+      { _sessionToken  :: !SessionToken
+      , _sessionUser   :: !UserID
+      , _sessionStart  :: !UTCTime
+      , _sessionEnd    :: !UTCTime
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -64,7 +64,7 @@ type SessionToken = ST
 data Service =
     Service
       { _serviceID   :: Maybe ServiceID
-      , _serviceKey  :: ServiceKey
+      , _serviceKey  :: !ServiceKey
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
