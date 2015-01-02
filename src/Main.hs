@@ -59,7 +59,7 @@ main =
 
     let switch ["-s"] = do
             putStrLn "database contents:"
-            putStrLn " Users:"
+            putStrLn "Users:"
             query st AllUsers >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
             putStrLn "Services:"
             query st AllServices >>= mapM_ (putStrLn . cs . Aeson.encodePretty)

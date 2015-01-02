@@ -20,8 +20,8 @@ module DB
   , UpdateUser(..)
   , DeleteUser(..)
 
-  , AllServices(..)
   , AllServiceIDs(..)
+  , AllServices(..)
   , LookupService(..)
   , AddService(..)
   , UpdateService(..)

@@ -44,7 +44,9 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
 
 app :: AcidState DB -> Server App
-app st = thentosUser st :<|> thentosService st
+app st =
+       thentosUser st
+  :<|> thentosService st
 
 
 -- * user
@@ -87,8 +89,8 @@ type ThentosService =
   :<|> Capture "name" ST :> ReqBody Service :> Post ()
   :<|> ReqBody Service :> Post ServiceID
 
-thentosService st = 
-         getServiceIds st 
+thentosService st =
+         getServiceIds st
     :<|> getService st
     :<|> updateService st
     :<|> postNewService st
