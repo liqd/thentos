@@ -11,7 +11,7 @@ module DB
 where
 
 import Control.Applicative hiding ((<$>))
-import Control.Concurrent
+import Control.Concurrent  -- FIXME: no unqualified imports.  ever.
 import Control.Exception (assert)
 import Control.Lens
 import Control.Monad.Reader
@@ -73,6 +73,11 @@ lookupUser uid = Map.lookup uid . (^. dbUsers) <$> ask
 -- | write user to DB.  if user id is already taken, overwrite
 -- existing user.  if user id is Nothing, create a fresh one.
 -- return the final user id.
+--
+-- FIXME: drop insert.  replace with add, update.
+--
+-- add :: User -> Update DB UserID
+-- update :: UID -> User -> Update DB ()
 insertUser :: User -> Update DB UserID
 insertUser user = do
     let establishUserID :: Update DB UserID
@@ -91,6 +96,9 @@ deleteUser uid = modify $ dbUsers %~ Map.delete uid
 
 
 -- ** services
+
+allServiceIDs :: Query DB [ServiceID]
+allServiceIDs = Map.keys . (^. dbServices) <$> ask
 
 allServices :: Query DB [Service]
 allServices = Map.elems . (^. dbServices) <$> ask

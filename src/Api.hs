@@ -39,9 +39,9 @@ import Data.String.Conversions
 import GHC.Generics
 import Prelude
 import Safe
-import System.Environment
 import Servant.API
 import Servant.Server
+import System.Environment
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
