@@ -16,7 +16,6 @@
 module TestMain
 where
 
-import Control.Lens
 import Control.Monad
 import Data.Acid
 import Data.Maybe
@@ -33,7 +32,7 @@ import Types
 main :: IO ()
 main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
-    describe "InsertUser, LookupUser, DeleteUser" $ do
+    describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" . withDB $ \ st -> do
         uid <- update st $ AddUser user1
         Just user1' <- query st $ LookupUser uid
@@ -42,17 +41,17 @@ main = hspec $ do
         u <- query st $ LookupUser 1
         u `shouldBe` Nothing
 
-{-
+      it "hspec meta: `setupDB, teardownDB` arecalled once for every `it` here." . withDB $ \ st -> do
+        uids <- query st AllUserIDs
+        uids `shouldBe` [0, 1]
+
     describe "StartSession" $ do
       it "works" . withDB $ \ st -> do
-        update st $ DeleteUser 1  -- FIXME: why does user1 exist here?
         from <- getCurrentTime
         to <- getCurrentTime
-        update st (StartSession 1 "1" from to) `shouldThrow` anyException
-        update st $ AddUser user1
-        void $ update st (StartSession 1 "1" from to)
--}
-
+        update st (StartSession 0 "nosuchservice" from to) `shouldThrow` anyException
+        sid :: ServiceId <- update st $ AddService
+        void $ update st (StartSession 0 sid from to)
 
 dbPath :: FilePath
 dbPath = ".test-db/"
