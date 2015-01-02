@@ -3,20 +3,19 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 
-{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns #-}
+{-# OPTIONS  #-}
 
 module Types
 where
 
-import Control.Lens
-import Data.Data
-import Data.JSON.Schema.Types ()
+import Control.Lens (makeLenses)
+import Data.Data (Typeable)
 import Data.Map (Map)
-import Data.SafeCopy
-import Data.String.Conversions
-import Data.Thyme
-import Data.Thyme.Internal.Micro
-import GHC.Generics
+import Data.SafeCopy (deriveSafeCopy, base)
+import Data.String.Conversions (SBS, ST)
+import Data.Thyme (UTCTime, NominalDiffTime)
+import Data.Thyme.Internal.Micro (Micro)
+import GHC.Generics (Generic)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.JSON.Schema as JSON

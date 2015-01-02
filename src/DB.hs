@@ -10,17 +10,17 @@
 module DB
 where
 
-import Control.Concurrent  -- FIXME: no unqualified imports.  ever.
+import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Exception (assert)
-import Control.Lens
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Acid
-import Data.Functor.Infix
-import Data.Maybe
-import Data.Monoid
-import Data.String.Conversions
-import Data.Thyme
+import Control.Lens ((^.), (.~), (%~))
+import Control.Monad.Reader (ask)
+import Control.Monad.State (modify, state)
+import Control.Monad (when, void)
+import Data.Acid (AcidState, createCheckpoint, EventState, liftQuery, makeAcidic, Query, update, Update, UpdateEvent)
+import Data.Functor.Infix ((<$>))
+import Data.Maybe (isJust)
+import Data.String.Conversions (cs, ST, (<>))
+import Data.Thyme (UTCTime)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash

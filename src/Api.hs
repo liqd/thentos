@@ -6,7 +6,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE NoImplicitPrelude                        #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -16,32 +15,19 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
+{-# OPTIONS  #-}
 
 module Api
 where
 
-import Control.Applicative
-import Control.Lens
-import Control.Monad
-import Control.Monad.Error
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Trans.Either
+import Control.Monad.State (liftIO)
+import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
-import Data.Data
-import Data.Function
 import Data.Map (Map)
-import Data.Maybe
-import Data.SafeCopy
-import Data.String.Conversions
-import GHC.Generics
-import Prelude
-import Safe
-import Servant.API
-import Servant.Server
-import System.Environment
+import Data.String.Conversions (ST)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Capture, ReqBody)
+import Servant.Server (Server)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
