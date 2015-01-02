@@ -29,6 +29,19 @@ import DB
 import Types
 
 
+data Config =
+    Config
+      { dbPath :: FilePath
+      }
+  deriving (Eq, Show)
+
+config :: Config
+config =
+    Config
+      { dbPath = ".test-db/"
+      }
+
+
 main :: IO ()
 main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
@@ -53,8 +66,6 @@ main = hspec $ do
         sid :: ServiceId <- update st $ AddService
         void $ update st (StartSession 0 sid from to)
 
-dbPath :: FilePath
-dbPath = ".test-db/"
 
 user1, user2, user3 :: User
 user1 = User "name1" "passwd" "em@il" [] Nothing
@@ -63,7 +74,7 @@ user3 = User "name3" "3" "3" ["23"] Nothing
 
 withDB :: (AcidState DB -> IO ()) -> IO ()
 withDB prog = do
-  st <- openLocalStateFrom dbPath emptyDB
+  st <- openLocalStateFrom (dbPath config) emptyDB
   prog st
   closeAcidState st
 
@@ -73,4 +84,4 @@ setupDB = withDB $ \ st -> do
     update_ st $ AddUser user2
 
 teardownDB :: () -> IO ()
-teardownDB _ = removeTree $ fromString dbPath
+teardownDB _ = removeTree $ fromString (dbPath config)
