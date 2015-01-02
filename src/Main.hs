@@ -63,10 +63,10 @@ main =
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            update_ st $ InsertUser user
+            update_ st $ AddUser user
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            update_ st . InsertUser $ User Nothing "dummy" "dummy" "dummy" [] Nothing
+            update_ st . AddUser $ User "dummy" "dummy" "dummy" [] Nothing
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."

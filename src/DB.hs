@@ -10,7 +10,6 @@
 module DB
 where
 
-import Control.Applicative hiding ((<$>))
 import Control.Concurrent  -- FIXME: no unqualified imports.  ever.
 import Control.Exception (assert)
 import Control.Lens
@@ -18,6 +17,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Acid
 import Data.Functor.Infix
+import Data.Maybe
 import Data.Monoid
 import Data.String.Conversions
 import Data.Thyme
@@ -70,27 +70,20 @@ allUsers = Map.elems . (^. dbUsers) <$> ask
 lookupUser :: UserID -> Query DB (Maybe User)
 lookupUser uid = Map.lookup uid . (^. dbUsers) <$> ask
 
--- | write user to DB.  if user id is already taken, overwrite
--- existing user.  if user id is Nothing, create a fresh one.
--- return the final user id.
---
--- FIXME: drop insert.  replace with add, update.
---
--- add :: User -> Update DB UserID
--- update :: UID -> User -> Update DB ()
-insertUser :: User -> Update DB UserID
-insertUser user = do
-    let establishUserID :: Update DB UserID
-        establishUserID = maybe freshUserID pure $ user ^. userID
+-- | Write new user to DB.  Return the fresh user id.
+addUser :: User -> Update DB UserID
+addUser user = do
+  uid <- freshUserID
+  modify $ dbUsers %~ Map.insert uid user
+  return uid
 
-        giveUserID :: UserID -> User -> User
-        giveUserID uid = userID %~ const (Just uid)
+-- | Update existing user in DB.  Throw an error if user id does not
+-- exist.
+updateUser :: UserID -> User -> Update DB ()
+updateUser uid user = do
+  modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
 
-    uid <- establishUserID
-    modify $ dbUsers %~ Map.insert uid (giveUserID uid user)
-    return uid
-
--- | delete user with given user id.  if user does not exist, do nothing.
+-- | Delete user with given user id.  If user does not exist, do nothing.
 deleteUser :: UserID -> Update DB ()
 deleteUser uid = modify $ dbUsers %~ Map.delete uid
 
@@ -106,20 +99,17 @@ allServices = Map.elems . (^. dbServices) <$> ask
 lookupService :: ServiceID -> Query DB (Maybe Service)
 lookupService sid = Map.lookup sid . (^. dbServices) <$> ask
 
--- | write service to DB.  if service id is already taken, overwrite
--- existing service.  if service id is Nothing, create a fresh one.
--- return the final service id.
-insertService :: Service -> Update DB ServiceID
-insertService service = do
-    let establishServiceID :: Update DB ServiceID
-        establishServiceID = maybe freshServiceID pure $ service ^. serviceID
+-- | Write new service to DB.  Return fresh service id.
+addService :: Service -> Update DB ServiceID
+addService service = do
+  sid <- freshServiceID
+  modify $ dbServices %~ Map.insert sid service
+  return sid
 
-        giveServiceID :: ServiceID -> Service -> Service
-        giveServiceID sid = serviceID %~ const (Just sid)
-
-    sid <- establishServiceID
-    modify $ dbServices %~ Map.insert sid (giveServiceID sid service)
-    return sid
+-- | Update existing service in DB.  Throw an error if service does
+-- not exist.
+updateService :: ServiceID -> Service -> Update DB ()
+updateService sid service = modify $ dbServices %~ Map.alter (\ (Just _) -> Just service) sid  -- FIXME: error handling.
 
 deleteService :: ServiceID -> Update DB ()
 deleteService sid = modify $ dbServices %~ Map.delete sid
@@ -127,23 +117,28 @@ deleteService sid = modify $ dbServices %~ Map.delete sid
 
 -- ** sessions
 
--- | Start a new session for user with 'UserID'.  Session token, start
--- and end time have to be passed explicitly.  Throw exception if user
--- id is not allocated.  If user is already logged in, overwrite old
--- session.
+-- | Start a new session for user with 'UserID' on service with
+-- 'ServiceID'.  Start and end time have to be passed explicitly.
+-- Throw exception if user or service do not exist.  Return session
+-- token.  If user is already logged in, throw an error.
 --
--- FIXME: this is a bug: overwrite session1 in user1 with session2,
--- then end session1, then session2 in user1 will be dropped (even
--- though it is still valid).
+-- FIXME: shouldn't users be able to log in on several services?
 --
--- FIXME: what about exceptions in acid state?
-startSession :: UserID -> UTCTime -> UTCTime -> Update DB SessionToken
-startSession uid start end = do
-  session <- (\ tok -> Session tok uid start end) <$> freshSessionToken
-  Just user <- liftQuery $ lookupUser uid
-  modify $ dbSessions %~ Map.insert (session ^. sessionToken) session
+-- FIXME: how do you do errors / exceptions in acid-state?  at least
+-- we should throw typed exceptions, not just strings, right?
+startSession :: UserID -> ServiceID -> UTCTime -> UTCTime -> Update DB SessionToken
+startSession uid sid start end = do
+  tok <- freshSessionToken
+  Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling
+  Just _ <- liftQuery $ lookupService sid  -- FIXME: error handling
+  let session = Session uid sid start end
+
+  when (isJust $ user ^. userSession) $
+    error "startSession: user already logged in."  -- FIXME: error handling
+
+  modify $ dbSessions %~ Map.insert tok session
   modify $ dbUsers %~ Map.insert uid (userSession .~ Just session $ user)
-  return $ session ^. sessionToken
+  return tok
 
 
 lookupSession :: SessionToken -> Query DB (Maybe Session)
@@ -152,18 +147,18 @@ lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
 
 -- | End session.  Call can be caused by logout request from user
 -- (before end of session life time), by session timeouts, or after
--- its natural life time by garbage collection.  If lookup of session
--- owning user fails, throw an exception.
+-- its natural life time (by application's own garbage collection).
+-- If lookup of session owning user fails, throw an error.
 --
--- FIXME: what if user has session set to @Nothing@, or to the wrong
+-- FIXME: check if user has session set to @Nothing@, or to the wrong
 -- session?
 --
 -- FIXME: what about exceptions in acid state?
 endSession :: SessionToken -> Update DB ()
 endSession tok = do
-  Just (session@(Session tok uid start end)) <- liftQuery $ lookupSession tok
-  Just user <- liftQuery $ lookupUser uid
-  modify $ dbSessions %~ Map.delete (session ^. sessionToken)
+  Just (session@(Session uid _ start end)) <- liftQuery $ lookupSession tok
+  Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling.
+  modify $ dbSessions %~ Map.delete tok
   modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
 
 

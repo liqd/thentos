@@ -77,7 +77,7 @@ getUser st pname = liftIO (query' st (LookupUser pname)) >>= maybe noSuchUser ri
 
 postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO User
 postNewUser st proposal = liftIO $ do
-  pname <- update' st (InsertUser proposal)
+  pname <- update' st (AddUser proposal)
   Just proposal' <- query' st (LookupUser pname)
   return proposal'
 
