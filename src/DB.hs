@@ -61,6 +61,9 @@ freshNonce = state $ \ db ->
 
 -- ** users
 
+allUserIDs :: Query DB [UserID]
+allUserIDs = Map.keys . (^. dbUsers) <$> ask
+
 allUsers :: Query DB [User]
 allUsers = Map.elems . (^. dbUsers) <$> ask
 
@@ -169,6 +172,7 @@ $(makeAcidic ''DB
     , 'freshSessionToken
     , 'freshNonce
 
+    , 'allUserIDs
     , 'allUsers
     , 'lookupUser
     , 'insertUser
