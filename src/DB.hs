@@ -21,6 +21,7 @@ module DB
   , DeleteUser(..)
 
   , AllServices(..)
+  , AllServiceIDs(..)
   , LookupService(..)
   , AddService(..)
   , UpdateService(..)
