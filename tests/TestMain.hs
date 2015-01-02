@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
 
@@ -17,14 +18,21 @@ where
 
 import Control.Concurrent.Async (Async, async, cancel)
 import Control.Monad (void)
-import Data.Data (Proxy(Proxy))
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState, query, update)
+import Data.Data (Proxy(Proxy))
+import Data.String.Conversions (SBS, LBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
 import GHC.Exts (fromString)
 import Network.Wai.Handler.Warp (run)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow, anyException)
+
+import qualified Network.HTTP.Client as C
+import qualified Network.HTTP.Types.Status as C
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.ByteString.Lazy as LBS
 
 import Api
 import DB
@@ -73,7 +81,10 @@ main = hspec $ do
   describe "Api" . before setupApi . after teardownApi $ do
     describe "/user/" $ do
       it "works" $ \ _ -> do
-        True `shouldBe` True
+        C.withManager C.defaultManagerSettings $ \ manager -> do
+          req :: C.Request <- mkreq "POST" "/user" Nothing (Right $ User "1" "2" "3" [] Nothing)
+          res :: C.Response LBS <- C.httpLbs req manager
+          C.statusCode (C.responseStatus res) `shouldBe` 201
 
 
 user1, user2, user3 :: User
@@ -101,3 +112,19 @@ setupApi = async . withDB $ \ st -> do
 
 teardownApi :: (Async ()) -> IO ()
 teardownApi = cancel
+
+mkreq :: Aeson.ToJSON a => SBS -> String -> Maybe SBS -> Either LBS a -> IO C.Request
+mkreq method path query (either id Aeson.encodePretty -> body) = do
+    req <- C.parseUrl $ "http://localhost:" ++ show (restPort config) ++ path  -- FIXME: is there a `parseUrl` that eliminates double "/"?
+
+    let defaultHeaders =
+          ("Content-Type", "application/json") :
+          ("Content-length", cs . show . LBS.length $ body) :
+          []
+
+    return $ req { C.method         = method
+                 , C.checkStatus    = \ _ _ _ -> Nothing
+                 , C.requestBody    = C.RequestBodyLBS body
+                 , C.queryString    = maybe "" id $ query
+                 , C.requestHeaders = defaultHeaders
+                 }

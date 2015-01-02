@@ -44,12 +44,15 @@ executable thentos
     , servant-jquery >= 0.2.1
     , wai
     , either
-    , async
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
     , hspec
     , system-fileio
+    , async
+    , http-client
+    , http-types
+    , bytestring
 
 test-suite tests
   default-language:
@@ -83,7 +86,17 @@ test-suite tests
     , thyme >=0.3 && <0.4
     , warp >=3.0 && <3.1
 
+    , servant >= 0.2.1
+    , servant-client >= 0.2.1
+    , servant-server >= 0.2.1
+    , servant-docs >= 0.2.1
+    , servant-jquery >= 0.2.1
+    , wai
+    , either
     , async
+    , http-client
+    , http-types
+    , bytestring
 
     -- [packages only needed for testing]
     , hspec
