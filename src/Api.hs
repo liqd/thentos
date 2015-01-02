@@ -38,8 +38,6 @@ import Data.SafeCopy
 import Data.String.Conversions
 import GHC.Generics
 import Prelude
-import Rest
-import Rest.Api
 import Safe
 import System.Environment
 import Servant.API
@@ -48,7 +46,6 @@ import Servant.Server
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
-import qualified Rest.Resource as Rest
 
 import DB
 import Types

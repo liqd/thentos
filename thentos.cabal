@@ -30,8 +30,6 @@ executable thentos
     , json-schema >=0.7 && <0.8
     , lens >=4.4 && <4.5
     , mtl >=2.1 && <2.2
-    , rest-core >=0.33 && <0.34
-    , rest-wai >=0.1 && <0.2
     , safe >=0.3 && <0.4
     , safecopy >=0.8 && <0.9
     , sandi >=0.3.1 && <0.4
@@ -77,8 +75,6 @@ test-suite tests
     , json-schema >=0.7 && <0.8
     , lens >=4.4 && <4.5
     , mtl >=2.1 && <2.2
-    , rest-core >=0.33 && <0.34
-    , rest-wai >=0.1 && <0.2
     , safe >=0.3 && <0.4
     , safecopy >=0.8 && <0.9
     , sandi >=0.3.1 && <0.4

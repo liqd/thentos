@@ -34,8 +34,6 @@ import Data.String.Conversions
 import GHC.Generics
 import Network.Wai.Handler.Warp
 import Prelude
-import Rest
-import Rest.Driver.Wai (apiToApplication)
 import Safe
 import System.Environment
 import Servant.Server
@@ -43,7 +41,6 @@ import Servant.Server
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
-import qualified Rest.Resource as Rest
 
 import Types
 import DB
