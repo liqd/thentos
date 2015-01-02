@@ -24,7 +24,7 @@ executable thentos
     , aeson >=0.7 && <0.8
     , aeson-pretty >=0.7 && <0.8
     , containers >=0.5 && <0.6
-    , cryptohash >=0.7.10 && <0.8
+    , cryptohash >=0.11.6 && <0.12
     , functor-infix >=0.0.1 && <0.2
     , generic-aeson >=0.2 && <0.3
     , json-schema >=0.7 && <0.8
@@ -63,7 +63,7 @@ test-suite tests
     , aeson >=0.7 && <0.8
     , aeson-pretty >=0.7 && <0.8
     , containers >=0.5 && <0.6
-    , cryptohash >=0.7.10 && <0.8
+    , cryptohash >=0.11.6 && <0.12
     , functor-infix >=0.0.1 && <0.2
     , generic-aeson >=0.2 && <0.3
     , json-schema >=0.7 && <0.8
