@@ -38,6 +38,7 @@ import Rest
 import Rest.Driver.Wai (apiToApplication)
 import Safe
 import System.Environment
+import Servant.Server
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -73,7 +74,7 @@ main =
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
             createCheckpointLoop st 16000 Nothing
-            run port $ apiToApplication (Api.runApi st) Api.api
+            run port $ serve (Proxy :: Proxy App) (app st)
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do

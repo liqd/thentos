@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
@@ -11,7 +12,9 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeFamilies                             #-}
+{-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
 
@@ -24,6 +27,7 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
+import Control.Monad.Trans.Either
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Data
@@ -38,6 +42,8 @@ import Rest
 import Rest.Api
 import Safe
 import System.Environment
+import Servant.API
+import Servant.Server
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -48,66 +54,51 @@ import DB
 import Types
 
 
-newtype App a = App { unApp :: ReaderT (AcidState DB) IO a }
-  deriving (Applicative, Functor, Monad, MonadIO, MonadReader (AcidState DB))
+type App = ThentosBasic
+
+type ThentosBasic =
+       "user" :> ThentosUser
+--  :<|> "service" :> ThentosService
+
+app :: AcidState DB -> Server App
+app st = getUserIds st :<|> getUser st :<|> postNewUser st -- :<|> postNamedUser
 
 
-runApi :: AcidState DB -> App a -> IO a
-runApi s (App a) = a `runReaderT` s
+-- * user
 
-api :: Api App
-api = [(mkVersion 0 0 1, Some1 router)]
+type ThentosUser =
+       Get [UserID]
+  :<|> Capture "userid" Int :> Get User
+  :<|> ReqBody User :> Post User
+--  :<|> Capture "name" ST :> ReqBody User :> Post User
 
-router :: Router App App
-router = root -/ route user
+getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserID]
+getUserIds st = liftIO $ query' st AllUserIDs
 
+getUser :: AcidState DB -> Int -> EitherT (Int, String) IO User
+getUser st pname = liftIO (query' st (LookupUser pname)) >>= maybe noSuchUser right
 
-user :: Resource App (ReaderT String App) String () Void
-user = mkResourceReader
-  { Rest.name = "user"
-  , Rest.schema = withListing () $ named [("id", singleBy id)]
-  , Rest.list = const listUser
-  , Rest.get = Just getUser
-  , Rest.create = Just createUser
-  , Rest.update = Just updateUser
-  }
+postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO User
+postNewUser st proposal = liftIO $ do
+  pname <- update' st (InsertUser proposal)
+  Just proposal' <- query' st (LookupUser pname)
+  return proposal'
 
-listUser :: ListHandler App
-listUser = mkListing (jsonO . someO) $ \ _ -> ask >>= \ st -> query' st AllUsers
-
-getUser :: Handler (ReaderT String App)
-getUser = mkIdHandler (jsonO . someO) $ \ _ idString -> _parseUserID idString >>= \ idInt -> _getUser idInt
-
-_parseUserID :: String -> ErrorT (Reason ()) (ReaderT String App) UserID
-_parseUserID userIdString = maybe e return $ readMay userIdString
-  where e = throwError . IdentError . ParseError $ "could not parse user id: " <> show userIdString
-
-_getUser :: UserID -> ErrorT (Reason ()) (ReaderT String App) User
-_getUser userId = do
-    result :: Maybe User <- lift . lift $ ask >>= \ st -> query' st $ LookupUser userId
-    maybe e return result
-  where e = throwError NotFound
+--    postNamedUser :: ST -> User -> EitherT (Int, String) IO User
+--    postNamedUser pname proposal = _
 
 
--- | Accept a 'User' without user id and store it under a fresh user
--- id in the database.  Respond with fresh user id on success.  If
--- user id is non-empty in request, respond with an error.
-createUser :: Handler App
-createUser = mkHandler (jsonI . someI . jsonO . someO) $ _upd . input
-  where
-    _upd :: User -> ErrorT (Reason ()) App UserID
-    _upd user = if isNothing $ user ^. userID
-      then lift $ ask >>= \ st -> update' st $ InsertUser user
-      else throwError . InputError . UnsupportedFormat $ "user id field not allowed in POST requests."
+-- * service
+
+type ThentosService =
+       "service" :> Get [ServiceID]
+  :<|> "service" :> Capture "name" ST :> Get Service
+  :<|> "service" :> ReqBody Service :> Post Service
+  :<|> "service" :> Capture "name" ST :> ReqBody Service :> Post Service
 
 
--- | Accept a 'User' under a user id path and update it in the
--- database.  If user id differ in body and request path, throw an
--- error.
-updateUser :: Handler (ReaderT String App)
-updateUser = mkIdHandler (jsonI . someI . jsonO . someO) $ \ user idString -> _parseUserID idString >>= _upd user
-  where
-    _upd :: User -> UserID -> ErrorT (Reason ()) (ReaderT String App) UserID
-    _upd user uid = if user ^. userID `elem` [Nothing, Just uid]
-      then lift . lift $ ask >>= \ st -> update' st $ InsertUser user
-      else throwError . InputError . UnsupportedFormat $ "user id differ in body and request path."
+
+-- * helpers
+
+noSuchUser :: EitherT (Int, String) IO a
+noSuchUser = left (404, "no such user")  -- FIXME: correct status code?
