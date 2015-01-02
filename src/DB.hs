@@ -8,19 +8,46 @@
 {-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fwarn-typed-holes -fdefer-type-errors #-}
 
 module DB
+  ( FreshUserID(..)
+  , FreshServiceID(..)
+  , FreshSessionToken(..)
+  , FreshNonce(..)
+
+  , AllUserIDs(..)
+  , AllUsers(..)
+  , LookupUser(..)
+  , AddUser(..)
+  , UpdateUser(..)
+  , DeleteUser(..)
+
+  , AllServices(..)
+  , LookupService(..)
+  , AddService(..)
+  , UpdateService(..)
+  , DeleteService(..)
+
+  , StartSession(..)
+  , LookupSession(..)
+  , EndSession(..)
+  , IsActiveSession(..)
+
+  , emptyDB
+  , update_
+  , createCheckpointLoop
+  )
 where
 
-import Control.Concurrent  -- FIXME: no unqualified imports.  ever.
+import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Exception (assert)
-import Control.Lens
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Acid
-import Data.Functor.Infix
-import Data.Maybe
-import Data.Monoid
-import Data.String.Conversions
-import Data.Thyme
+import Control.Lens ((^.), (.~), (%~))
+import Control.Monad.Reader (ask)
+import Control.Monad.State (modify, state)
+import Control.Monad (when, void)
+import Data.Acid (AcidState, createCheckpoint, EventState, liftQuery, makeAcidic, Query, update, Update, UpdateEvent)
+import Data.Functor.Infix ((<$>))
+import Data.Maybe (isJust)
+import Data.String.Conversions (cs, ST, (<>))
+import Data.Thyme (UTCTime)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -38,7 +65,7 @@ freshUserID :: Update DB UserID
 freshUserID = state $ \ db -> f db (db ^. dbFreshUserID)
   where
     f db uid = if uid < maxBound
-                 then (uid, dbFreshUserID %~ const (uid + 1) $ db)
+                 then (uid, dbFreshUserID .~ (uid + 1) $ db)
                  else error "freshUserID: internal error: integer overflow!"
 
 freshServiceID :: Update DB ServiceID
@@ -54,7 +81,7 @@ freshNonce :: Update DB ST
 freshNonce = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
-      db' = dbRandomness %~ const r' $ db
+      db' = dbRandomness .~ r' $ db
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
   in (sid, db')
 
