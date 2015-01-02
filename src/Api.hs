@@ -16,7 +16,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
+{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns #-}
 
 module Api
 where
@@ -55,10 +55,13 @@ type App = ThentosBasic
 
 type ThentosBasic =
        "user" :> ThentosUser
---  :<|> "service" :> ThentosService
+  :<|> "service" :> ThentosService
 
 app :: AcidState DB -> Server App
-app st = getUserIds st :<|> getUser st :<|> postNewUser st -- :<|> postNamedUser
+app st = 
+    (getUserIds st :<|> getUser st :<|> postNewUser st) -- :<|> postNamedUser
+  :<|>
+    (getServiceIds st :<|> getService st :<|> postNewService st)
 
 
 -- * user
@@ -91,11 +94,25 @@ type ThentosService =
        "service" :> Get [ServiceID]
   :<|> "service" :> Capture "name" ST :> Get Service
   :<|> "service" :> ReqBody Service :> Post Service
-  :<|> "service" :> Capture "name" ST :> ReqBody Service :> Post Service
+  -- :<|> "service" :> Capture "name" ST :> ReqBody Service :> Post Service
 
+getServiceIds :: AcidState DB -> EitherT (Int, String) IO [ServiceID]
+getServiceIds st = liftIO $ query' st AllServiceIDs
 
+getService :: AcidState DB -> ST -> EitherT (Int, String) IO Service
+getService st id =
+    liftIO (query' st (LookupService id)) >>= maybe noSuchService right
+
+postNewService :: AcidState DB -> Service -> EitherT (Int, String) IO Service
+postNewService st service = liftIO $ do
+    id <- update' st (InsertService service)
+    Just service' <- query' st (LookupService id)
+    return service'
 
 -- * helpers
 
 noSuchUser :: EitherT (Int, String) IO a
 noSuchUser = left (404, "no such user")  -- FIXME: correct status code?
+
+noSuchService :: EitherT (Int, String) IO a
+noSuchService = left (404, "no such service")

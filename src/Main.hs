@@ -59,14 +59,22 @@ main =
 
     let switch ["-s"] = do
             putStrLn "database contents:"
+            putStrLn " Users:"
             query st AllUsers >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            putStrLn "Services:"
+            query st AllServices >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
             update_ st $ InsertUser user
+        switch ["-as"] = do
+            putStrLn "adding service from stdin to database:"
+            Just (service :: Service) <- Aeson.decode . cs <$> getContents
+            update_ st $ InsertService service
         switch ["-a2"] = do
-            putStrLn "adding dummy user to database:"
+            putStrLn "adding dummy user and service to database:"
             update_ st . InsertUser $ User Nothing "dummy" "dummy" "dummy" [] Nothing
+            update_ st . InsertService $ Service Nothing "abcdefg"
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
@@ -75,7 +83,7 @@ main =
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do
-          putStr "creating checkoint and shutting down acid-state..."
+          putStr "creating checkpoint and shutting down acid-state..."
           createCheckpoint st
           closeAcidState st
           putStrLn " [ok]"

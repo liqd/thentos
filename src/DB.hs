@@ -186,6 +186,7 @@ $(makeAcidic ''DB
     , 'insertUser
     , 'deleteUser
 
+    , 'allServiceIDs
     , 'allServices
     , 'lookupService
     , 'insertService
