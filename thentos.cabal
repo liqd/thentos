@@ -44,6 +44,7 @@ executable thentos
     , servant-jquery >= 0.2.1
     , wai
     , either
+    , async
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
@@ -81,6 +82,8 @@ test-suite tests
     , string-conversions >=0.3 && <0.4
     , thyme >=0.3 && <0.4
     , warp >=3.0 && <3.1
+
+    , async
 
     -- [packages only needed for testing]
     , hspec

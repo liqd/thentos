@@ -26,6 +26,7 @@ import Network.Wai.Handler.Warp (run)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow, anyException)
 
+import Api
 import DB
 import Types
 
@@ -33,6 +34,7 @@ import Types
 data Config =
     Config
       { dbPath :: FilePath
+      , restPort :: Int
       }
   deriving (Eq, Show)
 
@@ -40,6 +42,7 @@ config :: Config
 config =
     Config
       { dbPath = ".test-db/"
+      , restPort = 8002
       }
 
 
@@ -67,6 +70,11 @@ main = hspec $ do
         sid :: ServiceId <- update st $ AddService
         void $ update st (StartSession 0 sid from to)
 
+  describe "Api" . before setupApi . after teardownApi $ do
+    describe "/user/" $ do
+      it "works" $ \ _ -> do
+        True `shouldBe` True
+
 
 user1, user2, user3 :: User
 user1 = User "name1" "passwd" "em@il" [] Nothing
@@ -86,3 +94,10 @@ setupDB = withDB $ \ st -> do
 
 teardownDB :: () -> IO ()
 teardownDB _ = removeTree $ fromString (dbPath config)
+
+setupApi :: IO (Async ())
+setupApi = async . withDB $ \ st -> do
+    run (restPort config) $ serve (Proxy :: Proxy App) (app st)
+
+teardownApi :: (Async ()) -> IO ()
+teardownApi = cancel
