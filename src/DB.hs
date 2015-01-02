@@ -24,7 +24,6 @@ module DB
   , AllServices(..)
   , LookupService(..)
   , AddService(..)
-  , UpdateService(..)
   , DeleteService(..)
 
   , StartSession(..)
@@ -71,6 +70,9 @@ freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)
 
 freshServiceID :: Update DB ServiceId
 freshServiceID = freshNonce
+
+freshServiceKey :: Update DB ServiceKey
+freshServiceKey = freshNonce
 
 freshSessionToken :: Update DB SessionToken
 freshSessionToken = freshNonce
@@ -127,17 +129,14 @@ allServices = Map.elems . (^. dbServices) <$> ask
 lookupService :: ServiceId -> Query DB (Maybe Service)
 lookupService sid = Map.lookup sid . (^. dbServices) <$> ask
 
--- | Write new service to DB.  Return fresh service id.
-addService :: Service -> Update DB ServiceId
-addService service = do
+-- | Write new service to DB.  Service key is generated automatically.
+-- Return fresh service id.
+addService :: Update DB ServiceId
+addService = do
   sid <- freshServiceID
+  service <- Service <$> freshServiceKey
   modify $ dbServices %~ Map.insert sid service
   return sid
-
--- | Update existing service in DB.  Throw an error if service does
--- not exist.
-updateService :: ServiceId -> Service -> Update DB ()
-updateService sid service = modify $ dbServices %~ Map.alter (\ (Just _) -> Just service) sid  -- FIXME: error handling.
 
 deleteService :: ServiceId -> Update DB ()
 deleteService sid = modify $ dbServices %~ Map.delete sid
@@ -214,7 +213,6 @@ $(makeAcidic ''DB
     , 'allServices
     , 'lookupService
     , 'addService
-    , 'updateService
     , 'deleteService
 
     , 'startSession

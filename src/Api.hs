@@ -86,13 +86,11 @@ deleteUser st = liftIO . update' st . DeleteUser
 type ThentosService =
        Get [ServiceId]
   :<|> Capture "name" ST :> Get Service
-  :<|> Capture "name" ST :> ReqBody Service :> Put ()
-  :<|> ReqBody Service :> Post ServiceId
+  :<|> Post ServiceId
 
 thentosService st =
          getServiceIds st
     :<|> getService st
-    :<|> updateService st
     :<|> postNewService st
 
 getServiceIds :: AcidState DB -> EitherT (Int, String) IO [ServiceId]
@@ -102,11 +100,8 @@ getService :: AcidState DB -> ST -> EitherT (Int, String) IO Service
 getService st id =
     liftIO (query' st (LookupService id)) >>= maybe noSuchService right
 
-postNewService :: AcidState DB -> Service -> EitherT (Int, String) IO ServiceId
-postNewService st service = liftIO $ update' st (AddService service)
-
-updateService :: AcidState DB -> ServiceId -> Service -> EitherT (Int, String) IO ()
-updateService st id service = update' st (UpdateService id service)
+postNewService :: AcidState DB -> EitherT (Int, String) IO ServiceId
+postNewService st = liftIO $ update' st AddService
 
 
 -- * helpers
