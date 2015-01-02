@@ -26,14 +26,14 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Map (Map)
 import Data.String.Conversions (ST)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Capture, ReqBody)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Server (Server)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
 
-import DB
+import DB (AllUserIDs(..), LookupUser(..), AddUser(..), UpdateUser(..), DeleteUser(..))
 import Types
 
 
@@ -44,31 +44,39 @@ type ThentosBasic =
 --  :<|> "service" :> ThentosService
 
 app :: AcidState DB -> Server App
-app st = getUserIds st :<|> getUser st :<|> postNewUser st -- :<|> postNamedUser
+app st = thentosUser st
 
 
 -- * user
 
 type ThentosUser =
        Get [UserID]
-  :<|> Capture "userid" Int :> Get User
-  :<|> ReqBody User :> Post User
---  :<|> Capture "name" ST :> ReqBody User :> Post User
+  :<|> Capture "userid" UserID :> Get User
+  :<|> ReqBody User :> Post UserID
+  :<|> Capture "userid" UserID :> ReqBody User :> Put ()
+  :<|> Capture "userid" UserID :> Delete
+
+thentosUser st =
+       getUserIds st
+  :<|> getUser st
+  :<|> postNewUser st
+  :<|> postNamedUser st
+  :<|> deleteUser st
 
 getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserID]
 getUserIds st = liftIO $ query' st AllUserIDs
 
-getUser :: AcidState DB -> Int -> EitherT (Int, String) IO User
-getUser st pname = liftIO (query' st (LookupUser pname)) >>= maybe noSuchUser right
+getUser :: AcidState DB -> UserID -> EitherT (Int, String) IO User
+getUser st uid = liftIO (query' st (LookupUser uid)) >>= maybe noSuchUser right
 
-postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO User
-postNewUser st proposal = liftIO $ do
-  pname <- update' st (AddUser proposal)
-  Just proposal' <- query' st (LookupUser pname)
-  return proposal'
+postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO UserID
+postNewUser st user = liftIO $ update' st (AddUser user)
 
---    postNamedUser :: ST -> User -> EitherT (Int, String) IO User
---    postNamedUser pname proposal = _
+postNamedUser :: AcidState DB -> UserID -> User -> EitherT (Int, String) IO ()
+postNamedUser st uid user = liftIO $ update' st (UpdateUser uid user)
+
+deleteUser :: AcidState DB -> UserID -> EitherT (Int, String) IO ()
+deleteUser st uid = liftIO $ update' st (DeleteUser uid)
 
 
 -- * service
