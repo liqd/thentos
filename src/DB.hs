@@ -38,7 +38,7 @@ freshUserID :: Update DB UserID
 freshUserID = state $ \ db -> f db (db ^. dbFreshUserID)
   where
     f db uid = if uid < maxBound
-                 then (uid, dbFreshUserID %~ const (uid + 1) $ db)
+                 then (uid, dbFreshUserID .~ (uid + 1) $ db)
                  else error "freshUserID: internal error: integer overflow!"
 
 freshServiceID :: Update DB ServiceID
@@ -54,7 +54,7 @@ freshNonce :: Update DB ST
 freshNonce = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
-      db' = dbRandomness %~ const r' $ db
+      db' = dbRandomness .~ r' $ db
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
   in (sid, db')
 
