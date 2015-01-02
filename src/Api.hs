@@ -52,15 +52,15 @@ app st = thentosUser st
 type ThentosUser =
        Get [UserID]
   :<|> Capture "userid" UserID :> Get User
-  :<|> ReqBody User :> Post UserID
   :<|> Capture "userid" UserID :> ReqBody User :> Put ()
+  :<|> ReqBody User :> Post UserID
   :<|> Capture "userid" UserID :> Delete
 
 thentosUser st =
        getUserIds st
   :<|> getUser st
-  :<|> postNewUser st
   :<|> postNamedUser st
+  :<|> postNewUser st
   :<|> deleteUser st
 
 getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserID]
