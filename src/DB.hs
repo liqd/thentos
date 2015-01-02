@@ -183,12 +183,14 @@ $(makeAcidic ''DB
     , 'allUserIDs
     , 'allUsers
     , 'lookupUser
-    , 'insertUser
+    , 'addUser
+    , 'updateUser
     , 'deleteUser
 
     , 'allServices
     , 'lookupService
-    , 'insertService
+    , 'addService
+    , 'updateService
     , 'deleteService
 
     , 'startSession
