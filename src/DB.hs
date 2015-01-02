@@ -67,17 +67,22 @@ allUsers = Map.elems . (^. dbUsers) <$> ask
 lookupUser :: UserID -> Query DB (Maybe User)
 lookupUser uid = Map.lookup uid . (^. dbUsers) <$> ask
 
--- | write user to DB.  if user id is already taken, overwrite existing user.
---
--- FIXME: there is some elegant way to say "return x, but first perform action y."
+-- | write user to DB.  if user id is already taken, overwrite
+-- existing user.  if user id is Nothing, create a fresh one.
+-- return the final user id.
 insertUser :: User -> Update DB UserID
 insertUser user = do
-    uid <- maybe freshUserID pure $ user ^. userID
-    let user' = userID %~ const (Just uid) $ user
-    modify $ dbUsers %~ Map.insert uid user'
+    let establishUserID :: Update DB UserID
+        establishUserID = maybe freshUserID pure $ user ^. userID
+
+        giveUserID :: UserID -> User -> User
+        giveUserID uid = userID %~ const (Just uid)
+
+    uid <- establishUserID
+    modify $ dbUsers %~ Map.insert uid (giveUserID uid user)
     return uid
 
--- | delete user with given user id.  if user does not exist, do nothign.
+-- | delete user with given user id.  if user does not exist, do nothing.
 deleteUser :: UserID -> Update DB ()
 deleteUser uid = modify $ dbUsers %~ Map.delete uid
 
@@ -90,14 +95,20 @@ allServices = Map.elems . (^. dbServices) <$> ask
 lookupService :: ServiceID -> Query DB (Maybe Service)
 lookupService sid = Map.lookup sid . (^. dbServices) <$> ask
 
--- | write service to DB.  if service id is already taken, overwrite existing service.
+-- | write service to DB.  if service id is already taken, overwrite
+-- existing service.  if service id is Nothing, create a fresh one.
+-- return the final service id.
 insertService :: Service -> Update DB ServiceID
-insertService service = case service ^. serviceID of
-    Just sid -> upd sid
-    Nothing  -> freshServiceID >>= upd
-  where
-    upd sid = state $ \ db -> (sid, upd_ sid db)
-    upd_ sid = dbServices %~ Map.insert sid (serviceID %~ const (Just sid) $ service)
+insertService service = do
+    let establishServiceID :: Update DB ServiceID
+        establishServiceID = maybe freshServiceID pure $ service ^. serviceID
+
+        giveServiceID :: ServiceID -> Service -> Service
+        giveServiceID sid = serviceID %~ const (Just sid)
+
+    sid <- establishServiceID
+    modify $ dbServices %~ Map.insert sid (giveServiceID sid service)
+    return sid
 
 deleteService :: ServiceID -> Update DB ()
 deleteService sid = modify $ dbServices %~ Map.delete sid
