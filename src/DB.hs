@@ -30,6 +30,10 @@ module DB
   , LookupSession(..)
   , EndSession(..)
   , IsActiveSession(..)
+
+  , emptyDB
+  , update_
+  , createCheckpointLoop
   )
 where
 
