@@ -35,8 +35,7 @@ data DB =
 
 data User =
     User
-      { _userID       :: Maybe UserID  -- FIXME: no keys in values!  (also for service etc.)
-      , _userName     :: !UserName
+      { _userName     :: !UserName
       , _userPassword :: !UserPass
       , _userEmail    :: !UserEmail
       , _userGroups   :: [Group]
@@ -52,9 +51,8 @@ type Group = ST
 
 data Session =
     Session
-      { _sessionToken   :: !SessionToken
-      , _sessionUser    :: !UserID
-      -- FIXME: , _sessionService :: !ServiceID
+      { _sessionUser    :: !UserID
+      , _sessionService :: !ServiceID
       , _sessionStart   :: !UTCTime
       , _sessionEnd     :: !UTCTime
       }
@@ -64,8 +62,7 @@ type SessionToken = ST
 
 data Service =
     Service
-      { _serviceID   :: Maybe ServiceID  -- FIXME: kommt weg.
-      , _serviceKey  :: !ServiceKey
+      { _serviceKey  :: !ServiceKey
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
