@@ -8,6 +8,29 @@
 {-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fwarn-typed-holes -fdefer-type-errors #-}
 
 module DB
+  ( FreshUserID(..)
+  , FreshServiceID(..)
+  , FreshSessionToken(..)
+  , FreshNonce(..)
+
+  , AllUserIDs(..)
+  , AllUsers(..)
+  , LookupUser(..)
+  , AddUser(..)
+  , UpdateUser(..)
+  , DeleteUser(..)
+
+  , AllServices(..)
+  , LookupService(..)
+  , AddService(..)
+  , UpdateService(..)
+  , DeleteService(..)
+
+  , StartSession(..)
+  , LookupSession(..)
+  , EndSession(..)
+  , IsActiveSession(..)
+  )
 where
 
 import Control.Concurrent (threadDelay, forkIO, ThreadId)

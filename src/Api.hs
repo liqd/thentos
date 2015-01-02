@@ -33,7 +33,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
 
-import DB (AllUserIDs(..), LookupUser(..), AddUser(..), UpdateUser(..), DeleteUser(..))
+import DB
 import Types
 
 
