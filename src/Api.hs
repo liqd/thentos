@@ -70,13 +70,13 @@ getUser :: AcidState DB -> UserID -> EitherT (Int, String) IO User
 getUser st uid = liftIO (query' st (LookupUser uid)) >>= maybe noSuchUser right
 
 postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO UserID
-postNewUser st user = liftIO $ update' st (AddUser user)
+postNewUser st = liftIO . update' st . AddUser
 
 postNamedUser :: AcidState DB -> UserID -> User -> EitherT (Int, String) IO ()
 postNamedUser st uid user = liftIO $ update' st (UpdateUser uid user)
 
 deleteUser :: AcidState DB -> UserID -> EitherT (Int, String) IO ()
-deleteUser st uid = liftIO $ update' st (DeleteUser uid)
+deleteUser st = liftIO . update' st . DeleteUser
 
 
 -- * service
