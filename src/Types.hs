@@ -23,11 +23,11 @@ import qualified Generics.Generic.Aeson as Aeson
 
 data DB =
     DB
-      { _dbUsers       :: Map UserID User
-      , _dbServices    :: Map ServiceID Service
+      { _dbUsers       :: Map UserId User
+      , _dbServices    :: Map ServiceId Service
       , _dbSessions    :: Map SessionToken Session
 
-      , _dbFreshUserID :: !UserID
+      , _dbFreshUserId :: !UserId
       , _dbRandomness  :: !SBS
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -42,7 +42,7 @@ data User =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-type UserID = Int
+type UserId = Int
 type UserName = ST
 type UserPass = ST
 type UserEmail = ST
@@ -50,8 +50,8 @@ type Group = ST
 
 data Session =
     Session
-      { _sessionUser    :: !UserID
-      , _sessionService :: !ServiceID
+      { _sessionUser    :: !UserId
+      , _sessionService :: !ServiceId
       , _sessionStart   :: !UTCTime
       , _sessionEnd     :: !UTCTime
       }
@@ -65,7 +65,7 @@ data Service =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-type ServiceID = ST
+type ServiceId = ST
 type ServiceKey = ST
 
 makeLenses ''DB

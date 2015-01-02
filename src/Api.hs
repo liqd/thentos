@@ -52,11 +52,11 @@ app st =
 -- * user
 
 type ThentosUser =
-       Get [UserID]
-  :<|> Capture "userid" UserID :> Get User
-  :<|> Capture "userid" UserID :> ReqBody User :> Put ()
-  :<|> ReqBody User :> Post UserID
-  :<|> Capture "userid" UserID :> Delete
+       Get [UserId]
+  :<|> Capture "userid" UserId :> Get User
+  :<|> Capture "userid" UserId :> ReqBody User :> Put ()
+  :<|> ReqBody User :> Post UserId
+  :<|> Capture "userid" UserId :> Delete
 
 thentosUser st =
        getUserIds st
@@ -65,29 +65,29 @@ thentosUser st =
   :<|> postNewUser st
   :<|> deleteUser st
 
-getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserID]
+getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserId]
 getUserIds st = liftIO $ query' st AllUserIDs
 
-getUser :: AcidState DB -> UserID -> EitherT (Int, String) IO User
+getUser :: AcidState DB -> UserId -> EitherT (Int, String) IO User
 getUser st uid = liftIO (query' st (LookupUser uid)) >>= maybe noSuchUser right
 
-postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO UserID
+postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO UserId
 postNewUser st = liftIO . update' st . AddUser
 
-postNamedUser :: AcidState DB -> UserID -> User -> EitherT (Int, String) IO ()
+postNamedUser :: AcidState DB -> UserId -> User -> EitherT (Int, String) IO ()
 postNamedUser st uid user = liftIO $ update' st (UpdateUser uid user)
 
-deleteUser :: AcidState DB -> UserID -> EitherT (Int, String) IO ()
+deleteUser :: AcidState DB -> UserId -> EitherT (Int, String) IO ()
 deleteUser st = liftIO . update' st . DeleteUser
 
 
 -- * service
 
 type ThentosService =
-       Get [ServiceID]
+       Get [ServiceId]
   :<|> Capture "name" ST :> Get Service
   :<|> Capture "name" ST :> ReqBody Service :> Put ()
-  :<|> ReqBody Service :> Post ServiceID
+  :<|> ReqBody Service :> Post ServiceId
 
 thentosService st =
          getServiceIds st
@@ -95,17 +95,17 @@ thentosService st =
     :<|> updateService st
     :<|> postNewService st
 
-getServiceIds :: AcidState DB -> EitherT (Int, String) IO [ServiceID]
+getServiceIds :: AcidState DB -> EitherT (Int, String) IO [ServiceId]
 getServiceIds st = liftIO $ query' st AllServiceIDs
 
 getService :: AcidState DB -> ST -> EitherT (Int, String) IO Service
 getService st id =
     liftIO (query' st (LookupService id)) >>= maybe noSuchService right
 
-postNewService :: AcidState DB -> Service -> EitherT (Int, String) IO ServiceID
+postNewService :: AcidState DB -> Service -> EitherT (Int, String) IO ServiceId
 postNewService st service = liftIO $ update' st (AddService service)
 
-updateService :: AcidState DB -> ServiceID -> Service -> EitherT (Int, String) IO ()
+updateService :: AcidState DB -> ServiceId -> Service -> EitherT (Int, String) IO ()
 updateService st id service = update' st (UpdateService id service)
 
 

@@ -62,14 +62,14 @@ import Types
 emptyDB :: DB
 emptyDB = DB Map.empty Map.empty Map.empty 0 ""
 
-freshUserID :: Update DB UserID
-freshUserID = state $ \ db -> f db (db ^. dbFreshUserID)
+freshUserID :: Update DB UserId
+freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)
   where
     f db uid = if uid < maxBound
-                 then (uid, dbFreshUserID .~ (uid + 1) $ db)
+                 then (uid, dbFreshUserId .~ (uid + 1) $ db)
                  else error "freshUserID: internal error: integer overflow!"
 
-freshServiceID :: Update DB ServiceID
+freshServiceID :: Update DB ServiceId
 freshServiceID = freshNonce
 
 freshSessionToken :: Update DB SessionToken
@@ -89,17 +89,17 @@ freshNonce = state $ \ db ->
 
 -- ** users
 
-allUserIDs :: Query DB [UserID]
+allUserIDs :: Query DB [UserId]
 allUserIDs = Map.keys . (^. dbUsers) <$> ask
 
 allUsers :: Query DB [User]
 allUsers = Map.elems . (^. dbUsers) <$> ask
 
-lookupUser :: UserID -> Query DB (Maybe User)
+lookupUser :: UserId -> Query DB (Maybe User)
 lookupUser uid = Map.lookup uid . (^. dbUsers) <$> ask
 
 -- | Write new user to DB.  Return the fresh user id.
-addUser :: User -> Update DB UserID
+addUser :: User -> Update DB UserId
 addUser user = do
   uid <- freshUserID
   modify $ dbUsers %~ Map.insert uid user
@@ -107,28 +107,28 @@ addUser user = do
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
-updateUser :: UserID -> User -> Update DB ()
+updateUser :: UserId -> User -> Update DB ()
 updateUser uid user = do
   modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
-deleteUser :: UserID -> Update DB ()
+deleteUser :: UserId -> Update DB ()
 deleteUser uid = modify $ dbUsers %~ Map.delete uid
 
 
 -- ** services
 
-allServiceIDs :: Query DB [ServiceID]
+allServiceIDs :: Query DB [ServiceId]
 allServiceIDs = Map.keys . (^. dbServices) <$> ask
 
 allServices :: Query DB [Service]
 allServices = Map.elems . (^. dbServices) <$> ask
 
-lookupService :: ServiceID -> Query DB (Maybe Service)
+lookupService :: ServiceId -> Query DB (Maybe Service)
 lookupService sid = Map.lookup sid . (^. dbServices) <$> ask
 
 -- | Write new service to DB.  Return fresh service id.
-addService :: Service -> Update DB ServiceID
+addService :: Service -> Update DB ServiceId
 addService service = do
   sid <- freshServiceID
   modify $ dbServices %~ Map.insert sid service
@@ -136,10 +136,10 @@ addService service = do
 
 -- | Update existing service in DB.  Throw an error if service does
 -- not exist.
-updateService :: ServiceID -> Service -> Update DB ()
+updateService :: ServiceId -> Service -> Update DB ()
 updateService sid service = modify $ dbServices %~ Map.alter (\ (Just _) -> Just service) sid  -- FIXME: error handling.
 
-deleteService :: ServiceID -> Update DB ()
+deleteService :: ServiceId -> Update DB ()
 deleteService sid = modify $ dbServices %~ Map.delete sid
 
 
@@ -154,7 +154,7 @@ deleteService sid = modify $ dbServices %~ Map.delete sid
 --
 -- FIXME: how do you do errors / exceptions in acid-state?  at least
 -- we should throw typed exceptions, not just strings, right?
-startSession :: UserID -> ServiceID -> UTCTime -> UTCTime -> Update DB SessionToken
+startSession :: UserId -> ServiceId -> UTCTime -> UTCTime -> Update DB SessionToken
 startSession uid sid start end = do
   tok <- freshSessionToken
   Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling
