@@ -5,7 +5,6 @@
 {-# LANGUAGE GADTs                                    #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE NoImplicitPrelude                        #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -18,25 +17,17 @@
 module Main
 where
 
-import Control.Applicative
-import Control.Exception
-import Control.Lens
-import Control.Monad
-import Control.Monad.Reader
-import Control.Monad.State
-import Data.Acid
-import Data.Data
-import Data.Function
+import Control.Applicative ((<$>))
+import Control.Exception (SomeException, throw, catch)
+import Data.Acid (AcidState, openLocalStateFrom, query, createCheckpoint, closeAcidState)
+import Data.Data (Proxy(Proxy))
 import Data.Map (Map)
-import Data.Maybe
-import Data.SafeCopy
-import Data.String.Conversions
-import GHC.Generics
-import Network.Wai.Handler.Warp
-import Prelude
-import Safe
-import System.Environment
-import Servant.Server
+import Data.Maybe (fromMaybe)
+import Data.String.Conversions (cs, (<>))
+import Network.Wai.Handler.Warp (run)
+import Safe (readMay)
+import Servant.Server (serve)
+import System.Environment (getArgs)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson

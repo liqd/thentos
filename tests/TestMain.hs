@@ -4,7 +4,6 @@
 {-# LANGUAGE GADTs                                    #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE NoImplicitPrelude                        #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -16,14 +15,16 @@
 module TestMain
 where
 
-import Control.Monad
-import Data.Acid
-import Data.Maybe
-import Data.Thyme
-import Filesystem
-import GHC.Exts
-import Prelude
-import Test.Hspec
+import Control.Concurrent.Async (Async, async, cancel)
+import Control.Monad (void)
+import Data.Data (Proxy(Proxy))
+import Data.Acid (AcidState, openLocalStateFrom, closeAcidState, query, update)
+import Data.Thyme (getCurrentTime)
+import Filesystem (removeTree)
+import GHC.Exts (fromString)
+import Network.Wai.Handler.Warp (run)
+import Servant.Server (serve)
+import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow, anyException)
 
 import DB
 import Types
