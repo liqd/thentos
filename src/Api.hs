@@ -21,7 +21,7 @@ module Api
 where
 
 import Control.Monad.State (liftIO)
-import Control.Monad.Trans.Either (EitherT, right, left)
+import Control.Monad.Trans.Either (right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Map (Map)
@@ -65,19 +65,19 @@ thentosUser st =
   :<|> postNewUser st
   :<|> deleteUser st
 
-getUserIds :: AcidState DB -> EitherT (Int, String) IO [UserId]
+getUserIds :: AcidState DB -> RestAction [UserId]
 getUserIds st = liftIO $ query' st AllUserIDs
 
-getUser :: AcidState DB -> UserId -> EitherT (Int, String) IO User
+getUser :: AcidState DB -> UserId -> RestAction User
 getUser st uid = liftIO (query' st (LookupUser uid)) >>= maybe noSuchUser right
 
-postNewUser :: AcidState DB -> User -> EitherT (Int, String) IO UserId
+postNewUser :: AcidState DB -> User -> RestAction UserId
 postNewUser st = liftIO . update' st . AddUser
 
-postNamedUser :: AcidState DB -> UserId -> User -> EitherT (Int, String) IO ()
+postNamedUser :: AcidState DB -> UserId -> User -> RestAction ()
 postNamedUser st uid user = liftIO $ update' st (UpdateUser uid user)
 
-deleteUser :: AcidState DB -> UserId -> EitherT (Int, String) IO ()
+deleteUser :: AcidState DB -> UserId -> RestAction ()
 deleteUser st = liftIO . update' st . DeleteUser
 
 
@@ -93,21 +93,21 @@ thentosService st =
     :<|> getService st
     :<|> postNewService st
 
-getServiceIds :: AcidState DB -> EitherT (Int, String) IO [ServiceId]
+getServiceIds :: AcidState DB -> RestAction [ServiceId]
 getServiceIds st = liftIO $ query' st AllServiceIDs
 
-getService :: AcidState DB -> ServiceId -> EitherT (Int, String) IO Service
+getService :: AcidState DB -> ServiceId -> RestAction Service
 getService st id =
     liftIO (query' st (LookupService id)) >>= maybe noSuchService right
 
-postNewService :: AcidState DB -> EitherT (Int, String) IO ServiceId
+postNewService :: AcidState DB -> RestAction ServiceId
 postNewService st = liftIO $ update' st AddService
 
 
 -- * helpers
 
-noSuchUser :: EitherT (Int, String) IO a
+noSuchUser :: RestAction a
 noSuchUser = left (404, "no such user")  -- FIXME: correct status code?
 
-noSuchService :: EitherT (Int, String) IO a
+noSuchService :: RestAction a
 noSuchService = left (404, "no such service")
