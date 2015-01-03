@@ -27,6 +27,7 @@ module DB
   , DeleteService(..)
 
   , StartSession(..)
+  , AllSessionTokens(..)
   , LookupSession(..)
   , EndSession(..)
   , IsActiveSession(..)
@@ -168,6 +169,9 @@ startSession uid sid start end = do
   return tok
 
 
+allSessionTokens :: Query DB [SessionToken]
+allSessionTokens = Map.keys . (^. dbSessions) <$> ask
+
 lookupSession :: SessionToken -> Query DB (Maybe Session)
 lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
 
@@ -189,9 +193,19 @@ endSession tok = do
   modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
 
 
--- | Is session token currently valid?
-isActiveSession :: SessionToken -> Query DB Bool
-isActiveSession tok = Map.member tok . (^. dbSessions) <$> ask
+-- | Is session token currently valid in the context of a given
+-- service?
+--
+-- (we may want to drop the 'ServiceId' from the arguments, and
+-- instead ensure via some yet-to-come authorization mechanism that
+-- only the affected service can gets validity information on a
+-- session token.)
+isActiveSession :: (SessionToken, ServiceId) -> Query DB Bool
+isActiveSession (tok, sid) = do
+  mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
+  case mSession of
+    Nothing -> return False
+    Just session -> return $ sid == session ^. sessionService
 
 
 -- * event types
@@ -216,6 +230,7 @@ $(makeAcidic ''DB
     , 'deleteService
 
     , 'startSession
+    , 'allSessionTokens
     , 'lookupSession
     , 'endSession
     , 'isActiveSession
