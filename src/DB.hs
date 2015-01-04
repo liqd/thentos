@@ -200,8 +200,8 @@ endSession tok = do
 -- instead ensure via some yet-to-come authorization mechanism that
 -- only the affected service can gets validity information on a
 -- session token.)
-isActiveSession :: (SessionToken, ServiceId) -> Query DB Bool
-isActiveSession (tok, sid) = do
+isActiveSession :: ServiceId -> SessionToken -> Query DB Bool
+isActiveSession sid tok = do
   mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
   case mSession of
     Nothing -> return False

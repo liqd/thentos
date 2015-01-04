@@ -124,7 +124,7 @@ type ThentosSession =
   -- :<|> ReqBody (UserId, ServiceId, UTCTime) :> Post Session
 
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
-  :<|> Capture "token" (SessionToken, ServiceId) :> "active" :> Get Bool
+  :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
 thentosSession st =
        getSessionTokens st
@@ -155,8 +155,8 @@ createSession st (uid, sid) = do
 endSession :: AcidState DB -> SessionToken -> RestAction ()
 endSession st = liftIO . update' st . EndSession
 
-isActiveSession :: AcidState DB -> (SessionToken, ServiceId) -> RestAction Bool
-isActiveSession st = liftIO . query' st . IsActiveSession
+isActiveSession :: AcidState DB -> ServiceId -> SessionToken -> RestAction Bool
+isActiveSession st sid  = liftIO . query' st . IsActiveSession sid
 
 
 -- * helpers
