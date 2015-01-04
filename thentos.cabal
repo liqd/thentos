@@ -39,7 +39,7 @@ executable thentos
 
     , servant >= 0.2.1
     , servant-client >= 0.2.1
-    , servant-server >= 0.2.1
+    , servant-server >= 0.2.3
     , servant-docs >= 0.2.1
     , servant-jquery >= 0.2.1
     , wai
