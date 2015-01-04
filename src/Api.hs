@@ -22,7 +22,7 @@ where
 
 import Control.Lens ((%~))
 import Control.Monad.State (liftIO)
-import Control.Monad.Trans.Either (right, left)
+import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Map (Map)
@@ -39,6 +39,8 @@ import qualified Data.Map as Map
 import DB
 import Types
 
+
+type RestAction = EitherT (Int, String) IO
 
 type App = ThentosBasic
 

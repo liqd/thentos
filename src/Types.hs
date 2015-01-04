@@ -9,7 +9,6 @@ module Types
 where
 
 import Control.Lens (makeLenses)
-import Control.Monad.Trans.Either (EitherT)
 import Data.Data (Typeable)
 import Data.Map (Map)
 import Data.SafeCopy (deriveSafeCopy, base)
@@ -110,5 +109,3 @@ instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
 instance JSON.JSONSchema User     where schema = JSON.gSchema
 instance JSON.JSONSchema Session  where schema = JSON.gSchema
 instance JSON.JSONSchema Service  where schema = JSON.gSchema
-
-type RestAction = EitherT (Int, String) IO
