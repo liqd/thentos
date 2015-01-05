@@ -5,7 +5,7 @@
 {-# LANGUAGE ViewPatterns                             #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 
-{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fwarn-typed-holes #-}
+{-# OPTIONS  #-}
 
 module DB
   ( FreshUserID(..)
