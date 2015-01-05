@@ -48,7 +48,6 @@ import Data.Acid (AcidState, createCheckpoint, EventState, liftQuery, makeAcidic
 import Data.Functor.Infix ((<$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (cs, ST, (<>))
-import Data.Thyme (UTCTime)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -154,7 +153,7 @@ deleteService sid = modify $ dbServices %~ Map.delete sid
 --
 -- FIXME: how do you do errors / exceptions in acid-state?  at least
 -- we should throw typed exceptions, not just strings, right?
-startSession :: UserId -> ServiceId -> UTCTime -> UTCTime -> Update DB SessionToken
+startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB SessionToken
 startSession uid sid start end = do
   tok <- freshSessionToken
   Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling

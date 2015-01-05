@@ -10,12 +10,16 @@ where
 
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
+import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
-import Data.SafeCopy (deriveSafeCopy, base)
+import Data.Maybe (fromMaybe)
+import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String.Conversions (SBS, ST)
 import Data.Thyme.Internal.Micro (Micro)
-import Data.Thyme (UTCTime, NominalDiffTime)
+import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
+import Safe (readMay)
+import System.Locale (defaultTimeLocale)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
@@ -51,8 +55,8 @@ data Session =
     Session
       { _sessionUser    :: !UserId
       , _sessionService :: !ServiceId
-      , _sessionStart   :: !UTCTime  -- FIXME: UTCTime does not json-encode well.  we need to newtype this!
-      , _sessionEnd     :: !UTCTime
+      , _sessionStart   :: !TimeStamp
+      , _sessionEnd     :: !TimeStamp
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -67,26 +71,19 @@ data Service =
 type ServiceId = ST
 type ServiceKey = ST
 
+
+newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+
 makeLenses ''DB
 makeLenses ''User
 makeLenses ''Session
 makeLenses ''Service
 
--- [FIXME: orphans!
-
-$(deriveSafeCopy 0 'base ''UTCTime)
-$(deriveSafeCopy 0 'base ''NominalDiffTime)
-$(deriveSafeCopy 0 'base ''Micro)
-
-instance Aeson.FromJSON UTCTime          where parseJSON = Aeson.gparseJson
-instance Aeson.FromJSON NominalDiffTime  where parseJSON = Aeson.gparseJson
-instance Aeson.FromJSON Micro            where parseJSON = Aeson.gparseJson
-
-instance Aeson.ToJSON UTCTime            where toJSON = Aeson.gtoJson
-instance Aeson.ToJSON NominalDiffTime    where toJSON = Aeson.gtoJson
-instance Aeson.ToJSON Micro              where toJSON = Aeson.gtoJson
-
--- END FIXME]
 
 $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''User)
@@ -102,8 +99,38 @@ instance Aeson.ToJSON Session     where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
 
 
-newtype Timeout = Timeout NominalDiffTime
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+timeStampToString :: TimeStamp -> String
+timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimeStamp
 
-instance Aeson.FromJSON Timeout where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Timeout   where toJSON = Aeson.gtoJson
+timeStampFromString :: Monad m => String -> m TimeStamp
+timeStampFromString raw = maybe (fail $ "TimeStamp: no parse: " ++ show raw) return $
+  TimeStamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
+
+instance SafeCopy TimeStamp
+  where
+    putCopy = contain . safePut . timeStampToString
+    getCopy = contain $ safeGet >>= timeStampFromString
+
+instance Aeson.FromJSON TimeStamp
+  where
+    parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
+
+instance Aeson.ToJSON TimeStamp
+  where
+    toJSON = Aeson.toJSON . timeStampToString
+
+
+timeoutToString :: Timeout -> String
+timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
+
+timeoutFromString :: Monad m => String -> m Timeout
+timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
+  Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
+
+instance Aeson.FromJSON Timeout
+  where
+    parseJSON = (>>= timeoutFromString) . Aeson.parseJSON
+
+instance Aeson.ToJSON Timeout
+  where
+    toJSON = Aeson.toJSON . timeoutToString

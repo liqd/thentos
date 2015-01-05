@@ -150,7 +150,7 @@ createSession st (uid, sid) = createSessionWithTimeout st (uid, sid, Timeout $ 1
 createSessionWithTimeout :: AcidState DB -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
 createSessionWithTimeout st (uid, sid, Timeout diff) = do
     now :: UTCTime <- liftIO getCurrentTime
-    update' st $ StartSession uid sid now (now .+^ diff)
+    update' st $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
 
 endSession :: AcidState DB -> SessionToken -> RestAction ()
 endSession st = liftIO . update' st . EndSession
