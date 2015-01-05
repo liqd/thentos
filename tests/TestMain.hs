@@ -67,7 +67,7 @@ main = hspec $ do
         u <- query st $ LookupUser 1
         u `shouldBe` Nothing
 
-      it "hspec meta: `setupDB, teardownDB` arecalled once for every `it` here." . withDB $ \ st -> do
+      it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." . withDB $ \ st -> do
         uids <- query st AllUserIDs
         uids `shouldBe` [0, 1]
 
