@@ -109,3 +109,10 @@ instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
 instance JSON.JSONSchema User     where schema = JSON.gSchema
 instance JSON.JSONSchema Session  where schema = JSON.gSchema
 instance JSON.JSONSchema Service  where schema = JSON.gSchema
+
+
+newtype Timeout = Timeout NominalDiffTime
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON Timeout where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Timeout   where toJSON = Aeson.gtoJson

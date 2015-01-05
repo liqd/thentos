@@ -44,6 +44,7 @@ executable thentos
     , servant-jquery >= 0.2.1
     , wai
     , either
+    , vector-space
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
@@ -97,6 +98,7 @@ test-suite tests
     , http-client
     , http-types
     , bytestring
+    , vector-space
 
     -- [packages only needed for testing]
     , hspec

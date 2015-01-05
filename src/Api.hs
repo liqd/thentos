@@ -25,10 +25,11 @@ import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
+import Data.AffineSpace ((.+^))
 import Data.Map (Map)
 import Data.String.Conversions (ST)
 import Data.Thyme.Time (addDays)
-import Data.Thyme (UTCTime, getCurrentTime, _utctDay)
+import Data.Thyme (UTCTime, getCurrentTime, NominalDiffTime)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Server (Server)
 
@@ -117,12 +118,7 @@ type ThentosSession =
        Get [SessionToken]
   :<|> Capture "token" SessionToken :> Get Session
   :<|> ReqBody (UserId, ServiceId) :> Post SessionToken
-
-  -- the following can work with the above only if
-  -- https://github.com/haskell-servant/servant/issues/3 has been
-  -- fixed:
-  -- :<|> ReqBody (UserId, ServiceId, UTCTime) :> Post Session
-
+  :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
@@ -130,6 +126,7 @@ thentosSession st =
        getSessionTokens st
   :<|> getSession st
   :<|> createSession st
+  :<|> createSessionWithTimeout st
   :<|> endSession st
   :<|> isActiveSession st
 
@@ -141,16 +138,19 @@ getSession :: AcidState DB -> SessionToken -> RestAction Session
 getSession st tok = query' st (LookupSession tok) >>= maybe noSuchSession right
 
 -- | Sessions have a fixed duration of 2 weeks.
+createSession :: AcidState DB -> (UserId, ServiceId) -> RestAction SessionToken
+createSession st (uid, sid) = createSessionWithTimeout st (uid, sid, Timeout $ 14 * 24 * 3600)
+
+-- | Sessions with explicit timeout.
 --
 -- FIXME: I *think* the time stamps will be created once at the time
 -- of the http request, and not be changed to current times when
 -- 'ChangeLog' is replayed.  But I would still feel better if we had a
 -- test for that.
-createSession :: AcidState DB -> (UserId, ServiceId) -> RestAction SessionToken
-createSession st (uid, sid) = do
-    start :: UTCTime <- liftIO $ getCurrentTime
-    let end :: UTCTime = _utctDay %~ addDays 14 $ start
-    update' st $ StartSession uid sid start end
+createSessionWithTimeout :: AcidState DB -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
+createSessionWithTimeout st (uid, sid, Timeout diff) = do
+    now :: UTCTime <- liftIO getCurrentTime
+    update' st $ StartSession uid sid now (now .+^ diff)
 
 endSession :: AcidState DB -> SessionToken -> RestAction ()
 endSession st = liftIO . update' st . EndSession
