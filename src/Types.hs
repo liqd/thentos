@@ -18,7 +18,6 @@ import Data.Thyme (UTCTime, NominalDiffTime)
 import GHC.Generics (Generic)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.JSON.Schema as JSON
 import qualified Generics.Generic.Aeson as Aeson
 
 data DB =
@@ -87,10 +86,6 @@ instance Aeson.ToJSON UTCTime            where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON NominalDiffTime    where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Micro              where toJSON = Aeson.gtoJson
 
-instance JSON.JSONSchema UTCTime         where schema = JSON.gSchema
-instance JSON.JSONSchema NominalDiffTime where schema = JSON.gSchema
-instance JSON.JSONSchema Micro           where schema = JSON.gSchema
-
 -- END FIXME]
 
 $(deriveSafeCopy 0 'base ''DB)
@@ -105,10 +100,6 @@ instance Aeson.FromJSON Service   where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON User        where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Session     where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
-
-instance JSON.JSONSchema User     where schema = JSON.gSchema
-instance JSON.JSONSchema Session  where schema = JSON.gSchema
-instance JSON.JSONSchema Service  where schema = JSON.gSchema
 
 
 newtype Timeout = Timeout NominalDiffTime
