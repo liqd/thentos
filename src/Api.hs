@@ -84,7 +84,7 @@ deleteUser st = liftIO . update' st . DeleteUser
 
 type ThentosService =
        Get [ServiceId]
-  :<|> Capture "name" ServiceId :> Get Service
+  :<|> Capture "sid" ServiceId :> Get Service
   :<|> Post ServiceId
 
 thentosService st =
@@ -112,6 +112,7 @@ type ThentosSession =
   :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
+
 
 thentosSession st =
        getSessionTokens st

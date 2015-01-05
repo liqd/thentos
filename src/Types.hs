@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE DeriveGeneric                            #-}
+{-# LANGUAGE FlexibleInstances                        #-} -- FIXME: :-(
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
@@ -19,7 +21,10 @@ import Data.String.Conversions (SBS, ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import Safe (readMay)
+import Servant.API (Capture)
 import Servant.Common.Text (FromText)
+import Servant.Docs (ToCapture(..), DocCapture(DocCapture))
+import Servant.Docs (ToSample(toSample))
 import System.Locale (defaultTimeLocale)
 
 import Data.Aeson (FromJSON, ToJSON)
@@ -86,7 +91,6 @@ newtype ServiceId = ServiceId { fromServiceId :: ST }
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
-
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -158,3 +162,53 @@ instance Aeson.FromJSON Timeout
 instance Aeson.ToJSON Timeout
   where
     toJSON = Aeson.toJSON . timeoutToString
+
+-- instances for generating docs
+
+instance ToCapture (Capture "token" SessionToken) where
+    toCapture _ = DocCapture "token" "Session Token"
+
+instance ToCapture (Capture "sid" ServiceId) where
+    toCapture _ = DocCapture "sid" "Service ID"
+
+instance ToCapture (Capture "userid" UserId) where
+    toCapture _ = DocCapture "userid" "User ID"
+
+instance ToSample Service where
+    toSample = Nothing -- FIXME
+
+instance ToSample Session where
+    toSample = Nothing -- FIXME
+
+instance ToSample SessionToken where
+    toSample = Nothing -- FIXME
+
+instance ToSample [SessionToken] where
+    toSample = Nothing -- FIXME
+
+instance ToSample User where
+    toSample = Nothing -- FIXME
+
+instance ToSample UserId where
+    toSample = Just $ UserId 12
+
+instance ToSample [UserId] where
+    toSample = Just [UserId 3, UserId 7, UserId 23]
+
+instance ToSample ServiceId where
+    toSample = Nothing -- FIXME
+
+instance ToSample [ServiceId] where
+    toSample = Nothing -- FIXME
+
+instance ToSample (UserId, ServiceId, Timeout) where
+    toSample = Nothing -- FIXME
+
+instance ToSample (UserId, ServiceId) where
+    toSample = Nothing -- FIXME
+
+instance ToSample () where
+    toSample = Just ()
+
+instance ToSample Bool where
+    toSample = Just True
