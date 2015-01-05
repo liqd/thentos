@@ -41,6 +41,7 @@ data User =
       , _userPassword :: !UserPass
       , _userEmail    :: !UserEmail
       , _userGroups   :: [Group]
+      -- FIXME: should be a list of session ids (or maybe should not exist)
       , _userSession  :: Maybe Session
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
