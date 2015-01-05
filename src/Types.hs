@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE DeriveGeneric                            #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 
@@ -13,12 +14,15 @@ import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
+import Data.String (IsString)
 import Data.String.Conversions (SBS, ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import Safe (readMay)
+import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
 
+import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -44,11 +48,20 @@ data User =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-type UserId = Int
-type UserName = ST
-type UserPass = ST
-type UserEmail = ST
-type Group = ST
+newtype UserId = UserId { fromUserId :: Int }
+    deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, Bounded, FromText)
+
+newtype UserName = Username { fromUserName :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+newtype UserPass = UserPass { fromUserPass :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+newtype UserEmail = UserEmail { fromUserEmail :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+newtype Group = Group { fromGroup :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 data Session =
     Session
@@ -59,7 +72,8 @@ data Session =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-type SessionToken = ST
+newtype SessionToken = SessionToken { fromSessionToken :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
 
 data Service =
     Service
@@ -67,8 +81,11 @@ data Service =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-type ServiceId = ST
-type ServiceKey = ST
+newtype ServiceId = ServiceId { fromServiceId :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+
+newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
 
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
@@ -88,6 +105,14 @@ $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''User)
 $(deriveSafeCopy 0 'base ''Session)
 $(deriveSafeCopy 0 'base ''Service)
+$(deriveSafeCopy 0 'base ''ServiceId)
+$(deriveSafeCopy 0 'base ''ServiceKey)
+$(deriveSafeCopy 0 'base ''SessionToken)
+$(deriveSafeCopy 0 'base ''UserEmail)
+$(deriveSafeCopy 0 'base ''UserName)
+$(deriveSafeCopy 0 'base ''Group)
+$(deriveSafeCopy 0 'base ''UserId)
+$(deriveSafeCopy 0 'base ''UserPass)
 
 instance Aeson.FromJSON User      where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Session   where parseJSON = Aeson.gparseJson

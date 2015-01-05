@@ -65,13 +65,13 @@ main = hspec $ do
         uid <- update st $ AddUser user1
         Just user1' <- query st $ LookupUser uid
         user1' `shouldBe` user1
-        update st $ DeleteUser 1
-        u <- query st $ LookupUser 1
+        update st $ DeleteUser (UserId 1)
+        u <- query st $ LookupUser (UserId 1)
         u `shouldBe` Nothing
 
       it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." . withDB $ \ st -> do
         uids <- query st AllUserIDs
-        uids `shouldBe` [0, 1]
+        uids `shouldBe` [UserId 0, UserId 1]
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" . withDB $ \st -> do
@@ -89,9 +89,9 @@ main = hspec $ do
       it "works" . withDB $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
-        update st (StartSession 0 "nosuchservice" from to) `shouldThrow` anyException
+        update st (StartSession (UserId 0) "nosuchservice" from to) `shouldThrow` anyException
         sid :: ServiceId <- update st AddService
-        void $ update st (StartSession 0 sid from to)
+        void $ update st (StartSession (UserId 0) sid from to)
 
   describe "Api" . before setupApi . after teardownApi $ do
     describe "/user/" $ do

@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns #-}
+{-# OPTIONS  #-}
 
 module Main
 where

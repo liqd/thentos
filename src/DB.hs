@@ -5,7 +5,7 @@
 {-# LANGUAGE ViewPatterns                             #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 
-{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fwarn-typed-holes -fdefer-type-errors #-}
+{-# OPTIONS  #-}
 
 module DB
   ( FreshUserID(..)
@@ -58,23 +58,23 @@ import Types
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty 0 ""
+emptyDB = DB Map.empty Map.empty Map.empty (UserId 0) ""
 
 freshUserID :: Update DB UserId
 freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)
   where
     f db uid = if uid < maxBound
-                 then (uid, dbFreshUserId .~ (uid + 1) $ db)
+                 then (uid, dbFreshUserId .~ (succ uid) $ db)
                  else error "freshUserID: internal error: integer overflow!"
 
 freshServiceID :: Update DB ServiceId
-freshServiceID = freshNonce
+freshServiceID = ServiceId <$> freshNonce
 
 freshServiceKey :: Update DB ServiceKey
-freshServiceKey = freshNonce
+freshServiceKey = ServiceKey <$> freshNonce
 
 freshSessionToken :: Update DB SessionToken
-freshSessionToken = freshNonce
+freshSessionToken = SessionToken <$> freshNonce
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
