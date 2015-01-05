@@ -74,8 +74,8 @@ main = hspec $ do
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" . withDB $ \st -> do
-        service1_id <- update st $ AddService
-        service2_id <- update st $ AddService
+        service1_id <- update st AddService
+        service2_id <- update st AddService
         Just service1 <- query st $ LookupService service1_id
         Just service2 <- query st $ LookupService service2_id
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
@@ -89,7 +89,7 @@ main = hspec $ do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
         update st (StartSession 0 "nosuchservice" from to) `shouldThrow` anyException
-        sid :: ServiceId <- update st $ AddService
+        sid :: ServiceId <- update st AddService
         void $ update st (StartSession 0 sid from to)
 
   describe "Api" . before setupApi . after teardownApi $ do
@@ -124,7 +124,7 @@ setupApi :: IO (Async ())
 setupApi = async . withDB $ \ st -> do
     run (restPort config) $ serve (Proxy :: Proxy App) (app st)
 
-teardownApi :: (Async ()) -> IO ()
+teardownApi :: Async () -> IO ()
 teardownApi = cancel
 
 mkreq :: Aeson.ToJSON a => SBS -> String -> Maybe SBS -> Either LBS a -> IO C.Request
@@ -139,6 +139,6 @@ mkreq method path queryString (either id Aeson.encodePretty -> body) = do
     return $ req { C.method         = method
                  , C.checkStatus    = \ _ _ _ -> Nothing
                  , C.requestBody    = C.RequestBodyLBS body
-                 , C.queryString    = maybe "" id queryString
+                 , C.queryString    = fromMaybe "" queryString
                  , C.requestHeaders = defaultHeaders
                  }

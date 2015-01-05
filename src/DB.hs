@@ -109,7 +109,7 @@ addUser user = do
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
 updateUser :: UserId -> User -> Update DB ()
-updateUser uid user = do
+updateUser uid user =
   modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
