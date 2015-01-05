@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
+{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns #-}
 
 module TestMain
 where
@@ -26,7 +26,8 @@ import Filesystem (removeTree)
 import GHC.Exts (fromString)
 import Network.Wai.Handler.Warp (run)
 import Servant.Server (serve)
-import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow, anyException)
+import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
+    anyException, shouldSatisfy)
 
 import qualified Network.HTTP.Client as C
 import qualified Network.HTTP.Types.Status as C
@@ -69,6 +70,18 @@ main = hspec $ do
       it "hspec meta: `setupDB, teardownDB` arecalled once for every `it` here." . withDB $ \ st -> do
         uids <- query st AllUserIDs
         uids `shouldBe` [0, 1]
+
+    describe "AddService, LookupService, DeleteService" $ do
+      it "works" . withDB $ \st -> do
+        service1_id <- update st $ AddService
+        service2_id <- update st $ AddService
+        Just service1 <- query st $ LookupService service1_id
+        Just service2 <- query st $ LookupService service2_id
+        service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
+        service1 `shouldSatisfy` (/= service2) -- should have different keys
+        update st $ DeleteService service1_id
+        Nothing <- query st $ LookupService service1_id
+        return ()
 
     describe "StartSession" $ do
       it "works" . withDB $ \ st -> do
