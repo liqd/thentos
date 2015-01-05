@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns -fdefer-type-errors #-}
+{-# OPTIONS -fno-warn-unused-imports -fwarn-incomplete-patterns #-}
 
 module Main
 where
@@ -32,6 +32,8 @@ import System.Environment (getArgs)
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
+
+import Servant.Docs (docs, markdown)
 
 import Types
 import DB
@@ -66,6 +68,9 @@ main =
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
             createCheckpointLoop st 16000 Nothing
             run port $ serve (Proxy :: Proxy App) (app st)
+        switch ["--docs"] = do
+            let api = docs (Proxy :: Proxy App)
+            putStrLn $ markdown api
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do
