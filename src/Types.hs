@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE FlexibleInstances                        #-} -- FIXME: :-(
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 
@@ -11,6 +12,7 @@
 module Types
 where
 
+import Control.Applicative (pure, (<*>))
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
@@ -90,7 +92,7 @@ newtype ServiceId = ServiceId { fromServiceId :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -175,19 +177,27 @@ instance ToCapture (Capture "userid" UserId) where
     toCapture _ = DocCapture "userid" "User ID"
 
 instance ToSample Service where
-    toSample = Nothing -- FIXME
+    toSample = Just $ Service "98761234foo"
 
 instance ToSample Session where
-    toSample = Nothing -- FIXME
+    toSample =
+        Session <$> toSample
+                <*> toSample
+                <*> pure (TimeStamp $ read "1986-20-09 00:00:00 UTC")
+                <*> pure (TimeStamp $ read "1986-27-09 00:00:00 UTC")
 
 instance ToSample SessionToken where
-    toSample = Nothing -- FIXME
+    toSample = Just "abde1234llkjh"
 
 instance ToSample [SessionToken] where
-    toSample = Nothing -- FIXME
+    toSample = Just ["abde1234llkjh", "47202sdfsg"]
 
 instance ToSample User where
-    toSample = Nothing -- FIXME
+    toSample = Just $ User (Username "Kurt Cobain")
+                           (UserPass "Hunter2")
+                           (UserEmail "cobain@nirvana.com")
+                           []
+                           Nothing
 
 instance ToSample UserId where
     toSample = Just $ UserId 12
@@ -196,16 +206,16 @@ instance ToSample [UserId] where
     toSample = Just [UserId 3, UserId 7, UserId 23]
 
 instance ToSample ServiceId where
-    toSample = Nothing -- FIXME
+    toSample = Just "23t92ege0n"
 
 instance ToSample [ServiceId] where
-    toSample = Nothing -- FIXME
+    toSample = Just ["23t92ege0n", "f4ghwgegin0"]
 
 instance ToSample (UserId, ServiceId, Timeout) where
-    toSample = Nothing -- FIXME
+    toSample = (,,) <$> toSample <*> toSample <*> pure (Timeout $ fromSeconds 123456.0)
 
 instance ToSample (UserId, ServiceId) where
-    toSample = Nothing -- FIXME
+    toSample = (,) <$> toSample <*> toSample
 
 instance ToSample () where
     toSample = Just ()
