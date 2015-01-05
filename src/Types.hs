@@ -52,7 +52,7 @@ data Session =
     Session
       { _sessionUser    :: !UserId
       , _sessionService :: !ServiceId
-      , _sessionStart   :: !UTCTime
+      , _sessionStart   :: !UTCTime  -- FIXME: UTCTime does not json-encode well.  we need to newtype this!
       , _sessionEnd     :: !UTCTime
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
