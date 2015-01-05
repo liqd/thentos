@@ -20,22 +20,15 @@
 module Api
 where
 
-import Control.Lens ((%~))
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.AffineSpace ((.+^))
-import Data.Map (Map)
-import Data.String.Conversions (ST)
-import Data.Thyme.Time (addDays)
-import Data.Thyme (UTCTime, getCurrentTime, NominalDiffTime)
+import Data.Thyme.Time ()
+import Data.Thyme (UTCTime, getCurrentTime)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Server (Server)
-
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Map as Map
 
 import DB
 import Types
@@ -105,8 +98,8 @@ getServiceIds :: AcidState DB -> RestAction [ServiceId]
 getServiceIds st = liftIO $ query' st AllServiceIDs
 
 getService :: AcidState DB -> ServiceId -> RestAction Service
-getService st id =
-    liftIO (query' st (LookupService id)) >>= maybe noSuchService right
+getService st sid =
+    liftIO (query' st (LookupService sid)) >>= maybe noSuchService right
 
 postNewService :: AcidState DB -> RestAction ServiceId
 postNewService st = liftIO $ update' st AddService

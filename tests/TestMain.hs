@@ -128,7 +128,7 @@ teardownApi :: (Async ()) -> IO ()
 teardownApi = cancel
 
 mkreq :: Aeson.ToJSON a => SBS -> String -> Maybe SBS -> Either LBS a -> IO C.Request
-mkreq method path query (either id Aeson.encodePretty -> body) = do
+mkreq method path queryString (either id Aeson.encodePretty -> body) = do
     req <- C.parseUrl $ "http://localhost:" ++ show (restPort config) ++ path  -- FIXME: is there a `parseUrl` that eliminates double "/"?
 
     let defaultHeaders =
@@ -139,6 +139,6 @@ mkreq method path query (either id Aeson.encodePretty -> body) = do
     return $ req { C.method         = method
                  , C.checkStatus    = \ _ _ _ -> Nothing
                  , C.requestBody    = C.RequestBodyLBS body
-                 , C.queryString    = maybe "" id $ query
+                 , C.queryString    = maybe "" id queryString
                  , C.requestHeaders = defaultHeaders
                  }

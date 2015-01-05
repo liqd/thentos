@@ -39,7 +39,6 @@ module DB
 where
 
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
-import Control.Exception (assert)
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state)
@@ -186,7 +185,7 @@ lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
 -- FIXME: what about exceptions in acid state?
 endSession :: SessionToken -> Update DB ()
 endSession tok = do
-  Just (session@(Session uid _ start end)) <- liftQuery $ lookupSession tok
+  Just (Session uid _ _ _) <- liftQuery $ lookupSession tok
   Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling.
   modify $ dbSessions %~ Map.delete tok
   modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
@@ -254,7 +253,7 @@ update_ st e = void $ update st e
 -- FIXME: make this a pull request for
 -- https://github.com/acid-state/acid-state.
 createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
-createCheckpointLoop acidState timeThreshold sizeThreshold = forkIO iter
+createCheckpointLoop acidState timeThreshold _ = forkIO iter
   where
     iter = do
       threadDelay $ timeThreshold * 1000
@@ -264,11 +263,3 @@ createCheckpointLoop acidState timeThreshold sizeThreshold = forkIO iter
 
       createCheckpoint acidState
       iter
-
-
-createCheckpointInterruptHandler :: AcidState st -> IO ()
-createCheckpointInterruptHandler = assert False $ error "createCheckpointIntHandler"
-
-
--- FIXME: what to do about authorisations?  lio (see paper in research
--- git repo)?  yesod?  snap?  does servant have an answer?
