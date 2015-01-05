@@ -20,6 +20,7 @@ import Control.Concurrent.Async (Async, async, cancel)
 import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState, query, update)
 import Data.Data (Proxy(Proxy))
+import Data.Functor.Infix ((<$>))
 import Data.String.Conversions (SBS, LBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
@@ -85,8 +86,8 @@ main = hspec $ do
 
     describe "StartSession" $ do
       it "works" . withDB $ \ st -> do
-        from <- getCurrentTime
-        to <- getCurrentTime
+        from <- TimeStamp <$> getCurrentTime
+        to <- TimeStamp <$> getCurrentTime
         update st (StartSession 0 "nosuchservice" from to) `shouldThrow` anyException
         sid :: ServiceId <- update st $ AddService
         void $ update st (StartSession 0 sid from to)
