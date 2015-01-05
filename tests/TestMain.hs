@@ -20,6 +20,8 @@ import Control.Concurrent.Async (Async, async, cancel)
 import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState, query, update)
 import Data.Data (Proxy(Proxy))
+import Data.Functor.Infix ((<$>))
+import Data.Maybe (fromMaybe)
 import Data.String.Conversions (SBS, LBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
@@ -73,8 +75,8 @@ main = hspec $ do
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" . withDB $ \st -> do
-        service1_id <- update st $ AddService
-        service2_id <- update st $ AddService
+        service1_id <- update st AddService
+        service2_id <- update st AddService
         Just service1 <- query st $ LookupService service1_id
         Just service2 <- query st $ LookupService service2_id
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
@@ -85,10 +87,10 @@ main = hspec $ do
 
     describe "StartSession" $ do
       it "works" . withDB $ \ st -> do
-        from <- getCurrentTime
-        to <- getCurrentTime
+        from <- TimeStamp <$> getCurrentTime
+        to <- TimeStamp <$> getCurrentTime
         update st (StartSession 0 "nosuchservice" from to) `shouldThrow` anyException
-        sid :: ServiceId <- update st $ AddService
+        sid :: ServiceId <- update st AddService
         void $ update st (StartSession 0 sid from to)
 
   describe "Api" . before setupApi . after teardownApi $ do
@@ -123,11 +125,11 @@ setupApi :: IO (Async ())
 setupApi = async . withDB $ \ st -> do
     run (restPort config) $ serve (Proxy :: Proxy App) (app st)
 
-teardownApi :: (Async ()) -> IO ()
+teardownApi :: Async () -> IO ()
 teardownApi = cancel
 
 mkreq :: Aeson.ToJSON a => SBS -> String -> Maybe SBS -> Either LBS a -> IO C.Request
-mkreq method path query (either id Aeson.encodePretty -> body) = do
+mkreq method path queryString (either id Aeson.encodePretty -> body) = do
     req <- C.parseUrl $ "http://localhost:" ++ show (restPort config) ++ path  -- FIXME: is there a `parseUrl` that eliminates double "/"?
 
     let defaultHeaders =
@@ -138,6 +140,6 @@ mkreq method path query (either id Aeson.encodePretty -> body) = do
     return $ req { C.method         = method
                  , C.checkStatus    = \ _ _ _ -> Nothing
                  , C.requestBody    = C.RequestBodyLBS body
-                 , C.queryString    = maybe "" id $ query
+                 , C.queryString    = fromMaybe "" queryString
                  , C.requestHeaders = defaultHeaders
                  }

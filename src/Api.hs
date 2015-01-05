@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
@@ -13,29 +12,21 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
 
 module Api
 where
 
-import Control.Lens ((%~))
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.AffineSpace ((.+^))
-import Data.Map (Map)
-import Data.String.Conversions (ST)
-import Data.Thyme.Time (addDays)
-import Data.Thyme (UTCTime, getCurrentTime, NominalDiffTime)
+import Data.Thyme.Time ()
+import Data.Thyme (UTCTime, getCurrentTime)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Server (Server)
-
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Map as Map
 
 import DB
 import Types
@@ -105,8 +96,8 @@ getServiceIds :: AcidState DB -> RestAction [ServiceId]
 getServiceIds st = liftIO $ query' st AllServiceIDs
 
 getService :: AcidState DB -> ServiceId -> RestAction Service
-getService st id =
-    liftIO (query' st (LookupService id)) >>= maybe noSuchService right
+getService st sid =
+    liftIO (query' st (LookupService sid)) >>= maybe noSuchService right
 
 postNewService :: AcidState DB -> RestAction ServiceId
 postNewService st = liftIO $ update' st AddService
@@ -150,7 +141,7 @@ createSession st (uid, sid) = createSessionWithTimeout st (uid, sid, Timeout $ 1
 createSessionWithTimeout :: AcidState DB -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
 createSessionWithTimeout st (uid, sid, Timeout diff) = do
     now :: UTCTime <- liftIO getCurrentTime
-    update' st $ StartSession uid sid now (now .+^ diff)
+    update' st $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
 
 endSession :: AcidState DB -> SessionToken -> RestAction ()
 endSession st = liftIO . update' st . EndSession

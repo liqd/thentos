@@ -39,7 +39,6 @@ module DB
 where
 
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
-import Control.Exception (assert)
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state)
@@ -48,7 +47,6 @@ import Data.Acid (AcidState, createCheckpoint, EventState, liftQuery, makeAcidic
 import Data.Functor.Infix ((<$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (cs, ST, (<>))
-import Data.Thyme (UTCTime)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -111,7 +109,7 @@ addUser user = do
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
 updateUser :: UserId -> User -> Update DB ()
-updateUser uid user = do
+updateUser uid user =
   modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
@@ -154,7 +152,7 @@ deleteService sid = modify $ dbServices %~ Map.delete sid
 --
 -- FIXME: how do you do errors / exceptions in acid-state?  at least
 -- we should throw typed exceptions, not just strings, right?
-startSession :: UserId -> ServiceId -> UTCTime -> UTCTime -> Update DB SessionToken
+startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB SessionToken
 startSession uid sid start end = do
   tok <- freshSessionToken
   Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling
@@ -187,7 +185,7 @@ lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
 -- FIXME: what about exceptions in acid state?
 endSession :: SessionToken -> Update DB ()
 endSession tok = do
-  Just (session@(Session uid _ start end)) <- liftQuery $ lookupSession tok
+  Just (Session uid _ _ _) <- liftQuery $ lookupSession tok
   Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling.
   modify $ dbSessions %~ Map.delete tok
   modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
@@ -255,7 +253,7 @@ update_ st e = void $ update st e
 -- FIXME: make this a pull request for
 -- https://github.com/acid-state/acid-state.
 createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
-createCheckpointLoop acidState timeThreshold sizeThreshold = forkIO iter
+createCheckpointLoop acidState timeThreshold _ = forkIO iter
   where
     iter = do
       threadDelay $ timeThreshold * 1000
@@ -265,11 +263,3 @@ createCheckpointLoop acidState timeThreshold sizeThreshold = forkIO iter
 
       createCheckpoint acidState
       iter
-
-
-createCheckpointInterruptHandler :: AcidState st -> IO ()
-createCheckpointInterruptHandler = assert False $ error "createCheckpointIntHandler"
-
-
--- FIXME: what to do about authorisations?  lio (see paper in research
--- git repo)?  yesod?  snap?  does servant have an answer?
