@@ -57,6 +57,7 @@ type ThentosUser =
   :<|> ReqBody User :> Post UserId
   :<|> Capture "userid" UserId :> Delete
 
+thentosUser :: AcidState DB -> Server ThentosUser
 thentosUser st =
        getUserIds st
   :<|> getUser st
@@ -87,6 +88,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Get Service
   :<|> Post ServiceId
 
+thentosService :: AcidState DB -> Server ThentosService
 thentosService st =
          getServiceIds st
     :<|> getService st
@@ -113,6 +115,7 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
+thentosSession :: AcidState DB -> Server ThentosSession
 thentosSession st =
        getSessionTokens st
   :<|> getSession st
