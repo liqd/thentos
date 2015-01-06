@@ -113,7 +113,6 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
-
 thentosSession st =
        getSessionTokens st
   :<|> getSession st
