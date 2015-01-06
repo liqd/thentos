@@ -64,7 +64,7 @@ freshUserID :: Update DB UserId
 freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)
   where
     f db uid = if uid < maxBound
-                 then (uid, dbFreshUserId .~ (succ uid) $ db)
+                 then (uid, dbFreshUserId .~ succ uid $ db)
                  else error "freshUserID: internal error: integer overflow!"
 
 freshServiceID :: Update DB ServiceId
