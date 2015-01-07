@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS -fwarn-unused-imports -fwarn-incomplete-patterns #-}
+{-# OPTIONS  #-}
 
 module TestMain
 where
@@ -26,13 +26,12 @@ import Data.String.Conversions (SBS, LBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
 import GHC.Exts (fromString)
+import LIO.DCLabel (DCLabel, (%%))
+import LIO (LIOState(LIOState), evalLIO)
 import Network.Wai.Handler.Warp (run)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
     anyException, shouldSatisfy)
-
-import LIO
-import LIO.DCLabel
 
 import qualified Network.HTTP.Client as C
 import qualified Network.HTTP.Types.Status as C
