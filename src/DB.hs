@@ -1,19 +1,16 @@
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE DeriveDataTypeable                       #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE TypeFamilies                             #-}
+{-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE ViewPatterns                             #-}
-{-# LANGUAGE OverloadedStrings                        #-}
 
 {-# OPTIONS  #-}
 
 module DB
-  ( FreshUserID(..)
-  , FreshServiceID(..)
-  , FreshSessionToken(..)
-  , FreshNonce(..)
-
-  , AllUserIDs(..)
+  ( AllUserIDs(..)
   , AllUsers(..)
   , LookupUser(..)
   , AddUser(..)
