@@ -30,7 +30,9 @@ module DB
   , IsActiveSession(..)
 
   , emptyDB
-  , update_
+  , queryLIO
+  , updateLIO
+  , updateLIO_
   , createCheckpointLoop
   )
 where
@@ -40,16 +42,68 @@ import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state)
 import Control.Monad (when, void)
-import Data.Acid (AcidState, createCheckpoint, EventState, liftQuery, makeAcidic, Query, update, Update, UpdateEvent)
+import Data.Acid (AcidState, Query, Update, UpdateEvent, QueryEvent, EventState, EventResult,
+                  createCheckpoint, liftQuery, makeAcidic)
+import Data.Acid.Advanced (update', query')
 import Data.Functor.Infix ((<$>))
+import Data.IORef (readIORef)
 import Data.Maybe (isJust)
+import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String.Conversions (cs, ST, (<>))
+import Data.Typeable (Typeable)
+import LIO (canFlowTo, lioClearance)
+import LIO.DCLabel (DCLabel, (%%))
+import LIO.TCB (LIO(LIOTCB))
+import Safe (readMay)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
 import qualified Data.Map as Map
 
 import Types
+
+
+-- * lio
+
+-- | Wrapper for LabeledTCB to avoid orphan instances.  (Also, freeze
+-- 'DCLabel' as label type.)
+data Labeled t = LabeledTCB DCLabel t
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance (SafeCopy t, Show t, Read t) => SafeCopy (Labeled t)
+  where
+    putCopy = contain . safePut . show
+    getCopy = contain $ safeGet >>= \ raw ->
+      maybe (fail $ "instance SafeCopy Labeled: no parse" ++ show raw) return . readMay $ raw
+
+-- | Run a query action that returns a labeled result.  Check that the
+-- clearance is sufficient for the label, and return the unlabelled
+-- result.
+queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel a
+queryLIO st ev = LIOTCB $ \ stateRef -> do
+  clearance :: DCLabel <- lioClearance <$> readIORef stateRef
+  LabeledTCB (context :: DCLabel) result <- query' st ev
+  if context `canFlowTo` clearance
+    then return result
+    else fail "authorization denied"
+
+-- | Like 'queryLIO'.  If an action is not authorized, it will be
+-- undone after the fact.  Not ideal, but lazyness may save us here.
+-- An alternative implementation would create a type class, make all
+-- 'UpdateEvent's instances, and ask the instances for the label.
+-- That could be done before the operation, but then we would have no
+-- dynamic context to compute the label with.
+updateLIO :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel a
+updateLIO st ev = LIOTCB $ \ stateRef -> do
+  clearance :: DCLabel <- lioClearance <$> readIORef stateRef
+  LabeledTCB (context :: DCLabel) result <- update' st ev
+  if context `canFlowTo` clearance
+    then return result
+    else fail "authorization denied"
+
+-- | Call 'updateLIO' and discard the result.
+updateLIO_ :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel ()
+updateLIO_ st = void . updateLIO st
 
 
 -- * event functions
@@ -87,8 +141,8 @@ freshNonce = state $ \ db ->
 
 -- ** users
 
-allUserIDs :: Query DB [UserId]
-allUserIDs = Map.keys . (^. dbUsers) <$> ask
+allUserIDs :: Query DB (Labeled [UserId])
+allUserIDs = LabeledTCB (("wef" :: String) %% True) . Map.keys . (^. dbUsers) <$> ask
 
 allUsers :: Query DB [User]
 allUsers = Map.elems . (^. dbUsers) <$> ask
@@ -234,10 +288,6 @@ $(makeAcidic ''DB
 
 
 -- * convenience
-
-update_ :: UpdateEvent event => AcidState (EventState event) -> event -> IO ()
-update_ st e = void $ update st e
-
 
 -- | Create a new thread that calls `createCheckpoint` synchronously,
 -- then waits for @timeThreshold@ miliseconds, then repeats.  If

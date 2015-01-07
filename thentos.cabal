@@ -45,6 +45,7 @@ executable thentos
     , either
     , vector-space
     , old-locale
+    , lio
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
@@ -99,6 +100,7 @@ test-suite tests
     , bytestring
     , vector-space
     , old-locale
+    , lio
 
     -- [packages only needed for testing]
     , hspec
