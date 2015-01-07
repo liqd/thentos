@@ -111,8 +111,8 @@ newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
 data Agent = UserA User | ServiceA Service
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-newtype Role = Role { fromRole :: ST }
-  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+data Role = RoleAdmin | RoleUser | RoleService
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Role where toCNF = toCNF . show
