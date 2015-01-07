@@ -12,21 +12,29 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
 
 module Api
 where
 
+import Control.Applicative ((<$>))
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Either (EitherT, right, left)
 import Data.Acid (AcidState)
-import Data.Acid.Advanced (query', update')
 import Data.AffineSpace ((.+^))
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (ST, cs)
+import Data.Text.Encoding (decodeUtf8)
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
+import LIO.DCLabel (DCLabel, (%%))
+import LIO (LIOState(LIOState), evalLIO)
+import Network.Wai (requestHeaders)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Server (Server)
+import Servant.Docs (HasDocs, docsFor)
+import Servant.Server.Internal (HasServer, Server, route)
 
 import DB
 import Types
@@ -34,18 +42,51 @@ import Types
 
 type RestAction = EitherT (Int, String) IO
 
-type App = ThentosBasic
+type App = ThentosAuth :> ThentosBasic
 
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
 
-app :: AcidState DB -> Server App
-app st =
-       thentosUser st
-  :<|> thentosService st
-  :<|> thentosSession st
+app :: AcidState DB -> Auth -> Server ThentosBasic
+app st auth =
+       thentosUser st auth
+  :<|> thentosService st auth
+  :<|> thentosSession st auth
+
+
+-- * authentication
+
+-- | Empty data type for triggering authentication.  If you have an
+-- api type 'API', use like this: @ThentosAuth :> API@, then write a
+-- route handler that takes 'Auth' as an extra argument.  'Auth' will
+-- be parsed from the headers and injected into the @sublayout@
+-- handler.
+data ThentosAuth
+
+-- | Result type of 'ThentosAuth'.  Contains authentication
+-- information in the form required by @LIO@ in module "DB".
+type Auth = LIOState DCLabel
+
+-- | See 'ThentosAuth'.
+instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
+  where
+    type Server (ThentosAuth :> sublayout) = Auth -> Server sublayout
+
+    route Proxy subserver request respond = do
+      let mprincipal :: Maybe ST = decodeUtf8 <$> lookup "X-Principal" (requestHeaders request)
+          mpassword  :: Maybe ST = decodeUtf8 <$> lookup "X-Password"  (requestHeaders request)
+
+      route (Proxy :: Proxy sublayout) (subserver $ mkAuth mprincipal mpassword) request respond
+
+-- | FIXME: not much documentation yet.
+instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
+  docsFor Proxy args = docsFor (Proxy :: Proxy sublayout) args
+
+mkAuth :: Maybe ST -> Maybe ST -> Auth
+mkAuth Nothing                              _ = LIOState (True %% True) (False %% False)
+mkAuth (Just (cs -> (principal :: String))) _ = LIOState (True %% True) (principal %% principal)
 
 
 -- * user
@@ -57,28 +98,28 @@ type ThentosUser =
   :<|> ReqBody User :> Post UserId
   :<|> Capture "userid" UserId :> Delete
 
-thentosUser :: AcidState DB -> Server ThentosUser
-thentosUser st =
-       getUserIds st
-  :<|> getUser st
-  :<|> postNamedUser st
-  :<|> postNewUser st
-  :<|> deleteUser st
+thentosUser :: AcidState DB -> Auth -> Server ThentosUser
+thentosUser st auth =
+       getUserIds st auth
+  :<|> getUser st auth
+  :<|> postNamedUser st auth
+  :<|> postNewUser st auth
+  :<|> deleteUser st auth
 
-getUserIds :: AcidState DB -> RestAction [UserId]
-getUserIds st = liftIO $ query' st AllUserIDs
+getUserIds :: AcidState DB -> Auth -> RestAction [UserId]
+getUserIds st auth = liftIO $ evalLIO (queryLIO st AllUserIDs) auth
 
-getUser :: AcidState DB -> UserId -> RestAction User
-getUser st uid = liftIO (query' st (LookupUser uid)) >>= maybe noSuchUser right
+getUser :: AcidState DB -> Auth -> UserId -> RestAction User
+getUser st auth uid = liftIO (evalLIO (queryLIO st (LookupUser uid)) auth) >>= maybe noSuchUser right
 
-postNewUser :: AcidState DB -> User -> RestAction UserId
-postNewUser st = liftIO . update' st . AddUser
+postNewUser :: AcidState DB -> Auth -> User -> RestAction UserId
+postNewUser st auth user = liftIO $ evalLIO (updateLIO st $ AddUser user) auth
 
-postNamedUser :: AcidState DB -> UserId -> User -> RestAction ()
-postNamedUser st uid user = liftIO $ update' st (UpdateUser uid user)
+postNamedUser :: AcidState DB -> Auth -> UserId -> User -> RestAction ()
+postNamedUser st auth uid user = liftIO $ evalLIO (updateLIO st (UpdateUser uid user)) auth
 
-deleteUser :: AcidState DB -> UserId -> RestAction ()
-deleteUser st = liftIO . update' st . DeleteUser
+deleteUser :: AcidState DB -> Auth -> UserId -> RestAction ()
+deleteUser st auth uid = liftIO $ evalLIO (updateLIO st $ DeleteUser uid) auth
 
 
 -- * service
@@ -88,21 +129,21 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Get Service
   :<|> Post ServiceId
 
-thentosService :: AcidState DB -> Server ThentosService
-thentosService st =
-         getServiceIds st
-    :<|> getService st
-    :<|> postNewService st
+thentosService :: AcidState DB -> Auth -> Server ThentosService
+thentosService st auth =
+         getServiceIds st auth
+    :<|> getService st auth
+    :<|> postNewService st auth
 
-getServiceIds :: AcidState DB -> RestAction [ServiceId]
-getServiceIds st = liftIO $ query' st AllServiceIDs
+getServiceIds :: AcidState DB -> Auth -> RestAction [ServiceId]
+getServiceIds st auth = liftIO $ evalLIO (queryLIO st AllServiceIDs) auth
 
-getService :: AcidState DB -> ServiceId -> RestAction Service
-getService st sid =
-    liftIO (query' st (LookupService sid)) >>= maybe noSuchService right
+getService :: AcidState DB -> Auth -> ServiceId -> RestAction Service
+getService st auth sid =
+    liftIO (evalLIO (queryLIO st (LookupService sid)) auth) >>= maybe noSuchService right
 
-postNewService :: AcidState DB -> RestAction ServiceId
-postNewService st = liftIO $ update' st AddService
+postNewService :: AcidState DB -> Auth -> RestAction ServiceId
+postNewService st auth = liftIO $ evalLIO (updateLIO st AddService) auth
 
 
 -- * session
@@ -115,25 +156,25 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
-thentosSession :: AcidState DB -> Server ThentosSession
-thentosSession st =
-       getSessionTokens st
-  :<|> getSession st
-  :<|> createSession st
-  :<|> createSessionWithTimeout st
-  :<|> endSession st
-  :<|> isActiveSession st
+thentosSession :: AcidState DB -> Auth -> Server ThentosSession
+thentosSession st auth =
+       getSessionTokens st auth
+  :<|> getSession st auth
+  :<|> createSession st auth
+  :<|> createSessionWithTimeout st auth
+  :<|> endSession st auth
+  :<|> isActiveSession st auth
 
 
-getSessionTokens :: AcidState DB -> RestAction [SessionToken]
-getSessionTokens st = query' st AllSessionTokens
+getSessionTokens :: AcidState DB -> Auth -> RestAction [SessionToken]
+getSessionTokens st auth = liftIO $ evalLIO (queryLIO st AllSessionTokens) auth
 
-getSession :: AcidState DB -> SessionToken -> RestAction Session
-getSession st tok = query' st (LookupSession tok) >>= maybe noSuchSession right
+getSession :: AcidState DB -> Auth -> SessionToken -> RestAction Session
+getSession st auth tok = liftIO (evalLIO (queryLIO st (LookupSession tok)) auth) >>= maybe noSuchSession right
 
 -- | Sessions have a fixed duration of 2 weeks.
-createSession :: AcidState DB -> (UserId, ServiceId) -> RestAction SessionToken
-createSession st (uid, sid) = createSessionWithTimeout st (uid, sid, Timeout $ 14 * 24 * 3600)
+createSession :: AcidState DB -> Auth -> (UserId, ServiceId) -> RestAction SessionToken
+createSession st auth (uid, sid) = createSessionWithTimeout st auth (uid, sid, Timeout $ 14 * 24 * 3600)
 
 -- | Sessions with explicit timeout.
 --
@@ -141,16 +182,16 @@ createSession st (uid, sid) = createSessionWithTimeout st (uid, sid, Timeout $ 1
 -- of the http request, and not be changed to current times when
 -- 'ChangeLog' is replayed.  But I would still feel better if we had a
 -- test for that.
-createSessionWithTimeout :: AcidState DB -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
-createSessionWithTimeout st (uid, sid, Timeout diff) = do
+createSessionWithTimeout :: AcidState DB -> Auth -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
+createSessionWithTimeout st auth (uid, sid, Timeout diff) = liftIO $ do
     now :: UTCTime <- liftIO getCurrentTime
-    update' st $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
+    evalLIO (updateLIO st $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)) auth
 
-endSession :: AcidState DB -> SessionToken -> RestAction ()
-endSession st = liftIO . update' st . EndSession
+endSession :: AcidState DB -> Auth -> SessionToken -> RestAction ()
+endSession st auth tok = liftIO $ evalLIO (updateLIO st $ EndSession tok) auth
 
-isActiveSession :: AcidState DB -> ServiceId -> SessionToken -> RestAction Bool
-isActiveSession st sid  = liftIO . query' st . IsActiveSession sid
+isActiveSession :: AcidState DB -> Auth -> ServiceId -> SessionToken -> RestAction Bool
+isActiveSession st auth sid tok = liftIO $ evalLIO (queryLIO st $ IsActiveSession sid tok) auth
 
 
 -- * helpers

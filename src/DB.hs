@@ -142,54 +142,59 @@ freshNonce = state $ \ db ->
 -- ** users
 
 allUserIDs :: Query DB (Labeled [UserId])
-allUserIDs = LabeledTCB (("wef" :: String) %% True) . Map.keys . (^. dbUsers) <$> ask
+allUserIDs = LabeledTCB (True %% True) . Map.keys . (^. dbUsers) <$> ask
 
-allUsers :: Query DB [User]
-allUsers = Map.elems . (^. dbUsers) <$> ask
+allUsers :: Query DB (Labeled [User])
+allUsers = LabeledTCB (True %% True) . Map.elems . (^. dbUsers) <$> ask
 
-lookupUser :: UserId -> Query DB (Maybe User)
-lookupUser uid = Map.lookup uid . (^. dbUsers) <$> ask
+lookupUser :: UserId -> Query DB (Labeled (Maybe User))
+lookupUser uid = LabeledTCB (True %% True) . Map.lookup uid . (^. dbUsers) <$> ask
 
 -- | Write new user to DB.  Return the fresh user id.
-addUser :: User -> Update DB UserId
+addUser :: User -> Update DB (Labeled UserId)
 addUser user = do
   uid <- freshUserID
   modify $ dbUsers %~ Map.insert uid user
-  return uid
+  return $ LabeledTCB (True %% True) uid
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
-updateUser :: UserId -> User -> Update DB ()
-updateUser uid user =
+updateUser :: UserId -> User -> Update DB (Labeled ())
+updateUser uid user = do
   modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
+  return $ LabeledTCB (True %% True) ()
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
-deleteUser :: UserId -> Update DB ()
-deleteUser uid = modify $ dbUsers %~ Map.delete uid
+deleteUser :: UserId -> Update DB (Labeled ())
+deleteUser uid = do
+  modify $ dbUsers %~ Map.delete uid
+  return $ LabeledTCB (True %% True) ()
 
 
 -- ** services
 
-allServiceIDs :: Query DB [ServiceId]
-allServiceIDs = Map.keys . (^. dbServices) <$> ask
+allServiceIDs :: Query DB (Labeled [ServiceId])
+allServiceIDs = LabeledTCB (True %% True) . Map.keys . (^. dbServices) <$> ask
 
-allServices :: Query DB [Service]
-allServices = Map.elems . (^. dbServices) <$> ask
+allServices :: Query DB (Labeled [Service])
+allServices = LabeledTCB (True %% True) . Map.elems . (^. dbServices) <$> ask
 
-lookupService :: ServiceId -> Query DB (Maybe Service)
-lookupService sid = Map.lookup sid . (^. dbServices) <$> ask
+lookupService :: ServiceId -> Query DB (Labeled (Maybe Service))
+lookupService sid = LabeledTCB (True %% True) . Map.lookup sid . (^. dbServices) <$> ask
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-addService :: Update DB ServiceId
+addService :: Update DB (Labeled ServiceId)
 addService = do
   sid <- freshServiceID
   service <- Service <$> freshServiceKey
   modify $ dbServices %~ Map.insert sid service
-  return sid
+  return $ LabeledTCB (True %% True) sid
 
-deleteService :: ServiceId -> Update DB ()
-deleteService sid = modify $ dbServices %~ Map.delete sid
+deleteService :: ServiceId -> Update DB (Labeled ())
+deleteService sid = do
+  modify $ dbServices %~ Map.delete sid
+  return $ LabeledTCB (True %% True) ()
 
 
 -- ** sessions
@@ -203,11 +208,11 @@ deleteService sid = modify $ dbServices %~ Map.delete sid
 --
 -- FIXME: how do you do errors / exceptions in acid-state?  at least
 -- we should throw typed exceptions, not just strings, right?
-startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB SessionToken
+startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB (Labeled SessionToken)
 startSession uid sid start end = do
   tok <- freshSessionToken
-  Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling
-  Just _ <- liftQuery $ lookupService sid  -- FIXME: error handling
+  LabeledTCB _ (Just user) <- liftQuery $ lookupUser uid  -- FIXME: error handling
+  LabeledTCB _ (Just _) <- liftQuery $ lookupService sid  -- FIXME: error handling
   let session = Session uid sid start end
 
   when (isJust $ user ^. userSession) $
@@ -215,14 +220,14 @@ startSession uid sid start end = do
 
   modify $ dbSessions %~ Map.insert tok session
   modify $ dbUsers %~ Map.insert uid (userSession .~ Just session $ user)
-  return tok
+  return $ LabeledTCB (True %% True) tok
 
 
-allSessionTokens :: Query DB [SessionToken]
-allSessionTokens = Map.keys . (^. dbSessions) <$> ask
+allSessionTokens :: Query DB (Labeled [SessionToken])
+allSessionTokens = LabeledTCB (True %% True) . Map.keys . (^. dbSessions) <$> ask
 
-lookupSession :: SessionToken -> Query DB (Maybe Session)
-lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
+lookupSession :: SessionToken -> Query DB (Labeled (Maybe Session))
+lookupSession tok = LabeledTCB (True %% True) . Map.lookup tok . (^. dbSessions) <$> ask
 
 
 -- | End session.  Call can be caused by logout request from user
@@ -234,12 +239,13 @@ lookupSession tok = Map.lookup tok . (^. dbSessions) <$> ask
 -- session?
 --
 -- FIXME: what about exceptions in acid state?
-endSession :: SessionToken -> Update DB ()
+endSession :: SessionToken -> Update DB (Labeled ())
 endSession tok = do
-  Just (Session uid _ _ _) <- liftQuery $ lookupSession tok
-  Just user <- liftQuery $ lookupUser uid  -- FIXME: error handling.
+  LabeledTCB _ (Just (Session uid _ _ _)) <- liftQuery $ lookupSession tok
+  LabeledTCB _ (Just user) <- liftQuery $ lookupUser uid  -- FIXME: error handling.
   modify $ dbSessions %~ Map.delete tok
   modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
+  return $ LabeledTCB (True %% True) ()
 
 
 -- | Is session token currently valid in the context of a given
@@ -249,8 +255,8 @@ endSession tok = do
 -- instead ensure via some yet-to-come authorization mechanism that
 -- only the affected service can gets validity information on a
 -- session token.)
-isActiveSession :: ServiceId -> SessionToken -> Query DB Bool
-isActiveSession sid tok = do
+isActiveSession :: ServiceId -> SessionToken -> Query DB (Labeled Bool)
+isActiveSession sid tok = LabeledTCB (True %% True) <$> do
   mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
   case mSession of
     Nothing -> return False

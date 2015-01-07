@@ -19,11 +19,14 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Exception (SomeException, throw, catch)
-import Data.Acid (AcidState, openLocalStateFrom, query, createCheckpoint, closeAcidState)
+import Control.Monad (void)
+import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Data (Proxy(Proxy))
-import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
+import LIO.DCLabel (DCLabel, (%%))
+import LIO (evalLIO)
+import LIO.TCB (LIOState(LIOState))
 import Network.Wai.Handler.Warp (run)
 import Safe (readMay)
 import Servant.Server (serve)
@@ -31,7 +34,6 @@ import System.Environment (getArgs)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Map as Map
 
 import Servant.Docs (docs, markdown)
 
@@ -53,16 +55,16 @@ main =
     let switch ["-s"] = do
             putStrLn "database contents:"
             putStrLn "Users:"
-            query st AllUsers >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            evalLIO (queryLIO st AllUsers) allowAll >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
             putStrLn "Services:"
-            query st AllServices >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            evalLIO (queryLIO st AllServices) allowAll >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            update_ st $ AddUser user
+            void $ evalLIO (updateLIO st $ AddUser user) allowAll
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            update_ st . AddUser $ User "dummy" "dummy" "dummy" [] Nothing
+            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] Nothing) allowAll
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
@@ -85,3 +87,7 @@ main =
 
 -- curl -H "Content-Type: application/json" -X PUT -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userID":3,"userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user/id/3
 -- curl -H "Content-Type: application/json" -X POST -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user
+
+
+allowAll :: LIOState DCLabel
+allowAll = LIOState (True %% True) (True %% True)
