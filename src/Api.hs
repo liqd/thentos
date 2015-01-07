@@ -49,11 +49,13 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
 
-app :: AcidState DB -> Auth -> Server ThentosBasic
-app st auth =
+app :: AcidState DB -> (AcidState DB -> Auth) -> Server ThentosBasic
+app st authGen =
        thentosUser st auth
   :<|> thentosService st auth
   :<|> thentosSession st auth
+  where
+    auth = authGen st
 
 
 -- * authentication
@@ -72,7 +74,7 @@ type Auth = LIOState DCLabel
 -- | See 'ThentosAuth'.
 instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
   where
-    type Server (ThentosAuth :> sublayout) = Auth -> Server sublayout
+    type Server (ThentosAuth :> sublayout) = (AcidState DB -> Auth) -> Server sublayout
 
     route Proxy subserver request respond = do
       -- FIXME: decodeUtf8 throws an exception if it receives non-utf8 data
@@ -85,9 +87,18 @@ instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
   docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
-mkAuth :: Maybe ST -> Maybe ST -> Auth
-mkAuth (Just principal) (Just password) = allowEverything
-mkAuth _ _ = allowEverything
+-- | If password cannot be verified, or if only password or only
+-- principal is provided, throw an error explaining the problem.  If
+-- none are provided, set clearance level to 'allowNothing'.  If both
+-- are provided, look up roles of principal, and set clearance level
+-- to that of the principal aka agent and all its roles.
+--
+-- Note: Both 'Role's and 'Agent's can be used in authorization
+-- policies.  ('User' can be used, but it must be wrapped into an
+-- 'UserA'.)
+mkAuth :: Maybe ST -> Maybe ST -> AcidState DB -> Auth
+mkAuth (Just principal) (Just password) st = allowEverything
+mkAuth _ _ _ = allowEverything
 
 allowNothing :: LIOState DCLabel
 allowNothing = LIOState (True %% True) (False %% False)
