@@ -91,10 +91,10 @@ data Service =
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
