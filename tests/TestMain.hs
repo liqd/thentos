@@ -27,7 +27,7 @@ import GHC.Exts (fromString)
 import LIO.DCLabel (DCLabel, (%%))
 import LIO (LIOState(LIOState), evalLIO)
 import Network.Wai (Application, requestMethod, requestBody, rawPathInfo)
-import Network.Wai.Test (runSession, request, defaultRequest, simpleStatus)
+import Network.Wai.Test (runSession, request, defaultRequest, simpleStatus, simpleBody)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
     anyException, shouldSatisfy)
@@ -96,14 +96,23 @@ main = hspec $ do
         evalLIO (updateLIO_ st (StartSession (UserId 0) sid from to)) allowAll
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
-    describe "/user/" $
-      it "works" $ \ (db, testServer) -> (`runSession` testServer) $ do
+    describe "GET /user" $
+      it "returns the list of users" $ \ (db, testServer) -> (`runSession` testServer) $ do
         response1 <- request $ defaultRequest
-          { requestMethod = "POST"
+          { requestMethod = "GET"
           , rawPathInfo = "/user"
+          }
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
+        liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1]
+
+    describe "POST /user" $
+      it "succeeds" $ \ (db, testServer) -> (`runSession` testServer) $ do
+        response2 <- request $ defaultRequest
+          { requestMethod = "POST"
+          , rawPathInfo = "/user/"
           , requestBody = return . cs $ Aeson.encode $ User "1" "2" "3" [] Nothing
           }
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
+        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
 
 
 -- * helpers
