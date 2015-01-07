@@ -82,7 +82,7 @@ instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
 
 -- | FIXME: not much documentation yet.
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-  docsFor Proxy args = docsFor (Proxy :: Proxy sublayout) args
+  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 mkAuth :: Maybe ST -> Maybe ST -> Auth
 mkAuth Nothing                              _ = LIOState (True %% True) (False %% False)

@@ -214,7 +214,7 @@ instance ToSample [ServiceId] where
     toSample = Just ["23t92ege0n", "f4ghwgegin0"]
 
 instance ToSample (UserId, ServiceId, Timeout) where
-    toSample = (,,) <$> toSample <*> toSample <*> pure (Timeout $ fromSeconds 123456.0)
+    toSample = (,,) <$> toSample <*> toSample <*> pure (Timeout $ fromSeconds (123456.0 :: Double))
 
 instance ToSample (UserId, ServiceId) where
     toSample = (,) <$> toSample <*> toSample
