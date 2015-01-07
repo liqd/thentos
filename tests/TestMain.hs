@@ -16,6 +16,7 @@
 module TestMain
 where
 
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (Async, async, cancel)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Data (Proxy(Proxy))
@@ -129,6 +130,7 @@ teardownDB _ = removeTree $ fromString (dbPath config)
 setupApi :: IO (Async ())
 setupApi = async . withDB $ \ st -> do
     run (restPort config) $ serve (Proxy :: Proxy App) (app st)
+    threadDelay $ 100 * 1000
 
 teardownApi :: Async () -> IO ()
 teardownApi = cancel
