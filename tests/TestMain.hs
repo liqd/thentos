@@ -153,7 +153,7 @@ teardownTestServer (st, testServer) = teardownDB st
 mkSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
 mkSRequest method path headers body = SRequest req body
   where
-    req = setPath defaultRequest {requestMethod = method, requestHeaders = headers} path
+    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers } path
 
 -- | Like `runSession`, but with re-ordered arguments, and with an
 -- extra debug-output flag.
