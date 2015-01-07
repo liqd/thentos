@@ -83,9 +83,13 @@ queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (Even
 queryLIO st ev = LIOTCB $ \ stateRef -> do
   clearance :: DCLabel <- lioClearance <$> readIORef stateRef
   LabeledTCB (context :: DCLabel) result <- query' st ev
-  if context `canFlowTo` clearance
+  if context `canFlowTo` clearance  -- FIXME: or is it supposed flow the other way?
     then return result
-    else fail "authorization denied"
+    else fail "authorization denied"  -- FIXME: throw error type here.
+
+    -- NOTE: auth errors must always be caught first, before any other
+    -- errors, or else non-authorization errors may leak information
+    -- to unauthorized parties.
 
 -- | Like 'queryLIO'.  If an action is not authorized, it will be
 -- undone after the fact.  Not ideal, but lazyness may save us here.
