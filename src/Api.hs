@@ -75,6 +75,7 @@ instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
     type Server (ThentosAuth :> sublayout) = Auth -> Server sublayout
 
     route Proxy subserver request respond = do
+      -- FIXME: decodeUtf8 throws an exception if it receives non-utf8 data
       let mprincipal :: Maybe ST = decodeUtf8 <$> lookup "X-Principal" (requestHeaders request)
           mpassword  :: Maybe ST = decodeUtf8 <$> lookup "X-Password"  (requestHeaders request)
 
