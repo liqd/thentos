@@ -200,6 +200,9 @@ deleteService sid = do
   modify $ dbServices %~ Map.delete sid
   return $ LabeledTCB (True %% True) ()
 
+-- FIXME: we don't have any api (neither in DB nor here) to manage
+-- user's group data.
+
 
 -- ** sessions
 
@@ -219,11 +222,11 @@ startSession uid sid start end = do
   LabeledTCB _ (Just _) <- liftQuery $ lookupService sid  -- FIXME: error handling
   let session = Session uid sid start end
 
-  when (isJust $ user ^. userSession) $
-    error "startSession: user already logged in."  -- FIXME: error handling
+  when (isJust . lookup sid $ user ^. userSessions) $
+    error "startSession: user already logged into this service."  -- FIXME: error handling
 
   modify $ dbSessions %~ Map.insert tok session
-  modify $ dbUsers %~ Map.insert uid (userSession .~ Just session $ user)
+  modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
   return $ LabeledTCB (True %% True) tok
 
 
@@ -245,10 +248,10 @@ lookupSession tok = LabeledTCB (True %% True) . Map.lookup tok . (^. dbSessions)
 -- FIXME: what about exceptions in acid state?
 endSession :: SessionToken -> Update DB (Labeled ())
 endSession tok = do
-  LabeledTCB _ (Just (Session uid _ _ _)) <- liftQuery $ lookupSession tok
+  LabeledTCB _ (Just (Session uid sid _ _)) <- liftQuery $ lookupSession tok
   LabeledTCB _ (Just user) <- liftQuery $ lookupUser uid  -- FIXME: error handling.
   modify $ dbSessions %~ Map.delete tok
-  modify $ dbUsers %~ Map.insert uid (userSession .~ Nothing $ user)
+  modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
   return $ LabeledTCB (True %% True) ()
 
 

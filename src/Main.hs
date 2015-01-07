@@ -64,7 +64,7 @@ main =
             void $ evalLIO (updateLIO st $ AddUser user) allowAll
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] Nothing) allowAll
+            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] []) allowAll
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."

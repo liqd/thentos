@@ -113,7 +113,7 @@ main = hspec $ do
 
     describe "POST /user" $
       it "succeeds" $ \ (db, testServer) -> (debugRunSession False testServer) $ do
-        response2 <- srequest $ mkSRequest "POST" "/user" [] (Aeson.encode $ User "1" "2" "3" [] Nothing)
+        response2 <- srequest $ mkSRequest "POST" "/user" [] (Aeson.encode $ User "1" "2" "3" [] [])
         liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
 
 
@@ -123,9 +123,9 @@ allowAll :: LIOState DCLabel
 allowAll = LIOState (True %% True) (True %% True)
 
 user1, user2, user3 :: User
-user1 = User "name1" "passwd" "em@il" [] Nothing
-user2 = User "name2" "passwd" "em@il" ["group1", "group2"] Nothing
-user3 = User "name3" "3" "3" ["23"] Nothing
+user1 = User "name1" "passwd" "em@il" [] []
+user2 = User "name2" "passwd" "em@il" [("bal", ["group1"]), ("bla", ["group2"])] []
+user3 = User "name3" "3" "3" [("bla", ["23"])] []
 
 setupDB :: IO (AcidState DB)
 setupDB = do

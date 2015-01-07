@@ -43,14 +43,17 @@ data DB =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+-- | (user groups (the data that services want to store and retrieve
+-- in thentos) and session tokens of all active sessions are stored in
+-- assoc lists rather than maps.  this saves us explicit json
+-- instances for now.)
 data User =
     User
       { _userName     :: !UserName
       , _userPassword :: !UserPass
       , _userEmail    :: !UserEmail
-      , _userGroups   :: [Group]
-      -- FIXME: should be a list of session ids (or maybe should not exist)
-      , _userSession  :: Maybe Session
+      , _userGroups   :: [(ServiceId, [Group])]
+      , _userSessions :: [(ServiceId, SessionToken)]
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -199,7 +202,7 @@ instance ToSample User where
                            (UserPass "Hunter2")
                            (UserEmail "cobain@nirvana.com")
                            []
-                           Nothing
+                           []
 
 instance ToSample UserId where
     toSample = Just $ UserId 12
