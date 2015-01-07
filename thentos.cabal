@@ -47,6 +47,8 @@ executable thentos
     , old-locale
     , lio
     , text
+    , hspec-wai
+    , wai-extra
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
@@ -103,6 +105,8 @@ test-suite tests
     , old-locale
     , lio
     , text
+    , hspec-wai
+    , wai-extra
 
     -- [packages only needed for testing]
     , hspec
