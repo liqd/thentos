@@ -55,16 +55,16 @@ main =
     let switch ["-s"] = do
             putStrLn "database contents:"
             putStrLn "Users:"
-            evalLIO (queryLIO st AllUsers) allowAll >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            evalLIO (queryLIO st AllUsers) allowEverything >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
             putStrLn "Services:"
-            evalLIO (queryLIO st AllServices) allowAll >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            evalLIO (queryLIO st AllServices) allowEverything >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            void $ evalLIO (updateLIO st $ AddUser user) allowAll
+            void $ evalLIO (updateLIO st $ AddUser user) allowEverything
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] []) allowAll
+            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] []) allowEverything
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
@@ -87,7 +87,3 @@ main =
 
 -- curl -H "Content-Type: application/json" -X PUT -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userID":3,"userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user/id/3
 -- curl -H "Content-Type: application/json" -X POST -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user
-
-
-allowAll :: LIOState DCLabel
-allowAll = LIOState (True %% True) (True %% True)

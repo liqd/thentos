@@ -86,8 +86,14 @@ instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
   docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 mkAuth :: Maybe ST -> Maybe ST -> Auth
-mkAuth Nothing                              _ = LIOState (True %% True) (True %% True)
-mkAuth (Just (cs -> (principal :: String))) _ = LIOState (True %% True) (principal %% principal)
+mkAuth (Just principal) (Just password) = allowEverything
+mkAuth _ _ = allowEverything
+
+allowNothing :: LIOState DCLabel
+allowNothing = LIOState (True %% True) (False %% False)
+
+allowEverything :: LIOState DCLabel
+allowEverything = LIOState (True %% True) (True %% True)
 
 
 -- * user

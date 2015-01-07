@@ -70,36 +70,36 @@ main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
-        uid <- evalLIO (updateLIO st $ AddUser user1) allowAll
-        Just user1' <- evalLIO (queryLIO st $ LookupUser uid) allowAll
+        uid <- evalLIO (updateLIO st $ AddUser user1) allowEverything
+        Just user1' <- evalLIO (queryLIO st $ LookupUser uid) allowEverything
         user1' `shouldBe` user1
-        evalLIO (updateLIO st $ DeleteUser (UserId 1)) allowAll
-        u <- evalLIO (queryLIO st $ LookupUser (UserId 1)) allowAll
+        evalLIO (updateLIO st $ DeleteUser (UserId 1)) allowEverything
+        u <- evalLIO (queryLIO st $ LookupUser (UserId 1)) allowEverything
         u `shouldBe` Nothing
 
       it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." $ \ st -> do
-        uids <- evalLIO (queryLIO st AllUserIDs) allowAll
+        uids <- evalLIO (queryLIO st AllUserIDs) allowEverything
         uids `shouldBe` [UserId 0, UserId 1]
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \st -> do
-        service1_id <- evalLIO (updateLIO st AddService) allowAll
-        service2_id <- evalLIO (updateLIO st AddService) allowAll
-        Just service1 <- evalLIO (queryLIO st $ LookupService service1_id) allowAll
-        Just service2 <- evalLIO (queryLIO st $ LookupService service2_id) allowAll
+        service1_id <- evalLIO (updateLIO st AddService) allowEverything
+        service2_id <- evalLIO (updateLIO st AddService) allowEverything
+        Just service1 <- evalLIO (queryLIO st $ LookupService service1_id) allowEverything
+        Just service2 <- evalLIO (queryLIO st $ LookupService service2_id) allowEverything
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
         service1 `shouldSatisfy` (/= service2) -- should have different keys
-        evalLIO (updateLIO st $ DeleteService service1_id) allowAll
-        Nothing <- evalLIO (queryLIO st $ LookupService service1_id) allowAll
+        evalLIO (updateLIO st $ DeleteService service1_id) allowEverything
+        Nothing <- evalLIO (queryLIO st $ LookupService service1_id) allowEverything
         return ()
 
     describe "StartSession" $ do
       it "works" $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
-        evalLIO (updateLIO st (StartSession (UserId 0) "nosuchservice" from to)) allowAll `shouldThrow` anyException
-        sid :: ServiceId <- evalLIO (updateLIO st AddService) allowAll
-        evalLIO (updateLIO_ st (StartSession (UserId 0) sid from to)) allowAll
+        evalLIO (updateLIO st (StartSession (UserId 0) "nosuchservice" from to)) allowEverything `shouldThrow` anyException
+        sid :: ServiceId <- evalLIO (updateLIO st AddService) allowEverything
+        evalLIO (updateLIO_ st (StartSession (UserId 0) sid from to)) allowEverything
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
     describe "GET /user" $
@@ -119,9 +119,6 @@ main = hspec $ do
 
 -- * helpers
 
-allowAll :: LIOState DCLabel
-allowAll = LIOState (True %% True) (True %% True)
-
 user1, user2, user3 :: User
 user1 = User "name1" "passwd" "em@il" [] []
 user2 = User "name2" "passwd" "em@il" [("bal", ["group1"]), ("bla", ["group2"])] []
@@ -130,8 +127,8 @@ user3 = User "name3" "3" "3" [("bla", ["23"])] []
 setupDB :: IO (AcidState DB)
 setupDB = do
   st <- openLocalStateFrom (dbPath config) emptyDB
-  evalLIO (updateLIO_ st $ AddUser user1) allowAll
-  evalLIO (updateLIO_ st $ AddUser user2) allowAll
+  evalLIO (updateLIO_ st $ AddUser user1) allowEverything
+  evalLIO (updateLIO_ st $ AddUser user2) allowEverything
   return st
 
 teardownDB :: AcidState DB -> IO ()
