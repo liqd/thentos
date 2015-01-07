@@ -113,7 +113,7 @@ updateLIO_ st = void . updateLIO st
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty (UserId 0) ""
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
 freshUserID :: Update DB UserId
 freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)

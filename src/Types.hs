@@ -19,9 +19,10 @@ import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String (IsString)
-import Data.String.Conversions (SBS, ST)
+import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
+import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.API (Capture)
 import Servant.Common.Text (FromText)
@@ -37,6 +38,7 @@ data DB =
       { _dbUsers       :: Map UserId User
       , _dbServices    :: Map ServiceId Service
       , _dbSessions    :: Map SessionToken Session
+      , _dbRoles       :: Map Agent [Role]
 
       , _dbFreshUserId :: !UserId
       , _dbRandomness  :: !SBS
@@ -103,6 +105,19 @@ newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 
+-- | Some thing or body that deals with (and can authenticate itself
+-- before) thentos.  Examples: 'User' or 'Service'.  (We could have
+-- called this 'Principal', but that name is in use by LIO already.)
+data Agent = UserA User | ServiceA Service
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype Role = Role { fromRole :: ST }
+  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance ToCNF Agent where toCNF = toCNF . show
+instance ToCNF Role where toCNF = toCNF . show
+
+
 makeLenses ''DB
 makeLenses ''User
 makeLenses ''Session
@@ -121,6 +136,9 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserPass)
+$(deriveSafeCopy 0 'base ''Agent)
+$(deriveSafeCopy 0 'base ''Role)
+
 
 instance Aeson.FromJSON User      where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Session   where parseJSON = Aeson.gparseJson
