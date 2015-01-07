@@ -48,11 +48,13 @@ executable thentos
 
     -- FIXME: without these, loading hspec test files into ghci fails.
     -- is there a better way to get this to work?
+    -- FIXME: remove!  this can be done more elegantly with 'cabal repl tests'.
     , bytestring
     , hspec
     , http-types
     , system-fileio
     , wai-extra
+    , pretty-show
 
 test-suite tests
   default-language:
@@ -101,3 +103,4 @@ test-suite tests
     , http-types >=0.8.5 && <0.9
     , system-fileio >=0.3.5 && <0.4
     , wai-extra >=3.0.3 && <3.1
+    , pretty-show >=1.6.8 && <1.7

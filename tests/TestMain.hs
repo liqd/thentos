@@ -20,20 +20,26 @@ import Control.Monad.State (liftIO)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Data (Proxy(Proxy))
 import Data.Functor.Infix ((<$>))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (LBS, SBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
 import GHC.Exts (fromString)
 import LIO.DCLabel (DCLabel, (%%))
 import LIO (LIOState(LIOState), evalLIO)
-import Network.Wai (Application, requestMethod, requestBody, pathInfo)
-import Network.Wai.Test (runSession, request, defaultRequest, simpleStatus, simpleBody)
+import Network.HTTP.Types.Header (Header)
+import Network.HTTP.Types.Method (Method)
+import Network.Wai (Application, StreamingBody, requestMethod, requestBody, pathInfo, requestHeaders)
+import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
+import Network.Wai.Test (Session, SRequest(SRequest),
+    runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
     anyException, shouldSatisfy)
+import Text.Show.Pretty (ppShow)
+import System.IO.Unsafe (unsafePerformIO)
 
-import qualified Network.HTTP.Types.Status as C
 import qualified Data.Aeson as Aeson
+import qualified Network.HTTP.Types.Status as C
 
 import Api
 import DB
@@ -97,7 +103,7 @@ main = hspec $ do
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
     describe "GET /user" $
-      it "returns the list of users" $ \ (db, testServer) -> (`runSession` testServer) $ do
+      it "returns the list of users" $ \ (db, testServer) -> (debugRunSession False testServer) $ do
         response1 <- request $ defaultRequest
           { requestMethod = "GET"
           , pathInfo = ["user"]
@@ -106,12 +112,8 @@ main = hspec $ do
         liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1]
 
     describe "POST /user" $
-      it "succeeds" $ \ (db, testServer) -> (`runSession` testServer) $ do
-        response2 <- request $ defaultRequest
-          { requestMethod = "POST"
-          , pathInfo = ["user"]
-          , requestBody = return . cs $ Aeson.encode $ User "1" "2" "3" [] Nothing
-          }
+      it "succeeds" $ \ (db, testServer) -> (debugRunSession True testServer) $ do
+        response2 <- srequest $ mkSRequest "POST" "/user" [] (Aeson.encode $ User "1" "2" "3" [] Nothing)
         liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
 
 
@@ -145,3 +147,37 @@ setupTestServer = do
 
 teardownTestServer :: (AcidState DB, Application) -> IO ()
 teardownTestServer (st, testServer) = teardownDB st
+
+-- | Cloned from hspec-wai's 'request'.  (We don't want to use the
+-- return type from there.)
+mkSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
+mkSRequest method path headers body = SRequest req body
+  where
+    req = setPath defaultRequest {requestMethod = method, requestHeaders = headers} path
+
+-- | Like `runSession`, but with re-ordered arguments, and with an
+-- extra debug-output flag.
+debugRunSession :: Bool -> Application -> Network.Wai.Test.Session a -> IO a
+debugRunSession debug application session = runSession session (wrapApplication debug)
+  where
+    wrapApplication :: Bool -> Application
+    wrapApplication False = application
+    wrapApplication True = \ request respond -> do
+      putStrLn $ showRequest request
+      application request (\ response -> putStrLn (showResponse response)  >> respond response)
+
+    showRequest request = showRequestHeader ++ ppShow request ++ body
+      where
+        showRequestHeader = "\n=== REQUEST ==========================================================\n"
+
+        body = "\nbody:" ++ show ((cs . unsafePerformIO . requestBody $ request) :: LBS) ++ "\n"
+
+    showResponse response = showResponseHeader ++ show_ response
+      where
+        showResponseHeader = "\n=== RESPONSE =========================================================\n"
+
+        show_ :: Response -> String
+        show_ (ResponseFile _ _ _ _) = "ResponseFile"
+        show_ (ResponseBuilder status headers builder) = "ResponseBuilder" ++ show (status, headers)
+        show_ (ResponseStream status headers (streamingBody :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
+        show_ (ResponseRaw _ _) = "ResponseRaw"
