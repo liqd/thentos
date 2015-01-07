@@ -95,16 +95,16 @@ mkAuth (Just (cs -> (principal :: String))) _ = LIOState (True %% True) (princip
 type ThentosUser =
        Get [UserId]
   :<|> Capture "userid" UserId :> Get User
-  :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> ReqBody User :> Post UserId
+  :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
 thentosUser :: AcidState DB -> Auth -> Server ThentosUser
 thentosUser st auth =
        getUserIds st auth
   :<|> getUser st auth
-  :<|> postNamedUser st auth
   :<|> postNewUser st auth
+  :<|> postNamedUser st auth
   :<|> deleteUser st auth
 
 getUserIds :: AcidState DB -> Auth -> RestAction [UserId]
