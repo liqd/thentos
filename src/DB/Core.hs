@@ -9,7 +9,7 @@
 
 {-# OPTIONS  #-}
 
-module DB
+module DB.Core
   ( AllUserIDs(..)
   , AllUsers(..)
   , LookupUser(..)
