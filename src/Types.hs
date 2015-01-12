@@ -22,7 +22,7 @@ import Data.String (IsString)
 import Data.String.Conversions (SBS, ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
-import LIO.DCLabel (ToCNF, toCNF)
+import LIO.DCLabel (DCLabel, ToCNF, toCNF)
 import Safe (readMay)
 import Servant.API (Capture)
 import Servant.Common.Text (FromText)
@@ -116,6 +116,17 @@ data Role = RoleAdmin | RoleUser | RoleService
 
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Role where toCNF = toCNF . show
+
+-- | Wrapper for lio's 'LabeledTCB' to avoid orphan instances.  (Also,
+-- freeze 'DCLabel' as label type.)
+data Labeled t = LabeledTCB DCLabel t
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance (SafeCopy t, Show t, Read t) => SafeCopy (Labeled t)
+  where
+    putCopy = contain . safePut . show
+    getCopy = contain $ safeGet >>= \ raw ->
+      maybe (fail $ "instance SafeCopy Labeled: no parse" ++ show raw) return . readMay $ raw
 
 
 makeLenses ''DB
