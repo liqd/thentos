@@ -34,7 +34,7 @@ import Network.Wai.Test (Session, SRequest(SRequest),
     runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
 import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
-    anyException, shouldSatisfy, pending)
+    anyException, shouldSatisfy, pendingWith)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -103,22 +103,25 @@ main = hspec $ do
   describe "Api" . before setupTestServer . after teardownTestServer $ do
     describe "authentication" $ do
       it "lets user view itself" $
-          \ (db, testServer) -> (debugRunSession True testServer) $ do
+          \ (db, testServer) -> (debugRunSession False testServer) $ do
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "passwd")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
       it "responds with an error if clearance is insufficient" $
           \ (db, testServer) -> (debugRunSession False testServer) $ do
+        liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
 
       it "responds with an error if password is wrong" $
           \ (db, testServer) -> (debugRunSession False testServer) $ do
+        liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "not-my-password")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
 
       it "responds with an error if only one of principal, password is provided" $
           \ (db, testServer) -> (debugRunSession False testServer) $ do
+        liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
         response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Password", "passwd")] ""
@@ -131,7 +134,7 @@ main = hspec $ do
       -- configuration file, the password can be configured in "DB",
       -- or somewhere.)
       it "special user admin can do anything" $ \ (db, testServer) -> (debugRunSession True testServer) $ do
-        liftIO $ pending
+        liftIO $ pendingWith "not implemented yet"
 
     describe "GET /user" $
       it "returns the list of users" $ \ (db, testServer) -> (debugRunSession False testServer) $ do
