@@ -102,9 +102,11 @@ mkAuth _ _ _ = allowEverything
 
 allowNothing :: LIOState DCLabel
 allowNothing = LIOState (False %% False) (True %% False)
+  -- FIXME: is this correct?  what does it meaen?
 
 allowEverything :: LIOState DCLabel
-allowEverything = dcDefaultState
+allowEverything = LIOState (False %% False) (True %% True)
+  -- FIXME: dcDefaultState, but that doesn't work.  our policy needs more work...
 
 
 -- * user
