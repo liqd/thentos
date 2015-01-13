@@ -14,7 +14,7 @@
 
 {-# OPTIONS  #-}
 
-module Main
+module Thentos
 where
 
 import Control.Applicative ((<$>))

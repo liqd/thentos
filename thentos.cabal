@@ -11,13 +11,18 @@ maintainer:          mf@zerobuzz.net
 build-type:          Simple
 cabal-version:       >= 1.10
 
-executable thentos
+library
   default-language:
       Haskell2010
   hs-source-dirs:
-      ./src/
-  main-is:
-      Main.hs
+      src
+  exposed-modules:
+      Thentos
+    , Api
+    , DB
+    , DB.Core
+    , DB.Protect
+    , Types
   build-depends:
       base >=4.7 && <4.8
     , acid-state >=0.12 && <0.13
@@ -46,15 +51,14 @@ executable thentos
     , wai >=3.0.2 && <3.1
     , warp >=3.0 && <3.1
 
-    -- FIXME: without these, loading hspec test files into ghci fails.
-    -- is there a better way to get this to work?
-    -- FIXME: remove!  this can be done more elegantly with 'cabal repl tests'.
-    , bytestring
-    , hspec
-    , http-types
-    , system-fileio
-    , wai-extra
-    , pretty-show
+executable thentos
+  default-language:
+      Haskell2010
+  main-is:
+      Main.hs
+  build-depends:
+      thentos,
+      base
 
 test-suite tests
   default-language:
@@ -62,7 +66,7 @@ test-suite tests
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
-      ./tests/ ./src/
+      ./tests
   main-is:
       TestMain.hs
   ghc-options:
@@ -70,33 +74,17 @@ test-suite tests
   cpp-options:
       -DGHC_GENERICS
   build-depends:
-      base >=4.7 && <4.8
+      thentos
+    , base
     , acid-state >=0.12 && <0.13
     , aeson >=0.7 && <0.8
-    , aeson-pretty >=0.7 && <0.8
-    , containers >=0.5 && <0.6
-    , cryptohash >=0.11.6 && <0.12
-    , either >=4.3.2 && <4.4
     , functor-infix >=0.0.1 && <0.2
-    , generic-aeson >=0.2 && <0.3
-    , lens >=4.4 && <4.5
     , lio >=0.11.5.0 && <0.12
     , mtl >=2.1 && <2.2
-    , old-locale >=1.0.0.6 && <1.1
-    , safe >=0.3 && <0.4
-    , safecopy >=0.8 && <0.9
-    , sandi >=0.3.1 && <0.4
-    , servant >=0.2.1
-    , servant-docs >=0.3 && <0.4
-    , servant-jquery >= 0.2.1
     , servant-server >=0.2.3 && <0.3
     , string-conversions >=0.3 && <0.4
-    , text >=1.2.0.0 && <1.3
     , thyme >=0.3 && <0.4
-    , vector-space >=0.8.7 && <0.9
     , wai >=3.0.2 && <3.1
-    , warp >=3.0 && <3.1
-
     -- [packages only needed for testing]
     , bytestring >=0.10.4.0 && <0.11
     , hspec >=2.0.2 && <2.1
