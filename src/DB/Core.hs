@@ -11,14 +11,12 @@
 
 module DB.Core
   ( AllUserIDs(..)
-  , AllUsers(..)
   , LookupUser(..)
   , AddUser(..)
   , UpdateUser(..)
   , DeleteUser(..)
 
   , AllServiceIDs(..)
-  , AllServices(..)
   , LookupService(..)
   , AddService(..)
   , DeleteService(..)
@@ -37,18 +35,23 @@ where
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
-import Control.Monad.State (modify, state)
+import Control.Monad.State (modify, state, gets)
 import Control.Monad (when)
-import Data.Acid (AcidState, Query, Update, createCheckpoint, liftQuery, makeAcidic)
-import Data.Functor.Infix ((<$>))
+import Data.Acid (AcidState, EventState, EventResult, UpdateEvent, Query, Update, createCheckpoint, liftQuery, makeAcidic)
+import Data.Acid.Advanced (Method(..))
+import Data.Functor.Infix ((<$>), (<$$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (cs, ST, (<>))
-import LIO.DCLabel ((%%))
+import LIO (canFlowTo)
+import LIO.DCLabel (DCLabel, (%%), dcPublic)
+
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
 import qualified Data.Map as Map
 
 import Types
+import DB.Error
+import DB.Protect
 
 
 -- * event functions
@@ -56,90 +59,119 @@ import Types
 emptyDB :: DB
 emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
-freshUserID :: Update DB UserId
-freshUserID = state $ \ db -> f db (db ^. dbFreshUserId)
-  where
-    f db uid = if uid < maxBound
-                 then (uid, dbFreshUserId .~ succ uid $ db)
-                 else error "freshUserID: internal error: integer overflow!"
+freshUserID :: ThentosClearance -> Update DB (Either DbError UserId)
+freshUserID clearance = runThentosUpdate clearance _freshUserID
 
-freshServiceID :: Update DB ServiceId
-freshServiceID = ServiceId <$> freshNonce
+_freshUserID :: ThentosUpdate UserId
+_freshUserID = do
+    uid <- gets (^. dbFreshUserId)
+    when' (uid == maxBound) $
+        throwDB dcPublic UidOverflow
+    modify (dbFreshUserId .~ succ uid)
+    returnDB dcPublic uid
 
-freshServiceKey :: Update DB ServiceKey
-freshServiceKey = ServiceKey <$> freshNonce
+_freshServiceID :: ThentosUpdate ServiceId
+_freshServiceID = ServiceId <$$> _freshNonce
 
-freshSessionToken :: Update DB SessionToken
-freshSessionToken = SessionToken <$> freshNonce
+_freshServiceKey :: ThentosUpdate ServiceKey
+_freshServiceKey = ServiceKey <$$> _freshNonce
+
+_freshSessionToken :: ThentosUpdate SessionToken
+_freshSessionToken = SessionToken <$$> _freshNonce
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
 -- seemingly random service ids, and update randomness in `DB`.
-freshNonce :: Update DB ST
-freshNonce = state $ \ db ->
+_freshNonce :: ThentosUpdate ST
+_freshNonce = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
       db' = dbRandomness .~ r' $ db
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
-  in (sid, db')
+  in (thentosLabeledPublic sid, db')
 
 
 -- ** users
 
-allUserIDs :: Query DB (Labeled [UserId])
-allUserIDs = LabeledTCB (True %% True) . Map.keys . (^. dbUsers) <$> ask
+allUserIDs :: ThentosClearance -> Query DB (Either DbError [UserId])
+allUserIDs clearance = runThentosQuery clearance _allUserIDs
 
-allUsers :: Query DB (Labeled [User])
-allUsers = LabeledTCB (True %% True) . Map.elems . (^. dbUsers) <$> ask
+_allUserIDs :: ThentosQuery [UserId]
+_allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
 
-lookupUser :: UserId -> Query DB (Labeled (Maybe User))
-lookupUser uid = LabeledTCB (True %% True) . Map.lookup uid . (^. dbUsers) <$> ask
+lookupUser :: ThentosClearance -> UserId -> Query DB (Either DbError User)
+lookupUser clearance uid = runThentosQuery clearance $ _lookupUser uid
+
+_lookupUser :: UserId -> ThentosQuery User
+_lookupUser uid = do
+    perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
+    maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) perhaps
 
 -- | Write new user to DB.  Return the fresh user id.
-addUser :: User -> Update DB (Labeled UserId)
-addUser user = do
-  uid <- freshUserID
+addUser :: ThentosClearance -> User -> Update DB (Either DbError UserId)
+addUser clearance = runThentosUpdate clearance . _addUser
+
+_addUser :: User -> ThentosUpdate UserId
+_addUser user = do
+  ThentosLabeled (ThentosLabel label) uid <- _freshUserID
   modify $ dbUsers %~ Map.insert uid user
-  return $ LabeledTCB (True %% True) uid
+  returnDB label uid
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
-updateUser :: UserId -> User -> Update DB (Labeled ())
-updateUser uid user = do
-  modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid  -- FIXME: error handling.
-  return $ LabeledTCB (True %% True) ()
+updateUser :: ThentosClearance -> UserId -> User -> Update DB (Either DbError ())
+updateUser clearance uid user = runThentosUpdate clearance $ _updateUser uid user
+
+_updateUser :: UserId -> User -> ThentosUpdate ()
+_updateUser uid user = do
+  modify $ dbUsers %~ Map.alter (\ (Just _) -> Just user) uid
+  returnDB dcPublic ()
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
-deleteUser :: UserId -> Update DB (Labeled ())
-deleteUser uid = do
+deleteUser :: ThentosClearance -> UserId -> Update DB (Either DbError ())
+deleteUser clearance uid = runThentosUpdate clearance $ _deleteUser uid
+
+_deleteUser :: UserId -> ThentosUpdate ()
+_deleteUser uid = do
   modify $ dbUsers %~ Map.delete uid
-  return $ LabeledTCB (True %% True) ()
+  returnDB dcPublic ()
 
 
 -- ** services
 
-allServiceIDs :: Query DB (Labeled [ServiceId])
-allServiceIDs = LabeledTCB (True %% True) . Map.keys . (^. dbServices) <$> ask
+allServiceIDs :: ThentosClearance -> Query DB (Either DbError [ServiceId])
+allServiceIDs clearance = runThentosQuery clearance _allServiceIDs
 
-allServices :: Query DB (Labeled [Service])
-allServices = LabeledTCB (True %% True) . Map.elems . (^. dbServices) <$> ask
+_allServiceIDs :: ThentosQuery [ServiceId]
+_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
 
-lookupService :: ServiceId -> Query DB (Labeled (Maybe Service))
-lookupService sid = LabeledTCB (True %% True) . Map.lookup sid . (^. dbServices) <$> ask
+lookupService :: ThentosClearance -> ServiceId -> Query DB (Either DbError Service)
+lookupService clearance = runThentosQuery clearance . _lookupService
+
+_lookupService :: ServiceId -> ThentosQuery Service
+_lookupService sid = do
+    perhaps :: Maybe Service <- Map.lookup sid . (^. dbServices) <$> ask
+    maybe (throwDBQ dcPublic NoSuchService) (returnDBQ dcPublic) perhaps
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-addService :: Update DB (Labeled ServiceId)
-addService = do
-  sid <- freshServiceID
-  service <- Service <$> freshServiceKey
-  modify $ dbServices %~ Map.insert sid service
-  return $ LabeledTCB (True %% True) sid
+addService :: ThentosClearance -> Update DB (Either DbError ServiceId)
+addService clearance = runThentosUpdate clearance _addService
 
-deleteService :: ServiceId -> Update DB (Labeled ())
-deleteService sid = do
+_addService :: ThentosUpdate ServiceId
+_addService = do
+    ThentosLabeled _ sid <- _freshServiceID
+    ThentosLabeled _ service <- Service <$$> _freshServiceKey
+    modify $ dbServices %~ Map.insert sid service
+    returnDB dcPublic sid
+
+deleteService :: ThentosClearance -> ServiceId -> Update DB (Either DbError ())
+deleteService clearance = runThentosUpdate clearance . _deleteService
+
+_deleteService :: ServiceId -> ThentosUpdate ()
+_deleteService sid = do
   modify $ dbServices %~ Map.delete sid
-  return $ LabeledTCB (True %% True) ()
+  returnDB dcPublic ()
 
 -- FIXME: we don't have any api (neither in DB nor here) to manage
 -- user's group data.
@@ -151,49 +183,54 @@ deleteService sid = do
 -- 'ServiceID'.  Start and end time have to be passed explicitly.
 -- Throw exception if user or service do not exist.  Return session
 -- token.  If user is already logged in, throw an error.
---
--- FIXME: shouldn't users be able to log in on several services?
---
--- FIXME: how do you do errors / exceptions in acid-state?  at least
--- we should throw typed exceptions, not just strings, right?
-startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB (Labeled SessionToken)
-startSession uid sid start end = do
-  tok <- freshSessionToken
-  LabeledTCB _ (Just user) <- liftQuery $ lookupUser uid  -- FIXME: error handling
-  LabeledTCB _ (Just _) <- liftQuery $ lookupService sid  -- FIXME: error handling
+startSession :: ThentosClearance -> UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB (Either DbError SessionToken)
+startSession clearance uid sid start end = runThentosUpdate clearance $ _startSession uid sid start end
+
+_startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosUpdate SessionToken
+_startSession uid sid start end = do
+  ThentosLabeled _ tok  <- _freshSessionToken
+  ThentosLabeled _ user <- liftThentosQuery $ _lookupUser uid
+  ThentosLabeled _ _    <- liftThentosQuery $ _lookupService sid
   let session = Session uid sid start end
 
-  when (isJust . lookup sid $ user ^. userSessions) $
-    error "startSession: user already logged into this service."  -- FIXME: error handling
+  when' (isJust . lookup sid $ user ^. userSessions) $
+    throwDB dcPublic SessionAlreadyExists
 
   modify $ dbSessions %~ Map.insert tok session
   modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
-  return $ LabeledTCB (True %% True) tok
+  returnDB dcPublic tok
 
 
-allSessionTokens :: Query DB (Labeled [SessionToken])
-allSessionTokens = LabeledTCB (True %% True) . Map.keys . (^. dbSessions) <$> ask
+allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
+allSessionTokens clearance = runThentosQuery clearance _allSessionTokens
 
-lookupSession :: SessionToken -> Query DB (Labeled (Maybe Session))
-lookupSession tok = LabeledTCB (True %% True) . Map.lookup tok . (^. dbSessions) <$> ask
+_allSessionTokens :: ThentosQuery [SessionToken]
+_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
+
+
+lookupSession :: ThentosClearance -> SessionToken -> Query DB (Either DbError Session)
+lookupSession clearance = runThentosQuery clearance . _lookupSession
+
+_lookupSession :: SessionToken -> ThentosQuery Session
+_lookupSession tok = do
+    perhaps :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
+    maybe (throwDBQ dcPublic NoSuchSession) (returnDBQ dcPublic) perhaps
 
 
 -- | End session.  Call can be caused by logout request from user
 -- (before end of session life time), by session timeouts, or after
 -- its natural life time (by application's own garbage collection).
 -- If lookup of session owning user fails, throw an error.
---
--- FIXME: check if user has session set to @Nothing@, or to the wrong
--- session?
---
--- FIXME: what about exceptions in acid state?
-endSession :: SessionToken -> Update DB (Labeled ())
-endSession tok = do
-  LabeledTCB _ (Just (Session uid sid _ _)) <- liftQuery $ lookupSession tok
-  LabeledTCB _ (Just user) <- liftQuery $ lookupUser uid  -- FIXME: error handling.
+endSession :: ThentosClearance -> SessionToken -> Update DB (Either DbError ())
+endSession clearance = runThentosUpdate clearance . _endSession
+
+_endSession :: SessionToken -> ThentosUpdate ()
+_endSession tok = do
+  ThentosLabeled _ (Session uid sid _ _) <- liftThentosQuery $ _lookupSession tok
+  ThentosLabeled _ user                  <- liftThentosQuery $ _lookupUser uid
   modify $ dbSessions %~ Map.delete tok
   modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
-  return $ LabeledTCB (True %% True) ()
+  returnDB dcPublic ()
 
 
 -- | Is session token currently valid in the context of a given
@@ -203,8 +240,11 @@ endSession tok = do
 -- instead ensure via some yet-to-come authorization mechanism that
 -- only the affected service can gets validity information on a
 -- session token.)
-isActiveSession :: ServiceId -> SessionToken -> Query DB (Labeled Bool)
-isActiveSession sid tok = LabeledTCB (True %% True) <$> do
+isActiveSession :: ThentosClearance -> ServiceId -> SessionToken -> Query DB (Either DbError Bool)
+isActiveSession clearance sid tok = runThentosQuery clearance $ _isActiveSession sid tok
+
+_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
+_isActiveSession sid tok = thentosLabeledPublic <$> do
   mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
   case mSession of
     Nothing -> return False
@@ -214,20 +254,13 @@ isActiveSession sid tok = LabeledTCB (True %% True) <$> do
 -- * event types
 
 $(makeAcidic ''DB
-    [ 'freshUserID
-    , 'freshServiceID
-    , 'freshSessionToken
-    , 'freshNonce
-
-    , 'allUserIDs
-    , 'allUsers
+    [ 'allUserIDs
     , 'lookupUser
     , 'addUser
     , 'updateUser
     , 'deleteUser
 
     , 'allServiceIDs
-    , 'allServices
     , 'lookupService
     , 'addService
     , 'deleteService
@@ -237,7 +270,6 @@ $(makeAcidic ''DB
     , 'lookupSession
     , 'endSession
     , 'isActiveSession
-
     ])
 
 

@@ -2,6 +2,7 @@
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE FunctionalDependencies                   #-}
 {-# LANGUAGE GADTs                                    #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
@@ -12,6 +13,7 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE UndecidableInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
@@ -21,18 +23,22 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Monad.State (liftIO)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT, right, left)
-import Data.Acid (AcidState)
+import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
+import Control.Monad.Trans.State (StateT)
+import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
+import Data.Acid.Advanced (update', query')
 import Data.AffineSpace ((.+^))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST)
-import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
 import LIO.DCLabel (DCLabel, (%%), dcDefaultState)
-import LIO (LIOState(LIOState), evalLIO)
+import LIO (LIOState(LIOState), evalLIO, lioClearance)
 import Network.Wai (requestHeaders)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
+import Servant.API ((:<|>)((:<|>)), (:>)((:>)), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor)
 import Servant.Server.Internal (HasServer, Server, route)
 
@@ -40,73 +46,23 @@ import DB
 import Types
 
 
-type RestAction = EitherT (Int, String) IO
+-- * the application
 
-type App = ThentosAuth :> ThentosBasic
+type App = ThentosAuth ThentosBasic
+
+app :: AcidState DB -> Server App
+app st = ThentosAuth st thentosBasic
 
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
 
-app :: AcidState DB -> (AcidState DB -> Auth) -> Server ThentosBasic
-app st authGen =
-       thentosUser st auth
-  :<|> thentosService st auth
-  :<|> thentosSession st auth
-  where
-    auth = authGen st
-
-
--- * authentication
-
--- | Empty data type for triggering authentication.  If you have an
--- api type 'API', use like this: @ThentosAuth :> API@, then write a
--- route handler that takes 'Auth' as an extra argument.  'Auth' will
--- be parsed from the headers and injected into the @sublayout@
--- handler.
-data ThentosAuth
-
--- | Result type of 'ThentosAuth'.  Contains authentication
--- information in the form required by @LIO@ in module "DB".
-type Auth = LIOState DCLabel
-
--- | See 'ThentosAuth'.
-instance HasServer sublayout => HasServer (ThentosAuth :> sublayout)
-  where
-    type Server (ThentosAuth :> sublayout) = (AcidState DB -> Auth) -> Server sublayout
-
-    route Proxy subserver request respond = do
-      -- FIXME: decodeUtf8 throws an exception if it receives non-utf8 data
-      let mprincipal :: Maybe ST = decodeUtf8 <$> lookup "X-Principal" (requestHeaders request)
-          mpassword  :: Maybe ST = decodeUtf8 <$> lookup "X-Password"  (requestHeaders request)
-
-      route (Proxy :: Proxy sublayout) (subserver $ mkAuth mprincipal mpassword) request respond
-
--- | FIXME: not much documentation yet.
-instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
-
--- | If password cannot be verified, or if only password or only
--- principal is provided, throw an error explaining the problem.  If
--- none are provided, set clearance level to 'allowNothing'.  If both
--- are provided, look up roles of principal, and set clearance level
--- to that of the principal aka agent and all its roles.
---
--- Note: Both 'Role's and 'Agent's can be used in authorization
--- policies.  ('User' can be used, but it must be wrapped into an
--- 'UserA'.)
-mkAuth :: Maybe ST -> Maybe ST -> AcidState DB -> Auth
-mkAuth (Just principal) (Just password) st = allowEverything
-mkAuth _ _ _ = allowEverything
-
-allowNothing :: LIOState DCLabel
-allowNothing = LIOState (False %% False) (True %% False)
-  -- FIXME: is this correct?  what does it meaen?
-
-allowEverything :: LIOState DCLabel
-allowEverything = LIOState (False %% False) (True %% True)
-  -- FIXME: dcDefaultState, but that doesn't work.  our policy needs more work...
+thentosBasic :: PushReaderSubType (Server ThentosBasic)
+thentosBasic =
+       thentosUser
+  :<|> thentosService
+  :<|> thentosSession
 
 
 -- * user
@@ -118,28 +74,28 @@ type ThentosUser =
   :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
-thentosUser :: AcidState DB -> Auth -> Server ThentosUser
-thentosUser st auth =
-       getUserIds st auth
-  :<|> getUser st auth
-  :<|> postNewUser st auth
-  :<|> postNamedUser st auth
-  :<|> deleteUser st auth
+thentosUser :: PushReaderSubType (Server ThentosUser)
+thentosUser =
+       getUserIds
+  :<|> getUser
+  :<|> postNewUser
+  :<|> postNamedUser
+  :<|> deleteUser
 
-getUserIds :: AcidState DB -> Auth -> RestAction [UserId]
-getUserIds st auth = liftIO $ evalLIO (queryLIO st AllUserIDs) auth
+getUserIds :: RestActionLabeled [UserId]
+getUserIds = queryServant AllUserIDs
 
-getUser :: AcidState DB -> Auth -> UserId -> RestAction User
-getUser st auth uid = liftIO (evalLIO (queryLIO st (LookupUser uid)) auth) >>= maybe noSuchUser right
+getUser :: UserId -> RestActionLabeled User
+getUser uid = queryServant $ \ clearance -> LookupUser clearance uid
 
-postNewUser :: AcidState DB -> Auth -> User -> RestAction UserId
-postNewUser st auth user = liftIO $ evalLIO (updateLIO st $ AddUser user) auth
+postNewUser :: User -> RestActionLabeled UserId
+postNewUser user = updateServant $ \ clearance -> AddUser clearance user
 
-postNamedUser :: AcidState DB -> Auth -> UserId -> User -> RestAction ()
-postNamedUser st auth uid user = liftIO $ evalLIO (updateLIO st (UpdateUser uid user)) auth
+postNamedUser :: UserId -> User -> RestActionLabeled ()
+postNamedUser uid user = updateServant $ \ credentials -> UpdateUser credentials  uid user
 
-deleteUser :: AcidState DB -> Auth -> UserId -> RestAction ()
-deleteUser st auth uid = liftIO $ evalLIO (updateLIO st $ DeleteUser uid) auth
+deleteUser :: UserId -> RestActionLabeled ()
+deleteUser uid = updateServant $ \ credentials -> DeleteUser credentials uid
 
 
 -- * service
@@ -149,21 +105,20 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Get Service
   :<|> Post ServiceId
 
-thentosService :: AcidState DB -> Auth -> Server ThentosService
-thentosService st auth =
-         getServiceIds st auth
-    :<|> getService st auth
-    :<|> postNewService st auth
+thentosService :: PushReaderSubType (Server ThentosService)
+thentosService =
+         getServiceIds
+    :<|> getService
+    :<|> postNewService
 
-getServiceIds :: AcidState DB -> Auth -> RestAction [ServiceId]
-getServiceIds st auth = liftIO $ evalLIO (queryLIO st AllServiceIDs) auth
+getServiceIds :: RestActionLabeled [ServiceId]
+getServiceIds = queryServant AllServiceIDs
 
-getService :: AcidState DB -> Auth -> ServiceId -> RestAction Service
-getService st auth sid =
-    liftIO (evalLIO (queryLIO st (LookupService sid)) auth) >>= maybe noSuchService right
+getService :: ServiceId -> RestActionLabeled Service
+getService sid = queryServant (`LookupService` sid)
 
-postNewService :: AcidState DB -> Auth -> RestAction ServiceId
-postNewService st auth = liftIO $ evalLIO (updateLIO st AddService) auth
+postNewService :: RestActionLabeled ServiceId
+postNewService = updateServant AddService
 
 
 -- * session
@@ -176,51 +131,120 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
   :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
 
-thentosSession :: AcidState DB -> Auth -> Server ThentosSession
-thentosSession st auth =
-       getSessionTokens st auth
-  :<|> getSession st auth
-  :<|> createSession st auth
-  :<|> createSessionWithTimeout st auth
-  :<|> endSession st auth
-  :<|> isActiveSession st auth
+thentosSession :: PushReaderSubType (Server ThentosSession)
+thentosSession =
+       getSessionTokens
+  :<|> getSession
+  :<|> createSession
+  :<|> createSessionWithTimeout
+  :<|> endSession
+  :<|> isActiveSession
 
+getSessionTokens :: RestActionLabeled [SessionToken]
+getSessionTokens = queryServant AllSessionTokens
 
-getSessionTokens :: AcidState DB -> Auth -> RestAction [SessionToken]
-getSessionTokens st auth = liftIO $ evalLIO (queryLIO st AllSessionTokens) auth
-
-getSession :: AcidState DB -> Auth -> SessionToken -> RestAction Session
-getSession st auth tok = liftIO (evalLIO (queryLIO st (LookupSession tok)) auth) >>= maybe noSuchSession right
+getSession :: SessionToken -> RestActionLabeled Session
+getSession tok = queryServant (`LookupSession` tok)
 
 -- | Sessions have a fixed duration of 2 weeks.
-createSession :: AcidState DB -> Auth -> (UserId, ServiceId) -> RestAction SessionToken
-createSession st auth (uid, sid) = createSessionWithTimeout st auth (uid, sid, Timeout $ 14 * 24 * 3600)
+createSession :: (UserId, ServiceId) -> RestActionLabeled SessionToken
+createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
 
 -- | Sessions with explicit timeout.
---
--- FIXME: I *think* the time stamps will be created once at the time
--- of the http request, and not be changed to current times when
--- 'ChangeLog' is replayed.  But I would still feel better if we had a
--- test for that.
-createSessionWithTimeout :: AcidState DB -> Auth -> (UserId, ServiceId, Timeout) -> RestAction SessionToken
-createSessionWithTimeout st auth (uid, sid, Timeout diff) = liftIO $ do
+createSessionWithTimeout :: (UserId, ServiceId, Timeout) -> RestActionLabeled SessionToken
+createSessionWithTimeout (uid, sid, Timeout diff) = do
     now :: UTCTime <- liftIO getCurrentTime
-    evalLIO (updateLIO st $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)) auth
+    updateServant $ \ clearance -> StartSession clearance uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
 
-endSession :: AcidState DB -> Auth -> SessionToken -> RestAction ()
-endSession st auth tok = liftIO $ evalLIO (updateLIO st $ EndSession tok) auth
+endSession :: SessionToken -> RestActionLabeled ()
+endSession tok = updateServant (`EndSession` tok)
 
-isActiveSession :: AcidState DB -> Auth -> ServiceId -> SessionToken -> RestAction Bool
-isActiveSession st auth sid tok = liftIO $ evalLIO (queryLIO st $ IsActiveSession sid tok) auth
+isActiveSession :: ServiceId -> SessionToken -> RestActionLabeled Bool
+isActiveSession sid tok = queryServant $ \ clearance ->  IsActiveSession clearance sid tok
 
 
--- * helpers
+-- * authentication
 
-noSuchUser :: RestAction a
-noSuchUser = left (404, "no such user")  -- FIXME: correct status code?
+-- | this is a work-around: The Server type family always terminates
+-- in 'RestActionRaw' on all methods.  'PushReaderT' instances
+-- transform handlers implemented in a monad stack that contains the
+-- acid state and authentication information in a reader into the
+-- handlers that we need.
+class PushReaderT a where
+    type PushReaderSubType a
+    unPushReaderT :: (AcidState DB, ThentosClearance) -> PushReaderSubType a -> a
 
-noSuchService :: RestAction a
-noSuchService = left (404, "no such service")
+instance (PushReaderT b) => PushReaderT (a -> b) where
+    type PushReaderSubType (a -> b) = a -> PushReaderSubType b
+    unPushReaderT clearance f = unPushReaderT clearance . f
 
-noSuchSession :: RestAction a
-noSuchSession = left (404, "no such session")
+instance (PushReaderT a, PushReaderT b) => PushReaderT (a :<|> b) where
+    type PushReaderSubType (a :<|> b) = PushReaderSubType a :<|> PushReaderSubType b
+    unPushReaderT clearance (a :<|> b) = unPushReaderT clearance a :<|> unPushReaderT clearance b
+
+instance PushReaderT (RestActionRaw a) where
+    type PushReaderSubType (RestActionRaw a) = RestActionLabeled a
+    unPushReaderT rstate x = runReaderT x rstate
+
+
+-- | Empty data type for triggering authentication.  If you have an
+-- api type 'API', use like this: @ThentosAuth :> API@, then write a
+-- route handler that takes 'Auth' as an extra argument.  'Auth' will
+-- be parsed from the headers and injected into the @sublayout@
+-- handler.
+data ThentosAuth layout = ThentosAuth (AcidState DB) layout
+
+instance ( PushReaderT (Server sublayout)
+         , HasServer sublayout
+         ) => HasServer (ThentosAuth sublayout)
+  where
+    type Server (ThentosAuth sublayout) = ThentosAuth (PushReaderSubType (Server sublayout))
+
+    route Proxy (ThentosAuth st subserver) request respond = do
+        route (Proxy :: Proxy sublayout) (unPushReaderT (st, clearance) subserver) request respond
+          where
+              -- pluck :: CI -> Maybe ST
+              pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
+                -- FIXME: we probably want to throw an encoding error back to the client instead of dropping headers.
+
+              mprincipal = pluck "X-Principal"
+              mpassword  = pluck "X-Password"
+
+              clearance :: ThentosClearance
+              clearance = ThentosClearance . ThentosLabel . lioClearance $ mkAuth mprincipal mpassword st
+                                                              -- FIXME: don't use LIOState, just Priv or something.
+
+-- | FIXME: not much documentation yet.
+instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
+  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+
+-- * plumbing
+
+type RestActionRaw = EitherT (Int, String) IO
+
+type RestActionLabeled = ReaderT (AcidState DB, ThentosClearance) RestActionRaw
+
+updateServant :: forall event a .
+                 ( UpdateEvent event
+                 , EventState event ~ DB
+                 , EventResult event ~ Either DbError a
+                 ) => (ThentosClearance -> event) -> RestActionLabeled a
+updateServant unclearedEvent = do
+    (st, clearance) <- ask
+    result :: Either DbError a <- update' st (unclearedEvent clearance)
+    case result of
+        Left err -> lift $ left (303, show err)
+        Right success -> return success
+
+queryServant :: forall event a .
+                 ( QueryEvent event
+                 , EventState event ~ DB
+                 , EventResult event ~ Either DbError a
+                 ) => (ThentosClearance -> event) -> RestActionLabeled a
+queryServant unclearedEvent = do
+    (st, clearance) <- ask
+    result <- query' st (unclearedEvent clearance)
+    case result of
+        Left err -> lift $ left (303, show err)
+        Right success -> return success

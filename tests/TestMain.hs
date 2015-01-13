@@ -17,7 +17,9 @@ module TestMain
 where
 
 import Control.Monad.State (liftIO)
+import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
+import Data.Acid.Advanced (query', update')
 import Data.Data (Proxy(Proxy))
 import Data.Functor.Infix ((<$>))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
@@ -25,7 +27,8 @@ import Data.String.Conversions (LBS, SBS, cs)
 import Data.Thyme (getCurrentTime)
 import Filesystem (removeTree)
 import GHC.Exts (fromString)
-import LIO (evalLIO)
+import LIO (canFlowTo)
+import LIO.DCLabel ((%%), (/\), (\/), toCNF)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.Wai (Application, StreamingBody, requestMethod, requestBody, strictRequestBody, pathInfo, requestHeaders)
@@ -33,8 +36,8 @@ import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStr
 import Network.Wai.Test (Session, SRequest(SRequest),
     runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
 import Servant.Server (serve)
-import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldThrow,
-    anyException, shouldSatisfy, pendingWith)
+import Test.Hspec (hspec, describe, it, before, after, shouldBe,
+    shouldSatisfy, pendingWith)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -69,58 +72,59 @@ main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
-        uid <- evalLIO (updateLIO st $ AddUser user1) allowEverything
-        Just user1' <- evalLIO (queryLIO st $ LookupUser uid) allowEverything
+        Right uid <- update' st $ AddUser thentosPublic user1
+        Right user1' <- query' st $ LookupUser thentosPublic uid
         user1' `shouldBe` user1
-        evalLIO (updateLIO st $ DeleteUser (UserId 1)) allowEverything
-        u <- evalLIO (queryLIO st $ LookupUser (UserId 1)) allowEverything
-        u `shouldBe` Nothing
+        void . update' st $ DeleteUser thentosPublic (UserId 1)
+        u <- query' st $ LookupUser thentosPublic (UserId 1)
+        u `shouldBe` Left NoSuchUser
 
       it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." $ \ st -> do
-        uids <- evalLIO (queryLIO st AllUserIDs) allowEverything
-        uids `shouldBe` [UserId 0, UserId 1]
+        uids <- query' st $ AllUserIDs thentosPublic
+        uids `shouldBe` Right [UserId 0, UserId 1]
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \st -> do
-        service1_id <- evalLIO (updateLIO st AddService) allowEverything
-        service2_id <- evalLIO (updateLIO st AddService) allowEverything
-        Just service1 <- evalLIO (queryLIO st $ LookupService service1_id) allowEverything
-        Just service2 <- evalLIO (queryLIO st $ LookupService service2_id) allowEverything
+        Right service1_id <- update' st $ AddService thentosPublic
+        Right service2_id <- update' st $ AddService thentosPublic
+        Right service1 <- query' st $ LookupService thentosPublic service1_id
+        Right service2 <- query' st $ LookupService thentosPublic service2_id
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
         service1 `shouldSatisfy` (/= service2) -- should have different keys
-        evalLIO (updateLIO st $ DeleteService service1_id) allowEverything
-        Nothing <- evalLIO (queryLIO st $ LookupService service1_id) allowEverything
+        void . update' st $ DeleteService thentosPublic service1_id
+        Left NoSuchService <- query' st $ LookupService thentosPublic service1_id
         return ()
 
     describe "StartSession" $ do
       it "works" $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
-        evalLIO (updateLIO st (StartSession (UserId 0) "nosuchservice" from to)) allowEverything `shouldThrow` anyException
-        sid :: ServiceId <- evalLIO (updateLIO st AddService) allowEverything
-        evalLIO (updateLIO_ st (StartSession (UserId 0) sid from to)) allowEverything
+        Left NoSuchService <- update' st $ StartSession thentosPublic (UserId 0) "NoSuchService" from to
+        Right (sid :: ServiceId) <- update' st $ AddService thentosPublic
+        Right _ <- update' st $ StartSession thentosPublic (UserId 0) sid from to
+        return ()
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
     describe "authentication" $ do
       it "lets user view itself" $
-          \ (db, testServer) -> (debugRunSession False testServer) $ do
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "passwd")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
       it "responds with an error if clearance is insufficient" $
-          \ (db, testServer) -> (debugRunSession False testServer) $ do
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
 
       it "responds with an error if password is wrong" $
-          \ (db, testServer) -> (debugRunSession False testServer) $ do
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "not-my-password")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
 
       it "responds with an error if only one of principal, password is provided" $
-          \ (db, testServer) -> (debugRunSession False testServer) $ do
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
@@ -133,11 +137,13 @@ main = hspec $ do
       -- users and services and assign roles.  (until we have a
       -- configuration file, the password can be configured in "DB",
       -- or somewhere.)
-      it "special user admin can do anything" $ \ (db, testServer) -> (debugRunSession True testServer) $ do
+      it "special user admin can do anything" $
+          \ (_, testServer) -> (debugRunSession True testServer) $ do
         liftIO $ pendingWith "not implemented yet"
 
     describe "GET /user" $
-      it "returns the list of users" $ \ (db, testServer) -> (debugRunSession False testServer) $ do
+      it "returns the list of users" $
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         response1 <- request $ defaultRequest
           { requestMethod = "GET"
           , pathInfo = ["user"]
@@ -146,9 +152,25 @@ main = hspec $ do
         liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1]
 
     describe "POST /user" $
-      it "succeeds" $ \ (db, testServer) -> (debugRunSession False testServer) $ do
+      it "succeeds" $
+          \ (_, testServer) -> (debugRunSession False testServer) $ do
         response2 <- srequest $ mkSRequest "POST" "/user" [] (Aeson.encode $ User "1" "2" "3" [] [])
         liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
+
+  -- This test doesn't really test thentos code, but it helps
+  -- understanding DCLabel.
+  describe "DCLabel" $
+    it "works" $ do
+      let a = toCNF ("a" :: String)
+          b = toCNF ("b" :: String)
+
+      and [ b \/ a %% a `canFlowTo` a %% a
+          , a %% a /\ b `canFlowTo` a %% a
+          , True %% False `canFlowTo` False %% True
+          , True %% True `canFlowTo` False %% True
+          , False %% False `canFlowTo` False %% True
+          , True
+          ] `shouldBe` True
 
 
 -- * helpers
@@ -161,8 +183,8 @@ user3 = User "name3" "3" "3" [("bla", ["23"])] []
 setupDB :: IO (AcidState DB)
 setupDB = do
   st <- openLocalStateFrom (dbPath config) emptyDB
-  evalLIO (updateLIO_ st $ AddUser user1) allowEverything
-  evalLIO (updateLIO_ st $ AddUser user2) allowEverything
+  void . update' st $ AddUser thentosPublic user1
+  void . update' st $ AddUser thentosPublic user2
   return st
 
 teardownDB :: AcidState DB -> IO ()
@@ -173,11 +195,10 @@ teardownDB st = do
 setupTestServer :: IO (AcidState DB, Application)
 setupTestServer = do
   st <- setupDB
-  let testServer = serve (Proxy :: Proxy App) (app st)
-  return (st, testServer)
+  return (st, serve (Proxy :: Proxy App) (app st))
 
 teardownTestServer :: (AcidState DB, Application) -> IO ()
-teardownTestServer (st, testServer) = teardownDB st
+teardownTestServer (st, _) = teardownDB st
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
@@ -194,13 +215,13 @@ debugRunSession debug application session = runSession session (wrapApplication 
   where
     wrapApplication :: Bool -> Application
     wrapApplication False = application
-    wrapApplication True = \ request respond -> do
-      (requestRendered, request') <- showRequest request
+    wrapApplication True = \ _request respond -> do
+      (requestRendered, request') <- showRequest _request
       print requestRendered
       application request' (\ response -> putStrLn (showResponse response)  >> respond response)
 
-    showRequest request = do
-        body :: LBS <- strictRequestBody request
+    showRequest _request = do
+        body :: LBS <- strictRequestBody _request
         bodyRef :: IORef Bool <- newIORef False
 
         let memoBody = do
@@ -210,12 +231,12 @@ debugRunSession debug application session = runSession session (wrapApplication 
 
         let  showRequestHeader = "\n=== REQUEST ==========================================================\n"
 
-             show_ :: LBS -> String
-             show_ body = showRequestHeader ++ ppShow request ++ "\nbody:" ++ show body ++ "\n"
+             showBody :: String
+             showBody = showRequestHeader ++ ppShow _request ++ "\nbody:" ++ show body ++ "\n"
 
-             request' = request { requestBody = memoBody }
+             request' = _request { requestBody = memoBody }
 
-        return (show_ body, request')
+        return (showBody, request')
       where
 
     showResponse response = showResponseHeader ++ show_ response
@@ -224,6 +245,6 @@ debugRunSession debug application session = runSession session (wrapApplication 
 
         show_ :: Response -> String
         show_ (ResponseFile _ _ _ _) = "ResponseFile"
-        show_ (ResponseBuilder status headers builder) = "ResponseBuilder" ++ show (status, headers)
-        show_ (ResponseStream status headers (streamingBody :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
+        show_ (ResponseBuilder status headers _) = "ResponseBuilder" ++ show (status, headers)
+        show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
         show_ (ResponseRaw _ _) = "ResponseRaw"

@@ -21,10 +21,12 @@ import Control.Applicative ((<$>))
 import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
+import Data.Acid.Advanced (query', update')
 import Data.Data (Proxy(Proxy))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
 import LIO (evalLIO)
+import LIO.DCLabel (dcPublic)
 import Network.Wai.Handler.Warp (run)
 import Safe (readMay)
 import Servant.Server (serve)
@@ -53,16 +55,18 @@ main =
     let switch ["-s"] = do
             putStrLn "database contents:"
             putStrLn "Users:"
-            evalLIO (queryLIO st AllUsers) allowEverything >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            query' st (AllUserIDs thentosPublic)       >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
             putStrLn "Services:"
-            evalLIO (queryLIO st AllServices) allowEverything >>= mapM_ (putStrLn . cs . Aeson.encodePretty)
+            query' st (AllServiceIDs thentosPublic)    >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
+            putStrLn "Sessions:"
+            query' st (AllSessionTokens thentosPublic) >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            void $ evalLIO (updateLIO st $ AddUser user) allowEverything
+            void $ update' st $ AddUser thentosPublic user
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            void $ evalLIO (updateLIO st . AddUser $ User "dummy" "dummy" "dummy" [] []) allowEverything
+            void $ update' st . AddUser thentosPublic $ User "dummy" "dummy" "dummy" [] []
         switch ["-r"] = switch ["-r", ""]
         switch ["-r", fromMaybe 8001 . readMay -> port] = do
             putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
