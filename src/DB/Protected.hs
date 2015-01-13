@@ -34,8 +34,10 @@ queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (Even
 queryLIO st ev = LIOTCB $ \ stateRef -> do
   clearance :: DCLabel <- lioClearance <$> readIORef stateRef
   LabeledTCB (context :: DCLabel) result <- query' st ev
-  -- FIXME: put in @taint clearance@ here, or something.
-  if context `canFlowTo` clearance  -- FIXME: or is it supposed flow the other way?
+  -- FIXME: put in @taint clearance@ here, or something.  (also in updateLIO)
+  if clearance `canFlowTo` context  -- FIXME: or is it supposed flow the other way?  (also in updateLIO)
+                                    -- FIXME: also check that clearance can flow to state label (also in updateLIO)
+                                    -- FIXME: checkout blessTCB.  perhaps queryLIO is a one-liner?  (also in updateLIO)
     then return result
     else fail "authorization denied"  -- FIXME: throw error type here.
 
@@ -53,8 +55,7 @@ updateLIO :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (Ev
 updateLIO st ev = LIOTCB $ \ stateRef -> do
   clearance :: DCLabel <- lioClearance <$> readIORef stateRef
   LabeledTCB (context :: DCLabel) result <- update' st ev
-  -- FIXME: put in @taint clearance@ here, or something.
-  if context `canFlowTo` clearance
+  if clearance `canFlowTo` context
     then return result
     else fail "authorization denied"
 

@@ -29,7 +29,7 @@ import Data.String.Conversions (ST)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
-import LIO.DCLabel (DCLabel, (%%))
+import LIO.DCLabel (DCLabel, (%%), dcDefaultState)
 import LIO (LIOState(LIOState), evalLIO)
 import Network.Wai (requestHeaders)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
@@ -101,10 +101,10 @@ mkAuth (Just principal) (Just password) st = allowEverything
 mkAuth _ _ _ = allowEverything
 
 allowNothing :: LIOState DCLabel
-allowNothing = LIOState (True %% True) (False %% False)
+allowNothing = LIOState (False %% False) (True %% False)
 
 allowEverything :: LIOState DCLabel
-allowEverything = LIOState (True %% True) (True %% True)
+allowEverything = dcDefaultState
 
 
 -- * user
