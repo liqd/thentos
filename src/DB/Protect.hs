@@ -9,7 +9,7 @@
 
 {-# OPTIONS  #-}
 
-module DB.Protected
+module DB.Protect
   ( queryLIO
   , updateLIO
   , updateLIO_

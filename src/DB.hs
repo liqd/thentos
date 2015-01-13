@@ -1,7 +1,7 @@
 module DB
   ( module DB.Core
-  , module DB.Protected
+  , module DB.Protect
   ) where
 
 import DB.Core
-import DB.Protected
+import DB.Protect
