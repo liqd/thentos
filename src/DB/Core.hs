@@ -245,14 +245,12 @@ $(makeAcidic ''DB
 
 -- | Create a new thread that calls `createCheckpoint` synchronously,
 -- then waits for @timeThreshold@ miliseconds, then repeats.  If
--- @sizeThreshold@ is `Just` a changes log size, create checkpoint
--- only if actual change log size is larger.
+-- @sizeThreshold@ is `Just` a size, create checkpoint only if size of
+-- segment of current change log since last checkpoint is larger than
+-- that.
 --
 -- FIXME: check change log size.  (i think this is only possible
--- inside acid-state.)
---
--- FIXME: make this a pull request for
--- https://github.com/acid-state/acid-state.
+-- inside acid-state.)  https://github.com/acid-state/acid-state.
 createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
 createCheckpointLoop acidState timeThreshold _ = forkIO iter
   where
