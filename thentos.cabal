@@ -57,8 +57,8 @@ executable thentos
   main-is:
       Main.hs
   build-depends:
-      thentos,
-      base
+      base >=4.7 && <4.8
+    , thentos == 0.0.1
 
 test-suite tests
   default-language:
@@ -74,8 +74,9 @@ test-suite tests
   cpp-options:
       -DGHC_GENERICS
   build-depends:
-      thentos
-    , base
+      base >=4.7 && <4.8
+    , thentos == 0.0.1
+
     , acid-state >=0.12 && <0.13
     , aeson >=0.7 && <0.8
     , functor-infix >=0.0.1 && <0.2
@@ -85,10 +86,11 @@ test-suite tests
     , string-conversions >=0.3 && <0.4
     , thyme >=0.3 && <0.4
     , wai >=3.0.2 && <3.1
+
     -- [packages only needed for testing]
     , bytestring >=0.10.4.0 && <0.11
     , hspec >=2.0.2 && <2.1
     , http-types >=0.8.5 && <0.9
+    , pretty-show >=1.6.8 && <1.7
     , system-fileio >=0.3.5 && <0.4
     , wai-extra >=3.0.3 && <3.1
-    , pretty-show >=1.6.8 && <1.7
