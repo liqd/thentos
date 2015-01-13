@@ -21,7 +21,7 @@ import Data.Acid.Advanced (update', query')
 import Data.Functor.Infix ((<$>))
 import Data.IORef (readIORef)
 import LIO (canFlowTo, lioClearance)
-import LIO.DCLabel (DCLabel)
+import LIO.DCLabel (DC, DCLabel)
 import LIO.TCB (LIO(LIOTCB))
 
 import Types
@@ -30,7 +30,7 @@ import Types
 -- | Run a query action that returns a labeled result.  Check that the
 -- clearance is sufficient for the label, and return the unlabelled
 -- result.
-queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel a
+queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC a
 queryLIO st ev = LIOTCB $ \ stateRef -> do
   clearance :: DCLabel <- lioClearance <$> readIORef stateRef
   LabeledTCB (context :: DCLabel) result <- query' st ev
@@ -49,7 +49,7 @@ queryLIO st ev = LIOTCB $ \ stateRef -> do
 -- 'UpdateEvent's instances, and ask the instances for the label.
 -- That could be done before the operation, but then we would have no
 -- dynamic context to compute the label with.
-updateLIO :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel a
+updateLIO :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC a
 updateLIO st ev = LIOTCB $ \ stateRef -> do
   clearance :: DCLabel <- lioClearance <$> readIORef stateRef
   LabeledTCB (context :: DCLabel) result <- update' st ev
@@ -59,5 +59,5 @@ updateLIO st ev = LIOTCB $ \ stateRef -> do
     else fail "authorization denied"
 
 -- | Call 'updateLIO' and discard the result.
-updateLIO_ :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> LIO DCLabel ()
+updateLIO_ :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC ()
 updateLIO_ st = void . updateLIO st
