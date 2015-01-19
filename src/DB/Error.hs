@@ -65,15 +65,10 @@ runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
     let result :: Either (ThentosLabeled DbError) (ThentosLabeled a, DB)
         result = runIdentity . runEitherT $ runStateT action state
     case result of
-        Left (ThentosLabeled (ThentosLabel label) (err :: DbError)) ->
-            checkClearance label (return $ Left err)
-        Right (ThentosLabeled (ThentosLabel label) result, state') ->
-            checkClearance label $ put state' >> (return $ Right result)
-  where
-    checkClearance :: DCLabel -> Update DB (Either DbError a) -> Update DB (Either DbError a)
-    checkClearance label result = if label `canFlowTo` clearance
-        then result
-        else return $ Left PermissionDenied
+        Left (ThentosLabeled label (err :: DbError)) ->
+            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
+        Right (ThentosLabeled label result, state') ->
+            checkClearance  ((`canFlowTo` clearance) . fromThentosLabel) label $ put state' >> (return $ Right result)
 
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
 runThentosQuery (ThentosClearance (ThentosLabel clearance)) action = do
@@ -81,15 +76,15 @@ runThentosQuery (ThentosClearance (ThentosLabel clearance)) action = do
     let result :: Either (ThentosLabeled DbError) (ThentosLabeled a)
         result = runIdentity . runEitherT $ runReaderT action state
     case result of
-        Left (ThentosLabeled (ThentosLabel label) (err :: DbError)) ->
-            checkClearance label (return $ Left err)
-        Right (ThentosLabeled (ThentosLabel label) result) ->
-            checkClearance label (return $ Right result)
-  where
-    checkClearance :: DCLabel -> Query DB (Either DbError a) -> Query DB (Either DbError a)
-    checkClearance label result = if label `canFlowTo` clearance
-        then result
-        else return $ Left PermissionDenied
+        Left (ThentosLabeled label (err :: DbError)) ->
+            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
+        Right (ThentosLabeled label result) ->
+            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Right result)
+
+checkClearance :: Monad m => (ThentosLabel -> Bool) -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
+checkClearance cleared label result = if cleared label
+    then result
+    else return $ Left PermissionDenied
 
 throwDB :: DCLabel -> DbError -> ThentosUpdate a
 throwDB label = lift . left . thentosLabeled label
