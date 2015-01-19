@@ -10,9 +10,14 @@
 {-# OPTIONS  #-}
 
 module DB.Protect
-  ( queryLIO
-  , updateLIO
-  , updateLIO_
+  ( Auth
+  , mkAuth
+  , thentosLabeledPublic
+  , thentosLabeledDenied
+  , thentosPublic
+  , thentosDenied
+  , allowEverything
+  , allowNothing
   ) where
 
 import Control.Monad (void)
@@ -20,45 +25,49 @@ import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.Functor.Infix ((<$>))
 import Data.IORef (readIORef)
+import Data.String.Conversions (ST)
 import LIO (canFlowTo, lioClearance)
-import LIO.DCLabel (DC, DCLabel)
-import LIO.TCB (LIO(LIOTCB))
+import LIO.DCLabel (DC, DCLabel, dcDefaultState, dcPublic, (%%))
+import LIO.TCB (LIOState(LIOState), LIO(LIOTCB))
 
 import Types
+import DB.Error
 
 
--- | Run a query action that returns a labeled result.  Check that the
--- clearance is sufficient for the label, and return the unlabelled
--- result.
-queryLIO :: (QueryEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC a
-queryLIO st ev = LIOTCB $ \ stateRef -> do
-  clearance :: DCLabel <- lioClearance <$> readIORef stateRef
-  LabeledTCB (context :: DCLabel) result <- query' st ev
-  -- FIXME: put in @taint clearance@ here, or something.  (also in updateLIO)
-  if clearance `canFlowTo` context  -- FIXME: or is it supposed flow the other way?  (also in updateLIO)
-                                    -- FIXME: also check that clearance can flow to state label (also in updateLIO)
-                                    -- FIXME: checkout blessTCB.  perhaps queryLIO is a one-liner?  (also in updateLIO)
-    then return result
-    else fail "authorization denied"  -- FIXME: throw error type here.
+-- | Result type of 'ThentosAuth'.  Contains authentication
+-- information in the form required by @LIO@ in module "DB".
+type Auth = LIOState DCLabel
 
-    -- NOTE: auth errors must always be caught first, before any other
-    -- errors, or else non-authorization errors may leak information
-    -- to unauthorized parties.
 
--- | Like 'queryLIO'.  If an action is not authorized, it will be
--- undone after the fact.  Not ideal, but lazyness may save us here.
--- An alternative implementation would create a type class, make all
--- 'UpdateEvent's instances, and ask the instances for the label.
--- That could be done before the operation, but then we would have no
--- dynamic context to compute the label with.
-updateLIO :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC a
-updateLIO st ev = LIOTCB $ \ stateRef -> do
-  clearance :: DCLabel <- lioClearance <$> readIORef stateRef
-  LabeledTCB (context :: DCLabel) result <- update' st ev
-  if clearance `canFlowTo` context
-    then return result
-    else fail "authorization denied"
+-- | If password cannot be verified, or if only password or only
+-- principal is provided, throw an error explaining the problem.  If
+-- none are provided, set clearance level to 'allowNothing'.  If both
+-- are provided, look up roles of principal, and set clearance level
+-- to that of the principal aka agent and all its roles.
+--
+-- Note: Both 'Role's and 'Agent's can be used in authorization
+-- policies.  ('User' can be used, but it must be wrapped into an
+-- 'UserA'.)
+mkAuth :: Maybe ST -> Maybe ST -> AcidState DB -> Auth
+mkAuth _ _ _ = allowEverything
+-- mkAuth (Just principal) (Just password) st = allowEverything
 
--- | Call 'updateLIO' and discard the result.
-updateLIO_ :: (UpdateEvent event, EventResult event ~ Labeled a) => AcidState (EventState event) -> event -> DC ()
-updateLIO_ st = void . updateLIO st
+
+thentosLabeledPublic :: t -> ThentosLabeled t
+thentosLabeledPublic = thentosLabeled dcPublic
+
+thentosLabeledDenied :: t -> ThentosLabeled t
+thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
+
+thentosPublic :: ThentosClearance
+thentosPublic = ThentosClearance $ ThentosLabel dcPublic
+
+thentosDenied :: ThentosLabel
+thentosDenied = error "thentosLabeledDenied: not implemented"
+
+allowNothing :: LIOState DCLabel
+allowNothing = LIOState (False %% False) (True %% False)
+  -- FIXME: is this correct?  what does it meaen?
+
+allowEverything :: LIOState DCLabel
+allowEverything = dcDefaultState

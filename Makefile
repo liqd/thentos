@@ -20,6 +20,9 @@ clean:
 dist-clean: clean
 	rm -rf dist
 
+show-splices:
+	cabal install -j1 --ghc-options="-fforce-recomp -ddump-splices"
+
 # activate a copy of the cabal file with private changes.
 cabal-private:
 	cp thentos.cabal{-private,}

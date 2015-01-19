@@ -1,7 +1,8 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE DeriveDataTypeable                       #-}
+{-# LANGUAGE DeriveFunctor                            #-}
 {-# LANGUAGE DeriveGeneric                            #-}
-{-# LANGUAGE FlexibleInstances                        #-} -- FIXME: :-(
+{-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -117,16 +118,33 @@ data Role = RoleAdmin | RoleUser | RoleService
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Role where toCNF = toCNF . show
 
--- | Wrapper for lio's 'LabeledTCB' to avoid orphan instances.  (Also,
--- freeze 'DCLabel' as label type.)
-data Labeled t = LabeledTCB DCLabel t
-  deriving (Eq, Ord, Show, Read, Typeable)
+-- | Wrapper for lio's 'Labeled' to avoid orphan instances.  (Also,
+-- freeze 'ThentosLabel' as label type.)
+data ThentosLabeled t =
+    ThentosLabeled
+      { thentosLabelL :: ThentosLabel
+      , thentosLabelV :: t
+      }
+  deriving (Eq, Ord, Show, Read, Typeable, Functor)
 
-instance (SafeCopy t, Show t, Read t) => SafeCopy (Labeled t)
+thentosLabeled :: DCLabel -> t -> ThentosLabeled t
+thentosLabeled label = ThentosLabeled (ThentosLabel label)
+
+instance (SafeCopy t, Show t, Read t) => SafeCopy (ThentosLabeled t)
   where
     putCopy = contain . safePut . show
     getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy Labeled: no parse" ++ show raw) return . readMay $ raw
+      maybe (fail $ "instance SafeCopy ThentosLabeled: no parse" ++ show raw) return . readMay $ raw
+
+-- | Wrapper for lio's 'DCLabel' to avoid orphan instances.
+newtype ThentosLabel = ThentosLabel { fromThentosLabel :: DCLabel }
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance SafeCopy ThentosLabel
+  where
+    putCopy = contain . safePut . show
+    getCopy = contain $ safeGet >>= \ raw ->
+      maybe (fail $ "instance SafeCopy ThentosLabel: no parse" ++ show raw) return . readMay $ raw
 
 
 makeLenses ''DB
