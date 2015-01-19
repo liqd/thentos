@@ -8,3 +8,5 @@
 *.hi
 *.dyn_o
 *.dyn_hi
+/.sandbox-archive/
+/TAGS

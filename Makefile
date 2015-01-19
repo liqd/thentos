@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 # this is a filthy hack, and ought to be replaced by something shakey.
 
 serve:
@@ -17,3 +19,11 @@ clean:
 
 dist-clean: clean
 	rm -rf dist
+
+# activate a copy of the cabal file with private changes.
+cabal-private:
+	cp thentos.cabal{-private,}
+
+# activate a the cabal from current repo state.
+cabal-public:
+	git checkout -- thentos.cabal
