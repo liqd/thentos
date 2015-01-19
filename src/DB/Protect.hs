@@ -20,15 +20,10 @@ module DB.Protect
   , allowNothing
   ) where
 
-import Control.Monad (void)
-import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
-import Data.Acid.Advanced (update', query')
-import Data.Functor.Infix ((<$>))
-import Data.IORef (readIORef)
+import Data.Acid (AcidState)
 import Data.String.Conversions (ST)
-import LIO (canFlowTo, lioClearance)
-import LIO.DCLabel (DC, DCLabel, dcDefaultState, dcPublic, (%%))
-import LIO.TCB (LIOState(LIOState), LIO(LIOTCB))
+import LIO.DCLabel (DCLabel, dcDefaultState, dcPublic, (%%))
+import LIO.TCB (LIOState(LIOState))
 
 import Types
 import DB.Error

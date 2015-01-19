@@ -21,24 +21,20 @@
 module Api
 where
 
-import Control.Applicative ((<$>))
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT, right, left)
+import Control.Monad.Trans.Either (EitherT, left)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
-import Control.Monad.Trans.State (StateT)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.AffineSpace ((.+^))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
-import LIO.DCLabel (DCLabel, (%%), dcDefaultState)
-import LIO (LIOState(LIOState), evalLIO, lioClearance)
+import LIO (lioClearance)
 import Network.Wai (requestHeaders)
-import Servant.API ((:<|>)((:<|>)), (:>)((:>)), Get, Post, Put, Delete, Capture, ReqBody)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor)
 import Servant.Server.Internal (HasServer, Server, route)
 
@@ -69,7 +65,7 @@ thentosBasic =
 
 type ThentosUser =
        Get [UserId]
-  :<|> Capture "userid" UserId :> Get User
+  :<|> Capture "userid" UserId :> Get (UserId, User)
   :<|> ReqBody User :> Post UserId
   :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
@@ -85,7 +81,7 @@ thentosUser =
 getUserIds :: RestActionLabeled [UserId]
 getUserIds = queryServant AllUserIDs
 
-getUser :: UserId -> RestActionLabeled User
+getUser :: UserId -> RestActionLabeled (UserId, User)
 getUser = queryServant . LookupUser
 
 postNewUser :: User -> RestActionLabeled UserId
@@ -102,7 +98,7 @@ deleteUser = updateServant . DeleteUser
 
 type ThentosService =
        Get [ServiceId]
-  :<|> Capture "sid" ServiceId :> Get Service
+  :<|> Capture "sid" ServiceId :> Get (ServiceId, Service)
   :<|> Post ServiceId
 
 thentosService :: PushReaderSubType (Server ThentosService)
@@ -114,7 +110,7 @@ thentosService =
 getServiceIds :: RestActionLabeled [ServiceId]
 getServiceIds = queryServant AllServiceIDs
 
-getService :: ServiceId -> RestActionLabeled Service
+getService :: ServiceId -> RestActionLabeled (ServiceId, Service)
 getService = queryServant . LookupService
 
 postNewService :: RestActionLabeled ServiceId
@@ -125,7 +121,7 @@ postNewService = updateServant AddService
 
 type ThentosSession =
        Get [SessionToken]
-  :<|> Capture "token" SessionToken :> Get Session
+  :<|> Capture "token" SessionToken :> Get (SessionToken, Session)
   :<|> ReqBody (UserId, ServiceId) :> Post SessionToken
   :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
@@ -143,7 +139,7 @@ thentosSession =
 getSessionTokens :: RestActionLabeled [SessionToken]
 getSessionTokens = queryServant AllSessionTokens
 
-getSession :: SessionToken -> RestActionLabeled Session
+getSession :: SessionToken -> RestActionLabeled (SessionToken, Session)
 getSession = queryServant . LookupSession
 
 -- | Sessions have a fixed duration of 2 weeks.

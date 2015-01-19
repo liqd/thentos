@@ -70,21 +70,42 @@ config =
 main :: IO ()
 main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
+    describe "hspec meta" $ do
+      it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ st -> do
+        Right uid <- update' st $ AddUser user3 thentosPublic
+        True `shouldBe` True
+
+      it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ st -> do
+        uids <- query' st $ AllUserIDs thentosPublic
+        uids `shouldBe` Right [UserId 0, UserId 1]  -- (no (UserId 2))
+
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
-        Right uid <- update' st $ AddUser user1 thentosPublic
-        Right user1' <- query' st $ LookupUser uid thentosPublic
-        user1' `shouldBe` user1
-        void . update' st $ DeleteUser (UserId 1) thentosPublic
-        u <- query' st $ LookupUser (UserId 1) thentosPublic
+        Right uid <- update' st $ AddUser user3 thentosPublic
+        Right (uid', user3') <- query' st $ LookupUser uid thentosPublic
+        user3' `shouldBe` user3
+        uid' `shouldBe` uid
+        void . update' st $ DeleteUser uid thentosPublic
+        u <- query' st $ LookupUser uid thentosPublic
         u `shouldBe` Left NoSuchUser
 
-      it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." $ \ st -> do
-        uids <- query' st $ AllUserIDs thentosPublic
-        uids `shouldBe` Right [UserId 0, UserId 1]
+      it "guarantee that email addresses are unique" $ \ st -> do
+        result <- update' st $ AddUser user1 thentosPublic
+        result `shouldBe` Left UserEmailAlreadyExists
+
+    describe "UpdateUser" $ do
+      it "changes user if it exists" $ \ st -> do
+        result <- update' st $ UpdateUser (UserId 0) user1 thentosPublic
+        result `shouldBe` Right ()
+        result2 <- query' st $ LookupUser (UserId 0) thentosPublic
+        result2 `shouldBe` (Right (UserId 0, user1))
+
+      it "throws an error if user does not exist" $ \ st -> do
+        result <- update' st $ UpdateUser (UserId 391) user3 thentosPublic
+        result `shouldBe` Left NoSuchUser
 
     describe "AddService, LookupService, DeleteService" $ do
-      it "works" $ \st -> do
+      it "works" $ \ st -> do
         Right service1_id <- update' st $ AddService thentosPublic
         Right service2_id <- update' st $ AddService thentosPublic
         Right service1 <- query' st $ LookupService service1_id thentosPublic
@@ -177,14 +198,14 @@ main = hspec $ do
 
 user1, user2, user3 :: User
 user1 = User "name1" "passwd" "em@il" [] []
-user2 = User "name2" "passwd" "em@il" [("bal", ["group1"]), ("bla", ["group2"])] []
+user2 = User "name2" "passwd" "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
 user3 = User "name3" "3" "3" [("bla", ["23"])] []
 
 setupDB :: IO (AcidState DB)
 setupDB = do
   st <- openLocalStateFrom (dbPath config) emptyDB
-  void . update' st $ AddUser user1 thentosPublic
-  void . update' st $ AddUser user2 thentosPublic
+  Right (UserId 0) <- update' st $ AddUser user1 thentosPublic
+  Right (UserId 1) <- update' st $ AddUser user2 thentosPublic
   return st
 
 teardownDB :: AcidState DB -> IO ()

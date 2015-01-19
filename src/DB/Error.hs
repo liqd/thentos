@@ -26,7 +26,10 @@ data DbError =
       NoSuchUser
     | NoSuchService
     | NoSuchSession
+    | UserAlreadyExists
+    | ServiceAlreadyExists
     | SessionAlreadyExists
+    | UserEmailAlreadyExists
     | PermissionDenied
     | UidOverflow
     deriving (Eq, Ord, Enum, Show, Read, Typeable)
@@ -86,11 +89,11 @@ checkClearance cleared label result = if cleared label
     then result
     else return $ Left PermissionDenied
 
-throwDB :: DCLabel -> DbError -> ThentosUpdate a
-throwDB label = lift . left . thentosLabeled label
+throwDBU :: DCLabel -> DbError -> ThentosUpdate a
+throwDBU label = lift . left . thentosLabeled label
 
-returnDB :: DCLabel -> a -> ThentosUpdate a
-returnDB label = lift . right . thentosLabeled label
+returnDBU :: DCLabel -> a -> ThentosUpdate a
+returnDBU label = lift . right . thentosLabeled label
 
 throwDBQ :: DCLabel -> DbError -> ThentosQuery a
 throwDBQ label = lift . left . thentosLabeled label

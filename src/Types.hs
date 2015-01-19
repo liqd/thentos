@@ -274,3 +274,12 @@ instance ToSample () where
 
 instance ToSample Bool where
     toSample = Just True
+
+instance ToSample (UserId, User) where
+    toSample = Nothing
+
+instance ToSample (ServiceId, Service) where
+    toSample = Nothing
+
+instance ToSample (SessionToken, Session) where
+    toSample = Nothing
