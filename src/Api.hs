@@ -86,16 +86,16 @@ getUserIds :: RestActionLabeled [UserId]
 getUserIds = queryServant AllUserIDs
 
 getUser :: UserId -> RestActionLabeled User
-getUser uid = queryServant $ \ clearance -> LookupUser clearance uid
+getUser = queryServant . LookupUser
 
 postNewUser :: User -> RestActionLabeled UserId
-postNewUser user = updateServant $ \ clearance -> AddUser clearance user
+postNewUser = updateServant . AddUser
 
 postNamedUser :: UserId -> User -> RestActionLabeled ()
-postNamedUser uid user = updateServant $ \ credentials -> UpdateUser credentials  uid user
+postNamedUser uid = updateServant . UpdateUser uid
 
 deleteUser :: UserId -> RestActionLabeled ()
-deleteUser uid = updateServant $ \ credentials -> DeleteUser credentials uid
+deleteUser = updateServant . DeleteUser
 
 
 -- * service
@@ -115,7 +115,7 @@ getServiceIds :: RestActionLabeled [ServiceId]
 getServiceIds = queryServant AllServiceIDs
 
 getService :: ServiceId -> RestActionLabeled Service
-getService sid = queryServant (`LookupService` sid)
+getService = queryServant . LookupService
 
 postNewService :: RestActionLabeled ServiceId
 postNewService = updateServant AddService
@@ -144,7 +144,7 @@ getSessionTokens :: RestActionLabeled [SessionToken]
 getSessionTokens = queryServant AllSessionTokens
 
 getSession :: SessionToken -> RestActionLabeled Session
-getSession tok = queryServant (`LookupSession` tok)
+getSession = queryServant . LookupSession
 
 -- | Sessions have a fixed duration of 2 weeks.
 createSession :: (UserId, ServiceId) -> RestActionLabeled SessionToken
@@ -154,13 +154,13 @@ createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24
 createSessionWithTimeout :: (UserId, ServiceId, Timeout) -> RestActionLabeled SessionToken
 createSessionWithTimeout (uid, sid, Timeout diff) = do
     now :: UTCTime <- liftIO getCurrentTime
-    updateServant $ \ clearance -> StartSession clearance uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
+    updateServant $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
 
 endSession :: SessionToken -> RestActionLabeled ()
-endSession tok = updateServant (`EndSession` tok)
+endSession = updateServant . EndSession
 
 isActiveSession :: ServiceId -> SessionToken -> RestActionLabeled Bool
-isActiveSession sid tok = queryServant $ \ clearance ->  IsActiveSession clearance sid tok
+isActiveSession sid = queryServant . IsActiveSession sid
 
 
 -- * authentication

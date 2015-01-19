@@ -99,8 +99,8 @@ allUserIDs clearance = runThentosQuery clearance _allUserIDs
 _allUserIDs :: ThentosQuery [UserId]
 _allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
 
-lookupUser :: ThentosClearance -> UserId -> Query DB (Either DbError User)
-lookupUser clearance uid = runThentosQuery clearance $ _lookupUser uid
+lookupUser :: UserId -> ThentosClearance -> Query DB (Either DbError User)
+lookupUser uid clearance = runThentosQuery clearance $ _lookupUser uid
 
 _lookupUser :: UserId -> ThentosQuery User
 _lookupUser uid = do
@@ -108,8 +108,8 @@ _lookupUser uid = do
     maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) perhaps
 
 -- | Write new user to DB.  Return the fresh user id.
-addUser :: ThentosClearance -> User -> Update DB (Either DbError UserId)
-addUser clearance = runThentosUpdate clearance . _addUser
+addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
+addUser user clearance = runThentosUpdate clearance $ _addUser user
 
 _addUser :: User -> ThentosUpdate UserId
 _addUser user = do
@@ -119,8 +119,8 @@ _addUser user = do
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist.
-updateUser :: ThentosClearance -> UserId -> User -> Update DB (Either DbError ())
-updateUser clearance uid user = runThentosUpdate clearance $ _updateUser uid user
+updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either DbError ())
+updateUser uid user clearance = runThentosUpdate clearance $ _updateUser uid user
 
 _updateUser :: UserId -> User -> ThentosUpdate ()
 _updateUser uid user = do
@@ -128,8 +128,8 @@ _updateUser uid user = do
   returnDB dcPublic ()
 
 -- | Delete user with given user id.  If user does not exist, do nothing.
-deleteUser :: ThentosClearance -> UserId -> Update DB (Either DbError ())
-deleteUser clearance uid = runThentosUpdate clearance $ _deleteUser uid
+deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
+deleteUser uid clearance = runThentosUpdate clearance $ _deleteUser uid
 
 _deleteUser :: UserId -> ThentosUpdate ()
 _deleteUser uid = do
@@ -145,8 +145,8 @@ allServiceIDs clearance = runThentosQuery clearance _allServiceIDs
 _allServiceIDs :: ThentosQuery [ServiceId]
 _allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
 
-lookupService :: ThentosClearance -> ServiceId -> Query DB (Either DbError Service)
-lookupService clearance = runThentosQuery clearance . _lookupService
+lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError Service)
+lookupService sid clearance = runThentosQuery clearance $ _lookupService sid
 
 _lookupService :: ServiceId -> ThentosQuery Service
 _lookupService sid = do
@@ -165,8 +165,8 @@ _addService = do
     modify $ dbServices %~ Map.insert sid service
     returnDB dcPublic sid
 
-deleteService :: ThentosClearance -> ServiceId -> Update DB (Either DbError ())
-deleteService clearance = runThentosUpdate clearance . _deleteService
+deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())
+deleteService sid clearance = runThentosUpdate clearance $ _deleteService sid
 
 _deleteService :: ServiceId -> ThentosUpdate ()
 _deleteService sid = do
@@ -183,8 +183,8 @@ _deleteService sid = do
 -- 'ServiceID'.  Start and end time have to be passed explicitly.
 -- Throw exception if user or service do not exist.  Return session
 -- token.  If user is already logged in, throw an error.
-startSession :: ThentosClearance -> UserId -> ServiceId -> TimeStamp -> TimeStamp -> Update DB (Either DbError SessionToken)
-startSession clearance uid sid start end = runThentosUpdate clearance $ _startSession uid sid start end
+startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosClearance -> Update DB (Either DbError SessionToken)
+startSession uid sid start end clearance = runThentosUpdate clearance $ _startSession uid sid start end
 
 _startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosUpdate SessionToken
 _startSession uid sid start end = do
@@ -208,8 +208,8 @@ _allSessionTokens :: ThentosQuery [SessionToken]
 _allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
 
 
-lookupSession :: ThentosClearance -> SessionToken -> Query DB (Either DbError Session)
-lookupSession clearance = runThentosQuery clearance . _lookupSession
+lookupSession :: SessionToken -> ThentosClearance -> Query DB (Either DbError Session)
+lookupSession tok clearance = runThentosQuery clearance $ _lookupSession tok
 
 _lookupSession :: SessionToken -> ThentosQuery Session
 _lookupSession tok = do
@@ -221,8 +221,8 @@ _lookupSession tok = do
 -- (before end of session life time), by session timeouts, or after
 -- its natural life time (by application's own garbage collection).
 -- If lookup of session owning user fails, throw an error.
-endSession :: ThentosClearance -> SessionToken -> Update DB (Either DbError ())
-endSession clearance = runThentosUpdate clearance . _endSession
+endSession :: SessionToken -> ThentosClearance -> Update DB (Either DbError ())
+endSession tok clearance = runThentosUpdate clearance $ _endSession tok
 
 _endSession :: SessionToken -> ThentosUpdate ()
 _endSession tok = do
@@ -240,8 +240,8 @@ _endSession tok = do
 -- instead ensure via some yet-to-come authorization mechanism that
 -- only the affected service can gets validity information on a
 -- session token.)
-isActiveSession :: ThentosClearance -> ServiceId -> SessionToken -> Query DB (Either DbError Bool)
-isActiveSession clearance sid tok = runThentosQuery clearance $ _isActiveSession sid tok
+isActiveSession :: ServiceId -> SessionToken -> ThentosClearance -> Query DB (Either DbError Bool)
+isActiveSession sid tok clearance = runThentosQuery clearance $ _isActiveSession sid tok
 
 _isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
 _isActiveSession sid tok = thentosLabeledPublic <$> do

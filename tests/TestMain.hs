@@ -72,11 +72,11 @@ main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
-        Right uid <- update' st $ AddUser thentosPublic user1
-        Right user1' <- query' st $ LookupUser thentosPublic uid
+        Right uid <- update' st $ AddUser user1 thentosPublic
+        Right user1' <- query' st $ LookupUser uid thentosPublic
         user1' `shouldBe` user1
-        void . update' st $ DeleteUser thentosPublic (UserId 1)
-        u <- query' st $ LookupUser thentosPublic (UserId 1)
+        void . update' st $ DeleteUser (UserId 1) thentosPublic
+        u <- query' st $ LookupUser (UserId 1) thentosPublic
         u `shouldBe` Left NoSuchUser
 
       it "hspec meta: `setupDB, teardownDB` are called once for every `it` here." $ \ st -> do
@@ -87,21 +87,21 @@ main = hspec $ do
       it "works" $ \st -> do
         Right service1_id <- update' st $ AddService thentosPublic
         Right service2_id <- update' st $ AddService thentosPublic
-        Right service1 <- query' st $ LookupService thentosPublic service1_id
-        Right service2 <- query' st $ LookupService thentosPublic service2_id
+        Right service1 <- query' st $ LookupService service1_id thentosPublic
+        Right service2 <- query' st $ LookupService service2_id thentosPublic
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
         service1 `shouldSatisfy` (/= service2) -- should have different keys
-        void . update' st $ DeleteService thentosPublic service1_id
-        Left NoSuchService <- query' st $ LookupService thentosPublic service1_id
+        void . update' st $ DeleteService service1_id thentosPublic
+        Left NoSuchService <- query' st $ LookupService service1_id thentosPublic
         return ()
 
     describe "StartSession" $ do
       it "works" $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
-        Left NoSuchService <- update' st $ StartSession thentosPublic (UserId 0) "NoSuchService" from to
+        Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from to thentosPublic
         Right (sid :: ServiceId) <- update' st $ AddService thentosPublic
-        Right _ <- update' st $ StartSession thentosPublic (UserId 0) sid from to
+        Right _ <- update' st $ StartSession (UserId 0) sid from to thentosPublic
         return ()
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
@@ -183,8 +183,8 @@ user3 = User "name3" "3" "3" [("bla", ["23"])] []
 setupDB :: IO (AcidState DB)
 setupDB = do
   st <- openLocalStateFrom (dbPath config) emptyDB
-  void . update' st $ AddUser thentosPublic user1
-  void . update' st $ AddUser thentosPublic user2
+  void . update' st $ AddUser user1 thentosPublic
+  void . update' st $ AddUser user2 thentosPublic
   return st
 
 teardownDB :: AcidState DB -> IO ()
