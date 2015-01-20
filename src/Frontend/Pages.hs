@@ -20,7 +20,7 @@ addUserPage v = H.docTypeHtml $ do
         H.title "Create user"
     H.body $ do
         -- FIXME: how do we avoid having to duplicate the URL here?
-        form v "create_user.html" $ do
+        form v "create_user" $ do
             H.p $ do
                 label "name" v "User name:"
                 inputText "name" v
@@ -43,12 +43,11 @@ userAddedPage =
 -- FIXME: move forms into separate module
 userForm :: Monad m => Form Html m User
 userForm = User
-    <$> (Username <$> "name" .: check "name must not be empty" nonEmpty (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty (text Nothing))
-    <*> (UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing))
+    <$> (Username  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
+    <*> (UserPass  <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
     <*> pure []
     <*> pure []
-
   where
     nonEmpty :: Text -> Bool
     nonEmpty = not . T.null

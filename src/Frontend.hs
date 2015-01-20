@@ -32,13 +32,13 @@ runFrontend :: Int -> AcidState DB -> IO ()
 runFrontend port st = serveSnaplet (setPort port defaultConfig) (frontendApp st)
 
 frontendApp :: AcidState DB ->  SnapletInit FrontendApp FrontendApp
-frontendApp st = makeSnaplet "frontendApp" "The frontend snap app" Nothing $ do
+frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
     a <- nestSnaplet "acid" db $ acidInitManual st
     addRoutes routes
     return $ FrontendApp a
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
-routes = [ ("create_user.html", userAddHandler)
+routes = [ ("create_user", userAddHandler)
          ]
 
 userAddHandler :: Handler FrontendApp FrontendApp ()
