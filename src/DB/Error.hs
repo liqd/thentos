@@ -2,8 +2,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
-module DB.Error
-where
+module DB.Error (
+    DbError(..),
+    ThentosClearance(..),
+    ThentosUpdate,
+    runThentosUpdate,
+    ThentosQuery,
+    runThentosQuery,
+    liftThentosQuery,
+    returnDBQ,
+    throwDBQ,
+    returnDBU,
+    throwDBU,
+    when'
+) where
 
 import Control.Applicative ((<$>))
 import Control.Monad.Identity (Identity, runIdentity, void)

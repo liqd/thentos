@@ -1,4 +1,4 @@
-module Frontend.Util where
+module Frontend.Util (serveSnaplet) where
 
 import Snap (Snap, Config, getOther, SnapletInit, runSnaplet, when, liftIO, combineConfig, getVerbose)
 import Snap.Http.Server (simpleHttpServe)

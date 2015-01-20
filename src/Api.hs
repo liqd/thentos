@@ -18,8 +18,7 @@
 
 {-# OPTIONS  #-}
 
-module Api
-where
+module Api (runApi, apiDocs, {-just for testing: :-} App, app) where
 
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Class (lift)
@@ -34,12 +33,20 @@ import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
 import LIO (lioClearance)
 import Network.Wai (requestHeaders)
+import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Docs (HasDocs, docsFor)
+import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
+import Servant.Server (serve)
 
 import DB
 import Types
+
+runApi :: Int -> AcidState DB -> IO ()
+runApi port st = run port $ serve (Proxy :: Proxy App) (app st)
+
+apiDocs :: String
+apiDocs = markdown $ docs (Proxy :: Proxy App)
 
 
 -- * the application

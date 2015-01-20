@@ -16,6 +16,8 @@ library
       Haskell2010
   hs-source-dirs:
       src
+  ghc-options:
+      -Wall -threaded -rtsopts
   exposed-modules:
       Thentos
     , Api
@@ -76,6 +78,8 @@ executable thentos
       Haskell2010
   main-is:
       Main.hs
+  ghc-options:
+      -Wall -threaded -rtsopts
   build-depends:
       base >=4.7 && <4.8
     , thentos ==0.0.1

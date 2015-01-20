@@ -10,8 +10,7 @@
 
 {-# OPTIONS  #-}
 
-module Types
-where
+module Types where
 
 import Control.Applicative (pure, (<*>))
 import Control.Lens (makeLenses)
