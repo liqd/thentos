@@ -18,6 +18,7 @@ module Thentos
 where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent.Async (concurrently)
 import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
@@ -68,17 +69,22 @@ main =
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
             void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) thentosPublic
-        switch ["-r"] = switch ["-r", ""]
-        switch ["-r", fromMaybe 8001 . readMay -> port] = do
-            putStrLn $ "running rest api on localhost:" <> show port <> ".  press ^C to abort."
+        switch ["-r"] = switch ["-r", "", ""]
+        switch ["-r", a] = switch ["-r", a, ""]
+        switch ["-r"
+               , fromMaybe 8001 . readMay -> backendPort
+               , fromMaybe 8002 . readMay -> frontendPort
+               ] = do
+            putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
+            putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
+            putStrLn $ "Press ^C to abort."
             createCheckpointLoop st 16000 Nothing
-            run port $ serve (Proxy :: Proxy App) (app st)
+            void $ concurrently
+                (runFrontend frontendPort st)
+                (run backendPort $ serve (Proxy :: Proxy App) (app st))
         switch ["--docs"] = do
             let api = docs (Proxy :: Proxy App)
             putStrLn $ markdown api
-        switch ["--frontend"] = switch ["--frontend", ""]
-        switch ["--frontend", fromMaybe 8000 . readMay -> port] = do
-            runFrontend port st
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do
@@ -89,7 +95,6 @@ main =
 
     catch (switch args) (\ (e :: SomeException) -> finalize >> throw e)
     finalize
-
 
 -- curl -H "Content-Type: application/json" -X PUT -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userID":3,"userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user/id/3
 -- curl -H "Content-Type: application/json" -X POST -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user
