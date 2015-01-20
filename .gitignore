@@ -10,3 +10,5 @@
 *.dyn_hi
 /.sandbox-archive/
 /TAGS
+/services/helloworld/dist/
+/services/helloworld/log/
