@@ -14,6 +14,7 @@ module DB.Core
   ( AllUserIDs(..)
   , LookupUser(..)
   , AddUser(..)
+  , AddUsers(..)
   , UpdateUser(..)
   , DeleteUser(..)
 
@@ -133,6 +134,16 @@ _addUser :: User -> ThentosUpdate UserId
 _addUser user = do
     ThentosLabeled (ThentosLabel label) uid <- _freshUserID
     __writeUser uid user
+
+-- | Write a list of new users to DB.  Return list of fresh user ids.
+-- This is not the most vital part of the backend API, but it allows
+-- for testing rollback in error cases.  It will also be a nice
+-- example for intersecting authorizations.
+addUsers :: [User] -> ThentosClearance -> Update DB (Either DbError [UserId])
+addUsers users clearance = runThentosUpdate clearance $ _addUsers users
+
+_addUsers :: [User] -> ThentosUpdate [UserId]
+_addUsers users = mapM _addUser users >>= returnDBU dcPublic . map (\ (ThentosLabeled _ uid) -> uid)
 
 -- | (db ^. dbUser) must only be modified using this function.
 -- (FIXME: we should have a more generic approach to smart accessors
@@ -282,6 +293,7 @@ $(makeAcidic ''DB
     [ 'allUserIDs
     , 'lookupUser
     , 'addUser
+    , 'addUsers
     , 'updateUser
     , 'deleteUser
 

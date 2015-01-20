@@ -72,7 +72,7 @@ main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "hspec meta" $ do
       it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ st -> do
-        Right uid <- update' st $ AddUser user3 thentosPublic
+        Right _ <- update' st $ AddUser user3 thentosPublic
         True `shouldBe` True
 
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ st -> do
@@ -103,6 +103,16 @@ main = hspec $ do
       it "throws an error if user does not exist" $ \ st -> do
         result <- update' st $ UpdateUser (UserId 391) user3 thentosPublic
         result `shouldBe` Left NoSuchUser
+
+    describe "AddUsers" $ do
+      it "works" $ \ st -> do
+        result <- update' st $ AddUsers [user3, user4, user5] thentosPublic
+        result `shouldBe` Right (map UserId [2, 3, 4])
+
+      it "rolls back in case of error (adds all or nothing)" $ \ st -> do
+        Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] thentosPublic
+        result <- query' st $ AllUserIDs thentosPublic
+        result `shouldBe` Right (map UserId [0, 1])
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \ st -> do
@@ -196,10 +206,12 @@ main = hspec $ do
 
 -- * helpers
 
-user1, user2, user3 :: User
+user1, user2, user3, user4, user5 :: User
 user1 = User "name1" "passwd" "em@il" [] []
 user2 = User "name2" "passwd" "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
 user3 = User "name3" "3" "3" [("bla", ["23"])] []
+user4 = User "name4" "4" "4" [] []
+user5 = User "name5" "5" "5" [] []
 
 setupDB :: IO (AcidState DB)
 setupDB = do
