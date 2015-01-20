@@ -97,17 +97,17 @@ test-suite tests
     , thentos ==0.0.1
 
     , acid-state >=0.12 && <0.13
-    , aeson >=0.7 && <0.8
-    , bytestring >=0.10.4.0 && <0.11
-    , functor-infix >=0.0.1 && <0.2
+    , aeson
+    , bytestring
+    , functor-infix
     , hspec >=2.0.2 && <2.1
     , http-types >=0.8.5 && <0.9
-    , lio >=0.11.5.0 && <0.12
-    , mtl >=2.1 && <2.2
+    , lio
+    , mtl
     , pretty-show >=1.6.8 && <1.7
-    , servant-server >=0.2.3 && <0.3
-    , string-conversions >=0.3 && <0.4
+    , servant-server
+    , string-conversions
     , system-fileio >=0.3.15 && <0.4
-    , thyme >=0.3 && <0.4
-    , wai >=3.0.2 && <3.1
+    , thyme
+    , wai
     , wai-extra >=3.0.3 && <3.1
