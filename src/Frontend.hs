@@ -32,7 +32,7 @@ instance HasAcid FrontendApp DB where
 runFrontend :: Int -> AcidState DB -> IO ()
 runFrontend port st = serveSnaplet (setPort port defaultConfig) (frontendApp st)
 
-frontendApp :: AcidState DB ->  SnapletInit FrontendApp FrontendApp
+frontendApp :: AcidState DB -> SnapletInit FrontendApp FrontendApp
 frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
     a <- nestSnaplet "acid" db $ acidInitManual st
     addRoutes routes
