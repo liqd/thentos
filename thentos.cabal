@@ -23,18 +23,26 @@ library
     , DB.Core
     , DB.Error
     , DB.Protect
+    , Frontend
+    , Frontend.Pages
+    , Frontend.Util
     , Types
   build-depends:
       base >=4.7 && <4.8
     , acid-state >=0.12 && <0.13
-    , aeson >=0.7 && <0.8
+    , aeson >=0.8 && <0.9
     , aeson-pretty >=0.7 && <0.8
+    , blaze-html
+    , bytestring
     , containers >=0.5 && <0.6
     , cryptohash >=0.11.6 && <0.12
+    , digestive-functors
+    , digestive-functors-blaze
+    , digestive-functors-snap
     , either >=4.3.2 && <4.4
     , functor-infix >=0.0.1 && <0.2
     , generic-aeson >=0.2 && <0.3
-    , lens >=4.4 && <4.5
+    , lens >=4.7 && <4.8
     , lio >=0.11.5.0 && <0.12
     , mtl >=2.1 && <2.2
     , old-locale >=1.0.0.6 && <1.1
@@ -45,13 +53,22 @@ library
     , servant-docs >=0.3 && <0.4
     , servant-jquery >= 0.2.1
     , servant-server >=0.2.3 && <0.3
+    , snap
+    , snaplet-acid-state
+    , snap-core
+    , snap-blaze
+    , snap-server
     , string-conversions >=0.3 && <0.4
     , text >=1.2.0.0 && <1.3
     , thyme >=0.3 && <0.4
     , transformers >=0.3.0.0 && <0.4
-    , vector-space >=0.8.7 && <0.9
+    , vector-space >=0.9 && <0.10
     , wai >=3.0.2 && <3.1
     , warp >=3.0 && <3.1
+
+    -- these are only used by some c&p'ed snap code in Frontend.Util
+    , directory
+    , MonadCatchIO-transformers
 
 executable thentos
   default-language:

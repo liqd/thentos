@@ -40,6 +40,7 @@ import Servant.Docs (docs, markdown)
 import Types
 import DB
 import Api
+import Frontend (runFrontend)
 
 
 -- * main
@@ -75,6 +76,9 @@ main =
         switch ["--docs"] = do
             let api = docs (Proxy :: Proxy App)
             putStrLn $ markdown api
+        switch ["--frontend"] = switch ["--frontend", ""]
+        switch ["--frontend", fromMaybe 8000 . readMay -> port] = do
+            runFrontend port st
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do
