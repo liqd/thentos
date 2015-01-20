@@ -27,7 +27,7 @@ import           Text.Blaze.Html (Html)
 data App = App
 type AppHandler = Handler App App
 
-handleApp :: Handler App App ()
+handleApp :: AppHandler ()
 handleApp = do
     token :: Maybe [ByteString] <- getHeaders (mk "X-Thentos-Token") <$> getRequest
     method GET $ blaze (appPage token ())
