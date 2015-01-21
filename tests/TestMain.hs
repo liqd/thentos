@@ -228,7 +228,7 @@ teardownDB st = do
 setupTestServer :: IO (AcidState DB, Application)
 setupTestServer = do
   st <- setupDB
-  return (st, serve (Proxy :: Proxy App) (app st))
+  return (st, serveApi st)
 
 teardownTestServer :: (AcidState DB, Application) -> IO ()
 teardownTestServer (st, _) = teardownDB st

@@ -18,7 +18,7 @@
 
 {-# OPTIONS  #-}
 
-module Api (runApi, apiDocs, {-just for testing: :-} App, app) where
+module Api (runApi, serveApi, apiDocs) where
 
 import Control.Monad.State (liftIO)
 import Control.Monad.Trans.Class (lift)
@@ -32,7 +32,7 @@ import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
 import LIO (lioClearance)
-import Network.Wai (requestHeaders)
+import Network.Wai (Application, requestHeaders)
 import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
@@ -43,7 +43,11 @@ import DB
 import Types
 
 runApi :: Int -> AcidState DB -> IO ()
-runApi port st = run port $ serve (Proxy :: Proxy App) (app st)
+runApi port = run port . serveApi
+
+-- | (Required in test suite.)
+serveApi :: AcidState DB -> Application
+serveApi = serve (Proxy :: Proxy App) . app
 
 apiDocs :: String
 apiDocs = markdown $ docs (Proxy :: Proxy App)
