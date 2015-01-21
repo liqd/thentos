@@ -14,8 +14,7 @@
 
 {-# OPTIONS  #-}
 
-module Thentos
-where
+module Thentos (main) where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
@@ -23,24 +22,19 @@ import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
-import Data.Data (Proxy(Proxy))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
 import LIO (evalLIO)
 import LIO.DCLabel (dcPublic)
-import Network.Wai.Handler.Warp (run)
 import Safe (readMay)
-import Servant.Server (serve)
 import System.Environment (getArgs)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 
-import Servant.Docs (docs, markdown)
-
 import Types
 import DB
-import Api
+import Api (runApi, apiDocs)
 import Frontend (runFrontend)
 
 
@@ -81,10 +75,8 @@ main =
             createCheckpointLoop st 16000 Nothing
             void $ concurrently
                 (runFrontend frontendPort st)
-                (run backendPort $ serve (Proxy :: Proxy App) (app st))
-        switch ["--docs"] = do
-            let api = docs (Proxy :: Proxy App)
-            putStrLn $ markdown api
+                (runApi backendPort st)
+        switch ["--docs"] = putStrLn apiDocs
         switch _ = error $ "bad arguments: " <> show args
 
         finalize = do
