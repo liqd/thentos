@@ -25,6 +25,7 @@ Executable helloworld
   Build-depends:
       base                      >= 4.4
     , blaze-html
+    , blaze-markup              >= 0.6.3
     , bytestring                >= 0.9.1
     , case-insensitive
     , heist                     >= 0.14
