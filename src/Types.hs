@@ -62,7 +62,7 @@ data User =
 newtype UserId = UserId { fromUserId :: Int }
     deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, Bounded, FromText)
 
-newtype UserName = Username { fromUserName :: ST }
+newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 newtype UserPass = UserPass { fromUserPass :: ST }
@@ -244,7 +244,7 @@ instance ToSample [SessionToken] where
     toSample = Just ["abde1234llkjh", "47202sdfsg"]
 
 instance ToSample User where
-    toSample = Just $ User (Username "Kurt Cobain")
+    toSample = Just $ User (UserName "Kurt Cobain")
                            (UserPass "Hunter2")
                            (UserEmail "cobain@nirvana.com")
                            []

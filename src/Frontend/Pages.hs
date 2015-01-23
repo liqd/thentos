@@ -1,6 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Frontend.Pages (addUserPage, userForm, userAddedPage) where
+module Frontend.Pages
+    ( addUserPage
+    , userForm
+    , userAddedPage
+    , loginPage
+    , loginForm
+    , errorPage
+) where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Data.Maybe (isJust)
@@ -25,7 +32,7 @@ addUserPage v = H.docTypeHtml $ do
                 label "name" v "User name:"
                 inputText "name" v
             H.p $ do
-                label "password" v "Password: "
+                label "password" v "Password:"
                 inputPassword "password" v
             H.p $ do
                 label "email" v "Email Address:"
@@ -43,14 +50,39 @@ userAddedPage =
 -- FIXME: move forms into separate module
 userForm :: Monad m => Form Html m User
 userForm = User
-    <$> (Username  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
+    <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
     <*> (UserPass  <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
     <*> pure []
     <*> pure []
   where
-    nonEmpty :: Text -> Bool
-    nonEmpty = not . T.null
-
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')
+
+loginPage :: View Html -> Html
+loginPage v =
+    H.docTypeHtml $ do
+        H.head $
+            H.title "Log in"
+        H.body $
+            form v "login" $ do
+                H.p $ do
+                    label "usernamme" v "User name:"
+                    inputText "name" v
+                H.p $ do
+                    label "password" v "Password:"
+                    inputPassword "password" v
+                inputSubmit "Log in"
+
+loginForm :: Monad m => Form Html m (UserName, UserPass)
+loginForm = (,)
+    <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
+    <*> (UserPass  <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+
+errorPage :: String -> Html
+errorPage errorString = H.string $ "Encountered error: " ++ show errorString
+
+-- auxillary functions
+nonEmpty :: Text -> Bool
+nonEmpty = not . T.null
