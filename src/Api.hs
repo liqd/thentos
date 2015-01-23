@@ -27,7 +27,9 @@ import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.AffineSpace ((.+^))
+import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (SBS, ST)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
@@ -210,7 +212,7 @@ instance ( PushReaderT (Server sublayout)
     route Proxy (ThentosAuth st subserver) request respond = do
         route (Proxy :: Proxy sublayout) (unPushReaderT (st, clearance) subserver) request respond
           where
-              -- pluck :: CI -> Maybe ST
+              pluck :: (CI SBS) -> Maybe ST
               pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
                 -- FIXME: we probably want to throw an encoding error back to the client instead of dropping headers.
 
