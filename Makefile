@@ -12,6 +12,7 @@ lint:
 wc:
 	find src -name '*.hs' | xargs wc
 	find tests -name '*.hs' | xargs wc
+	find services/helloworld/src -name '*.hs' | xargs wc
 #	find src -name '*.hs' | xargs sloccount
 
 clean:
