@@ -30,6 +30,8 @@ module DB.Core
   , EndSession(..)
   , IsActiveSession(..)
 
+  , SnapShot(..)
+
   , emptyDB
   , createCheckpointLoop
   )
@@ -299,6 +301,15 @@ _isActiveSession sid tok = do
     returnDBQ dcPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
+-- ** misc
+
+snapShot :: ThentosClearance -> Query DB (Either DbError DB)
+snapShot clearance = runThentosQuery clearance _snapShot
+
+_snapShot :: ThentosQuery DB
+_snapShot = ask >>= returnDBQ dcPublic
+
+
 -- * event types
 
 $(makeAcidic ''DB
@@ -320,6 +331,8 @@ $(makeAcidic ''DB
     , 'lookupSession
     , 'endSession
     , 'isActiveSession
+
+    , 'snapShot
     ])
 
 
