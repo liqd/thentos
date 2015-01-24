@@ -130,13 +130,13 @@ _lookupUser uid = (uid,) <$$> do
 -- FIXME: this is extremely inefficient, we should have a separate map from
     -- user names to users or user ids
 lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
-lookupUserByName name clearance = runThentosQuery clearance $ lookupUserId name
-  where
-    lookupUserId :: UserName -> ThentosQuery (UserId, User)
-    lookupUserId name = do
-        users <- Map.toList . (^. dbUsers) <$> ask
-        let mUser = find (\(uid, user) -> (user ^. userName == name)) users
-        maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
+lookupUserByName name clearance = runThentosQuery clearance $ _lookupUserByName name
+
+_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
+_lookupUserByName name = do
+    users <- Map.toList . (^. dbUsers) <$> ask
+    let mUser = find (\(uid, user) -> (user ^. userName == name)) users
+    maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
 
 -- | Write new user to DB.  Return the fresh user id.
 addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
