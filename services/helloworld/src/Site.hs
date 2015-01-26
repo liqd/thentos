@@ -49,9 +49,9 @@ appPage token sessionMetaData =
 
 routes :: ByteString -> [(ByteString, Handler App App ())]
 routes sid = [ ("/app", handleApp)
-           , ("/login", helloWorldLogin sid)
-           , ("",     serveDirectory "static")  -- for css and what not.
-           ]
+             , ("/login", helloWorldLogin sid)
+             , ("",     serveDirectory "static")  -- for css and what not.
+             ]
 
 app :: SnapletInit App App
 app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ do

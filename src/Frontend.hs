@@ -55,21 +55,21 @@ routes = [ ("create_user", userAddHandler)
 
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
-    (view, result) <- runForm "create_user" userForm
+    (_view, result) <- runForm "create_user" userForm
     case result of
-        Nothing -> blaze $ addUserPage view
+        Nothing -> blaze $ addUserPage _view
         Just user -> do
             liftIO $ print user
             -- FIXME: this doesn't handle errors
-            update (AddUser user thentosPublic)
+            _ <- update (AddUser user thentosPublic)
             blaze userAddedPage
 
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do
     uri <- getsRequest rqURI
-    (view, result) <- runForm (cs uri) loginForm
+    (_view, result) <- runForm (cs uri) loginForm
     case result of
-        Nothing -> blaze $ loginPage view uri
+        Nothing -> blaze $ loginPage _view uri
         Just (name, password) -> do
             eUser <- query $ LookupUserByName name thentosPublic
             case eUser of
@@ -102,7 +102,7 @@ loginHandler = do
 
     redirectUrl :: ByteString -> SessionToken -> ByteString
     redirectUrl serviceProvidedUrl sessionToken =
-        let (base_url, query) = BC.break (== '?') serviceProvidedUrl in
-        let params = parseUrlEncoded $ B.drop 1 query in
+        let (base_url, _query) = BC.break (== '?') serviceProvidedUrl in
+        let params = parseUrlEncoded $ B.drop 1 _query in
         let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
         base_url <> "?" <> printUrlEncoded params'
