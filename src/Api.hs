@@ -2,7 +2,6 @@
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE FunctionalDependencies                   #-}
 {-# LANGUAGE GADTs                                    #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
@@ -14,7 +13,6 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
 
@@ -211,7 +209,7 @@ instance ( PushReaderT (Server sublayout)
   where
     type Server (ThentosAuth sublayout) = ThentosAuth (PushReaderSubType (Server sublayout))
 
-    route Proxy (ThentosAuth st subserver) request respond = do
+    route Proxy (ThentosAuth st subserver) request respond =
         route (Proxy :: Proxy sublayout) (unPushReaderT routingState subserver) request respond
       where
         pluck :: CI SBS -> Maybe ST
@@ -219,11 +217,11 @@ instance ( PushReaderT (Server sublayout)
 
         routingState :: RoutingState
         routingState = ( st
-                       , \ db -> ThentosClearance . ThentosLabel . lioClearance <$> (mkAuth
+                       , \ db -> ThentosClearance . ThentosLabel . lioClearance <$> mkAuth
                            (pluck "X-Thentos-User")
                            (pluck "X-Thentos-Service")
                            (pluck "X-Thentos-Password")
-                           db))
+                           db)
 
 -- | FIXME: not much documentation yet.
 instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where

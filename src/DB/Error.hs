@@ -93,7 +93,7 @@ runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
         Left (ThentosLabeled label (err :: DbError)) ->
             checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
         Right (ThentosLabeled label result, state') ->
-            checkClearance  ((`canFlowTo` clearance) . fromThentosLabel) label $ put state' >> (return $ Right result)
+            checkClearance  ((`canFlowTo` clearance) . fromThentosLabel) label $ put state' >> return (Right result)
 
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
 runThentosQuery (ThentosClearance (ThentosLabel clearance)) action = do

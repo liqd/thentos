@@ -60,7 +60,7 @@ main =
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            void $ update' st $ AddUser user thentosPublic
+            void . update' st $ AddUser user thentosPublic
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
             void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) thentosPublic
@@ -76,7 +76,7 @@ main =
                ] = do
             putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
             putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
-            putStrLn $ "Press ^C to abort."
+            putStrLn "Press ^C to abort."
             _ <- createCheckpointLoop st 16000 Nothing
             void $ concurrently
                 (runFrontend frontendPort st)

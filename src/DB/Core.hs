@@ -67,7 +67,7 @@ checkDbInvs invs = do
         f (Right _:es) = f es
 
     db <- ask
-    f $ map ($ db) invs
+    f $ fmap ($ db) invs
 
 dbInvUserEmailUnique :: UserId -> User -> DB -> Either DbError ()
 dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
@@ -75,7 +75,7 @@ dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
       else Left UserEmailAlreadyExists
   where
     emails :: [UserEmail]
-    emails = map (^. userEmail) $ Map.elems (Map.insert uid user $ db ^. dbUsers)
+    emails = (^. userEmail) <$> Map.elems (Map.insert uid user $ db ^. dbUsers)
 
 
 -- * event functions

@@ -1,11 +1,8 @@
 {-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
 

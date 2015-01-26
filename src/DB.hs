@@ -1,9 +1,5 @@
-module DB
-  ( module DB.Protect
-  , module DB.Error
-  , module DB.Core
-  ) where
+module DB (module X) where
 
-import DB.Protect
-import DB.Error
-import DB.Core
+import DB.Protect as X
+import DB.Error as X
+import DB.Core as X

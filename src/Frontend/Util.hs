@@ -26,10 +26,9 @@ serveSnaplet config initializer = do
     createDirectoryIfMissing False "log"
     let serve = simpleHttpServe conf
 
-    when (loggingEnabled conf) $ liftIO $ hPutStrLn stderr $ T.unpack msgs
-    _ <- try $ serve $ site
+    when (loggingEnabled conf) . liftIO . hPutStrLn stderr $ T.unpack msgs
+    _ <- try (serve site)
          :: IO (Either SomeException ())
     doCleanup
   where
     loggingEnabled = not . (== Just False) . getVerbose
-
