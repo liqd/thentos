@@ -216,11 +216,18 @@ instance ( PushReaderT (Server sublayout)
               pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
                 -- FIXME: we probably want to throw an encoding error back to the client instead of dropping headers.
 
-              mprincipal = pluck "X-Principal"
-              mpassword  = pluck "X-Password"
+              muser      = pluck "X-Thentos-User"
+              mservice   = pluck "X-Thentos-Service"
+              mpassword  = pluck "X-Thentos-Password"
+
+              fromRight :: Either a b -> b
+              fromRight (Right x) = x
+              fromRight (Left  x) = error $ show x
 
               clearance :: ThentosClearance
-              clearance = ThentosClearance . ThentosLabel . lioClearance $ mkAuth mprincipal mpassword st
+              clearance = ThentosClearance . ThentosLabel . lioClearance . fromRight $
+                              mkAuth muser mservice mpassword (error "we have st here, but neet db")
+                                                              -- FIXME: do proper error handling instead of fromRight
                                                               -- FIXME: don't use LIOState, just Priv or something.
 
 -- | FIXME: not much documentation yet.

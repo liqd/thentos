@@ -43,9 +43,11 @@ type Auth = LIOState DCLabel
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-mkAuth :: Maybe ST -> Maybe ST -> AcidState DB -> Auth
-mkAuth _ _ _ = allowEverything
--- mkAuth (Just principal) (Just password) st = allowEverything
+mkAuth :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError Auth
+mkAuth (Just user) Nothing        (Just password) db = Right allowEverything
+mkAuth Nothing     (Just service) (Just password) db = Right allowEverything
+mkAuth Nothing     Nothing        Nothing         db = Right allowEverything
+mkAuth _           _              _               db = Left BadAuthenticationHeaders
 
 
 thentosLabeledPublic :: t -> ThentosLabeled t

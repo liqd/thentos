@@ -44,6 +44,7 @@ data DbError =
     | UserEmailAlreadyExists
     | PermissionDenied
     | UidOverflow
+    | BadAuthenticationHeaders
     deriving (Eq, Ord, Enum, Show, Read, Typeable)
 
 instance SafeCopy DbError
