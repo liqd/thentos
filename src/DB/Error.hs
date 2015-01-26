@@ -15,7 +15,11 @@ module DB.Error (
     throwDBQ,
     returnDBU,
     throwDBU,
-    when'
+    when',
+    thentosLabeledPublic,
+    thentosLabeledDenied,
+    thentosPublic,
+    thentosDenied
 ) where
 
 import Control.Applicative ((<$>))
@@ -27,7 +31,7 @@ import Data.Acid (Update, Query)
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
-import LIO.DCLabel (DCLabel)
+import LIO.DCLabel (DCLabel, dcPublic)
 import Safe (readMay)
 
 import Types
@@ -121,3 +125,18 @@ returnDBQ label = lift . right . thentosLabeled label
 when' :: (Functor m, Monad m) => Bool -> m a -> m ()
 when' True action = void action
 when' False _ = return ()
+
+
+-- FIXME: do we really need and want these?:
+
+thentosLabeledPublic :: t -> ThentosLabeled t
+thentosLabeledPublic = thentosLabeled dcPublic
+
+thentosLabeledDenied :: t -> ThentosLabeled t
+thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
+
+thentosPublic :: ThentosClearance
+thentosPublic = ThentosClearance $ ThentosLabel dcPublic
+
+thentosDenied :: ThentosLabel
+thentosDenied = error "thentosLabeledDenied: not implemented"

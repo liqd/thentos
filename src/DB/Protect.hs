@@ -21,11 +21,12 @@ module DB.Protect
   ) where
 
 import Data.String.Conversions (ST)
-import LIO.DCLabel (DCLabel, dcDefaultState, dcPublic, (%%))
+import LIO.DCLabel (DCLabel, dcDefaultState, (%%))
 import LIO.TCB (LIOState(LIOState))
 
 import Types
 import DB.Error
+import DB.Core
 
 
 -- | Result type of 'ThentosAuth'.  Contains authentication
@@ -49,17 +50,9 @@ mkAuth Nothing     Nothing        Nothing         db = Right allowEverything
 mkAuth _           _              _               db = Left BadAuthenticationHeaders
 
 
-thentosLabeledPublic :: t -> ThentosLabeled t
-thentosLabeledPublic = thentosLabeled dcPublic
 
-thentosLabeledDenied :: t -> ThentosLabeled t
-thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
 
-thentosPublic :: ThentosClearance
-thentosPublic = ThentosClearance $ ThentosLabel dcPublic
 
-thentosDenied :: ThentosLabel
-thentosDenied = error "thentosLabeledDenied: not implemented"
 
 allowNothing :: LIOState DCLabel
 allowNothing = LIOState (False %% False) (True %% False)

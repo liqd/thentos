@@ -56,7 +56,6 @@ import qualified Data.Map as Map
 
 import Types
 import DB.Error
-import DB.Protect
 
 
 -- * DB invariants
