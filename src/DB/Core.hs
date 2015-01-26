@@ -81,9 +81,6 @@ dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
 emptyDB :: DB
 emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
-freshUserID :: ThentosClearance -> Update DB (Either DbError UserId)
-freshUserID clearance = runThentosUpdate clearance _freshUserID
-
 _freshUserID :: ThentosUpdate UserId
 _freshUserID = do
     uid <- gets (^. dbFreshUserId)
@@ -137,7 +134,7 @@ lookupUserByName name clearance = runThentosQuery clearance $ _lookupUserByName 
 _lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 _lookupUserByName name = do
     users <- Map.toList . (^. dbUsers) <$> ask
-    let mUser = find (\(uid, user) -> (user ^. userName == name)) users
+    let mUser = find (\ (_, user) -> (user ^. userName == name)) users
     maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
 
 -- | Write new user to DB.  Return the fresh user id.
@@ -146,7 +143,7 @@ addUser user clearance = runThentosUpdate clearance $ _addUser user
 
 _addUser :: User -> ThentosUpdate UserId
 _addUser user = do
-    ThentosLabeled (ThentosLabel label) uid <- _freshUserID
+    ThentosLabeled _ uid <- _freshUserID
     __writeUser uid user
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
@@ -164,7 +161,7 @@ _addUsers users = mapM _addUser users >>= returnDBU dcPublic . map (\ (ThentosLa
 -- to DB that makes it clear invariants always hold.)
 __writeUser :: UserId -> User -> ThentosUpdate UserId
 __writeUser uid user = do
-    liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
+    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
     modify $ dbUsers %~ Map.insert uid user
     returnDBU dcPublic uid
 
@@ -176,8 +173,8 @@ updateUser uid user clearance = runThentosUpdate clearance $ _updateUser uid use
 
 _updateUser :: UserId -> User -> ThentosUpdate ()
 _updateUser uid user = do
-    liftThentosQuery $ _lookupUser uid
-    __writeUser uid user
+    _ <- liftThentosQuery $ _lookupUser uid
+    _ <- __writeUser uid user
     returnDBU dcPublic ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
@@ -187,7 +184,7 @@ deleteUser uid clearance = runThentosUpdate clearance $ _deleteUser uid
 
 _deleteUser :: UserId -> ThentosUpdate ()
 _deleteUser uid = do
-    liftThentosQuery $ _lookupUser uid
+    _ <- liftThentosQuery $ _lookupUser uid
     modify $ dbUsers %~ Map.delete uid
     returnDBU dcPublic ()
 
@@ -225,7 +222,7 @@ deleteService sid clearance = runThentosUpdate clearance $ _deleteService sid
 
 _deleteService :: ServiceId -> ThentosUpdate ()
 _deleteService sid = do
-    liftThentosQuery $ _lookupService sid
+    _ <- liftThentosQuery $ _lookupService sid
     modify $ dbServices %~ Map.delete sid
     returnDBU dcPublic ()
 

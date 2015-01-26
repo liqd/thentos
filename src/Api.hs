@@ -212,7 +212,7 @@ instance ( PushReaderT (Server sublayout)
     route Proxy (ThentosAuth st subserver) request respond = do
         route (Proxy :: Proxy sublayout) (unPushReaderT (st, clearance) subserver) request respond
           where
-              pluck :: (CI SBS) -> Maybe ST
+              pluck :: CI SBS -> Maybe ST
               pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
                 -- FIXME: we probably want to throw an encoding error back to the client instead of dropping headers.
 
