@@ -61,6 +61,10 @@ main =
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
             void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) thentosPublic
+        switch ["-a3"] = do
+            putStrLn "adding dummy service to database:"
+            sid <- update' st $ AddService thentosPublic
+            putStrLn $ "Service id: " ++ show sid
         switch ["-r"] = switch ["-r", "", ""]
         switch ["-r", a] = switch ["-r", a, ""]
         switch ["-r"

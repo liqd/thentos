@@ -7,6 +7,7 @@ module Site
 
 import           Control.Applicative
 import           Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BC
 import           Data.CaseInsensitive
 import           Data.Monoid
 import           Data.String.Conversions
@@ -22,6 +23,7 @@ import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Auth.Backends.JsonFile
 import           Snap.Snaplet.Session.Backends.CookieSession
 import           Snap.Util.FileServe
+import           System.Environment (getArgs)
 import           Text.Blaze.Html (Html)
 
 data App = App
@@ -29,7 +31,7 @@ type AppHandler = Handler App App
 
 handleApp :: AppHandler ()
 handleApp = do
-    token :: Maybe [ByteString] <- getHeaders (mk "X-Thentos-Token") <$> getRequest
+    token <- getParam "token"
     method GET $ blaze (appPage token ())
 
 appPage :: (Show token, Show sessionMetaData) => token -> sessionMetaData -> Html
@@ -45,12 +47,22 @@ appPage token sessionMetaData =
             H.button $ do
                 H.text "logout"
 
-routes :: [(ByteString, Handler App App ())]
-routes = [ ("/app", handleApp)
-         , ("",     serveDirectory "static")  -- for css and what not.
-         ]
+routes :: ByteString -> [(ByteString, Handler App App ())]
+routes sid = [ ("/app", handleApp)
+           , ("/login", helloWorldLogin sid)
+           , ("",     serveDirectory "static")  -- for css and what not.
+           ]
 
 app :: SnapletInit App App
 app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ do
-    addRoutes routes
+    args <- liftIO $ getArgs
+    liftIO . putStrLn $ show args
+    let sid = BC.pack $ head args
+    addRoutes (routes sid)
     return $ App
+
+helloWorldLogin serviceId =
+    redirect'
+        ("http://localhost:8002/login?sid=" <> serviceId <> "&redirect="
+            <> urlEncode "http://localhost:8000/app?foo=bar")
+        303

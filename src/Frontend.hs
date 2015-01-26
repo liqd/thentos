@@ -5,25 +5,32 @@
 module Frontend (runFrontend) where
 
 import Control.Lens (makeLenses, view, (^.))
+import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
 import Data.AffineSpace ((.+^))
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.ByteString as B
+import Data.Monoid ((<>))
+import qualified Data.Map as M
+import Data.Maybe (isNothing)
+import Data.String.Conversions (cs)
 import Data.Thyme (getCurrentTime)
 import Snap.Blaze (blaze)
+import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith)
 import Snap.Http.Server (defaultConfig, setPort)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddUser(AddUser), LookupUserByName(..), AddService(..), StartSession(..))
+import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..))
 import DB.Protect (thentosPublic)
 import DB.Error (DbError(NoSuchUser))
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage)
 import Types
 import Frontend.Util (serveSnaplet)
 
-import Text.Blaze.Html5 (text)
 
 data FrontendApp = FrontendApp {_db :: Snaplet (Acid DB)}
 
@@ -59,9 +66,10 @@ userAddHandler = do
 
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do
-    (view, result) <- runForm "login" loginForm
+    uri <- getsRequest rqURI
+    (view, result) <- runForm (cs uri) loginForm
     case result of
-        Nothing -> blaze $ loginPage view
+        Nothing -> blaze $ loginPage view uri
         Just (name, password) -> do
             eUser <- query $ LookupUserByName name thentosPublic
             case eUser of
@@ -76,11 +84,25 @@ loginHandler = do
     loginFail = blaze "Bad username / password combination"
 
     loginSuccess uid = do
-        -- FIXME: we need to take the service id from a query parameter
-        Right sid <- update $ AddService thentosPublic
         now <- liftIO getCurrentTime
+        mSid <- getParam "sid"
+        mCallback <- getParam "redirect"
+        when (isNothing mSid || isNothing mCallback) $ do
+            modifyResponse $ setResponseStatus 400 "Bad Request"
+            blaze "400 Bad Request"
+            r <- getResponse
+            finishWith r
+        let (Just sid, Just callback) = (mSid, mCallback)
         -- FIXME: how long should the session live?
-        eSessionToken <- update $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ 14 * 24 * 3600) thentosPublic
+        eSessionToken <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (TimeStamp $ now .+^ 14 * 24 * 3600) thentosPublic
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
-            Right sessionToken -> blaze . text $ fromSessionToken sessionToken
+            Right sessionToken ->
+                redirect' (redirectUrl callback sessionToken) 303
+
+    redirectUrl :: ByteString -> SessionToken -> ByteString
+    redirectUrl serviceProvidedUrl sessionToken =
+        let (base_url, query) = BC.break (== '?') serviceProvidedUrl in
+        let params = parseUrlEncoded $ B.drop 1 query in
+        let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
+        base_url <> "?" <> printUrlEncoded params'

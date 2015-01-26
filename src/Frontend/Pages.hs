@@ -10,7 +10,9 @@ module Frontend.Pages
 ) where
 
 import Control.Applicative ((<$>), (<*>), pure)
+import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
+import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Text.Blaze.Html5 as H
@@ -59,13 +61,13 @@ userForm = User
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')
 
-loginPage :: View Html -> Html
-loginPage v =
+loginPage :: View Html -> ByteString -> Html
+loginPage v reqURI =
     H.docTypeHtml $ do
         H.head $
             H.title "Log in"
         H.body $
-            form v "login" $ do
+            form v (cs reqURI) $ do
                 H.p $ do
                     label "usernamme" v "User name:"
                     inputText "name" v
