@@ -17,15 +17,14 @@ module TestMain
 where
 
 import Control.Monad.State (liftIO)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (query', update')
-import Data.Data (Proxy(Proxy))
 import Data.Functor.Infix ((<$>))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.String.Conversions (LBS, SBS, cs)
 import Data.Thyme (getCurrentTime)
-import Filesystem (removeTree)
+import Filesystem (isDirectory, removeTree)
 import GHC.Exts (fromString)
 import LIO (canFlowTo)
 import LIO.DCLabel ((%%), (/\), (\/), toCNF)
@@ -35,7 +34,6 @@ import Network.Wai (Application, StreamingBody, requestMethod, requestBody, stri
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Network.Wai.Test (Session, SRequest(SRequest),
     runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
-import Servant.Server (serve)
 import Test.Hspec (hspec, describe, it, before, after, shouldBe,
     shouldSatisfy, pendingWith)
 import Text.Show.Pretty (ppShow)
@@ -77,7 +75,7 @@ main = hspec $ do
 
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ st -> do
         uids <- query' st $ AllUserIDs thentosPublic
-        uids `shouldBe` Right [UserId 0, UserId 1]  -- (no (UserId 2))
+        uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
 
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
@@ -95,10 +93,10 @@ main = hspec $ do
 
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ st -> do
-        result <- update' st $ UpdateUser (UserId 0) user1 thentosPublic
+        result <- update' st $ UpdateUser (UserId 1) user1 thentosPublic
         result `shouldBe` Right ()
-        result2 <- query' st $ LookupUser (UserId 0) thentosPublic
-        result2 `shouldBe` (Right (UserId 0, user1))
+        result2 <- query' st $ LookupUser (UserId 1) thentosPublic
+        result2 `shouldBe` (Right (UserId 1, user1))
 
       it "throws an error if user does not exist" $ \ st -> do
         result <- update' st $ UpdateUser (UserId 391) user3 thentosPublic
@@ -107,12 +105,12 @@ main = hspec $ do
     describe "AddUsers" $ do
       it "works" $ \ st -> do
         result <- update' st $ AddUsers [user3, user4, user5] thentosPublic
-        result `shouldBe` Right (map UserId [2, 3, 4])
+        result `shouldBe` Right (map UserId [3, 4, 5])
 
       it "rolls back in case of error (adds all or nothing)" $ \ st -> do
         Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] thentosPublic
         result <- query' st $ AllUserIDs thentosPublic
-        result `shouldBe` Right (map UserId [0, 1])
+        result `shouldBe` Right (map UserId [0, 1, 2])
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \ st -> do
@@ -139,28 +137,32 @@ main = hspec $ do
     describe "authentication" $ do
       it "lets user view itself" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "passwd")] ""
+        response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
       it "responds with an error if clearance is insufficient" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
+        response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
 
       it "responds with an error if password is wrong" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0"), ("X-Password", "not-my-password")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
+        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
 
-      it "responds with an error if only one of principal, password is provided" $
+      it "responds with an error if only one of user (or service) and password is provided" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Principal", "0")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 303  -- FIXME: is that the expected response code?
-        response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Password", "passwd")] ""
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 303  -- FIXME: is that the expected response code?
+        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
+        response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
+        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 500
+        response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
+        liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 500
+        response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
+        liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 500
 
       -- FIXME: we need to have a user whose password can be set in a
       -- configuration file.  that user has role "admin" and can do
@@ -177,15 +179,16 @@ main = hspec $ do
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         response1 <- request $ defaultRequest
           { requestMethod = "GET"
+          , requestHeaders = godCredentials
           , pathInfo = ["user"]
           }
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-        liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1]
+        liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
 
     describe "POST /user" $
       it "succeeds" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response2 <- srequest $ mkSRequest "POST" "/user" [] (Aeson.encode $ User "1" "2" "3" [] [])
+        response2 <- srequest $ mkSRequest "POST" "/user" godCredentials (Aeson.encode $ User "1" "2" "3" [] [])
         liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
 
   -- This test doesn't really test thentos code, but it helps
@@ -213,17 +216,24 @@ user3 = User "name3" "3" "3" [("bla", ["23"])] []
 user4 = User "name4" "4" "4" [] []
 user5 = User "name5" "5" "5" [] []
 
+destroyDB :: IO ()
+destroyDB = do
+  let p = (fromString (dbPath config))
+    in isDirectory p >>= \ yes -> when yes $ removeTree p
+
 setupDB :: IO (AcidState DB)
 setupDB = do
+  destroyDB
   st <- openLocalStateFrom (dbPath config) emptyDB
-  Right (UserId 0) <- update' st $ AddUser user1 thentosPublic
-  Right (UserId 1) <- update' st $ AddUser user2 thentosPublic
+  createGod st False
+  Right (UserId 1) <- update' st $ AddUser user1 thentosPublic
+  Right (UserId 2) <- update' st $ AddUser user2 thentosPublic
   return st
 
 teardownDB :: AcidState DB -> IO ()
 teardownDB st = do
   closeAcidState st
-  removeTree $ fromString (dbPath config)
+  destroyDB
 
 setupTestServer :: IO (AcidState DB, Application)
 setupTestServer = do

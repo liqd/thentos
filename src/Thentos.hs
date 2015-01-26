@@ -19,9 +19,10 @@ module Thentos (main) where
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Exception (SomeException, throw, catch)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
+import Data.Either (isLeft)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
 import Safe (readMay)
@@ -45,6 +46,8 @@ main =
     putStr "setting up acid-state..."
     st :: AcidState DB <- openLocalStateFrom ".acid-state/" emptyDB
     putStrLn " [ok]"
+
+    createGod st True
 
     let switch ["-s"] = do
             putStrLn "database contents:"

@@ -47,6 +47,7 @@ library
     , either
     , functor-infix
     , generic-aeson
+    , http-types
     , lens
     , lio
     , mtl

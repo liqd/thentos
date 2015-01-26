@@ -18,12 +18,19 @@ module DB.Protect
   , thentosDenied
   , allowEverything
   , allowNothing
+  , godCredentials
+  , createGod
   ) where
 
 import Control.Lens ((^.))
+import Control.Monad (when)
+import Data.Acid (AcidState)
+import Data.Acid.Advanced (query', update')
+import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
 import LIO.DCLabel (DCLabel, dcDefaultState, (%%))
 import LIO.TCB (LIOState(LIOState))
+import Network.HTTP.Types.Header (Header)
 
 import Types
 import DB.Error
@@ -72,3 +79,19 @@ allowNothing = LIOState (False %% False) (True %% False)
 
 allowEverything :: LIOState DCLabel
 allowEverything = dcDefaultState
+
+
+godCredentials :: [Header]
+godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
+
+createGod :: AcidState DB -> Bool -> IO ()
+createGod st verbose = do
+    eq <- query' st (LookupUser (UserId 0) thentosPublic)
+    when (isLeft eq) $ do
+        when verbose $
+            putStr "No users.  Creating god user with password 'god'... "
+        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosPublic)
+        when verbose $
+            if isRight eu
+                then putStrLn "[ok]"
+                else putStrLn $ "[failed: " ++ show eu ++ "]"
