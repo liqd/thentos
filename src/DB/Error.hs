@@ -77,9 +77,7 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
 runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
     state <- get
-    let result :: Either (ThentosLabeled DbError) (ThentosLabeled a, DB)
-        result = runIdentity . runEitherT $ runStateT action state
-    case result of
+    case runIdentity . runEitherT $ runStateT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
             checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
         Right (ThentosLabeled label result, state') ->
@@ -88,9 +86,7 @@ runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
 runThentosQuery (ThentosClearance (ThentosLabel clearance)) action = do
     state <- ask
-    let result :: Either (ThentosLabeled DbError) (ThentosLabeled a)
-        result = runIdentity . runEitherT $ runReaderT action state
-    case result of
+    case runIdentity . runEitherT $ runReaderT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
             checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
         Right (ThentosLabeled label result) ->
