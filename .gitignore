@@ -1,6 +1,6 @@
 /.acid-state/
-/.cabal-sandbox/
-/cabal.sandbox.config
+.cabal-sandbox/
+cabal.sandbox.config
 /dist
 /.test-db/
 *~
@@ -12,3 +12,5 @@
 /TAGS
 /services/helloworld/dist/
 /services/helloworld/log/
+log/access.log
+log/error.log
