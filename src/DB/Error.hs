@@ -10,6 +10,7 @@ module DB.Error (
     ThentosQuery,
     runThentosQuery,
     liftThentosQuery,
+    showDbError,
     returnDBQ,
     throwDBQ,
     returnDBU,
@@ -73,6 +74,11 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 
 -- * plumbing
 
+-- | the type of this will change when servant has a better error type.
+showDbError :: DbError -> (Int, String)
+showDbError = (500,) . show
+
+
 -- | FIXME: generalize, so we can use this for both Update and Query.
 -- (remove 'runThentosQuery' and 'ThentosQuery' when done.)
 runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
@@ -109,6 +115,7 @@ throwDBQ label = lift . left . thentosLabeled label
 
 returnDBQ :: DCLabel -> a -> ThentosQuery a
 returnDBQ label = lift . right . thentosLabeled label
+
 
 -- | we should not have to write this ourselves...
 when' :: (Functor m, Monad m) => Bool -> m a -> m ()
