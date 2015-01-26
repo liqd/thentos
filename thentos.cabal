@@ -30,45 +30,45 @@ library
     , Frontend.Util
     , Types
   build-depends:
-      base >=4.7 && <4.8
-    , acid-state >=0.12 && <0.13
-    , aeson >=0.8 && <0.9
-    , aeson-pretty >=0.7 && <0.8
+      base
+    , acid-state
+    , aeson
+    , aeson-pretty
     , async
-    , blaze-html >= 0.7.1
+    , blaze-html
     , bytestring
-    , case-insensitive >=1.2.0.3
-    , containers >=0.5 && <0.6
-    , cryptohash >=0.11.6 && <0.12
+    , case-insensitive
+    , containers
+    , cryptohash
     , digestive-functors
     , digestive-functors-blaze
     , digestive-functors-snap
-    , either >=4.3.2 && <4.4
-    , functor-infix >=0.0.1 && <0.2
-    , generic-aeson >=0.2 && <0.3
-    , lens >=4.7 && <4.8
-    , lio >=0.11.5.0 && <0.12
-    , mtl >=2.1 && <2.2
-    , old-locale >=1.0.0.6 && <1.1
-    , safe >=0.3 && <0.4
-    , safecopy >=0.8 && <0.9
-    , sandi >=0.3.1 && <0.4
-    , servant >=0.2.1
-    , servant-docs >=0.3 && <0.4
-    , servant-jquery >= 0.2.1
-    , servant-server >=0.2.3 && <0.3
+    , either
+    , functor-infix
+    , generic-aeson
+    , lens
+    , lio
+    , mtl
+    , old-locale
+    , safe
+    , safecopy
+    , sandi
+    , servant
+    , servant-docs
+    , servant-jquery
+    , servant-server
     , snap
     , snaplet-acid-state
     , snap-core
     , snap-blaze
     , snap-server
-    , string-conversions >=0.3 && <0.4
-    , text >=1.2.0.0 && <1.3
-    , thyme >=0.3 && <0.4
-    , transformers >=0.3.0.0 && <0.4
-    , vector-space >=0.9 && <0.10
-    , wai >=3.0.2 && <3.1
-    , warp >=3.0 && <3.1
+    , string-conversions
+    , text
+    , thyme
+    , transformers
+    , vector-space
+    , wai
+    , warp
 
     -- these are only used by some c&p'ed snap code in Frontend.Util
     , directory
@@ -82,7 +82,7 @@ executable thentos
   ghc-options:
       -Wall -threaded -rtsopts
   build-depends:
-      base >=4.7 && <4.8
+      base
     , thentos ==0.0.1
 
 test-suite tests
@@ -99,21 +99,21 @@ test-suite tests
   cpp-options:
       -DGHC_GENERICS
   build-depends:
-      base >=4.7 && <4.8
+      base
     , thentos ==0.0.1
 
-    , acid-state >=0.12 && <0.13
+    , acid-state
     , aeson
     , bytestring
     , functor-infix
-    , hspec >=2.0.2 && <2.1
-    , http-types >=0.8.5 && <0.9
+    , hspec
+    , http-types
     , lio
     , mtl
-    , pretty-show >=1.6.8 && <1.7
+    , pretty-show
     , servant-server
     , string-conversions
-    , system-fileio >=0.3.15 && <0.4
+    , system-fileio
     , thyme
     , wai
-    , wai-extra >=3.0.3 && <3.1
+    , wai-extra
