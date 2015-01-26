@@ -46,6 +46,7 @@ data DbError =
     | UserAlreadyExists
     | ServiceAlreadyExists
     | SessionAlreadyExists
+    | BadCredentials
     | UserEmailAlreadyExists
     | PermissionDenied
     | UidOverflow

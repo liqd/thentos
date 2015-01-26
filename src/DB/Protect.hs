@@ -20,6 +20,7 @@ module DB.Protect
   , allowNothing
   ) where
 
+import Control.Lens ((^.))
 import Data.String.Conversions (ST)
 import LIO.DCLabel (DCLabel, dcDefaultState, (%%))
 import LIO.TCB (LIOState(LIOState))
@@ -44,14 +45,25 @@ type Auth = LIOState DCLabel
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
 mkAuth :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError Auth
-mkAuth (Just user) Nothing        (Just password) db = Right allowEverything
-mkAuth Nothing     (Just service) (Just password) db = Right allowEverything
-mkAuth Nothing     Nothing        Nothing         db = Right allowEverything
-mkAuth _           _              _               db = Left BadAuthenticationHeaders
+mkAuth (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (UserPass password)
+mkAuth Nothing     (Just service) (Just password) db = authenticateService db (ServiceId service) (ServiceKey password)
+mkAuth Nothing     Nothing        Nothing         _  = Right allowNothing
+mkAuth _           _              _               _  = Left BadAuthenticationHeaders
 
 
+authenticateUser :: DB -> UserName -> UserPass -> Either DbError Auth
+authenticateUser db name password = if verifyUserPassword db name password
+    then Right allowEverything  -- FIXME: construct proper privileges here.
+    else Left BadCredentials
+
+verifyUserPassword :: DB -> UserName -> UserPass -> Bool
+verifyUserPassword db name password =
+    maybe False ((password ==) . (^. userPassword) . snd) $
+        pure_lookupUserByName db name
 
 
+authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError Auth
+authenticateService _ _ _ = Right allowEverything  -- FIXME
 
 
 allowNothing :: LIOState DCLabel
