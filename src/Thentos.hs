@@ -24,8 +24,6 @@ import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidStat
 import Data.Acid.Advanced (query', update')
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
-import LIO (evalLIO)
-import LIO.DCLabel (dcPublic)
 import Safe (readMay)
 import System.Environment (getArgs)
 
@@ -72,7 +70,7 @@ main =
             putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
             putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
             putStrLn $ "Press ^C to abort."
-            createCheckpointLoop st 16000 Nothing
+            _ <- createCheckpointLoop st 16000 Nothing
             void $ concurrently
                 (runFrontend frontendPort st)
                 (runApi backendPort st)

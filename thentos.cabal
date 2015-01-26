@@ -25,6 +25,7 @@ library
     , DB.Core
     , DB.Error
     , DB.Protect
+    , Doc
     , Frontend
     , Frontend.Pages
     , Frontend.Util

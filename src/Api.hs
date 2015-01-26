@@ -44,6 +44,7 @@ import Servant.Server (serve)
 
 import DB
 import Types
+import Doc ()
 
 runApi :: Int -> AcidState DB -> IO ()
 runApi port = run port . serveApi

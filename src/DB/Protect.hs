@@ -20,7 +20,6 @@ module DB.Protect
   , allowNothing
   ) where
 
-import Data.Acid (AcidState)
 import Data.String.Conversions (ST)
 import LIO.DCLabel (DCLabel, dcDefaultState, dcPublic, (%%))
 import LIO.TCB (LIOState(LIOState))

@@ -40,9 +40,8 @@ where
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
-import Control.Monad.State (modify, state, gets, get)
+import Control.Monad.State (modify, state, gets)
 import Data.Acid (AcidState, Query, Update, createCheckpoint, makeAcidic)
-import Data.Either (isLeft)
 import Data.List (nub, find)
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.Maybe (isJust)
@@ -62,10 +61,12 @@ import DB.Protect
 
 checkDbInvs :: [DB -> Either DbError ()] -> ThentosQuery ()
 checkDbInvs invs = do
+    let f []           = returnDBQ dcPublic ()
+        f (Left e:_)   = throwDBQ dcPublic e
+        f (Right _:es) = f es
+
     db <- ask
-    case filter isLeft $ map ($ db) invs of
-      (Left e:_) -> throwDBQ dcPublic e
-      [] -> returnDBQ dcPublic ()
+    f $ map ($ db) invs
 
 dbInvUserEmailUnique :: UserId -> User -> DB -> Either DbError ()
 dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
