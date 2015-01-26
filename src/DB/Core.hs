@@ -32,6 +32,8 @@ module DB.Core
 
   , SnapShot(..)
 
+  , pure_lookupUserByName
+
   , emptyDB
   , createCheckpointLoop
   )
@@ -135,9 +137,12 @@ trans_lookupUser uid = (uid,) <$$> do
     -- user names to users or user ids
 trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 trans_lookupUserByName name = do
-    users <- Map.toList . (^. dbUsers) <$> ask
-    let mUser = find (\ (_, user) -> (user ^. userName == name)) users
+    mUser <- (`pure_lookupUserByName` name) <$> ask
     maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
+
+pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
+pure_lookupUserByName db name =
+    find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
