@@ -82,148 +82,116 @@ dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
 emptyDB :: DB
 emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
-_freshUserID :: ThentosUpdate UserId
-_freshUserID = do
+
+-- ** smart accessors
+
+freshUserID :: ThentosUpdate UserId
+freshUserID = do
     uid <- gets (^. dbFreshUserId)
     when' (uid == maxBound) $
         throwDBU dcPublic UidOverflow
     modify (dbFreshUserId .~ succ uid)
     returnDBU dcPublic uid
 
-_freshServiceID :: ThentosUpdate ServiceId
-_freshServiceID = ServiceId <$$> _freshNonce
+freshServiceID :: ThentosUpdate ServiceId
+freshServiceID = ServiceId <$$> freshNonce
 
-_freshServiceKey :: ThentosUpdate ServiceKey
-_freshServiceKey = ServiceKey <$$> _freshNonce
+freshServiceKey :: ThentosUpdate ServiceKey
+freshServiceKey = ServiceKey <$$> freshNonce
 
-_freshSessionToken :: ThentosUpdate SessionToken
-_freshSessionToken = SessionToken <$$> _freshNonce
+freshSessionToken :: ThentosUpdate SessionToken
+freshSessionToken = SessionToken <$$> freshNonce
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
 -- seemingly random service ids, and update randomness in `DB`.
-_freshNonce :: ThentosUpdate ST
-_freshNonce = state $ \ db ->
+freshNonce :: ThentosUpdate ST
+freshNonce = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
       db' = dbRandomness .~ r' $ db
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
   in (thentosLabeledPublic sid, db')
 
+-- | (db ^. dbUser) must only be modified using this function.
+writeUser :: UserId -> User -> ThentosUpdate UserId
+writeUser uid user = do
+    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
+    modify $ dbUsers %~ Map.insert uid user
+    returnDBU dcPublic uid
+
 
 -- ** users
 
-allUserIDs :: ThentosClearance -> Query DB (Either DbError [UserId])
-allUserIDs clearance = runThentosQuery clearance _allUserIDs
+trans_allUserIDs :: ThentosQuery [UserId]
+trans_allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
 
-_allUserIDs :: ThentosQuery [UserId]
-_allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
-
-lookupUser :: UserId -> ThentosClearance -> Query DB (Either DbError (UserId, User))
-lookupUser uid clearance = runThentosQuery clearance $ _lookupUser uid
-
-_lookupUser :: UserId -> ThentosQuery (UserId, User)
-_lookupUser uid = (uid,) <$$> do
+trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
+trans_lookupUser uid = (uid,) <$$> do
     perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
     maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) perhaps
 
 -- FIXME: this is extremely inefficient, we should have a separate map from
     -- user names to users or user ids
-lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
-lookupUserByName name clearance = runThentosQuery clearance $ _lookupUserByName name
-
-_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
-_lookupUserByName name = do
+trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
+trans_lookupUserByName name = do
     users <- Map.toList . (^. dbUsers) <$> ask
     let mUser = find (\ (_, user) -> (user ^. userName == name)) users
     maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
 
 -- | Write new user to DB.  Return the fresh user id.
-addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
-addUser user clearance = runThentosUpdate clearance $ _addUser user
-
-_addUser :: User -> ThentosUpdate UserId
-_addUser user = do
-    ThentosLabeled _ uid <- _freshUserID
-    __writeUser uid user
+trans_addUser :: User -> ThentosUpdate UserId
+trans_addUser user = do
+    ThentosLabeled _ uid <- freshUserID
+    writeUser uid user
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
 -- This is not the most vital part of the backend API, but it allows
 -- for testing rollback in error cases.  It will also be a nice
 -- example for intersecting authorizations.
-addUsers :: [User] -> ThentosClearance -> Update DB (Either DbError [UserId])
-addUsers users clearance = runThentosUpdate clearance $ _addUsers users
-
-_addUsers :: [User] -> ThentosUpdate [UserId]
-_addUsers users = mapM _addUser users >>= returnDBU dcPublic . map (\ (ThentosLabeled _ uid) -> uid)
-
--- | (db ^. dbUser) must only be modified using this function.
--- (FIXME: we should have a more generic approach to smart accessors
--- to DB that makes it clear invariants always hold.)
-__writeUser :: UserId -> User -> ThentosUpdate UserId
-__writeUser uid user = do
-    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
-    modify $ dbUsers %~ Map.insert uid user
-    returnDBU dcPublic uid
+trans_addUsers :: [User] -> ThentosUpdate [UserId]
+trans_addUsers users = mapM trans_addUser users >>= returnDBU dcPublic . map (\ (ThentosLabeled _ uid) -> uid)
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
 -- another user.
-updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either DbError ())
-updateUser uid user clearance = runThentosUpdate clearance $ _updateUser uid user
-
-_updateUser :: UserId -> User -> ThentosUpdate ()
-_updateUser uid user = do
-    _ <- liftThentosQuery $ _lookupUser uid
-    _ <- __writeUser uid user
+trans_updateUser :: UserId -> User -> ThentosUpdate ()
+trans_updateUser uid user = do
+    _ <- liftThentosQuery $ trans_lookupUser uid
+    _ <- writeUser uid user
     returnDBU dcPublic ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
 -- error.
-deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
-deleteUser uid clearance = runThentosUpdate clearance $ _deleteUser uid
-
-_deleteUser :: UserId -> ThentosUpdate ()
-_deleteUser uid = do
-    _ <- liftThentosQuery $ _lookupUser uid
+trans_deleteUser :: UserId -> ThentosUpdate ()
+trans_deleteUser uid = do
+    _ <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbUsers %~ Map.delete uid
     returnDBU dcPublic ()
 
 
 -- ** services
 
-allServiceIDs :: ThentosClearance -> Query DB (Either DbError [ServiceId])
-allServiceIDs clearance = runThentosQuery clearance _allServiceIDs
+trans_allServiceIDs :: ThentosQuery [ServiceId]
+trans_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
 
-_allServiceIDs :: ThentosQuery [ServiceId]
-_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
-
-lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
-lookupService sid clearance = runThentosQuery clearance $ _lookupService sid
-
-_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
-_lookupService sid = (sid,) <$$> do
+trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
+trans_lookupService sid = (sid,) <$$> do
     perhaps :: Maybe Service <- Map.lookup sid . (^. dbServices) <$> ask
     maybe (throwDBQ dcPublic NoSuchService) (returnDBQ dcPublic) perhaps
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-addService :: ThentosClearance -> Update DB (Either DbError ServiceId)
-addService clearance = runThentosUpdate clearance _addService
-
-_addService :: ThentosUpdate ServiceId
-_addService = do
-    ThentosLabeled _ sid <- _freshServiceID
-    ThentosLabeled _ service <- Service <$$> _freshServiceKey
+trans_addService :: ThentosUpdate ServiceId
+trans_addService = do
+    ThentosLabeled _ sid <- freshServiceID
+    ThentosLabeled _ service <- Service <$$> freshServiceKey
     modify $ dbServices %~ Map.insert sid service
     returnDBU dcPublic sid
 
-deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())
-deleteService sid clearance = runThentosUpdate clearance $ _deleteService sid
-
-_deleteService :: ServiceId -> ThentosUpdate ()
-_deleteService sid = do
-    _ <- liftThentosQuery $ _lookupService sid
+trans_deleteService :: ServiceId -> ThentosUpdate ()
+trans_deleteService sid = do
+    _ <- liftThentosQuery $ trans_lookupService sid
     modify $ dbServices %~ Map.delete sid
     returnDBU dcPublic ()
 
@@ -237,14 +205,11 @@ _deleteService sid = do
 -- 'ServiceID'.  Start and end time have to be passed explicitly.
 -- Throw error if user or service do not exist, or if user is already
 -- logged in.  Otherwise, return session token.
-startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosClearance -> Update DB (Either DbError SessionToken)
-startSession uid sid start end clearance = runThentosUpdate clearance $ _startSession uid sid start end
-
-_startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosUpdate SessionToken
-_startSession uid sid start end = do
-    ThentosLabeled _ tok       <- _freshSessionToken
-    ThentosLabeled _ (_, user) <- liftThentosQuery $ _lookupUser uid
-    ThentosLabeled _ _         <- liftThentosQuery $ _lookupService sid
+trans_startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosUpdate SessionToken
+trans_startSession uid sid start end = do
+    ThentosLabeled _ tok       <- freshSessionToken
+    ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
     let session = Session uid sid start end
 
     when' (isJust . lookup sid $ user ^. userSessions) $
@@ -254,17 +219,11 @@ _startSession uid sid start end = do
     modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
     returnDBU dcPublic tok
 
-allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
-allSessionTokens clearance = runThentosQuery clearance _allSessionTokens
+trans_allSessionTokens :: ThentosQuery [SessionToken]
+trans_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
 
-_allSessionTokens :: ThentosQuery [SessionToken]
-_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
-
-lookupSession :: SessionToken -> ThentosClearance -> Query DB (Either DbError (SessionToken, Session))
-lookupSession tok clearance = runThentosQuery clearance $ _lookupSession tok
-
-_lookupSession :: SessionToken -> ThentosQuery (SessionToken, Session)
-_lookupSession tok = (tok,) <$$> do
+trans_lookupSession :: SessionToken -> ThentosQuery (SessionToken, Session)
+trans_lookupSession tok = (tok,) <$$> do
     perhaps :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
     maybe (throwDBQ dcPublic NoSuchSession) (returnDBQ dcPublic) perhaps
 
@@ -272,13 +231,10 @@ _lookupSession tok = (tok,) <$$> do
 -- (before end of session life time), by session timeouts, or after
 -- its natural life time (by application's own garbage collection).
 -- If lookup of session owning user fails, throw an error.
-endSession :: SessionToken -> ThentosClearance -> Update DB (Either DbError ())
-endSession tok clearance = runThentosUpdate clearance $ _endSession tok
-
-_endSession :: SessionToken -> ThentosUpdate ()
-_endSession tok = do
-    ThentosLabeled _ (_, Session uid sid _ _) <- liftThentosQuery $ _lookupSession tok
-    ThentosLabeled _ (_, user)                <- liftThentosQuery $ _lookupUser uid
+trans_endSession :: SessionToken -> ThentosUpdate ()
+trans_endSession tok = do
+    ThentosLabeled _ (_, Session uid sid _ _) <- liftThentosQuery $ trans_lookupSession tok
+    ThentosLabeled _ (_, user)                <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbSessions %~ Map.delete tok
     modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
     returnDBU dcPublic ()
@@ -290,25 +246,73 @@ _endSession tok = do
 -- instead ensure via some yet-to-come authorization mechanism that
 -- only the affected service can gets validity information on a
 -- session token.)
-isActiveSession :: ServiceId -> SessionToken -> ThentosClearance -> Query DB (Either DbError Bool)
-isActiveSession sid tok clearance = runThentosQuery clearance $ _isActiveSession sid tok
-
-_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
-_isActiveSession sid tok = do
+trans_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
+trans_isActiveSession sid tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
     returnDBQ dcPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
 -- ** misc
 
-snapShot :: ThentosClearance -> Query DB (Either DbError DB)
-snapShot clearance = runThentosQuery clearance _snapShot
-
-_snapShot :: ThentosQuery DB
-_snapShot = ask >>= returnDBQ dcPublic
+trans_snapShot :: ThentosQuery DB
+trans_snapShot = ask >>= returnDBQ dcPublic
 
 
 -- * event types
+
+-- FIXME: this section should be entirely constructed by TemplateHaskell
+
+allUserIDs :: ThentosClearance -> Query DB (Either DbError [UserId])
+allUserIDs clearance = runThentosQuery clearance trans_allUserIDs
+
+lookupUser :: UserId -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
+
+lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
+
+addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
+addUser user clearance = runThentosUpdate clearance $ trans_addUser user
+
+addUsers :: [User] -> ThentosClearance -> Update DB (Either DbError [UserId])
+addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
+
+updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either DbError ())
+updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
+
+deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
+deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
+
+allServiceIDs :: ThentosClearance -> Query DB (Either DbError [ServiceId])
+allServiceIDs clearance = runThentosQuery clearance trans_allServiceIDs
+
+lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
+lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
+
+addService :: ThentosClearance -> Update DB (Either DbError ServiceId)
+addService clearance = runThentosUpdate clearance trans_addService
+
+deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())
+deleteService sid clearance = runThentosUpdate clearance $ trans_deleteService sid
+
+startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosClearance -> Update DB (Either DbError SessionToken)
+startSession uid sid start end clearance = runThentosUpdate clearance $ trans_startSession uid sid start end
+
+allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
+allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens
+
+lookupSession :: SessionToken -> ThentosClearance -> Query DB (Either DbError (SessionToken, Session))
+lookupSession tok clearance = runThentosQuery clearance $ trans_lookupSession tok
+
+endSession :: SessionToken -> ThentosClearance -> Update DB (Either DbError ())
+endSession tok clearance = runThentosUpdate clearance $ trans_endSession tok
+
+isActiveSession :: ServiceId -> SessionToken -> ThentosClearance -> Query DB (Either DbError Bool)
+isActiveSession sid tok clearance = runThentosQuery clearance $ trans_isActiveSession sid tok
+
+snapShot :: ThentosClearance -> Query DB (Either DbError DB)
+snapShot clearance = runThentosQuery clearance trans_snapShot
+
 
 $(makeAcidic ''DB
     [ 'allUserIDs
