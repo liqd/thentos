@@ -47,10 +47,10 @@ frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management sy
     return $ FrontendApp a
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
-routes = [ ("create_user", userAddHandler)
-         , ("login", loginHandler)
-         , ("create_service", method GET serviceAddHandler)
-         , ("create_service", method POST serviceAdder)
+routes = [ ("login", loginHandler)
+         , ("create_user", userAddHandler)
+         , ("create_service", method GET addServiceHandler)
+         , ("create_service", method POST serviceAddedHandler)
          ]
 
 userAddHandler :: Handler FrontendApp FrontendApp ()
@@ -64,11 +64,11 @@ userAddHandler = do
             _ <- update (AddUser user thentosCleared)
             blaze userAddedPage
 
-serviceAddHandler :: Handler FrontendApp FrontendApp ()
-serviceAddHandler = blaze addServicePage
+addServiceHandler :: Handler FrontendApp FrontendApp ()
+addServiceHandler = blaze addServicePage
 
-serviceAdder :: Handler FrontendApp FrontendApp ()
-serviceAdder = do
+serviceAddedHandler :: Handler FrontendApp FrontendApp ()
+serviceAddedHandler = do
     --Right (sid, key) <- update $ AddService thentosCleared
     result <- update $ AddService thentosCleared
     case result of

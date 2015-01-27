@@ -53,7 +53,6 @@ userAddedPage =
         H.body $ do
             H.h1 "Added a user!"
 
-
 addServicePage :: Html
 addServicePage = H.docTypeHtml $ do
     H.head $ do
@@ -103,7 +102,6 @@ loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass  <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
-
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
