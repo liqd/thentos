@@ -18,14 +18,14 @@ import Data.Maybe (isNothing)
 import Data.String.Conversions (cs)
 import Data.Thyme (getCurrentTime)
 import Snap.Blaze (blaze)
-import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith)
+import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith, method, Method(GET, POST))
 import Snap.Http.Server (defaultConfig, setPort)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..), thentosCleared, DbError(NoSuchUser))
-import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage)
+import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..), AddService(..), DbError(NoSuchUser), thentosCleared)
+import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Types
 import Frontend.Util (serveSnaplet)
 
@@ -49,6 +49,8 @@ frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management sy
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("create_user", userAddHandler)
          , ("login", loginHandler)
+         , ("create_service", method GET serviceAddHandler)
+         , ("create_service", method POST serviceAdder)
          ]
 
 userAddHandler :: Handler FrontendApp FrontendApp ()
@@ -61,6 +63,17 @@ userAddHandler = do
             -- FIXME: this doesn't handle errors
             _ <- update (AddUser user thentosCleared)
             blaze userAddedPage
+
+serviceAddHandler :: Handler FrontendApp FrontendApp ()
+serviceAddHandler = blaze addServicePage
+
+serviceAdder :: Handler FrontendApp FrontendApp ()
+serviceAdder = do
+    --Right (sid, key) <- update $ AddService thentosCleared
+    result <- update $ AddService thentosCleared
+    case result of
+        Right (sid, key) -> blaze $ serviceAddedPage sid key
+        Left e -> blaze . errorPage $ show e
 
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do

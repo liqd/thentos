@@ -190,12 +190,13 @@ trans_lookupService sid = (sid,) <$$> do
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-trans_addService :: ThentosUpdate ServiceId
+trans_addService :: ThentosUpdate (ServiceId, ServiceKey)
 trans_addService = do
     ThentosLabeled _ sid <- freshServiceID
-    ThentosLabeled _ service <- Service <$$> freshServiceKey
+    ThentosLabeled _ key <- freshServiceKey
+    let service = Service key
     modify $ dbServices %~ Map.insert sid service
-    returnDBU dcPublic sid
+    returnDBU dcPublic (sid, key)
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
@@ -297,7 +298,7 @@ allServiceIDs clearance = runThentosQuery clearance trans_allServiceIDs
 lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
 
-addService :: ThentosClearance -> Update DB (Either DbError ServiceId)
+addService :: ThentosClearance -> Update DB (Either DbError (ServiceId, ServiceKey))
 addService clearance = runThentosUpdate clearance trans_addService
 
 deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())

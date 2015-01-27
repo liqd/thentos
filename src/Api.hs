@@ -111,7 +111,7 @@ deleteUser = updateServant . DeleteUser
 type ThentosService =
        Get [ServiceId]
   :<|> Capture "sid" ServiceId :> Get (ServiceId, Service)
-  :<|> Post ServiceId
+  :<|> Post (ServiceId, ServiceKey)
 
 thentosService :: PushReaderSubType (Server ThentosService)
 thentosService =
@@ -125,7 +125,7 @@ getServiceIds = queryServant AllServiceIDs
 getService :: ServiceId -> RestActionLabeled (ServiceId, Service)
 getService = queryServant . LookupService
 
-postNewService :: RestActionLabeled ServiceId
+postNewService :: RestActionLabeled (ServiceId, ServiceKey)
 postNewService = updateServant AddService
 
 

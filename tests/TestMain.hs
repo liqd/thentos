@@ -114,8 +114,8 @@ main = hspec $ do
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \ st -> do
-        Right service1_id <- update' st $ AddService thentosCleared
-        Right service2_id <- update' st $ AddService thentosCleared
+        Right (service1_id, _s1_key) <- update' st $ AddService thentosCleared
+        Right (service2_id, _s2_key) <- update' st $ AddService thentosCleared
         Right service1 <- query' st $ LookupService service1_id thentosCleared
         Right service2 <- query' st $ LookupService service2_id thentosCleared
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
@@ -129,7 +129,7 @@ main = hspec $ do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
         Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from to thentosCleared
-        Right (sid :: ServiceId) <- update' st $ AddService thentosCleared
+        Right (sid :: ServiceId, _) <- update' st $ AddService thentosCleared
         Right _ <- update' st $ StartSession (UserId 0) sid from to thentosCleared
         return ()
 

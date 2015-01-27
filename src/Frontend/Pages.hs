@@ -4,6 +4,8 @@ module Frontend.Pages
     ( addUserPage
     , userForm
     , userAddedPage
+    , addServicePage
+    , serviceAddedPage
     , loginPage
     , loginForm
     , errorPage
@@ -12,11 +14,13 @@ module Frontend.Pages
 import Control.Applicative ((<$>), (<*>), pure)
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
+import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Text.Blaze.Html5 as H
-import Text.Blaze.Html (Html)
+import qualified Text.Blaze.Html5.Attributes as A
+import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
 import Text.Digestive.Form (Form, check, text, (.:))
 import Text.Digestive.View (View)
@@ -48,6 +52,25 @@ userAddedPage =
             H.title "Success!"
         H.body $ do
             H.h1 "Added a user!"
+
+
+addServicePage :: Html
+addServicePage = H.docTypeHtml $ do
+    H.head $ do
+        H.title "Create Service"
+    H.body $ do
+        H.form ! A.method "POST" ! A.action "create_service" $
+            H.input ! A.type_ "submit" ! A.value ("Create Service")
+
+serviceAddedPage :: ServiceId -> ServiceKey -> Html
+serviceAddedPage sid key = H.docTypeHtml $ do
+    H.head $ do
+        H.title "Service created!"
+    H.body $ do
+        H.body $ do
+            H.h1 "Added a service!"
+            H.p "Service id: " <> H.text (fromServiceId sid)
+            H.p "Service key: " <> H.text (fromServiceKey key)
 
 -- FIXME: move forms into separate module
 userForm :: Monad m => Form Html m User

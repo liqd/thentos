@@ -82,5 +82,8 @@ instance ToSample (UserId, User) where
 instance ToSample (ServiceId, Service) where
     toSample = Nothing
 
+instance ToSample (ServiceId, ServiceKey) where
+    toSample = Nothing
+
 instance ToSample (SessionToken, Session) where
     toSample = Nothing
