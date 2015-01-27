@@ -8,7 +8,7 @@
 
 module DB.Protect
   ( mkThentosClearance
-  , thentosAllClear
+  , thentosCleared
   , thentosDenied
   , allowEverything
   , allowNothing
@@ -69,8 +69,8 @@ allowEverything :: ThentosClearance
 allowEverything = ThentosClearance dcPublic
 
 
-thentosAllClear :: ThentosClearance
-thentosAllClear = ThentosClearance dcPublic
+thentosCleared :: ThentosClearance
+thentosCleared = ThentosClearance dcPublic
 
 thentosDenied :: ThentosClearance
 thentosDenied = error "thentosLabeledDenied: not implemented"
@@ -81,11 +81,11 @@ godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
 createGod :: AcidState DB -> Bool -> IO ()
 createGod st verbose = do
-    eq <- query' st (LookupUser (UserId 0) thentosAllClear)
+    eq <- query' st (LookupUser (UserId 0) thentosCleared)
     when (isLeft eq) $ do
         when verbose $
             putStr "No users.  Creating god user with password 'god'... "
-        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosAllClear)
+        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosCleared)
         when verbose $
             if isRight eu
                 then putStrLn "[ok]"
