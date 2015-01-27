@@ -7,11 +7,10 @@
 {-# OPTIONS  #-}
 
 module DB.Protect
-  ( Auth
-  , mkAuth
+  ( mkThentosClearance
   , thentosLabeledPublic
   , thentosLabeledDenied
-  , thentosPublic
+  , thentosAllClear
   , thentosDenied
   , allowEverything
   , allowNothing
@@ -25,18 +24,12 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
-import LIO.DCLabel (DCLabel, dcDefaultState, (%%))
-import LIO.TCB (LIOState(LIOState))
+import LIO.DCLabel (dcPublic, (%%))
 import Network.HTTP.Types.Header (Header)
 
 import Types
 import DB.Error
 import DB.Core
-
-
--- | Result type of 'ThentosAuth'.  Contains authentication
--- information in the form required by @LIO@ in module "DB".
-type Auth = LIOState DCLabel
 
 
 -- | If password cannot be verified, or if only password or only
@@ -48,14 +41,14 @@ type Auth = LIOState DCLabel
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-mkAuth :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError Auth
-mkAuth (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (UserPass password)
-mkAuth Nothing     (Just service) (Just password) db = authenticateService db (ServiceId service) (ServiceKey password)
-mkAuth Nothing     Nothing        Nothing         _  = Right allowNothing
-mkAuth _           _              _               _  = Left BadAuthenticationHeaders
+mkThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError ThentosClearance
+mkThentosClearance (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (UserPass password)
+mkThentosClearance Nothing     (Just service) (Just password) db = authenticateService db (ServiceId service) (ServiceKey password)
+mkThentosClearance Nothing     Nothing        Nothing         _  = Right allowNothing
+mkThentosClearance _           _              _               _  = Left BadAuthenticationHeaders
 
 
-authenticateUser :: DB -> UserName -> UserPass -> Either DbError Auth
+authenticateUser :: DB -> UserName -> UserPass -> Either DbError ThentosClearance
 authenticateUser db name password = if verifyUserPassword db name password
     then Right allowEverything  -- FIXME: construct proper privileges here.
     else Left BadCredentials
@@ -66,16 +59,16 @@ verifyUserPassword db name password =
         pure_lookupUserByName db name
 
 
-authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError Auth
+authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
 authenticateService _ _ _ = Right allowEverything  -- FIXME
 
 
-allowNothing :: LIOState DCLabel
-allowNothing = LIOState (False %% False) (True %% False)
+allowNothing :: ThentosClearance
+allowNothing = ThentosClearance (False %% True)
   -- FIXME: is this correct?  what does it meaen?
 
-allowEverything :: LIOState DCLabel
-allowEverything = dcDefaultState
+allowEverything :: ThentosClearance
+allowEverything = ThentosClearance dcPublic
 
 
 godCredentials :: [Header]
@@ -83,11 +76,11 @@ godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
 createGod :: AcidState DB -> Bool -> IO ()
 createGod st verbose = do
-    eq <- query' st (LookupUser (UserId 0) thentosPublic)
+    eq <- query' st (LookupUser (UserId 0) thentosAllClear)
     when (isLeft eq) $ do
         when verbose $
             putStr "No users.  Creating god user with password 'god'... "
-        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosPublic)
+        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosAllClear)
         when verbose $
             if isRight eu
                 then putStrLn "[ok]"

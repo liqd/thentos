@@ -51,21 +51,21 @@ main =
     let switch ["-s"] = do
             putStrLn "database contents:"
             putStrLn "Users:"
-            query' st (AllUserIDs thentosPublic)       >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
+            query' st (AllUserIDs thentosAllClear)       >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
             putStrLn "Services:"
-            query' st (AllServiceIDs thentosPublic)    >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
+            query' st (AllServiceIDs thentosAllClear)    >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
             putStrLn "Sessions:"
-            query' st (AllSessionTokens thentosPublic) >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
+            query' st (AllSessionTokens thentosAllClear) >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents
-            void . update' st $ AddUser user thentosPublic
+            void . update' st $ AddUser user thentosAllClear
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
-            void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) thentosPublic
+            void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) thentosAllClear
         switch ["-a3"] = do
             putStrLn "adding dummy service to database:"
-            sid <- update' st $ AddService thentosPublic
+            sid <- update' st $ AddService thentosAllClear
             putStrLn $ "Service id: " ++ show sid
         switch ["-r"] = switch ["-r", "", ""]
         switch ["-r", a] = switch ["-r", a, ""]

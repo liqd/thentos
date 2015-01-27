@@ -143,6 +143,15 @@ instance SafeCopy ThentosLabel
     getCopy = contain $ safeGet >>= \ raw ->
       maybe (fail $ "instance SafeCopy ThentosLabel: no parse" ++ show raw) return . readMay $ raw
 
+newtype ThentosClearance = ThentosClearance { fromThentosClearance :: DCLabel }
+    deriving (Eq, Ord, Show, Read)
+
+instance SafeCopy ThentosClearance
+  where
+    putCopy = contain . safePut . show
+    getCopy = contain $ safeGet >>= \ raw ->
+      maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
+
 
 makeLenses ''DB
 makeLenses ''User

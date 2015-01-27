@@ -217,7 +217,7 @@ instance ( PushReaderT (Server sublayout)
 
         routingState :: RoutingState
         routingState = ( st
-                       , \ db -> ThentosClearance . ThentosLabel . lioClearance <$> mkAuth
+                       , \ db -> mkThentosClearance
                            (pluck "X-Thentos-User")
                            (pluck "X-Thentos-Service")
                            (pluck "X-Thentos-Password")
@@ -271,7 +271,7 @@ accessServant :: forall event a .
                    -> (ThentosClearance -> event) -> RestActionLabeled a
 accessServant access unclearedEvent = do
     (st, clearanceAbs) <- ask
-    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot thentosPublic)
+    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot thentosAllClear)
     case clearanceE of
         Left err -> lift . left . showDbError $ err
         Right clearance -> do

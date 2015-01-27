@@ -18,7 +18,7 @@ module DB.Error (
     when',
     thentosLabeledPublic,
     thentosLabeledDenied,
-    thentosPublic,
+    thentosAllClear,
     thentosDenied
 ) where
 
@@ -59,25 +59,17 @@ instance SafeCopy DbError
     getCopy = contain $ safeGet >>= \ raw ->
       maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
 
-newtype ThentosClearance = ThentosClearance ThentosLabel
-    deriving (Eq, Ord, Show, Read)
-
-instance SafeCopy ThentosClearance
-  where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
-
 
 type ThentosUpdate a = StateT  DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
 type ThentosQuery  a = ReaderT DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
+
+
+-- * plumbing
 
 liftThentosQuery :: forall a . ThentosQuery a -> ThentosUpdate a
 liftThentosQuery thentosQuery = StateT $ \ state ->
     (, state) <$> thentosQuery `runReaderT` state
 
-
--- * plumbing
 
 -- | the type of this will change when servant has a better error type.
 showDbError :: DbError -> (Int, String)
@@ -87,7 +79,7 @@ showDbError = (500,) . show
 -- | FIXME: generalize, so we can use this for both Update and Query.
 -- (remove 'runThentosQuery' and 'ThentosQuery' when done.)
 runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
-runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
+runThentosUpdate (ThentosClearance clearance) action = do
     state <- get
     case runIdentity . runEitherT $ runStateT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
@@ -96,7 +88,7 @@ runThentosUpdate (ThentosClearance (ThentosLabel clearance)) action = do
             checkClearance  ((`canFlowTo` clearance) . fromThentosLabel) label $ put state' >> return (Right result)
 
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
-runThentosQuery (ThentosClearance (ThentosLabel clearance)) action = do
+runThentosQuery (ThentosClearance clearance) action = do
     state <- ask
     case runIdentity . runEitherT $ runReaderT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
@@ -136,8 +128,8 @@ thentosLabeledPublic = thentosLabeled dcPublic
 thentosLabeledDenied :: t -> ThentosLabeled t
 thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
 
-thentosPublic :: ThentosClearance
-thentosPublic = ThentosClearance $ ThentosLabel dcPublic
+thentosAllClear :: ThentosClearance
+thentosAllClear = ThentosClearance dcPublic
 
-thentosDenied :: ThentosLabel
+thentosDenied :: ThentosClearance
 thentosDenied = error "thentosLabeledDenied: not implemented"

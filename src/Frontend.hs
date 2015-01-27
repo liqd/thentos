@@ -25,7 +25,7 @@ import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), upda
 import Text.Digestive.Snap (runForm)
 
 import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..))
-import DB.Protect (thentosPublic)
+import DB.Protect (thentosAllClear)
 import DB.Error (DbError(NoSuchUser))
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage)
 import Types
@@ -61,7 +61,7 @@ userAddHandler = do
         Just user -> do
             liftIO $ print user
             -- FIXME: this doesn't handle errors
-            _ <- update (AddUser user thentosPublic)
+            _ <- update (AddUser user thentosAllClear)
             blaze userAddedPage
 
 loginHandler :: Handler FrontendApp FrontendApp ()
@@ -71,7 +71,7 @@ loginHandler = do
     case result of
         Nothing -> blaze $ loginPage _view uri
         Just (name, password) -> do
-            eUser <- query $ LookupUserByName name thentosPublic
+            eUser <- query $ LookupUserByName name thentosAllClear
             case eUser of
                 Right (uid, user) ->
                     if password == (user ^. userPassword)
@@ -94,7 +94,7 @@ loginHandler = do
             finishWith r
         let (Just sid, Just callback) = (mSid, mCallback)
         -- FIXME: how long should the session live?
-        eSessionToken <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (TimeStamp $ now .+^ 14 * 24 * 3600) thentosPublic
+        eSessionToken <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (TimeStamp $ now .+^ 14 * 24 * 3600) thentosAllClear
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
             Right sessionToken ->
