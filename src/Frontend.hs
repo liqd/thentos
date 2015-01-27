@@ -24,8 +24,8 @@ import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaple
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..), allowEverything, DbError(NoSuchUser))
-import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage)
+import DB (AddUser(AddUser), AddService(AddService), LookupUserByName(..), StartSession(..), allowEverything, DbError(NoSuchUser))
+import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Types
 import Frontend.Util (serveSnaplet)
 
@@ -69,7 +69,7 @@ addServiceHandler = blaze addServicePage
 
 serviceAddedHandler :: Handler FrontendApp FrontendApp ()
 serviceAddedHandler = do
-    result <- update $ AddService thentosCleared
+    result <- update $ AddService allowEverything
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> blaze . errorPage $ show e
