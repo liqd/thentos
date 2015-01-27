@@ -33,6 +33,10 @@ import LIO (canFlowTo)
 import LIO.DCLabel (DCLabel, dcPublic)
 import Safe (readMay)
 
+import Debug.Trace (traceShow)  -- to dump authorization errors to
+                                -- stdout for debugging until we have
+                                -- proper logging.
+
 import Types
 
 
@@ -46,11 +50,11 @@ data DbError =
     | ServiceAlreadyExists
     | SessionAlreadyExists
     | UserEmailAlreadyExists
-    | PermissionDenied
+    | PermissionDenied ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
     | UidOverflow
-    deriving (Eq, Ord, Enum, Show, Read, Typeable)
+    deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy DbError
   where
@@ -79,7 +83,7 @@ showDbError UserAlreadyExists        = (403, "user already exists")
 showDbError ServiceAlreadyExists     = (403, "service already exists")
 showDbError SessionAlreadyExists     = (403, "session already exists")
 showDbError UserEmailAlreadyExists   = (403, "email already in use")
-showDbError PermissionDenied         = (401, "unauthorized")
+showDbError e@(PermissionDenied _ _) = traceShow e (401, "unauthorized")
 showDbError BadCredentials           = (401, "unauthorized")
 showDbError BadAuthenticationHeaders = (400, "bad authentication headers")
 showDbError UidOverflow              = (500, "internal error: UidOverflow")
@@ -94,27 +98,28 @@ showDbError UidOverflow              = (500, "internal error: UidOverflow")
 -- | FIXME: generalize, so we can use this for both Update and Query.
 -- (remove 'runThentosQuery' and 'ThentosQuery' when done.)
 runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
-runThentosUpdate (ThentosClearance clearance) action = do
+runThentosUpdate clearance action = do
     state <- get
     case runIdentity . runEitherT $ runStateT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
-            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
+            checkClearance clearance label (return $ Left err)
         Right (ThentosLabeled label result, state') ->
-            checkClearance  ((`canFlowTo` clearance) . fromThentosLabel) label $ put state' >> return (Right result)
+            checkClearance clearance label (put state' >> return (Right result))
 
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
-runThentosQuery (ThentosClearance clearance) action = do
+runThentosQuery clearance action = do
     state <- ask
     case runIdentity . runEitherT $ runReaderT action state of
         Left (ThentosLabeled label (err :: DbError)) ->
-            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Left err)
+            checkClearance clearance label (return $ Left err)
         Right (ThentosLabeled label result) ->
-            checkClearance ((`canFlowTo` clearance) . fromThentosLabel) label (return $ Right result)
+            checkClearance clearance label (return $ Right result)
 
-checkClearance :: Monad m => (ThentosLabel -> Bool) -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
-checkClearance cleared label result = if cleared label
-    then result
-    else return $ Left PermissionDenied
+checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
+checkClearance clearance label result =
+    if (fromThentosLabel label) `canFlowTo` (fromThentosClearance clearance)
+        then result
+        else return . Left $ PermissionDenied clearance label
 
 throwDBU :: DCLabel -> DbError -> ThentosUpdate a
 throwDBU label = lift . left . thentosLabeled label
