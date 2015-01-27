@@ -15,6 +15,8 @@ module DB.Core
   , throwDBQ
   , returnDBU
   , throwDBU
+  , thentosPublic
+  , thentosDenied
   , thentosLabeledPublic
   , thentosLabeledDenied
   , createCheckpointLoop
@@ -30,7 +32,7 @@ import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
-import LIO.DCLabel (DCLabel, dcPublic)
+import LIO.DCLabel (DCLabel, (%%))
 import Safe (readMay)
 
 import Debug.Trace (traceShow)  -- to dump authorization errors to
@@ -134,11 +136,17 @@ returnDBQ :: DCLabel -> a -> ThentosQuery a
 returnDBQ label = lift . right . thentosLabeled label
 
 
+thentosPublic :: DCLabel
+thentosPublic = True %% False
+
+thentosDenied :: DCLabel
+thentosDenied = False %% True
+
 thentosLabeledPublic :: t -> ThentosLabeled t
-thentosLabeledPublic = thentosLabeled dcPublic
+thentosLabeledPublic = thentosLabeled thentosPublic
 
 thentosLabeledDenied :: t -> ThentosLabeled t
-thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
+thentosLabeledDenied = thentosLabeled thentosDenied
 
 
 -- * convenience

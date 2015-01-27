@@ -52,7 +52,6 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, find)
 import Data.Maybe (isJust)
 import Data.String.Conversions (cs, ST, (<>))
-import LIO.DCLabel (dcPublic)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -66,8 +65,8 @@ import DB.Core
 
 checkDbInvs :: [DB -> Either DbError ()] -> ThentosQuery ()
 checkDbInvs invs = do
-    let f []           = returnDBQ dcPublic ()
-        f (Left e:_)   = throwDBQ dcPublic e
+    let f []           = returnDBQ thentosPublic ()
+        f (Left e:_)   = throwDBQ thentosPublic e
         f (Right _:es) = f es
 
     db <- ask
@@ -94,9 +93,9 @@ freshUserID :: ThentosUpdate UserId
 freshUserID = do
     uid <- gets (^. dbFreshUserId)
     when (uid == maxBound) . void $
-        throwDBU dcPublic UidOverflow
+        throwDBU thentosPublic UidOverflow
     modify (dbFreshUserId .~ succ uid)
-    returnDBU dcPublic uid
+    returnDBU thentosPublic uid
 
 freshServiceID :: ThentosUpdate ServiceId
 freshServiceID = ServiceId <$$> freshNonce
@@ -123,7 +122,7 @@ writeUser :: UserId -> User -> ThentosUpdate UserId
 writeUser uid user = do
     _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
     modify $ dbUsers %~ Map.insert uid user
-    returnDBU dcPublic uid
+    returnDBU thentosPublic uid
 
 
 -- ** users
@@ -134,14 +133,14 @@ trans_allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
 trans_lookupUser uid = (uid,) <$$> do
     perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
-    maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) perhaps
+    maybe (throwDBQ thentosPublic NoSuchUser) (returnDBQ thentosPublic) perhaps
 
 -- FIXME: this is extremely inefficient, we should have a separate map from
     -- user names to users or user ids
 trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 trans_lookupUserByName name = do
     mUser <- (`pure_lookupUserByName` name) <$> ask
-    maybe (throwDBQ dcPublic NoSuchUser) (returnDBQ dcPublic) mUser
+    maybe (throwDBQ thentosPublic NoSuchUser) (returnDBQ thentosPublic) mUser
 
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
@@ -158,7 +157,7 @@ trans_addUser user = do
 -- for testing rollback in error cases.  It will also be a nice
 -- example for intersecting authorizations.
 trans_addUsers :: [User] -> ThentosUpdate [UserId]
-trans_addUsers users = mapM trans_addUser users >>= returnDBU dcPublic . map (\ (ThentosLabeled _ uid) -> uid)
+trans_addUsers users = mapM trans_addUser users >>= returnDBU thentosPublic . map (\ (ThentosLabeled _ uid) -> uid)
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
@@ -167,7 +166,7 @@ trans_updateUser :: UserId -> User -> ThentosUpdate ()
 trans_updateUser uid user = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     _ <- writeUser uid user
-    returnDBU dcPublic ()
+    returnDBU thentosPublic ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
 -- error.
@@ -175,7 +174,7 @@ trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbUsers %~ Map.delete uid
-    returnDBU dcPublic ()
+    returnDBU thentosPublic ()
 
 
 -- ** services
@@ -186,7 +185,7 @@ trans_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
 trans_lookupService sid = (sid,) <$$> do
     perhaps :: Maybe Service <- Map.lookup sid . (^. dbServices) <$> ask
-    maybe (throwDBQ dcPublic NoSuchService) (returnDBQ dcPublic) perhaps
+    maybe (throwDBQ thentosPublic NoSuchService) (returnDBQ thentosPublic) perhaps
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
@@ -196,13 +195,13 @@ trans_addService = do
     ThentosLabeled _ key <- freshServiceKey
     let service = Service key
     modify $ dbServices %~ Map.insert sid service
-    returnDBU dcPublic (sid, key)
+    returnDBU thentosPublic (sid, key)
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
     _ <- liftThentosQuery $ trans_lookupService sid
     modify $ dbServices %~ Map.delete sid
-    returnDBU dcPublic ()
+    returnDBU thentosPublic ()
 
 -- FIXME: we don't have any api (neither in DB nor here) to manage
 -- user's group data.
@@ -222,11 +221,11 @@ trans_startSession uid sid start end = do
     let session = Session uid sid start end
 
     when (isJust . lookup sid $ user ^. userSessions) . void $
-      throwDBU dcPublic SessionAlreadyExists
+      throwDBU thentosPublic SessionAlreadyExists
 
     modify $ dbSessions %~ Map.insert tok session
     modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
-    returnDBU dcPublic tok
+    returnDBU thentosPublic tok
 
 trans_allSessionTokens :: ThentosQuery [SessionToken]
 trans_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
@@ -234,7 +233,7 @@ trans_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> a
 trans_lookupSession :: SessionToken -> ThentosQuery (SessionToken, Session)
 trans_lookupSession tok = (tok,) <$$> do
     perhaps :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
-    maybe (throwDBQ dcPublic NoSuchSession) (returnDBQ dcPublic) perhaps
+    maybe (throwDBQ thentosPublic NoSuchSession) (returnDBQ thentosPublic) perhaps
 
 -- | End session.  Call can be caused by logout request from user
 -- (before end of session life time), by session timeouts, or after
@@ -246,7 +245,7 @@ trans_endSession tok = do
     ThentosLabeled _ (_, user)                <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbSessions %~ Map.delete tok
     modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
-    returnDBU dcPublic ()
+    returnDBU thentosPublic ()
 
 -- | Is session token currently valid in the context of a given
 -- service?
@@ -258,13 +257,13 @@ trans_endSession tok = do
 trans_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
 trans_isActiveSession sid tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
-    returnDBQ dcPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
+    returnDBQ thentosPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
 -- ** misc
 
 trans_snapShot :: ThentosQuery DB
-trans_snapShot = ask >>= returnDBQ dcPublic
+trans_snapShot = ask >>= returnDBQ thentosPublic
 
 
 -- * event types

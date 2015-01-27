@@ -9,6 +9,7 @@
 module DB.Protect
   ( mkThentosClearance
   , allowEverything
+  , allowReadEverything
   , allowNothing
   , godCredentials
   , createGod
@@ -21,7 +22,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
-import LIO.DCLabel (CNF, toCNF, dcPublic, (%%), (/\), (\/))
+import LIO.DCLabel (CNF, toCNF, (%%), (/\), (\/))
 import Network.HTTP.Types.Header (Header)
 
 import DB.Api
@@ -88,11 +89,17 @@ pure_lookupAgentRoles :: DB -> Agent -> [Role]
 pure_lookupAgentRoles _ _  = []
 
 
+-- | Clearance for everything.
 allowEverything :: ThentosClearance
-allowEverything = ThentosClearance dcPublic
+allowEverything = ThentosClearance (False %% True)
 
+-- | Clearance to read everything, but write / create nothing.
+allowReadEverything :: ThentosClearance
+allowReadEverything = ThentosClearance (False %% False)
+
+-- | Clearance only for things labeled 'thentosPublic'.
 allowNothing :: ThentosClearance
-allowNothing = ThentosClearance (False %% False)
+allowNothing = ThentosClearance (True %% False)
 
 
 godCredentials :: [Header]
