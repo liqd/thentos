@@ -28,6 +28,10 @@ show-splices:
 cabal-private:
 	cp thentos.cabal{-private,}
 
+# store new version of private from public.
+cabal-save-private:
+	cp thentos.cabal{,-private}
+
 # activate a the cabal from current repo state.
 cabal-public:
 	git checkout -- thentos.cabal
