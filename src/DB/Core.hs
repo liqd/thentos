@@ -19,6 +19,7 @@ module DB.Core
   , thentosDenied
   , thentosLabeledPublic
   , thentosLabeledDenied
+  , (=%%)
   , createCheckpointLoop
   ) where
 
@@ -32,7 +33,7 @@ import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
-import LIO.DCLabel (DCLabel, (%%))
+import LIO.DCLabel (ToCNF, (%%))
 import Safe (readMay)
 
 import Debug.Trace (traceShow)  -- to dump authorization errors to
@@ -123,30 +124,34 @@ checkClearance clearance label result =
         then result
         else return . Left $ PermissionDenied clearance label
 
-throwDBU :: DCLabel -> DbError -> ThentosUpdate a
-throwDBU label = lift . left . thentosLabeled label
+throwDBU :: ThentosLabel -> DbError -> ThentosUpdate a
+throwDBU label = lift . left . ThentosLabeled label
 
-returnDBU :: DCLabel -> a -> ThentosUpdate a
-returnDBU label = lift . right . thentosLabeled label
+returnDBU :: ThentosLabel -> a -> ThentosUpdate a
+returnDBU label = lift . right . ThentosLabeled label
 
-throwDBQ :: DCLabel -> DbError -> ThentosQuery a
-throwDBQ label = lift . left . thentosLabeled label
+throwDBQ :: ThentosLabel -> DbError -> ThentosQuery a
+throwDBQ label = lift . left . ThentosLabeled label
 
-returnDBQ :: DCLabel -> a -> ThentosQuery a
-returnDBQ label = lift . right . thentosLabeled label
+returnDBQ :: ThentosLabel -> a -> ThentosQuery a
+returnDBQ label = lift . right . ThentosLabeled label
 
 
-thentosPublic :: DCLabel
-thentosPublic = True %% False
+thentosPublic :: ThentosLabel
+thentosPublic = True =%% False
 
-thentosDenied :: DCLabel
-thentosDenied = False %% True
+thentosDenied :: ThentosLabel
+thentosDenied = False =%% True
 
 thentosLabeledPublic :: t -> ThentosLabeled t
-thentosLabeledPublic = thentosLabeled thentosPublic
+thentosLabeledPublic = ThentosLabeled thentosPublic
 
 thentosLabeledDenied :: t -> ThentosLabeled t
-thentosLabeledDenied = thentosLabeled thentosDenied
+thentosLabeledDenied = ThentosLabeled thentosDenied
+
+(=%%) :: (ToCNF a, ToCNF b) => a -> b -> ThentosLabel
+(=%%) a b = ThentosLabel $ a %% b
+infix 6 =%%
 
 
 -- * convenience

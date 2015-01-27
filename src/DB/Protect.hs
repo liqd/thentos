@@ -11,6 +11,7 @@ module DB.Protect
   , allowEverything
   , allowReadEverything
   , allowNothing
+  , (*%%)
   , godCredentials
   , createGod
   ) where
@@ -22,7 +23,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
-import LIO.DCLabel (CNF, toCNF, (%%), (/\), (\/))
+import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
 import Network.HTTP.Types.Header (Header)
 
 import DB.Api
@@ -77,20 +78,25 @@ authenticateService db sid keyFromClient = do
 simpleClearance :: [CNF] -> ThentosClearance
 simpleClearance credentials = case credentials of
     []     -> allowNothing
-    (x:xs) -> ThentosClearance $ foldl' (/\) x xs %% foldl' (\/) x xs
+    (x:xs) -> foldl' (/\) x xs *%% foldl' (\/) x xs
 
 
 -- | Clearance for everything.
 allowEverything :: ThentosClearance
-allowEverything = ThentosClearance (False %% True)
+allowEverything = False *%% True
 
 -- | Clearance to read everything, but write / create nothing.
 allowReadEverything :: ThentosClearance
-allowReadEverything = ThentosClearance (False %% False)
+allowReadEverything = False *%% False
 
 -- | Clearance only for things labeled 'thentosPublic'.
 allowNothing :: ThentosClearance
-allowNothing = ThentosClearance (True %% False)
+allowNothing = True *%% False
+
+
+(*%%) :: (ToCNF a, ToCNF b) => a -> b -> ThentosClearance
+(*%%) a b = ThentosClearance $ a %% b
+infix 6 *%%
 
 
 -- * god user (do not use in production)

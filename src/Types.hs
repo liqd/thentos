@@ -124,9 +124,6 @@ data ThentosLabeled t =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Functor)
 
-thentosLabeled :: DCLabel -> t -> ThentosLabeled t
-thentosLabeled label = ThentosLabeled (ThentosLabel label)
-
 instance (SafeCopy t, Show t, Read t) => SafeCopy (ThentosLabeled t)
   where
     putCopy = contain . safePut . show
