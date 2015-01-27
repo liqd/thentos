@@ -58,6 +58,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.String.Conversions (cs, ST, (<>))
+import LIO.DCLabel ((\/))
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -285,7 +286,7 @@ trans_assignRole agent role = liftThentosQuery (assertAgent agent) >> do
     let inject Nothing      = Just [role]
         inject (Just roles) = Just $ role:roles
     modify $ dbRoles %~ Map.alter inject agent
-    returnDBU thentosPublic ()
+    returnDBU (RoleAdmin =%% RoleAdmin) ()
 
 -- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
 -- is not assigned to 'Agent', do nothing.  If Agent does not
@@ -296,12 +297,13 @@ trans_unassignRole agent role = liftThentosQuery (assertAgent agent) >> do
     let exject Nothing      = Nothing
         exject (Just roles) = Just $ roles \\ [role]
     modify $ dbRoles %~ Map.alter exject agent
-    returnDBU thentosPublic ()
+    returnDBU (RoleAdmin =%% RoleAdmin) ()
 
 -- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or
 -- has no entry in 'dbRoles', return an empty list.
 trans_lookupAgentRoles :: Agent -> ThentosQuery [Role]
-trans_lookupAgentRoles agent = thentosLabeledPublic . (`pure_lookupAgentRoles` agent) <$> ask
+trans_lookupAgentRoles agent = ThentosLabeled (agent \/ RoleAdmin =%% False) .
+    (`pure_lookupAgentRoles` agent) <$> ask
 
 pure_lookupAgentRoles :: DB -> Agent -> [Role]
 pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
@@ -309,6 +311,14 @@ pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
 
 -- *** helpers
 
+-- | 'assertAgent' is only used by to build transactions, and is not a
+-- transaction itself.  Even though it has return type 'ThentosQuery',
+-- it does not restrict the label in any way.
+--
+-- (In the long run, it would be beneficial to make more use of the
+-- lio package and the 'LIO' monad in particular, so we could
+-- accumulate and intersect labels on the way through complex
+-- transactions.)
 assertAgent :: Agent -> ThentosQuery ()
 assertAgent = f
   where
@@ -325,7 +335,7 @@ assertAgent = f
 -- ** misc
 
 trans_snapShot :: ThentosQuery DB
-trans_snapShot = ask >>= returnDBQ thentosPublic
+trans_snapShot = ask >>= returnDBQ (RoleAdmin =%% False)
 
 
 -- * event types

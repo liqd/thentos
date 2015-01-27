@@ -20,6 +20,7 @@ import Control.Monad.State (liftIO)
 import Control.Monad (void, when)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (query', update')
+import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$>))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.String.Conversions (LBS, SBS, cs)
@@ -132,6 +133,35 @@ main = hspec $ do
         Right (sid :: ServiceId, _) <- update' st $ AddService allowEverything
         Right _ <- update' st $ StartSession (UserId 0) sid from to allowEverything
         return ()
+
+    describe "agents and roles" $ do
+      describe "assign" $ do
+        it "can be called by admins" $ \ st -> do
+          let targetAgent = UserA $ UserId 1
+          result <- update' st $ AssignRole targetAgent RoleAdmin (RoleAdmin *%% RoleAdmin)
+          result `shouldSatisfy` isRight
+
+        it "can NOT be called by any non-admin agents" $ \ st -> do
+          let targetAgent = UserA $ UserId 1
+          result <- update' st $ AssignRole targetAgent RoleAdmin (targetAgent *%% targetAgent)
+          result `shouldSatisfy` isLeft
+
+      describe "lookup" $ do
+        it "can be called by admins" $ \ st -> do
+          let targetAgent = UserA $ UserId 1
+          result :: Either DbError [Role] <- query' st $ LookupAgentRoles targetAgent (RoleAdmin *%% RoleAdmin)
+          result `shouldSatisfy` isRight
+
+        it "can be called by user for her own roles" $ \ st -> do
+          let targetAgent = UserA $ UserId 1
+          result <- query' st $ LookupAgentRoles targetAgent (targetAgent *%% targetAgent)
+          result `shouldSatisfy` isRight
+
+        it "can NOT be called by other users" $ \ st -> do
+          let targetAgent = UserA $ UserId 1
+              askingAgent = UserA $ UserId 2
+          result <- query' st $ LookupAgentRoles targetAgent (askingAgent *%% askingAgent)
+          result `shouldSatisfy` isLeft
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
     describe "authentication" $ do
