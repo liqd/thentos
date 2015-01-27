@@ -131,6 +131,9 @@ postNewService = updateServant AddService
 
 -- * session
 
+-- | FIXME: 'ThentosSession' is not very clean and should be
+-- re-designed.  (Constants before keys, unambiguous prefices for all
+-- routes, ...)
 type ThentosSession =
        Get [SessionToken]
   :<|> Capture "token" SessionToken :> Get (SessionToken, Session)
