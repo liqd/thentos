@@ -197,12 +197,19 @@ main = hspec $ do
     it "works" $ do
       let a = toCNF ("a" :: String)
           b = toCNF ("b" :: String)
+          c = toCNF ("c" :: String)
 
       and [ b \/ a %% a `canFlowTo` a %% a
           , a %% a /\ b `canFlowTo` a %% a
-          , True %% False `canFlowTo` False %% True
-          , True %% True `canFlowTo` False %% True
-          , False %% False `canFlowTo` False %% True
+          , a %% (a /\ b) \/ (a /\ c) `canFlowTo` a %% a
+          , not $ a %% (a /\ b) \/ (a /\ c) `canFlowTo` a %% b
+          ,       True  %% False `canFlowTo` True %% False
+          ,       True  %% False `canFlowTo` False %% True
+          ,       True  %% True  `canFlowTo` False %% True
+          ,       False %% False `canFlowTo` False %% True
+          , not $ False %% True  `canFlowTo` True  %% False
+          , not $ True  %% True  `canFlowTo` True  %% False
+          , not $ False %% False `canFlowTo` True  %% False
           , True
           ] `shouldBe` True
 
