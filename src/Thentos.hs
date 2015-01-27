@@ -26,9 +26,9 @@ import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
 import Safe (readMay)
 import System.Environment (getArgs)
+import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Encode.Pretty as Aeson
 
 import Types
 import DB
@@ -50,12 +50,7 @@ main =
 
     let switch ["-s"] = do
             putStrLn "database contents:"
-            putStrLn "Users:"
-            query' st (AllUserIDs allowEverything)       >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
-            putStrLn "Services:"
-            query' st (AllServiceIDs allowEverything)    >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
-            putStrLn "Sessions:"
-            query' st (AllSessionTokens allowEverything) >>= either (error "oops?") (mapM_ (putStrLn . cs . Aeson.encodePretty))
+            query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
         switch ["-a"] = do
             putStrLn "adding user from stdin to database:"
             Just (user :: User) <- Aeson.decode . cs <$> getContents

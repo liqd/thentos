@@ -52,6 +52,7 @@ library
     , lio
     , mtl
     , old-locale
+    , pretty-show
     , safe
     , safecopy
     , sandi
