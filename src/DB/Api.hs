@@ -58,7 +58,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.String.Conversions (cs, ST, (<>))
-import LIO.DCLabel ((\/))
+import LIO.DCLabel ((\/), (/\))
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Crypto.Hash.SHA3 as Hash
@@ -128,19 +128,23 @@ freshNonce = state $ \ db ->
 -- ** users
 
 trans_allUserIDs :: ThentosQuery [UserId]
-trans_allUserIDs = thentosLabeledPublic . Map.keys . (^. dbUsers) <$> ask
+trans_allUserIDs = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers) <$> ask
 
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
 trans_lookupUser uid = (uid,) <$$> do
+    let label = (RoleAdmin \/ UserA uid =%% False)
     perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
-    maybe (throwDBQ thentosPublic NoSuchUser) (returnDBQ thentosPublic) perhaps
+    maybe (throwDBQ label NoSuchUser) (returnDBQ label) perhaps
 
 -- FIXME: this is extremely inefficient, we should have a separate map from
     -- user names to users or user ids
 trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 trans_lookupUserByName name = do
     mUser <- (`pure_lookupUserByName` name) <$> ask
-    maybe (throwDBQ thentosPublic NoSuchUser) (returnDBQ thentosPublic) mUser
+    let label = case mUser of
+          Just (uid, _) -> RoleAdmin \/ UserA uid =%% False
+          Nothing       -> RoleAdmin              =%% False
+    maybe (throwDBQ label NoSuchUser) (returnDBQ label) mUser
 
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
@@ -166,7 +170,8 @@ trans_updateUser :: UserId -> User -> ThentosUpdate ()
 trans_updateUser uid user = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     _ <- writeUser uid user
-    returnDBU thentosPublic ()
+    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    returnDBU label ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
 -- error.
@@ -174,7 +179,8 @@ trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbUsers %~ Map.delete uid
-    returnDBU thentosPublic ()
+    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    returnDBU label ()
 
 
 -- *** helpers
@@ -190,12 +196,13 @@ writeUser uid user = do
 -- ** services
 
 trans_allServiceIDs :: ThentosQuery [ServiceId]
-trans_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
+trans_allServiceIDs = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
 trans_lookupService sid = do
     db <- ask
-    maybe (throwDBQ thentosPublic NoSuchService) (returnDBQ thentosPublic) $
+    let label = RoleAdmin =%% False
+    maybe (throwDBQ label NoSuchService) (returnDBQ label) $
         pure_lookupService db sid
 
 pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
@@ -216,7 +223,8 @@ trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
     _ <- liftThentosQuery $ trans_lookupService sid
     modify $ dbServices %~ Map.delete sid
-    returnDBU thentosPublic ()
+    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
+    returnDBU label ()
 
 -- FIXME: we don't have any api (neither in DB nor here) to manage
 -- user's group data.
@@ -240,15 +248,20 @@ trans_startSession uid sid start end = do
 
     modify $ dbSessions %~ Map.insert tok session
     modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
-    returnDBU thentosPublic tok
+
+    let label = UserA uid =%% UserA uid
+    returnDBU label tok
 
 trans_allSessionTokens :: ThentosQuery [SessionToken]
-trans_allSessionTokens = thentosLabeledPublic . Map.keys . (^. dbSessions) <$> ask
+trans_allSessionTokens = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbSessions) <$> ask
 
 trans_lookupSession :: SessionToken -> ThentosQuery (SessionToken, Session)
 trans_lookupSession tok = (tok,) <$$> do
     perhaps :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
-    maybe (throwDBQ thentosPublic NoSuchSession) (returnDBQ thentosPublic) perhaps
+    let label = case perhaps of
+          Just (Session uid sid _ _) -> RoleAdmin \/ UserA uid \/ ServiceA sid =%% False
+          Nothing                    -> RoleAdmin                              =%% False
+    maybe (throwDBQ label NoSuchSession) (returnDBQ label) perhaps
 
 -- | End session.  Call can be caused by logout request from user
 -- (before end of session life time), by session timeouts, or after
@@ -260,7 +273,9 @@ trans_endSession tok = do
     ThentosLabeled _ (_, user)                <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbSessions %~ Map.delete tok
     modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
-    returnDBU thentosPublic ()
+
+    let label = RoleAdmin \/ UserA uid \/ ServiceA sid =%% RoleAdmin /\ UserA uid /\ ServiceA sid
+    returnDBU label ()
 
 -- | Is session token currently valid in the context of a given
 -- service?
@@ -272,7 +287,10 @@ trans_endSession tok = do
 trans_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
 trans_isActiveSession sid tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
-    returnDBQ thentosPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
+    let label = case mSession of
+          Just (Session uid' sid' _ _) -> RoleAdmin \/ UserA uid' \/ ServiceA sid' =%% False
+          Nothing                      -> RoleAdmin                                =%% False
+    returnDBQ label $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
 -- * agents and roles
