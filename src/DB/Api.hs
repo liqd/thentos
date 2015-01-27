@@ -40,11 +40,12 @@ module DB.Api
 where
 
 import Control.Lens ((^.), (.~), (%~))
+import Control.Monad (when, void)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state, gets)
 import Data.Acid (Query, Update, makeAcidic)
-import Data.List (nub, find)
 import Data.Functor.Infix ((<$>), (<$$>))
+import Data.List (nub, find)
 import Data.Maybe (isJust)
 import Data.String.Conversions (cs, ST, (<>))
 import LIO.DCLabel (dcPublic)
@@ -88,7 +89,7 @@ emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 freshUserID :: ThentosUpdate UserId
 freshUserID = do
     uid <- gets (^. dbFreshUserId)
-    when' (uid == maxBound) $
+    when (uid == maxBound) . void $
         throwDBU dcPublic UidOverflow
     modify (dbFreshUserId .~ succ uid)
     returnDBU dcPublic uid
@@ -215,7 +216,7 @@ trans_startSession uid sid start end = do
     ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
     let session = Session uid sid start end
 
-    when' (isJust . lookup sid $ user ^. userSessions) $
+    when (isJust . lookup sid $ user ^. userSessions) . void $
       throwDBU dcPublic SessionAlreadyExists
 
     modify $ dbSessions %~ Map.insert tok session

@@ -15,7 +15,6 @@ module DB.Core
   , throwDBQ
   , returnDBU
   , throwDBU
-  , when'
   , thentosLabeledPublic
   , thentosLabeledDenied
   , createCheckpointLoop
@@ -23,7 +22,7 @@ module DB.Core
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
-import Control.Monad.Identity (Identity, runIdentity, void)
+import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put, lift)
 import Control.Monad.Trans.Either (EitherT, left, right, runEitherT)
@@ -112,12 +111,6 @@ throwDBQ label = lift . left . thentosLabeled label
 
 returnDBQ :: DCLabel -> a -> ThentosQuery a
 returnDBQ label = lift . right . thentosLabeled label
-
-
--- | we should not have to write this ourselves...
-when' :: (Functor m, Monad m) => Bool -> m a -> m ()
-when' True action = void action
-when' False _ = return ()
 
 
 thentosLabeledPublic :: t -> ThentosLabeled t
