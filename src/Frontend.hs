@@ -59,17 +59,16 @@ userAddHandler = do
     case result of
         Nothing -> blaze $ addUserPage _view
         Just user -> do
-            liftIO $ print user
-            -- FIXME: this doesn't handle errors
-            _ <- update (AddUser user thentosCleared)
-            blaze userAddedPage
+            result' <- update (AddUser user thentosCleared)
+            case result' of
+                Right _ -> blaze userAddedPage
+                Left e -> blaze . errorPage $ show e
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage
 
 serviceAddedHandler :: Handler FrontendApp FrontendApp ()
 serviceAddedHandler = do
-    --Right (sid, key) <- update $ AddService thentosCleared
     result <- update $ AddService thentosCleared
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
@@ -90,7 +89,6 @@ loginHandler = do
                         else loginFail
                 Left NoSuchUser -> loginFail
                 Left e -> blaze . errorPage $ show e
-
   where
     loginFail = blaze "Bad username / password combination"
 
