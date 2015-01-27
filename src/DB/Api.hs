@@ -118,13 +118,6 @@ freshNonce = state $ \ db ->
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
   in (thentosLabeledPublic sid, db')
 
--- | (db ^. dbUser) must only be modified using this function.
-writeUser :: UserId -> User -> ThentosUpdate UserId
-writeUser uid user = do
-    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
-    modify $ dbUsers %~ Map.insert uid user
-    returnDBU thentosPublic uid
-
 
 -- ** users
 
@@ -176,6 +169,16 @@ trans_deleteUser uid = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbUsers %~ Map.delete uid
     returnDBU thentosPublic ()
+
+
+-- *** helpers
+
+-- | (db ^. dbUser) must only be modified using this function.
+writeUser :: UserId -> User -> ThentosUpdate UserId
+writeUser uid user = do
+    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
+    modify $ dbUsers %~ Map.insert uid user
+    returnDBU thentosPublic uid
 
 
 -- ** services
