@@ -93,6 +93,8 @@ allowNothing :: ThentosClearance
 allowNothing = ThentosClearance (True %% False)
 
 
+-- * god user (do not use in production)
+
 godCredentials :: [Header]
 godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
@@ -100,10 +102,21 @@ createGod :: AcidState DB -> Bool -> IO ()
 createGod st verbose = do
     eq <- query' st (LookupUser (UserId 0) allowEverything)
     when (isLeft eq) $ do
+        -- user
         when verbose $
             putStr "No users.  Creating god user with password 'god'... "
         eu <- update' st (AddUser (User "god" "god" "god@home" [] []) allowEverything)
         when verbose $
-            if isRight eu
+            if eu == Right (UserId 0)
                 then putStrLn "[ok]"
                 else putStrLn $ "[failed: " ++ show eu ++ "]"
+
+        -- roles
+        when verbose $
+            putStr "Adding user 'god' to roles 'Admin', 'User'... "
+        result <- update' st (AssignRole (UserA (UserId 0)) RoleAdmin allowEverything)
+        result' <- update' st (AssignRole (UserA (UserId 0)) RoleUser allowEverything)
+        when verbose $
+            if isRight result && isRight result'
+                then putStrLn "[ok]"
+                else putStrLn $ "[failed: " ++ show (result, result') ++ "]"
