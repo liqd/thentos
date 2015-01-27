@@ -8,7 +8,11 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS  #-}
+{-# OPTIONS -fno-warn-orphans #-}
+
+-- (to enable orphan-instance warning, we could try to make module
+-- Core parametric in DB.  but that has its own obvious
+-- disadvantages.)
 
 module DB.Api
   ( AllUserIDs(..)
