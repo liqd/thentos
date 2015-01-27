@@ -144,25 +144,25 @@ main = hspec $ do
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
       it "responds with an error if password is wrong" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
       it "responds with an error if only one of user (or service) and password is provided" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
         liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
         response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
         response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
-        liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
         response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 500
+        liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
 
       -- FIXME: we need to have a user whose password can be set in a
       -- configuration file.  that user has role "admin" and can do

@@ -45,11 +45,11 @@ data DbError =
     | UserAlreadyExists
     | ServiceAlreadyExists
     | SessionAlreadyExists
-    | BadCredentials
     | UserEmailAlreadyExists
     | PermissionDenied
-    | UidOverflow
+    | BadCredentials
     | BadAuthenticationHeaders
+    | UidOverflow
     deriving (Eq, Ord, Enum, Show, Read, Typeable)
 
 instance SafeCopy DbError
@@ -72,7 +72,23 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 
 -- | the type of this will change when servant has a better error type.
 showDbError :: DbError -> (Int, String)
-showDbError = (500,) . show
+showDbError NoSuchUser               = (404, "user not found")
+showDbError NoSuchService            = (404, "service not found")
+showDbError NoSuchSession            = (404, "session not found")
+showDbError UserAlreadyExists        = (403, "user already exists")
+showDbError ServiceAlreadyExists     = (403, "service already exists")
+showDbError SessionAlreadyExists     = (403, "session already exists")
+showDbError UserEmailAlreadyExists   = (403, "email already in use")
+showDbError PermissionDenied         = (401, "unauthorized")
+showDbError BadCredentials           = (401, "unauthorized")
+showDbError BadAuthenticationHeaders = (400, "bad authentication headers")
+showDbError UidOverflow              = (500, "internal error: UidOverflow")
+
+    -- FIXME: get rid of 'SessionAlreadyExists'.  startSession should
+    -- return the active token and update the timeout like with any
+    -- other activity.
+
+    -- FIXME: get rid of 'UidOverflow'.
 
 
 -- | FIXME: generalize, so we can use this for both Update and Query.
