@@ -80,11 +80,6 @@ simpleClearance credentials = case credentials of
     (x:xs) -> ThentosClearance $ foldl' (/\) x xs %% foldl' (\/) x xs
 
 
--- | FIXME: move this to Core and implement it!
-pure_lookupAgentRoles :: DB -> Agent -> [Role]
-pure_lookupAgentRoles _ _  = []
-
-
 -- | Clearance for everything.
 allowEverything :: ThentosClearance
 allowEverything = ThentosClearance (False %% True)

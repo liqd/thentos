@@ -34,10 +34,15 @@ module DB.Api
   , EndSession(..)
   , IsActiveSession(..)
 
+  , AssignRole(..)
+  , UnassignRole(..)
+  , LookupAgentRoles(..)
+
   , SnapShot(..)
 
   , pure_lookupUserByName
   , pure_lookupService
+  , pure_lookupAgentRoles
 
   , emptyDB
   , createCheckpointLoop
@@ -50,8 +55,8 @@ import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state, gets)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.Functor.Infix ((<$>), (<$$>))
-import Data.List (nub, find)
-import Data.Maybe (isJust)
+import Data.List (nub, find, (\\))
+import Data.Maybe (isJust, fromMaybe)
 import Data.String.Conversions (cs, ST, (<>))
 
 import qualified Codec.Binary.Base32 as Base32
@@ -269,6 +274,54 @@ trans_isActiveSession sid tok = do
     returnDBQ thentosPublic $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
+-- * agents and roles
+
+-- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
+-- is already assigned to 'Agent', do nothing.  If Agent does not
+-- point to an existing entry in user or service table (or such),
+-- throw an error.
+trans_assignRole :: Agent -> Role -> ThentosUpdate ()
+trans_assignRole agent role = liftThentosQuery (assertAgent agent) >> do
+    let inject Nothing      = Just [role]
+        inject (Just roles) = Just $ role:roles
+    modify $ dbRoles %~ Map.alter inject agent
+    returnDBU thentosPublic ()
+
+-- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
+-- is not assigned to 'Agent', do nothing.  If Agent does not
+-- point to an existing entry in user or service table (or such),
+-- throw an error.
+trans_unassignRole :: Agent -> Role -> ThentosUpdate ()
+trans_unassignRole agent role = liftThentosQuery (assertAgent agent) >> do
+    let exject Nothing      = Nothing
+        exject (Just roles) = Just $ roles \\ [role]
+    modify $ dbRoles %~ Map.alter exject agent
+    returnDBU thentosPublic ()
+
+-- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or
+-- has no entry in 'dbRoles', return an empty list.
+trans_lookupAgentRoles :: Agent -> ThentosQuery [Role]
+trans_lookupAgentRoles agent = thentosLabeledPublic . (`pure_lookupAgentRoles` agent) <$> ask
+
+pure_lookupAgentRoles :: DB -> Agent -> [Role]
+pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
+
+
+-- *** helpers
+
+assertAgent :: Agent -> ThentosQuery ()
+assertAgent = f
+  where
+    f :: Agent -> ThentosQuery ()
+    f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
+    f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
+
+    g :: Maybe a -> ThentosQuery ()
+    g mb = if isJust mb
+        then returnDBQ thentosPublic ()
+        else throwDBQ thentosPublic NoSuchUser
+
+
 -- ** misc
 
 trans_snapShot :: ThentosQuery DB
@@ -327,6 +380,15 @@ endSession tok clearance = runThentosUpdate clearance $ trans_endSession tok
 isActiveSession :: ServiceId -> SessionToken -> ThentosClearance -> Query DB (Either DbError Bool)
 isActiveSession sid tok clearance = runThentosQuery clearance $ trans_isActiveSession sid tok
 
+assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either DbError ())
+assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
+
+unassignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either DbError ())
+unassignRole agent role clearance = runThentosUpdate clearance $ trans_unassignRole agent role
+
+lookupAgentRoles :: Agent -> ThentosClearance -> Query DB (Either DbError [Role])
+lookupAgentRoles agent clearance = runThentosQuery clearance $ trans_lookupAgentRoles agent
+
 snapShot :: ThentosClearance -> Query DB (Either DbError DB)
 snapShot clearance = runThentosQuery clearance trans_snapShot
 
@@ -350,6 +412,10 @@ $(makeAcidic ''DB
     , 'lookupSession
     , 'endSession
     , 'isActiveSession
+
+    , 'assignRole
+    , 'unassignRole
+    , 'lookupAgentRoles
 
     , 'snapShot
     ])
