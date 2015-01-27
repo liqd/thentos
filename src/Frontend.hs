@@ -61,7 +61,7 @@ userAddHandler = do
         Just user -> do
             result' <- update (AddUser user thentosCleared)
             case result' of
-                Right _ -> blaze userAddedPage
+                Right uid -> blaze $ userAddedPage (uid, user)
                 Left e -> blaze . errorPage $ show e
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()

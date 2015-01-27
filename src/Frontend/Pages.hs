@@ -45,13 +45,14 @@ addUserPage v = H.docTypeHtml $ do
                 inputText "email" v
             inputSubmit "Create User"
 
-userAddedPage :: Html
-userAddedPage =
+userAddedPage :: (UserId, User) -> Html
+userAddedPage (uid, user) =
     H.docTypeHtml $ do
         H.head $
             H.title "Success!"
         H.body $ do
             H.h1 "Added a user!"
+            H.pre $ H.string (show (uid, user))
 
 addServicePage :: Html
 addServicePage = H.docTypeHtml $ do
