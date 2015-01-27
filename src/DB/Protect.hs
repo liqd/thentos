@@ -8,8 +8,6 @@
 
 module DB.Protect
   ( mkThentosClearance
-  , thentosCleared
-  , thentosDenied
   , allowEverything
   , allowNothing
   , godCredentials
@@ -61,19 +59,11 @@ authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosCl
 authenticateService _ _ _ = Right allowEverything  -- FIXME
 
 
-allowNothing :: ThentosClearance
-allowNothing = ThentosClearance (False %% True)
-  -- FIXME: is this correct?  what does it meaen?
-
 allowEverything :: ThentosClearance
 allowEverything = ThentosClearance dcPublic
 
-
-thentosCleared :: ThentosClearance
-thentosCleared = ThentosClearance dcPublic
-
-thentosDenied :: ThentosClearance
-thentosDenied = error "thentosLabeledDenied: not implemented"
+allowNothing :: ThentosClearance
+allowNothing = ThentosClearance (False %% False)
 
 
 godCredentials :: [Header]
@@ -81,11 +71,11 @@ godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
 createGod :: AcidState DB -> Bool -> IO ()
 createGod st verbose = do
-    eq <- query' st (LookupUser (UserId 0) thentosCleared)
+    eq <- query' st (LookupUser (UserId 0) allowEverything)
     when (isLeft eq) $ do
         when verbose $
             putStr "No users.  Creating god user with password 'god'... "
-        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) thentosCleared)
+        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) allowEverything)
         when verbose $
             if isRight eu
                 then putStrLn "[ok]"

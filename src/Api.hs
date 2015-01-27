@@ -270,7 +270,7 @@ accessServant :: forall event a .
                    -> (ThentosClearance -> event) -> RestActionLabeled a
 accessServant access unclearedEvent = do
     (st, clearanceAbs) <- ask
-    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot thentosCleared)
+    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot allowEverything)
     case clearanceE of
         Left err -> lift . left . showDbError $ err
         Right clearance -> do

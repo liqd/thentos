@@ -70,67 +70,67 @@ main = hspec $ do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "hspec meta" $ do
       it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ st -> do
-        Right _ <- update' st $ AddUser user3 thentosCleared
+        Right _ <- update' st $ AddUser user3 allowEverything
         True `shouldBe` True
 
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ st -> do
-        uids <- query' st $ AllUserIDs thentosCleared
+        uids <- query' st $ AllUserIDs allowEverything
         uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
 
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ st -> do
-        Right uid <- update' st $ AddUser user3 thentosCleared
-        Right (uid', user3') <- query' st $ LookupUser uid thentosCleared
+        Right uid <- update' st $ AddUser user3 allowEverything
+        Right (uid', user3') <- query' st $ LookupUser uid allowEverything
         user3' `shouldBe` user3
         uid' `shouldBe` uid
-        void . update' st $ DeleteUser uid thentosCleared
-        u <- query' st $ LookupUser uid thentosCleared
+        void . update' st $ DeleteUser uid allowEverything
+        u <- query' st $ LookupUser uid allowEverything
         u `shouldBe` Left NoSuchUser
 
       it "guarantee that email addresses are unique" $ \ st -> do
-        result <- update' st $ AddUser user1 thentosCleared
+        result <- update' st $ AddUser user1 allowEverything
         result `shouldBe` Left UserEmailAlreadyExists
 
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ st -> do
-        result <- update' st $ UpdateUser (UserId 1) user1 thentosCleared
+        result <- update' st $ UpdateUser (UserId 1) user1 allowEverything
         result `shouldBe` Right ()
-        result2 <- query' st $ LookupUser (UserId 1) thentosCleared
+        result2 <- query' st $ LookupUser (UserId 1) allowEverything
         result2 `shouldBe` (Right (UserId 1, user1))
 
       it "throws an error if user does not exist" $ \ st -> do
-        result <- update' st $ UpdateUser (UserId 391) user3 thentosCleared
+        result <- update' st $ UpdateUser (UserId 391) user3 allowEverything
         result `shouldBe` Left NoSuchUser
 
     describe "AddUsers" $ do
       it "works" $ \ st -> do
-        result <- update' st $ AddUsers [user3, user4, user5] thentosCleared
+        result <- update' st $ AddUsers [user3, user4, user5] allowEverything
         result `shouldBe` Right (map UserId [3, 4, 5])
 
       it "rolls back in case of error (adds all or nothing)" $ \ st -> do
-        Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] thentosCleared
-        result <- query' st $ AllUserIDs thentosCleared
+        Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] allowEverything
+        result <- query' st $ AllUserIDs allowEverything
         result `shouldBe` Right (map UserId [0, 1, 2])
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \ st -> do
-        Right (service1_id, _s1_key) <- update' st $ AddService thentosCleared
-        Right (service2_id, _s2_key) <- update' st $ AddService thentosCleared
-        Right service1 <- query' st $ LookupService service1_id thentosCleared
-        Right service2 <- query' st $ LookupService service2_id thentosCleared
+        Right (service1_id, _s1_key) <- update' st $ AddService allowEverything
+        Right (service2_id, _s2_key) <- update' st $ AddService allowEverything
+        Right service1 <- query' st $ LookupService service1_id allowEverything
+        Right service2 <- query' st $ LookupService service2_id allowEverything
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
         service1 `shouldSatisfy` (/= service2) -- should have different keys
-        void . update' st $ DeleteService service1_id thentosCleared
-        Left NoSuchService <- query' st $ LookupService service1_id thentosCleared
+        void . update' st $ DeleteService service1_id allowEverything
+        Left NoSuchService <- query' st $ LookupService service1_id allowEverything
         return ()
 
     describe "StartSession" $ do
       it "works" $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
         to <- TimeStamp <$> getCurrentTime
-        Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from to thentosCleared
-        Right (sid :: ServiceId, _) <- update' st $ AddService thentosCleared
-        Right _ <- update' st $ StartSession (UserId 0) sid from to thentosCleared
+        Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from to allowEverything
+        Right (sid :: ServiceId, _) <- update' st $ AddService allowEverything
+        Right _ <- update' st $ StartSession (UserId 0) sid from to allowEverything
         return ()
 
   describe "Api" . before setupTestServer . after teardownTestServer $ do
@@ -233,8 +233,8 @@ setupDB = do
   destroyDB
   st <- openLocalStateFrom (dbPath config) emptyDB
   createGod st False
-  Right (UserId 1) <- update' st $ AddUser user1 thentosCleared
-  Right (UserId 2) <- update' st $ AddUser user2 thentosCleared
+  Right (UserId 1) <- update' st $ AddUser user1 allowEverything
+  Right (UserId 2) <- update' st $ AddUser user2 allowEverything
   return st
 
 teardownDB :: AcidState DB -> IO ()
