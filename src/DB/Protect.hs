@@ -62,7 +62,7 @@ authenticateUser db name password = do
 
 authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
 authenticateService db sid keyFromClient = do
-    Service keyFromDb
+    (_, Service keyFromDb)
         <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
 
     credentials :: [CNF]
@@ -79,10 +79,6 @@ simpleClearance credentials = case credentials of
     []     -> allowNothing
     (x:xs) -> ThentosClearance $ foldl' (/\) x xs %% foldl' (\/) x xs
 
-
--- | FIXME: move this to Core and implement it!
-pure_lookupService :: DB -> ServiceId -> Maybe Service
-pure_lookupService _ _ = Nothing
 
 -- | FIXME: move this to Core and implement it!
 pure_lookupAgentRoles :: DB -> Agent -> [Role]

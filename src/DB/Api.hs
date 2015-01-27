@@ -37,6 +37,7 @@ module DB.Api
   , SnapShot(..)
 
   , pure_lookupUserByName
+  , pure_lookupService
 
   , emptyDB
   , createCheckpointLoop
@@ -183,9 +184,14 @@ trans_allServiceIDs :: ThentosQuery [ServiceId]
 trans_allServiceIDs = thentosLabeledPublic . Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
-trans_lookupService sid = (sid,) <$$> do
-    perhaps :: Maybe Service <- Map.lookup sid . (^. dbServices) <$> ask
-    maybe (throwDBQ thentosPublic NoSuchService) (returnDBQ thentosPublic) perhaps
+trans_lookupService sid = do
+    db <- ask
+    maybe (throwDBQ thentosPublic NoSuchService) (returnDBQ thentosPublic) $
+        pure_lookupService db sid
+
+pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
+pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
+
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
