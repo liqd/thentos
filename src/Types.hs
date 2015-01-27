@@ -106,7 +106,7 @@ newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
 -- | Some thing or body that deals with (and can authenticate itself
 -- before) thentos.  Examples: 'User' or 'Service'.  (We could have
 -- called this 'Principal', but that name is in use by LIO already.)
-data Agent = UserA User | ServiceA Service
+data Agent = UserA UserId | ServiceA ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 data Role = RoleAdmin | RoleUser | RoleService

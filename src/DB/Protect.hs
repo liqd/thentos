@@ -16,11 +16,12 @@ module DB.Protect
 
 import Control.Lens ((^.))
 import Control.Monad (when)
+import Data.List (foldl')
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
-import LIO.DCLabel (dcPublic, (%%))
+import LIO.DCLabel (CNF, toCNF, dcPublic, (%%), (/\), (\/))
 import Network.HTTP.Types.Header (Header)
 
 import DB.Api
@@ -45,18 +46,46 @@ mkThentosClearance _           _              _               _  = Left BadAuthe
 
 
 authenticateUser :: DB -> UserName -> UserPass -> Either DbError ThentosClearance
-authenticateUser db name password = if verifyUserPassword db name password
-    then Right allowEverything  -- FIXME: construct proper privileges here.
-    else Left BadCredentials
+authenticateUser db name password = do
+    (uid, user) :: (UserId, User)
+        <- maybe (Left BadCredentials) (Right) $ pure_lookupUserByName db name
 
-verifyUserPassword :: DB -> UserName -> UserPass -> Bool
-verifyUserPassword db name password =
-    maybe False ((password ==) . (^. userPassword) . snd) $
-        pure_lookupUserByName db name
+    credentials :: [CNF]
+        <- let a = UserA uid
+           in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
+
+    if user ^. userPassword /= password
+        then Left BadCredentials
+        else Right $ simpleClearance credentials
 
 
 authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
-authenticateService _ _ _ = Right allowEverything  -- FIXME
+authenticateService db sid keyFromClient = do
+    Service keyFromDb
+        <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
+
+    credentials :: [CNF]
+        <- let a = ServiceA sid
+           in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
+
+    if keyFromClient /= keyFromDb
+        then Left BadCredentials
+        else Right $ simpleClearance credentials
+
+
+simpleClearance :: [CNF] -> ThentosClearance
+simpleClearance credentials = case credentials of
+    []     -> allowNothing
+    (x:xs) -> ThentosClearance $ foldl' (/\) x xs %% foldl' (\/) x xs
+
+
+-- | FIXME: move this to Core and implement it!
+pure_lookupService :: DB -> ServiceId -> Maybe Service
+pure_lookupService _ _ = Nothing
+
+-- | FIXME: move this to Core and implement it!
+pure_lookupAgentRoles :: DB -> Agent -> [Role]
+pure_lookupAgentRoles _ _  = []
 
 
 allowEverything :: ThentosClearance
