@@ -10,7 +10,7 @@
 
 {-# OPTIONS  #-}
 
-module DB.Core
+module DB.Api
   ( AllUserIDs(..)
   , LookupUser(..)
   , LookupUserByName(..)
@@ -39,11 +39,10 @@ module DB.Core
   )
 where
 
-import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state, gets)
-import Data.Acid (AcidState, Query, Update, createCheckpoint, makeAcidic)
+import Data.Acid (Query, Update, makeAcidic)
 import Data.List (nub, find)
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.Maybe (isJust)
@@ -55,7 +54,7 @@ import qualified Crypto.Hash.SHA3 as Hash
 import qualified Data.Map as Map
 
 import Types
-import DB.Error
+import DB.Core
 
 
 -- * DB invariants
@@ -340,26 +339,3 @@ $(makeAcidic ''DB
 
     , 'snapShot
     ])
-
-
--- * convenience
-
--- | Create a new thread that calls `createCheckpoint` synchronously,
--- then waits for @timeThreshold@ miliseconds, then repeats.  If
--- @sizeThreshold@ is `Just` a size, create checkpoint only if size of
--- segment of current change log since last checkpoint is larger than
--- that.
---
--- FIXME: check change log size.  (i think this is only possible
--- inside acid-state.)  https://github.com/acid-state/acid-state.
-createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
-createCheckpointLoop acidState timeThreshold _ = forkIO iter
-  where
-    iter = do
-      threadDelay $ timeThreshold * 1000
-
-      -- when (isJust sizeThreshold) . assert False $
-      --   print "createCheckpointLoop: sizeThreshold handling not implemented."
-
-      createCheckpoint acidState
-      iter

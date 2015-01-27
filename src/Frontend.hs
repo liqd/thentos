@@ -24,9 +24,7 @@ import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaple
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..))
-import DB.Protect (thentosAllClear)
-import DB.Error (DbError(NoSuchUser))
+import DB (AddUser(AddUser), LookupUserByName(..), StartSession(..), thentosAllClear, DbError(NoSuchUser))
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage)
 import Types
 import Frontend.Util (serveSnaplet)

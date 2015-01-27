@@ -22,8 +22,8 @@ library
       Thentos
     , Api
     , DB
+    , DB.Api
     , DB.Core
-    , DB.Error
     , DB.Protect
     , Doc
     , Frontend

@@ -1,5 +1,5 @@
-module DB (module X) where
+module DB (module Everything) where
 
-import DB.Protect as X
-import DB.Error as X
-import DB.Core as X
+import DB.Api as Everything
+import DB.Core as Everything
+import DB.Protect as Everything

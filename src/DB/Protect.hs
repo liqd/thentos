@@ -8,8 +8,6 @@
 
 module DB.Protect
   ( mkThentosClearance
-  , thentosLabeledPublic
-  , thentosLabeledDenied
   , thentosAllClear
   , thentosDenied
   , allowEverything
@@ -27,9 +25,9 @@ import Data.String.Conversions (ST)
 import LIO.DCLabel (dcPublic, (%%))
 import Network.HTTP.Types.Header (Header)
 
-import Types
-import DB.Error
+import DB.Api
 import DB.Core
+import Types
 
 
 -- | If password cannot be verified, or if only password or only
@@ -69,6 +67,13 @@ allowNothing = ThentosClearance (False %% True)
 
 allowEverything :: ThentosClearance
 allowEverything = ThentosClearance dcPublic
+
+
+thentosAllClear :: ThentosClearance
+thentosAllClear = ThentosClearance dcPublic
+
+thentosDenied :: ThentosClearance
+thentosDenied = error "thentosLabeledDenied: not implemented"
 
 
 godCredentials :: [Header]

@@ -2,32 +2,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
-module DB.Error (
-    DbError(..),
-    ThentosClearance(..),
-    ThentosUpdate,
-    runThentosUpdate,
-    ThentosQuery,
-    runThentosQuery,
-    liftThentosQuery,
-    showDbError,
-    returnDBQ,
-    throwDBQ,
-    returnDBU,
-    throwDBU,
-    when',
-    thentosLabeledPublic,
-    thentosLabeledDenied,
-    thentosAllClear,
-    thentosDenied
-) where
+module DB.Core
+  ( DbError(..)
+  , ThentosClearance(..)
+  , ThentosUpdate
+  , runThentosUpdate
+  , ThentosQuery
+  , runThentosQuery
+  , liftThentosQuery
+  , showDbError
+  , returnDBQ
+  , throwDBQ
+  , returnDBU
+  , throwDBU
+  , when'
+  , thentosLabeledPublic
+  , thentosLabeledDenied
+  , createCheckpointLoop
+  ) where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Monad.Identity (Identity, runIdentity, void)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put, lift)
 import Control.Monad.Trans.Either (EitherT, left, right, runEitherT)
-import Data.Acid (Update, Query)
+import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
@@ -120,16 +120,31 @@ when' True action = void action
 when' False _ = return ()
 
 
--- FIXME: do we really need and want these?:
-
 thentosLabeledPublic :: t -> ThentosLabeled t
 thentosLabeledPublic = thentosLabeled dcPublic
 
 thentosLabeledDenied :: t -> ThentosLabeled t
 thentosLabeledDenied = error "thentosLabeledDenied: not implemented"
 
-thentosAllClear :: ThentosClearance
-thentosAllClear = ThentosClearance dcPublic
 
-thentosDenied :: ThentosClearance
-thentosDenied = error "thentosLabeledDenied: not implemented"
+-- * convenience
+
+-- | Create a new thread that calls `createCheckpoint` synchronously,
+-- then waits for @timeThreshold@ miliseconds, then repeats.  If
+-- @sizeThreshold@ is `Just` a size, create checkpoint only if size of
+-- segment of current change log since last checkpoint is larger than
+-- that.
+--
+-- FIXME: check change log size.  (i think this is only possible
+-- inside acid-state.)  https://github.com/acid-state/acid-state.
+createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
+createCheckpointLoop acidState timeThreshold _ = forkIO iter
+  where
+    iter = do
+      threadDelay $ timeThreshold * 1000
+
+      -- when (isJust sizeThreshold) . assert False $
+      --   print "createCheckpointLoop: sizeThreshold handling not implemented."
+
+      createCheckpoint acidState
+      iter
