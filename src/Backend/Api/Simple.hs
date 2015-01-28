@@ -128,33 +128,18 @@ postNewService = updateServant AddService
 
 -- * session
 
--- | FIXME: 'ThentosSession' is not very clean and should be
--- re-designed.  (Constants before keys, unambiguous prefices for all
--- routes, ...)
 type ThentosSession =
-       Get [SessionToken]
-  :<|> Capture "token" SessionToken :> Get (SessionToken, Session)
-  :<|> ReqBody (UserId, ServiceId) :> Post SessionToken
+       ReqBody (UserId, ServiceId) :> Post SessionToken
   :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
-  :<|> Capture "token" SessionToken :> "logout" :> Get ()
-  :<|> Capture "token" SessionToken :> "active" :> Get Bool
+  :<|> Capture "token" SessionToken :> Delete
+  :<|> Capture "token" SessionToken :> Get Bool
 
 thentosSession :: PushReaderSubType (Server ThentosSession)
 thentosSession =
-       getSessionTokens
-  :<|> getSession
-  :<|> createSession
+       createSession
   :<|> createSessionWithTimeout
   :<|> endSession
   :<|> isActiveSession
-
-getSessionTokens :: RestActionLabeled [SessionToken]
-getSessionTokens = queryServant AllSessionTokens
-
-getSession :: SessionToken -> RestActionLabeled (SessionToken, Session)
-getSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
-    queryServant $ LookupSession (Just now) tok
 
 -- | Sessions have a fixed duration of 2 weeks.
 createSession :: (UserId, ServiceId) -> RestActionLabeled SessionToken

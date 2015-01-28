@@ -93,7 +93,7 @@ tokenOk Nothing = return False
 tokenOk (Just token) = do
     sid <- gets aServiceId
     key <- gets aServiceKey
-    let url = thentosBackendUrl hwConfig <> "/session/" <> sid <> "/" <> token <> "/active"
+    let url = thentosBackendUrl hwConfig <> "/session/" <> token
     liftIO . withManager $ do
         initReq <- parseUrl $ BC.unpack url
         let req = initReq
