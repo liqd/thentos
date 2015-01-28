@@ -25,7 +25,6 @@ import Control.Monad.Trans.Either (EitherT, left)
 import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
-import Data.AffineSpace ((.+^))
 import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST)
@@ -140,7 +139,7 @@ type ThentosSession =
   :<|> ReqBody (UserId, ServiceId) :> Post SessionToken
   :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
   :<|> Capture "token" SessionToken :> "logout" :> Get ()
-  :<|> Capture "sid" ServiceId :> Capture "token" SessionToken :> "active" :> Get Bool
+  :<|> Capture "token" SessionToken :> "active" :> Get Bool
 
 thentosSession :: PushReaderSubType (Server ThentosSession)
 thentosSession =
@@ -155,7 +154,9 @@ getSessionTokens :: RestActionLabeled [SessionToken]
 getSessionTokens = queryServant AllSessionTokens
 
 getSession :: SessionToken -> RestActionLabeled (SessionToken, Session)
-getSession = queryServant . LookupSession
+getSession tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    queryServant $ LookupSession (Just now) tok
 
 -- | Sessions have a fixed duration of 2 weeks.
 createSession :: (UserId, ServiceId) -> RestActionLabeled SessionToken
@@ -163,15 +164,17 @@ createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24
 
 -- | Sessions with explicit timeout.
 createSessionWithTimeout :: (UserId, ServiceId, Timeout) -> RestActionLabeled SessionToken
-createSessionWithTimeout (uid, sid, Timeout diff) = do
+createSessionWithTimeout (uid, sid, timeout) = do
     now :: UTCTime <- liftIO getCurrentTime
-    updateServant $ StartSession uid sid (TimeStamp now) (TimeStamp $ now .+^ diff)
+    updateServant $ StartSession uid sid (TimeStamp now) timeout
 
 endSession :: SessionToken -> RestActionLabeled ()
 endSession = updateServant . EndSession
 
-isActiveSession :: ServiceId -> SessionToken -> RestActionLabeled Bool
-isActiveSession sid = queryServant . IsActiveSession sid
+isActiveSession :: SessionToken -> RestActionLabeled Bool
+isActiveSession tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    queryServant $ IsActiveSession now tok
 
 
 -- * authentication

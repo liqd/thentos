@@ -138,10 +138,10 @@ main = hspec $ do
     describe "StartSession" $ do
       it "works" $ \ st -> do
         from <- TimeStamp <$> getCurrentTime
-        to <- TimeStamp <$> getCurrentTime
-        Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from to allowEverything
+        let timeout = Timeout 600
+        Left NoSuchService <- update' st $ StartSession (UserId 0) "NoSuchService" from timeout allowEverything
         Right (sid :: ServiceId, _) <- update' st $ AddService allowEverything
-        Right _ <- update' st $ StartSession (UserId 0) sid from to allowEverything
+        Right _ <- update' st $ StartSession (UserId 0) sid from timeout allowEverything
         return ()
 
     describe "agents and roles" $ do

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
+{-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Frontend (runFrontend) where
 
@@ -8,7 +9,6 @@ import Control.Lens (makeLenses, view, (^.))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
-import Data.AffineSpace ((.+^))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.ByteString as B
@@ -90,8 +90,10 @@ loginHandler = do
                 Left NoSuchUser -> loginFail
                 Left e -> blaze . errorPage $ show e
   where
+    loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
 
+    loginSuccess :: UserId -> Handler FrontendApp FrontendApp ()
     loginSuccess uid = do
         now <- liftIO getCurrentTime
         mSid <- getParam "sid"
@@ -103,7 +105,8 @@ loginHandler = do
             finishWith r
         let (Just sid, Just callback) = (mSid, mCallback)
         -- FIXME: how long should the session live?
-        eSessionToken <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (TimeStamp $ now .+^ 14 * 24 * 3600) allowEverything
+        eSessionToken :: Either DbError SessionToken
+            <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (Timeout $ 14 * 24 * 3600) allowEverything
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
             Right sessionToken ->
