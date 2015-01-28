@@ -12,5 +12,4 @@ cabal.sandbox.config
 /TAGS
 /services/helloworld/dist/
 /services/helloworld/log/
-log/access.log
-log/error.log
+log/*.log
