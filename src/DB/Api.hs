@@ -240,7 +240,9 @@ trans_deleteService sid = do
 -- Throw error if user or service do not exist.  Otherwise, return
 -- session token.  If there is already an active session for this user
 -- and this service, return the existing token again, and set new
--- start and end times.
+-- start and end times.  (This function also collects all old sessions
+-- on the same pair of uid, sid, whether active or inactive, from the
+-- global and user-local session maps.)
 trans_startSession :: UserId -> ServiceId -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
 trans_startSession uid sid start lifetime = do
     ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
@@ -252,11 +254,20 @@ trans_startSession uid sid start lifetime = do
     let session = Session uid sid start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
 
-        updateSessionMap :: a ~ (ServiceId, SessionToken) => a -> [a] -> [a]
-        updateSessionMap s ss = nubBy ((==) `on` fst) $ s:ss
-
+    -- add new token to global session map
     modify $ dbSessions %~ Map.insert tok session
-    modify $ dbUsers %~ Map.insert uid (userSessions %~ updateSessionMap (sid, tok) $ user)
+
+    -- new user-local session map
+    let uSessions, uSessions' :: [(ServiceId, SessionToken)]
+        uSessions = user ^. userSessions
+        uSessions' = nubBy ((==) `on` fst) $ (sid, tok) : uSessions
+    modify $ dbUsers %~ Map.insert uid (userSessions .~ uSessions' $ user)
+
+    -- drop old token from global session map (noop if no inactive
+    -- session existed).
+    case lookup sid uSessions of
+        Nothing  -> return ()
+        Just tok' -> modify $ dbSessions %~ Map.delete tok'
 
     let label = UserA uid =%% UserA uid
     returnDBU label tok
