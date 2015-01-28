@@ -56,8 +56,9 @@ import Control.Monad.State (modify, state, gets)
 import Control.Monad (when, void)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.-.), (.+^))
+import Data.Function (on)
 import Data.Functor.Infix ((<$>), (<$$>))
-import Data.List (nub, find, (\\))
+import Data.List (nub, nubBy, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.String.Conversions (cs, ST, (<>))
 import LIO.DCLabel ((\/), (/\))
@@ -234,23 +235,28 @@ trans_deleteService sid = do
 
 -- ** sessions
 
--- | Start a new session for user with 'UserID' on service with
--- 'ServiceID'.  Start and end time have to be passed explicitly.
--- Throw error if user or service do not exist, or if user is already
--- logged in.  Otherwise, return session token.
+-- | Start a new session for user with 'UserId' on service with
+-- 'ServiceId'.  Start and end time have to be passed explicitly.
+-- Throw error if user or service do not exist.  Otherwise, return
+-- session token.  If there is already an active session for this user
+-- and this service, return the existing token again, and set new
+-- start and end times.
 trans_startSession :: UserId -> ServiceId -> TimeStamp -> TimeStamp -> ThentosUpdate SessionToken
 trans_startSession uid sid start end = do
-    ThentosLabeled _ tok       <- freshSessionToken
     ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
     ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
+
+    ThentosLabeled _ tok <- maybe freshSessionToken (returnDBU thentosPublic) $
+                                lookup sid (user ^. userSessions)
+
     let session = Session uid sid start end timeout
         timeout = Timeout $ fromTimeStamp end .-. fromTimeStamp start
 
-    when (isJust . lookup sid $ user ^. userSessions) . void $
-      throwDBU thentosPublic SessionAlreadyExists
+        updateSessionMap :: a ~ (ServiceId, SessionToken) => a -> [a] -> [a]
+        updateSessionMap s ss = nubBy ((==) `on` fst) $ s:ss
 
     modify $ dbSessions %~ Map.insert tok session
-    modify $ dbUsers %~ Map.insert uid (userSessions %~ ((sid, tok):) $ user)
+    modify $ dbUsers %~ Map.insert uid (userSessions %~ updateSessionMap (sid, tok) $ user)
 
     let label = UserA uid =%% UserA uid
     returnDBU label tok

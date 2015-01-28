@@ -51,7 +51,6 @@ data DbError =
     | NoSuchSession
     | UserAlreadyExists
     | ServiceAlreadyExists
-    | SessionAlreadyExists
     | UserEmailAlreadyExists
     | PermissionDenied ThentosClearance ThentosLabel
     | BadCredentials
@@ -84,16 +83,11 @@ showDbError NoSuchService            = (404, "service not found")
 showDbError NoSuchSession            = (404, "session not found")
 showDbError UserAlreadyExists        = (403, "user already exists")
 showDbError ServiceAlreadyExists     = (403, "service already exists")
-showDbError SessionAlreadyExists     = (403, "session already exists")
 showDbError UserEmailAlreadyExists   = (403, "email already in use")
 showDbError e@(PermissionDenied _ _) = traceShow e (401, "unauthorized")
 showDbError BadCredentials           = (401, "unauthorized")
 showDbError BadAuthenticationHeaders = (400, "bad authentication headers")
 showDbError UidOverflow              = (500, "internal error: UidOverflow")
-
-    -- FIXME: get rid of 'SessionAlreadyExists'.  startSession should
-    -- return the active token and update the timeout like with any
-    -- other activity.
 
     -- FIXME: get rid of 'UidOverflow'.
 
