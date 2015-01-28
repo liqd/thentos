@@ -15,8 +15,7 @@ import           Snap.Blaze (blaze)
 import           Snap.Util.FileServe (serveDirectory)
 import           Text.Blaze.Html (Html)
 import qualified Text.Blaze.Html5 as H
-
-import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
+import           Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
 
 data App = App { aServiceId :: ByteString, aServiceKey :: ByteString }
 type AppHandler = Handler App App
@@ -61,7 +60,6 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
         sid <- Configurator.lookup config "service_id"
         key <- Configurator.lookup config "service_key"
         return $ (,) <$> sid <*> key
-        
 
 helloWorldLogin serviceId =
     redirect'
