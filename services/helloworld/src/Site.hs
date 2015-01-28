@@ -15,6 +15,7 @@ import           Snap.Blaze (blaze)
 import           Snap.Util.FileServe (serveDirectory)
 import           Text.Blaze.Html (Html)
 import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as HA
 import           Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
 
 data App = App { aServiceId :: ByteString, aServiceKey :: ByteString }
@@ -54,9 +55,9 @@ appPage token sessionMetaData isTokenOk =
             H.p $ "your session token: " <> H.string (show token)
             H.p $ "Token ok: " <> H.string (show isTokenOk) <> " (checked with thentos)"
             H.p $ "data sent to us from thentos (session meta data): " <> H.string (show sessionMetaData)
-            H.button $ do
+            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ helloWorldUrl hwConfig <> "/login") $ do
                 H.text "login"
-            H.button $ do
+            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ helloWorldUrl hwConfig <> "/logout") $ do
                 H.text "logout"
 
 routes :: ByteString -> [(ByteString, Handler App App ())]
