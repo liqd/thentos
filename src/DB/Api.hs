@@ -30,6 +30,7 @@ module DB.Api
 
   , StartSession(..)
   , AllSessionTokens(..)
+  , BumpSession(..)
   , LookupSession(..)
   , EndSession(..)
   , IsActiveSession(..)
@@ -50,10 +51,11 @@ module DB.Api
 where
 
 import Control.Lens ((^.), (.~), (%~))
-import Control.Monad (when, void)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state, gets)
+import Control.Monad (when, void)
 import Data.Acid (Query, Update, makeAcidic)
+import Data.AffineSpace ((.-.), (.+^))
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
@@ -241,7 +243,8 @@ trans_startSession uid sid start end = do
     ThentosLabeled _ tok       <- freshSessionToken
     ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
     ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
-    let session = Session uid sid start end
+    let session = Session uid sid start end timeout
+        timeout = Timeout $ fromTimeStamp end .-. fromTimeStamp start
 
     when (isJust . lookup sid $ user ^. userSessions) . void $
       throwDBU thentosPublic SessionAlreadyExists
@@ -255,12 +258,27 @@ trans_startSession uid sid start end = do
 trans_allSessionTokens :: ThentosQuery [SessionToken]
 trans_allSessionTokens = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbSessions) <$> ask
 
+trans_bumpSession :: TimeStamp -> SessionToken -> ThentosUpdate SessionToken
+trans_bumpSession now tok = do
+    ThentosLabeled _ (_, Session uid sid _ _ timeout)
+        <- liftThentosQuery $ trans_lookupSession tok
+
+    let timeout' = TimeStamp $ fromTimeStamp now .+^ fromTimeout timeout
+
+    modify $ dbSessions %~ Map.update (Just . (sessionEnd .~ timeout')) tok
+
+    let label = RoleAdmin \/ ua \/ sa =%% RoleAdmin /\ ua /\ sa
+        ua = UserA uid
+        sa = ServiceA sid
+
+    returnDBU label tok
+
 trans_lookupSession :: SessionToken -> ThentosQuery (SessionToken, Session)
 trans_lookupSession tok = (tok,) <$$> do
     perhaps :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
     let label = case perhaps of
-          Just (Session uid sid _ _) -> RoleAdmin \/ UserA uid \/ ServiceA sid =%% False
-          Nothing                    -> RoleAdmin                              =%% False
+          Just (Session uid sid _ _ _) -> RoleAdmin \/ UserA uid \/ ServiceA sid =%% False
+          Nothing                      -> RoleAdmin                              =%% False
     maybe (throwDBQ label NoSuchSession) (returnDBQ label) perhaps
 
 -- | End session.  Call can be caused by logout request from user
@@ -269,8 +287,8 @@ trans_lookupSession tok = (tok,) <$$> do
 -- If lookup of session owning user fails, throw an error.
 trans_endSession :: SessionToken -> ThentosUpdate ()
 trans_endSession tok = do
-    ThentosLabeled _ (_, Session uid sid _ _) <- liftThentosQuery $ trans_lookupSession tok
-    ThentosLabeled _ (_, user)                <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled _ (_, Session uid sid _ _ _) <- liftThentosQuery $ trans_lookupSession tok
+    ThentosLabeled _ (_, user)                  <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbSessions %~ Map.delete tok
     modify $ dbUsers %~ Map.insert uid (userSessions %~ filter (/= (sid, tok)) $ user)
 
@@ -288,8 +306,8 @@ trans_isActiveSession :: ServiceId -> SessionToken -> ThentosQuery Bool
 trans_isActiveSession sid tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
     let label = case mSession of
-          Just (Session uid' sid' _ _) -> RoleAdmin \/ UserA uid' \/ ServiceA sid' =%% False
-          Nothing                      -> RoleAdmin                                =%% False
+          Just (Session uid' sid' _ _ _) -> RoleAdmin \/ UserA uid' \/ ServiceA sid' =%% False
+          Nothing                        -> RoleAdmin                                =%% False
     returnDBQ label $ maybe False ((sid ==) . (^. sessionService)) mSession
 
 
@@ -399,6 +417,9 @@ startSession uid sid start end clearance = runThentosUpdate clearance $ trans_st
 allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
 allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens
 
+bumpSession :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either DbError SessionToken)
+bumpSession now tok clearance = runThentosUpdate clearance $ trans_bumpSession now tok
+
 lookupSession :: SessionToken -> ThentosClearance -> Query DB (Either DbError (SessionToken, Session))
 lookupSession tok clearance = runThentosQuery clearance $ trans_lookupSession tok
 
@@ -437,6 +458,7 @@ $(makeAcidic ''DB
 
     , 'startSession
     , 'allSessionTokens
+    , 'bumpSession
     , 'lookupSession
     , 'endSession
     , 'isActiveSession

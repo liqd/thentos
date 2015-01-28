@@ -78,6 +78,7 @@ data Session =
       , _sessionService :: !ServiceId
       , _sessionStart   :: !TimeStamp
       , _sessionEnd     :: !TimeStamp
+      , _sessionTimeout :: !Timeout
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -208,6 +209,11 @@ timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
 timeoutFromString :: Monad m => String -> m Timeout
 timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
   Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
+
+instance SafeCopy Timeout
+  where
+    putCopy = contain . safePut . timeoutToString
+    getCopy = contain $ safeGet >>= timeoutFromString
 
 instance Aeson.FromJSON Timeout
   where
