@@ -20,6 +20,25 @@ import           Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, r
 data App = App { aServiceId :: ByteString, aServiceKey :: ByteString }
 type AppHandler = Handler App App
 
+
+-- some hard-wired configuration data.
+data HWConfig =
+    HWConfig
+      { thentosBackendUrl  :: ByteString
+      , thentosFrontendUrl :: ByteString
+      , helloWorldUrl      :: ByteString
+      }
+  deriving (Eq, Show)
+
+hwConfig :: HWConfig
+hwConfig =
+    HWConfig
+      { thentosBackendUrl  = "http://localhost:8001"
+      , thentosFrontendUrl = "http://localhost:8002"
+      , helloWorldUrl      = "http://localhost:8000"
+      }
+
+
 handleApp :: AppHandler ()
 handleApp = do
     token <- getParam "token"
@@ -61,10 +80,11 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
         key <- Configurator.lookup config "service_key"
         return $ (,) <$> sid <*> key
 
+helloWorldLogin :: ByteString -> Handler App App ()
 helloWorldLogin serviceId =
     redirect'
-        ("http://localhost:8002/login?sid=" <> serviceId <> "&redirect="
-            <> urlEncode "http://localhost:8000/app?foo=bar")
+        (thentosFrontendUrl hwConfig <> "/login?sid=" <> serviceId <> "&redirect="
+            <> urlEncode (helloWorldUrl hwConfig <> "/app?foo=bar"))
         303
 
 tokenOk :: Maybe ByteString -> Handler App App Bool
@@ -72,9 +92,9 @@ tokenOk Nothing = return False
 tokenOk (Just token) = do
     sid <- gets aServiceId
     key <- gets aServiceKey
-    let url = "http://localhost:8001/session/" <> BC.unpack sid <> "/" <> BC.unpack token <> "/active"
+    let url = thentosBackendUrl hwConfig <> "/session/" <> sid <> "/" <> token <> "/active"
     liftIO . withManager $ do
-        initReq <- parseUrl url
+        initReq <- parseUrl $ BC.unpack url
         let req = initReq
                     { requestHeaders = [ ("X-Thentos-Password", key)
                                        , ("X-Thentos-Service", sid)
