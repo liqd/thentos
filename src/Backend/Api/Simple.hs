@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Api (runApi, serveApi, apiDocs) where
+module Backend.Api.Simple (runApi, serveApi, apiDocs) where
 
 import Control.Applicative ((<$>))
 import Control.Monad.State (liftIO)

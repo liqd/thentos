@@ -20,16 +20,16 @@ library
       -Wall -threaded -rtsopts
   exposed-modules:
       Thentos
-    , Api
-    , DB
-    , DB.Api
-    , DB.Core
-    , DB.Protect
+    , Types
     , Doc
+    , DB
+    , DB.Core
+    , DB.Trans
+    , DB.Protect
+    , Backend.Api.Simple
     , Frontend
     , Frontend.Pages
     , Frontend.Util
-    , Types
   build-depends:
       base
     , acid-state

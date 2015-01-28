@@ -32,7 +32,7 @@ import qualified Data.Aeson as Aeson
 
 import Types
 import DB
-import Api (runApi, apiDocs)
+import Backend.Api.Simple (runApi, apiDocs)
 import Frontend (runFrontend)
 
 

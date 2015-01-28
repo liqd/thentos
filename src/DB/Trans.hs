@@ -14,7 +14,7 @@
 -- Core parametric in DB.  but that has its own obvious
 -- disadvantages.)
 
-module DB.Api
+module DB.Trans
   ( AllUserIDs(..)
   , LookupUser(..)
   , LookupUserByName(..)

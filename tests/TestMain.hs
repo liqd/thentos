@@ -42,7 +42,7 @@ import Text.Show.Pretty (ppShow)
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
 
-import Api
+import Backend.Api.Simple
 import DB
 import Types
 

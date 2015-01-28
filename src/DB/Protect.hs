@@ -26,8 +26,8 @@ import Data.String.Conversions (ST)
 import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
 import Network.HTTP.Types.Header (Header)
 
-import DB.Api
 import DB.Core
+import DB.Trans
 import Types
 
 
