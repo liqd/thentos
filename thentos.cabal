@@ -64,9 +64,9 @@ library
     , servant-jquery
     , servant-server
     , snap
-    , snaplet-acid-state
-    , snap-core
     , snap-blaze
+    , snap-core
+    , snaplet-acid-state
     , snap-server
     , string-conversions
     , text
