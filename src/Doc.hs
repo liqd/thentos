@@ -18,8 +18,6 @@ import Types
 
 
 -- instances for generating docs
--- FIXME: move to a separate module and add a module-specific
--- -fno-warn-orphan-instances (since they are clearly harmless).
 
 instance ToCapture (Capture "token" SessionToken) where
     toCapture _ = DocCapture "token" "Session Token"
