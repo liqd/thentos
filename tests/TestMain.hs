@@ -92,6 +92,16 @@ main = hspec $ do
         result <- update' st $ AddUser user1 allowEverything
         result `shouldBe` Left UserEmailAlreadyExists
 
+    describe "DeleteUser" $ do
+      it "user can delete herself, even if not admin" $ \ st -> do
+        let uid = UserId 1
+        result <- update' st $ DeleteUser uid (UserA uid *%% UserA uid)
+        result `shouldBe` Right ()
+
+      it "nobody else but the deleted user and admin can do this" $ \ st -> do
+        result <- update' st $ DeleteUser (UserId 1) (UserA (UserId 2) *%% UserA (UserId 2))
+        result `shouldSatisfy` isLeft
+
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ st -> do
         result <- update' st $ UpdateUser (UserId 1) user1 allowEverything
