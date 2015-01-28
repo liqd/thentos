@@ -10,6 +10,7 @@ module Doc where
 import Control.Applicative (pure, (<*>))
 import Data.Functor.Infix ((<$>))
 import Data.Thyme (fromSeconds)
+import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Servant.API (Capture)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
 

@@ -17,6 +17,7 @@ import qualified Data.Map as M
 import Data.Maybe (isNothing)
 import Data.String.Conversions (cs)
 import Data.Thyme (getCurrentTime)
+import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith, method, Method(GET, POST))
 import Snap.Http.Server (defaultConfig, setPort)
