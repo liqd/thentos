@@ -26,6 +26,11 @@ import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs, (<>))
 import Safe (readMay)
 import System.Environment (getArgs)
+import System.IO (stderr)
+import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
+import System.Log.Logger (removeAllHandlers, Priority(DEBUG), updateGlobalLogger, setLevel, setHandlers)
+import System.Log.Missing (loggerName)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -47,6 +52,7 @@ main =
     putStrLn " [ok]"
 
     createGod st True
+    configLogger
 
     let switch ["-s"] = do
             putStrLn "database contents:"
@@ -89,3 +95,18 @@ main =
 
 -- curl -H "Content-Type: application/json" -X PUT -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userID":3,"userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user/id/3
 -- curl -H "Content-Type: application/json" -X POST -d '{"userGroups":[],"userPassword":"dummy","userName":"dummy","userEmail":"dummy"}' -v http://localhost:8001/v0.0.1/user
+
+
+
+configLogger :: IO ()
+configLogger = do
+    -- close old, dangling handlers
+    removeAllHandlers
+
+    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./log/thentos.log" DEBUG
+    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr DEBUG
+
+    updateGlobalLogger loggerName $
+        System.Log.Logger.setLevel DEBUG .
+        setHandlers [sHandler, fHandler]

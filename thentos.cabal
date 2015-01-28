@@ -31,6 +31,7 @@ library
     , Frontend
     , Frontend.Pages
     , Frontend.Util
+    , System.Log.Missing
   build-depends:
       base
     , acid-state
@@ -48,6 +49,7 @@ library
     , either
     , functor-infix
     , generic-aeson
+    , hslogger
     , http-types
     , lens
     , lio

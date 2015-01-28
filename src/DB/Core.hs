@@ -25,6 +25,7 @@ module DB.Core
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put, lift)
@@ -35,10 +36,8 @@ import Data.Typeable (Typeable)
 import LIO (canFlowTo)
 import LIO.DCLabel (ToCNF, (%%))
 import Safe (readMay)
-
-import Debug.Trace (traceShow)  -- to dump authorization errors to
-                                -- stdout for debugging until we have
-                                -- proper logging.
+import System.Log.Logger (Priority(INFO, ERROR))
+import System.Log.Missing (logger)
 
 import Types
 
@@ -77,17 +76,17 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 
 
 -- | the type of this will change when servant has a better error type.
-showDbError :: DbError -> (Int, String)
-showDbError NoSuchUser               = (404, "user not found")
-showDbError NoSuchService            = (404, "service not found")
-showDbError NoSuchSession            = (404, "session not found")
-showDbError UserAlreadyExists        = (403, "user already exists")
-showDbError ServiceAlreadyExists     = (403, "service already exists")
-showDbError UserEmailAlreadyExists   = (403, "email already in use")
-showDbError e@(PermissionDenied _ _) = traceShow e (401, "unauthorized")
-showDbError BadCredentials           = (401, "unauthorized")
-showDbError BadAuthenticationHeaders = (400, "bad authentication headers")
-showDbError UidOverflow              = (500, "internal error: UidOverflow")
+showDbError :: MonadIO m => DbError -> m (Int, String)
+showDbError NoSuchUser               = return (404, "user not found")
+showDbError NoSuchService            = return (404, "service not found")
+showDbError NoSuchSession            = return (404, "session not found")
+showDbError UserAlreadyExists        = return (403, "user already exists")
+showDbError ServiceAlreadyExists     = return (403, "service already exists")
+showDbError UserEmailAlreadyExists   = return (403, "email already in use")
+showDbError e@(PermissionDenied _ _) = logger INFO (show e) >> return (401, "unauthorized")
+showDbError BadCredentials           = return (401, "unauthorized")
+showDbError BadAuthenticationHeaders = return (400, "bad authentication headers")
+showDbError e@UidOverflow            = logger ERROR (show e) >> return (500, "internal error: UidOverflow")
 
     -- FIXME: get rid of 'UidOverflow'.
 

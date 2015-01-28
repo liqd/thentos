@@ -75,11 +75,11 @@ accessServant access unclearedEvent = do
     (st, clearanceAbs) <- ask
     clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot allowEverything)
     case clearanceE of
-        Left err -> lift . left . showDbError $ err
+        Left err -> showDbError err >>= lift . left
         Right clearance -> do
             result <- access st (unclearedEvent clearance)
             case result of
-                Left err -> lift . left . showDbError $ err
+                Left err -> showDbError err >>= lift . left
                 Right success -> return success
 
 
