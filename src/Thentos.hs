@@ -73,7 +73,7 @@ main =
             putStrLn "Press ^C to abort."
             _ <- createCheckpointLoop st 16000 Nothing
             void $ concurrently
-                (runFrontend frontendPort st)
+                (runFrontend "localhost" frontendPort st)
                 (runApi backendPort st)
         switch ["--docs"] = putStrLn apiDocs
         switch _ = error $ "bad arguments: " <> show args

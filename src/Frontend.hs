@@ -20,7 +20,7 @@ import Data.Thyme (getCurrentTime)
 import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith, method, Method(GET, POST))
-import Snap.Http.Server (defaultConfig, setPort)
+import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
@@ -38,8 +38,8 @@ makeLenses ''FrontendApp
 instance HasAcid FrontendApp DB where
     getAcidStore = view (db . snapletValue)
 
-runFrontend :: Int -> AcidState DB -> IO ()
-runFrontend port st = serveSnaplet (setPort port defaultConfig) (frontendApp st)
+runFrontend :: ByteString -> Int -> AcidState DB -> IO ()
+runFrontend host port st = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp st)
 
 frontendApp :: AcidState DB -> SnapletInit FrontendApp FrontendApp
 frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
