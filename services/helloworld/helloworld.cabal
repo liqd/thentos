@@ -28,7 +28,10 @@ Executable helloworld
     , blaze-markup              >= 0.6.3
     , bytestring                >= 0.9.1
     , case-insensitive
+    , configurator              >= 0.3.0.0
     , heist                     >= 0.14
+    , http-client               >= 0.4.7
+    , http-conduit              >= 2.1.5
     , lens                      >= 3.7.6
     , MonadCatchIO-transformers >= 0.2.1
     , mtl                       >= 2
