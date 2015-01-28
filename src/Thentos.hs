@@ -90,6 +90,10 @@ main =
           closeAcidState st
           putStrLn " [ok]"
 
+          putStr "shutting down hslogger..."
+          removeAllHandlers
+          putStrLn " [ok]"
+
     catch (switch args) (\ (e :: SomeException) -> finalize >> throw e)
     finalize
 
@@ -100,9 +104,6 @@ main =
 
 configLogger :: IO ()
 configLogger = do
-    -- close old, dangling handlers
-    removeAllHandlers
-
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./log/thentos.log" DEBUG
     sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr DEBUG
