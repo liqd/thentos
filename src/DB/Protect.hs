@@ -121,8 +121,7 @@ createGod st verbose = do
         when verbose $
             putStr "Adding user 'god' to roles 'Admin', 'User'... "
         result <- update' st (AssignRole (UserA (UserId 0)) RoleAdmin allowEverything)
-        result' <- update' st (AssignRole (UserA (UserId 0)) RoleUser allowEverything)
         when verbose $
-            if isRight result && isRight result'
+            if isRight result
                 then putStrLn "[ok]"
-                else putStrLn $ "[failed: " ++ show (result, result') ++ "]"
+                else putStrLn $ "[failed: " ++ show result ++ "]"
