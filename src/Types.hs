@@ -30,13 +30,13 @@ import Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
-
 data DB =
     DB
-      { _dbUsers       :: Map UserId User
-      , _dbServices    :: Map ServiceId Service
-      , _dbSessions    :: Map SessionToken Session
-      , _dbRoles       :: Map Agent [Role]
+      { _dbUsers            :: Map UserId User
+      , _dbUnconfirmedUsers :: Map ConfirmationToken User
+      , _dbServices         :: Map ServiceId Service
+      , _dbSessions         :: Map SessionToken Session
+      , _dbRoles            :: Map Agent [Role]
 
       , _dbFreshUserId :: !UserId
       , _dbRandomness  :: !SBS
@@ -71,6 +71,10 @@ newtype UserEmail = UserEmail { fromUserEmail :: ST }
 
 newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
+
 
 data Session =
     Session
@@ -166,6 +170,7 @@ $(deriveSafeCopy 0 'base ''ServiceKey)
 $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)
+$(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserPass)

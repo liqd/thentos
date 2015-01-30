@@ -16,6 +16,7 @@ import Data.Monoid ((<>))
 import qualified Data.Map as M
 import Data.Maybe (isNothing)
 import Data.String.Conversions (cs)
+import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Data.Thyme (getCurrentTime)
 import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
@@ -25,10 +26,12 @@ import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaple
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddUser(AddUser), AddService(AddService), LookupUserByName(..), StartSession(..), allowEverything, DbError(NoSuchUser))
+import DB (AddService(AddService), LookupUserByName(..), StartSession(..), allowEverything, DbError(NoSuchUser), FinishUserRegistration(..),
+    AddUnconfirmedUser(..))
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Types
 import Frontend.Util (serveSnaplet)
+import Frontend.Mail (sendUserConfirmationMail)
 
 
 data FrontendApp = FrontendApp {_db :: Snaplet (Acid DB)}
@@ -50,6 +53,7 @@ frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management sy
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("login", loginHandler)
          , ("create_user", userAddHandler)
+         , ("signup_confirm", userAddConfirmHandler)
          , ("create_service", method GET addServiceHandler)
          , ("create_service", method POST serviceAddedHandler)
          ]
@@ -60,10 +64,25 @@ userAddHandler = do
     case result of
         Nothing -> blaze $ addUserPage _view
         Just user -> do
-            result' <- update (AddUser user allowEverything)
+            result' <- update (AddUnconfirmedUser user allowEverything)
             case result' of
-                Right uid -> blaze $ userAddedPage (uid, user)
+                Right (ConfirmationToken token) -> do
+                    -- FIXME: callback base url must be configurable
+                    let url = "http://localhost:8002/signup_confirm?token=" <> encodeUtf8 token
+                    liftIO $ sendUserConfirmationMail user url
+                    blaze "Please check your email!"
                 Left e -> blaze . errorPage $ show e
+
+userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
+userAddConfirmHandler = do
+    Just token <- getParam "token" -- FIXME: error handling
+    result <- update $ FinishUserRegistration
+                            -- FIXME: decodeUtf8 can throw exceptions
+                            (ConfirmationToken $ decodeUtf8 token)
+                            allowEverything
+    case result of
+        Right uid -> blaze $ userAddedPage uid
+        Left e -> blaze . errorPage $ show e
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage

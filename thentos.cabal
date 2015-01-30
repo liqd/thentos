@@ -30,6 +30,7 @@ library
     , Backend.Api.Simple
     , Frontend
     , Frontend.Pages
+    , Frontend.Mail
     , Frontend.Util
     , System.Log.Missing
   build-depends:
@@ -53,6 +54,7 @@ library
     , http-types
     , lens
     , lio
+    , mime-mail
     , mtl
     , old-locale
     , pretty-show

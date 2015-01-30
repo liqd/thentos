@@ -19,6 +19,8 @@ module DB.Trans
   , LookupUser(..)
   , LookupUserByName(..)
   , AddUser(..)
+  , AddUnconfirmedUser(..)
+  , FinishUserRegistration(..)
   , AddUsers(..)
   , UpdateUser(..)
   , DeleteUser(..)
@@ -94,7 +96,7 @@ dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
 
 -- ** smart accessors
@@ -115,6 +117,10 @@ freshServiceKey = ServiceKey <$$> freshNonce
 
 freshSessionToken :: ThentosUpdate SessionToken
 freshSessionToken = SessionToken <$$> freshNonce
+
+freshConfirmationToken :: ThentosUpdate ConfirmationToken
+freshConfirmationToken = ConfirmationToken <$$> freshNonce
+
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
@@ -152,6 +158,21 @@ trans_lookupUserByName name = do
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
     find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
+
+trans_addUnconfirmedUser :: User -> ThentosUpdate ConfirmationToken
+trans_addUnconfirmedUser user = do
+    ThentosLabeled _ token <- freshConfirmationToken
+    modify $ dbUnconfirmedUsers %~ Map.insert token user
+    returnDBU thentosPublic token
+
+trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
+trans_finishUserRegistration token = do
+    users <- gets (^. dbUnconfirmedUsers)
+    case Map.lookup token users of
+        Nothing -> throwDBU thentosPublic NoSuchUser -- FIXME: more specific error
+        Just user -> do
+            modify $ dbUnconfirmedUsers %~ Map.delete token
+            trans_addUser user
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
@@ -417,6 +438,14 @@ lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
 lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
 lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
 
+addUnconfirmedUser :: User -> ThentosClearance -> Update DB (Either DbError ConfirmationToken)
+addUnconfirmedUser user clearance =
+    runThentosUpdate clearance $ trans_addUnconfirmedUser user
+
+finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either DbError UserId)
+finishUserRegistration token clearance =
+    runThentosUpdate clearance $ trans_finishUserRegistration token
+
 addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
 addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 
@@ -477,6 +506,8 @@ $(makeAcidic ''DB
     , 'lookupUser
     , 'lookupUserByName
     , 'addUser
+    , 'addUnconfirmedUser
+    , 'finishUserRegistration
     , 'addUsers
     , 'updateUser
     , 'deleteUser
