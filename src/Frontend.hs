@@ -6,6 +6,7 @@
 module Frontend (runFrontend) where
 
 import Control.Lens (makeLenses, view, (^.))
+import Control.Applicative ((<$>))
 import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
@@ -16,7 +17,7 @@ import Data.Monoid ((<>))
 import qualified Data.Map as M
 import Data.Maybe (isNothing)
 import Data.String.Conversions (cs)
-import Data.Text.Encoding (decodeUtf8, encodeUtf8)
+import Data.Text.Encoding (decodeUtf8', encodeUtf8)
 import Data.Thyme (getCurrentTime)
 import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
@@ -75,14 +76,14 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
-    Just token <- getParam "token" -- FIXME: error handling
-    result <- update $ FinishUserRegistration
-                            -- FIXME: decodeUtf8 can throw exceptions
-                            (ConfirmationToken $ decodeUtf8 token)
-                            allowEverything
-    case result of
-        Right uid -> blaze $ userAddedPage uid
-        Left e -> blaze . errorPage $ show e
+    Just tokenBS <- getParam "token" -- FIXME: error handling
+    case ConfirmationToken <$> decodeUtf8' tokenBS of
+        Right token -> do
+            result <- update $ FinishUserRegistration token allowEverything
+            case result of
+                Right uid -> blaze $ userAddedPage uid
+                Left e -> blaze . errorPage $ show e
+        Left unicodeError -> blaze . errorPage $ show unicodeError
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage

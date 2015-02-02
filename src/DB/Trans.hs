@@ -159,6 +159,9 @@ pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
     find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
 
+-- | Write a new unconfirmed user (i.e. one whose email address we haven't
+-- confirmed yet) to DB. Unlike addUser, this operation does not ensure
+-- uniqueness of email adresses.
 trans_addUnconfirmedUser :: User -> ThentosUpdate ConfirmationToken
 trans_addUnconfirmedUser user = do
     ThentosLabeled _ token <- freshConfirmationToken
