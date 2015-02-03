@@ -5,9 +5,9 @@
 module DB.Core
   ( DbError(..)
   , ThentosClearance(..)
-  , ThentosUpdate
+  , ThentosUpdate, ThentosUpdate'
   , runThentosUpdate
-  , ThentosQuery
+  , ThentosQuery, ThentosQuery'
   , runThentosQuery
   , liftThentosQuery
   , showDbError
@@ -63,8 +63,11 @@ instance SafeCopy DbError
       maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
 
 
-type ThentosUpdate a = StateT  DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
-type ThentosQuery  a = ReaderT DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
+type ThentosUpdate a = ThentosUpdate' (ThentosLabeled DbError) (ThentosLabeled a)
+type ThentosQuery  a = ThentosQuery'  (ThentosLabeled DbError) (ThentosLabeled a)
+
+type ThentosUpdate' e a = StateT  DB (EitherT e Identity) a
+type ThentosQuery'  e a = ReaderT DB (EitherT e Identity) a
 
 
 -- * plumbing

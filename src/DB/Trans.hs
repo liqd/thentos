@@ -100,35 +100,35 @@ emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
 -- ** smart accessors
 
-freshUserID :: ThentosUpdate UserId
+freshUserID :: ThentosUpdate' e UserId
 freshUserID = do
     uid <- gets (^. dbFreshUserId)
     modify (dbFreshUserId .~ succ uid)
-    returnDBU thentosPublic uid
+    return uid
 
-freshServiceID :: ThentosUpdate ServiceId
-freshServiceID = ServiceId <$$> freshNonce
+freshServiceID :: ThentosUpdate' e ServiceId
+freshServiceID = ServiceId <$> freshNonce
 
-freshServiceKey :: ThentosUpdate ServiceKey
-freshServiceKey = ServiceKey <$$> freshNonce
+freshServiceKey :: ThentosUpdate' e ServiceKey
+freshServiceKey = ServiceKey <$> freshNonce
 
-freshSessionToken :: ThentosUpdate SessionToken
-freshSessionToken = SessionToken <$$> freshNonce
+freshSessionToken :: ThentosUpdate' e SessionToken
+freshSessionToken = SessionToken <$> freshNonce
 
-freshConfirmationToken :: ThentosUpdate ConfirmationToken
-freshConfirmationToken = ConfirmationToken <$$> freshNonce
+freshConfirmationToken :: ThentosUpdate' e ConfirmationToken
+freshConfirmationToken = ConfirmationToken <$> freshNonce
 
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
 -- seemingly random service ids, and update randomness in `DB`.
-freshNonce :: ThentosUpdate ST
+freshNonce :: ThentosUpdate' e ST
 freshNonce = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
       db' = dbRandomness .~ r' $ db
       sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
-  in (thentosLabeledPublic sid, db')
+  in (sid, db')
 
 
 -- ** users
@@ -161,7 +161,7 @@ pure_lookupUserByName db name =
 -- uniqueness of email adresses.
 trans_addUnconfirmedUser :: User -> ThentosUpdate ConfirmationToken
 trans_addUnconfirmedUser user = do
-    ThentosLabeled _ token <- freshConfirmationToken
+    token <- freshConfirmationToken
     modify $ dbUnconfirmedUsers %~ Map.insert token user
     returnDBU thentosPublic token
 
@@ -177,7 +177,7 @@ trans_finishUserRegistration token = do
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
 trans_addUser user = do
-    ThentosLabeled _ uid <- freshUserID
+    uid <- freshUserID
     writeUser uid user
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
@@ -237,8 +237,8 @@ pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 -- Return fresh service id.
 trans_addService :: ThentosUpdate (ServiceId, ServiceKey)
 trans_addService = do
-    ThentosLabeled _ sid <- freshServiceID
-    ThentosLabeled _ key <- freshServiceKey
+    sid <- freshServiceID
+    key <- freshServiceKey
     let service = Service key
     modify $ dbServices %~ Map.insert sid service
     returnDBU thentosPublic (sid, key)
@@ -269,8 +269,7 @@ trans_startSession uid sid start lifetime = do
     ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
     ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
 
-    ThentosLabeled _ tok <- maybe freshSessionToken (returnDBU thentosPublic) $
-                                lookup sid (user ^. userSessions)
+    tok <- maybe freshSessionToken return $ lookup sid (user ^. userSessions)
 
     let session = Session uid sid start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
