@@ -76,6 +76,9 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 
 
 -- | the type of this will change when servant has a better error type.
+--
+-- FIXME: this is backend specific.  or frontend specific.  i donno,
+-- we probably need one for each, but not this one.
 showDbError :: MonadIO m => DbError -> m (Int, String)
 showDbError NoSuchUser               = return (404, "user not found")
 showDbError NoSuchService            = return (404, "service not found")
