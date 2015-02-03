@@ -55,7 +55,6 @@ where
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, state, gets)
-import Control.Monad (when, void)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.Function (on)
@@ -104,8 +103,6 @@ emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 freshUserID :: ThentosUpdate UserId
 freshUserID = do
     uid <- gets (^. dbFreshUserId)
-    when (uid == maxBound) . void $
-        throwDBU thentosPublic UidOverflow
     modify (dbFreshUserId .~ succ uid)
     returnDBU thentosPublic uid
 

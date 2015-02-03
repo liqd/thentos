@@ -57,8 +57,8 @@ data User =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-newtype UserId = UserId { fromUserId :: Int }
-    deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, Bounded, FromText)
+newtype UserId = UserId { fromUserId :: Integer }
+    deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, FromText)
 
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
