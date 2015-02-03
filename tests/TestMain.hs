@@ -75,7 +75,7 @@ main = hspec $ do
         True `shouldBe` True
 
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ st -> do
-        uids <- query' st $ AllUserIDs allowEverything
+        uids <- query' st $ AllUserIds allowEverything
         uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
 
     describe "AddUser, LookupUser, DeleteUser" $ do
@@ -120,7 +120,7 @@ main = hspec $ do
 
       it "rolls back in case of error (adds all or nothing)" $ \ st -> do
         Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] allowEverything
-        result <- query' st $ AllUserIDs allowEverything
+        result <- query' st $ AllUserIds allowEverything
         result `shouldBe` Right (map UserId [0, 1, 2])
 
     describe "AddService, LookupService, DeleteService" $ do

@@ -88,7 +88,7 @@ thentosUser =
   :<|> deleteUser
 
 getUserIds :: RestActionLabeled [UserId]
-getUserIds = queryServant AllUserIDs
+getUserIds = queryServant AllUserIds
 
 getUser :: UserId -> RestActionLabeled (UserId, User)
 getUser = queryServant . LookupUser
@@ -117,7 +117,7 @@ thentosService =
     :<|> postNewService
 
 getServiceIds :: RestActionLabeled [ServiceId]
-getServiceIds = queryServant AllServiceIDs
+getServiceIds = queryServant AllServiceIds
 
 getService :: ServiceId -> RestActionLabeled (ServiceId, Service)
 getService = queryServant . LookupService

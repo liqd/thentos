@@ -15,7 +15,7 @@
 -- disadvantages.)
 
 module DB.Trans
-  ( AllUserIDs(..)
+  ( AllUserIds(..)
   , LookupUser(..)
   , LookupUserByName(..)
   , AddUser(..)
@@ -25,7 +25,7 @@ module DB.Trans
   , UpdateUser(..)
   , DeleteUser(..)
 
-  , AllServiceIDs(..)
+  , AllServiceIds(..)
   , LookupService(..)
   , AddService(..)
   , DeleteService(..)
@@ -100,14 +100,14 @@ emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
 
 -- ** smart accessors
 
-freshUserID :: ThentosUpdate' e UserId
-freshUserID = do
+freshUserId :: ThentosUpdate' e UserId
+freshUserId = do
     uid <- gets (^. dbFreshUserId)
     modify (dbFreshUserId .~ succ uid)
     return uid
 
-freshServiceID :: ThentosUpdate' e ServiceId
-freshServiceID = ServiceId <$> freshNonce
+freshServiceId :: ThentosUpdate' e ServiceId
+freshServiceId = ServiceId <$> freshNonce
 
 freshServiceKey :: ThentosUpdate' e ServiceKey
 freshServiceKey = ServiceKey <$> freshNonce
@@ -133,8 +133,8 @@ freshNonce = state $ \ db ->
 
 -- ** users
 
-trans_allUserIDs :: ThentosQuery [UserId]
-trans_allUserIDs = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers) <$> ask
+trans_allUserIds :: ThentosQuery [UserId]
+trans_allUserIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers) <$> ask
 
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
 trans_lookupUser uid = (uid,) <$$> do
@@ -177,7 +177,7 @@ trans_finishUserRegistration token = do
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
 trans_addUser user = do
-    uid <- freshUserID
+    uid <- freshUserId
     writeUser uid user
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
@@ -219,8 +219,8 @@ writeUser uid user = do
 
 -- ** services
 
-trans_allServiceIDs :: ThentosQuery [ServiceId]
-trans_allServiceIDs = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbServices) <$> ask
+trans_allServiceIds :: ThentosQuery [ServiceId]
+trans_allServiceIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
 trans_lookupService sid = do
@@ -237,7 +237,7 @@ pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 -- Return fresh service id.
 trans_addService :: ThentosUpdate (ServiceId, ServiceKey)
 trans_addService = do
-    sid <- freshServiceID
+    sid <- freshServiceId
     key <- freshServiceKey
     let service = Service key
     modify $ dbServices %~ Map.insert sid service
@@ -428,8 +428,8 @@ trans_snapShot = ask >>= returnDBQ (RoleAdmin =%% False)
 
 -- FIXME: this section should be entirely constructed by TemplateHaskell
 
-allUserIDs :: ThentosClearance -> Query DB (Either DbError [UserId])
-allUserIDs clearance = runThentosQuery clearance trans_allUserIDs
+allUserIds :: ThentosClearance -> Query DB (Either DbError [UserId])
+allUserIds clearance = runThentosQuery clearance trans_allUserIds
 
 lookupUser :: UserId -> ThentosClearance -> Query DB (Either DbError (UserId, User))
 lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
@@ -457,8 +457,8 @@ updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser ui
 deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
 deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
 
-allServiceIDs :: ThentosClearance -> Query DB (Either DbError [ServiceId])
-allServiceIDs clearance = runThentosQuery clearance trans_allServiceIDs
+allServiceIds :: ThentosClearance -> Query DB (Either DbError [ServiceId])
+allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 
 lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
@@ -501,7 +501,7 @@ snapShot clearance = runThentosQuery clearance trans_snapShot
 
 
 $(makeAcidic ''DB
-    [ 'allUserIDs
+    [ 'allUserIds
     , 'lookupUser
     , 'lookupUserByName
     , 'addUser
@@ -511,7 +511,7 @@ $(makeAcidic ''DB
     , 'updateUser
     , 'deleteUser
 
-    , 'allServiceIDs
+    , 'allServiceIds
     , 'lookupService
     , 'addService
     , 'deleteService
