@@ -107,23 +107,23 @@ freshUserId = do
     return uid
 
 freshServiceId :: ThentosUpdate' e ServiceId
-freshServiceId = ServiceId <$> freshNonce
+freshServiceId = ServiceId <$> freshRandomName
 
 freshServiceKey :: ThentosUpdate' e ServiceKey
-freshServiceKey = ServiceKey <$> freshNonce
+freshServiceKey = ServiceKey <$> freshRandomName
 
 freshSessionToken :: ThentosUpdate' e SessionToken
-freshSessionToken = SessionToken <$> freshNonce
+freshSessionToken = SessionToken <$> freshRandomName
 
 freshConfirmationToken :: ThentosUpdate' e ConfirmationToken
-freshConfirmationToken = ConfirmationToken <$> freshNonce
+freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 
 -- | this makes the impression of a cryptographic function, but there
 -- is no adversary model and no promise of security.  just yield
 -- seemingly random service ids, and update randomness in `DB`.
-freshNonce :: ThentosUpdate' e ST
-freshNonce = state $ \ db ->
+freshRandomName :: ThentosUpdate' e ST
+freshRandomName = state $ \ db ->
   let r   = db ^. dbRandomness
       r'  = Hash.hash 512 r
       db' = dbRandomness .~ r' $ db
