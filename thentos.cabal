@@ -55,6 +55,7 @@ library
     , functor-infix
     , generic-aeson
     , hslogger
+    , http-client
     , http-types
     , lens
     , lio
