@@ -136,7 +136,7 @@ parseBackendConfigBuilder =
         <> metavar "backendPort"
         <> help "Port that the backend service listens on"
         )
-        
+
 parseFrontendConfigBuilder :: Parser FrontendConfigBuilder
 parseFrontendConfigBuilder =
     FrontendConfigBuilder <$> optional parseFrontendPort
