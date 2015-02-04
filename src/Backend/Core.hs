@@ -24,6 +24,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Data.Thyme.Time ()
 import Servant.API ((:<|>)((:<|>)))
+import Network.Wai.Internal (ResponseReceived)
 
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
@@ -59,6 +60,12 @@ instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
 instance PushActionC (RestActionRaw a) where
     type PushActionSubRoute (RestActionRaw a) = RestAction a
     pushAction restState restAction = fmapLTM showDbError $ runReaderT restAction restState
+
+-- | For handling 'Raw'.  (The 'Application' type has been stripped of
+-- its arguments by the time the compiler will find this instance.)
+instance PushActionC (IO ResponseReceived) where
+    type PushActionSubRoute (IO ResponseReceived) = IO ResponseReceived
+    pushAction _ = id
 
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the
