@@ -25,7 +25,7 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
 
--- * stuff for combining (partial) configurations from multiple sources
+-- * combining (partial) configurations from multiple sources
 
 data ServiceConfig = ServiceConfig
     { frontendConfig :: Maybe FrontendConfig
