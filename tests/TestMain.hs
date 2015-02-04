@@ -37,7 +37,7 @@ import Network.Wai (Application, StreamingBody, requestMethod, requestBody, stri
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Network.Wai.Test (runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
 import Network.Wai.Test (Session, SRequest(SRequest))
-import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith)
+import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -184,19 +184,16 @@ main = hspec $ do
 
       it "responds with an error if clearance is insufficient" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
-        liftIO $ pendingWith "not implemented yet"
-        response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
+        response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
       it "responds with an error if password is wrong" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
-        liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
       it "responds with an error if only one of user (or service) and password is provided" $
           \ (_, testServer) -> (debugRunSession False testServer) $ do
-        liftIO $ pendingWith "not implemented yet"
         response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
         liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
         response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
@@ -205,16 +202,6 @@ main = hspec $ do
         liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
         response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
         liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
-
-      -- FIXME: we need to have a user whose password can be set in a
-      -- configuration file.  that user has role "admin" and can do
-      -- anything to anybody.  in particular, this user can create new
-      -- users and services and assign roles.  (until we have a
-      -- configuration file, the password can be configured in "DB",
-      -- or somewhere.)
-      it "special user admin can do anything" $
-          \ (_, testServer) -> (debugRunSession True testServer) $ do
-        liftIO $ pendingWith "not implemented yet"
 
     describe "GET /user" $
       it "returns the list of users" $
