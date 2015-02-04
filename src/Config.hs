@@ -92,18 +92,18 @@ finaliseFrontendConfig builder = FrontendConfig <$> bFrontendPort builder
 finaliseBackendConfig :: BackendConfigBuilder -> Maybe BackendConfig
 finaliseBackendConfig builder = BackendConfig <$> bBackendPort builder
 
-finaliseCommand :: CommandBuilder -> IO (Either ConfigError Command)
-finaliseCommand BShowDB = return $ Right ShowDB
-finaliseCommand BDocs = return $ Right Docs
-finaliseCommand (BRun cmdLineConfigBuilder) = do
-    fileConfigBuilder <- parseConfigFile
+finaliseCommand :: FilePath -> CommandBuilder -> IO (Either ConfigError Command)
+finaliseCommand _ BShowDB = return $ Right ShowDB
+finaliseCommand _ BDocs = return $ Right Docs
+finaliseCommand filePath (BRun cmdLineConfigBuilder) = do
+    fileConfigBuilder <- parseConfigFile filePath
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
     return $ Run <$> finalConfig
 
-getCommand :: IO (Either ConfigError Command)
-getCommand = do
+getCommand :: FilePath -> IO (Either ConfigError Command)
+getCommand filePath = do
     cmdLineBuilder <- parseCommandBuilder
-    finaliseCommand cmdLineBuilder
+    finaliseCommand filePath cmdLineBuilder
 
 
 -- * command line parsing
@@ -167,9 +167,9 @@ parseRunBackend = flag Nothing (Just True)
 
 -- * config file parsing
 
-parseConfigFile :: IO ThentosConfigBuilder
-parseConfigFile = do
-    config <- Configurator.load [Configurator.Required "devel.config"]
+parseConfigFile :: FilePath -> IO ThentosConfigBuilder
+parseConfigFile filePath = do
+    config <- Configurator.load [Configurator.Required filePath]
     argMap <- Configurator.getMap config
     let get key = join $ Configurator.convert <$> HM.lookup key argMap
     return $ ThentosConfigBuilder

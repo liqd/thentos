@@ -47,11 +47,12 @@ main =
     createGod st True  -- FIXME: remove this from production code
     configLogger
 
-    Right cmd <- getCommand
+    Right cmd <- getCommand "devel.config"
     let run = case cmd of
             ShowDB -> do
                 putStrLn "database contents:"
                 query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
+
             Run config -> do
                 let backend = case backendConfig config of
                         Nothing -> return ()
