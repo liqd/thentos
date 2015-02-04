@@ -54,13 +54,6 @@ main =
                 ShowDB -> do
                     putStrLn "database contents:"
                     query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
-                AddData "user" -> do
-                    putStrLn "adding dummy user to database:"
-                    void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) allowEverything
-                AddData "service" -> do
-                    putStrLn "adding dummy service to database:"
-                    sid <- update' st $ AddService allowEverything
-                    putStrLn $ "Service id: " ++ show sid
                 Run config -> do
                     let backend = case backendConfig config of
                             Nothing -> return ()

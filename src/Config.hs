@@ -20,8 +20,8 @@ import Control.Monad (join)
 import qualified Data.Configurator as Configurator
 import qualified Data.Configurator.Types as Configurator
 import Data.Monoid (Monoid(..), (<>))
-import Options.Applicative (Parser, execParser, info, str, metavar, argument,
-    subparser, command, info, progDesc, long, auto, option, flag, help)
+import Options.Applicative (Parser, execParser, info, metavar, subparser,
+    command, info, progDesc, long, auto, option, flag, help)
 
 import qualified Data.HashMap.Strict as HM
 
@@ -101,7 +101,6 @@ finaliseBackendConfig builder = BackendConfig <$> bBackendPort builder
 
 finaliseCommand :: CommandBuilder -> IO (Either ConfigError Command)
 finaliseCommand BShowDB = return $ Right ShowDB
-finaliseCommand (BAddData s) = return . Right $ AddData s
 finaliseCommand (BDocs) = return $ Right Docs
 finaliseCommand (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile
@@ -118,25 +117,19 @@ parseCommandBuilder :: IO CommandBuilder
 parseCommandBuilder = execParser opts
   where
     parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
-                         command "showdb" (info parseShowDB (progDesc "show")) <>
-                         command "add" (info parseAddData (progDesc "add"))
+                         command "showdb" (info parseShowDB (progDesc "show"))
     opts = info parser mempty
 
--- FIXME: AddData should have a `User | Service` argument instead of string
-data Command = Run ServiceConfig | ShowDB | AddData String | Docs
+data Command = Run ServiceConfig | ShowDB | Docs
 
 data CommandBuilder =
-    BRun ServiceConfigBuilder | BShowDB | BAddData String | BDocs
+    BRun ServiceConfigBuilder | BShowDB | BDocs
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseServiceConfig
 
 parseShowDB :: Parser CommandBuilder
 parseShowDB = pure BShowDB
-
--- TODO: restrict DATAKIND to DummyUser and DummyService
-parseAddData :: Parser CommandBuilder
-parseAddData = BAddData <$> argument str (metavar "DATAKIND")
 
 parseServiceConfig :: Parser ServiceConfigBuilder
 parseServiceConfig =
