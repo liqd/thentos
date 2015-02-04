@@ -66,7 +66,7 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
 
-thentosBasic :: PushReaderSubType (Server ThentosBasic)
+thentosBasic :: PushActionSubRoute (Server ThentosBasic)
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -82,7 +82,7 @@ type ThentosUser =
   :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
-thentosUser :: PushReaderSubType (Server ThentosUser)
+thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
        getUserIds
   :<|> getUser
@@ -113,7 +113,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Get (ServiceId, Service)
   :<|> Post (ServiceId, ServiceKey)
 
-thentosService :: PushReaderSubType (Server ThentosService)
+thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
          getServiceIds
     :<|> getService
@@ -137,7 +137,7 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> Delete
   :<|> Capture "token" SessionToken :> Get Bool
 
-thentosSession :: PushReaderSubType (Server ThentosSession)
+thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
        createSession
   :<|> createSessionWithTimeout
@@ -172,14 +172,14 @@ isActiveSession tok = do
 -- handler.
 data ThentosAuth layout = ThentosAuth (AcidState DB, MVar SystemRNG) layout
 
-instance ( PushReaderT (Server sublayout)
+instance ( PushActionC (Server sublayout)
          , HasServer sublayout
          ) => HasServer (ThentosAuth sublayout)
   where
-    type Server (ThentosAuth sublayout) = ThentosAuth (PushReaderSubType (Server sublayout))
+    type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
 
     route Proxy (ThentosAuth (st, rng) subserver) request respond =
-        route (Proxy :: Proxy sublayout) (unPushReaderT routingState subserver) request respond
+        route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
       where
         pluck :: CI SBS -> Maybe ST
         pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'

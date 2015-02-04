@@ -39,26 +39,26 @@ type RestError       = (Int, String)
 
 
 -- | This is a work-around: The 'Server' type family terminates in
--- 'RestActionRaw' on all methods.  'PushReaderT' instances transform
+-- 'RestActionRaw' on all methods.  'PushActionC' instances transform
 -- handlers implemented in a monad stack we want (providing acid
 -- state, clearance info, random generator, ... in a reader) into the
 -- handlers in 'RestActionRaw'.  (Also, translate 'DbError' to
 -- 'RestError'.)
-class PushReaderT a where
-    type PushReaderSubType a
-    unPushReaderT :: RestActionState -> PushReaderSubType a -> a
+class PushActionC a where
+    type PushActionSubRoute a
+    pushAction :: RestActionState -> PushActionSubRoute a -> a
 
-instance (PushReaderT b) => PushReaderT (a -> b) where
-    type PushReaderSubType (a -> b) = a -> PushReaderSubType b
-    unPushReaderT clearance f = unPushReaderT clearance . f
+instance (PushActionC b) => PushActionC (a -> b) where
+    type PushActionSubRoute (a -> b) = a -> PushActionSubRoute b
+    pushAction clearance f = pushAction clearance . f
 
-instance (PushReaderT a, PushReaderT b) => PushReaderT (a :<|> b) where
-    type PushReaderSubType (a :<|> b) = PushReaderSubType a :<|> PushReaderSubType b
-    unPushReaderT clearance (a :<|> b) = unPushReaderT clearance a :<|> unPushReaderT clearance b
+instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
+    type PushActionSubRoute (a :<|> b) = PushActionSubRoute a :<|> PushActionSubRoute b
+    pushAction clearance (a :<|> b) = pushAction clearance a :<|> pushAction clearance b
 
-instance PushReaderT (RestActionRaw a) where
-    type PushReaderSubType (RestActionRaw a) = RestAction a
-    unPushReaderT restState restAction = fmapLTM showDbError $ runReaderT restAction restState
+instance PushActionC (RestActionRaw a) where
+    type PushActionSubRoute (RestActionRaw a) = RestAction a
+    pushAction restState restAction = fmapLTM showDbError $ runReaderT restAction restState
 
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the
