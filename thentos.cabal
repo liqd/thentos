@@ -21,6 +21,7 @@ library
   exposed-modules:
       Thentos
     , Types
+    , Config
     , Doc
     , DB
     , DB.Core
@@ -43,6 +44,7 @@ library
     , blaze-html
     , bytestring
     , case-insensitive
+    , configurator
     , containers
     , crypto-random
     , digestive-functors
@@ -59,6 +61,7 @@ library
     , mime-mail
     , mtl
     , old-locale
+    , optparse-applicative
     , pretty-show
     , safe
     , safecopy
@@ -76,6 +79,7 @@ library
     , text
     , thyme
     , transformers
+    , unordered-containers
     , vector-space
     , wai
     , warp
