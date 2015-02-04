@@ -69,6 +69,41 @@ thentosBasic =
   :<|> thentosSession
 
 
+-- * authentication
+
+-- | Empty data type for triggering authentication.  If you have an
+-- api type 'API', use like this: @ThentosAuth :> API@, then write a
+-- route handler that takes 'Auth' as an extra argument.  'Auth' will
+-- be parsed from the headers and injected into the @sublayout@
+-- handler.
+data ThentosAuth layout = ThentosAuth (AcidState DB, MVar SystemRNG) layout
+
+instance ( PushActionC (Server sublayout)
+         , HasServer sublayout
+         ) => HasServer (ThentosAuth sublayout)
+  where
+    type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
+
+    route Proxy (ThentosAuth (st, rng) subserver) request respond =
+        route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
+      where
+        pluck :: CI SBS -> Maybe ST
+        pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
+
+        routingState :: RestActionState
+        routingState = ( st
+                       , \ db -> mkThentosClearance
+                           (pluck "X-Thentos-User")
+                           (pluck "X-Thentos-Service")
+                           (pluck "X-Thentos-Password")
+                           db
+                       , rng)
+
+-- | FIXME: not much documentation yet.
+instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
+  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+
 -- * user
 
 type ThentosUser =
@@ -115,38 +150,3 @@ thentosSession =
   :<|> createSessionWithTimeout
   :<|> updateAction . EndSession
   :<|> isActiveSession
-
-
--- * authentication
-
--- | Empty data type for triggering authentication.  If you have an
--- api type 'API', use like this: @ThentosAuth :> API@, then write a
--- route handler that takes 'Auth' as an extra argument.  'Auth' will
--- be parsed from the headers and injected into the @sublayout@
--- handler.
-data ThentosAuth layout = ThentosAuth (AcidState DB, MVar SystemRNG) layout
-
-instance ( PushActionC (Server sublayout)
-         , HasServer sublayout
-         ) => HasServer (ThentosAuth sublayout)
-  where
-    type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
-
-    route Proxy (ThentosAuth (st, rng) subserver) request respond =
-        route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
-      where
-        pluck :: CI SBS -> Maybe ST
-        pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
-
-        routingState :: RestActionState
-        routingState = ( st
-                       , \ db -> mkThentosClearance
-                           (pluck "X-Thentos-User")
-                           (pluck "X-Thentos-Service")
-                           (pluck "X-Thentos-Password")
-                           db
-                       , rng)
-
--- | FIXME: not much documentation yet.
-instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
-  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
