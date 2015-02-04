@@ -18,17 +18,13 @@
 
 module Backend.Api.Simple (runApi, serveApi, apiDocs) where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
-import Control.Monad.State (liftIO)
 import Data.Acid (AcidState)
 import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST)
 import Data.Text.Encoding (decodeUtf8')
-import Data.Thyme.Time ()
-import Data.Thyme (UTCTime, getCurrentTime)
 import Network.Wai (Application, requestHeaders)
 import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
@@ -84,26 +80,11 @@ type ThentosUser =
 
 thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
-       getUserIds
-  :<|> getUser
-  :<|> postNewUser
-  :<|> postNamedUser
-  :<|> deleteUser
-
-getUserIds :: RestAction [UserId]
-getUserIds = queryAction AllUserIds
-
-getUser :: UserId -> RestAction (UserId, User)
-getUser = queryAction . LookupUser
-
-postNewUser :: User -> RestAction UserId
-postNewUser = updateAction . AddUser
-
-postNamedUser :: UserId -> User -> RestAction ()
-postNamedUser uid = updateAction . UpdateUser uid
-
-deleteUser :: UserId -> RestAction ()
-deleteUser = updateAction . DeleteUser
+       queryAction AllUserIds
+  :<|> queryAction . LookupUser
+  :<|> updateAction . AddUser
+  :<|> (\ uid user -> updateAction $ UpdateUser uid user)
+  :<|> updateAction . DeleteUser
 
 
 -- * service
@@ -115,18 +96,9 @@ type ThentosService =
 
 thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
-         getServiceIds
-    :<|> getService
-    :<|> postNewService
-
-getServiceIds :: RestAction [ServiceId]
-getServiceIds = queryAction AllServiceIds
-
-getService :: ServiceId -> RestAction (ServiceId, Service)
-getService = queryAction . LookupService
-
-postNewService :: RestAction (ServiceId, ServiceKey)
-postNewService = addService
+         queryAction AllServiceIds
+    :<|> queryAction . LookupService
+    :<|> addService
 
 
 -- * session
@@ -141,26 +113,8 @@ thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
        createSession
   :<|> createSessionWithTimeout
-  :<|> endSession
+  :<|> updateAction . EndSession
   :<|> isActiveSession
-
--- | Sessions have a fixed duration of 2 weeks.
-createSession :: (UserId, ServiceId) -> RestAction SessionToken
-createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
-
--- | Sessions with explicit timeout.
-createSessionWithTimeout :: (UserId, ServiceId, Timeout) -> RestAction SessionToken
-createSessionWithTimeout (uid, sid, timeout) = do
-    now :: UTCTime <- liftIO getCurrentTime
-    startSession uid sid (TimeStamp now) timeout
-
-endSession :: SessionToken -> RestAction ()
-endSession = updateAction . EndSession
-
-isActiveSession :: SessionToken -> RestAction Bool
-isActiveSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
-    queryAction $ IsActiveSession now tok
 
 
 -- * authentication

@@ -11,9 +11,14 @@ module Api
   , runAction', runAction
   , updateAction
   , queryAction
+
   , addUnconfirmedUser
   , addService
   , startSession
+
+  , createSession
+  , createSessionWithTimeout
+  , isActiveSession
   )
 where
 
@@ -28,6 +33,7 @@ import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme.Time ()
+import Data.Thyme (UTCTime, getCurrentTime)
 
 import qualified Codec.Binary.Base64 as Base64
 
@@ -132,7 +138,7 @@ freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 
--- * Non-deterministic (random) transaction wrappers
+-- * actions involving randomness
 
 addUnconfirmedUser :: CPRG r => User -> Action (MVar r) ConfirmationToken
 addUnconfirmedUser user = do
@@ -149,3 +155,21 @@ startSession :: CPRG r => UserId -> ServiceId -> TimeStamp -> Timeout -> Action 
 startSession uid sid start lifetime = do
     tok <- freshSessionToken
     updateAction $ StartSession tok uid sid start lifetime
+
+
+-- * actions involving current time
+
+-- | Sessions have a fixed duration of 2 weeks.
+createSession :: CPRG r => (UserId, ServiceId) -> Action (MVar r) SessionToken
+createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
+
+-- | Sessions with explicit timeout.
+createSessionWithTimeout :: CPRG r => (UserId, ServiceId, Timeout) -> Action (MVar r) SessionToken
+createSessionWithTimeout (uid, sid, timeout) = do
+    now :: UTCTime <- liftIO getCurrentTime
+    startSession uid sid (TimeStamp now) timeout
+
+isActiveSession :: SessionToken -> Action r Bool
+isActiveSession tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    queryAction $ IsActiveSession now tok
