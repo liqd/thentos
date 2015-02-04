@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 
 module Config
-    ( getCommandWithConfig
+    ( getCommand
     , configLogger
     , Command(..)
     , ServiceConfig(..)
@@ -9,32 +9,21 @@ module Config
     , BackendConfig(..)
     ) where
 
+import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
+import Control.Monad (join)
+import qualified Data.Configurator as Configurator
+import qualified Data.Configurator.Types as Configurator
+import qualified Data.HashMap.Strict as HM
+import Data.Monoid (Monoid(..), (<>))
+import Options.Applicative (Parser, execParser, info, metavar, subparser,
+    command, info, progDesc, long, auto, option, flag, help)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG), updateGlobalLogger, setLevel, setHandlers)
 import System.Log.Missing (loggerName)
 import System.IO (stderr)
 
-import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
-import Control.Monad (join)
-import qualified Data.Configurator as Configurator
-import qualified Data.Configurator.Types as Configurator
-import Data.Monoid (Monoid(..), (<>))
-import Options.Applicative (Parser, execParser, info, metavar, subparser,
-    command, info, progDesc, long, auto, option, flag, help)
-
-import qualified Data.HashMap.Strict as HM
-
-parseConfigFile :: IO ServiceConfigBuilder
-parseConfigFile = do
-    config <- Configurator.load [Configurator.Required "devel.config"]
-    argMap <- Configurator.getMap config
-    let get key = join $ Configurator.convert <$> HM.lookup key argMap
-    return $ ServiceConfigBuilder
-                (get "run_frontend")
-                (get "run_backend")
-                (BackendConfigBuilder $ get "backend_port")
-                (FrontendConfigBuilder $ get "frontend_port")
+-- * stuff for combining (partial) configurations from multiple sources
 
 data ServiceConfig = ServiceConfig
     { frontendConfig :: Maybe FrontendConfig
@@ -83,8 +72,7 @@ finaliseConfig builder =
         <$> frontendConf
         <*> backendConf
   where
-    backendConf =
-        case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
+    backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
         (Just True, Nothing) -> Left BackendError
         (Just True, bConf) -> Right bConf
         _ -> Right Nothing
@@ -107,17 +95,20 @@ finaliseCommand (BRun cmdLineConfigBuilder) = do
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
     return $ Run <$> finalConfig
 
-getCommandWithConfig :: IO (Either ConfigError Command)
-getCommandWithConfig = do
+getCommand :: IO (Either ConfigError Command)
+getCommand = do
     cmdLineBuilder <- parseCommandBuilder
     finaliseCommand cmdLineBuilder
-    
+
+
+-- * command line parsing
 
 parseCommandBuilder :: IO CommandBuilder
 parseCommandBuilder = execParser opts
   where
     parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
-                         command "showdb" (info parseShowDB (progDesc "show"))
+                         command "docs" (info (pure BDocs) (progDesc "show")) <>
+                         command "showdb" (info (pure BShowDB) (progDesc "show"))
     opts = info parser mempty
 
 data Command = Run ServiceConfig | ShowDB | Docs
@@ -127,9 +118,6 @@ data CommandBuilder =
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseServiceConfig
-
-parseShowDB :: Parser CommandBuilder
-parseShowDB = pure BShowDB
 
 parseServiceConfig :: Parser ServiceConfigBuilder
 parseServiceConfig =
@@ -142,23 +130,22 @@ parseServiceConfig =
 parseBackendConfigBuilder :: Parser BackendConfigBuilder
 parseBackendConfigBuilder =
     BackendConfigBuilder <$> optional parseBackendPort
+  where
+    parseBackendPort = option auto
+        (long "backendport"
+        <> metavar "backendPort"
+        <> help "Port that the backend service listens on"
+        )
         
 parseFrontendConfigBuilder :: Parser FrontendConfigBuilder
-parseFrontendConfigBuilder = FrontendConfigBuilder <$> optional parseFrontendPort
-
-parseBackendPort :: Parser Int
-parseBackendPort = option auto
-    (long "backendport"
-    <> metavar "backendPort"
-    <> help "Port that the backend service listens on"
-    )
-
-parseFrontendPort :: Parser Int
-parseFrontendPort = option auto
-    (long "frontendport"
-    <> metavar "frontendPort"
-    <> help "Port that the frontend service listens on"
-    )
+parseFrontendConfigBuilder =
+    FrontendConfigBuilder <$> optional parseFrontendPort
+  where
+    parseFrontendPort = option auto
+        (long "frontendport"
+        <> metavar "frontendPort"
+        <> help "Port that the frontend service listens on"
+        )
 
 parseRunFrontend :: Parser (Maybe Bool)
 parseRunFrontend = flag Nothing (Just True)
@@ -172,7 +159,22 @@ parseRunBackend = flag Nothing (Just True)
     <> help "Run the backend service"
     )
 
--- logging
+
+-- * config file parsing
+
+parseConfigFile :: IO ServiceConfigBuilder
+parseConfigFile = do
+    config <- Configurator.load [Configurator.Required "devel.config"]
+    argMap <- Configurator.getMap config
+    let get key = join $ Configurator.convert <$> HM.lookup key argMap
+    return $ ServiceConfigBuilder
+                (get "run_frontend")
+                (get "run_backend")
+                (BackendConfigBuilder $ get "backend_port")
+                (FrontendConfigBuilder $ get "frontend_port")
+
+
+-- * logging
 
 configLogger :: IO ()
 configLogger = do

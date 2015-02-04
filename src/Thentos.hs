@@ -10,7 +10,6 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS  #-}
 
@@ -22,12 +21,12 @@ import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
-import Data.Acid.Advanced (query', update')
+import Data.Acid.Advanced (query')
 import Data.String.Conversions ((<>))
 import System.Log.Logger (removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
-import Config (configLogger, getCommandWithConfig, Command(..), ServiceConfig(..), BackendConfig(..), FrontendConfig(..))
+import Config (configLogger, getCommand, Command(..), ServiceConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
 import Types
 import DB
 import Backend.Api.Simple (runApi, apiDocs)
@@ -48,29 +47,28 @@ main =
     createGod st True  -- FIXME: remove this from production code
     configLogger
 
-    -- FIXME: error handling (produce a helpful error message and quit)
-    Right cmd <- getCommandWithConfig
+    Right cmd <- getCommand
     let run = case cmd of
-                ShowDB -> do
-                    putStrLn "database contents:"
-                    query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
-                Run config -> do
-                    let backend = case backendConfig config of
-                            Nothing -> return ()
-                            Just (BackendConfig backendPort) -> do
-                                putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
-                                runApi backendPort (st, rng)
+            ShowDB -> do
+                putStrLn "database contents:"
+                query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
+            Run config -> do
+                let backend = case backendConfig config of
+                        Nothing -> return ()
+                        Just (BackendConfig backendPort) -> do
+                            putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
+                            runApi backendPort (st, rng)
 
-                    let frontend = case frontendConfig config of
-                            Nothing -> return ()
-                            Just (FrontendConfig frontendPort) -> do
-                                putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
-                                putStrLn "Press ^C to abort."
-                                runFrontend "localhost" frontendPort (st, rng)
-                    _ <- createCheckpointLoop st 16000 Nothing
-                    void $ concurrently backend frontend
+                let frontend = case frontendConfig config of
+                        Nothing -> return ()
+                        Just (FrontendConfig frontendPort) -> do
+                            putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
+                            putStrLn "Press ^C to abort."
+                            runFrontend "localhost" frontendPort (st, rng)
+                _ <- createCheckpointLoop st 16000 Nothing
+                void $ concurrently backend frontend
 
-                Docs -> putStrLn apiDocs
+            Docs -> putStrLn apiDocs
 
     let finalize = do
             putStr "creating checkpoint and shutting down acid-state..."
