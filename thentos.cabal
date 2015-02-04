@@ -27,6 +27,7 @@ library
     , DB.Core
     , DB.Trans
     , DB.Protect
+    , Api
     , Backend.Core
     , Backend.Api.Simple
     , Frontend
@@ -45,11 +46,12 @@ library
     , case-insensitive
     , configurator
     , containers
-    , cryptohash
+    , crypto-random
     , digestive-functors
     , digestive-functors-blaze
     , digestive-functors-snap
     , either
+    , errors
     , functor-infix
     , generic-aeson
     , hslogger
@@ -117,6 +119,7 @@ test-suite tests
     , acid-state
     , aeson
     , bytestring
+    , crypto-random
     , functor-infix
     , hspec
     , http-types

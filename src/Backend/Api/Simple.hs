@@ -18,15 +18,13 @@
 
 module Backend.Api.Simple (runApi, serveApi, apiDocs) where
 
-import Control.Applicative ((<$>))
-import Control.Monad.State (liftIO)
+import Control.Concurrent.MVar (MVar)
+import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST)
 import Data.Text.Encoding (decodeUtf8')
-import Data.Thyme.Time ()
-import Data.Thyme (UTCTime, getCurrentTime)
 import Network.Wai (Application, requestHeaders)
 import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
@@ -34,17 +32,18 @@ import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
 
-import DB
-import Types
-import Doc ()
+import Api
 import Backend.Core
+import DB
+import Doc ()
+import Types
 
 
-runApi :: Int -> AcidState DB -> IO ()
+runApi :: Int -> (AcidState DB, MVar SystemRNG) -> IO ()
 runApi port = run port . serveApi
 
 -- | (Required in test suite.)
-serveApi :: AcidState DB -> Application
+serveApi :: (AcidState DB, MVar SystemRNG) -> Application
 serveApi = serve (Proxy :: Proxy App) . app
 
 apiDocs :: String
@@ -55,15 +54,15 @@ apiDocs = markdown $ docs (Proxy :: Proxy App)
 
 type App = ThentosAuth ThentosBasic
 
-app :: AcidState DB -> Server App
-app st = ThentosAuth st thentosBasic
+app :: (AcidState DB, MVar SystemRNG) -> Server App
+app (st, rng) = ThentosAuth (st, rng) thentosBasic
 
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
 
-thentosBasic :: PushReaderSubType (Server ThentosBasic)
+thentosBasic :: PushActionSubRoute (Server ThentosBasic)
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -79,28 +78,13 @@ type ThentosUser =
   :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
-thentosUser :: PushReaderSubType (Server ThentosUser)
+thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
-       getUserIds
-  :<|> getUser
-  :<|> postNewUser
-  :<|> postNamedUser
-  :<|> deleteUser
-
-getUserIds :: RestActionLabeled [UserId]
-getUserIds = queryServant AllUserIDs
-
-getUser :: UserId -> RestActionLabeled (UserId, User)
-getUser = queryServant . LookupUser
-
-postNewUser :: User -> RestActionLabeled UserId
-postNewUser = updateServant . AddUser
-
-postNamedUser :: UserId -> User -> RestActionLabeled ()
-postNamedUser uid = updateServant . UpdateUser uid
-
-deleteUser :: UserId -> RestActionLabeled ()
-deleteUser = updateServant . DeleteUser
+       queryAction AllUserIds
+  :<|> queryAction . LookupUser
+  :<|> updateAction . AddUser
+  :<|> (\ uid user -> updateAction $ UpdateUser uid user)
+  :<|> updateAction . DeleteUser
 
 
 -- * service
@@ -110,20 +94,11 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Get (ServiceId, Service)
   :<|> Post (ServiceId, ServiceKey)
 
-thentosService :: PushReaderSubType (Server ThentosService)
+thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
-         getServiceIds
-    :<|> getService
-    :<|> postNewService
-
-getServiceIds :: RestActionLabeled [ServiceId]
-getServiceIds = queryServant AllServiceIDs
-
-getService :: ServiceId -> RestActionLabeled (ServiceId, Service)
-getService = queryServant . LookupService
-
-postNewService :: RestActionLabeled (ServiceId, ServiceKey)
-postNewService = updateServant AddService
+         queryAction AllServiceIds
+    :<|> queryAction . LookupService
+    :<|> addService
 
 
 -- * session
@@ -134,30 +109,12 @@ type ThentosSession =
   :<|> Capture "token" SessionToken :> Delete
   :<|> Capture "token" SessionToken :> Get Bool
 
-thentosSession :: PushReaderSubType (Server ThentosSession)
+thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
        createSession
   :<|> createSessionWithTimeout
-  :<|> endSession
+  :<|> updateAction . EndSession
   :<|> isActiveSession
-
--- | Sessions have a fixed duration of 2 weeks.
-createSession :: (UserId, ServiceId) -> RestActionLabeled SessionToken
-createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
-
--- | Sessions with explicit timeout.
-createSessionWithTimeout :: (UserId, ServiceId, Timeout) -> RestActionLabeled SessionToken
-createSessionWithTimeout (uid, sid, timeout) = do
-    now :: UTCTime <- liftIO getCurrentTime
-    updateServant $ StartSession uid sid (TimeStamp now) timeout
-
-endSession :: SessionToken -> RestActionLabeled ()
-endSession = updateServant . EndSession
-
-isActiveSession :: SessionToken -> RestActionLabeled Bool
-isActiveSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
-    queryServant $ IsActiveSession now tok
 
 
 -- * authentication
@@ -167,27 +124,28 @@ isActiveSession tok = do
 -- route handler that takes 'Auth' as an extra argument.  'Auth' will
 -- be parsed from the headers and injected into the @sublayout@
 -- handler.
-data ThentosAuth layout = ThentosAuth (AcidState DB) layout
+data ThentosAuth layout = ThentosAuth (AcidState DB, MVar SystemRNG) layout
 
-instance ( PushReaderT (Server sublayout)
+instance ( PushActionC (Server sublayout)
          , HasServer sublayout
          ) => HasServer (ThentosAuth sublayout)
   where
-    type Server (ThentosAuth sublayout) = ThentosAuth (PushReaderSubType (Server sublayout))
+    type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
 
-    route Proxy (ThentosAuth st subserver) request respond =
-        route (Proxy :: Proxy sublayout) (unPushReaderT routingState subserver) request respond
+    route Proxy (ThentosAuth (st, rng) subserver) request respond =
+        route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
       where
         pluck :: CI SBS -> Maybe ST
         pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
 
-        routingState :: RoutingState
+        routingState :: RestActionState
         routingState = ( st
                        , \ db -> mkThentosClearance
                            (pluck "X-Thentos-User")
                            (pluck "X-Thentos-Service")
                            (pluck "X-Thentos-Password")
-                           db)
+                           db
+                       , rng)
 
 -- | FIXME: not much documentation yet.
 instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where

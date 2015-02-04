@@ -5,9 +5,9 @@
 module DB.Core
   ( DbError(..)
   , ThentosClearance(..)
-  , ThentosUpdate
+  , ThentosUpdate, ThentosUpdate'
   , runThentosUpdate
-  , ThentosQuery
+  , ThentosQuery, ThentosQuery'
   , runThentosQuery
   , liftThentosQuery
   , showDbError
@@ -36,7 +36,7 @@ import Data.Typeable (Typeable)
 import LIO (canFlowTo)
 import LIO.DCLabel (ToCNF, (%%))
 import Safe (readMay)
-import System.Log.Logger (Priority(INFO, ERROR))
+import System.Log.Logger (Priority(INFO))
 import System.Log.Missing (logger)
 
 import Types
@@ -54,7 +54,6 @@ data DbError =
     | PermissionDenied ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
-    | UidOverflow
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy DbError
@@ -64,8 +63,11 @@ instance SafeCopy DbError
       maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
 
 
-type ThentosUpdate a = StateT  DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
-type ThentosQuery  a = ReaderT DB (EitherT (ThentosLabeled DbError) Identity) (ThentosLabeled a)
+type ThentosUpdate a = ThentosUpdate' (ThentosLabeled DbError) (ThentosLabeled a)
+type ThentosQuery  a = ThentosQuery'  (ThentosLabeled DbError) (ThentosLabeled a)
+
+type ThentosUpdate' e a = StateT  DB (EitherT e Identity) a
+type ThentosQuery'  e a = ReaderT DB (EitherT e Identity) a
 
 
 -- * plumbing
@@ -76,6 +78,9 @@ liftThentosQuery thentosQuery = StateT $ \ state ->
 
 
 -- | the type of this will change when servant has a better error type.
+--
+-- FIXME: this is backend specific.  or frontend specific.  i donno,
+-- we probably need one for each, but not this one.
 showDbError :: MonadIO m => DbError -> m (Int, String)
 showDbError NoSuchUser               = return (404, "user not found")
 showDbError NoSuchService            = return (404, "service not found")
@@ -86,9 +91,6 @@ showDbError UserEmailAlreadyExists   = return (403, "email already in use")
 showDbError e@(PermissionDenied _ _) = logger INFO (show e) >> return (401, "unauthorized")
 showDbError BadCredentials           = return (401, "unauthorized")
 showDbError BadAuthenticationHeaders = return (400, "bad authentication headers")
-showDbError e@UidOverflow            = logger ERROR (show e) >> return (500, "internal error: UidOverflow")
-
-    -- FIXME: get rid of 'UidOverflow'.
 
 
 -- | FIXME: generalize, so we can use this for both Update and Query.
@@ -113,7 +115,7 @@ runThentosQuery clearance action = do
 
 checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
 checkClearance clearance label result =
-    if (fromThentosLabel label) `canFlowTo` (fromThentosClearance clearance)
+    if fromThentosLabel label `canFlowTo` fromThentosClearance clearance
         then result
         else return . Left $ PermissionDenied clearance label
 

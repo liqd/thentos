@@ -17,8 +17,10 @@
 module Thentos (main) where
 
 import Control.Concurrent.Async (concurrently)
+import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
+import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.String.Conversions ((<>))
@@ -41,7 +43,9 @@ main =
     st :: AcidState DB <- openLocalStateFrom ".acid-state/" emptyDB
     putStrLn " [ok]"
 
-    createGod st True
+    rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+
+    createGod st True  -- FIXME: remove this from production code
     configLogger
 
     -- FIXME: error handling (produce a helpful error message and quit)
@@ -58,24 +62,18 @@ main =
                     sid <- update' st $ AddService allowEverything
                     putStrLn $ "Service id: " ++ show sid
                 Run config -> do
-                {-
-                switch ["-r"
-                       , fromMaybe 8001 . readMay -> backendPort
-                       , fromMaybe 8002 . readMay -> frontendPort
-                       ] = do
-                -}
                     let backend = case backendConfig config of
                             Nothing -> return ()
                             Just (BackendConfig backendPort) -> do
                                 putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
-                                runApi backendPort st
+                                runApi backendPort (st, rng)
 
                     let frontend = case frontendConfig config of
                             Nothing -> return ()
                             Just (FrontendConfig frontendPort) -> do
                                 putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
                                 putStrLn "Press ^C to abort."
-                                runFrontend "localhost" frontendPort st
+                                runFrontend "localhost" frontendPort (st, rng)
                     _ <- createCheckpointLoop st 16000 Nothing
                     void $ concurrently backend frontend
 
