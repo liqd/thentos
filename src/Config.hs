@@ -31,9 +31,13 @@ data ThentosConfig = ThentosConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     }
+  deriving (Eq, Show)
 
 data BackendConfig = BackendConfig { backendPort :: Int }
+  deriving (Eq, Show)
+
 data FrontendConfig = FrontendConfig { frontendPort :: Int }
+  deriving (Eq, Show)
 
 
 -- * combining (partial) configurations from multiple sources

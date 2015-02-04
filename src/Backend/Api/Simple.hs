@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Backend.Api.Simple (runApi, serveApi, apiDocs) where
+module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
@@ -42,8 +42,8 @@ import Doc ()
 import Types
 
 
-runApi :: Int -> (AcidState DB, MVar SystemRNG) -> IO ()
-runApi port = run port . serveApi
+runBackend :: Int -> (AcidState DB, MVar SystemRNG) -> IO ()
+runBackend port = run port . serveApi
 
 -- | (Required in test suite.)
 serveApi :: (AcidState DB, MVar SystemRNG) -> Application

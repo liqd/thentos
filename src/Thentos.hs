@@ -29,7 +29,7 @@ import Text.Show.Pretty (ppShow)
 import Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
 import Types
 import DB
-import Backend.Api.Simple (runApi, apiDocs)
+import Backend.Api.Simple (runBackend, apiDocs)
 import Frontend (runFrontend)
 
 
@@ -44,7 +44,7 @@ main =
 
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
 
-    createGod st True  -- FIXME: remove this from production code
+    createGod st True  -- FIXME: remove this from production code; allow to set user/passwd in config files.
     configLogger
 
     Right cmd <- getCommand "devel.config"
@@ -58,15 +58,16 @@ main =
                         Nothing -> return ()
                         Just (BackendConfig backendPort) -> do
                             putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
-                            runApi backendPort (st, rng)
+                            runBackend backendPort (st, rng)
 
                 let frontend = case frontendConfig config of
                         Nothing -> return ()
                         Just (FrontendConfig frontendPort) -> do
                             putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
-                            putStrLn "Press ^C to abort."
                             runFrontend "localhost" frontendPort (st, rng)
+
                 _ <- createCheckpointLoop st 16000 Nothing
+                putStrLn "Press ^C to abort."
                 void $ concurrently backend frontend
 
             Docs -> putStrLn apiDocs
