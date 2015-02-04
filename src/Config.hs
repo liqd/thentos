@@ -11,17 +11,19 @@ module Config
 
 import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
-import qualified Data.Configurator as Configurator
-import qualified Data.Configurator.Types as Configurator
-import qualified Data.HashMap.Strict as HM
 import Data.Monoid (Monoid(..), (<>))
-import Options.Applicative (Parser, execParser, info, metavar, subparser,
-    command, info, progDesc, long, auto, option, flag, help)
+import Options.Applicative (command, info, progDesc, long, auto, option, flag, help)
+import Options.Applicative (Parser, execParser, info, metavar, subparser)
+import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG), updateGlobalLogger, setLevel, setHandlers)
 import System.Log.Missing (loggerName)
-import System.IO (stderr)
+
+import qualified Data.Configurator as Configurator
+import qualified Data.Configurator.Types as Configurator
+import qualified Data.HashMap.Strict as HM
+
 
 -- * stuff for combining (partial) configurations from multiple sources
 
