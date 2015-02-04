@@ -25,12 +25,18 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
 
--- * combining (partial) configurations from multiple sources
+-- * the config type used by everyone else
 
 data ServiceConfig = ServiceConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     }
+
+data BackendConfig = BackendConfig { backendPort :: Int }
+data FrontendConfig = FrontendConfig { frontendPort :: Int }
+
+
+-- * combining (partial) configurations from multiple sources
 
 data ServiceConfigBuilder = ServiceConfigBuilder
     { bRunFrontend :: Maybe Bool
@@ -38,9 +44,6 @@ data ServiceConfigBuilder = ServiceConfigBuilder
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
     }
-
-data BackendConfig = BackendConfig { backendPort :: Int }
-data FrontendConfig = FrontendConfig { frontendPort :: Int }
 
 data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
 data FrontendConfigBuilder = FrontendConfigBuilder { bFrontendPort :: Maybe Int }
