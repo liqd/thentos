@@ -32,9 +32,10 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 
-import Types
-import DB
 import Api
+import Config
+import DB
+import Types
 
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Frontend.Util (serveSnaplet)
@@ -45,6 +46,7 @@ data FrontendApp =
     FrontendApp
       { _db :: Snaplet (Acid DB)
       , _rng :: MVar SystemRNG
+      , _cfg :: ThentosConfig
       }
 
 makeLenses ''FrontendApp
@@ -52,15 +54,16 @@ makeLenses ''FrontendApp
 instance HasAcid FrontendApp DB where
     getAcidStore = view (db . snapletValue)
 
-runFrontend :: ByteString -> Int -> (AcidState DB, MVar SystemRNG) -> IO ()
-runFrontend host port (st, rn) = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp (st, rn))
+runFrontend :: ByteString -> Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runFrontend host port asg = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg)
 
-frontendApp :: (AcidState DB, MVar SystemRNG) -> SnapletInit FrontendApp FrontendApp
-frontendApp (st, rn) = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
+frontendApp :: ActionStateGlobal (MVar SystemRNG) -> SnapletInit FrontendApp FrontendApp
+frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
     addRoutes routes
     FrontendApp <$>
         (nestSnaplet "acid" db $ acidInitManual st) <*>
-        (return rn)
+        (return rn) <*>
+        (return _cfg)
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("login", loginHandler)
@@ -158,7 +161,8 @@ snapRunAction :: (DB -> Either DbError ThentosClearance) -> Action (MVar SystemR
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
     st :: AcidState DB <- getAcidState
-    runAction (st, clearanceAbs, rn) action
+    _cfg :: ThentosConfig <- gets (^. cfg)
+    runAction ((st, rn, _cfg), clearanceAbs) action
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either DbError a)

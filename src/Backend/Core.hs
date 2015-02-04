@@ -24,7 +24,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Data.Thyme.Time ()
 import Servant.API ((:<|>)((:<|>)))
-import Network.Wai.Internal (ResponseReceived)
+import Network.Wai (ResponseReceived)
 
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
@@ -63,10 +63,19 @@ instance PushActionC (RestActionRaw a) where
 
 -- | For handling 'Raw'.  (The 'Application' type has been stripped of
 -- its arguments by the time the compiler will find this instance.)
+--
+-- FIXME: in order to do error handling here, which would be nice, we
+-- would have to instantiate @((Response -> IO ResponseReceived) -> IO
+-- ResponseReceived)@, which conflicts with the @a -> b@ instance
+-- above.  a solution for this is to wrap 'Application' in 'Raw' into
+-- a transparent newtype that can be instantiated here instead of the
+-- function type.  for now, just crash in case of errors.
 instance PushActionC (IO ResponseReceived) where
-    type PushActionSubRoute (IO ResponseReceived) = IO ResponseReceived
-    pushAction _ = id
-
+    type PushActionSubRoute (IO ResponseReceived) = RestAction ResponseReceived
+    pushAction restState restAction = (either crash id <$>) . runEitherT $ runReaderT restAction restState
+      where
+        crash x = error $ "[PushActionC for Raw] somebody threw an error, but we can't handle those yet: "
+                    ++ show x
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the
 -- left value constructed in an impure action.

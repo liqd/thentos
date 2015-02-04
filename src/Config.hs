@@ -7,12 +7,14 @@ module Config
     , ThentosConfig(..)
     , FrontendConfig(..)
     , BackendConfig(..)
+    , ProxyConfig(..)
+    , emptyThentosConfig
     ) where
 
 import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
 import Data.Monoid (Monoid(..), (<>))
-import Options.Applicative (command, info, progDesc, long, auto, option, flag, help)
+import Options.Applicative (command, info, progDesc, long, short, auto, option, strOption, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
@@ -30,6 +32,7 @@ import qualified Data.HashMap.Strict as HM
 data ThentosConfig = ThentosConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
+    , proxyConfig :: Maybe ProxyConfig
     }
   deriving (Eq, Show)
 
@@ -39,6 +42,12 @@ data BackendConfig = BackendConfig { backendPort :: Int }
 data FrontendConfig = FrontendConfig { frontendPort :: Int }
   deriving (Eq, Show)
 
+data ProxyConfig = ProxyConfig { proxyTarget :: String }
+  deriving (Eq, Show)
+
+emptyThentosConfig :: ThentosConfig
+emptyThentosConfig = ThentosConfig Nothing Nothing Nothing
+
 
 -- * combining (partial) configurations from multiple sources
 
@@ -47,10 +56,12 @@ data ThentosConfigBuilder = ThentosConfigBuilder
     , bRunBackend :: Maybe Bool
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
+    , bProxyConfig :: ProxyConfigBuilder
     }
 
 data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
 data FrontendConfigBuilder = FrontendConfigBuilder { bFrontendPort :: Maybe Int }
+data ProxyConfigBuilder = ProxyConfigBuilder { bProxyTarget :: Maybe String }
 
 instance Monoid BackendConfigBuilder where
     mempty = BackendConfigBuilder Nothing
@@ -64,14 +75,21 @@ instance Monoid FrontendConfigBuilder where
         FrontendConfigBuilder
             { bFrontendPort = bFrontendPort b1 <|> bFrontendPort b2 }
 
+instance Monoid ProxyConfigBuilder where
+    mempty = ProxyConfigBuilder Nothing
+    b1 `mappend` b2 =
+        ProxyConfigBuilder
+            { bProxyTarget = bProxyTarget b1 <|> bProxyTarget b2 }
+
 instance Monoid ThentosConfigBuilder where
-    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty
+    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty
     b1 `mappend` b2 =
         ThentosConfigBuilder
             (bRunFrontend b1 <|> bRunFrontend b2)
             (bRunBackend b1 <|> bRunBackend b2)
             (bBackendConfig b1 <> bBackendConfig b2)
             (bFrontendConfig b1 <> bFrontendConfig b2)
+            (bProxyConfig b1 <> bProxyConfig b2)
 
 data ConfigError = FrontendError | BackendError
 
@@ -80,6 +98,7 @@ finaliseConfig builder =
     ThentosConfig
         <$> frontendConf
         <*> backendConf
+        <*> proxyConf
   where
     backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
         (Just True, Nothing) -> Left BackendError
@@ -89,12 +108,16 @@ finaliseConfig builder =
         (Just True, Nothing) -> Left FrontendError
         (Just True, fConf) -> Right fConf
         _ -> Right Nothing
+    proxyConf = Right . finaliseProxyConfig $ bProxyConfig builder
 
 finaliseFrontendConfig :: FrontendConfigBuilder -> Maybe FrontendConfig
 finaliseFrontendConfig builder = FrontendConfig <$> bFrontendPort builder
 
 finaliseBackendConfig :: BackendConfigBuilder -> Maybe BackendConfig
 finaliseBackendConfig builder = BackendConfig <$> bBackendPort builder
+
+finaliseProxyConfig :: ProxyConfigBuilder -> Maybe ProxyConfig
+finaliseProxyConfig builder = ProxyConfig <$> bProxyTarget builder
 
 finaliseCommand :: FilePath -> CommandBuilder -> IO (Either ConfigError Command)
 finaliseCommand _ BShowDB = return $ Right ShowDB
@@ -121,6 +144,7 @@ parseCommandBuilder = execParser opts
     opts = info parser mempty
 
 data Command = Run ThentosConfig | ShowDB | Docs
+  deriving (Eq, Show)
 
 data CommandBuilder =
     BRun ThentosConfigBuilder | BShowDB | BDocs
@@ -134,7 +158,8 @@ parseServiceConfig =
         parseRunFrontend <*>
         parseRunBackend <*>
         parseBackendConfigBuilder <*>
-        parseFrontendConfigBuilder
+        parseFrontendConfigBuilder <*>
+        parseProxyConfigBuilder
 
 parseBackendConfigBuilder :: Parser BackendConfigBuilder
 parseBackendConfigBuilder =
@@ -154,6 +179,17 @@ parseFrontendConfigBuilder =
         (long "frontendport"
         <> metavar "frontendPort"
         <> help "Port that the frontend service listens on"
+        )
+
+parseProxyConfigBuilder :: Parser ProxyConfigBuilder
+parseProxyConfigBuilder =
+    ProxyConfigBuilder <$> optional parseProxyTarget
+  where
+    parseProxyTarget = strOption
+        (long "proxytarget"
+        <> short 'f'
+        <> metavar "proxyTarget"
+        <> help "Where proxied requests will go"
         )
 
 parseRunFrontend :: Parser (Maybe Bool)
@@ -181,6 +217,7 @@ parseConfigFile filePath = do
                 (get "run_backend")
                 (BackendConfigBuilder $ get "backend_port")
                 (FrontendConfigBuilder $ get "frontend_port")
+                (ProxyConfigBuilder $ get "proxy_target")
 
 
 -- * logging

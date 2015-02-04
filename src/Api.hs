@@ -6,7 +6,8 @@
 {-# OPTIONS  #-}
 
 module Api
-  ( ActionState
+  ( ActionStateGlobal
+  , ActionState
   , Action
   , runAction', runAction
   , updateAction
@@ -37,13 +38,15 @@ import Data.Thyme (UTCTime, getCurrentTime)
 
 import qualified Codec.Binary.Base64 as Base64
 
+import Config
 import DB
 import Types
 
 
 -- * types
 
-type ActionState r = (AcidState DB, DB -> Either DbError ThentosClearance, r)
+type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
+type ActionState r = (ActionStateGlobal r, DB -> Either DbError ThentosClearance)
 type Action r = ReaderT (ActionState r) (EitherT DbError IO)
 
 
@@ -55,8 +58,8 @@ runAction actionState action =
     liftIO . eitherT (return . Left) (return . Right) $ action `runReaderT` actionState
 
 runAction' :: (MonadIO m, CPRG r) =>
-       (AcidState DB, ThentosClearance, MVar r) -> Action (MVar r) a -> m (Either DbError a)
-runAction' (st, clearance, rng) = runAction (st, const $ Right clearance, rng)
+       (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either DbError a)
+runAction' (asg, clearance) = runAction (asg, const $ Right clearance)
 
 
 -- * actions and acid-state
@@ -96,7 +99,7 @@ accessAction :: forall event a r .
                  ) => (AcidState (EventState event) -> event -> Action r (EventResult event))
                    -> (ThentosClearance -> event) -> Action r a
 accessAction access unclearedEvent = do
-    (st, clearanceAbs, _) <- ask
+    ((st, _, _), clearanceAbs) <- ask
     clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot allowEverything)
     case clearanceE of
         Left err -> lift $ left err
@@ -113,7 +116,7 @@ accessAction access unclearedEvent = do
 -- 'Action'.
 genRandomBytes :: CPRG r => Int -> Action (MVar r) SBS
 genRandomBytes i = do
-    (_, _, mr) <- ask
+    ((_, mr, _), _) <- ask
     liftIO . modifyMVar mr $ \ r -> do
         let (result, r') = cprgGenerate i r
         return (r', result)

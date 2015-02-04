@@ -58,13 +58,13 @@ main =
                         Nothing -> return ()
                         Just (BackendConfig backendPort) -> do
                             putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
-                            runBackend backendPort (st, rng)
+                            runBackend backendPort (st, rng, config)
 
                 let frontend = case frontendConfig config of
                         Nothing -> return ()
                         Just (FrontendConfig frontendPort) -> do
                             putStrLn $ "running frontend on localhost:" <> show frontendPort <> "."
-                            runFrontend "localhost" frontendPort (st, rng)
+                            runFrontend "localhost" frontendPort (st, rng, config)
 
                 _ <- createCheckpointLoop st 16000 Nothing
                 putStrLn "Press ^C to abort."

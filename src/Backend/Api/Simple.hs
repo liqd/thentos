@@ -19,8 +19,9 @@
 module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
 import Control.Concurrent.MVar (MVar)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Reader (ask)
 import Crypto.Random (SystemRNG)
-import Data.Acid (AcidState)
 import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, LBS, ST, cs)
@@ -33,6 +34,7 @@ import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
 
 import qualified Network.HTTP.Client as C
+import qualified Network.HTTP.Types.Status as T
 import qualified Network.Wai as S
 
 import Api
@@ -40,13 +42,14 @@ import Backend.Core
 import DB
 import Doc ()
 import Types
+import Config
 
 
-runBackend :: Int -> (AcidState DB, MVar SystemRNG) -> IO ()
+runBackend :: Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
 runBackend port = run port . serveApi
 
 -- | (Required in test suite.)
-serveApi :: (AcidState DB, MVar SystemRNG) -> Application
+serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
 serveApi = serve (Proxy :: Proxy App) . app
 
 apiDocs :: String
@@ -57,8 +60,8 @@ apiDocs = markdown $ docs (Proxy :: Proxy App)
 
 type App = ThentosAuth ThentosBasic
 
-app :: (AcidState DB, MVar SystemRNG) -> Server App
-app (st, rng) = ThentosAuth (st, rng) thentosBasic
+app :: ActionStateGlobal (MVar SystemRNG) -> Server App
+app asg = ThentosAuth asg thentosBasic
 
 type ThentosBasic =
        "user" :> ThentosUser
@@ -81,7 +84,7 @@ thentosBasic =
 -- route handler that takes 'Auth' as an extra argument.  'Auth' will
 -- be parsed from the headers and injected into the @sublayout@
 -- handler.
-data ThentosAuth layout = ThentosAuth (AcidState DB, MVar SystemRNG) layout
+data ThentosAuth layout = ThentosAuth (ActionStateGlobal (MVar SystemRNG)) layout
 
 instance ( PushActionC (Server sublayout)
          , HasServer sublayout
@@ -89,20 +92,20 @@ instance ( PushActionC (Server sublayout)
   where
     type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
 
-    route Proxy (ThentosAuth (st, rng) subserver) request respond =
+    route Proxy (ThentosAuth asg subserver) request respond =
         route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
       where
         pluck :: CI SBS -> Maybe ST
         pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
 
         routingState :: RestActionState
-        routingState = ( st
+        routingState = ( asg
                        , \ db -> mkThentosClearance
                            (pluck "X-Thentos-User")
                            (pluck "X-Thentos-Service")
                            (pluck "X-Thentos-Password")
                            db
-                       , rng)
+                       )
 
 -- | FIXME: not much documentation yet.
 instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
@@ -163,18 +166,18 @@ type ProxyTest = Raw
 
 proxyTest :: PushActionSubRoute (Server ProxyTest)
 proxyTest req cont = do
-    C.withManager C.defaultManagerSettings $ \ manager ->
-        prepareReq req >>=
-        (`C.httpLbs` manager) >>=
-        cont . prepareResp
+    ((_, _, thentosConfig), _) <- ask
+    liftIO $ case proxyConfig thentosConfig of
+        Nothing -> cont $ S.responseLBS (T.Status 404 "Thentos: proxying deactivated.") [] ""
+        Just (ProxyConfig target) -> C.withManager C.defaultManagerSettings $ \ manager ->
+            prepareReq target req >>=
+            (`C.httpLbs` manager) >>=
+            cont . prepareResp
 
-proxyTarget :: String
-proxyTarget = "http://www.heise.de"  -- FIXME: move this to "Config".
-
-prepareReq :: S.Request -> IO C.Request
-prepareReq req = do
+prepareReq :: String -> S.Request -> IO C.Request
+prepareReq target req = do
     body <- S.strictRequestBody req
-    req' <- C.parseUrl $ proxyTarget ++ (cs $ S.rawPathInfo req)
+    req' <- C.parseUrl $ target ++ (cs $ S.rawPathInfo req)
     return . C.setQueryString (S.queryString req) $ req'
         { C.method         = S.requestMethod req
         , C.checkStatus    = \ _ _ _ -> Nothing
