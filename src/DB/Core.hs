@@ -115,7 +115,7 @@ runThentosQuery clearance action = do
 
 checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
 checkClearance clearance label result =
-    if (fromThentosLabel label) `canFlowTo` (fromThentosClearance clearance)
+    if fromThentosLabel label `canFlowTo` fromThentosClearance clearance
         then result
         else return . Left $ PermissionDenied clearance label
 

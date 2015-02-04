@@ -102,7 +102,7 @@ addServiceHandler = blaze addServicePage
 
 serviceAddedHandler :: Handler FrontendApp FrontendApp ()
 serviceAddedHandler = do
-    result <- snapRunAction' allowEverything $ addService
+    result <- snapRunAction' allowEverything addService
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> blaze . errorPage $ show e

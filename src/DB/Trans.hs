@@ -111,7 +111,7 @@ trans_allUserIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers
 
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
 trans_lookupUser uid = (uid,) <$$> do
-    let label = (RoleAdmin \/ UserA uid =%% False)
+    let label = RoleAdmin \/ UserA uid =%% False
     perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
     maybe (throwDBQ label NoSuchUser) (returnDBQ label) perhaps
 

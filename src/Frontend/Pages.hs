@@ -60,7 +60,7 @@ addServicePage = H.docTypeHtml $ do
         H.title "Create Service"
     H.body $ do
         H.form ! A.method "POST" ! A.action "create_service" $
-            H.input ! A.type_ "submit" ! A.value ("Create Service")
+            H.input ! A.type_ "submit" ! A.value "Create Service"
 
 serviceAddedPage :: ServiceId -> ServiceKey -> Html
 serviceAddedPage sid key = H.docTypeHtml $ do

@@ -50,7 +50,7 @@ mkThentosClearance _           _              _               _  = Left BadAuthe
 authenticateUser :: DB -> UserName -> UserPass -> Either DbError ThentosClearance
 authenticateUser db name password = do
     (uid, user) :: (UserId, User)
-        <- maybe (Left BadCredentials) (Right) $ pure_lookupUserByName db name
+        <- maybe (Left BadCredentials) Right $ pure_lookupUserByName db name
 
     credentials :: [CNF]
         <- let a = UserA uid
