@@ -18,7 +18,7 @@ import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String (IsString)
-import Data.String.Conversions (SBS, ST)
+import Data.String.Conversions (ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
@@ -39,7 +39,6 @@ data DB =
       , _dbRoles            :: Map Agent [Role]
 
       , _dbFreshUserId :: !UserId
-      , _dbRandomness  :: !SBS
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 

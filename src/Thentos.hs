@@ -18,8 +18,10 @@ module Thentos (main) where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
+import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (SomeException, throw, catch)
 import Control.Monad (void)
+import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Maybe (fromMaybe)
@@ -51,6 +53,8 @@ main =
     st :: AcidState DB <- openLocalStateFrom ".acid-state/" emptyDB
     putStrLn " [ok]"
 
+    rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+
     createGod st True
     configLogger
 
@@ -64,10 +68,6 @@ main =
         switch ["-a2"] = do
             putStrLn "adding dummy user to database:"
             void . update' st $ AddUser (User "dummy" "dummy" "dummy" [] []) allowEverything
-        switch ["-a3"] = do
-            putStrLn "adding dummy service to database:"
-            sid <- update' st $ AddService allowEverything
-            putStrLn $ "Service id: " ++ show sid
         switch ["-r"] = switch ["-r", "", ""]
         switch ["-r", a] = switch ["-r", a, ""]
         switch ["-r"
@@ -79,8 +79,8 @@ main =
             putStrLn "Press ^C to abort."
             _ <- createCheckpointLoop st 16000 Nothing
             void $ concurrently
-                (runFrontend "localhost" frontendPort st)
-                (runApi backendPort st)
+                (runFrontend "localhost" frontendPort (st, rng))
+                (runApi backendPort (st, rng))
         switch ["--docs"] = putStrLn apiDocs
         switch _ = error $ "bad arguments: " <> show args
 

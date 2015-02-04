@@ -1,55 +1,67 @@
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TemplateHaskell                          #-}
+{-# LANGUAGE TypeFamilies                             #-}
 
 module Frontend (runFrontend) where
 
+import Control.Applicative ((<$>), (<*>))
+import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view, (^.))
-import Control.Applicative ((<$>))
-import Control.Monad (when)
 import Control.Monad.IO.Class (liftIO)
+import Control.Monad.State.Class (gets)
+import Control.Monad (when)
+import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.ByteString as B
-import Data.Monoid ((<>))
-import qualified Data.Map as M
 import Data.Maybe (isNothing)
+import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
 import Data.Thyme (getCurrentTime)
 import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
-import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus, getResponse, finishWith, method, Method(GET, POST))
+import Snap.Core (getResponse, finishWith, method, Method(GET, POST))
+import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
+import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
-import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), update, query)
 import Text.Digestive.Snap (runForm)
 
-import DB (AddService(AddService), LookupUserByName(..), StartSession(..), allowEverything, DbError(NoSuchUser), FinishUserRegistration(..),
-    AddUnconfirmedUser(..))
-import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
+import qualified Data.Map as M
+
 import Types
+import DB
+import Api
+
+import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Frontend.Util (serveSnaplet)
 import Frontend.Mail (sendUserConfirmationMail)
 
 
-data FrontendApp = FrontendApp {_db :: Snaplet (Acid DB)}
+data FrontendApp =
+    FrontendApp
+      { _db :: Snaplet (Acid DB)
+      , _rng :: MVar SystemRNG
+      }
 
 makeLenses ''FrontendApp
 
 instance HasAcid FrontendApp DB where
     getAcidStore = view (db . snapletValue)
 
-runFrontend :: ByteString -> Int -> AcidState DB -> IO ()
-runFrontend host port st = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp st)
+runFrontend :: ByteString -> Int -> (AcidState DB, MVar SystemRNG) -> IO ()
+runFrontend host port (st, rn) = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp (st, rn))
 
-frontendApp :: AcidState DB -> SnapletInit FrontendApp FrontendApp
-frontendApp st = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
-    a <- nestSnaplet "acid" db $ acidInitManual st
+frontendApp :: (AcidState DB, MVar SystemRNG) -> SnapletInit FrontendApp FrontendApp
+frontendApp (st, rn) = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
     addRoutes routes
-    return $ FrontendApp a
+    FrontendApp <$>
+        (nestSnaplet "acid" db $ acidInitManual st) <*>
+        (return rn)
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("login", loginHandler)
@@ -65,7 +77,7 @@ userAddHandler = do
     case result of
         Nothing -> blaze $ addUserPage _view
         Just user -> do
-            result' <- update (AddUnconfirmedUser user allowEverything)
+            result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
             case result' of
                 Right (ConfirmationToken token) -> do
                     -- FIXME: callback base url must be configurable
@@ -90,7 +102,7 @@ addServiceHandler = blaze addServicePage
 
 serviceAddedHandler :: Handler FrontendApp FrontendApp ()
 serviceAddedHandler = do
-    result <- update $ AddService allowEverything
+    result <- snapRunAction' allowEverything $ addService
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> blaze . errorPage $ show e
@@ -127,7 +139,8 @@ loginHandler = do
         let (Just sid, Just callback) = (mSid, mCallback)
         -- FIXME: how long should the session live?
         eSessionToken :: Either DbError SessionToken
-            <- update $ StartSession uid (ServiceId $ cs sid) (TimeStamp now) (Timeout $ 14 * 24 * 3600) allowEverything
+            <- snapRunAction' allowEverything $
+                startSession uid (ServiceId $ cs sid) (TimeStamp now) (Timeout $ 14 * 24 * 3600)
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
             Right sessionToken ->
@@ -139,3 +152,15 @@ loginHandler = do
         let params = parseUrlEncoded $ B.drop 1 _query in
         let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
         base_url <> "?" <> printUrlEncoded params'
+
+
+snapRunAction :: (DB -> Either DbError ThentosClearance) -> Action (MVar SystemRNG) a
+      -> Handler FrontendApp FrontendApp (Either DbError a)
+snapRunAction clearanceAbs action = do
+    rn :: MVar SystemRNG <- gets (^. rng)
+    st :: AcidState DB <- getAcidState
+    runAction (st, clearanceAbs, rn) action
+
+snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
+      -> Handler FrontendApp FrontendApp (Either DbError a)
+snapRunAction' clearance action = snapRunAction (const $ Right clearance) action

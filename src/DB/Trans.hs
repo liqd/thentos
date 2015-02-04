@@ -54,22 +54,19 @@ where
 
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
-import Control.Monad.State (modify, state, gets)
+import Control.Monad.State (modify, gets)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.Function (on)
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, nubBy, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
-import Data.String.Conversions (cs, ST, (<>))
 import LIO.DCLabel ((\/), (/\))
 
-import qualified Codec.Binary.Base32 as Base32
-import qualified Crypto.Hash.SHA3 as Hash
 import qualified Data.Map as Map
 
-import Types
 import DB.Core
+import Types
 
 
 -- * DB invariants
@@ -95,7 +92,7 @@ dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0) ""
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
 
 
 -- ** smart accessors
@@ -105,30 +102,6 @@ freshUserId = do
     uid <- gets (^. dbFreshUserId)
     modify (dbFreshUserId .~ succ uid)
     return uid
-
-freshServiceId :: ThentosUpdate' e ServiceId
-freshServiceId = ServiceId <$> freshRandomName
-
-freshServiceKey :: ThentosUpdate' e ServiceKey
-freshServiceKey = ServiceKey <$> freshRandomName
-
-freshSessionToken :: ThentosUpdate' e SessionToken
-freshSessionToken = SessionToken <$> freshRandomName
-
-freshConfirmationToken :: ThentosUpdate' e ConfirmationToken
-freshConfirmationToken = ConfirmationToken <$> freshRandomName
-
-
--- | this makes the impression of a cryptographic function, but there
--- is no adversary model and no promise of security.  just yield
--- seemingly random service ids, and update randomness in `DB`.
-freshRandomName :: ThentosUpdate' e ST
-freshRandomName = state $ \ db ->
-  let r   = db ^. dbRandomness
-      r'  = Hash.hash 512 r
-      db' = dbRandomness .~ r' $ db
-      sid = cs . Base32.encode . Hash.hash 512 $ "_" <> r
-  in (sid, db')
 
 
 -- ** users
@@ -159,9 +132,8 @@ pure_lookupUserByName db name =
 -- | Write a new unconfirmed user (i.e. one whose email address we haven't
 -- confirmed yet) to DB. Unlike addUser, this operation does not ensure
 -- uniqueness of email adresses.
-trans_addUnconfirmedUser :: User -> ThentosUpdate ConfirmationToken
-trans_addUnconfirmedUser user = do
-    token <- freshConfirmationToken
+trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate ConfirmationToken
+trans_addUnconfirmedUser token user = do
     modify $ dbUnconfirmedUsers %~ Map.insert token user
     returnDBU thentosPublic token
 
@@ -235,10 +207,8 @@ pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-trans_addService :: ThentosUpdate (ServiceId, ServiceKey)
-trans_addService = do
-    sid <- freshServiceId
-    key <- freshServiceKey
+trans_addService :: ServiceId -> ServiceKey -> ThentosUpdate (ServiceId, ServiceKey)
+trans_addService sid key = do
     let service = Service key
     modify $ dbServices %~ Map.insert sid service
     returnDBU thentosPublic (sid, key)
@@ -264,12 +234,12 @@ trans_deleteService sid = do
 -- start and end times.  (This function also collects all old sessions
 -- on the same pair of uid, sid, whether active or inactive, from the
 -- global and user-local session maps.)
-trans_startSession :: UserId -> ServiceId -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
-trans_startSession uid sid start lifetime = do
+trans_startSession :: SessionToken -> UserId -> ServiceId -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
+trans_startSession freshSessionToken uid sid start lifetime = do
     ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
     ThentosLabeled _ _         <- liftThentosQuery $ trans_lookupService sid
 
-    tok <- maybe freshSessionToken return $ lookup sid (user ^. userSessions)
+    let tok = fromMaybe freshSessionToken $ lookup sid (user ^. userSessions)
 
     let session = Session uid sid start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
@@ -437,9 +407,9 @@ lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
 lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
 lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
 
-addUnconfirmedUser :: User -> ThentosClearance -> Update DB (Either DbError ConfirmationToken)
-addUnconfirmedUser user clearance =
-    runThentosUpdate clearance $ trans_addUnconfirmedUser user
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either DbError ConfirmationToken)
+addUnconfirmedUser token user clearance =
+    runThentosUpdate clearance $ trans_addUnconfirmedUser token user
 
 finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either DbError UserId)
 finishUserRegistration token clearance =
@@ -463,14 +433,14 @@ allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
 
-addService :: ThentosClearance -> Update DB (Either DbError (ServiceId, ServiceKey))
-addService clearance = runThentosUpdate clearance trans_addService
+addService :: ServiceId -> ServiceKey -> ThentosClearance -> Update DB (Either DbError (ServiceId, ServiceKey))
+addService sid key clearance = runThentosUpdate clearance $ trans_addService sid key
 
 deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())
 deleteService sid clearance = runThentosUpdate clearance $ trans_deleteService sid
 
-startSession :: UserId -> ServiceId -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either DbError SessionToken)
-startSession uid sid start lifetime clearance = runThentosUpdate clearance $ trans_startSession uid sid start lifetime
+startSession :: SessionToken -> UserId -> ServiceId -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either DbError SessionToken)
+startSession tok uid sid start lifetime clearance = runThentosUpdate clearance $ trans_startSession tok uid sid start lifetime
 
 allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
 allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens

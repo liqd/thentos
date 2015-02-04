@@ -20,77 +20,33 @@ module Backend.Core
 where
 
 import Control.Applicative ((<$>))
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT, left)
-import Control.Monad.Trans.Reader (ReaderT, runReaderT, ask)
-import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
-import Data.Acid.Advanced (update', query')
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
+import Control.Monad.Trans.Reader (runReaderT)
 import Data.Thyme.Time ()
 import Servant.API ((:<|>)((:<|>)))
 
+import Control.Concurrent.MVar (MVar)
+import Crypto.Random (SystemRNG)
+
+import Api
 import DB
-import Types
 
 
-type RoutingState = (AcidState DB, DB -> Either DbError ThentosClearance)
-type RestActionRaw = EitherT (Int, String) IO
-type RestActionLabeled = ReaderT RoutingState RestActionRaw
-
-updateServant :: forall event a .
-                 ( UpdateEvent event
-                 , EventState event ~ DB
-                 , EventResult event ~ Either DbError a
-                 ) => (ThentosClearance -> event) -> RestActionLabeled a
-updateServant = accessServant update'
-
-queryServant :: forall event a .
-                 ( QueryEvent event
-                 , EventState event ~ DB
-                 , EventResult event ~ Either DbError a
-                 ) => (ThentosClearance -> event) -> RestActionLabeled a
-queryServant = accessServant query'
-
--- | Pull a snapshot from the database, pass it to the clearance
--- function in the reader monad, pass the resulting clearance to the
--- uncleared event, and pass the cleared event to either query' or
--- update' (whichever is passed as first arg).
---
--- NOTE: Authentication check and transaction do *not* form an atomic
--- transaction.  In order to get an upper bound on how long changes in
--- access priviledges need to become effective, the following may work
--- (but is not implemented): 'SnapShot' returns 'DB' together with a
--- timestamp.  When the actual transaction is executed, mkAuth will be
--- passed another timestamp (of the time of the execution of the
--- actual transaction), and can compare the two.  If the 'DB' snapshot
--- is too old, it can throw an error.  (This would mean that mkAuth
--- would have to live in 'RestActionLabeled', but I don't see any
--- issues with that.)  Anyway this is a little over-complicated for
--- now, I think.
-accessServant :: forall event a .
-                 ( EventState event ~ DB
-                 , EventResult event ~ Either DbError a
-                 ) => (AcidState (EventState event) -> event -> RestActionLabeled (EventResult event))
-                   -> (ThentosClearance -> event) -> RestActionLabeled a
-accessServant access unclearedEvent = do
-    (st, clearanceAbs) <- ask
-    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot allowEverything)
-    case clearanceE of
-        Left err -> showDbError err >>= lift . left
-        Right clearance -> do
-            result <- access st (unclearedEvent clearance)
-            case result of
-                Left err -> showDbError err >>= lift . left
-                Right success -> return success
+type RestAction      = Action (MVar SystemRNG)
+type RestActionState = ActionState (MVar SystemRNG)
+type RestActionRaw   = EitherT RestError IO
+type RestError       = (Int, String)
 
 
--- | this is a work-around: The Server type family always terminates
--- in 'RestActionRaw' on all methods.  'PushReaderT' instances
--- transform handlers implemented in a monad stack that contains the
--- acid state and authentication information in a reader into the
--- handlers that we need.
+-- | This is a work-around: The 'Server' type family terminates in
+-- 'RestActionRaw' on all methods.  'PushReaderT' instances transform
+-- handlers implemented in a monad stack we want (providing acid
+-- state, clearance info, random generator, ... in a reader) into the
+-- handlers in 'RestActionRaw'.  (Also, translate 'DbError' to
+-- 'RestError'.)
 class PushReaderT a where
     type PushReaderSubType a
-    unPushReaderT :: RoutingState -> PushReaderSubType a -> a
+    unPushReaderT :: RestActionState -> PushReaderSubType a -> a
 
 instance (PushReaderT b) => PushReaderT (a -> b) where
     type PushReaderSubType (a -> b) = a -> PushReaderSubType b
@@ -101,5 +57,15 @@ instance (PushReaderT a, PushReaderT b) => PushReaderT (a :<|> b) where
     unPushReaderT clearance (a :<|> b) = unPushReaderT clearance a :<|> unPushReaderT clearance b
 
 instance PushReaderT (RestActionRaw a) where
-    type PushReaderSubType (RestActionRaw a) = RestActionLabeled a
-    unPushReaderT rstate x = runReaderT x rstate
+    type PushReaderSubType (RestActionRaw a) = RestAction a
+    unPushReaderT restState restAction = fmapLTM showDbError $ runReaderT restAction restState
+
+
+-- | Like 'fmapLT' from "Data.EitherR", but with the update of the
+-- left value constructed in an impure action.
+fmapLTM :: (Monad m, Functor m) => (a -> m a') -> EitherT a m b -> EitherT a' m b
+fmapLTM trans e = EitherT $ do
+    result <- runEitherT e
+    case result of
+        Right r -> return $ Right r
+        Left l -> Left <$> trans l
