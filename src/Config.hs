@@ -38,7 +38,7 @@ data FrontendConfig = FrontendConfig { frontendPort :: Int }
 
 -- * combining (partial) configurations from multiple sources
 
-data ServiceConfigBuilder = ServiceConfigBuilder
+data ThentosConfigBuilder = ThentosConfigBuilder
     { bRunFrontend :: Maybe Bool
     , bRunBackend :: Maybe Bool
     , bBackendConfig :: BackendConfigBuilder
@@ -60,10 +60,10 @@ instance Monoid FrontendConfigBuilder where
         FrontendConfigBuilder
             { bFrontendPort = bFrontendPort b1 <|> bFrontendPort b2 }
 
-instance Monoid ServiceConfigBuilder where
-    mempty = ServiceConfigBuilder Nothing Nothing mempty mempty
+instance Monoid ThentosConfigBuilder where
+    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty
     b1 `mappend` b2 =
-        ServiceConfigBuilder
+        ThentosConfigBuilder
             (bRunFrontend b1 <|> bRunFrontend b2)
             (bRunBackend b1 <|> bRunBackend b2)
             (bBackendConfig b1 <> bBackendConfig b2)
@@ -71,7 +71,7 @@ instance Monoid ServiceConfigBuilder where
 
 data ConfigError = FrontendError | BackendError
 
-finaliseConfig :: ServiceConfigBuilder -> Either ConfigError ThentosConfig
+finaliseConfig :: ThentosConfigBuilder -> Either ConfigError ThentosConfig
 finaliseConfig builder =
     ThentosConfig
         <$> frontendConf
@@ -119,14 +119,14 @@ parseCommandBuilder = execParser opts
 data Command = Run ThentosConfig | ShowDB | Docs
 
 data CommandBuilder =
-    BRun ServiceConfigBuilder | BShowDB | BDocs
+    BRun ThentosConfigBuilder | BShowDB | BDocs
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseServiceConfig
 
-parseServiceConfig :: Parser ServiceConfigBuilder
+parseServiceConfig :: Parser ThentosConfigBuilder
 parseServiceConfig =
-    ServiceConfigBuilder <$>
+    ThentosConfigBuilder <$>
         parseRunFrontend <*>
         parseRunBackend <*>
         parseBackendConfigBuilder <*>
@@ -167,12 +167,12 @@ parseRunBackend = flag Nothing (Just True)
 
 -- * config file parsing
 
-parseConfigFile :: IO ServiceConfigBuilder
+parseConfigFile :: IO ThentosConfigBuilder
 parseConfigFile = do
     config <- Configurator.load [Configurator.Required "devel.config"]
     argMap <- Configurator.getMap config
     let get key = join $ Configurator.convert <$> HM.lookup key argMap
-    return $ ServiceConfigBuilder
+    return $ ThentosConfigBuilder
                 (get "run_frontend")
                 (get "run_backend")
                 (BackendConfigBuilder $ get "backend_port")
