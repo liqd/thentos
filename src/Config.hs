@@ -86,10 +86,12 @@ finaliseConfig builder =
     backendConf =
         case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
         (Just True, Nothing) -> Left BackendError
-        (_, bConf)      -> Right bConf
+        (Just True, bConf) -> Right bConf
+        _ -> Right Nothing
     frontendConf = case (bRunFrontend builder, finaliseFrontendConfig $ bFrontendConfig builder) of
         (Just True, Nothing) -> Left FrontendError
-        (_, fConf) -> Right fConf
+        (Just True, fConf) -> Right fConf
+        _ -> Right Nothing
 
 finaliseFrontendConfig :: FrontendConfigBuilder -> Maybe FrontendConfig
 finaliseFrontendConfig builder = FrontendConfig <$> bFrontendPort builder
@@ -103,7 +105,7 @@ finaliseCommand (BAddData s) = return . Right $ AddData s
 finaliseCommand (BDocs) = return $ Right Docs
 finaliseCommand (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile
-    let finalConfig = finaliseConfig $ fileConfigBuilder <> cmdLineConfigBuilder
+    let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
     return $ Run <$> finalConfig
 
 getCommandWithConfig :: IO (Either ConfigError Command)
