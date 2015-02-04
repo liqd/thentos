@@ -101,6 +101,8 @@ infix 6 *%%
 
 -- * god user (do not use in production)
 
+-- FIXME: remove this section from production code
+
 godCredentials :: [Header]
 godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 

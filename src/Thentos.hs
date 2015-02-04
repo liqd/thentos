@@ -55,7 +55,7 @@ main =
 
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
 
-    createGod st True
+    createGod st True  -- FIXME: remove this from production code
     configLogger
 
     let switch ["-s"] = do
