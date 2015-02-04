@@ -4,7 +4,7 @@ module Config
     ( getCommand
     , configLogger
     , Command(..)
-    , ServiceConfig(..)
+    , ThentosConfig(..)
     , FrontendConfig(..)
     , BackendConfig(..)
     ) where
@@ -13,7 +13,7 @@ import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
 import Data.Monoid (Monoid(..), (<>))
 import Options.Applicative (command, info, progDesc, long, auto, option, flag, help)
-import Options.Applicative (Parser, execParser, info, metavar, subparser)
+import Options.Applicative (Parser, execParser, metavar, subparser)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
@@ -27,7 +27,7 @@ import qualified Data.HashMap.Strict as HM
 
 -- * the config type used by everyone else
 
-data ServiceConfig = ServiceConfig
+data ThentosConfig = ThentosConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     }
@@ -71,9 +71,9 @@ instance Monoid ServiceConfigBuilder where
 
 data ConfigError = FrontendError | BackendError
 
-finaliseConfig :: ServiceConfigBuilder -> Either ConfigError ServiceConfig
+finaliseConfig :: ServiceConfigBuilder -> Either ConfigError ThentosConfig
 finaliseConfig builder =
-    ServiceConfig
+    ThentosConfig
         <$> frontendConf
         <*> backendConf
   where
@@ -116,7 +116,7 @@ parseCommandBuilder = execParser opts
                          command "showdb" (info (pure BShowDB) (progDesc "show"))
     opts = info parser mempty
 
-data Command = Run ServiceConfig | ShowDB | Docs
+data Command = Run ThentosConfig | ShowDB | Docs
 
 data CommandBuilder =
     BRun ServiceConfigBuilder | BShowDB | BDocs

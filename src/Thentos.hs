@@ -26,7 +26,7 @@ import Data.String.Conversions ((<>))
 import System.Log.Logger (removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
-import Config (configLogger, getCommand, Command(..), ServiceConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
+import Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
 import Types
 import DB
 import Backend.Api.Simple (runApi, apiDocs)
