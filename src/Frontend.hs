@@ -2,7 +2,6 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
-{-# LANGUAGE TypeFamilies                             #-}
 
 module Frontend (runFrontend) where
 
