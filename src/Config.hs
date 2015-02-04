@@ -94,7 +94,7 @@ finaliseBackendConfig builder = BackendConfig <$> bBackendPort builder
 
 finaliseCommand :: CommandBuilder -> IO (Either ConfigError Command)
 finaliseCommand BShowDB = return $ Right ShowDB
-finaliseCommand (BDocs) = return $ Right Docs
+finaliseCommand BDocs = return $ Right Docs
 finaliseCommand (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder

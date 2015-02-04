@@ -162,4 +162,4 @@ snapRunAction clearanceAbs action = do
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either DbError a)
-snapRunAction' clearance action = snapRunAction (const $ Right clearance) action
+snapRunAction' = snapRunAction . const . Right
