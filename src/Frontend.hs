@@ -18,8 +18,6 @@ import Data.Maybe (isNothing)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
-import Data.Thyme (getCurrentTime)
-import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, method, Method(GET, POST))
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
@@ -130,7 +128,6 @@ loginHandler = do
 
     loginSuccess :: UserId -> Handler FrontendApp FrontendApp ()
     loginSuccess uid = do
-        now <- liftIO getCurrentTime
         mSid <- getParam "sid"
         mCallback <- getParam "redirect"
         when (isNothing mSid || isNothing mCallback) $ do
@@ -139,10 +136,9 @@ loginHandler = do
             r <- getResponse
             finishWith r
         let (Just sid, Just callback) = (mSid, mCallback)
-        -- FIXME: how long should the session live?
         eSessionToken :: Either DbError SessionToken
             <- snapRunAction' allowEverything $
-                startSession uid (ServiceId $ cs sid) (TimeStamp now) (Timeout $ 14 * 24 * 3600)
+                createSession (uid, ServiceId $ cs sid)
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
             Right sessionToken ->
