@@ -45,10 +45,10 @@ import Types
 import Config
 
 
-type ProxyTest = Raw
+type ServiceProxy = Raw
 
-proxyTest :: PushActionSubRoute (Server ProxyTest)
-proxyTest req cont = do
+serviceProxy :: PushActionSubRoute (Server ServiceProxy)
+serviceProxy req cont = do
     ((_, _, thentosConfig), _) <- ask
     liftIO $ case proxyConfig thentosConfig of
         Nothing -> cont $ S.responseLBS (T.Status 404 "Thentos: proxying deactivated.") [] ""

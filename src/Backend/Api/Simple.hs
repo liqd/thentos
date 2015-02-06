@@ -61,14 +61,14 @@ type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
-  :<|> "proxy-test" :> ProxyTest
+  :<|> "proxy-test" :> ServiceProxy
 
 thentosBasic :: PushActionSubRoute (Server ThentosBasic)
 thentosBasic =
        thentosUser
   :<|> thentosService
   :<|> thentosSession
-  :<|> proxyTest
+  :<|> serviceProxy
 
 
 -- * authentication
