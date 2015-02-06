@@ -23,7 +23,7 @@ import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query')
 import Data.String.Conversions ((<>))
-import System.Log.Logger (removeAllHandlers)
+import System.Log.Logger (Priority(DEBUG), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
 import Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
@@ -31,6 +31,7 @@ import Types
 import DB
 import Backend.Api.Simple (runBackend, apiDocs)
 import Frontend (runFrontend)
+import System.Log.Missing (logger)
 
 
 -- * main
@@ -48,6 +49,7 @@ main =
     configLogger
 
     Right cmd <- getCommand "devel.config"
+    logger DEBUG (ppShow cmd)
     let run = case cmd of
             ShowDB -> do
                 putStrLn "database contents:"
