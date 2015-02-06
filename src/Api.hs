@@ -20,6 +20,7 @@ module Api
   , createSession
   , createSessionWithTimeout
   , isActiveSession
+  , bumpSession
   )
 where
 
@@ -176,3 +177,8 @@ isActiveSession :: SessionToken -> Action r Bool
 isActiveSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     queryAction $ IsActiveSession now tok
+
+bumpSession :: SessionToken -> Action r (SessionToken, Session)
+bumpSession tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ BumpSession now tok

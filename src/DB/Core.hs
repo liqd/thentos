@@ -54,6 +54,7 @@ data DbError =
     | PermissionDenied ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
+    | ProxyNotAvailable
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy DbError
@@ -91,6 +92,7 @@ showDbError UserEmailAlreadyExists   = return (403, "email already in use")
 showDbError e@(PermissionDenied _ _) = logger INFO (show e) >> return (401, "unauthorized")
 showDbError BadCredentials           = return (401, "unauthorized")
 showDbError BadAuthenticationHeaders = return (400, "bad authentication headers")
+showDbError ProxyNotAvailable        = return (404, "proxying not activated")
 
 
 -- | FIXME: generalize, so we can use this for both Update and Query.
