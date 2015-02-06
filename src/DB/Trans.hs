@@ -267,10 +267,11 @@ trans_allSessionTokens = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. d
 
 -- | Update the end time of a session to @now + timeout@ (where
 -- @timeout@ is looked up in the session).  If the session does not
--- exist (or is not active), throw an error.
-trans_bumpSession :: TimeStamp -> SessionToken -> ThentosUpdate SessionToken
+-- exist (or is not active), throw an error.  Return token and
+-- session.
+trans_bumpSession :: TimeStamp -> SessionToken -> ThentosUpdate (SessionToken, Session)
 trans_bumpSession now tok = do
-    ThentosLabeled _ (_, Session uid sid _ _ timeout)
+    ThentosLabeled _ result@(_, Session uid sid _ _ timeout)
         <- liftThentosQuery $ trans_lookupSession (Just now) tok
 
     let end' = TimeStamp $ fromTimeStamp now .+^ fromTimeout timeout
@@ -280,13 +281,13 @@ trans_bumpSession now tok = do
         ua = UserA uid
         sa = ServiceA sid
 
-    returnDBU label tok
+    returnDBU label result
 
 -- | Find a session from token.  If first arg is 'Nothing', return
 -- session and token unconditionally.  If it is a timestamp, check
 -- that the timestamp lies between start and end timestamps of the
--- session.  Do not bump the session!  (Call 'BumpSession' explicitly
--- for that before the lookup.)
+-- session.  Do not bump the session!  (Call 'BumpSession' instead if
+-- you need that.)
 trans_lookupSession :: Maybe TimeStamp -> SessionToken -> ThentosQuery (SessionToken, Session)
 trans_lookupSession mNow tok = (tok,) <$$> do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
@@ -445,7 +446,7 @@ startSession tok uid sid start lifetime clearance = runThentosUpdate clearance $
 allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
 allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens
 
-bumpSession :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either DbError SessionToken)
+bumpSession :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either DbError (SessionToken, Session))
 bumpSession now tok clearance = runThentosUpdate clearance $ trans_bumpSession now tok
 
 lookupSession :: Maybe TimeStamp -> SessionToken -> ThentosClearance -> Query DB (Either DbError (SessionToken, Session))
