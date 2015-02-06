@@ -30,6 +30,7 @@ library
     , Api
     , Backend.Core
     , Backend.Api.Simple
+    , Backend.Api.Proxy
     , Frontend
     , Frontend.Pages
     , Frontend.Mail
