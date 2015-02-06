@@ -22,9 +22,12 @@ where
 import Control.Applicative ((<$>))
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
+import Data.CaseInsensitive (CI)
+import Data.String.Conversions (SBS, ST)
+import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
+import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
-import Network.Wai (ResponseReceived)
 
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
@@ -37,6 +40,10 @@ type RestAction      = Action (MVar SystemRNG)
 type RestActionState = ActionState (MVar SystemRNG)
 type RestActionRaw   = EitherT RestError IO
 type RestError       = (Int, String)
+
+
+getHdr :: Request -> CI SBS -> Maybe ST
+getHdr req key = lookup key (requestHeaders req) >>= either (const Nothing) Just . decodeUtf8'
 
 
 -- | This is a work-around: The 'Server' type family terminates in

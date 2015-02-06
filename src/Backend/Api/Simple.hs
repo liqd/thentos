@@ -20,11 +20,8 @@ module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
-import Data.CaseInsensitive (CI)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (SBS, ST)
-import Data.Text.Encoding (decodeUtf8')
-import Network.Wai (Application, requestHeaders)
+import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
@@ -33,7 +30,7 @@ import Servant.Server (serve)
 
 import Api
 import Backend.Api.Proxy
-import Backend.Core
+import Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, getHdr)
 import DB
 import Doc ()
 import Types
@@ -89,15 +86,12 @@ instance ( PushActionC (Server sublayout)
     route Proxy (ThentosAuth asg subserver) request respond =
         route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
       where
-        pluck :: CI SBS -> Maybe ST
-        pluck key = lookup key (requestHeaders request) >>= either (const Nothing) Just . decodeUtf8'
-
         routingState :: RestActionState
         routingState = ( asg
                        , \ db -> mkThentosClearance
-                           (pluck "X-Thentos-User")
-                           (pluck "X-Thentos-Service")
-                           (pluck "X-Thentos-Password")
+                           (getHdr request "X-Thentos-User")
+                           (getHdr request "X-Thentos-Service")
+                           (getHdr request "X-Thentos-Password")
                            db
                        )
 
