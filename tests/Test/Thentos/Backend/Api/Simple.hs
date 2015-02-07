@@ -136,7 +136,11 @@ tests = do
         describe "session" $ do
 
             describe "ReqBody (UserId, ServiceId) :> Post SessionToken" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
+                it "starts a new session and returns the session token" $
+                        \ _ -> pendingWith "no tests yet"
+
+                it "sends a meaningful error message if request body is empty" $
+                        \ _ -> pendingWith "no tests yet"
 
             describe "ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken" $ do
                 it "..." $ \ _ -> pendingWith "no tests yet"
@@ -145,4 +149,17 @@ tests = do
                 it "..." $ \ _ -> pendingWith "no tests yet"
 
             describe "Capture \"token\" SessionToken :> Get Bool" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
+                it "returns true if session is active" $
+                        \ _ -> pendingWith "no tests yet"
+
+                it "returns false if session is not active (or does not exist)" $
+                        \ _ -> pendingWith "no tests yet"
+
+                it "does not accept the empty string (trailing '/') as session id." $
+                        \ _ -> pendingWith "not implemented"
+
+                    -- (currently, GET /session and GET /session/
+                    -- produce different error messages.  this is just
+                    -- a matter of error reporting, though; the
+                    -- behaviour in the context of correct requests is
+                    -- as we want it.)
