@@ -17,9 +17,10 @@ module Test.Thentos.Backend.Api.Simple
 where
 
 import Control.Monad.State (liftIO)
-import Network.Wai (requestMethod, pathInfo, requestHeaders)
-import Network.Wai.Test (request, srequest, defaultRequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe)
+import Data.Monoid ((<>))
+import Data.String.Conversions (cs)
+import Network.Wai.Test (srequest, simpleStatus, simpleBody)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
@@ -32,47 +33,116 @@ import Test.Util
 
 tests :: Spec
 tests = do
-  describe "Api" . before setupTestServer . after teardownTestServer $ do
-    describe "authentication" $ do
-      it "lets user view itself" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
+    describe "Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
+        describe "user" $ do
+            describe "Get [UserId]" $ do
+                it "returns the list of users" $
+                        \ (_, testServer) -> debugRunSession False testServer $ do
+                    response1 <- srequest $ mkSRequest "GET" "/user" godCredentials ""
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
+                    liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
+                it "is not accessible for users without 'Admin' role" $
+                        \ (_, testServer) -> debugRunSession False testServer $ do
+                    response1 <- srequest $ mkSRequest "GET" "/user" [] ""
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
-      it "responds with an error if clearance is insufficient" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
+            describe "Capture \"userid\" UserId :> Get (UserId, User)" $ do
+                it "yields a user value" $
+                        \ (_, testServer) -> (debugRunSession False testServer) $ do
+                    response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
-      it "responds with an error if password is wrong" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
+                it "can be called by user herself" $
+                        \ _ -> pendingWith "test missing."
 
-      it "responds with an error if only one of user (or service) and password is provided" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
-        response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
-        response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
-        liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
-        response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
+                it "can be called by admin" $
+                        \ _ -> pendingWith "test missing."
 
-    describe "GET /user" $
-      it "returns the list of users" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- request $ defaultRequest
-          { requestMethod = "GET"
-          , requestHeaders = godCredentials
-          , pathInfo = ["user"]
-          }
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-        liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
+                it "can not be callbed by other (non-admin) users" $
+                        \ _ -> pendingWith "test missing."
 
-    describe "POST /user" $
-      it "succeeds" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response2 <- srequest $ mkSRequest "POST" "/user" godCredentials (Aeson.encode $ User "1" "2" "3" [] [])
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
+                it "responds with an error if password is wrong" $
+                        \ (_, testServer) -> (debugRunSession False testServer) $ do
+                    response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
+
+                it "responds with an error if only one of user (or service) and password is provided" $
+                        \ (_, testServer) -> (debugRunSession False testServer) $ do
+                    response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
+                    response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
+                    liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
+                    response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
+                    liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
+                    response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
+                    liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
+
+            describe "ReqBody User :> Post UserId" $ do
+                it "writes a new user to the database" $
+                        \ (_, testServer) -> (debugRunSession False testServer) $ do
+                    let user = User "1" "2" "3" [] []
+                    response1 <- srequest $ mkSRequest "POST" "/user" godCredentials (Aeson.encode user)
+                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
+                    let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
+                          Right v -> v
+                          Left e -> error $ show (e, response1)
+
+                    response2 <- srequest $ mkSRequest "GET" ("/user/" <> (cs . show . fromUserId $ uid)) godCredentials ""
+                    let (uid', user') = case decodeLenient $ simpleBody response2 of
+                          Right v -> v
+                          Left e -> error $ show ("/user/" ++ show uid, e, response1)
+                    liftIO $ uid' `shouldBe` uid
+                    liftIO $ user' `shouldBe` user
+
+                it "can only be called by admins" $
+                        \ _ -> pendingWith "test missing."
+
+            describe "Capture \"userid\" UserId :> ReqBody User :> Put ()" $ do
+                it "writes an *existing* user to the database" $
+                        \ _ -> pendingWith "test missing."
+                    -- put user' with user' /= user
+                    -- lookup user id
+                    -- compare sent and received
+
+                it "can only be called by admins and the user herself" $
+                        \ _ -> pendingWith "test missing."
+
+                it "if user does not exist, responds with an error" $
+                        \ _ -> pendingWith "test missing."
+
+            describe "Capture \"userid\" UserId :> Delete" $ do
+                it "removes an existing user from the database" $
+                        \ _ -> pendingWith "test missing."
+
+                it "can only be called by admins and the user herself" $
+                        \ _ -> pendingWith "test missing."
+
+                it "if user does not exist, responds with an error" $
+                        \ _ -> pendingWith "test missing."
+
+
+        describe "service" $ do
+
+            describe "Get [ServiceId]" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+            describe "Capture \"sid\" ServiceId :> Get (ServiceId, Service)" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+            describe "Post (ServiceId, ServiceKey)" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+
+        describe "session" $ do
+
+            describe "ReqBody (UserId, ServiceId) :> Post SessionToken" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+            describe "ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+            describe "Capture \"token\" SessionToken :> Delete" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"
+
+            describe "Capture \"token\" SessionToken :> Get Bool" $ do
+                it "..." $ \ _ -> pendingWith "no tests yet"

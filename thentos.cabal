@@ -124,6 +124,7 @@ test-suite tests
 
     , acid-state
     , aeson
+    , attoparsec
     , bytestring
     , crypto-random
     , functor-infix

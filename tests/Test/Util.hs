@@ -16,6 +16,7 @@
 module Test.Util
 where
 
+import Control.Applicative ((<*))
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
@@ -32,6 +33,11 @@ import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStr
 import Network.Wai.Test (runSession, setPath, defaultRequest)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import Text.Show.Pretty (ppShow)
+
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Parser as Aeson
+import qualified Data.Aeson.Types as Aeson
+import qualified Data.Attoparsec.ByteString as AP
 
 import Backend.Api.Simple
 import Config
@@ -126,3 +132,13 @@ debugRunSession debug application session = runSession session (wrapApplication 
         show_ (ResponseBuilder status headers _) = "ResponseBuilder" ++ show (status, headers)
         show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
         show_ (ResponseRaw _ _) = "ResponseRaw"
+
+
+-- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
+-- objects and arrays.
+--
+-- Copied from https://github.com/haskell-servant/servant-client
+decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
+decodeLenient input = do
+  v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
+  Aeson.parseEither Aeson.parseJSON v
