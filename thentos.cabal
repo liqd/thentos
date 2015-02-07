@@ -110,6 +110,10 @@ test-suite tests
       tests
   main-is:
       TestMain.hs
+  other-modules:
+      Test.Config
+    , Test.Thentos.Backend.Api.Simple
+    , Test.Util
   ghc-options:
       -Wall -threaded -rtsopts -main-is TestMain
   cpp-options:

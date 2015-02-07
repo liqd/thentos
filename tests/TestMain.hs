@@ -16,61 +16,33 @@
 module TestMain
 where
 
-import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Monad.State (liftIO)
-import Control.Monad (void, when)
-import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
-import Data.Acid (openLocalStateFrom, closeAcidState)
+import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$>))
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import Data.String.Conversions (LBS, SBS, cs)
 import Data.Thyme (getCurrentTime)
-import Filesystem (isDirectory, removeTree)
-import GHC.Exts (fromString)
 import LIO (canFlowTo)
 import LIO.DCLabel ((%%), (/\), (\/), toCNF)
-import Network.HTTP.Types.Header (Header)
-import Network.HTTP.Types.Method (Method)
-import Network.Wai (Application, StreamingBody, requestMethod, requestBody, strictRequestBody, pathInfo, requestHeaders)
-import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
-import Network.Wai.Test (runSession, request, srequest, setPath, defaultRequest, simpleStatus, simpleBody)
-import Network.Wai.Test (Session, SRequest(SRequest))
-import Test.Hspec (hspec, describe, it, before, after, shouldBe, shouldSatisfy)
-import Text.Show.Pretty (ppShow)
+import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
-import qualified Data.Aeson as Aeson
-import qualified Network.HTTP.Types.Status as C
-
-import Backend.Api.Simple
-import Config
 import DB
 import Api
 import Types
 
-
--- * config
-
-data Config =
-    Config
-      { dbPath :: FilePath
-      , restPort :: Int
-      }
-  deriving (Eq, Show)
-
-config :: Config
-config =
-    Config
-      { dbPath = ".test-db/"
-      , restPort = 8002
-      }
+import Test.Util
+import qualified Test.Thentos.Backend.Api.Simple
 
 
 -- * test suite
 
 main :: IO ()
 main = hspec $ do
+  Test.Thentos.Backend.Api.Simple.tests
+  adhoc
+
+
+adhoc :: Spec
+adhoc = do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "hspec meta" $ do
       it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ (st, _, _) -> do
@@ -176,51 +148,6 @@ main = hspec $ do
           result <- query' st $ LookupAgentRoles targetAgent (askingAgent *%% askingAgent)
           result `shouldSatisfy` isLeft
 
-  describe "Api" . before setupTestServer . after teardownTestServer $ do
-    describe "authentication" $ do
-      it "lets user view itself" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-
-      it "responds with an error if clearance is insufficient" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
-
-      it "responds with an error if password is wrong" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
-
-      it "responds with an error if only one of user (or service) and password is provided" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
-        response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
-        response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
-        liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
-        response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
-        liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
-
-    describe "GET /user" $
-      it "returns the list of users" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response1 <- request $ defaultRequest
-          { requestMethod = "GET"
-          , requestHeaders = godCredentials
-          , pathInfo = ["user"]
-          }
-        liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-        liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
-
-    describe "POST /user" $
-      it "succeeds" $
-          \ (_, testServer) -> (debugRunSession False testServer) $ do
-        response2 <- srequest $ mkSRequest "POST" "/user" godCredentials (Aeson.encode $ User "1" "2" "3" [] [])
-        liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 201
-
   -- This test doesn't really test thentos code, but it helps
   -- understanding DCLabel.
   describe "DCLabel" $
@@ -242,90 +169,3 @@ main = hspec $ do
           , not $ False %% False `canFlowTo` True  %% False
           , True
           ] `shouldBe` True
-
-
--- * helpers
-
-user1, user2, user3, user4, user5 :: User
-user1 = User "name1" "passwd" "em@il" [] []
-user2 = User "name2" "passwd" "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
-user3 = User "name3" "3" "3" [("bla", ["23"])] []
-user4 = User "name4" "4" "4" [] []
-user5 = User "name5" "5" "5" [] []
-
-destroyDB :: IO ()
-destroyDB = do
-  let p = (fromString (dbPath config))
-    in isDirectory p >>= \ yes -> when yes $ removeTree p
-
-setupDB :: IO (ActionStateGlobal (MVar SystemRNG))
-setupDB = do
-  destroyDB
-  st <- openLocalStateFrom (dbPath config) emptyDB
-  createGod st False
-  Right (UserId 1) <- update' st $ AddUser user1 allowEverything
-  Right (UserId 2) <- update' st $ AddUser user2 allowEverything
-  rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-  return (st, rng, emptyThentosConfig)
-
-teardownDB :: (ActionStateGlobal (MVar SystemRNG)) -> IO ()
-teardownDB (st, _, _) = do
-  closeAcidState st
-  destroyDB
-
-setupTestServer :: IO (ActionStateGlobal (MVar SystemRNG), Application)
-setupTestServer = do
-  asg <- setupDB
-  return (asg, serveApi asg)
-
-teardownTestServer :: (ActionStateGlobal (MVar SystemRNG), Application) -> IO ()
-teardownTestServer (db, _) = teardownDB db
-
--- | Cloned from hspec-wai's 'request'.  (We don't want to use the
--- return type from there.)
-mkSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
-mkSRequest method path headers body = SRequest req body
-  where
-    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers } path
-
--- | Like `runSession`, but with re-ordered arguments, and with an
--- extra debug-output flag.  It's not a pretty function, but it helps
--- with debugging, and it is not intended for production use.
-debugRunSession :: Bool -> Application -> Network.Wai.Test.Session a -> IO a
-debugRunSession debug application session = runSession session (wrapApplication debug)
-  where
-    wrapApplication :: Bool -> Application
-    wrapApplication False = application
-    wrapApplication True = \ _request respond -> do
-      (requestRendered, request') <- showRequest _request
-      print requestRendered
-      application request' (\ response -> putStrLn (showResponse response)  >> respond response)
-
-    showRequest _request = do
-        body :: LBS <- strictRequestBody _request
-        bodyRef :: IORef Bool <- newIORef False
-
-        let memoBody = do
-              toggle <- readIORef bodyRef
-              writeIORef bodyRef $ not toggle
-              return $ if toggle then "" else cs body
-
-        let  showRequestHeader = "\n=== REQUEST ==========================================================\n"
-
-             showBody :: String
-             showBody = showRequestHeader ++ ppShow _request ++ "\nbody:" ++ show body ++ "\n"
-
-             request' = _request { requestBody = memoBody }
-
-        return (showBody, request')
-      where
-
-    showResponse response = showResponseHeader ++ show_ response
-      where
-        showResponseHeader = "\n=== RESPONSE =========================================================\n"
-
-        show_ :: Response -> String
-        show_ (ResponseFile _ _ _ _) = "ResponseFile"
-        show_ (ResponseBuilder status headers _) = "ResponseBuilder" ++ show (status, headers)
-        show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
-        show_ (ResponseRaw _ _) = "ResponseRaw"
