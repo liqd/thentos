@@ -150,10 +150,10 @@ data CommandBuilder =
     BRun ThentosConfigBuilder | BShowDB | BDocs
 
 parseRun :: Parser CommandBuilder
-parseRun = BRun <$> parseServiceConfig
+parseRun = BRun <$> parseThentosConfig
 
-parseServiceConfig :: Parser ThentosConfigBuilder
-parseServiceConfig =
+parseThentosConfig :: Parser ThentosConfigBuilder
+parseThentosConfig =
     ThentosConfigBuilder <$>
         parseRunFrontend <*>
         parseRunBackend <*>
