@@ -153,7 +153,7 @@ loginHandler = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-snapRunAction :: (DB -> Either DbError ThentosClearance) -> Action (MVar SystemRNG) a
+snapRunAction :: (DB -> TimeStamp -> Either DbError ThentosClearance) -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either DbError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
@@ -163,4 +163,4 @@ snapRunAction clearanceAbs action = do
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either DbError a)
-snapRunAction' = snapRunAction . const . Right
+snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)

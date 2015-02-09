@@ -88,11 +88,12 @@ instance ( PushActionC (Server sublayout)
       where
         routingState :: RestActionState
         routingState = ( asg
-                       , \ db -> mkThentosClearance
+                       , \ db now -> mkThentosClearance
                            (getHdr request "X-Thentos-User")
                            (getHdr request "X-Thentos-Service")
                            (getHdr request "X-Thentos-Password")
-                           db
+                           (getHdr request "X-Thentos-Session")
+                           db now
                        )
 
 -- | FIXME: not much documentation yet.

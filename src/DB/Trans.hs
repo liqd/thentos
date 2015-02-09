@@ -45,6 +45,7 @@ module DB.Trans
 
   , pure_lookupUserByName
   , pure_lookupService
+  , pure_lookupSession
   , pure_lookupAgentRoles
 
   , emptyDB
@@ -290,17 +291,21 @@ trans_bumpSession now tok = do
 -- you need that.)
 trans_lookupSession :: Maybe TimeStamp -> SessionToken -> ThentosQuery (SessionToken, Session)
 trans_lookupSession mNow tok = (tok,) <$$> do
-    mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> ask
+    mSession :: Maybe Session <- (\ db -> snd <$> pure_lookupSession db mNow tok) <$> ask
     let label = case mSession of
           Just (Session uid sid _ _ _) -> RoleAdmin \/ UserA uid \/ ServiceA sid =%% False
           Nothing                      -> RoleAdmin                              =%% False
 
-    case (mNow, mSession) of
-        (_,        Nothing)      -> throwDBQ label NoSuchSession
-        (Nothing,  Just session) -> returnDBQ label session
-        (Just now, Just session) -> if sessionNowActive now session
-            then returnDBQ label session
-            else throwDBQ label NoSuchSession
+    case mSession of
+        Nothing      -> throwDBQ label NoSuchSession
+        Just session -> returnDBQ label session
+
+pure_lookupSession :: DB -> Maybe TimeStamp -> SessionToken -> Maybe (SessionToken, Session)
+pure_lookupSession db mNow tok = (tok,) <$> do
+    session :: Session <- Map.lookup tok $ db ^. dbSessions
+    case mNow of
+        Just now | sessionNowActive now session -> Just session
+        _                                       -> Nothing
 
 -- | End session.  Call can be caused by logout request from user
 -- (before end of session life time), by session timeouts, or after

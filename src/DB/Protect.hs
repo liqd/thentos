@@ -15,6 +15,7 @@ module DB.Protect
   , createDefaultUser
   ) where
 
+import Control.Lens ((^.))
 import Control.Monad (when)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
@@ -24,6 +25,8 @@ import Data.String.Conversions (ST)
 import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
+
+import qualified Data.Map as Map
 
 import DB.Core
 import DB.Trans
@@ -41,14 +44,15 @@ import Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-mkThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError ThentosClearance
-mkThentosClearance (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (textToPassword password)
-mkThentosClearance Nothing     (Just service) (Just password) db = authenticateService db (ServiceId service) (ServiceKey password)
-mkThentosClearance Nothing     Nothing        Nothing         _  = Right allowNothing
-mkThentosClearance _           _              _               _  = Left BadAuthenticationHeaders
+mkThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either DbError ThentosClearance
+mkThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ textToPassword password)
+mkThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
+mkThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
+mkThentosClearance Nothing     Nothing        Nothing         Nothing    _  _   = Right allowNothing
+mkThentosClearance _           _              _               _          _  _   = Left BadAuthenticationHeaders
 
 
-authenticateUser :: DB -> UserName -> UserPass -> Either DbError ThentosClearance
+authenticateUser :: DB -> UserName -> Maybe UserPass -> Either DbError ThentosClearance
 authenticateUser db name password = do
     (uid, user) :: (UserId, User)
         <- maybe (Left BadCredentials) Right $ pure_lookupUserByName db name
@@ -57,7 +61,7 @@ authenticateUser db name password = do
         <- let a = UserA uid
            in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
 
-    if verifyPass password user
+    if maybe True (`verifyPass` user) password
         then Right $ simpleClearance credentials
         else Left BadCredentials
 
@@ -74,6 +78,16 @@ authenticateService db sid keyFromClient = do
     if keyFromClient /= keyFromDb
         then Left BadCredentials
         else Right $ simpleClearance credentials
+
+
+authenticateSession :: DB -> TimeStamp -> SessionToken -> Either DbError ThentosClearance
+authenticateSession db now tok = getUserFromSession db now tok
+    >>= \ user -> authenticateUser db (user ^. userName) Nothing
+
+getUserFromSession :: DB -> TimeStamp -> SessionToken -> Either DbError User
+getUserFromSession db now tok = do
+    (_, Session uid _ _ _ _) <- maybe (Left NoSuchSession) Right $ pure_lookupSession db (Just now) tok
+    maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
 
 
 simpleClearance :: [CNF] -> ThentosClearance

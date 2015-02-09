@@ -48,7 +48,7 @@ import Util
 -- * types
 
 type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
-type ActionState r = (ActionStateGlobal r, DB -> Either DbError ThentosClearance)
+type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either DbError ThentosClearance)
 type Action r = ReaderT (ActionState r) (EitherT DbError IO)
 
 
@@ -61,7 +61,7 @@ runAction actionState action =
 
 runAction' :: (MonadIO m, CPRG r) =>
        (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either DbError a)
-runAction' (asg, clearance) = runAction (asg, const $ Right clearance)
+runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
 
 
 -- * actions and acid-state
@@ -102,7 +102,10 @@ accessAction :: forall event a r .
                    -> (ThentosClearance -> event) -> Action r a
 accessAction access unclearedEvent = do
     ((st, _, _), clearanceAbs) <- ask
-    clearanceE :: Either DbError ThentosClearance <- (>>= clearanceAbs) <$> query' st (SnapShot allowEverything)
+    now <- TimeStamp <$> liftIO getCurrentTime
+    clearanceE :: Either DbError ThentosClearance
+        <- (>>= (`clearanceAbs` now)) <$> query' st (SnapShot allowEverything)
+
     case clearanceE of
         Left err -> lift $ left err
         Right clearance -> do
