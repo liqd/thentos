@@ -15,15 +15,12 @@ module DB.Protect
   , createDefaultUser
   ) where
 
-import Control.Lens ((^.))
 import Control.Monad (when)
-import Crypto.Scrypt (verifyPass', Pass(Pass))
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.List (foldl')
 import Data.String.Conversions (ST)
-import Data.Text.Encoding (encodeUtf8)
 import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
@@ -45,7 +42,7 @@ import Util
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
 mkThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> DB -> Either DbError ThentosClearance
-mkThentosClearance (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (UserPass password)
+mkThentosClearance (Just user) Nothing        (Just password) db = authenticateUser db (UserName user) (textToPassword password)
 mkThentosClearance Nothing     (Just service) (Just password) db = authenticateService db (ServiceId service) (ServiceKey password)
 mkThentosClearance Nothing     Nothing        Nothing         _  = Right allowNothing
 mkThentosClearance _           _              _               _  = Left BadAuthenticationHeaders
@@ -60,8 +57,7 @@ authenticateUser db name password = do
         <- let a = UserA uid
            in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
 
-    if verifyPass' (Pass . encodeUtf8 $ fromUserPass password)
-                   (fromEncryptedPass $ user ^. userPassword)
+    if verifyPass password user
         then Right $ simpleClearance credentials
         else Left BadCredentials
 

@@ -14,7 +14,6 @@ module Config
 
 import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
-import Crypto.Scrypt (Pass(Pass))
 import Data.Monoid (Monoid(..), (<>))
 import Options.Applicative (command, info, progDesc, long, short, auto, option, strOption, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
@@ -30,6 +29,7 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
 import Types
+import Util
 
 
 -- * the config type used by everyone else
@@ -231,7 +231,7 @@ parseConfigFile filePath = do
         getUser = do
             u <- UserFormData <$>
                 (UserName <$> get "default_user.name") <*>
-                (Pass <$> get "default_user.password") <*>
+                (textToPassword <$> get "default_user.password") <*>
                 (UserEmail <$> get "default_user.email")
             rs :: [String] <- get "default_user.roles"
             let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.

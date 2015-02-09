@@ -18,7 +18,7 @@ import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
-import Data.String (IsString)
+import Data.String (IsString(fromString))
 import Data.String.Conversions (ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
@@ -63,8 +63,11 @@ newtype UserId = UserId { fromUserId :: Integer }
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
-newtype UserPass = UserPass { fromUserPass :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+newtype UserPass = UserPass { fromUserPass :: Scrypt.Pass }
+    deriving (Eq, Show, Typeable, Generic)
+
+instance IsString UserPass where
+    fromString = UserPass . Scrypt.Pass . fromString
 
 newtype EncryptedPass = EncryptedPass { fromEncryptedPass :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
@@ -82,7 +85,7 @@ newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
 data UserFormData =
     UserFormData
         { udName :: !UserName
-        , udPassword :: !Scrypt.Pass
+        , udPassword :: !UserPass
         , udEmail :: !UserEmail
         }
     deriving (Eq, Show)
@@ -190,11 +193,9 @@ $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
 
 
---instance Aeson.FromJSON User      where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Session   where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Service   where parseJSON = Aeson.gparseJson
 
---instance Aeson.ToJSON User        where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Session     where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
 

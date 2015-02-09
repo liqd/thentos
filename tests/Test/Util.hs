@@ -65,7 +65,7 @@ godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
 createGod :: AcidState DB -> IO ()
 createGod st = createDefaultUser st
-    (Just (UserFormData "god" (Pass "god") "postmaster@localhost", [RoleAdmin]))
+    (Just (UserFormData "god" "god" "postmaster@localhost", [RoleAdmin]))
 
 
 setupDB :: IO (ActionStateGlobal (MVar SystemRNG))

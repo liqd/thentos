@@ -12,14 +12,12 @@ module Frontend.Pages
 ) where
 
 import Control.Applicative ((<$>), (<*>))
-import Crypto.Scrypt (Pass(Pass))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html (Html, (!))
@@ -28,6 +26,7 @@ import Text.Digestive.Form (Form, check, text, (.:))
 import Text.Digestive.View (View)
 
 import Types
+import Util
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
@@ -78,7 +77,7 @@ serviceAddedPage sid key = H.docTypeHtml $ do
 userForm :: Monad m => Form Html m UserFormData
 userForm = UserFormData
     <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (Pass . encodeUtf8 <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (textToPassword <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
   where
     checkEmail :: Text -> Bool
@@ -102,7 +101,7 @@ loginPage v reqURI =
 loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (UserPass  <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+    <*> (textToPassword <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString

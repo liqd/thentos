@@ -12,7 +12,6 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG)
-import Crypto.Scrypt (verifyPass', Pass(Pass))
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
 import Data.Maybe (isNothing)
@@ -35,6 +34,7 @@ import Api
 import Config
 import DB
 import Types
+import Util
 
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Frontend.Util (serveSnaplet)
@@ -118,10 +118,7 @@ loginHandler = do
             eUser <- query $ LookupUserByName name allowEverything
             case eUser of
                 Right (uid, user) ->
-                    -- if password == (user ^. userPassword)
-                    -- FIXME: simplify verifyPass
-                    if verifyPass' (Pass . encodeUtf8 $ fromUserPass password)
-                                   (fromEncryptedPass $ user ^. userPassword)
+                    if verifyPass password user
                         then loginSuccess uid
                         else loginFail
                 Left NoSuchUser -> loginFail
