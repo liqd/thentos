@@ -45,7 +45,6 @@ main =
 
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
 
-    createGod st True  -- FIXME: remove this from production code; allow to set user/passwd in config files.
     configLogger
 
     Right cmd <- getCommand "devel.config"
@@ -56,6 +55,8 @@ main =
                 query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
 
             Run config -> do
+                createDefaultUser st (defaultUser config)
+
                 let backend = case backendConfig config of
                         Nothing -> return ()
                         Just (BackendConfig backendPort) -> do

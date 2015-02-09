@@ -25,7 +25,6 @@ import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith)
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
 
-import DB
 import Types
 
 import Test.Util

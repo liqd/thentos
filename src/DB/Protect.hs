@@ -12,22 +12,23 @@ module DB.Protect
   , allowReadEverything
   , allowNothing
   , (*%%)
-  , godCredentials
-  , createGod
+  , createDefaultUser
   ) where
 
 import Control.Lens ((^.))
 import Control.Monad (when)
-import Data.List (foldl')
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
+import Data.List (foldl')
 import Data.String.Conversions (ST)
 import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
-import Network.HTTP.Types.Header (Header)
+import System.Log (Priority(DEBUG, ERROR))
+import Text.Show.Pretty
 
 import DB.Core
 import DB.Trans
+import System.Log.Missing (logger)
 import Types
 
 
@@ -99,31 +100,27 @@ allowNothing = True *%% False
 infix 6 *%%
 
 
--- * god user (do not use in production)
+-- * default user from config file
 
--- FIXME: remove this section from production code
-
-godCredentials :: [Header]
-godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
-
-createGod :: AcidState DB -> Bool -> IO ()
-createGod st verbose = do
+-- | If default user is 'Nothing' or user with 'UserId 0' exists, do
+-- nothing.  Otherwise, create default user.
+createDefaultUser :: AcidState DB -> Maybe (User, [Role]) -> IO ()
+createDefaultUser _ Nothing = return ()
+createDefaultUser st (Just (user, roles)) = do
     eq <- query' st (LookupUser (UserId 0) allowEverything)
     when (isLeft eq) $ do
         -- user
-        when verbose $
-            putStr "No users.  Creating god user with password 'god'... "
-        eu <- update' st (AddUser (User "god" "god" "god@home" [] []) allowEverything)
-        when verbose $
-            if eu == Right (UserId 0)
-                then putStrLn "[ok]"
-                else putStrLn $ "[failed: " ++ show eu ++ "]"
+        logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
+        eu <- update' st (AddUser user allowEverything)
+
+        if eu == Right (UserId 0)
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, user)
 
         -- roles
-        when verbose $
-            putStr "Adding user 'god' to roles 'Admin', 'User'... "
-        result <- update' st (AssignRole (UserA (UserId 0)) RoleAdmin allowEverything)
-        when verbose $
-            if isRight result
-                then putStrLn "[ok]"
-                else putStrLn $ "[failed: " ++ show result ++ "]"
+        logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+        result <- mapM (\ role -> update' st (AssignRole (UserA (UserId 0)) role allowEverything)) roles
+
+        if all isRight result
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, user, roles)

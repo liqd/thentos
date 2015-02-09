@@ -20,7 +20,7 @@ import Control.Applicative ((<*))
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
-import Data.Acid (openLocalStateFrom, closeAcidState)
+import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (update')
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.String.Conversions (LBS, SBS, cs)
@@ -56,11 +56,19 @@ user4 = User "name4" "4" "4" [] []
 user5 = User "name5" "5" "5" [] []
 
 
+godCredentials :: [Header]
+godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
+
+createGod :: AcidState DB -> IO ()
+createGod st = createDefaultUser st
+    (Just (User "god" "god" "postmaster@localhost" [] [], [RoleAdmin]))
+
+
 setupDB :: IO (ActionStateGlobal (MVar SystemRNG))
 setupDB = do
   destroyDB
   st <- openLocalStateFrom (dbPath config) emptyDB
-  createGod st False
+  createGod st
   Right (UserId 1) <- update' st $ AddUser user1 allowEverything
   Right (UserId 2) <- update' st $ AddUser user2 allowEverything
   rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
