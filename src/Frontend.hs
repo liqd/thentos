@@ -34,6 +34,7 @@ import Api
 import Config
 import DB
 import Types
+import Util
 
 import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Frontend.Util (serveSnaplet)
@@ -117,7 +118,7 @@ loginHandler = do
             eUser <- query $ LookupUserByName name allowEverything
             case eUser of
                 Right (uid, user) ->
-                    if password == (user ^. userPassword)
+                    if verifyPass password user
                         then loginSuccess uid
                         else loginFail
                 Left NoSuchUser -> loginFail

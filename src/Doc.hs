@@ -45,12 +45,14 @@ instance ToSample SessionToken where
 instance ToSample [SessionToken] where
     toSample = Just ["abde1234llkjh", "47202sdfsg"]
 
+{-
 instance ToSample User where
     toSample = Just $ User (UserName "Kurt Cobain")
                            (UserPass "Hunter2")
                            (UserEmail "cobain@nirvana.com")
                            []
                            []
+-}
 
 instance ToSample UserId where
     toSample = Just $ UserId 12
@@ -76,8 +78,10 @@ instance ToSample () where
 instance ToSample Bool where
     toSample = Just True
 
+{-
 instance ToSample (UserId, User) where
     toSample = Nothing
+-}
 
 instance ToSample (ServiceId, Service) where
     toSample = Nothing

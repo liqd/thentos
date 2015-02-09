@@ -45,6 +45,7 @@ tests = do
                     response1 <- srequest $ mkSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
+{-
             describe "Capture \"userid\" UserId :> Get (UserId, User)" $ do
                 it "yields a user value" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
@@ -95,6 +96,7 @@ tests = do
 
                 it "can only be called by admins" $
                         \ _ -> pendingWith "test missing."
+-}
 
             describe "Capture \"userid\" UserId :> ReqBody User :> Put ()" $ do
                 it "writes an *existing* user to the database" $

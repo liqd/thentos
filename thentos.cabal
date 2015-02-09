@@ -21,6 +21,7 @@ library
   exposed-modules:
       Thentos
     , Types
+    , Util
     , Config
     , Doc
     , DB
@@ -68,6 +69,7 @@ library
     , safe
     , safecopy
     , sandi
+    , scrypt
     , servant
     , servant-docs
     , servant-jquery
@@ -133,6 +135,7 @@ test-suite tests
     , lio
     , mtl
     , pretty-show
+    , scrypt
     , servant-server
     , string-conversions
     , system-fileio

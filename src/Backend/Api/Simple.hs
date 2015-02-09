@@ -23,7 +23,7 @@ import Crypto.Random (SystemRNG)
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
@@ -104,17 +104,17 @@ instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
 
 type ThentosUser =
        Get [UserId]
-  :<|> Capture "userid" UserId :> Get (UserId, User)
-  :<|> ReqBody User :> Post UserId
-  :<|> Capture "userid" UserId :> ReqBody User :> Put ()
+  -- :<|> Capture "userid" UserId :> Get (UserId, User)
+  -- :<|> ReqBody User :> Post UserId
+  -- :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
 thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
        queryAction AllUserIds
-  :<|> queryAction . LookupUser
-  :<|> updateAction . AddUser
-  :<|> (\ uid user -> updateAction $ UpdateUser uid user)
+  -- :<|> queryAction . LookupUser
+  -- :<|> updateAction . AddUser
+  -- :<|> (\ uid user -> updateAction $ UpdateUser uid user)
   :<|> updateAction . DeleteUser
 
 

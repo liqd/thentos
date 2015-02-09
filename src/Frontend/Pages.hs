@@ -11,7 +11,7 @@ module Frontend.Pages
     , errorPage
 ) where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
@@ -26,6 +26,7 @@ import Text.Digestive.Form (Form, check, text, (.:))
 import Text.Digestive.View (View)
 
 import Types
+import Util
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
@@ -73,13 +74,11 @@ serviceAddedPage sid key = H.docTypeHtml $ do
             H.p "Service key: " <> H.text (fromServiceKey key)
 
 -- FIXME: move forms into separate module
-userForm :: Monad m => Form Html m User
-userForm = User
+userForm :: Monad m => Form Html m UserFormData
+userForm = UserFormData
     <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass  <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (textToPassword <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
-    <*> pure []
-    <*> pure []
   where
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')
@@ -102,7 +101,7 @@ loginPage v reqURI =
 loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (UserPass  <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+    <*> (textToPassword <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString

@@ -12,12 +12,13 @@
 
 module Types where
 
+import qualified Crypto.Scrypt as Scrypt
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
-import Data.String (IsString)
+import Data.String (IsString(fromString))
 import Data.String.Conversions (ST)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
@@ -37,10 +38,9 @@ data DB =
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]
-
       , _dbFreshUserId :: !UserId
       }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 -- | (user groups (the data that services want to store and retrieve
 -- in thentos) and session tokens of all active sessions are stored in
@@ -49,12 +49,12 @@ data DB =
 data User =
     User
       { _userName     :: !UserName
-      , _userPassword :: !UserPass
+      , _userPassword :: !EncryptedPass
       , _userEmail    :: !UserEmail
       , _userGroups   :: [(ServiceId, [Group])]
       , _userSessions :: [(ServiceId, SessionToken)]
       }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 newtype UserId = UserId { fromUserId :: Integer }
     deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, FromText)
@@ -62,8 +62,14 @@ newtype UserId = UserId { fromUserId :: Integer }
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
-newtype UserPass = UserPass { fromUserPass :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+newtype UserPass = UserPass { fromUserPass :: Scrypt.Pass }
+    deriving (Eq, Show, Typeable, Generic)
+
+instance IsString UserPass where
+    fromString = UserPass . Scrypt.Pass . fromString
+
+newtype EncryptedPass = EncryptedPass { fromEncryptedPass :: Scrypt.EncryptedPass }
+    deriving (Eq, Show, Typeable, Generic)
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
@@ -74,6 +80,14 @@ newtype Group = Group { fromGroup :: ST }
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
 
+-- | Information required to create a new User
+data UserFormData =
+    UserFormData
+        { udName     :: !UserName
+        , udPassword :: !UserPass
+        , udEmail    :: !UserEmail
+        }
+    deriving (Eq, Show)
 
 data Session =
     Session
@@ -172,16 +186,15 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
-$(deriveSafeCopy 0 'base ''UserPass)
+$(deriveSafeCopy 0 'base ''Scrypt.EncryptedPass) -- FIXME: AAAAAAHAHAAHAHA
+$(deriveSafeCopy 0 'base ''EncryptedPass)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
 
 
-instance Aeson.FromJSON User      where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Session   where parseJSON = Aeson.gparseJson
 instance Aeson.FromJSON Service   where parseJSON = Aeson.gparseJson
 
-instance Aeson.ToJSON User        where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Session     where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
 

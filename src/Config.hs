@@ -29,6 +29,7 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
 import Types
+import Util
 
 
 -- * the config type used by everyone else
@@ -37,7 +38,7 @@ data ThentosConfig = ThentosConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     , proxyConfig :: Maybe ProxyConfig
-    , defaultUser :: Maybe (User, [Role])
+    , defaultUser :: Maybe (UserFormData, [Role])
     }
   deriving (Eq, Show)
 
@@ -62,7 +63,7 @@ data ThentosConfigBuilder = ThentosConfigBuilder
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
     , bProxyConfig :: ProxyConfigBuilder
-    , bDefaultUser :: Maybe (User, [Role])
+    , bDefaultUser :: Maybe (UserFormData, [Role])
     }
 
 data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
@@ -226,14 +227,12 @@ parseConfigFile filePath = do
     let get :: Configurator.Configured a => Configurator.Name -> Maybe a
         get key = join $ Configurator.convert <$> HM.lookup key argMap
 
-        getUser :: Maybe (User, [Role])
+        getUser :: Maybe (UserFormData, [Role])
         getUser = do
-            u <- User <$>
+            u <- UserFormData <$>
                 (UserName <$> get "default_user.name") <*>
-                (UserPass <$> get "default_user.password") <*>
-                (UserEmail <$> get "default_user.email") <*>
-                pure [] <*>
-                pure []
+                (textToPassword <$> get "default_user.password") <*>
+                (UserEmail <$> get "default_user.email")
             rs :: [String] <- get "default_user.roles"
             let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.
             return (u, map (\ r -> readDef (e r) r) rs)
