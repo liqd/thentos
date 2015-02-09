@@ -49,6 +49,7 @@ import Types
 
 data DbError =
       NoSuchUser
+    | NoSuchPendingUserConfirmation
     | NoSuchService
     | NoSuchSession
     | OperationNotPossibleInServiceSession
@@ -88,6 +89,7 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 -- we probably need one for each, but not this one.
 showDbError :: MonadIO m => DbError -> m (Int, String)
 showDbError NoSuchUser                           = return (404, "user not found")
+showDbError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
 showDbError NoSuchService                        = return (404, "service not found")
 showDbError NoSuchSession                        = return (404, "session not found")
 showDbError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")

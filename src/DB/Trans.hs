@@ -18,6 +18,7 @@ module DB.Trans
   ( AllUserIds(..)
   , LookupUser(..)
   , LookupUserByName(..)
+  , LookupUserByEmail(..)
   , AddUser(..)
   , AddUnconfirmedUser(..)
   , FinishUserRegistration(..)
@@ -127,8 +128,8 @@ pure_lookupUser :: DB -> UserId -> Either DbError User
 pure_lookupUser db uid =
     maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
 
--- FIXME: this is extremely inefficient, we should have a separate map from
-    -- user names to users or user ids
+-- FIXME: this is extremely inefficient, we should have a separate map
+-- from user names to user ids
 trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 trans_lookupUserByName name = do
     mUser <- (`pure_lookupUserByName` name) <$> ask
@@ -140,6 +141,20 @@ trans_lookupUserByName name = do
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
     find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
+
+-- FIXME: this is extremely inefficient, we should have a separate map
+-- from user emails to user ids
+trans_lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
+trans_lookupUserByEmail email = do
+    mUser <- (`pure_lookupUserByEmail` email) <$> ask
+    let label = case mUser of
+          Just (uid, _) -> RoleAdmin \/ UserA uid =%% False
+          Nothing       -> RoleAdmin              =%% False
+    maybe (throwDb label NoSuchUser) (returnDb label) mUser
+
+pure_lookupUserByEmail :: DB -> UserEmail -> Maybe (UserId, User)
+pure_lookupUserByEmail db email =
+    find (\ (_, user) -> (user ^. userEmail == email)) . Map.toList . (^. dbUsers) $ db
 
 -- | Write a new unconfirmed user (i.e. one whose email address we haven't
 -- confirmed yet) to DB. Unlike addUser, this operation does not ensure
@@ -153,7 +168,7 @@ trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
 trans_finishUserRegistration token = do
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
-        Nothing -> throwDb thentosPublic NoSuchUser -- FIXME: more specific error
+        Nothing -> throwDb thentosPublic NoSuchPendingUserConfirmation
         Just user -> do
             modify $ dbUnconfirmedUsers %~ Map.delete token
             trans_addUser user
@@ -537,6 +552,9 @@ lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
 lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
 lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
 
+lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUserByEmail email clearance = runThentosQuery clearance $ trans_lookupUserByEmail email
+
 addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either DbError ConfirmationToken)
 addUnconfirmedUser token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser token user
@@ -618,6 +636,7 @@ $(makeAcidic ''DB
     [ 'allUserIds
     , 'lookupUser
     , 'lookupUserByName
+    , 'lookupUserByEmail
     , 'addUser
     , 'addUnconfirmedUser
     , 'finishUserRegistration

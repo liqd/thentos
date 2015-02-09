@@ -1,13 +1,17 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Util
     ( makeUserFromFormData
     , textToPassword
     , verifyPass
+    , cshow
+    , readsPrecEnumBoundedShow
 ) where
 
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Scrypt (encryptPassIO', Pass(Pass), verifyPass')
-import Data.String.Conversions (ST)
+import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Types
 
@@ -28,3 +32,22 @@ textToPassword = UserPass . Pass . encodeUtf8
 verifyPass :: UserPass -> User -> Bool
 verifyPass pass user = verifyPass' (fromUserPass pass)
                                    (fromEncryptedPass $ user ^. userPassword)
+
+
+-- | Convertible show.
+--
+-- Remove once https://github.com/soenkehahn/string-conversions/pull/1
+-- has been released.
+cshow :: (Show a, ConvertibleStrings String b) => a -> b
+cshow = cs . show
+
+
+-- | Generic 'readsPrec' for enumerable types.
+readsPrecEnumBoundedShow :: (Enum a, Bounded a, Show a) => Int -> String -> [(a, String)]
+readsPrecEnumBoundedShow _ s = f [minBound..]
+  where
+    f [] = []
+    f (x:xs) = case splitAt (length s') s of
+        (s0, s1) -> if s0 == s' then [(x, s1)] else f xs
+      where
+        s' = show x
