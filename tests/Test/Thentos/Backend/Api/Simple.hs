@@ -44,6 +44,7 @@ tests = do
                         \ (_, testServer) -> debugRunSession False testServer $ do
                     response1 <- srequest $ mkSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
+
 {-
             describe "Capture \"userid\" UserId :> Get (UserId, User)" $ do
                 it "yields a user value" $

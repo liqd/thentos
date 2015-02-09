@@ -53,6 +53,7 @@ instance ToSample User where
                            []
                            []
 -}
+
 instance ToSample UserId where
     toSample = Just $ UserId 12
 
@@ -81,6 +82,7 @@ instance ToSample Bool where
 instance ToSample (UserId, User) where
     toSample = Nothing
 -}
+
 instance ToSample (ServiceId, Service) where
     toSample = Nothing
 

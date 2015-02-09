@@ -4,10 +4,10 @@ module Util
     , verifyPass
 ) where
 
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Lens ((^.))
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Scrypt (encryptPassIO', Pass(Pass), verifyPass')
-import Data.Text (Text)
+import Data.String.Conversions (ST)
 import Data.Text.Encoding (encodeUtf8)
 import Types
 
@@ -21,7 +21,7 @@ makeUserFromFormData userData = do
                   []
                   []
 
-textToPassword :: Text -> UserPass
+textToPassword :: ST -> UserPass
 textToPassword = UserPass . Pass . encodeUtf8
 
 verifyPass :: UserPass -> User -> Bool

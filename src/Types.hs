@@ -49,7 +49,6 @@ data DB =
 data User =
     User
       { _userName     :: !UserName
-      -- , _userPassword :: !UserPass
       , _userPassword :: !EncryptedPass
       , _userEmail    :: !UserEmail
       , _userGroups   :: [(ServiceId, [Group])]
@@ -84,9 +83,9 @@ newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
 -- | Information required to create a new User
 data UserFormData =
     UserFormData
-        { udName :: !UserName
+        { udName     :: !UserName
         , udPassword :: !UserPass
-        , udEmail :: !UserEmail
+        , udEmail    :: !UserEmail
         }
     deriving (Eq, Show)
 

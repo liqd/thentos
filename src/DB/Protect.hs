@@ -104,7 +104,6 @@ infix 6 *%%
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
---createDefaultUser :: AcidState DB -> Maybe (User, [Role]) -> IO ()
 createDefaultUser :: AcidState DB -> Maybe (UserFormData, [Role]) -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser st (Just (userData, roles)) = do
