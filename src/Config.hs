@@ -21,7 +21,7 @@ import Safe (readDef)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG), updateGlobalLogger, setLevel, setHandlers)
+import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
 import System.Log.Missing (loggerName)
 
 import qualified Data.Configurator as Configurator
@@ -251,6 +251,7 @@ parseConfigFile filePath = do
 
 configLogger :: IO ()
 configLogger = do
+    removeAllHandlers
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./log/thentos.log" DEBUG
     sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr DEBUG
