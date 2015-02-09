@@ -7,7 +7,7 @@
 {-# OPTIONS  #-}
 
 module DB.Protect
-  ( mkThentosClearance
+  ( makeThentosClearance
   , allowEverything
   , allowReadEverything
   , allowNothing
@@ -44,12 +44,12 @@ import Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-mkThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either DbError ThentosClearance
-mkThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ textToPassword password)
-mkThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
-mkThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
-mkThentosClearance Nothing     Nothing        Nothing         Nothing    _  _   = Right allowNothing
-mkThentosClearance _           _              _               _          _  _   = Left BadAuthenticationHeaders
+makeThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either DbError ThentosClearance
+makeThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ textToPassword password)
+makeThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
+makeThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
+makeThentosClearance Nothing     Nothing        Nothing         Nothing    _  _   = Right allowNothing
+makeThentosClearance _           _              _               _          _  _   = Left BadAuthenticationHeaders
 
 
 authenticateUser :: DB -> UserName -> Maybe UserPass -> Either DbError ThentosClearance

@@ -37,19 +37,19 @@ tests = do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $
                         \ (_, testServer) -> debugRunSession False testServer $ do
-                    response1 <- srequest $ mkSRequest "GET" "/user" godCredentials ""
+                    response1 <- srequest $ makeSRequest "GET" "/user" godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
                     liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
                 it "is not accessible for users without 'Admin' role" $
                         \ (_, testServer) -> debugRunSession False testServer $ do
-                    response1 <- srequest $ mkSRequest "GET" "/user" [] ""
+                    response1 <- srequest $ makeSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
 {-
             describe "Capture \"userid\" UserId :> Get (UserId, User)" $ do
                 it "yields a user value" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ mkSRequest "GET" "/user/0" godCredentials ""
+                    response1 <- srequest $ makeSRequest "GET" "/user/0" godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
                 it "can be called by user herself" $
@@ -63,31 +63,31 @@ tests = do
 
                 it "responds with an error if password is wrong" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
+                    response1 <- srequest $ makeSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
                 it "responds with an error if only one of user (or service) and password is provided" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
+                    response1 <- srequest $ makeSRequest "GET" "/user/0" [("X-Thentos-User", "god")] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
-                    response2 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
+                    response2 <- srequest $ makeSRequest "GET" "/user/0" [("X-Thentos-Service", "dog")] ""
                     liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
-                    response3 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
+                    response3 <- srequest $ makeSRequest "GET" "/user/0" [("X-Thentos-Password", "passwd")] ""
                     liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
-                    response4 <- srequest $ mkSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
+                    response4 <- srequest $ makeSRequest "GET" "/user/0" [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
                     liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
 
             describe "ReqBody User :> Post UserId" $ do
                 it "writes a new user to the database" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
                     let user = User "1" "2" "3" [] []
-                    response1 <- srequest $ mkSRequest "POST" "/user" godCredentials (Aeson.encode user)
+                    response1 <- srequest $ makeSRequest "POST" "/user" godCredentials (Aeson.encode user)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
                     let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
                           Right v -> v
                           Left e -> error $ show (e, response1)
 
-                    response2 <- srequest $ mkSRequest "GET" ("/user/" <> (cs . show . fromUserId $ uid)) godCredentials ""
+                    response2 <- srequest $ makeSRequest "GET" ("/user/" <> (cs . show . fromUserId $ uid)) godCredentials ""
                     let (uid', user') = case decodeLenient $ simpleBody response2 of
                           Right v -> v
                           Left e -> error $ show ("/user/" ++ show uid, e, response1)

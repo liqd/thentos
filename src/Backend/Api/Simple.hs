@@ -30,7 +30,7 @@ import Servant.Server (serve)
 
 import Api
 import Backend.Api.Proxy
-import Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, getHdr)
+import Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
 import DB
 import Doc ()
 import Types
@@ -88,12 +88,11 @@ instance ( PushActionC (Server sublayout)
       where
         routingState :: RestActionState
         routingState = ( asg
-                       , \ db now -> mkThentosClearance
-                           (getHdr request "X-Thentos-User")
-                           (getHdr request "X-Thentos-Service")
-                           (getHdr request "X-Thentos-Password")
-                           (getHdr request "X-Thentos-Session")
-                           db now
+                       , makeThentosClearance
+                           (lookupRequestHeader request "X-Thentos-User")
+                           (lookupRequestHeader request "X-Thentos-Service")
+                           (lookupRequestHeader request "X-Thentos-Password")
+                           (lookupRequestHeader request "X-Thentos-Session")
                        )
 
 -- | FIXME: not much documentation yet.

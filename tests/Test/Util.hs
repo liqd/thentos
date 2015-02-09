@@ -98,8 +98,8 @@ teardownTestServer (db, _) = teardownDB db
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
-mkSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
-mkSRequest method path headers body = SRequest req body
+makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
+makeSRequest method path headers body = SRequest req body
   where
     req = setPath defaultRequest { requestMethod = method, requestHeaders = headers } path
 

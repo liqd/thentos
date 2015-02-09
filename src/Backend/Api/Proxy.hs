@@ -73,7 +73,7 @@ prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (
 
 -- | Remove all headers that match @X-Thentos-.*@.
 clearThentosHeaders :: T.RequestHeaders -> T.RequestHeaders
-clearThentosHeaders = filter $ ("x-thentos-" `SBS.isPrefixOf`) . foldedCase . fst
+clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.
@@ -92,7 +92,7 @@ getRqMod req = do
         Nothing -> lift $ left ProxyNotAvailable
         Just prxCfg -> RqMod prxCfg <$> do
             (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
-                getHdr req "X-Thentos-Session"
+                lookupRequestHeader req "X-Thentos-Session"
             (_, user) <- queryAction $ LookupUser (session ^. sessionUser)
 
             let newHdrs =

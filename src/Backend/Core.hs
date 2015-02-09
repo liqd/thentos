@@ -42,8 +42,8 @@ type RestActionRaw   = EitherT RestError IO
 type RestError       = (Int, String)
 
 
-getHdr :: Request -> CI SBS -> Maybe ST
-getHdr req key = lookup key (requestHeaders req) >>= either (const Nothing) Just . decodeUtf8'
+lookupRequestHeader :: Request -> CI SBS -> Maybe ST
+lookupRequestHeader req key = lookup key (requestHeaders req) >>= either (const Nothing) Just . decodeUtf8'
 
 
 -- | This is a work-around: The 'Server' type family terminates in
