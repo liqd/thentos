@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Config
     ( getCommand
@@ -16,6 +17,7 @@ import Control.Monad (join)
 import Data.Monoid (Monoid(..), (<>))
 import Options.Applicative (command, info, progDesc, long, short, auto, option, strOption, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
+import Safe (readDef)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
@@ -26,6 +28,8 @@ import qualified Data.Configurator as Configurator
 import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
+import Types
+
 
 -- * the config type used by everyone else
 
@@ -33,6 +37,7 @@ data ThentosConfig = ThentosConfig
     { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     , proxyConfig :: Maybe ProxyConfig
+    , defaultUser :: Maybe (User, [Role])
     }
   deriving (Eq, Show)
 
@@ -46,7 +51,7 @@ data ProxyConfig = ProxyConfig { proxyTarget :: String }
   deriving (Eq, Show)
 
 emptyThentosConfig :: ThentosConfig
-emptyThentosConfig = ThentosConfig Nothing Nothing Nothing
+emptyThentosConfig = ThentosConfig Nothing Nothing Nothing Nothing
 
 
 -- * combining (partial) configurations from multiple sources
@@ -57,6 +62,7 @@ data ThentosConfigBuilder = ThentosConfigBuilder
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
     , bProxyConfig :: ProxyConfigBuilder
+    , bDefaultUser :: Maybe (User, [Role])
     }
 
 data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
@@ -82,7 +88,7 @@ instance Monoid ProxyConfigBuilder where
             { bProxyTarget = bProxyTarget b1 <|> bProxyTarget b2 }
 
 instance Monoid ThentosConfigBuilder where
-    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty
+    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty Nothing
     b1 `mappend` b2 =
         ThentosConfigBuilder
             (bRunFrontend b1 <|> bRunFrontend b2)
@@ -90,8 +96,10 @@ instance Monoid ThentosConfigBuilder where
             (bBackendConfig b1 <> bBackendConfig b2)
             (bFrontendConfig b1 <> bFrontendConfig b2)
             (bProxyConfig b1 <> bProxyConfig b2)
+            (bDefaultUser b1 <|> bDefaultUser b2)
 
-data ConfigError = FrontendError | BackendError
+data ConfigError = FrontendConfigMissing | BackendConfigMissing | UnknownRoleForDefaultUser String
+  deriving (Eq, Show)
 
 finaliseConfig :: ThentosConfigBuilder -> Either ConfigError ThentosConfig
 finaliseConfig builder =
@@ -99,16 +107,18 @@ finaliseConfig builder =
         <$> frontendConf
         <*> backendConf
         <*> proxyConf
+        <*> defaultUserConf
   where
     backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
-        (Just True, Nothing) -> Left BackendError
+        (Just True, Nothing) -> Left BackendConfigMissing
         (Just True, bConf) -> Right bConf
         _ -> Right Nothing
     frontendConf = case (bRunFrontend builder, finaliseFrontendConfig $ bFrontendConfig builder) of
-        (Just True, Nothing) -> Left FrontendError
+        (Just True, Nothing) -> Left FrontendConfigMissing
         (Just True, fConf) -> Right fConf
         _ -> Right Nothing
     proxyConf = Right . finaliseProxyConfig $ bProxyConfig builder
+    defaultUserConf = return $ bDefaultUser builder
 
 finaliseFrontendConfig :: FrontendConfigBuilder -> Maybe FrontendConfig
 finaliseFrontendConfig builder = FrontendConfig <$> bFrontendPort builder
@@ -159,7 +169,8 @@ parseThentosConfig =
         parseRunBackend <*>
         parseBackendConfigBuilder <*>
         parseFrontendConfigBuilder <*>
-        parseProxyConfigBuilder
+        parseProxyConfigBuilder <*>
+        pure Nothing
 
 parseBackendConfigBuilder :: Parser BackendConfigBuilder
 parseBackendConfigBuilder =
@@ -211,13 +222,29 @@ parseConfigFile :: FilePath -> IO ThentosConfigBuilder
 parseConfigFile filePath = do
     config <- Configurator.load [Configurator.Required filePath]
     argMap <- Configurator.getMap config
-    let get key = join $ Configurator.convert <$> HM.lookup key argMap
+
+    let get :: Configurator.Configured a => Configurator.Name -> Maybe a
+        get key = join $ Configurator.convert <$> HM.lookup key argMap
+
+        getUser :: Maybe (User, [Role])
+        getUser = do
+            u <- User <$>
+                (UserName <$> get "default_user.name") <*>
+                (UserPass <$> get "default_user.password") <*>
+                (UserEmail <$> get "default_user.email") <*>
+                pure [] <*>
+                pure []
+            rs :: [String] <- get "default_user.roles"
+            let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.
+            return (u, map (\ r -> readDef (e r) r) rs)
+
     return $ ThentosConfigBuilder
                 (get "run_frontend")
                 (get "run_backend")
                 (BackendConfigBuilder $ get "backend_port")
                 (FrontendConfigBuilder $ get "frontend_port")
                 (ProxyConfigBuilder $ get "proxy_target")
+                getUser
 
 
 -- * logging
