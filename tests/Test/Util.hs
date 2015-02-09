@@ -20,8 +20,10 @@ import Control.Applicative ((<*))
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Crypto.Scrypt (Pass(Pass), encryptPass', Salt(Salt))
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (update')
+import Data.ByteString (ByteString)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.String.Conversions (LBS, SBS, cs)
 import Filesystem (isDirectory, removeTree)
@@ -47,13 +49,15 @@ import Types
 
 import Test.Config
 
+encryptTestPassword :: ByteString -> EncryptedPass
+encryptTestPassword pw = EncryptedPass $ encryptPass' (Salt "") (Pass pw)
 
 user1, user2, user3, user4, user5 :: User
-user1 = User "name1" "passwd" "em@il" [] []
-user2 = User "name2" "passwd" "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
-user3 = User "name3" "3" "3" [("bla", ["23"])] []
-user4 = User "name4" "4" "4" [] []
-user5 = User "name5" "5" "5" [] []
+user1 = User "name1" (encryptTestPassword "passwd") "em@il" [] []
+user2 = User "name2" (encryptTestPassword "passwd") "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
+user3 = User "name3" (encryptTestPassword "3") "3" [("bla", ["23"])] []
+user4 = User "name4" (encryptTestPassword "4") "4" [] []
+user5 = User "name5" (encryptTestPassword "5") "5" [] []
 
 
 godCredentials :: [Header]
@@ -61,7 +65,7 @@ godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
 
 createGod :: AcidState DB -> IO ()
 createGod st = createDefaultUser st
-    (Just (User "god" "god" "postmaster@localhost" [] [], [RoleAdmin]))
+    (Just (UserFormData "god" (Pass "god") "postmaster@localhost", [RoleAdmin]))
 
 
 setupDB :: IO (ActionStateGlobal (MVar SystemRNG))

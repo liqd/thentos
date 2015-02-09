@@ -2,7 +2,6 @@
 
 module Frontend.Mail (sendUserConfirmationMail) where
 
-import Control.Lens ((^.))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L
 import Data.Monoid ((<>))
@@ -14,7 +13,7 @@ import Types
 sentFromAddress :: Address
 sentFromAddress = Address (Just "Thentos") "thentos@thentos.org"
 
-sendUserConfirmationMail :: User -> ByteString -> IO ()
+sendUserConfirmationMail :: UserFormData -> ByteString -> IO ()
 sendUserConfirmationMail user callbackUrl = do
     renderSendMail mail
   where
@@ -23,7 +22,7 @@ sendUserConfirmationMail user callbackUrl = do
             , mailHeaders = headers
             , mailParts = [body]
             }
-    receiverAddress = Address Nothing (fromUserEmail $ user ^. userEmail)
+    receiverAddress = Address Nothing (fromUserEmail $ udEmail user)
     message = "Please go to " <> L.fromStrict callbackUrl
     body = [Part { partType = "text"
                  , partFilename = Nothing

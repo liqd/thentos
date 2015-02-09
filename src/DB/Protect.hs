@@ -17,11 +17,13 @@ module DB.Protect
 
 import Control.Lens ((^.))
 import Control.Monad (when)
+import Crypto.Scrypt (verifyPass', Pass(Pass))
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.List (foldl')
 import Data.String.Conversions (ST)
+import Data.Text.Encoding (encodeUtf8)
 import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
@@ -30,6 +32,7 @@ import DB.Core
 import DB.Trans
 import System.Log.Missing (logger)
 import Types
+import Util
 
 
 -- | If password cannot be verified, or if only password or only
@@ -57,9 +60,10 @@ authenticateUser db name password = do
         <- let a = UserA uid
            in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
 
-    if user ^. userPassword /= password
-        then Left BadCredentials
-        else Right $ simpleClearance credentials
+    if verifyPass' (Pass . encodeUtf8 $ fromUserPass password)
+                   (fromEncryptedPass $ user ^. userPassword)
+        then Right $ simpleClearance credentials
+        else Left BadCredentials
 
 
 authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
@@ -104,12 +108,14 @@ infix 6 *%%
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: AcidState DB -> Maybe (User, [Role]) -> IO ()
+--createDefaultUser :: AcidState DB -> Maybe (User, [Role]) -> IO ()
+createDefaultUser :: AcidState DB -> Maybe (UserFormData, [Role]) -> IO ()
 createDefaultUser _ Nothing = return ()
-createDefaultUser st (Just (user, roles)) = do
+createDefaultUser st (Just (userData, roles)) = do
     eq <- query' st (LookupUser (UserId 0) allowEverything)
     when (isLeft eq) $ do
         -- user
+        user <- makeUserFromFormData userData
         logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
         eu <- update' st (AddUser user allowEverything)
 

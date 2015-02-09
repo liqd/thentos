@@ -104,17 +104,17 @@ instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
 
 type ThentosUser =
        Get [UserId]
-  :<|> Capture "userid" UserId :> Get (UserId, User)
-  :<|> ReqBody User :> Post UserId
-  :<|> Capture "userid" UserId :> ReqBody User :> Put ()
+  -- :<|> Capture "userid" UserId :> Get (UserId, User)
+  -- :<|> ReqBody User :> Post UserId
+  -- :<|> Capture "userid" UserId :> ReqBody User :> Put ()
   :<|> Capture "userid" UserId :> Delete
 
 thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
        queryAction AllUserIds
-  :<|> queryAction . LookupUser
-  :<|> updateAction . AddUser
-  :<|> (\ uid user -> updateAction $ UpdateUser uid user)
+  -- :<|> queryAction . LookupUser
+  -- :<|> updateAction . AddUser
+  -- :<|> (\ uid user -> updateAction $ UpdateUser uid user)
   :<|> updateAction . DeleteUser
 
 

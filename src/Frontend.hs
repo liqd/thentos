@@ -12,6 +12,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG)
+import Crypto.Scrypt (verifyPass', Pass(Pass))
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
 import Data.Maybe (isNothing)
@@ -117,7 +118,10 @@ loginHandler = do
             eUser <- query $ LookupUserByName name allowEverything
             case eUser of
                 Right (uid, user) ->
-                    if password == (user ^. userPassword)
+                    -- if password == (user ^. userPassword)
+                    -- FIXME: simplify verifyPass
+                    if verifyPass' (Pass . encodeUtf8 $ fromUserPass password)
+                                   (fromEncryptedPass $ user ^. userPassword)
                         then loginSuccess uid
                         else loginFail
                 Left NoSuchUser -> loginFail

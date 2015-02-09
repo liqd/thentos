@@ -11,13 +11,15 @@ module Frontend.Pages
     , errorPage
 ) where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>))
+import Crypto.Scrypt (Pass(Pass))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html (Html, (!))
@@ -73,13 +75,11 @@ serviceAddedPage sid key = H.docTypeHtml $ do
             H.p "Service key: " <> H.text (fromServiceKey key)
 
 -- FIXME: move forms into separate module
-userForm :: Monad m => Form Html m User
-userForm = User
+userForm :: Monad m => Form Html m UserFormData
+userForm = UserFormData
     <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass  <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (Pass . encodeUtf8 <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
-    <*> pure []
-    <*> pure []
   where
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')

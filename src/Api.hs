@@ -42,6 +42,7 @@ import qualified Codec.Binary.Base64 as Base64
 import Config
 import DB
 import Types
+import Util
 
 
 -- * types
@@ -144,9 +145,10 @@ freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 -- * actions involving randomness
 
-addUnconfirmedUser :: CPRG r => User -> Action (MVar r) ConfirmationToken
-addUnconfirmedUser user = do
+addUnconfirmedUser :: CPRG r => UserFormData-> Action (MVar r) ConfirmationToken
+addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
+    user <- makeUserFromFormData userData
     updateAction $ AddUnconfirmedUser tok user
 
 addService :: CPRG r => Action (MVar r) (ServiceId, ServiceKey)
