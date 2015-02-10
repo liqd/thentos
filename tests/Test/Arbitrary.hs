@@ -2,14 +2,14 @@
 
 module Test.Arbitrary () where
 
+import Control.Applicative ((<$>))
+import Test.QuickCheck (Arbitrary(..))
+
+import qualified Data.ByteString as SBS
+
 import Types (EncryptedPass)
 
 import Test.Util
 
-import Control.Applicative ((<$>))
-import Test.QuickCheck (Arbitrary(..))
-
-import qualified Data.ByteString as B
-
 instance Arbitrary EncryptedPass where
-    arbitrary = encryptTestPassword . B.pack <$> arbitrary
+    arbitrary = encryptTestPassword . SBS.pack <$> arbitrary
