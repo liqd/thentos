@@ -17,8 +17,8 @@ module Api
   , addService
   , startSession
 
-  , createSession
-  , createSessionWithTimeout
+  , startSessionNow
+  , startSessionNowWithTimeout
   , isActiveSession
   , bumpSession
   )
@@ -169,12 +169,12 @@ startSession uid sid start lifetime = do
 -- * actions involving current time
 
 -- | Sessions have a fixed duration of 2 weeks.
-createSession :: CPRG r => (UserId, ServiceId) -> Action (MVar r) SessionToken
-createSession (uid, sid) = createSessionWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
+startSessionNow :: CPRG r => (UserId, ServiceId) -> Action (MVar r) SessionToken
+startSessionNow (uid, sid) = startSessionNowWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
 
 -- | Sessions with explicit timeout.
-createSessionWithTimeout :: CPRG r => (UserId, ServiceId, Timeout) -> Action (MVar r) SessionToken
-createSessionWithTimeout (uid, sid, timeout) = do
+startSessionNowWithTimeout :: CPRG r => (UserId, ServiceId, Timeout) -> Action (MVar r) SessionToken
+startSessionNowWithTimeout (uid, sid, timeout) = do
     now :: UTCTime <- liftIO getCurrentTime
     startSession uid sid (TimeStamp now) timeout
 

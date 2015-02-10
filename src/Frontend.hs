@@ -139,7 +139,7 @@ loginHandler = do
         let (Just sid, Just callback) = (mSid, mCallback)
         eSessionToken :: Either DbError SessionToken
             <- snapRunAction' allowEverything $
-                createSession (uid, ServiceId $ cs sid)
+                startSessionNow (uid, ServiceId $ cs sid)
         case eSessionToken of
             Left e -> blaze . errorPage $ show e
             Right sessionToken ->

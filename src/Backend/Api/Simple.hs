@@ -151,7 +151,7 @@ type ThentosSession =
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
-       createSession
-  :<|> createSessionWithTimeout
+       startSessionNow
+  :<|> startSessionNowWithTimeout
   :<|> updateAction . EndSession
   :<|> isActiveSession
