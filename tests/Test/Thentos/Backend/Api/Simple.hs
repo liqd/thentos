@@ -63,7 +63,7 @@ tests = do
 
                 it "responds with an error if password is wrong" $
                         \ (_, testServer) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ makeSRequest "GET" "/user/0/name" [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
+                    response1 <- srequest $ makeSRequest "GET" resource [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
                 it "responds with an error if only one of user (or service) and password is provided" $
