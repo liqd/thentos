@@ -18,12 +18,15 @@
 
 module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
+import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
+import Control.Lens ((^.))
+import Control.Monad.IO.Class (liftIO)
 import Crypto.Random (SystemRNG)
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
@@ -34,6 +37,7 @@ import Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushActio
 import DB
 import Doc ()
 import Types
+import Util
 
 
 runBackend :: Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
@@ -104,17 +108,22 @@ instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
 
 type ThentosUser =
        Get [UserId]
-  -- :<|> Capture "userid" UserId :> Get (UserId, User)
-  -- :<|> ReqBody User :> Post UserId
-  -- :<|> Capture "userid" UserId :> ReqBody User :> Put ()
+  :<|> Capture "userid" UserId :> "name" :> Get UserName
+  :<|> Capture "userid" UserId :> "name" :> ReqBody UserName :> Put ()
+  :<|> Capture "userid" UserId :> "email" :> Get UserEmail
+  :<|> Capture "userid" UserId :> "email" :> ReqBody UserEmail :> Put ()
+  :<|> ReqBody UserFormData :> Post UserId
   :<|> Capture "userid" UserId :> Delete
+
 
 thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
        queryAction AllUserIds
-  -- :<|> queryAction . LookupUser
-  -- :<|> updateAction . AddUser
-  -- :<|> (\ uid user -> updateAction $ UpdateUser uid user)
+  :<|> (((^. userName) . snd) <$>) . queryAction . LookupUser
+  :<|> (\ uid name -> updateAction $ UpdateUserField uid (UpdateUserFieldName name))
+  :<|> (((^. userEmail) . snd) <$>) . queryAction . LookupUser
+  :<|> (\ uid email -> updateAction $ UpdateUserField uid (UpdateUserFieldEmail email))
+  :<|> (\ userFormData -> liftIO (makeUserFromFormData userFormData) >>= updateAction . AddUser)
   :<|> updateAction . DeleteUser
 
 

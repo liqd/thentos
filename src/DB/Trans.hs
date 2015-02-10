@@ -23,6 +23,7 @@ module DB.Trans
   , FinishUserRegistration(..)
   , AddUsers(..)
   , UpdateUser(..)
+  , UpdateUserField(..), UpdateUserFieldOp(..)
   , DeleteUser(..)
 
   , AllServiceIds(..)
@@ -43,6 +44,7 @@ module DB.Trans
 
   , SnapShot(..)
 
+  , pure_lookupUser
   , pure_lookupUserByName
   , pure_lookupService
   , pure_lookupSession
@@ -55,7 +57,7 @@ where
 
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.Reader (ask)
-import Control.Monad.State (modify, gets)
+import Control.Monad.State (modify, gets, get)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.Function (on)
@@ -63,6 +65,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, nubBy, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import LIO.DCLabel ((\/), (/\))
+import Data.SafeCopy (deriveSafeCopy, base)
 
 import qualified Data.Map as Map
 
@@ -113,8 +116,12 @@ trans_allUserIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
 trans_lookupUser uid = (uid,) <$$> do
     let label = RoleAdmin \/ UserA uid =%% False
-    perhaps :: Maybe User <- Map.lookup uid . (^. dbUsers) <$> ask
-    maybe (throwDBQ label NoSuchUser) (returnDBQ label) perhaps
+    db <- ask
+    either (throwDBQ label) (returnDBQ label) $ pure_lookupUser db uid
+
+pure_lookupUser :: DB -> UserId -> Either DbError User
+pure_lookupUser db uid =
+    maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
 
 -- FIXME: this is extremely inefficient, we should have a separate map from
     -- user names to users or user ids
@@ -168,6 +175,22 @@ trans_updateUser uid user = do
     _ <- liftThentosQuery $ trans_lookupUser uid
     _ <- writeUser uid user
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    returnDBU label ()
+
+data UpdateUserFieldOp =
+    UpdateUserFieldName UserName
+  | UpdateUserFieldEmail UserEmail
+  deriving (Eq, Show)
+
+trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
+trans_updateUserField uid op = do
+    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    ThentosLabeled _ user <- ((`pure_lookupUser` uid) <$> get) >>= either (throwDBU label) (returnDBU label)
+
+    _ <- writeUser uid $ case op of
+        UpdateUserFieldName n -> userName .~ n $ user
+        UpdateUserFieldEmail e -> userEmail .~ e $ user
+
     returnDBU label ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
@@ -430,6 +453,9 @@ addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either DbError ())
 updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
 
+updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either DbError ())
+updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
+
 deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
 deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
 
@@ -476,6 +502,8 @@ snapShot :: ThentosClearance -> Query DB (Either DbError DB)
 snapShot clearance = runThentosQuery clearance trans_snapShot
 
 
+$(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
+
 $(makeAcidic ''DB
     [ 'allUserIds
     , 'lookupUser
@@ -485,6 +513,7 @@ $(makeAcidic ''DB
     , 'finishUserRegistration
     , 'addUsers
     , 'updateUser
+    , 'updateUserField
     , 'deleteUser
 
     , 'allServiceIds

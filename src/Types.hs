@@ -12,14 +12,15 @@
 
 module Types where
 
-import qualified Crypto.Scrypt as Scrypt
 import Control.Lens (makeLenses)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
-import Data.String (IsString(fromString))
 import Data.String.Conversions (ST)
+import Data.String (IsString(fromString))
+import Data.Text.Encoding (encodeUtf8)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
@@ -27,9 +28,10 @@ import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
 
-import Data.Aeson (FromJSON, ToJSON)
+import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
+
 
 data DB =
     DB
@@ -65,6 +67,12 @@ newtype UserName = UserName { fromUserName :: ST }
 newtype UserPass = UserPass { fromUserPass :: Scrypt.Pass }
     deriving (Eq, Show, Typeable, Generic)
 
+instance FromJSON UserPass where
+    parseJSON = Aeson.withText "user password string" $ return . UserPass . Scrypt.Pass . encodeUtf8
+
+instance ToJSON UserPass where
+    toJSON _ = "[password hidden]"
+
 instance IsString UserPass where
     fromString = UserPass . Scrypt.Pass . fromString
 
@@ -87,7 +95,7 @@ data UserFormData =
         , udPassword :: !UserPass
         , udEmail    :: !UserEmail
         }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Typeable, Generic)
 
 data Session =
     Session
@@ -186,17 +194,19 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
-$(deriveSafeCopy 0 'base ''Scrypt.EncryptedPass) -- FIXME: AAAAAAHAHAAHAHA
+$(deriveSafeCopy 0 'base ''Scrypt.EncryptedPass) -- FIXME: orphan!
 $(deriveSafeCopy 0 'base ''EncryptedPass)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
 
 
-instance Aeson.FromJSON Session   where parseJSON = Aeson.gparseJson
-instance Aeson.FromJSON Service   where parseJSON = Aeson.gparseJson
+instance Aeson.FromJSON Session      where parseJSON = Aeson.gparseJson
+instance Aeson.FromJSON Service      where parseJSON = Aeson.gparseJson
+instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 
-instance Aeson.ToJSON Session     where toJSON = Aeson.gtoJson
-instance Aeson.ToJSON Service     where toJSON = Aeson.gtoJson
+instance Aeson.ToJSON Session      where toJSON = Aeson.gtoJson
+instance Aeson.ToJSON Service      where toJSON = Aeson.gtoJson
+instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 
 timeStampToString :: TimeStamp -> String

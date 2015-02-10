@@ -15,6 +15,7 @@ import Servant.API (Capture)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
 
 import Types
+import Util
 
 
 -- instances for generating docs
@@ -45,14 +46,16 @@ instance ToSample SessionToken where
 instance ToSample [SessionToken] where
     toSample = Just ["abde1234llkjh", "47202sdfsg"]
 
-{-
-instance ToSample User where
-    toSample = Just $ User (UserName "Kurt Cobain")
-                           (UserPass "Hunter2")
-                           (UserEmail "cobain@nirvana.com")
-                           []
-                           []
--}
+instance ToSample UserFormData where
+    toSample = Just $ UserFormData (UserName "Kurt Cobain")
+                                   (textToPassword "Hunter2")
+                                   (UserEmail "cobain@nirvana.com")
+
+instance ToSample UserName where
+    toSample = Just $ UserName "Kurt Cobain"
+
+instance ToSample UserEmail where
+    toSample = Just $ UserEmail "cobain@nirvana.com"
 
 instance ToSample UserId where
     toSample = Just $ UserId 12
