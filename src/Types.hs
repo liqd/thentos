@@ -33,6 +33,8 @@ import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
 
+-- * db
+
 data DB =
     DB
       { _dbUsers            :: Map UserId User
@@ -40,9 +42,12 @@ data DB =
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]
-      , _dbFreshUserId :: !UserId
+      , _dbFreshUserId      :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
+
+
+-- * user
 
 -- | (user groups (the data that services want to store and retrieve
 -- in thentos) and session tokens of all active sessions are stored in
@@ -79,6 +84,10 @@ instance IsString UserPass where
 newtype EncryptedPass = EncryptedPass { fromEncryptedPass :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
 
+instance SafeCopy EncryptedPass where
+    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromEncryptedPass
+    getCopy = contain $ safeGet >>= return . EncryptedPass . Scrypt.EncryptedPass
+
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
@@ -97,6 +106,30 @@ data UserFormData =
         }
     deriving (Eq, Show, Typeable, Generic)
 
+instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
+
+
+-- * service
+
+data Service =
+    Service
+      { _serviceKey  :: !ServiceKey
+      }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON Service where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Service where toJSON = Aeson.gtoJson
+
+newtype ServiceId = ServiceId { fromServiceId :: ST }
+  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+
+newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
+  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+
+-- * session, timestamp, timeout
+
 data Session =
     Session
       { _sessionUser    :: !UserId
@@ -107,20 +140,11 @@ data Session =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+instance Aeson.FromJSON Session where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Session where toJSON = Aeson.gtoJson
+
 newtype SessionToken = SessionToken { fromSessionToken :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
-
-data Service =
-    Service
-      { _serviceKey  :: !ServiceKey
-      }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
-newtype ServiceId = ServiceId { fromServiceId :: ST }
-  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
-
-newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
-  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -128,11 +152,53 @@ newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+timeStampToString :: TimeStamp -> String
+timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimeStamp
+
+timeStampFromString :: Monad m => String -> m TimeStamp
+timeStampFromString raw = maybe (fail $ "TimeStamp: no parse: " ++ show raw) return $
+  TimeStamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
+
+instance SafeCopy TimeStamp
+  where
+    putCopy = contain . safePut . timeStampToString
+    getCopy = contain $ safeGet >>= timeStampFromString
+
+instance Aeson.FromJSON TimeStamp
+  where
+    parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
+
+instance Aeson.ToJSON TimeStamp
+  where
+    toJSON = Aeson.toJSON . timeStampToString
+
+timeoutToString :: Timeout -> String
+timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
+
+timeoutFromString :: Monad m => String -> m Timeout
+timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
+  Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
+
+instance SafeCopy Timeout
+  where
+    putCopy = contain . safePut . timeoutToString
+    getCopy = contain $ safeGet >>= timeoutFromString
+
+instance Aeson.FromJSON Timeout
+  where
+    parseJSON = (>>= timeoutFromString) . Aeson.parseJSON
+
+instance Aeson.ToJSON Timeout
+  where
+    toJSON = Aeson.toJSON . timeoutToString
+
+
+-- * role, agent, lio
 
 -- | Some thing or body that deals with (and can authenticate itself
 -- before) thentos.  Examples: 'User' or 'Service'.  (We could have
 -- called this 'Principal', but that name is in use by LIO already.)
-data Agent = UserA UserId | ServiceA ServiceId
+data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 data Role = RoleAdmin
@@ -176,11 +242,12 @@ instance SafeCopy ThentosClearance
       maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
 
 
+-- * boilerplate
+
 makeLenses ''DB
 makeLenses ''User
 makeLenses ''Session
 makeLenses ''Service
-
 
 $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''User)
@@ -196,58 +263,3 @@ $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
-
-
-instance Aeson.FromJSON Session      where parseJSON = Aeson.gparseJson
-instance Aeson.FromJSON Service      where parseJSON = Aeson.gparseJson
-instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
-
-instance Aeson.ToJSON Session      where toJSON = Aeson.gtoJson
-instance Aeson.ToJSON Service      where toJSON = Aeson.gtoJson
-instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
-
-
-instance SafeCopy EncryptedPass where
-    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromEncryptedPass
-    getCopy = contain $ safeGet >>= return . EncryptedPass . Scrypt.EncryptedPass
-
-timeStampToString :: TimeStamp -> String
-timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimeStamp
-
-timeStampFromString :: Monad m => String -> m TimeStamp
-timeStampFromString raw = maybe (fail $ "TimeStamp: no parse: " ++ show raw) return $
-  TimeStamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
-
-instance SafeCopy TimeStamp
-  where
-    putCopy = contain . safePut . timeStampToString
-    getCopy = contain $ safeGet >>= timeStampFromString
-
-instance Aeson.FromJSON TimeStamp
-  where
-    parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
-
-instance Aeson.ToJSON TimeStamp
-  where
-    toJSON = Aeson.toJSON . timeStampToString
-
-
-timeoutToString :: Timeout -> String
-timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
-
-timeoutFromString :: Monad m => String -> m Timeout
-timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
-  Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
-
-instance SafeCopy Timeout
-  where
-    putCopy = contain . safePut . timeoutToString
-    getCopy = contain $ safeGet >>= timeoutFromString
-
-instance Aeson.FromJSON Timeout
-  where
-    parseJSON = (>>= timeoutFromString) . Aeson.parseJSON
-
-instance Aeson.ToJSON Timeout
-  where
-    toJSON = Aeson.toJSON . timeoutToString
