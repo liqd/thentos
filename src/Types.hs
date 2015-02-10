@@ -194,8 +194,6 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
-$(deriveSafeCopy 0 'base ''Scrypt.EncryptedPass) -- FIXME: orphan!
-$(deriveSafeCopy 0 'base ''EncryptedPass)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
 
@@ -208,6 +206,10 @@ instance Aeson.ToJSON Session      where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON Service      where toJSON = Aeson.gtoJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
+
+instance SafeCopy EncryptedPass where
+    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromEncryptedPass
+    getCopy = contain $ safeGet >>= return . EncryptedPass . Scrypt.EncryptedPass
 
 timeStampToString :: TimeStamp -> String
 timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimeStamp
