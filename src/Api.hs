@@ -12,15 +12,13 @@ module Api
   , runAction', runAction
   , updateAction
   , queryAction
-
   , addUnconfirmedUser
   , addService
   , startSession
-
   , startSessionNow
   , startSessionNowWithTimeout
-  , isActiveSession
   , bumpSession
+  , isActiveSession
   )
 where
 
@@ -115,7 +113,7 @@ accessAction access unclearedEvent = do
                 Right success -> return success
 
 
--- * randomness actions
+-- * randomness
 
 -- | A relative of 'cprgGenerate' from crypto-random who lives in
 -- 'Action'.
@@ -146,7 +144,7 @@ freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 
--- * actions involving randomness
+-- ** users
 
 addUnconfirmedUser :: CPRG r => UserFormData-> Action (MVar r) ConfirmationToken
 addUnconfirmedUser userData = do
@@ -154,19 +152,22 @@ addUnconfirmedUser userData = do
     user <- makeUserFromFormData userData
     updateAction $ AddUnconfirmedUser tok user
 
+
+-- ** services
+
 addService :: CPRG r => Action (MVar r) (ServiceId, ServiceKey)
 addService = do
     sid <- freshServiceId
     key <- freshServiceKey
     updateAction $ AddService sid key
 
+
+-- ** sessions
+
 startSession :: CPRG r => UserId -> ServiceId -> TimeStamp -> Timeout -> Action (MVar r) SessionToken
 startSession uid sid start lifetime = do
     tok <- freshSessionToken
     updateAction $ StartSession tok uid sid start lifetime
-
-
--- * actions involving current time
 
 -- | Sessions have a fixed duration of 2 weeks.
 startSessionNow :: CPRG r => (UserId, ServiceId) -> Action (MVar r) SessionToken
@@ -178,12 +179,12 @@ startSessionNowWithTimeout (uid, sid, timeout) = do
     now :: UTCTime <- liftIO getCurrentTime
     startSession uid sid (TimeStamp now) timeout
 
-isActiveSession :: SessionToken -> Action r Bool
-isActiveSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
-    queryAction $ IsActiveSession now tok
-
 bumpSession :: SessionToken -> Action r (SessionToken, Session)
 bumpSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ BumpSession now tok
+
+isActiveSession :: SessionToken -> Action r Bool
+isActiveSession tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    queryAction $ IsActiveSession now tok
