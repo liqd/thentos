@@ -20,11 +20,12 @@ import Control.Applicative ((<*))
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
-import Crypto.Scrypt (Pass(Pass), encryptPass', Salt(Salt))
+import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (update')
 import Data.ByteString (ByteString)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.Maybe (fromJust)
 import Data.String.Conversions (LBS, SBS, cs)
 import Filesystem (isDirectory, removeTree)
 import GHC.Exts (fromString)
@@ -50,7 +51,9 @@ import Types
 import Test.Config
 
 encryptTestPassword :: ByteString -> EncryptedPass
-encryptTestPassword pw = EncryptedPass $ encryptPass' (Salt "") (Pass pw)
+encryptTestPassword pw =
+    EncryptedPass $
+        encryptPass (fromJust $ scryptParams 4 4 1) (Salt "") (Pass pw)
 
 user1, user2, user3, user4, user5 :: User
 user1 = User "name1" (encryptTestPassword "passwd") "em@il" [] []
