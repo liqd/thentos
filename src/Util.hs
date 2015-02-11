@@ -19,6 +19,7 @@ makeUserFromFormData userData = do
                   (EncryptedPass hashedPassword)
                   (udEmail userData)
                   []
+                  Nothing
                   []
 
 textToPassword :: ST -> UserPass

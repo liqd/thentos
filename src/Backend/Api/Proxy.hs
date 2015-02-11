@@ -93,7 +93,9 @@ getRqMod req = do
         Just prxCfg -> RqMod prxCfg <$> do
             (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
                 lookupRequestHeader req "X-Thentos-Session"
-            (_, user) <- queryAction $ LookupUser (session ^. sessionUser)
+            (_, user) <- case session ^. sessionAgent of
+                UserA uid -> queryAction $ LookupUser uid
+                ServiceA _ -> lift $ left NoSuchUser
 
             let newHdrs =
                     ("X-Thentos-User", cs . fromUserName $ user ^. userName) :

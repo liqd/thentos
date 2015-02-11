@@ -30,12 +30,14 @@ instance ToCapture (Capture "userid" UserId) where
     toCapture _ = DocCapture "userid" "User ID"
 
 instance ToSample Service where
-    toSample = Just $ Service "98761234foo"
+    toSample = Just $ Service "98761234foo" Nothing
+
+instance ToSample Agent where
+    toSample = Just . UserA . UserId $ 0
 
 instance ToSample Session where
     toSample =
         Session <$> toSample
-                <*> toSample
                 <*> pure (TimeStamp $ read "1986-20-09 00:00:00 UTC")
                 <*> pure (TimeStamp $ read "1986-27-09 00:00:00 UTC")
                 <*> pure (Timeout 600)
@@ -69,8 +71,8 @@ instance ToSample ServiceId where
 instance ToSample [ServiceId] where
     toSample = Just ["23t92ege0n", "f4ghwgegin0"]
 
-instance ToSample (UserId, ServiceId, Timeout) where
-    toSample = (,,) <$> toSample <*> toSample <*> pure (Timeout $ fromSeconds (123456.0 :: Double))
+instance ToSample (UserId, Timeout) where
+    toSample = (,) <$> toSample <*> pure (Timeout $ fromSeconds (123456.0 :: Double))
 
 instance ToSample (UserId, ServiceId) where
     toSample = (,) <$> toSample <*> toSample

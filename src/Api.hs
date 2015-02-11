@@ -164,25 +164,25 @@ addService = do
 
 -- ** sessions
 
-startSession :: CPRG r => UserId -> ServiceId -> TimeStamp -> Timeout -> Action (MVar r) SessionToken
-startSession uid sid start lifetime = do
+startSession :: CPRG r => Agent -> TimeStamp -> Timeout -> Action (MVar r) SessionToken
+startSession agent start lifetime = do
     tok <- freshSessionToken
-    updateAction $ StartSession tok uid sid start lifetime
+    updateAction $ StartSession tok agent start lifetime
 
 -- | Sessions have a fixed duration of 2 weeks.
-startSessionNow :: CPRG r => (UserId, ServiceId) -> Action (MVar r) SessionToken
-startSessionNow (uid, sid) = startSessionNowWithTimeout (uid, sid, Timeout $ 14 * 24 * 3600)
+startSessionNow :: CPRG r => Agent -> Action (MVar r) SessionToken
+startSessionNow agent = startSessionNowWithTimeout (agent, Timeout $ 14 * 24 * 3600)
 
 -- | Sessions with explicit timeout.
-startSessionNowWithTimeout :: CPRG r => (UserId, ServiceId, Timeout) -> Action (MVar r) SessionToken
-startSessionNowWithTimeout (uid, sid, timeout) = do
+startSessionNowWithTimeout :: CPRG r => (Agent, Timeout) -> Action (MVar r) SessionToken
+startSessionNowWithTimeout (agent, timeout) = do
     now :: UTCTime <- liftIO getCurrentTime
-    startSession uid sid (TimeStamp now) timeout
+    startSession agent (TimeStamp now) timeout
 
 bumpSession :: SessionToken -> Action r (SessionToken, Session)
 bumpSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
-    updateAction $ BumpSession now tok
+    updateAction $ LookupSession (Just (now, True)) tok
 
 isActiveSession :: SessionToken -> Action r Bool
 isActiveSession tok = do

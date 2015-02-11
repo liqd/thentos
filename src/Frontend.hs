@@ -10,11 +10,9 @@ import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
-import Control.Monad (when)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
-import Data.Maybe (isNothing)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
@@ -129,21 +127,21 @@ loginHandler = do
 
     loginSuccess :: UserId -> Handler FrontendApp FrontendApp ()
     loginSuccess uid = do
-        mSid <- getParam "sid"
         mCallback <- getParam "redirect"
-        when (isNothing mSid || isNothing mCallback) $ do
-            modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "400 Bad Request"
-            r <- getResponse
-            finishWith r
-        let (Just sid, Just callback) = (mSid, mCallback)
-        eSessionToken :: Either DbError SessionToken
-            <- snapRunAction' allowEverything $
-                startSessionNow (uid, ServiceId $ cs sid)
-        case eSessionToken of
-            Left e -> blaze . errorPage $ show e
-            Right sessionToken ->
-                redirect' (redirectUrl callback sessionToken) 303
+        case mCallback of
+            Nothing -> do
+                modifyResponse $ setResponseStatus 400 "Bad Request"
+                blaze "400 Bad Request"
+                r <- getResponse
+                finishWith r
+            Just callback -> do
+                eSessionToken :: Either DbError SessionToken
+                    <- snapRunAction' allowEverything $
+                        startSessionNow (UserA uid)
+                case eSessionToken of
+                    Left e -> blaze . errorPage $ show e
+                    Right sessionToken ->
+                        redirect' (redirectUrl callback sessionToken) 303
 
     redirectUrl :: ByteString -> SessionToken -> ByteString
     redirectUrl serviceProvidedUrl sessionToken =

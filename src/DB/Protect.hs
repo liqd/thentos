@@ -20,9 +20,8 @@ import Control.Monad (when)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
-import Data.List (foldl')
 import Data.String.Conversions (ST)
-import LIO.DCLabel (ToCNF, CNF, toCNF, (%%), (/\), (\/))
+import LIO.DCLabel (ToCNF, CNF, toCNF, (%%))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
 
@@ -68,7 +67,7 @@ authenticateUser db name password = do
 
 authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
 authenticateService db sid keyFromClient = do
-    (_, Service keyFromDb)
+    (_, Service keyFromDb Nothing)
         <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
 
     credentials :: [CNF]
@@ -86,7 +85,9 @@ authenticateSession db now tok = getUserFromSession db now tok
 
 getUserFromSession :: DB -> TimeStamp -> SessionToken -> Either DbError User
 getUserFromSession db now tok = do
-    (_, Session uid _ _ _ _) <- maybe (Left NoSuchSession) Right $ pure_lookupSession db (Just now) tok
+    uid <- case pure_lookupSession db (Just (now, False)) tok of
+        LookupSessionUnchanged (_, Session (UserA uid) _ _ _) -> Right uid
+        _ -> Left NoSuchSession
     maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
 
 

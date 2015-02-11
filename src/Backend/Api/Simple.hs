@@ -19,6 +19,7 @@
 module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
 import Control.Applicative ((<$>))
+import Control.Arrow (first)
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
@@ -144,14 +145,14 @@ thentosService =
 -- * session
 
 type ThentosSession =
-       ReqBody (UserId, ServiceId) :> Post SessionToken
-  :<|> ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken
+       ReqBody UserId               :> Post SessionToken
+  :<|> ReqBody (UserId, Timeout)    :> Post SessionToken
   :<|> Capture "token" SessionToken :> Delete
   :<|> Capture "token" SessionToken :> Get Bool
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
-       startSessionNow
-  :<|> startSessionNowWithTimeout
+       startSessionNow . UserA
+  :<|> startSessionNowWithTimeout . first UserA
   :<|> updateAction . EndSession
   :<|> isActiveSession

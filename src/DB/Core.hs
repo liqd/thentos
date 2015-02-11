@@ -12,10 +12,8 @@ module DB.Core
   , runThentosQuery
   , liftThentosQuery
   , showDbError
-  , returnDBQ
-  , throwDBQ
-  , returnDBU
-  , throwDBU
+  , returnDb
+  , throwDb
   , thentosPublic
   , thentosDenied
   , thentosLabeledPublic
@@ -31,9 +29,10 @@ import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
-import Control.Monad.State (StateT(StateT), runStateT, get, put, lift)
-import Control.Monad.Trans.Either (EitherT, left, right, runEitherT)
+import Control.Monad.State (StateT(StateT), runStateT, get, put)
+import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
+import Data.EitherR (throwT)
 import Data.List (foldl')
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
@@ -78,8 +77,8 @@ type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
 -- * plumbing
 
 liftThentosQuery :: forall a . ThentosQuery a -> ThentosUpdate a
-liftThentosQuery thentosQuery = StateT $ \ state ->
-    (, state) <$> thentosQuery `runReaderT` state
+liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
+    (, state) <$> runEitherT thentosQuery `runReaderT` state
 
 
 -- | the type of this will change when servant has a better error type.
@@ -104,16 +103,16 @@ showDbError ProxyNotAvailable        = return (404, "proxying not activated")
 runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
 runThentosUpdate clearance action = do
     state <- get
-    case runIdentity . runEitherT $ runStateT action state of
-        Left (ThentosLabeled label (err :: DbError)) ->
+    case runIdentity $ runStateT (runEitherT action) state of
+        (Left (ThentosLabeled label (err :: DbError)), _) ->
             checkClearance clearance label (return $ Left err)
-        Right (ThentosLabeled label result, state') ->
+        (Right (ThentosLabeled label result), state') ->
             checkClearance clearance label (put state' >> return (Right result))
 
 runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
 runThentosQuery clearance action = do
     state <- ask
-    case runIdentity . runEitherT $ runReaderT action state of
+    case runIdentity $ runReaderT (runEitherT action) state of
         Left (ThentosLabeled label (err :: DbError)) ->
             checkClearance clearance label (return $ Left err)
         Right (ThentosLabeled label result) ->
@@ -125,17 +124,11 @@ checkClearance clearance label result =
         then result
         else return . Left $ PermissionDenied clearance label
 
-throwDBU :: ThentosLabel -> DbError -> ThentosUpdate a
-throwDBU label = lift . left . ThentosLabeled label
+returnDb :: Monad m => ThentosLabel -> a -> EitherT (ThentosLabeled e) m (ThentosLabeled a)
+returnDb l a = right $ ThentosLabeled l a
 
-returnDBU :: ThentosLabel -> a -> ThentosUpdate a
-returnDBU label = lift . right . ThentosLabeled label
-
-throwDBQ :: ThentosLabel -> DbError -> ThentosQuery a
-throwDBQ label = lift . left . ThentosLabeled label
-
-returnDBQ :: ThentosLabel -> a -> ThentosQuery a
-returnDBQ label = lift . right . ThentosLabeled label
+throwDb :: Monad m => ThentosLabel -> DbError -> EitherT (ThentosLabeled DbError) m (ThentosLabeled a)
+throwDb l e = throwT $ ThentosLabeled l e
 
 
 thentosPublic :: ThentosLabel
