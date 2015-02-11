@@ -200,7 +200,8 @@ trans_updateUserField uid op = do
 -- error.
 trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
-    _ <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled _ (_, user :: User) <- liftThentosQuery $ trans_lookupUser uid
+    _ <- maybe (returnDb thentosPublic ()) deleteSession (user ^. userSession)
     modify $ dbUsers %~ Map.delete uid
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
     returnDb label ()
@@ -231,7 +232,6 @@ trans_lookupService sid = do
 pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
 pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
-
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
 trans_addService :: ServiceId -> ServiceKey -> ThentosUpdate (ServiceId, ServiceKey)
@@ -242,13 +242,11 @@ trans_addService sid key = do
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
-    _ <- liftThentosQuery $ trans_lookupService sid
+    ThentosLabeled _ (_, service :: Service) <- liftThentosQuery $ trans_lookupService sid
+    _ <- maybe (returnDb thentosPublic ()) deleteSession (service ^. serviceSession)
     modify $ dbServices %~ Map.delete sid
     let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
     returnDb label ()
-
--- FIXME: we don't have any api (neither in DB nor here) to manage
--- user's group data.
 
 
 -- ** sessions
