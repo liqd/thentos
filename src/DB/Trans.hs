@@ -38,6 +38,7 @@ module DB.Trans
   , EndSession(..)
   , IsActiveSession(..)
   , IsActiveSessionAndBump(..)
+  , IsLoggedIntoService(..)
   , GarbageCollectSessions(..)
 
   , AssignRole(..)
@@ -389,6 +390,22 @@ trans_isActiveSessionAndBump now tok = catchT
     (const $ returnDb thentosPublic False)
 
 
+trans_isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
+trans_isLoggedIntoService now tok sid = catchT
+    (test >> returnDb thentosPublic True)
+    (const $ returnDb thentosPublic False)
+  where
+    test = do
+        ThentosLabeled _ (_, session) <- lookupSessionTL [ServiceA sid] (Just (now, True)) tok
+        case session ^. sessionAgent of
+            UserA uid  -> do
+                ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
+                if sid `elem` user ^. userLogins
+                    then returnDb thentosPublic ()
+                    else throwDb thentosPublic NoSuchSession
+            ServiceA _ -> throwDb thentosPublic NoSuchUser
+
+
 -- | Go through 'dbSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
 -- and then @EndSession@ on all service ids individually.)
@@ -576,6 +593,9 @@ isActiveSession now tok clearance = runThentosQuery clearance $ trans_isActiveSe
 isActiveSessionAndBump :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either DbError Bool)
 isActiveSessionAndBump now tok clearance = runThentosUpdate clearance $ trans_isActiveSessionAndBump now tok
 
+isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either DbError Bool)
+isLoggedIntoService now tok sid clearance = runThentosUpdate clearance $ trans_isLoggedIntoService now tok sid
+
 garbageCollectSessions :: ThentosClearance -> Query DB (Either DbError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
@@ -618,6 +638,7 @@ $(makeAcidic ''DB
     , 'endSession
     , 'isActiveSession
     , 'isActiveSessionAndBump
+    , 'isLoggedIntoService
     , 'garbageCollectSessions
 
     , 'assignRole
