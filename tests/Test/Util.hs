@@ -56,11 +56,11 @@ encryptTestPassword pw =
         encryptPass (fromJust $ scryptParams 4 4 1) (Salt "") (Pass pw)
 
 user1, user2, user3, user4, user5 :: User
-user1 = User "name1" (encryptTestPassword "passwd") "em@il" [] []
-user2 = User "name2" (encryptTestPassword "passwd") "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] []
-user3 = User "name3" (encryptTestPassword "3") "3" [("bla", ["23"])] []
-user4 = User "name4" (encryptTestPassword "4") "4" [] []
-user5 = User "name5" (encryptTestPassword "5") "5" [] []
+user1 = User "name1" (encryptTestPassword "passwd") "em@il" [] Nothing []
+user2 = User "name2" (encryptTestPassword "passwd") "em38@il" [("bal", ["group1"]), ("bla", ["group2"])] Nothing []
+user3 = User "name3" (encryptTestPassword "3") "3" [("bla", ["23"])] Nothing []
+user4 = User "name4" (encryptTestPassword "4") "4" [] Nothing []
+user5 = User "name5" (encryptTestPassword "5") "5" [] Nothing []
 
 
 godCredentials :: [Header]

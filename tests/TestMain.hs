@@ -116,9 +116,7 @@ adhoc = do
       it "works" $ \ asg -> do
         from <- TimeStamp <$> getCurrentTime
         let timeout = Timeout 600
-        Left NoSuchService <- runAction' (asg, allowEverything) $ startSession (UserId 0) "NoSuchService" from timeout
-        Right (sid :: ServiceId, _) <- runAction' (asg, allowEverything) $ addService
-        Right _ <- runAction' (asg, allowEverything) $ startSession (UserId 0) sid from timeout
+        Right _ <- runAction' (asg, allowEverything) $ startSession (UserA $ UserId 0) from timeout
         return ()
 
     describe "agents and roles" $ do
