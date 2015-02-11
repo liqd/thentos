@@ -59,7 +59,8 @@ data User =
       , _userPassword :: !EncryptedPass
       , _userEmail    :: !UserEmail
       , _userGroups   :: [(ServiceId, [Group])]
-      , _userSessions :: [(ServiceId, SessionToken)]
+      , _userSession  :: !(Maybe SessionToken)
+      , _userLogins   :: [ServiceId]
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -114,7 +115,8 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 data Service =
     Service
-      { _serviceKey  :: !ServiceKey
+      { _serviceKey     :: !ServiceKey
+      , _serviceSession :: !(Maybe SessionToken)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -132,8 +134,7 @@ newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
 
 data Session =
     Session
-      { _sessionUser    :: !UserId
-      , _sessionService :: !ServiceId
+      { _sessionAgent   :: !Agent
       , _sessionStart   :: !TimeStamp
       , _sessionEnd     :: !TimeStamp
       , _sessionTimeout :: !Timeout
@@ -200,6 +201,9 @@ instance Aeson.ToJSON Timeout
 -- called this 'Principal', but that name is in use by LIO already.)
 data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
 data Role = RoleAdmin
   deriving (Eq, Ord, Show, Read, Typeable, Generic)

@@ -71,8 +71,8 @@ instance SafeCopy DbError
 type ThentosUpdate a = ThentosUpdate' (ThentosLabeled DbError) (ThentosLabeled a)
 type ThentosQuery  a = ThentosQuery'  (ThentosLabeled DbError) (ThentosLabeled a)
 
-type ThentosUpdate' e a = StateT  DB (EitherT e Identity) a
-type ThentosQuery'  e a = ReaderT DB (EitherT e Identity) a
+type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
+type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
 
 
 -- * plumbing
