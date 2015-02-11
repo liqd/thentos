@@ -1,6 +1,7 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 module DB.Core
   ( DbError(..)
@@ -20,21 +21,24 @@ module DB.Core
   , thentosLabeledPublic
   , thentosLabeledDenied
   , (=%%)
+  , simpleThentosLabel
+  , simpleLabel
   , createCheckpointLoop
   ) where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
-import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Identity (Identity, runIdentity)
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put, lift)
 import Control.Monad.Trans.Either (EitherT, left, right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
+import Data.List (foldl')
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
-import LIO.DCLabel (ToCNF, (%%))
+import LIO.DCLabel (DCLabel, ToCNF, (%%), (/\), (\/), toCNF)
 import Safe (readMay)
 import System.Log.Logger (Priority(INFO))
 import System.Log.Missing (logger)
@@ -149,6 +153,14 @@ thentosLabeledDenied = ThentosLabeled thentosDenied
 (=%%) :: (ToCNF a, ToCNF b) => a -> b -> ThentosLabel
 (=%%) a b = ThentosLabel $ a %% b
 infix 6 =%%
+
+simpleThentosLabel :: ToCNF a => [a] -> ThentosLabel
+simpleThentosLabel = ThentosLabel . simpleLabel
+
+simpleLabel :: ToCNF a => [a] -> DCLabel
+simpleLabel (map toCNF -> credentials) = case credentials of
+    []     -> False %% True
+    (x:xs) -> foldl' (/\) x xs %% foldl' (\/) x xs
 
 
 -- * convenience

@@ -90,10 +90,8 @@ getUserFromSession db now tok = do
     maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
 
 
-simpleClearance :: [CNF] -> ThentosClearance
-simpleClearance credentials = case credentials of
-    []     -> allowNothing
-    (x:xs) -> foldl' (/\) x xs *%% foldl' (\/) x xs
+simpleClearance :: ToCNF a => [a] -> ThentosClearance
+simpleClearance = ThentosClearance . simpleLabel
 
 
 -- | Clearance for everything.
