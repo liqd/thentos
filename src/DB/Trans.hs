@@ -190,9 +190,11 @@ trans_updateUserField uid op = do
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
     ThentosLabeled _ user <- ((`pure_lookupUser` uid) <$> get) >>= either (throwDb label) (returnDb label)
 
-    _ <- writeUser uid $ case op of
-        UpdateUserFieldName n -> userName .~ n $ user
-        UpdateUserFieldEmail e -> userEmail .~ e $ user
+    let runOp :: UpdateUserFieldOp -> User -> User
+        runOp (UpdateUserFieldName n)  = userName .~ n
+        runOp (UpdateUserFieldEmail e) = userEmail .~ e
+
+    _ <- writeUser uid $ runOp op user
 
     returnDb label ()
 
