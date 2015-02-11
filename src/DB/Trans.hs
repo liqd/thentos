@@ -68,7 +68,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (nub, find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
-import LIO.DCLabel ((\/), (/\), toCNF)
+import LIO.DCLabel (ToCNF, (\/), (/\), toCNF)
 
 import qualified Data.Map as Map
 
@@ -183,6 +183,8 @@ trans_updateUser uid user = do
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
+  | UpdateUserFieldAddService ServiceId
+  | UpdateUserFieldDropService ServiceId
   deriving (Eq, Show)
 
 trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
@@ -191,8 +193,10 @@ trans_updateUserField uid op = do
     ThentosLabeled _ user <- ((`pure_lookupUser` uid) <$> get) >>= either (throwDb label) (returnDb label)
 
     let runOp :: UpdateUserFieldOp -> User -> User
-        runOp (UpdateUserFieldName n)  = userName .~ n
-        runOp (UpdateUserFieldEmail e) = userEmail .~ e
+        runOp (UpdateUserFieldName n)          = userName .~ n
+        runOp (UpdateUserFieldEmail e)         = userEmail .~ e
+        runOp (UpdateUserFieldAddService sid)  = userLogins %~ (sid:)
+        runOp (UpdateUserFieldDropService sid) = userLogins %~ filter (/= sid)
 
     _ <- writeUser uid $ runOp op user
 
@@ -311,13 +315,24 @@ trans_lookupSessionQ mNow tok = ask >>= \ db -> do
 -- See 'trans_lookupSessionQ' for a variant of this function in
 -- 'ThentosQuery'.
 trans_lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosUpdate (SessionToken, Session)
-trans_lookupSession mNow tok = get >>= \ db -> do
+trans_lookupSession mNow tok = lookupSessionTL ([] :: [Bool]) mNow tok
+
+
+-- | Like 'trans_lookupSession', but accepts an extra list of
+-- clearance items.  This is required for service login checks by the
+-- service.
+--
+-- There may be a better way to do this.  See redmine #1688.
+lookupSessionTL :: ToCNF a => [a] -> Maybe (TimeStamp, Bool) -> SessionToken
+      -> ThentosUpdate (SessionToken, Session)
+lookupSessionTL cnfs mNow tok = get >>= \ db -> do
     let rSession = pure_lookupSession db mNow tok
 
     let label = case rSession of
-            LookupSessionUnchanged (_, Session agent _ _ _) -> RoleAdmin \/ agent =%% False
-            LookupSessionBumped    (_, Session agent _ _ _) -> RoleAdmin \/ agent =%% False
-            _                                               -> RoleAdmin          =%% False
+            LookupSessionUnchanged (_, Session agent _ _ _) -> simpleThentosLabel $ toCNF agent : defaults
+            LookupSessionBumped    (_, Session agent _ _ _) -> simpleThentosLabel $ toCNF agent : defaults
+            _                                               -> simpleThentosLabel defaults
+        defaults = toCNF RoleAdmin : map toCNF cnfs
 
     case rSession of
         LookupSessionUnchanged (_, session) -> returnDb label (tok, session)
