@@ -112,7 +112,7 @@ tokenOk (Just token) = do
     hwConfig <- gets aHWConfig
     let sid = serviceId hwConfig
         key = serviceKey hwConfig
-        url = thentosBackendUrl hwConfig <> "/session/" <> token
+        url = thentosBackendUrl hwConfig <> "/session/" <> token <> "/login/" <> sid
     liftIO . withManager $ do
         initReq <- parseUrl $ BC.unpack url
         let req = initReq

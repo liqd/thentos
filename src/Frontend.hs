@@ -14,6 +14,7 @@ import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
+import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
@@ -119,15 +120,17 @@ serviceAddedHandler = do
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do
     uri <- getsRequest rqURI
+    mSid <- ServiceId . cs <$$> getParam "sid"
     (_view, result) <- runForm (cs uri) loginForm
-    case result of
-        Nothing -> blaze $ loginPage _view uri
-        Just (name, password) -> do
+    case (result, mSid) of
+        (_, Nothing)                      -> blaze "No service id"
+        (Nothing, Just sid)               -> blaze $ loginPage sid _view uri
+        (Just (name, password), Just sid) -> do
             eUser <- query $ LookupUserByName name allowEverything
             case eUser of
                 Right (uid, user) ->
                     if verifyPass password user
-                        then loginSuccess uid
+                        then loginSuccess uid sid
                         else loginFail
                 Left NoSuchUser -> loginFail
                 Left e -> blaze . errorPage $ show e
@@ -135,8 +138,8 @@ loginHandler = do
     loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
 
-    loginSuccess :: UserId -> Handler FrontendApp FrontendApp ()
-    loginSuccess uid = do
+    loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
+    loginSuccess uid sid = do
         mCallback <- getParam "redirect"
         case mCallback of
             Nothing -> do
@@ -146,8 +149,10 @@ loginHandler = do
                 finishWith r
             Just callback -> do
                 eSessionToken :: Either DbError SessionToken
-                    <- snapRunAction' allowEverything $
-                        startSessionNow (UserA uid)
+                    <- snapRunAction' allowEverything $ do
+                        tok <- startSessionNow (UserA uid)
+                        addServiceLogin tok sid
+                        return tok
                 case eSessionToken of
                     Left e -> blaze . errorPage $ show e
                     Right sessionToken ->

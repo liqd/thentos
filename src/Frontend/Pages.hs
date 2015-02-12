@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Frontend.Pages
     ( mainPage
@@ -16,7 +17,7 @@ import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (SBS, cs)
 import Data.Text (Text)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
@@ -98,12 +99,14 @@ userForm = UserFormData
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')
 
-loginPage :: View Html -> ByteString -> Html
-loginPage v reqURI =
+loginPage :: ServiceId -> View Html -> ByteString -> Html
+loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
     H.docTypeHtml $ do
         H.head $
             H.title "Log in"
-        H.body $
+        H.body $ do
+            H.p $ do
+                "service id: " <> serviceId
             form v (cs reqURI) $ do
                 H.p $ do
                     label "usernamme" v "User name:"
