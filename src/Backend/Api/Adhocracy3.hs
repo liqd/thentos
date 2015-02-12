@@ -250,14 +250,10 @@ app asg = p $
 
 addUser :: A3User -> RestAction (A3Resource ())
 addUser a3user = do
-    _ :: ConfirmationToken <- addUnconfirmedUser $ fromA3User a3user
-
-    -- FIXME: we need the uid here.  and it has to be the final uid
-    -- that the user will keep after email confirmation.
+    (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser $ fromA3User a3user
 
     -- FIXME: send confirmation email
 
-    let uid = UserId 3
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) Nothing
 
     -- FIXME: catch errors and respond with RequestError

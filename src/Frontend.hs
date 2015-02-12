@@ -88,7 +88,7 @@ userAddHandler = do
         Just user -> do
             result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
             case result' of
-                Right (ConfirmationToken token) -> do
+                Right (_, ConfirmationToken token) -> do
                     config :: FrontendConfig <- gets (^. fecfg)
                     let url = "http://localhost:" <> (cs . show $ frontendPort config)
                                 <> "/signup_confirm?token=" <> encodeUtf8 token

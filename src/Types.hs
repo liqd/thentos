@@ -38,7 +38,7 @@ import qualified Generics.Generic.Aeson as Aeson
 data DB =
     DB
       { _dbUsers            :: Map UserId User
-      , _dbUnconfirmedUsers :: Map ConfirmationToken User
+      , _dbUnconfirmedUsers :: Map ConfirmationToken (UserId, User)
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]

@@ -159,19 +159,20 @@ pure_lookupUserByEmail db email =
 -- | Write a new unconfirmed user (i.e. one whose email address we haven't
 -- confirmed yet) to DB. Unlike addUser, this operation does not ensure
 -- uniqueness of email adresses.
-trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate ConfirmationToken
+trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
-    modify $ dbUnconfirmedUsers %~ Map.insert token user
-    returnDb thentosPublic token
+    uid <- freshUserId
+    modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
+    returnDb thentosPublic (uid, token)
 
 trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
 trans_finishUserRegistration token = do
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
         Nothing -> throwDb thentosPublic NoSuchPendingUserConfirmation
-        Just user -> do
+        Just (uid, user) -> do
             modify $ dbUnconfirmedUsers %~ Map.delete token
-            trans_addUser user
+            writeUser uid user
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
@@ -555,7 +556,7 @@ lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserBy
 lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either DbError (UserId, User))
 lookupUserByEmail email clearance = runThentosQuery clearance $ trans_lookupUserByEmail email
 
-addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either DbError ConfirmationToken)
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either DbError (UserId, ConfirmationToken))
 addUnconfirmedUser token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser token user
 
