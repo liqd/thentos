@@ -62,7 +62,8 @@ appPage token sessionMetaData isTokenOk =
                 H.text "logout"
 
 routes :: ByteString -> [(ByteString, Handler App App ())]
-routes sid = [ ("/app", handleApp)
+routes sid = [ ("", ifTop $ redirect "/app")
+             , ("/app", handleApp)
              , ("/login", helloWorldLogin sid)
              , ("",     serveDirectory "static")  -- for css and what not.
              ]
