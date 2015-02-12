@@ -7,6 +7,7 @@ module Frontend (runFrontend) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
+import Control.Exception (assert)
 import Control.Lens (makeLenses, view, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
@@ -44,6 +45,7 @@ data FrontendApp =
       { _db :: Snaplet (Acid DB)
       , _rng :: MVar SystemRNG
       , _cfg :: ThentosConfig
+      , _fecfg :: FrontendConfig
       }
 
 makeLenses ''FrontendApp
@@ -60,7 +62,10 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
     FrontendApp <$>
         (nestSnaplet "acid" db $ acidInitManual st) <*>
         (return rn) <*>
-        (return _cfg)
+        (return _cfg) <*>
+        (case frontendConfig _cfg of
+            Just x -> return x
+            Nothing -> assert False $ error "frontendApp: internal error")
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ mainPageHandler)
@@ -83,8 +88,9 @@ userAddHandler = do
             result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
             case result' of
                 Right (ConfirmationToken token) -> do
-                    -- FIXME: callback base url must be configurable
-                    let url = "http://localhost:8002/signup_confirm?token=" <> encodeUtf8 token
+                    config :: FrontendConfig <- gets (^. fecfg)
+                    let url = "http://localhost:" <> (cs . show $ frontendPort config)
+                                <> "/signup_confirm?token=" <> encodeUtf8 token
                     liftIO $ sendUserConfirmationMail user url
                     blaze "Please check your email!"
                 Left e -> blaze . errorPage $ show e
