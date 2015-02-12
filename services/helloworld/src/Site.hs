@@ -56,9 +56,9 @@ appPage token sessionMetaData isTokenOk =
             H.p $ "your session token: " <> H.string (show token)
             H.p $ "Token ok: " <> H.string (show isTokenOk) <> " (checked with thentos)"
             H.p $ "data sent to us from thentos (session meta data): " <> H.string (show sessionMetaData)
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ helloWorldUrl hwConfig <> "/login") $ do
+            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ do
                 H.text "login"
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ helloWorldUrl hwConfig <> "/logout") $ do
+            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ do
                 H.text "logout"
 
 routes :: ByteString -> [(ByteString, Handler App App ())]
