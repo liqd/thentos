@@ -5,18 +5,19 @@ module Site
   ( app
   ) where
 
-import           Control.Applicative
-import           Data.ByteString (ByteString)
+import Control.Applicative
+import Data.ByteString (ByteString)
+import Data.Monoid ((<>))
+import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
+import Snap
+import Snap.Blaze (blaze)
+import Snap.Util.FileServe (serveDirectory)
+import Text.Blaze.Html (Html)
+
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Configurator as Configurator
-import           Data.Monoid ((<>))
-import           Snap
-import           Snap.Blaze (blaze)
-import           Snap.Util.FileServe (serveDirectory)
-import           Text.Blaze.Html (Html)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
-import           Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
 
 data App = App { aServiceId :: ByteString, aServiceKey :: ByteString }
 type AppHandler = Handler App App
