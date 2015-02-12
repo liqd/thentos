@@ -17,7 +17,7 @@ import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
-import Data.String.Conversions (SBS, cs)
+import Data.String.Conversions (cs)
 import Data.Text (Text)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
@@ -29,7 +29,6 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Types
-import Util
 
 mainPage :: Html
 mainPage = do
@@ -93,7 +92,7 @@ serviceAddedPage sid key = H.docTypeHtml $ do
 userForm :: Monad m => Form Html m UserFormData
 userForm = UserFormData
     <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (textToPassword <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
   where
     checkEmail :: Text -> Bool
@@ -119,7 +118,7 @@ loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
 loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (textToPassword <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString

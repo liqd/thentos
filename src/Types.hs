@@ -19,8 +19,7 @@ import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String.Conversions (ST)
-import Data.String (IsString(fromString))
-import Data.Text.Encoding (encodeUtf8)
+import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
@@ -56,7 +55,7 @@ data DB =
 data User =
     User
       { _userName     :: !UserName
-      , _userPassword :: !EncryptedPass
+      , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
       , _userGroups   :: [(ServiceId, [Group])]
       , _userSession  :: !(Maybe SessionToken)
@@ -70,24 +69,21 @@ newtype UserId = UserId { fromUserId :: Integer }
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
-newtype UserPass = UserPass { fromUserPass :: Scrypt.Pass }
-    deriving (Eq, Show, Typeable, Generic)
+newtype UserPass = UserPass { fromUserPass :: ST }
+    deriving (Eq, Show, Typeable, Generic, IsString)
 
 instance FromJSON UserPass where
-    parseJSON = Aeson.withText "user password string" $ return . UserPass . Scrypt.Pass . encodeUtf8
+    parseJSON = Aeson.withText "user password string" $ return . UserPass
 
 instance ToJSON UserPass where
     toJSON _ = "[password hidden]"
 
-instance IsString UserPass where
-    fromString = UserPass . Scrypt.Pass . fromString
-
-newtype EncryptedPass = EncryptedPass { fromEncryptedPass :: Scrypt.EncryptedPass }
+newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
 
-instance SafeCopy EncryptedPass where
-    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromEncryptedPass
-    getCopy = contain $ safeGet >>= return . EncryptedPass . Scrypt.EncryptedPass
+instance SafeCopy (HashedSecret a) where
+    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
+    getCopy = contain $ safeGet >>= return . HashedSecret . Scrypt.EncryptedPass
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
@@ -115,13 +111,10 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 data Service =
     Service
-      { _serviceKey     :: !ServiceKey
+      { _serviceKey     :: !(HashedSecret ServiceKey)
       , _serviceSession :: !(Maybe SessionToken)
       }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
-instance Aeson.FromJSON Service where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Service where toJSON = Aeson.gtoJson
+  deriving (Eq, Show, Typeable, Generic)
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
   deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)

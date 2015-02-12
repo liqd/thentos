@@ -29,7 +29,6 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 
 import Types
-import Util
 
 
 -- * the config type used by everyone else
@@ -231,7 +230,7 @@ parseConfigFile filePath = do
         getUser = do
             u <- UserFormData <$>
                 (UserName <$> get "default_user.name") <*>
-                (textToPassword <$> get "default_user.password") <*>
+                (UserPass <$> get "default_user.password") <*>
                 (UserEmail <$> get "default_user.email")
             rs :: [String] <- get "default_user.roles"
             let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.

@@ -2,8 +2,10 @@
 
 module Util
     ( makeUserFromFormData
-    , textToPassword
     , verifyPass
+    , secretMatches
+    , hashServiceKey
+    , hashUserPass
     , cshow
     , readsPrecEnumBoundedShow
 ) where
@@ -15,24 +17,33 @@ import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Types
 
+hashUserPass :: MonadIO m => UserPass -> m (HashedSecret UserPass)
+hashUserPass = hashSecret fromUserPass
+
+hashServiceKey :: MonadIO m => ServiceKey -> m (HashedSecret ServiceKey)
+hashServiceKey = hashSecret fromServiceKey
+
+-- encryptPassIO' gets its entropy from /dev/urandom
+hashSecret :: MonadIO m => (a -> ST) -> a -> m (HashedSecret a)
+hashSecret a s =
+    (liftIO . encryptPassIO' . Pass . encodeUtf8 $ a s) >>= return . HashedSecret
+
 makeUserFromFormData :: MonadIO m => UserFormData -> m User
 makeUserFromFormData userData = do
-    -- encryptPassIO' gets its entropy from /dev/urandom
-    hashedPassword <- liftIO . encryptPassIO' . fromUserPass $ udPassword userData
+    hashedPassword <- hashUserPass $ udPassword userData
     return $ User (udName userData)
-                  (EncryptedPass hashedPassword)
+                  hashedPassword
                   (udEmail userData)
                   []
                   Nothing
                   []
 
-textToPassword :: ST -> UserPass
-textToPassword = UserPass . Pass . encodeUtf8
+secretMatches :: ST -> HashedSecret a -> Bool
+secretMatches t s = verifyPass' (Pass $ encodeUtf8 t) (fromHashedSecret s)
 
 verifyPass :: UserPass -> User -> Bool
-verifyPass pass user = verifyPass' (fromUserPass pass)
-                                   (fromEncryptedPass $ user ^. userPassword)
-
+verifyPass pass user = secretMatches (fromUserPass pass)
+                                     (user ^. userPassword)
 
 -- | Convertible show.
 --

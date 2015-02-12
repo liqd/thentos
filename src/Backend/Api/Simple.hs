@@ -132,13 +132,11 @@ thentosUser =
 
 type ThentosService =
        Get [ServiceId]
-  :<|> Capture "sid" ServiceId :> Get (ServiceId, Service)
   :<|> Post (ServiceId, ServiceKey)
 
 thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
          queryAction AllServiceIds
-    :<|> queryAction . LookupService
     :<|> addService
 
 

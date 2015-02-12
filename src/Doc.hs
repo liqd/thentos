@@ -15,7 +15,6 @@ import Servant.API (Capture)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
 
 import Types
-import Util
 
 
 -- instances for generating docs
@@ -28,9 +27,6 @@ instance ToCapture (Capture "sid" ServiceId) where
 
 instance ToCapture (Capture "userid" UserId) where
     toCapture _ = DocCapture "userid" "User ID"
-
-instance ToSample Service where
-    toSample = Just $ Service "98761234foo" Nothing
 
 instance ToSample Agent where
     toSample = Just . UserA . UserId $ 0
@@ -50,7 +46,7 @@ instance ToSample [SessionToken] where
 
 instance ToSample UserFormData where
     toSample = Just $ UserFormData (UserName "Kurt Cobain")
-                                   (textToPassword "Hunter2")
+                                   (UserPass "Hunter2")
                                    (UserEmail "cobain@nirvana.com")
 
 instance ToSample UserName where
@@ -82,14 +78,6 @@ instance ToSample () where
 
 instance ToSample Bool where
     toSample = Just True
-
-{-
-instance ToSample (UserId, User) where
-    toSample = Nothing
--}
-
-instance ToSample (ServiceId, Service) where
-    toSample = Nothing
 
 instance ToSample (ServiceId, ServiceKey) where
     toSample = Nothing

@@ -267,11 +267,11 @@ pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
 -- | Write new service to DB.  Service key is generated automatically.
 -- Return fresh service id.
-trans_addService :: ServiceId -> ServiceKey -> ThentosUpdate (ServiceId, ServiceKey)
+trans_addService :: ServiceId -> HashedSecret ServiceKey -> ThentosUpdate ()
 trans_addService sid key = do
     let service = Service key Nothing
     modify $ dbServices %~ Map.insert sid service
-    returnDb thentosPublic (sid, key)
+    returnDb thentosPublic ()
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
@@ -595,7 +595,7 @@ allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
 
-addService :: ServiceId -> ServiceKey -> ThentosClearance -> Update DB (Either DbError (ServiceId, ServiceKey))
+addService :: ServiceId -> HashedSecret ServiceKey -> ThentosClearance -> Update DB (Either DbError ())
 addService sid key clearance = runThentosUpdate clearance $ trans_addService sid key
 
 deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())

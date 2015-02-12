@@ -164,7 +164,9 @@ addService :: CPRG r => Action (MVar r) (ServiceId, ServiceKey)
 addService = do
     sid <- freshServiceId
     key <- freshServiceKey
-    updateAction $ AddService sid key
+    hashedKey <- hashServiceKey key
+    updateAction $ AddService sid hashedKey
+    return (sid, key)
 
 
 -- ** sessions

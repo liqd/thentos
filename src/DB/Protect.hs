@@ -44,7 +44,7 @@ import Util
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
 makeThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either DbError ThentosClearance
-makeThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ textToPassword password)
+makeThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ UserPass password)
 makeThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
 makeThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
 makeThentosClearance Nothing     Nothing        Nothing         Nothing    _  _   = Right allowNothing
@@ -67,16 +67,16 @@ authenticateUser db name password = do
 
 authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
 authenticateService db sid keyFromClient = do
-    (_, Service keyFromDb Nothing)
+    (_, Service hashedServiceKey Nothing)
         <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
 
     credentials :: [CNF]
         <- let a = ServiceA sid
            in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
 
-    if keyFromClient /= keyFromDb
-        then Left BadCredentials
-        else Right $ simpleClearance credentials
+    if secretMatches (fromServiceKey keyFromClient) hashedServiceKey
+        then Right $ simpleClearance credentials
+        else Left BadCredentials
 
 
 authenticateSession :: DB -> TimeStamp -> SessionToken -> Either DbError ThentosClearance

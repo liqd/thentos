@@ -16,7 +16,7 @@ import Test.Arbitrary ()
 tests :: Spec
 tests = do
     describe "Types" $ do
-        describe "instance SafeCopy EncrypedPass" $
+        describe "instance SafeCopy (HashedSecret a)" $
             it "is invertible" $ property $
-                \ (pw :: EncryptedPass) ->
+                \ (pw :: HashedSecret a) ->
                     runGet safeGet (runPut $ safePut pw) == Right pw
