@@ -45,6 +45,7 @@ Executable helloworld
     , time                      >= 1.1
     , unordered-containers
     , xmlhtml                   >= 0.1
+    , pretty-show
 
   if flag(development)
     build-depends:
