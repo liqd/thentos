@@ -48,26 +48,27 @@ appPage token sessionMetaData isTokenOk =
             H.title "Welcome to the thentos test service!"
         H.body $ do
             H.p $ "your session token: " <> H.string (show token)
-            H.p $ "Token ok: " <> H.string (show isTokenOk) <> " (checked with thentos)"
+            H.p $ "Token ok (checked with thentos): " <> H.string (show isTokenOk)
             H.p $ "data sent to us from thentos (session meta data): " <> H.string (show sessionMetaData)
             H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ do
                 H.text "login"
             H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ do
                 H.text "logout"
 
-routes :: HWConfig -> [(ByteString, Handler App App ())]
-routes hwConfig =
-      [ ("",       ifTop $ redirect "/app")
-      , ("/app",   handleApp)
-      , ("/login", helloWorldLogin hwConfig)
-      , ("",       serveDirectory "static")  -- for css and what not.
+routes :: [(ByteString, Handler App App ())]
+routes =
+      [ ("",        ifTop $ redirect "/app")
+      , ("/app",    handleApp)
+      , ("/login",  helloWorldLogin)
+      , ("/logout", helloWorldLogout)
+      , ("",        serveDirectory "static")  -- for css and what not.
       ]
 
 app :: SnapletInit App App
 app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ do
     Just hwConfig <- liftIO $ loadConfig
     liftIO . putStrLn $ ppShow hwConfig
-    addRoutes (routes hwConfig)
+    addRoutes routes
     return $ App hwConfig
   where
     loadConfig :: IO (Maybe HWConfig)
@@ -91,12 +92,19 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
     (<**>) :: IO (Maybe (a -> b)) -> IO (Maybe a) -> IO (Maybe b)
     a <**> b = do x <- a; y <- b; return $ x <*> y
 
-helloWorldLogin :: HWConfig -> Handler App App ()
-helloWorldLogin hwConfig =
+helloWorldLogin :: Handler App App ()
+helloWorldLogin = do
+    hwConfig <- gets aHWConfig
     redirect'
         (thentosFrontendUrl hwConfig <> "/login?sid=" <> (serviceId hwConfig) <> "&redirect="
             <> urlEncode (helloWorldUrl hwConfig <> "/app?foo=bar"))
         303
+
+-- | FIXME: notify thentos that user is logged out of service.  this
+-- can happen either directly between service and thentos, or via
+-- redirect through the browser.
+helloWorldLogout :: Handler App App ()
+helloWorldLogout = redirect' "/app" 303
 
 tokenOk :: Maybe ByteString -> Handler App App Bool
 tokenOk Nothing = return False
