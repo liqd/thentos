@@ -151,7 +151,7 @@ freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 -- ** users
 
-addUnconfirmedUser :: CPRG r => UserFormData-> Action (MVar r) ConfirmationToken
+addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) ConfirmationToken
 addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
     user <- makeUserFromFormData userData
