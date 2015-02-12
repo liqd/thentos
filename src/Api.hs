@@ -19,11 +19,16 @@ module Api
   , startSessionNowWithTimeout
   , bumpSession
   , isActiveSession
+  , isActiveSessionAndBump
+  , isLoggedIntoService
+  , addServiceLogin
+  , dropServiceLogin
   )
 where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar, modifyMVar)
+import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT, left, eitherT)
@@ -188,3 +193,30 @@ isActiveSession :: SessionToken -> Action r Bool
 isActiveSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     queryAction $ IsActiveSession now tok
+
+isActiveSessionAndBump :: SessionToken -> Action r Bool
+isActiveSessionAndBump tok = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ IsActiveSessionAndBump now tok
+
+isLoggedIntoService :: SessionToken -> ServiceId -> Action r Bool
+isLoggedIntoService tok sid = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ IsLoggedIntoService now tok sid
+
+sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
+sessionAndUserIdFromToken tok = do
+    (_, session) <- bumpSession tok
+    case session ^. sessionAgent of
+        UserA uid -> return (session, uid)
+        ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
+
+addServiceLogin :: SessionToken -> ServiceId -> Action r ()
+addServiceLogin tok sid = do
+    (_, uid) <- sessionAndUserIdFromToken tok
+    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid)
+
+dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
+dropServiceLogin tok sid = do
+    (_, uid) <- sessionAndUserIdFromToken tok
+    updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)

@@ -402,7 +402,7 @@ trans_isLoggedIntoService now tok sid = catchT
                 ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
                 if sid `elem` user ^. userLogins
                     then returnDb thentosPublic ()
-                    else throwDb thentosPublic NoSuchSession
+                    else throwDb thentosPublic OperationNotPossibleInServiceSession
             ServiceA _ -> throwDb thentosPublic NoSuchUser
 
 

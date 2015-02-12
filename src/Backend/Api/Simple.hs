@@ -149,6 +149,9 @@ type ThentosSession =
   :<|> ReqBody (UserId, Timeout)    :> Post SessionToken
   :<|> Capture "token" SessionToken :> Delete
   :<|> Capture "token" SessionToken :> Get Bool
+  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Post ()
+  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Delete
+  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Get Bool
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
@@ -156,3 +159,6 @@ thentosSession =
   :<|> startSessionNowWithTimeout . first UserA
   :<|> updateAction . EndSession
   :<|> isActiveSession
+  :<|> addServiceLogin
+  :<|> dropServiceLogin
+  :<|> isLoggedIntoService
