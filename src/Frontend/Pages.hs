@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Frontend.Pages
-    ( addUserPage
+    ( mainPage
+    , addUserPage
     , userForm
     , userAddedPage
     , addServicePage
@@ -16,17 +17,31 @@ import Data.ByteString (ByteString)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
-import qualified Data.Text as T
 import Data.Text (Text)
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
 import Text.Digestive.Form (Form, check, text, (.:))
 import Text.Digestive.View (View)
 
+import qualified Data.Text as T
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
+
 import Types
 import Util
+
+mainPage :: Html
+mainPage = do
+    H.head $ do
+        H.title "Thentos main page"
+    H.body $ do
+        H.h3 $ do
+            "things you can do from here:"
+        H.ul $ do
+            H.li . (H.a ! A.href "/login") $ "login"
+            H.li . (H.a ! A.href "/create_user") $ "create_user"
+            H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
+            H.li . (H.a ! A.href "/create_service") $ "create_service"
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do

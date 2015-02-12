@@ -17,7 +17,7 @@ import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
 import Snap.Blaze (blaze)
-import Snap.Core (getResponse, finishWith, method, Method(GET, POST))
+import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
@@ -34,7 +34,7 @@ import DB
 import Types
 import Util
 
-import Frontend.Pages (addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
+import Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Frontend.Util (serveSnaplet)
 import Frontend.Mail (sendUserConfirmationMail)
 
@@ -63,12 +63,16 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
         (return _cfg)
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
-routes = [ ("login", loginHandler)
+routes = [ ("", ifTop $ mainPageHandler)
+         , ("login", loginHandler)
          , ("create_user", userAddHandler)
          , ("signup_confirm", userAddConfirmHandler)
          , ("create_service", method GET addServiceHandler)
          , ("create_service", method POST serviceAddedHandler)
          ]
+
+mainPageHandler :: Handler FrontendApp FrontendApp ()
+mainPageHandler = blaze $ mainPage
 
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
