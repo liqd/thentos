@@ -129,7 +129,7 @@ createDefaultUser st (Just (userData, roles)) = do
 
         if eu == Right (UserId 0)
             then logger DEBUG $ "[ok]"
-            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, user)
+            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
@@ -137,4 +137,4 @@ createDefaultUser st (Just (userData, roles)) = do
 
         if all isRight result
             then logger DEBUG $ "[ok]"
-            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, user, roles)
+            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)

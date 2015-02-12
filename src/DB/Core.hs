@@ -53,9 +53,9 @@ data DbError =
     | NoSuchService
     | NoSuchSession
     | OperationNotPossibleInServiceSession
-    | UserAlreadyExists
     | ServiceAlreadyExists
     | UserEmailAlreadyExists
+    | UserNameAlreadyExists
     | PermissionDenied ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
@@ -93,9 +93,9 @@ showDbError NoSuchPendingUserConfirmation        = return (404, "unconfirmed use
 showDbError NoSuchService                        = return (404, "service not found")
 showDbError NoSuchSession                        = return (404, "session not found")
 showDbError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-showDbError UserAlreadyExists                    = return (403, "user already exists")
 showDbError ServiceAlreadyExists                 = return (403, "service already exists")
 showDbError UserEmailAlreadyExists               = return (403, "email already in use")
+showDbError UserNameAlreadyExists                = return (403, "user name already in use")
 showDbError e@(PermissionDenied _ _)             = logger INFO (show e) >> return (401, "unauthorized")
 showDbError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
 showDbError BadAuthenticationHeaders             = return (400, "bad authentication headers")

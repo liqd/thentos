@@ -67,18 +67,25 @@ import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>), (<$$>))
-import Data.List (nub, find, (\\))
+import Data.List (find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel (ToCNF, (\/), (/\), toCNF)
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import DB.Core
 import Types
 
 
 -- * DB invariants
+
+checkAllDbInvs :: UserId -> User -> ThentosQuery ()
+checkAllDbInvs uid user = checkDbInvs $
+    dbInvUserAspectUnique UserEmailAlreadyExists uid user (^. userEmail) :
+    dbInvUserAspectUnique UserNameAlreadyExists uid user (^. userName) :
+    []
 
 checkDbInvs :: [DB -> Either DbError ()] -> ThentosQuery ()
 checkDbInvs invs = do
@@ -89,13 +96,16 @@ checkDbInvs invs = do
     db <- ask
     f $ fmap ($ db) invs
 
-dbInvUserEmailUnique :: UserId -> User -> DB -> Either DbError ()
-dbInvUserEmailUnique uid user db = if nub emails == emails  -- FIXME: O(n^2)
-      then Right ()
-      else Left UserEmailAlreadyExists
+-- | This function builds a set of the aspects of all users on the
+-- fly.  This may or may not be bad for performance.
+dbInvUserAspectUnique :: (Ord aspect) => DbError -> UserId -> User -> (User -> aspect) -> DB -> Either DbError ()
+dbInvUserAspectUnique errorMsg uid user toAspect db =
+    if length vs == length vs'
+        then Right ()
+        else Left errorMsg
   where
-    emails :: [UserEmail]
-    emails = (^. userEmail) <$> Map.elems (Map.insert uid user $ db ^. dbUsers)
+    vs = map toAspect . Map.elems . Map.insert uid user $ db ^. dbUsers
+    vs' = Set.toList . Set.fromList $ vs
 
 
 -- * event functions
@@ -235,7 +245,7 @@ trans_deleteUser uid = do
 -- | (db ^. dbUser) must only be modified using this function.
 writeUser :: UserId -> User -> ThentosUpdate UserId
 writeUser uid user = do
-    _ <- liftThentosQuery $ checkDbInvs [dbInvUserEmailUnique uid user]
+    ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs uid user
     modify $ dbUsers %~ Map.insert uid user
     returnDb thentosPublic uid
 
