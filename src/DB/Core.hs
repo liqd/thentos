@@ -19,8 +19,15 @@ module DB.Core
   , thentosLabeledPublic
   , thentosLabeledDenied
   , (=%%)
-  , simpleThentosLabel
-  , simpleLabel
+  , TLMode(TLRead, TLReadWrite)
+  , makeThentosLabel
+  , restrictThentosLabel
+  , restrictThentosLabel'
+  , makeThentosLabel1
+  , makeThentosLabel2
+  , makeThentosLabel3
+  , makeThentosLabel4
+  , makeThentosLabel5
   , createCheckpointLoop
   ) where
 
@@ -33,11 +40,10 @@ import Control.Monad.State (StateT(StateT), runStateT, get, put)
 import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.EitherR (throwT)
-import Data.List (foldl')
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
-import LIO.DCLabel (DCLabel, ToCNF, (%%), (/\), (\/), toCNF)
+import LIO.DCLabel (DCLabel(DCLabel), ToCNF, (%%), (/\), (\/), toCNF)
 import Safe (readMay)
 import System.Log.Logger (Priority(INFO))
 import System.Log.Missing (logger)
@@ -81,7 +87,7 @@ type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
 
 -- * plumbing
 
-liftThentosQuery :: forall a . ThentosQuery a -> ThentosUpdate a
+liftThentosQuery :: forall e a . ThentosQuery' e a -> ThentosUpdate' e a
 liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
     (, state) <$> runEitherT thentosQuery `runReaderT` state
 
@@ -153,13 +159,40 @@ thentosLabeledDenied = ThentosLabeled thentosDenied
 (=%%) a b = ThentosLabel $ a %% b
 infix 6 =%%
 
-simpleThentosLabel :: ToCNF a => [a] -> ThentosLabel
-simpleThentosLabel = ThentosLabel . simpleLabel
+data TLMode = TLRead | TLReadWrite
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
-simpleLabel :: ToCNF a => [a] -> DCLabel
-simpleLabel (map toCNF -> credentials) = case credentials of
-    []     -> False %% True
-    (x:xs) -> foldl' (/\) x xs %% foldl' (\/) x xs
+makeThentosLabel :: ToCNF a => TLMode -> [a] -> ThentosLabel
+makeThentosLabel _      [] = thentosDenied
+makeThentosLabel tlMode (x:xs) = case tlMode of
+      TLRead      -> s =%% True
+      TLReadWrite -> s =%% i
+  where
+    s = foldr (\/) (toCNF x) (map toCNF xs)
+    i = foldr (/\) (toCNF x) (map toCNF xs)
+
+restrictThentosLabel :: ToCNF a => TLMode -> a -> ThentosLabel -> ThentosLabel
+restrictThentosLabel TLRead      a (ThentosLabel (DCLabel s _)) = s \/ a =%% True
+restrictThentosLabel TLReadWrite a (ThentosLabel (DCLabel s i)) = s \/ a =%% i /\ a
+
+restrictThentosLabel' :: ToCNF a => TLMode -> Maybe a -> ThentosLabel -> ThentosLabel
+restrictThentosLabel' _      Nothing = id
+restrictThentosLabel' tlMode (Just a) = restrictThentosLabel tlMode a
+
+makeThentosLabel1 :: ToCNF a => TLMode -> a -> ThentosLabel
+makeThentosLabel1 tlMode a = makeThentosLabel tlMode [a]
+
+makeThentosLabel2 :: (ToCNF a, ToCNF b) => TLMode -> a -> b -> ThentosLabel
+makeThentosLabel2 tlMode a b = makeThentosLabel tlMode [toCNF a, toCNF b]
+
+makeThentosLabel3 :: (ToCNF a, ToCNF b, ToCNF c) => TLMode -> a -> b -> c -> ThentosLabel
+makeThentosLabel3 tlMode a b c = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c]
+
+makeThentosLabel4 :: (ToCNF a, ToCNF b, ToCNF c, ToCNF d) => TLMode -> a -> b -> c -> d -> ThentosLabel
+makeThentosLabel4 tlMode a b c d = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c, toCNF d]
+
+makeThentosLabel5 :: (ToCNF a, ToCNF b, ToCNF c, ToCNF d, ToCNF e) => TLMode -> a -> b -> c -> d -> e -> ThentosLabel
+makeThentosLabel5 tlMode a b c d e = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c, toCNF d, toCNF e]
 
 
 -- * convenience

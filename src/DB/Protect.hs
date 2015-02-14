@@ -21,7 +21,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
-import LIO.DCLabel (ToCNF, CNF, toCNF, (%%))
+import LIO.DCLabel (ToCNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
 
@@ -56,12 +56,8 @@ authenticateUser db name password = do
     (uid, user) :: (UserId, User)
         <- maybe (Left BadCredentials) Right $ pure_lookupUserByName db name
 
-    credentials :: [CNF]
-        <- let a = UserA uid
-           in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
-
     if maybe True (`verifyPass` user) password
-        then Right $ simpleClearance credentials
+        then Right $ makeClearance_ (UserA uid) (pure_lookupAgentRoles db $ UserA uid)
         else Left BadCredentials
 
 
@@ -70,13 +66,20 @@ authenticateService db sid keyFromClient = do
     (_, Service hashedServiceKey Nothing)
         <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
 
-    credentials :: [CNF]
-        <- let a = ServiceA sid
-           in Right $ toCNF a : map toCNF (pure_lookupAgentRoles db a)
-
     if secretMatches (fromServiceKey keyFromClient) hashedServiceKey
-        then Right $ simpleClearance credentials
+        then Right $ makeClearance_ (ServiceA sid) (pure_lookupAgentRoles db $ ServiceA sid)
         else Left BadCredentials
+
+
+-- | The counter part to 'makeThentosLabel'.  (The argument types are
+-- much more specific becaues there is only one use case so far.  The
+-- names of the two counterparts are not symmetrical because
+-- 'makeThentosClearance' was already taken.)
+makeClearance_ :: Agent -> [Role] -> ThentosClearance
+makeClearance_ agent roles = s *%% i
+  where
+    s = foldr (/\) (toCNF agent) roles
+    i = foldr (\/) (toCNF agent) roles
 
 
 authenticateSession :: DB -> TimeStamp -> SessionToken -> Either DbError ThentosClearance
@@ -89,10 +92,6 @@ getUserFromSession db now tok = do
         LookupSessionUnchanged (_, Session (UserA uid) _ _ _) -> Right uid
         _ -> Left NoSuchSession
     maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
-
-
-simpleClearance :: ToCNF a => [a] -> ThentosClearance
-simpleClearance = ThentosClearance . simpleLabel
 
 
 -- | Clearance for everything.

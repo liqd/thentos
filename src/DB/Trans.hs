@@ -70,7 +70,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
-import LIO.DCLabel (ToCNF, (\/), (/\), toCNF)
+import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 
 import qualified Data.Map as Map
@@ -90,12 +90,14 @@ checkAllDbInvs uid user = checkDbInvs $
 
 checkDbInvs :: [DB -> Either DbError ()] -> ThentosQuery ()
 checkDbInvs invs = do
-    let f []           = returnDb thentosPublic ()
-        f (Left e:_)   = throwDb thentosPublic e
-        f (Right _:es) = f es
+    let label = thentosDenied
+
+        decide []           = returnDb label ()
+        decide (Left e:_)   = throwDb label e
+        decide (Right _:es) = decide es
 
     db <- ask
-    f $ fmap ($ db) invs
+    decide $ fmap ($ db) invs
 
 -- | This function builds a set of the aspects of all users on the
 -- fly.  This may or may not be bad for performance.
@@ -127,42 +129,38 @@ freshUserId = do
 -- ** users
 
 trans_allUserIds :: ThentosQuery [UserId]
-trans_allUserIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbUsers) <$> ask
+trans_allUserIds = do
+    let label = RoleAdmin =%% False
+    ThentosLabeled label . Map.keys . (^. dbUsers) <$> ask
 
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
-trans_lookupUser uid = (uid,) <$$> do
-    let label = RoleAdmin \/ UserA uid =%% False
-    db <- ask
-    either (throwDb label) (returnDb label) $ pure_lookupUser db uid
+trans_lookupUser uid = ask >>= \ db -> label_lookupUser $ pure_lookupUser db uid
 
-pure_lookupUser :: DB -> UserId -> Either DbError User
+pure_lookupUser :: DB -> UserId -> Maybe (UserId, User)
 pure_lookupUser db uid =
-    maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
+    fmap (uid,) . Map.lookup uid $ db ^. dbUsers
+
+label_lookupUser :: Maybe (UserId, User) -> ThentosQuery (UserId, User)
+label_lookupUser (Just result@(uid, _)) = do
+    let label  = RoleAdmin \/ UserA uid =%% False
+    returnDb label result
+label_lookupUser Nothing = do
+    let label = RoleAdmin =%% False
+    throwDb label NoSuchUser
+
+trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
+trans_lookupUserByName name = ask >>= \ db -> label_lookupUser $ pure_lookupUserByName db name
 
 -- FIXME: this is extremely inefficient, we should have a separate map
--- from user names to user ids
-trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
-trans_lookupUserByName name = do
-    mUser <- (`pure_lookupUserByName` name) <$> ask
-    let label = case mUser of
-          Just (uid, _) -> RoleAdmin \/ UserA uid =%% False
-          Nothing       -> RoleAdmin              =%% False
-    maybe (throwDb label NoSuchUser) (returnDb label) mUser
-
+-- from user names to user ids.
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
     find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
 
--- FIXME: this is extremely inefficient, we should have a separate map
--- from user emails to user ids
 trans_lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
-trans_lookupUserByEmail email = do
-    mUser <- (`pure_lookupUserByEmail` email) <$> ask
-    let label = case mUser of
-          Just (uid, _) -> RoleAdmin \/ UserA uid =%% False
-          Nothing       -> RoleAdmin              =%% False
-    maybe (throwDb label NoSuchUser) (returnDb label) mUser
+trans_lookupUserByEmail email = ask >>= \ db -> label_lookupUser $ pure_lookupUserByEmail db email
 
+-- FIXME: same as 'pure_lookupUserByName'.
 pure_lookupUserByEmail :: DB -> UserEmail -> Maybe (UserId, User)
 pure_lookupUserByEmail db email =
     find (\ (_, user) -> (user ^. userEmail == email)) . Map.toList . (^. dbUsers) $ db
@@ -172,24 +170,32 @@ pure_lookupUserByEmail db email =
 -- uniqueness of email adresses.
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
+    let label = thentosPublic
     uid <- freshUserId
     modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
-    returnDb thentosPublic (uid, token)
+    returnDb label (uid, token)
 
+-- | Note on the label for this transaction: If somebody has the
+-- confirmation token, we assume that she is authenticated.  Since
+-- 'makeThentosClearance' does not check for confirmation tokens, this
+-- transaction is publicly accessible.
 trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
 trans_finishUserRegistration token = do
+    let label = thentosPublic
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
-        Nothing -> throwDb thentosPublic NoSuchPendingUserConfirmation
+        Nothing -> throwDb label NoSuchPendingUserConfirmation
         Just (uid, user) -> do
             modify $ dbUnconfirmedUsers %~ Map.delete token
-            writeUser uid user
+            ThentosLabeled _ () <- writeUser uid user
+            returnDb label uid
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
 trans_addUser user = do
     uid <- freshUserId
-    writeUser uid user
+    ThentosLabeled label () <- writeUser uid user
+    returnDb label uid
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
 -- This is not the most vital part of the backend API, but it allows
@@ -198,7 +204,7 @@ trans_addUser user = do
 trans_addUsers :: [User] -> ThentosUpdate [UserId]
 trans_addUsers [] = returnDb thentosPublic []
 trans_addUsers (u:us) = do
-    ThentosLabeled l uid <- trans_addUser u
+    ThentosLabeled l  uid  <- trans_addUser  u
     ThentosLabeled l' uids <- trans_addUsers us
     returnDb (lub l l') (uid:uids)
 
@@ -207,10 +213,9 @@ trans_addUsers (u:us) = do
 -- another user.
 trans_updateUser :: UserId -> User -> ThentosUpdate ()
 trans_updateUser uid user = do
-    _ <- liftThentosQuery $ trans_lookupUser uid
-    _ <- writeUser uid user
-    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
-    returnDb label ()
+    ThentosLabeled label  _  <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled label' () <- writeUser uid user
+    returnDb (lub label label') ()
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -221,49 +226,49 @@ data UpdateUserFieldOp =
 
 trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
 trans_updateUserField uid op = do
-    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
-    ThentosLabeled _ user <- ((`pure_lookupUser` uid) <$> get) >>= either (throwDb label) (returnDb label)
-
     let runOp :: UpdateUserFieldOp -> User -> User
         runOp (UpdateUserFieldName n)          = userName .~ n
         runOp (UpdateUserFieldEmail e)         = userEmail .~ e
         runOp (UpdateUserFieldAddService sid)  = userLogins %~ (sid:)
         runOp (UpdateUserFieldDropService sid) = userLogins %~ filter (/= sid)
 
-    _ <- writeUser uid $ runOp op user
-
-    returnDb label ()
+    ThentosLabeled label  (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled label' ()        <- writeUser uid $ runOp op user
+    returnDb (lub label label') ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
 -- error.
 trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
-    ThentosLabeled _ (_, user :: User) <- liftThentosQuery $ trans_lookupUser uid
-    _ <- maybe (returnDb thentosPublic ()) deleteSession (user ^. userSession)
-    modify $ dbUsers %~ Map.delete uid
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
-    returnDb label ()
+    ThentosLabeled label' (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    maybe (return ()) deleteSession (user ^. userSession)
+    modify $ dbUsers %~ Map.delete uid
+    returnDb (lub label label') ()
 
 
 -- *** helpers
 
 -- | (db ^. dbUser) must only be modified using this function.
-writeUser :: UserId -> User -> ThentosUpdate UserId
+writeUser :: UserId -> User -> ThentosUpdate ()
 writeUser uid user = do
+    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
     ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs uid user
     modify $ dbUsers %~ Map.insert uid user
-    returnDb thentosPublic uid
+    returnDb label ()
 
 
 -- ** services
 
 trans_allServiceIds :: ThentosQuery [ServiceId]
-trans_allServiceIds = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbServices) <$> ask
+trans_allServiceIds = do
+    let label = RoleAdmin =%% False
+    ThentosLabeled label . Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
 trans_lookupService sid = do
-    db <- ask
     let label = RoleAdmin =%% False
+    db <- ask
     maybe (throwDb label NoSuchService) (returnDb label) $
         pure_lookupService db sid
 
@@ -271,20 +276,20 @@ pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
 pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
 -- | Write new service to DB.  Service key is generated automatically.
--- Return fresh service id.
 trans_addService :: ServiceId -> HashedSecret ServiceKey -> ThentosUpdate ()
 trans_addService sid key = do
-    let service = Service key Nothing
+    let label = thentosPublic
+        service = Service key Nothing
     modify $ dbServices %~ Map.insert sid service
-    returnDb thentosPublic ()
+    returnDb label ()
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
-    ThentosLabeled _ (_, service :: Service) <- liftThentosQuery $ trans_lookupService sid
-    _ <- maybe (returnDb thentosPublic ()) deleteSession (service ^. serviceSession)
+    let label = RoleAdmin \/ ServiceA sid =%%RoleAdmin /\ ServiceA sid
+    ThentosLabeled label' (_, service) <- liftThentosQuery $ trans_lookupService sid
+    maybe (return ()) deleteSession (service ^. serviceSession)
     modify $ dbServices %~ Map.delete sid
-    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
-    returnDb label ()
+    returnDb (lub label label') ()
 
 
 -- ** sessions
@@ -293,7 +298,9 @@ trans_deleteService sid = do
 -- transaction may go away in the future unless we can think of a good
 -- use for it.
 trans_allSessionTokens :: ThentosQuery [SessionToken]
-trans_allSessionTokens = ThentosLabeled (RoleAdmin =%% False) . Map.keys . (^. dbSessions) <$> ask
+trans_allSessionTokens = do
+    let label = RoleAdmin =%% False
+    ThentosLabeled label . Map.keys . (^. dbSessions) <$> ask
 
 
 data LookupSessionResult =
@@ -325,14 +332,20 @@ pure_lookupSession db mNow tok =
 -- bump the session, so there cannot be any changes to the database,
 -- so the result monad can be 'ThentosQuery'.
 trans_lookupSessionQ :: Maybe TimeStamp -> SessionToken -> ThentosQuery (SessionToken, Session)
-trans_lookupSessionQ mNow tok = ask >>= \ db -> do
-    let rSession = pure_lookupSession db ((, False) <$> mNow) tok
+trans_lookupSessionQ mNow tok = do
+    rSession <- (\ db -> pure_lookupSession db ((, False) <$> mNow) tok) <$> ask
 
     case rSession of
-        LookupSessionUnchanged (_, session) -> returnDb (RoleAdmin \/ (session ^. sessionAgent) =%% False) (tok, session)
-        LookupSessionInactive               -> throwDb (RoleAdmin =%% False) NoSuchSession
-        LookupSessionNotThere               -> throwDb (RoleAdmin =%% False) NoSuchSession
-        LookupSessionBumped _               -> assert False $ error "trans_lookupSession"
+        LookupSessionUnchanged (_, session) -> do
+            let label = RoleAdmin \/ (session ^. sessionAgent) =%% False
+            returnDb label (tok, session)
+        LookupSessionInactive -> do
+            let label = RoleAdmin =%% False
+            throwDb label NoSuchSession
+        LookupSessionNotThere -> do
+            let label = RoleAdmin =%% False
+            throwDb label NoSuchSession
+        LookupSessionBumped _ -> assert False $ error "trans_lookupSession"
 
 
 -- | Lookup session.  Use first arg to check if session is now active,
@@ -347,30 +360,32 @@ trans_lookupSessionQ mNow tok = ask >>= \ db -> do
 -- See 'trans_lookupSessionQ' for a variant of this function in
 -- 'ThentosQuery'.
 trans_lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosUpdate (SessionToken, Session)
-trans_lookupSession mNow tok = lookupSessionTL ([] :: [Bool]) mNow tok
+trans_lookupSession mNow tok = lookupSessionTL Nothing mNow tok
 
 
 -- | Like 'trans_lookupSession', but accepts an extra list of
 -- clearance items.  This is required for service login checks by the
 -- service.
---
--- There may be a better way to do this.  See redmine #1688.
-lookupSessionTL :: ToCNF a => [a] -> Maybe (TimeStamp, Bool) -> SessionToken
+lookupSessionTL :: Maybe ServiceId -> Maybe (TimeStamp, Bool) -> SessionToken
       -> ThentosUpdate (SessionToken, Session)
-lookupSessionTL cnfs mNow tok = get >>= \ db -> do
-    let rSession = pure_lookupSession db mNow tok
-
-    let label = case rSession of
-            LookupSessionUnchanged (_, Session agent _ _ _) -> simpleThentosLabel $ toCNF agent : defaults
-            LookupSessionBumped    (_, Session agent _ _ _) -> simpleThentosLabel $ toCNF agent : defaults
-            _                                               -> simpleThentosLabel defaults
-        defaults = toCNF RoleAdmin : map toCNF cnfs
+lookupSessionTL mSid mNow tok = do
+    let label = case mSid of
+          Just sid -> makeThentosLabel2 TLReadWrite RoleAdmin (ServiceA sid)
+          Nothing  -> makeThentosLabel1 TLReadWrite RoleAdmin
+    rSession <- (\ db -> pure_lookupSession db mNow tok) <$> get
 
     case rSession of
-        LookupSessionUnchanged (_, session) -> returnDb label (tok, session)
-        LookupSessionBumped    (_, session) -> writeSession Nothing tok session >> returnDb label (tok, session)
-        LookupSessionInactive               -> throwDb  label NoSuchSession
-        LookupSessionNotThere               -> throwDb  label NoSuchSession
+        LookupSessionUnchanged (_, session) -> do
+            let label' = restrictThentosLabel TLReadWrite (session ^. sessionAgent) label
+            returnDb label' (tok, session)
+        LookupSessionBumped    (_, session) -> do
+            let label' = restrictThentosLabel TLReadWrite (session ^. sessionAgent) label
+            () <- writeSession Nothing tok session
+            returnDb label' (tok, session)
+        LookupSessionInactive -> do
+            throwDb label NoSuchSession
+        LookupSessionNotThere -> do
+            throwDb  label NoSuchSession
 
 
 -- | Start a new session for user with 'UserId' on service with
@@ -385,9 +400,9 @@ trans_startSession freshSessionToken agent start lifetime = do
         session = Session agent start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
 
-    ThentosLabeled _ tok <- fromMaybe freshSessionToken <$$> liftThentosQuery (getSessionFromAgent agent)
-    _ <- writeSession (Just $ const []) tok session
-    returnDb label tok
+    ThentosLabeled label' tok <- fromMaybe freshSessionToken <$$> liftThentosQuery (getSessionFromAgent agent)
+    () <- writeSession (Just $ const []) tok session
+    returnDb (lub label label') tok
 
 
 -- | End session.  Call can be caused by logout request from user
@@ -398,43 +413,65 @@ trans_endSession :: SessionToken -> ThentosUpdate ()
 trans_endSession tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
     let label = case mSession of
-            Just session -> simpleThentosLabel [toCNF RoleAdmin, toCNF (session ^. sessionAgent)]
-            Nothing      -> simpleThentosLabel [RoleAdmin]
+            Just session -> makeThentosLabel2 TLReadWrite RoleAdmin (session ^. sessionAgent)
+            Nothing      -> makeThentosLabel1 TLReadWrite RoleAdmin
 
-    _ <- deleteSession tok
+    () <- deleteSession tok
     returnDb label ()
 
 
 -- | Is session token currently active?  (Do not bump either way.)
 -- Never throw errors; if session is inaccessible, simple return
 -- 'False'.
+--
+-- Note on authorization: Since session tokens are as powerful as
+-- login credentials, this transaction is labelled 'thentosPublic'.
+-- (If we wanted to return 'False' for both 'PermissionDenied' and
+-- 'NoSuchSession', we would have to do that in 'Action' rather than
+-- in 'ThentosQuery': 'PermissionDenied' errors can only be
+-- constructed from label /and/ clearance, but inside 'ThentosQuery'
+-- we have no clearance value.
 trans_isActiveSession :: TimeStamp -> SessionToken -> ThentosQuery Bool
-trans_isActiveSession now tok = catchT
-    (trans_lookupSessionQ (Just now) tok >> returnDb thentosPublic True)
-    (const $ returnDb thentosPublic False)
+trans_isActiveSession now tok = do
+    let label = thentosPublic
+    catchT
+        (trans_lookupSessionQ (Just now) tok >> returnDb label True)
+        (const $ returnDb label False)
 
 
--- | Is session token currently active?  Bump if it is.
+-- | Is session token currently active?  Bump if it is.  (See
+-- 'trans_isActiveSession'.)
 trans_isActiveSessionAndBump :: TimeStamp -> SessionToken -> ThentosUpdate Bool
-trans_isActiveSessionAndBump now tok = catchT
-    (trans_lookupSession (Just (now, True)) tok >> returnDb thentosPublic True)
-    (const $ returnDb thentosPublic False)
+trans_isActiveSessionAndBump now tok = do
+    let label = thentosPublic
+    catchT
+        (trans_lookupSession (Just (now, True)) tok >> returnDb label True)
+        (const $ returnDb label False)
 
 
+-- | Bump session if it is valid (even if not logged into service).
 trans_isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
-trans_isLoggedIntoService now tok sid = catchT
-    (test >> returnDb thentosPublic True)
-    (const $ returnDb thentosPublic False)
+trans_isLoggedIntoService now tok sid = do
+    let label = makeThentosLabel2 TLReadWrite RoleAdmin (ServiceA sid)
+    catchT
+        (check >>= \ (ThentosLabeled _ v) -> returnDb label v)
+        (const $ returnDb label False)
   where
-    test = do
-        ThentosLabeled _ (_, session) <- lookupSessionTL [ServiceA sid] (Just (now, True)) tok
+    -- | Returns whether session has a user as agent who is logged
+    -- into service.  Label is 'thentosDenied' so that the caller is
+    -- forced to discard the label and set up a new, more liberal one.
+    -- (The caller of this transaction does not need authorization to
+    -- lookup the user.)
+    check :: ThentosUpdate Bool
+    check = do
+        ThentosLabeled _ (_, session) <- lookupSessionTL (Just sid) (Just (now, True)) tok
         case session ^. sessionAgent of
-            UserA uid  -> do
+            UserA uid -> do
                 ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
                 if sid `elem` user ^. userLogins
-                    then returnDb thentosPublic ()
-                    else throwDb thentosPublic NoSuchUser
-            ServiceA _ -> throwDb thentosPublic OperationNotPossibleInServiceSession
+                    then returnDb thentosDenied True
+                    else returnDb thentosDenied False
+            ServiceA _ -> returnDb thentosDenied False
 
 
 -- | Go through 'dbSessions' map and find all expired sessions.
@@ -455,15 +492,15 @@ getSessionFromAgent (UserA uid)    = ((^. userSession)    . snd) <$$> trans_look
 getSessionFromAgent (ServiceA sid) = ((^. serviceSession) . snd) <$$> trans_lookupService sid
 
 -- | Write session to database (both in 'dbSessions' and in the
--- 'Agent').  If first arg is given and 'Agent' is 'User', write
--- update service login list, too.
-writeSession :: Maybe ([ServiceId] -> [ServiceId]) -> SessionToken -> Session -> ThentosUpdate ()
+-- 'Agent').  If first arg is given and 'Agent' is a user, update
+-- service login list of this user, too.
+writeSession :: Maybe ([ServiceId] -> [ServiceId]) -> SessionToken -> Session -> ThentosUpdate' e ()
 writeSession (fromMaybe id -> updateLogins) tok session = do
     modify $ dbSessions %~ Map.insert tok session
     modify $ case session ^. sessionAgent of
         UserA    uid -> dbUsers    %~ Map.adjust _updateUser uid
         ServiceA sid -> dbServices %~ Map.adjust _updateService sid
-    returnDb thentosPublic ()
+    return ()
   where
     _updateUser :: User -> User
     _updateUser = (userSession .~ Just tok) . (userLogins %~ updateLogins)
@@ -474,7 +511,7 @@ writeSession (fromMaybe id -> updateLogins) tok session = do
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is 'User', write
 -- update service login list, too.
-deleteSession :: SessionToken -> ThentosUpdate ()
+deleteSession :: SessionToken -> ThentosUpdate' e ()
 deleteSession tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
     case (^. sessionAgent) <$> mSession of
@@ -483,7 +520,7 @@ deleteSession tok = do
         Nothing             -> return ()
 
     modify $ dbSessions %~ Map.delete tok
-    returnDb thentosPublic ()
+    return ()
   where
     _updateUser :: User -> User
     _updateUser = (userSession .~ Nothing) . (userLogins .~ [])
@@ -499,28 +536,33 @@ deleteSession tok = do
 -- point to an existing entry in user or service table (or such),
 -- throw an error.
 trans_assignRole :: Agent -> Role -> ThentosUpdate ()
-trans_assignRole agent role = liftThentosQuery (assertAgent agent) >> do
+trans_assignRole agent role = do
+    let label = RoleAdmin =%% RoleAdmin
+    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
     let inject Nothing      = Just [role]
         inject (Just roles) = Just $ role:roles
     modify $ dbRoles %~ Map.alter inject agent
-    returnDb (RoleAdmin =%% RoleAdmin) ()
+    returnDb label ()
 
 -- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
 -- is not assigned to 'Agent', do nothing.  If Agent does not
 -- point to an existing entry in user or service table (or such),
 -- throw an error.
 trans_unassignRole :: Agent -> Role -> ThentosUpdate ()
-trans_unassignRole agent role = liftThentosQuery (assertAgent agent) >> do
+trans_unassignRole agent role = do
+    let label = RoleAdmin =%% RoleAdmin
+    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
     let exject Nothing      = Nothing
         exject (Just roles) = Just $ roles \\ [role]
     modify $ dbRoles %~ Map.alter exject agent
-    returnDb (RoleAdmin =%% RoleAdmin) ()
+    returnDb label ()
 
 -- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or
 -- has no entry in 'dbRoles', return an empty list.
 trans_lookupAgentRoles :: Agent -> ThentosQuery [Role]
-trans_lookupAgentRoles agent = ThentosLabeled (agent \/ RoleAdmin =%% False) .
-    (`pure_lookupAgentRoles` agent) <$> ask
+trans_lookupAgentRoles agent = do
+    let label = agent \/ RoleAdmin =%% False
+    ThentosLabeled label . (`pure_lookupAgentRoles` agent) <$> ask
 
 pure_lookupAgentRoles :: DB -> Agent -> [Role]
 pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
@@ -537,22 +579,27 @@ pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
 -- accumulate and intersect labels on the way through complex
 -- transactions.)
 assertAgent :: Agent -> ThentosQuery ()
-assertAgent = f
-  where
-    f :: Agent -> ThentosQuery ()
-    f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
-    f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
+assertAgent agent = do
+    let label = thentosDenied
 
-    g :: Maybe a -> ThentosQuery ()
-    g mb = if isJust mb
-        then returnDb thentosPublic ()
-        else throwDb thentosPublic NoSuchUser
+        f :: Agent -> ThentosQuery ()
+        f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
+        f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
+
+        g :: Maybe a -> ThentosQuery ()
+        g mb = if isJust mb
+            then returnDb label ()
+            else throwDb label NoSuchUser
+
+    f agent
 
 
 -- ** misc
 
 trans_snapShot :: ThentosQuery DB
-trans_snapShot = ask >>= returnDb (RoleAdmin =%% False)
+trans_snapShot = do
+    let label = RoleAdmin =%% False
+    ask >>= returnDb label
 
 
 -- * event types
