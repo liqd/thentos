@@ -6,7 +6,13 @@
 {-# OPTIONS  #-}
 
 module Api
-  ( ActionStateGlobal
+  ( -- * Overview
+    -- $overview
+
+    -- * Authorization
+    -- $authorization
+
+    ActionStateGlobal
   , ActionState
   , Action
   , runAction', runAction
@@ -228,3 +234,55 @@ dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
 dropServiceLogin tok sid = do
     (_, uid) <- sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
+
+
+-- $overview
+--
+-- Thentos distinguishes between /transactions/ and /actions/.
+--
+-- /transactions/ are acidic in the sense used in acid-state, and live
+-- in 'ThentosQuery' or 'ThentosUpdate', which are monad transformer
+-- stacks over the corresponding acid-state types.  On top of
+-- acid-state access, thentos transactions provide error handling and
+-- authorization management.
+--
+-- /actions/ can be composed of more than one acidic transaction in a
+-- non-acidic fashion, and possibly do other things involving
+-- randomness or the system time.  Actions live in the 'Action' monad
+-- transformer stack and provide access to acid-state as well as 'IO',
+-- and authentication management.  'queryAction' and 'updateAction'
+-- can be used to translate transactions into actions.
+--
+-- A collection of basic transactions is implemented in "DB.Trans",
+-- and one of simple actions is implemented in "Api".  Software using
+-- Thentos as a library is expected to add more transactions and
+-- actions and place them in other modules.
+
+
+-- $authorization
+--
+-- Access to acid-state data is protected by `DCLable`s from the lio
+-- package.  Each transaction is called in the context of a clearance
+-- level ('ThentosClearance') that describes the priviledges of the
+-- calling user.  Each transaction returns its result together with a
+-- label ('ThentosLabel').  The label must satisfy @label `canFlowTo`
+-- clearance@ (see 'canFlowTo').  The functions 'accessAction',
+-- 'updateAction', 'queryAction' take the clearance level from the
+-- application state and attach it to the acid-state event.
+--
+-- Labels can be combined to a least upper bound (method 'lub' of type
+-- class 'Label').  If several transactions are combined to a new,
+-- more complex transaction, the latter must be labeled with the least
+-- upper bound of the more primitive ones.
+--
+-- In order to avoid having to check label against clearance
+-- explicitly inside every transaction, we use a Thentos-specific
+-- derivative of 'makeAcidic' that calls 'DB.Core.runThentosUpdate' or
+-- 'DB.Core.runThentosQuery', resp..  (FIXME: not implemented yet!)
+--
+-- If you need to implement an action that runs with higher clearance
+-- than the current user can present, 'accessAction' takes a 'Maybe'
+-- argument to override the presented clearance.
+--
+-- See the (admittedly rather sparse) lio documentation for more
+-- details (or ask the thentos maintainers to elaborate on this :-).
