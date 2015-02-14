@@ -36,6 +36,7 @@ import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
 import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
+import Data.Maybe (fromMaybe)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
@@ -74,19 +75,23 @@ updateAction :: forall event a r .
                  , EventState event ~ DB
                  , EventResult event ~ Either DbError a
                  ) => (ThentosClearance -> event) -> Action r a
-updateAction = accessAction update'
+updateAction = accessAction Nothing update'
 
 queryAction :: forall event a r .
                  ( QueryEvent event
                  , EventState event ~ DB
                  , EventResult event ~ Either DbError a
                  ) => (ThentosClearance -> event) -> Action r a
-queryAction = accessAction query'
+queryAction = accessAction Nothing query'
 
 -- | Pull a snapshot from the database, pass it to the clearance
 -- function in the reader monad, pass the resulting clearance to the
 -- uncleared event, and pass the cleared event to either query' or
 -- update' (whichever is passed as first arg).
+--
+-- Optional first argument @overrideClearance@ can be used to do write
+-- actions that do something the clearance level from the application
+-- would not allow.  Use with care!
 --
 -- NOTE: Authentication check and transaction do *not* form an atomic
 -- transaction.  In order to get an upper bound on how long changes in
@@ -101,9 +106,10 @@ queryAction = accessAction query'
 accessAction :: forall event a r .
                  ( EventState event ~ DB
                  , EventResult event ~ Either DbError a
-                 ) => (AcidState (EventState event) -> event -> Action r (EventResult event))
+                 ) => Maybe ThentosClearance
+                   -> (AcidState (EventState event) -> event -> Action r (EventResult event))
                    -> (ThentosClearance -> event) -> Action r a
-accessAction access unclearedEvent = do
+accessAction overrideClearance access unclearedEvent = do
     ((st, _, _), clearanceAbs) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
     clearanceE :: Either DbError ThentosClearance
@@ -112,7 +118,7 @@ accessAction access unclearedEvent = do
     case clearanceE of
         Left err -> lift $ left err
         Right clearance -> do
-            result <- access st (unclearedEvent clearance)
+            result <- access st (unclearedEvent $ fromMaybe clearance overrideClearance)
             case result of
                 Left err -> lift $ left err
                 Right success -> return success
