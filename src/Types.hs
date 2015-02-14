@@ -24,6 +24,7 @@ import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
+import LIO.Label (Label, canFlowTo, glb, lub)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
@@ -234,14 +235,24 @@ instance SafeCopy ThentosLabel
     getCopy = contain $ safeGet >>= \ raw ->
       maybe (fail $ "instance SafeCopy ThentosLabel: no parse" ++ show raw) return . readMay $ raw
 
+instance Label ThentosLabel where
+    lub (ThentosLabel l) (ThentosLabel l') = ThentosLabel $ lub l l'
+    glb (ThentosLabel l) (ThentosLabel l') = ThentosLabel $ glb l l'
+    canFlowTo (ThentosLabel l) (ThentosLabel l') = canFlowTo l l'
+
 newtype ThentosClearance = ThentosClearance { fromThentosClearance :: DCLabel }
-    deriving (Eq, Ord, Show, Read)
+    deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosClearance
   where
     putCopy = contain . safePut . show
     getCopy = contain $ safeGet >>= \ raw ->
       maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
+
+instance Label ThentosClearance where
+    lub (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ lub l l'
+    glb (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ glb l l'
+    canFlowTo (ThentosClearance l) (ThentosClearance l') = canFlowTo l l'
 
 
 -- * boilerplate

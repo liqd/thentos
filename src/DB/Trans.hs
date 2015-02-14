@@ -71,6 +71,7 @@ import Data.List (find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel (ToCNF, (\/), (/\), toCNF)
+import LIO.Label (lub)
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -195,7 +196,11 @@ trans_addUser user = do
 -- for testing rollback in error cases.  It will also be a nice
 -- example for intersecting authorizations.
 trans_addUsers :: [User] -> ThentosUpdate [UserId]
-trans_addUsers users = mapM trans_addUser users >>= returnDb thentosPublic . map (\ (ThentosLabeled _ uid) -> uid)
+trans_addUsers [] = returnDb thentosPublic []
+trans_addUsers (u:us) = do
+    ThentosLabeled l uid <- trans_addUser u
+    ThentosLabeled l' uids <- trans_addUsers us
+    returnDb (lub l l') (uid:uids)
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
