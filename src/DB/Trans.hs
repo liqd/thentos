@@ -360,15 +360,15 @@ trans_lookupSessionQ mNow tok = do
 -- See 'trans_lookupSessionQ' for a variant of this function in
 -- 'ThentosQuery'.
 trans_lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosUpdate (SessionToken, Session)
-trans_lookupSession mNow tok = lookupSessionTL Nothing mNow tok
+trans_lookupSession mNow tok = lookupSessionWithMaybeService Nothing mNow tok
 
 
 -- | Like 'trans_lookupSession', but accepts an extra list of
 -- clearance items.  This is required for service login checks by the
 -- service.
-lookupSessionTL :: Maybe ServiceId -> Maybe (TimeStamp, Bool) -> SessionToken
+lookupSessionWithMaybeService :: Maybe ServiceId -> Maybe (TimeStamp, Bool) -> SessionToken
       -> ThentosUpdate (SessionToken, Session)
-lookupSessionTL mSid mNow tok = do
+lookupSessionWithMaybeService mSid mNow tok = do
     let label = case mSid of
           Just sid -> makeThentosLabel2 TLReadWrite RoleAdmin (ServiceA sid)
           Nothing  -> makeThentosLabel1 TLReadWrite RoleAdmin
@@ -385,7 +385,7 @@ lookupSessionTL mSid mNow tok = do
         LookupSessionInactive -> do
             throwDb label NoSuchSession
         LookupSessionNotThere -> do
-            throwDb  label NoSuchSession
+            throwDb label NoSuchSession
 
 
 -- | Start a new session for user with 'UserId' on service with
@@ -464,7 +464,8 @@ trans_isLoggedIntoService now tok sid = do
     -- lookup the user.)
     check :: ThentosUpdate Bool
     check = do
-        ThentosLabeled _ (_, session) <- lookupSessionTL (Just sid) (Just (now, True)) tok
+        ThentosLabeled _ (_, session)
+            <- lookupSessionWithMaybeService (Just sid) (Just (now, True)) tok
         case session ^. sessionAgent of
             UserA uid -> do
                 ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
