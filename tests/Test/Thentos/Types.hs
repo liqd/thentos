@@ -8,15 +8,18 @@ import Data.Serialize.Put (runPut)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel ((%%), (/\), (\/), toCNF)
 import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec.QuickCheck (modifyMaxSize)
 import Test.QuickCheck (property)
 
 import Thentos.Types
 
 import Test.Arbitrary ()
 
+testSizeFactor :: Int
+testSizeFactor = 1
 
 tests :: Spec
-tests = do
+tests = modifyMaxSize (* testSizeFactor) $ do
     describe "Thentos.Types" $ do
         describe "instance SafeCopy (HashedSecret a)" $
             it "is invertible" $ property $
@@ -59,15 +62,15 @@ tests = do
           -- (==>) a b = not a || b
           -- infix 2 ==>
 
-      it "satisfies: l >>> l' && l' >>> l <==> (l == l')" . property $
+      it "satisfies: l >>> l' && l' >>> l <==> l == l'" . property $
           \ (ThentosLabel l) (ThentosLabel l') ->
               l >>> l' && l' >>> l <==> l == l'
 
-      it "satisfies: l >>> l' <==> (lub l l' == l')" . property $
+      it "satisfies: l >>> l' <==> lub l l' == l'" . property $
           \ (ThentosLabel l) (ThentosLabel l') ->
               l >>> l' <==> lub l l' == l'
 
-      it "satisfies: l >>> l' <==> (glb l l' == l)" . property $
+      it "satisfies: l >>> l' <==> glb l l' == l" . property $
           \ (ThentosLabel l) (ThentosLabel l') ->
               l >>> l' <==> glb l l' == l
 
