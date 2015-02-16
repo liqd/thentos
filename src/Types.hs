@@ -14,6 +14,7 @@ module Types where
 
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Configurator.Types(Configured(convert), Value(String))
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
@@ -121,6 +122,10 @@ newtype ServiceId = ServiceId { fromServiceId :: ST }
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
   deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+
+instance Configured ServiceId where
+    convert (String s) = Just $ ServiceId s
+    convert _          = Nothing
 
 
 -- * session, timestamp, timeout

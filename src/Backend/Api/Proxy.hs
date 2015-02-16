@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Backend.Api.Proxy where
+module Backend.Api.Proxy (ServiceProxy, serviceProxy) where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
@@ -33,6 +33,7 @@ import System.Log.Logger (Priority(DEBUG))
 import Text.Printf (printf)
 
 import qualified Data.ByteString as SBS
+import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C
 import qualified Network.HTTP.Types.Status as T
 import qualified Network.HTTP.Types.Header as T
@@ -51,14 +52,14 @@ type ServiceProxy = Raw
 
 serviceProxy :: PushActionSubRoute (Server ServiceProxy)
 serviceProxy req cont = catchProxy cont $ do
-    RqMod (ProxyConfig target) proxyHdrs <- getRqMod req
+    rqMod <- getRqMod req
     liftIO $ C.withManager C.defaultManagerSettings $ \ manager ->
-        prepareReq target req proxyHdrs >>=
+        prepareReq rqMod req >>=
         (`C.httpLbs` manager) >>=
         cont . prepareResp
 
-prepareReq :: String -> S.Request -> T.RequestHeaders -> IO C.Request
-prepareReq target req proxyHdrs = do
+prepareReq :: RqMod -> S.Request -> IO C.Request
+prepareReq (RqMod target proxyHdrs) req = do
     body <- S.strictRequestBody req
     req' <- C.parseUrl $ target ++ (cs $ S.rawPathInfo req)
     return . C.setQueryString (S.queryString req) $ req'
@@ -77,7 +78,7 @@ clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . fold
 
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.
-data RqMod = RqMod ProxyConfig T.RequestHeaders
+data RqMod = RqMod String T.RequestHeaders
   deriving (Eq, Show)
 
 -- | Extract proxy config from thentos config.  Look up session from
@@ -88,22 +89,31 @@ data RqMod = RqMod ProxyConfig T.RequestHeaders
 getRqMod :: S.Request -> Action r RqMod
 getRqMod req = do
     ((_, _, thentosConfig), _) <- ask
-    case proxyConfig thentosConfig of
-        Nothing -> lift $ left ProxyNotAvailable
-        Just prxCfg -> RqMod prxCfg <$> do
-            (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
-                lookupRequestHeader req "X-Thentos-Session"
-            (_, user) <- case session ^. sessionAgent of
-                UserA uid -> queryAction $ LookupUser uid
-                ServiceA _ -> lift $ left NoSuchUser
+    ProxyConfig prxCfg <- case proxyConfig thentosConfig of
+            Nothing     -> lift $ left ProxyNotAvailable
+            Just prxCfg -> return prxCfg
+    hdrs <- do
+        (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
+            lookupRequestHeader req "X-Thentos-Session"
+        (_, user) <- case session ^. sessionAgent of
+            UserA uid  -> queryAction $ LookupUser uid
+            ServiceA _ -> lift $ left NoSuchUser
 
-            let newHdrs =
-                    ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
-                    ("X-Thentos-Groups", cs . show $ user ^. userGroups) :
-                    []
 
-            logger DEBUG $ printf "forwarding proxy request with extra headers:: %s." (show newHdrs)
-            return newHdrs
+        let newHdrs =
+                ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
+                ("X-Thentos-Groups", cs . show $ user ^. userGroups) :
+                []
+        logger DEBUG $ printf "forwarding proxy request with extra headers:: %s." (show newHdrs)
+        return newHdrs
+    sid <- case lookupRequestHeader req "X-Thentos-Service" of
+            Just s  -> return $ ServiceId s
+            Nothing -> lift $ left MissingServiceHeader
+    target <- case Map.lookup sid prxCfg of
+        Just t  -> return t
+        Nothing -> lift . left $ ProxyNotConfiguredForService sid
+    return $ RqMod target hdrs
+
 
 -- | This is a work-around for the fact that we can't write an
 -- instance for 'Application'.  See FIXME in the corresponding

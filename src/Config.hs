@@ -14,8 +14,9 @@ module Config
 
 import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
+import Data.Map (Map)
 import Data.Monoid (Monoid(..), (<>))
-import Options.Applicative (command, info, progDesc, long, short, auto, option, strOption, flag, help)
+import Options.Applicative (command, info, progDesc, long, short, auto, option, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
 import Safe (readDef)
 import System.IO (stderr)
@@ -27,6 +28,7 @@ import System.Log.Missing (loggerName)
 import qualified Data.Configurator as Configurator
 import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
+import qualified Data.Map as Map
 
 import Types
 
@@ -47,7 +49,7 @@ data BackendConfig = BackendConfig { backendPort :: Int }
 data FrontendConfig = FrontendConfig { frontendPort :: Int }
   deriving (Eq, Show)
 
-data ProxyConfig = ProxyConfig { proxyTarget :: String }
+data ProxyConfig = ProxyConfig { proxyTargets :: Map ServiceId String }
   deriving (Eq, Show)
 
 emptyThentosConfig :: ThentosConfig
@@ -67,7 +69,8 @@ data ThentosConfigBuilder = ThentosConfigBuilder
 
 data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
 data FrontendConfigBuilder = FrontendConfigBuilder { bFrontendPort :: Maybe Int }
-data ProxyConfigBuilder = ProxyConfigBuilder { bProxyTarget :: Maybe String }
+data ProxyConfigBuilder = ProxyConfigBuilder
+    { bProxyTarget :: Maybe (Map ServiceId String) }
 
 instance Monoid BackendConfigBuilder where
     mempty = BackendConfigBuilder Nothing
@@ -196,8 +199,8 @@ parseProxyConfigBuilder :: Parser ProxyConfigBuilder
 parseProxyConfigBuilder =
     ProxyConfigBuilder <$> optional parseProxyTarget
   where
-    parseProxyTarget = strOption
-        (long "proxytarget"
+    parseProxyTarget = option auto
+        (long "proxytargets"
         <> short 'f'
         <> metavar "proxyTarget"
         <> help "Where proxied requests will go"
@@ -241,7 +244,7 @@ parseConfigFile filePath = do
                 (get "run_backend")
                 (BackendConfigBuilder $ get "backend_port")
                 (FrontendConfigBuilder $ get "frontend_port")
-                (ProxyConfigBuilder $ get "proxy_target")
+                (ProxyConfigBuilder $ Map.fromList <$> get "proxy_targets")
                 getUser
 
 
