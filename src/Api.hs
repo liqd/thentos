@@ -261,9 +261,9 @@ dropServiceLogin tok sid = do
 
 -- $authorization
 --
--- Access to acid-state data is protected by `DCLable`s from the lio
+-- Access to acid-state data is protected by `DCLabel`s from the lio
 -- package.  Each transaction is called in the context of a clearance
--- level ('ThentosClearance') that describes the priviledges of the
+-- level ('ThentosClearance') that describes the privileges of the
 -- calling user.  Each transaction returns its result together with a
 -- label ('ThentosLabel').  The label must satisfy @label `canFlowTo`
 -- clearance@ (see 'canFlowTo').  The functions 'accessAction',
