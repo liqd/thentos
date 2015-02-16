@@ -5,7 +5,7 @@
 
 {-# OPTIONS  #-}
 
-module Api
+module Thentos.Api
   ( -- * Overview
     -- $overview
 
@@ -49,10 +49,10 @@ import Data.Thyme (UTCTime, getCurrentTime)
 
 import qualified Codec.Binary.Base64 as Base64
 
-import Config
-import DB
-import Types
-import Util
+import Thentos.Config
+import Thentos.DB
+import Thentos.Types
+import Thentos.Util
 
 
 -- * types
@@ -253,8 +253,8 @@ dropServiceLogin tok sid = do
 -- and authentication management.  'queryAction' and 'updateAction'
 -- can be used to translate transactions into actions.
 --
--- A collection of basic transactions is implemented in "DB.Trans",
--- and one of simple actions is implemented in "Api".  Software using
+-- A collection of basic transactions is implemented in "Thentos.DB.Trans",
+-- and one of simple actions is implemented in "Thentos.Api".  Software using
 -- Thentos as a library is expected to add more transactions and
 -- actions and place them in other modules.
 
@@ -277,8 +277,8 @@ dropServiceLogin tok sid = do
 --
 -- In order to avoid having to check label against clearance
 -- explicitly inside every transaction, we use a Thentos-specific
--- derivative of 'makeAcidic' that calls 'DB.Core.runThentosUpdate' or
--- 'DB.Core.runThentosQuery', resp..  (FIXME: not implemented yet!)
+-- derivative of 'makeAcidic' that calls 'Thentos.DB.Core.runThentosUpdate' or
+-- 'Thentos.DB.Core.runThentosQuery', resp..  (FIXME: not implemented yet!)
 --
 -- If you need to implement an action that runs with higher clearance
 -- than the current user can present, 'accessAction' takes a 'Maybe'

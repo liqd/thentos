@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Util
+module Thentos.Util
     ( makeUserFromFormData
     , verifyPass
     , secretMatches
@@ -15,7 +15,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Crypto.Scrypt (encryptPassIO', Pass(Pass), verifyPass')
 import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
-import Types
+import Thentos.Types
 
 hashUserPass :: MonadIO m => UserPass -> m (HashedSecret UserPass)
 hashUserPass = hashSecret fromUserPass

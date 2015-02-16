@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
 
-module Frontend (runFrontend) where
+module Thentos.Frontend (runFrontend) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
@@ -30,15 +30,15 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 
-import Api
-import Config
-import DB
-import Types
-import Util
+import Thentos.Api
+import Thentos.Config
+import Thentos.DB
+import Thentos.Types
+import Thentos.Util
 
-import Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
-import Frontend.Util (serveSnaplet)
-import Frontend.Mail (sendUserConfirmationMail)
+import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
+import Thentos.Frontend.Util (serveSnaplet)
+import Thentos.Frontend.Mail (sendUserConfirmationMail)
 
 
 data FrontendApp =

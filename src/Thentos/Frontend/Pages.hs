@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 
-module Frontend.Pages
+module Thentos.Frontend.Pages
     ( mainPage
     , addUserPage
     , userForm
@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Types
+import Thentos.Types
 
 mainPage :: Html
 mainPage = do

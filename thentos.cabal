@@ -20,22 +20,22 @@ library
       -Wall -threaded -rtsopts
   exposed-modules:
       Thentos
-    , Types
-    , Util
-    , Config
-    , Doc
-    , DB
-    , DB.Core
-    , DB.Trans
-    , DB.Protect
-    , Api
-    , Backend.Core
-    , Backend.Api.Simple
-    , Backend.Api.Proxy
-    , Frontend
-    , Frontend.Pages
-    , Frontend.Mail
-    , Frontend.Util
+    , Thentos.Types
+    , Thentos.Util
+    , Thentos.Config
+    , Thentos.Doc
+    , Thentos.DB
+    , Thentos.DB.Core
+    , Thentos.DB.Trans
+    , Thentos.DB.Protect
+    , Thentos.Api
+    , Thentos.Backend.Core
+    , Thentos.Backend.Api.Simple
+    , Thentos.Backend.Api.Proxy
+    , Thentos.Frontend
+    , Thentos.Frontend.Pages
+    , Thentos.Frontend.Mail
+    , Thentos.Frontend.Util
     , System.Log.Missing
   build-depends:
       base
@@ -115,6 +115,7 @@ test-suite tests
   other-modules:
       Test.Config
     , Test.Thentos.Backend.Api.Simple
+    , Test.Thentos.Types
     , Test.Util
   ghc-options:
       -Wall -threaded -rtsopts -main-is TestMain

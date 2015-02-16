@@ -1,5 +1,5 @@
-module DB (module Everything) where
+module Thentos.DB (module Everything) where
 
-import DB.Core as Everything
-import DB.Trans as Everything
-import DB.Protect as Everything
+import Thentos.DB.Core as Everything
+import Thentos.DB.Trans as Everything
+import Thentos.DB.Protect as Everything

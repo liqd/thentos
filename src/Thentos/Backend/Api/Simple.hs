@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Backend.Api.Simple (runBackend, serveApi, apiDocs) where
+module Thentos.Backend.Api.Simple (runBackend, serveApi, apiDocs) where
 
 import Control.Applicative ((<$>))
 import Control.Arrow (first)
@@ -32,13 +32,13 @@ import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
 
-import Api
-import Backend.Api.Proxy
-import Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
-import DB
-import Doc ()
-import Types
-import Util
+import Thentos.Api
+import Thentos.Backend.Api.Proxy
+import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.DB
+import Thentos.Doc ()
+import Thentos.Types
+import Thentos.Util
 
 
 runBackend :: Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()

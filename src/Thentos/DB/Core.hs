@@ -3,7 +3,7 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ViewPatterns        #-}
 
-module DB.Core
+module Thentos.DB.Core
   ( DbError(..)
   , ThentosClearance(..)
   , ThentosUpdate, ThentosUpdate'
@@ -48,7 +48,7 @@ import Safe (readMay)
 import System.Log.Logger (Priority(INFO))
 import System.Log.Missing (logger)
 
-import Types
+import Thentos.Types
 
 
 -- * types
@@ -164,7 +164,7 @@ data TLMode = TLRead | TLReadWrite
 
 -- | See also:
 --
--- * 'makeClearance_' in "DB.Protected" (not exported)
+-- * 'makeClearance_' in "Thentos.DB.Protected" (not exported)
 -- * test cases in @TestMain@.
 makeThentosLabel :: ToCNF a => TLMode -> [a] -> ThentosLabel
 makeThentosLabel _      [] = thentosDenied

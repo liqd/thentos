@@ -8,7 +8,7 @@ import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 
 import qualified Data.ByteString as SBS
 
-import Types (HashedSecret, ThentosLabel(..), ThentosClearance(..))
+import Thentos.Types (HashedSecret, ThentosLabel(..), ThentosClearance(..))
 
 import Test.Util
 

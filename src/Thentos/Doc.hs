@@ -5,7 +5,7 @@
 {-# OPTIONS -fno-warn-orphans #-}
 
 
-module Doc where
+module Thentos.Doc where
 
 import Control.Applicative (pure, (<*>))
 import Data.Functor.Infix ((<$>))
@@ -14,7 +14,7 @@ import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
 import Servant.API (Capture)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
 
-import Types
+import Thentos.Types
 
 
 -- instances for generating docs

@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Backend.Api.Proxy (ServiceProxy, serviceProxy) where
+module Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy) where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
@@ -38,12 +38,12 @@ import qualified Network.HTTP.Types.Status as T
 import qualified Network.HTTP.Types.Header as T
 import qualified Network.Wai as S
 
-import Api
-import Backend.Core
-import DB
-import Doc ()
-import Types
-import Config
+import Thentos.Api
+import Thentos.Backend.Core
+import Thentos.DB
+import Thentos.Doc ()
+import Thentos.Types
+import Thentos.Config
 import System.Log.Missing (logger)
 
 

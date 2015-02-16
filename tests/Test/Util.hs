@@ -42,11 +42,11 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
 
-import Backend.Api.Simple
-import Config
-import DB
-import Api
-import Types
+import Thentos.Backend.Api.Simple
+import Thentos.Config
+import Thentos.DB
+import Thentos.Api
+import Thentos.Types
 
 import Test.Config
 
