@@ -15,38 +15,38 @@
 -- disadvantages.)
 
 module DB.Trans
-  ( AllUserIds(..)
-  , LookupUser(..)
-  , LookupUserByName(..)
-  , LookupUserByEmail(..)
-  , AddUser(..)
-  , AddUnconfirmedUser(..)
-  , FinishUserRegistration(..)
-  , AddUsers(..)
-  , UpdateUser(..)
-  , UpdateUserField(..), UpdateUserFieldOp(..)
-  , DeleteUser(..)
+  ( AllUserIds(..), trans_allUserIds
+  , LookupUser(..), trans_lookupUser
+  , LookupUserByName(..), trans_lookupUserByName
+  , LookupUserByEmail(..), trans_lookupUserByEmail
+  , AddUser(..), trans_addUser
+  , AddUnconfirmedUser(..), trans_addUnconfirmedUser
+  , FinishUserRegistration(..), trans_finishUserRegistration
+  , AddUsers(..), trans_addUsers
+  , UpdateUser(..), trans_updateUser
+  , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
+  , DeleteUser(..), trans_deleteUser
 
-  , AllServiceIds(..)
-  , LookupService(..)
-  , AddService(..)
-  , DeleteService(..)
+  , AllServiceIds(..), trans_allServiceIds
+  , LookupService(..), trans_lookupService
+  , AddService(..), trans_addService
+  , DeleteService(..), trans_deleteService
 
-  , AllSessionTokens(..)
-  , LookupSessionQ(..)
-  , LookupSession(..)
-  , StartSession(..)
-  , EndSession(..)
-  , IsActiveSession(..)
-  , IsActiveSessionAndBump(..)
-  , IsLoggedIntoService(..)
-  , GarbageCollectSessions(..)
+  , AllSessionTokens(..), trans_allSessionTokens
+  , LookupSessionQ(..), trans_lookupSessionQ
+  , LookupSession(..), trans_lookupSession
+  , StartSession(..), trans_startSession
+  , EndSession(..), trans_endSession
+  , IsActiveSession(..), trans_isActiveSession
+  , IsActiveSessionAndBump(..), trans_isActiveSessionAndBump
+  , IsLoggedIntoService(..), trans_isLoggedIntoService
+  , GarbageCollectSessions(..), trans_garbageCollectSessions
 
-  , AssignRole(..)
-  , UnassignRole(..)
-  , LookupAgentRoles(..)
+  , AssignRole(..), trans_assignRole
+  , UnassignRole(..), trans_unassignRole
+  , LookupAgentRoles(..), trans_lookupAgentRoles
 
-  , SnapShot(..)
+  , SnapShot(..), trans_snapShot
 
   , pure_lookupUser
   , pure_lookupUserByName
