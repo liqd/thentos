@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 
-module Frontend.Mail (sendUserConfirmationMail) where
+module Thentos.Frontend.Mail (sendUserConfirmationMail) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L
@@ -8,7 +8,7 @@ import Data.Monoid ((<>))
 import Network.Mail.Mime (Address(Address), renderSendMail, Mail(..), emptyMail,
     Part(..), Encoding(None))
 
-import Types
+import Thentos.Types
 
 sentFromAddress :: Address
 sentFromAddress = Address (Just "Thentos") "thentos@thentos.org"

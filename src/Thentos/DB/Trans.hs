@@ -14,7 +14,7 @@
 -- Core parametric in DB.  but that has its own obvious
 -- disadvantages.)
 
-module DB.Trans
+module Thentos.DB.Trans
   ( AllUserIds(..), trans_allUserIds
   , LookupUser(..), trans_lookupUser
   , LookupUserByName(..), trans_lookupUserByName
@@ -76,8 +76,8 @@ import LIO.Label (lub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import DB.Core
-import Types
+import Thentos.DB.Core
+import Thentos.Types
 
 
 -- * DB invariants

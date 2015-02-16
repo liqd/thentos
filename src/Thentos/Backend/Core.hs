@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Backend.Core
+module Thentos.Backend.Core
 where
 
 import Control.Applicative ((<$>))
@@ -32,8 +32,8 @@ import Servant.API ((:<|>)((:<|>)))
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
 
-import Api
-import DB
+import Thentos.Api
+import Thentos.DB
 
 
 type RestAction      = Action (MVar SystemRNG)

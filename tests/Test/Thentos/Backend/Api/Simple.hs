@@ -25,14 +25,14 @@ import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith)
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
 
-import Types
+import Thentos.Types
 
 import Test.Util
 
 
 tests :: Spec
 tests = do
-    describe "Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
+    describe "Thentos.Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $

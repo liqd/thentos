@@ -10,14 +10,14 @@ import LIO.DCLabel ((%%), (/\), (\/), toCNF)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Test.QuickCheck (property)
 
-import Types
+import Thentos.Types
 
 import Test.Arbitrary ()
 
 
 tests :: Spec
 tests = do
-    describe "Types" $ do
+    describe "Thentos.Types" $ do
         describe "instance SafeCopy (HashedSecret a)" $
             it "is invertible" $ property $
                 \ (pw :: HashedSecret a) ->

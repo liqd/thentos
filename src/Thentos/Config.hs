@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
-module Config
+module Thentos.Config
     ( getCommand
     , configLogger
     , Command(..)
@@ -30,7 +30,7 @@ import qualified Data.Configurator.Types as Configurator
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 
-import Types
+import Thentos.Types
 
 
 -- * the config type used by everyone else

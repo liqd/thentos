@@ -26,11 +26,11 @@ import Data.String.Conversions ((<>))
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
-import Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
-import Types
-import DB
-import Backend.Api.Simple (runBackend, apiDocs)
-import Frontend (runFrontend)
+import Thentos.Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
+import Thentos.Types
+import Thentos.DB
+import Thentos.Backend.Api.Simple (runBackend, apiDocs)
+import Thentos.Frontend (runFrontend)
 import System.Log.Missing (logger)
 
 

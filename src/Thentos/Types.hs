@@ -10,7 +10,7 @@
 
 {-# OPTIONS  #-}
 
-module Types where
+module Thentos.Types where
 
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON)

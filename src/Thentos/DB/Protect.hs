@@ -6,7 +6,7 @@
 
 {-# OPTIONS  #-}
 
-module DB.Protect
+module Thentos.DB.Protect
   ( makeThentosClearance
   , allowEverything
   , allowReadEverything
@@ -27,11 +27,11 @@ import Text.Show.Pretty
 
 import qualified Data.Map as Map
 
-import DB.Core
-import DB.Trans
+import Thentos.DB.Core
+import Thentos.DB.Trans
 import System.Log.Missing (logger)
-import Types
-import Util
+import Thentos.Types
+import Thentos.Util
 
 
 -- | If password cannot be verified, or if only password or only

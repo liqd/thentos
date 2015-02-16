@@ -23,9 +23,9 @@ import Data.Functor.Infix ((<$>))
 import Data.Thyme (getCurrentTime)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
-import DB
-import Api
-import Types
+import Thentos.DB
+import Thentos.Api
+import Thentos.Types
 
 import Test.Util
 import qualified Test.Thentos.Backend.Api.Simple

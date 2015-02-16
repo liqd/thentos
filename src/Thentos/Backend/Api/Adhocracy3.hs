@@ -19,7 +19,7 @@
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
-module Backend.Api.Adhocracy3 where
+module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
@@ -49,13 +49,13 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 
-import Api
-import Backend.Api.Proxy
-import Backend.Core (RestAction, RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
-import DB
-import Doc ()
-import Types
-import Util
+import Thentos.Api
+import Thentos.Backend.Api.Proxy
+import Thentos.Backend.Core (RestAction, RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.DB
+import Thentos.Doc ()
+import Thentos.Types
+import Thentos.Util
 
 
 -- * data types
