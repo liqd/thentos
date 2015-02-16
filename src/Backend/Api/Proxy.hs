@@ -30,7 +30,6 @@ import Data.String.Conversions (LBS, cs)
 import Servant.API (Raw)
 import Servant.Server.Internal (Server)
 import System.Log.Logger (Priority(DEBUG))
-import Text.Printf (printf)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Map as Map
@@ -89,9 +88,11 @@ data RqMod = RqMod String T.RequestHeaders
 getRqMod :: S.Request -> Action r RqMod
 getRqMod req = do
     ((_, _, thentosConfig), _) <- ask
+
     ProxyConfig prxCfg <- case proxyConfig thentosConfig of
             Nothing     -> lift $ left ProxyNotAvailable
             Just prxCfg -> return prxCfg
+
     hdrs <- do
         (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
             lookupRequestHeader req "X-Thentos-Session"
@@ -99,20 +100,23 @@ getRqMod req = do
             UserA uid  -> queryAction $ LookupUser uid
             ServiceA _ -> lift $ left NoSuchUser
 
-
         let newHdrs =
                 ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
                 ("X-Thentos-Groups", cs . show $ user ^. userGroups) :
                 []
-        logger DEBUG $ printf "forwarding proxy request with extra headers:: %s." (show newHdrs)
         return newHdrs
+
     sid <- case lookupRequestHeader req "X-Thentos-Service" of
             Just s  -> return $ ServiceId s
             Nothing -> lift $ left MissingServiceHeader
+
     target <- case Map.lookup sid prxCfg of
         Just t  -> return t
         Nothing -> lift . left $ ProxyNotConfiguredForService sid
-    return $ RqMod target hdrs
+
+    let rqMod = RqMod target hdrs
+    logger DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
+    return rqMod
 
 
 -- | This is a work-around for the fact that we can't write an
