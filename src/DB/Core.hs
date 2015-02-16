@@ -162,6 +162,10 @@ infix 6 =%%
 data TLMode = TLRead | TLReadWrite
   deriving (Eq, Ord, Show, Enum, Bounded)
 
+-- | See also:
+--
+-- * 'makeClearance_' in "DB.Protected" (not exported)
+-- * test cases in @TestMain@.
 makeThentosLabel :: ToCNF a => TLMode -> [a] -> ThentosLabel
 makeThentosLabel _      [] = thentosDenied
 makeThentosLabel tlMode (x:xs) = case tlMode of

@@ -21,8 +21,6 @@ import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$>))
 import Data.Thyme (getCurrentTime)
-import LIO (canFlowTo)
-import LIO.DCLabel ((%%), (/\), (\/), toCNF)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
 import DB
@@ -147,25 +145,3 @@ adhoc = do
               askingAgent = UserA $ UserId 2
           result <- query' st $ LookupAgentRoles targetAgent (askingAgent *%% askingAgent)
           result `shouldSatisfy` isLeft
-
-  -- This test doesn't really test thentos code, but it helps
-  -- understanding DCLabel.
-  describe "DCLabel" $
-    it "works" $ do
-      let a = toCNF ("a" :: String)
-          b = toCNF ("b" :: String)
-          c = toCNF ("c" :: String)
-
-      and [ b \/ a %% a `canFlowTo` a %% a
-          , a %% a /\ b `canFlowTo` a %% a
-          , a %% (a /\ b) \/ (a /\ c) `canFlowTo` a %% a
-          , not $ a %% (a /\ b) \/ (a /\ c) `canFlowTo` a %% b
-          ,       True  %% False `canFlowTo` True %% False
-          ,       True  %% False `canFlowTo` False %% True
-          ,       True  %% True  `canFlowTo` False %% True
-          ,       False %% False `canFlowTo` False %% True
-          , not $ False %% True  `canFlowTo` True  %% False
-          , not $ True  %% True  `canFlowTo` True  %% False
-          , not $ False %% False `canFlowTo` True  %% False
-          , True
-          ] `shouldBe` True
