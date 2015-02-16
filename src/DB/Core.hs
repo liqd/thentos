@@ -103,8 +103,8 @@ showDbError e@(PermissionDenied _ _)             = logger INFO (show e) >> retur
 showDbError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
 showDbError BadAuthenticationHeaders             = return (400, "bad authentication headers")
 showDbError ProxyNotAvailable                    = return (404, "proxying not activated")
-showDbError MissingServiceHeader                 = return (404, "headers do not ontain service id")
-showDbError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service" ++ show sid)
+showDbError MissingServiceHeader                 = return (404, "headers do not contain service id")
+showDbError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 
 
 -- | FIXME: generalize, so we can use this for both Update and Query.
