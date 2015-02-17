@@ -10,11 +10,8 @@ import Network.Mail.Mime (Address(Address), renderSendMail, Mail(..), emptyMail,
 
 import Thentos.Types
 
-sentFromAddress :: Address
-sentFromAddress = Address (Just "Thentos") "thentos@thentos.org"
-
-sendUserConfirmationMail :: UserFormData -> ByteString -> IO ()
-sendUserConfirmationMail user callbackUrl = do
+sendUserConfirmationMail :: Address -> UserFormData -> ByteString -> IO ()
+sendUserConfirmationMail sentFromAddress user callbackUrl = do
     renderSendMail mail
   where
     mail = (emptyMail sentFromAddress)

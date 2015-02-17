@@ -46,7 +46,6 @@ data FrontendApp =
       { _db :: Snaplet (Acid DB)
       , _rng :: MVar SystemRNG
       , _cfg :: ThentosConfig
-      , _fecfg :: FrontendConfig
       }
 
 makeLenses ''FrontendApp
@@ -63,10 +62,7 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
     FrontendApp <$>
         (nestSnaplet "acid" db $ acidInitManual st) <*>
         (return rn) <*>
-        (return _cfg) <*>
-        (case frontendConfig _cfg of
-            Just x -> return x
-            Nothing -> assert False $ error "frontendApp: internal error")
+        (return _cfg)
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ mainPageHandler)
@@ -89,10 +85,11 @@ userAddHandler = do
             result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
             case result' of
                 Right (_, ConfirmationToken token) -> do
-                    config :: FrontendConfig <- gets (^. fecfg)
-                    let url = "http://localhost:" <> (cs . show $ frontendPort config)
+                    config :: ThentosConfig <- gets (^. cfg)
+                    let Just (feConfig :: FrontendConfig) = frontendConfig config
+                        url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token=" <> encodeUtf8 token
-                    liftIO $ sendUserConfirmationMail user url
+                    liftIO $ sendUserConfirmationMail (emailSender config) user url
                     blaze "Please check your email!"
                 Left e -> blaze . errorPage $ show e
 
