@@ -139,7 +139,7 @@ instance FromJSON A3User where
             fail $ "malformed email address: " ++ show email
         when (not $ passwordGood name) $
             fail $ "bad password: " ++ show password
-        return . A3User $ UserFormData (UserName name) (textToPassword password) (UserEmail email)
+        return . A3User $ UserFormData (UserName name) (UserPass password) (UserEmail email)
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -190,9 +190,9 @@ instance FromJSON ActivationRequest where
 
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
-        n <- UserName       <$$> v .:? "name"
-        e <- UserEmail      <$$> v .:? "email"
-        p <- textToPassword <$>  v .: "password"
+        n <- UserName  <$$> v .:? "name"
+        e <- UserEmail <$$> v .:? "email"
+        p <- UserPass  <$>  v .: "password"
         case (n, e) of
           (Just x,  Nothing) -> return $ LoginByName x p
           (Nothing, Just x)  -> return $ LoginByEmail x p
@@ -249,7 +249,7 @@ app asg = p $
 -- * handler
 
 addUser :: A3User -> RestAction (A3Resource ())
-addUser (ADUser user) = do
+addUser (A3User user) = do
     (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser user
 
     -- FIXME: send confirmation email
