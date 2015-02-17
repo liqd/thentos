@@ -141,25 +141,25 @@ instance FromJSON A3User where
             fail $ "bad password: " ++ show password
         return . A3User $ UserFormData (UserName name) (textToPassword password) (UserEmail email)
 
--- | FIXME: not implemented.
---
--- constraints on user name: The "name" field in the "IUserBasic"
+-- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
 -- '@' (to make user names distinguishable from email addresses). The
 -- username must not contain any whitespace except single spaces,
 -- preceded and followed by non-whitespace (no whitespace at begin or
 -- end, multiple subsequent spaces are forbidden, tabs and newlines
 -- are forbidden).
+--
+-- FIXME: not implemented.
 userNameValid :: ST -> Bool
 userNameValid _ = True
 
--- | FIXME: not implemented.
+-- | RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
 --
---  RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
+-- FIXME: not implemented.
 emailValid :: ST -> Bool
 emailValid _ = True
 
--- | FIXME: not implemented.  (or not very sophisticatedly.)
+-- | Only an empty password is a bad password.
 passwordGood :: ST -> Bool
 passwordGood "" = False
 passwordGood _ = True
@@ -249,8 +249,8 @@ app asg = p $
 -- * handler
 
 addUser :: A3User -> RestAction (A3Resource ())
-addUser a3user = do
-    (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser $ fromA3User a3user
+addUser (ADUser user) = do
+    (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser user
 
     -- FIXME: send confirmation email
 
