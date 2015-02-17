@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 
-module Thentos.Frontend.Mail (sendUserConfirmationMail) where
+module Thentos.Smtp (sendUserConfirmationMail) where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L

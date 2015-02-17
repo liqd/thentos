@@ -34,8 +34,8 @@ library
     , Thentos.Backend.Api.Proxy
     , Thentos.Frontend
     , Thentos.Frontend.Pages
-    , Thentos.Frontend.Mail
     , Thentos.Frontend.Util
+    , Thentos.Smtp
     , System.Log.Missing
   build-depends:
       base

@@ -38,7 +38,7 @@ import Thentos.Util
 
 import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Thentos.Frontend.Util (serveSnaplet)
-import Thentos.Frontend.Mail (sendUserConfirmationMail)
+import Thentos.Smtp (sendUserConfirmationMail)
 
 
 data FrontendApp =
