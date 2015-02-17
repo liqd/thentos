@@ -36,6 +36,7 @@ library
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Util
     , Thentos.Smtp
+    , Network.Mail.Mime.Missing
     , System.Log.Missing
   build-depends:
       base
