@@ -299,7 +299,7 @@ app asg = p $
 -- FIXME: catch errors and respond with RequestError
 
 addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
-addUser (A3UserWithPass user) = do
+addUser (A3UserWithPass user) = logActionError $ do
     logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
     ((_, _, config :: ThentosConfig), _) <- ask
     (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
@@ -311,7 +311,7 @@ addUser (A3UserWithPass user) = do
 
 
 activate :: ActivationRequest -> RestAction RequestResult
-activate (ActivationRequest p) = do
+activate (ActivationRequest p) = logActionError $ do
     logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     ctok :: ConfirmationToken <- confirmationTokenFromPath p
     uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
@@ -321,12 +321,12 @@ activate (ActivationRequest p) = do
 
 -- | FIXME: check password!
 login :: LoginRequest -> RestAction RequestResult
-login r@(LoginByName uname _) = do
+login r@(LoginByName uname _) = logActionError $ do
     logger DEBUG $ "route login (name):" <> show r
     (uid, _)             <- queryAction $ LookupUserByName uname
     stok :: SessionToken <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
-login r@(LoginByEmail uemail _) = do
+login r@(LoginByEmail uemail _) = logActionError $ do
     logger DEBUG $ "route login (email):" <> show r
     (uid, _)             <- queryAction $ LookupUserByEmail uemail
     stok :: SessionToken <- startSessionNow (UserA uid)
