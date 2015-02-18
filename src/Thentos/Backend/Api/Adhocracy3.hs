@@ -35,16 +35,17 @@ import Data.Functor.Infix ((<$$>))
 import Data.Maybe (catMaybes, isJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai.Handler.Warp (run)
 import Network.Wai (Application)
+import Network.Wai.Handler.Warp (run)
 import Safe (readMay, fromJustNote)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
+import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
 import System.Log (Priority(DEBUG))
 import Text.Printf (printf)
 
@@ -221,12 +222,19 @@ data RequestResult =
   | RequestError [ST]
   deriving (Eq, Show, Typeable, Generic)
 
+instance ToJSON ActivationRequest where
+    toJSON (ActivationRequest p) = object ["path" .= p]
+
 instance FromJSON ActivationRequest where
     parseJSON = withObject "activation request" $ \ v -> do
         p :: ST <- v .: "path"
         unless ("/activate/" `ST.isPrefixOf` p) $
             fail $ "ActivationRequest with malformed path: " ++ show p
         return . ActivationRequest . Path $ p
+
+instance ToJSON LoginRequest where
+    toJSON (LoginByName  n p) = object ["name"  .= n, "password" .= p]
+    toJSON (LoginByEmail e p) = object ["email" .= e, "password" .= p]
 
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
@@ -292,17 +300,19 @@ app asg = p $
 
 addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
 addUser (A3UserWithPass user) = do
-    logger DEBUG . cs . Aeson.encodePretty $ A3UserWithPass user
+    logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
     ((_, _, config :: ThentosConfig), _) <- ask
     (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
-    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> cs (show tok)
+    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> enctok
         feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
+        enctok :: SBS = urlEncode . cs . fromConfimationToken $ tok
     liftIO $ sendUserConfirmationMail (emailSender config) user activationUrl
-    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) Nothing
+    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 
 activate :: ActivationRequest -> RestAction RequestResult
 activate (ActivationRequest p) = do
+    logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     ctok :: ConfirmationToken <- confirmationTokenFromPath p
     uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
     stok :: SessionToken      <- startSessionNow (UserA uid)
@@ -311,11 +321,13 @@ activate (ActivationRequest p) = do
 
 -- | FIXME: check password!
 login :: LoginRequest -> RestAction RequestResult
-login (LoginByName uname _) = do
+login r@(LoginByName uname _) = do
+    logger DEBUG $ "route login (name):" <> show r
     (uid, _)             <- queryAction $ LookupUserByName uname
     stok :: SessionToken <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
-login (LoginByEmail uemail _) = do
+login r@(LoginByEmail uemail _) = do
+    logger DEBUG $ "route login (email):" <> show r
     (uid, _)             <- queryAction $ LookupUserByEmail uemail
     stok :: SessionToken <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
@@ -335,4 +347,8 @@ userIdFromPath (Path s) = maybe (lift . left $ NoSuchUser) return $
     prefix = "/principals/users/"
 
 confirmationTokenFromPath :: Path -> RestAction ConfirmationToken
-confirmationTokenFromPath = assert False $ error "confirmationTokenFromPath"
+confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
+    (s, s') | s == prefix -> return $ ConfirmationToken s'
+    _ -> lift . left $ MalformedConfirmationToken p
+  where
+    prefix = "/activate/"

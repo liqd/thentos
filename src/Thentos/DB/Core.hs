@@ -41,6 +41,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.EitherR (throwT)
 import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
+import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 import LIO (canFlowTo)
 import LIO.DCLabel (DCLabel(DCLabel), ToCNF, (%%), (/\), (\/), toCNF)
@@ -57,6 +58,7 @@ import Thentos.Types
 data DbError =
       NoSuchUser
     | NoSuchPendingUserConfirmation
+    | MalformedConfirmationToken ST
     | NoSuchService
     | NoSuchSession
     | OperationNotPossibleInServiceSession
@@ -96,6 +98,7 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 showDbError :: MonadIO m => DbError -> m (Int, String)
 showDbError NoSuchUser                           = return (404, "user not found")
 showDbError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
+showDbError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
 showDbError NoSuchService                        = return (404, "service not found")
 showDbError NoSuchSession                        = return (404, "session not found")
 showDbError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
