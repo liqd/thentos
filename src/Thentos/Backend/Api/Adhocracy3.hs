@@ -32,7 +32,7 @@ import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, isJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -78,7 +78,9 @@ instance FromJSON Path
 
 -- | FIXME: use a type family instead of 'data ContentType'.  this
 -- should give us a proof that the content type in 'A3Resource' will
--- always match the content.
+-- always match the content.  this should also solve the problem that
+-- in 'A3Resource', if @data@ is 'Nothing', the content type cannot be
+-- derived.
 data ContentType =
       CTUser
   deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
@@ -115,12 +117,16 @@ data A3Resource a = A3Resource (Maybe Path) (Maybe ContentType) (Maybe a)
 
 instance ToJSON a => ToJSON (A3Resource a) where
     toJSON (A3Resource p ct r) =
-        case Aeson.toJSON r of
-            Object v -> object $ "path" .= p : "content_type" .= ct : HashMap.toList v
+        object $ "path" .= p : "content_type" .= ct : case Aeson.toJSON <$> r of
+            Nothing -> []
+            Just (Object v) -> HashMap.toList v
 
 instance FromJSON a => FromJSON (A3Resource a) where
     parseJSON = withObject "resource object" $ \ v -> do
-        A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*> Aeson.parseJSON (Object v)
+        A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*>
+            if "data" `HashMap.member` v
+                then Just <$> Aeson.parseJSON (Object v)
+                else pure Nothing
 
 
 -- ** individual resources
