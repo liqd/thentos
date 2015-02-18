@@ -26,20 +26,20 @@ import Control.Concurrent.MVar (MVar)
 import Control.Exception (assert)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT, left)
+import Control.Monad.Trans.Either (left)
 import Control.Monad.Trans.Reader (ask)
 import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (run)
-import Network.Wai (Request, Response, ResponseReceived, Application)
+import Network.Wai (Application)
 import Safe (readMay, fromJustNote)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
@@ -50,6 +50,7 @@ import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 
@@ -88,8 +89,11 @@ instance Show ContentType where
 instance Read ContentType where
     readsPrec = readsPrecEnumBoundedShow
 
-instance ToJSON ContentType
-instance FromJSON ContentType
+instance ToJSON ContentType where
+    toJSON = Aeson.String . cs . show
+
+instance FromJSON ContentType where
+    parseJSON = Aeson.withText "content type string" $ maybe mzero return . readMay . cs
 
 data PropertySheet =
       PSUserBasic
@@ -128,59 +132,48 @@ newtype A3UserWithPass = A3UserWithPass { fromA3UserWithPass :: UserFormData }
   deriving (Eq, Show, Typeable, Generic)
 
 instance ToJSON A3UserNoPass where
-    toJSON (A3UserNoPass (UserFormData name _ email)) = object
-        [ "content_type" .= CTUser
-        , "data" .= object
-            [ cshow PSUserBasic .= object
-                [ "name" .= name
-                , "email" .= email
-                ]
-            ]
-        ]
-
-instance FromJSON A3UserNoPass where
-    parseJSON = withObject "resource object" $ \ v -> do
-        content_type :: ContentType <- v .: "content_type"
-        when (content_type /= CTUser) $
-            fail $ "wrong content type: " ++ show content_type
-        name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-        password     <- v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
-        email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
-        when (not $ userNameValid name) $
-            fail $ "malformed user name: " ++ show name
-        when (not $ emailValid name) $
-            fail $ "malformed email address: " ++ show email
-        when (not $ passwordGood name) $
-            fail $ "bad password: " ++ show password
-        return . A3UserNoPass $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+    toJSON (A3UserNoPass user) = a3UserToJSON False user
 
 instance ToJSON A3UserWithPass where
-    toJSON (A3UserWithPass (UserFormData name _ email)) = object
-        [ "content_type" .= CTUser
-        , "data" .= object
-            [ cshow PSUserBasic .= object
-                [ "name" .= name
-                , "email" .= email
-                ]
-            ]
-        ]
+    toJSON (A3UserWithPass user) = a3UserToJSON True user
+
+instance FromJSON A3UserNoPass where
+    parseJSON value = A3UserNoPass <$> a3UserFromJSON False value
 
 instance FromJSON A3UserWithPass where
-    parseJSON = withObject "resource object" $ \ v -> do
-        content_type :: ContentType <- v .: "content_type"
-        when (content_type /= CTUser) $
-            fail $ "wrong content type: " ++ show content_type
-        name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-        password     <- v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
-        email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
-        when (not $ userNameValid name) $
-            fail $ "malformed user name: " ++ show name
-        when (not $ emailValid name) $
-            fail $ "malformed email address: " ++ show email
-        when (not $ passwordGood name) $
-            fail $ "bad password: " ++ show password
-        return . A3UserWithPass $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+    parseJSON value = A3UserWithPass <$> a3UserFromJSON True value
 
+a3UserToJSON :: Bool -> UserFormData -> Aeson.Value
+a3UserToJSON withPass (UserFormData name password email) = object
+    [ "content_type" .= CTUser
+    , "data" .= object (catMaybes
+        [ Just $ cshow PSUserBasic .= object
+            [ "name" .= name
+            , "email" .= email
+            ]
+        , if withPass
+            then Just $ cshow PSPasswordAuthentication .= object ["password" .= password]
+            else Nothing
+        ])
+    ]
+
+a3UserFromJSON :: Bool -> Aeson.Value -> Aeson.Parser UserFormData
+a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
+    content_type :: ContentType <- v .: "content_type"
+    when (content_type /= CTUser) $
+        fail $ "wrong content type: " ++ show content_type
+    name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
+    email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
+    password     <- if withPass
+        then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
+        else pure ""
+    when (not $ userNameValid name) $
+        fail $ "malformed user name: " ++ show name
+    when (not $ emailValid name) $
+        fail $ "malformed email address: " ++ show email
+    when (withPass && not (passwordGood name)) $
+        fail $ "bad password: " ++ show password
+    return $ UserFormData (UserName name) (UserPass password) (UserEmail email)
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except

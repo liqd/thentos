@@ -29,6 +29,7 @@ import Thentos.Types
 
 import Test.Util
 import qualified Test.Thentos.Backend.Api.Simple
+import qualified Test.Thentos.Backend.Api.Adhocracy3
 import qualified Test.Thentos.Types
 
 
@@ -37,6 +38,7 @@ import qualified Test.Thentos.Types
 main :: IO ()
 main = hspec $ do
   Test.Thentos.Backend.Api.Simple.tests
+  Test.Thentos.Backend.Api.Adhocracy3.tests
   Test.Thentos.Types.tests
   adhoc
 
