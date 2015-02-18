@@ -150,6 +150,10 @@ finaliseCommand filePath (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile filePath
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
     return $ Run <$> finalConfig
+finaliseCommand filePath (BRunA3 cmdLineConfigBuilder) = do
+    fileConfigBuilder <- parseConfigFile filePath
+    let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
+    return $ RunA3 <$> finalConfig
 
 getCommand :: FilePath -> IO (Either ConfigError Command)
 getCommand filePath = do
@@ -163,18 +167,22 @@ parseCommandBuilder :: IO CommandBuilder
 parseCommandBuilder = execParser opts
   where
     parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
+                         command "runa3" (info parseRunA3 (progDesc "run with a3 backend")) <>
                          command "docs" (info (pure BDocs) (progDesc "show")) <>
                          command "showdb" (info (pure BShowDB) (progDesc "show"))
     opts = info parser mempty
 
-data Command = Run ThentosConfig | ShowDB | Docs
+data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB | Docs
   deriving (Eq, Show)
 
 data CommandBuilder =
-    BRun ThentosConfigBuilder | BShowDB | BDocs
+    BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB | BDocs
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseThentosConfig
+
+parseRunA3 :: Parser CommandBuilder
+parseRunA3 = BRunA3 <$> parseThentosConfig
 
 parseThentosConfig :: Parser ThentosConfigBuilder
 parseThentosConfig =

@@ -29,9 +29,11 @@ import Text.Show.Pretty (ppShow)
 import Thentos.Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
 import Thentos.Types
 import Thentos.DB
-import Thentos.Backend.Api.Simple (runBackend, apiDocs)
 import Thentos.Frontend (runFrontend)
 import System.Log.Missing (logger)
+
+import qualified Thentos.Backend.Api.Simple (runBackend, apiDocs)
+import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
 
 
 -- * main
@@ -61,7 +63,7 @@ main =
                         Nothing -> return ()
                         Just (BackendConfig backendPort) -> do
                             putStrLn $ "running rest api on localhost:" <> show backendPort <> "."
-                            runBackend backendPort (st, rng, config)
+                            Thentos.Backend.Api.Simple.runBackend backendPort (st, rng, config)
 
                 let frontend = case frontendConfig config of
                         Nothing -> return ()
@@ -73,7 +75,18 @@ main =
                 putStrLn "Press ^C to abort."
                 void $ concurrently backend frontend
 
-            Docs -> putStrLn apiDocs
+            Docs -> putStrLn Thentos.Backend.Api.Simple.apiDocs
+
+            RunA3 config -> do
+                createDefaultUser st (defaultUser config)
+                _ <- createCheckpointLoop st 16000 Nothing
+
+                case backendConfig config of
+                        Nothing -> error "command `runa3` requires `--runbackend`"
+                        Just (BackendConfig backendPort) -> do
+                            putStrLn $ "running a3 rest api on localhost:" <> show backendPort <> "."
+                            putStrLn "Press ^C to abort."
+                            Thentos.Backend.Api.Adhocracy3.runBackend backendPort (st, rng, config)
 
     let finalize = do
             putStr "creating checkpoint and shutting down acid-state..."
