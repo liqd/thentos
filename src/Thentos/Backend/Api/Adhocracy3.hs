@@ -77,11 +77,6 @@ newtype Path = Path ST
 instance ToJSON Path
 instance FromJSON Path
 
--- | FIXME: use a type family instead of 'data ContentType'.  this
--- should give us a proof that the content type in 'A3Resource' will
--- always match the content.  this should also solve the problem that
--- in 'A3Resource', if @data@ is 'Nothing', the content type cannot be
--- derived.
 data ContentType =
       CTUser
   deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
@@ -295,8 +290,6 @@ app asg = p $
 
 
 -- * handler
-
--- FIXME: catch errors and respond with RequestError
 
 addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
 addUser (A3UserWithPass user) = logActionError $ do
