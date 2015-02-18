@@ -24,24 +24,28 @@ module Thentos.Backend.Api.Adhocracy3 where
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
 import Control.Exception (assert)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT, left)
+import Control.Monad.Trans.Reader (ask)
 import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Functor.Infix ((<$$>))
 import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai (Request, Response, ResponseReceived, Application)
-import Safe (readMay)
+import Safe (readMay, fromJustNote)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
+import System.Log (Priority(DEBUG))
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
@@ -52,10 +56,13 @@ import qualified Data.Text as ST
 import Thentos.Api
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core (RestAction, RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.Config
 import Thentos.DB
 import Thentos.Doc ()
+import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
+import System.Log.Missing
 
 
 -- * data types
@@ -68,6 +75,9 @@ newtype Path = Path ST
 instance ToJSON Path
 instance FromJSON Path
 
+-- | FIXME: use a type family instead of 'data ContentType'.  this
+-- should give us a proof that the content type in 'A3Resource' will
+-- always match the content.
 data ContentType =
       CTUser
   deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
@@ -111,11 +121,14 @@ instance FromJSON a => FromJSON (A3Resource a) where
 
 -- ** individual resources
 
-newtype A3User = A3User { fromA3User :: UserFormData }
+newtype A3UserNoPass = A3UserNoPass { fromA3UserNoPass :: UserFormData }
   deriving (Eq, Show, Typeable, Generic)
 
-instance ToJSON A3User where
-    toJSON (A3User (UserFormData name _ email)) = object
+newtype A3UserWithPass = A3UserWithPass { fromA3UserWithPass :: UserFormData }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance ToJSON A3UserNoPass where
+    toJSON (A3UserNoPass (UserFormData name _ email)) = object
         [ "content_type" .= CTUser
         , "data" .= object
             [ cshow PSUserBasic .= object
@@ -125,7 +138,7 @@ instance ToJSON A3User where
             ]
         ]
 
-instance FromJSON A3User where
+instance FromJSON A3UserNoPass where
     parseJSON = withObject "resource object" $ \ v -> do
         content_type :: ContentType <- v .: "content_type"
         when (content_type /= CTUser) $
@@ -139,7 +152,35 @@ instance FromJSON A3User where
             fail $ "malformed email address: " ++ show email
         when (not $ passwordGood name) $
             fail $ "bad password: " ++ show password
-        return . A3User $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+        return . A3UserNoPass $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+
+instance ToJSON A3UserWithPass where
+    toJSON (A3UserWithPass (UserFormData name _ email)) = object
+        [ "content_type" .= CTUser
+        , "data" .= object
+            [ cshow PSUserBasic .= object
+                [ "name" .= name
+                , "email" .= email
+                ]
+            ]
+        ]
+
+instance FromJSON A3UserWithPass where
+    parseJSON = withObject "resource object" $ \ v -> do
+        content_type :: ContentType <- v .: "content_type"
+        when (content_type /= CTUser) $
+            fail $ "wrong content type: " ++ show content_type
+        name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
+        password     <- v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
+        email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
+        when (not $ userNameValid name) $
+            fail $ "malformed user name: " ++ show name
+        when (not $ emailValid name) $
+            fail $ "malformed email address: " ++ show email
+        when (not $ passwordGood name) $
+            fail $ "bad password: " ++ show password
+        return . A3UserWithPass $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -229,7 +270,7 @@ serveApi = serve (Proxy :: Proxy App) . app
 -- @/login_email@.  This makes implementing all sides of the protocol
 -- a lot easier without sacrificing security.
 type App =
-       "principals" :> "users" :> ReqBody A3User :> Post (A3Resource ())  -- FIXME: this will probably crash because '()' is not a json object.
+       "principals" :> "users" :> ReqBody A3UserWithPass :> Post (A3Resource A3UserNoPass)
   :<|> "activate_account"      :> ReqBody ActivationRequest :> Post RequestResult
   :<|> "login_username"        :> ReqBody LoginRequest :> Post RequestResult
   :<|> "login_email"           :> ReqBody LoginRequest :> Post RequestResult
@@ -248,15 +289,17 @@ app asg = p $
 
 -- * handler
 
-addUser :: A3User -> RestAction (A3Resource ())
-addUser (A3User user) = do
-    (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser user
+-- FIXME: catch errors and respond with RequestError
 
-    -- FIXME: send confirmation email
-
+addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
+addUser (A3UserWithPass user) = do
+    logger DEBUG . cs . Aeson.encodePretty $ A3UserWithPass user
+    ((_, _, config :: ThentosConfig), _) <- ask
+    (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
+    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> cs (show tok)
+        feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
+    liftIO $ sendUserConfirmationMail (emailSender config) user activationUrl
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) Nothing
-
-    -- FIXME: catch errors and respond with RequestError
 
 
 activate :: ActivationRequest -> RestAction RequestResult
@@ -265,8 +308,6 @@ activate (ActivationRequest p) = do
     uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
     stok :: SessionToken      <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
-
-    -- FIXME: catch errors and respond with RequestError
 
 
 -- | FIXME: check password!

@@ -32,6 +32,7 @@ library
     , Thentos.Backend.Core
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Api.Proxy
+    , Thentos.Backend.Api.Adhocracy3
     , Thentos.Frontend
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Util
@@ -116,6 +117,7 @@ test-suite tests
   other-modules:
       Test.Config
     , Test.Thentos.Backend.Api.Simple
+    , Test.Thentos.Backend.Api.Adhocracy3
     , Test.Thentos.Types
     , Test.Util
   ghc-options:

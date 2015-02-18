@@ -3,12 +3,13 @@
 module Test.Arbitrary () where
 
 import Control.Applicative ((<$>), (<*>))
+import Data.String.Conversions (cs)
 import LIO.DCLabel (DCLabel(DCLabel), (%%), (/\), (\/), CNF, toCNF)
 import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 
 import qualified Data.ByteString as SBS
 
-import Thentos.Types (HashedSecret, ThentosLabel(..), ThentosClearance(..))
+import Thentos.Types
 
 import Test.Util
 
@@ -27,7 +28,7 @@ instance Arbitrary DCLabel where
     shrink (DCLabel s i) = [s %% False, s %% True, False %% i, True %% i]
 
 instance Arbitrary CNF where
-    arbitrary = sized $ \ l -> vectorOf l (elements principals) >>= combine
+    arbitrary = sized $ \ l -> vectorOf l (elements readableStrings) >>= combine
       where
         combine :: [String] -> Gen CNF
         combine []     = toCNF <$> (arbitrary :: Gen Bool)
@@ -39,10 +40,15 @@ instance Arbitrary CNF where
 
 -- | 25 most common adjectives according to the Oxford English
 -- Dictionary.
-principals :: [String]
-principals =
+readableStrings :: [String]
+readableStrings =
     "good" : "new" : "first" : "last" : "long" : "great" : "little" :
     "own" : "other" : "old" : "right" : "big" : "high" : "different" :
     "small" : "large" : "next" : "early" : "young" : "important" :
     "few" : "public" : "bad" : "same" : "able" :
     []
+
+
+instance Arbitrary UserFormData where
+    arbitrary = UserFormData <$> s UserName <*> s UserPass <*> s UserEmail
+      where s cons = cons . cs <$> elements readableStrings
