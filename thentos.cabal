@@ -19,6 +19,10 @@ Source-Repository head
   type: git
   location: https://github.com/liqd/thentos
 
+Flag loadTest
+  description: enable load testing
+  default: False
+
 library
   default-language:
       Haskell2010
@@ -160,7 +164,6 @@ test-suite tests
   build-depends:
       base
     , thentos ==0.0.1
-
     , acid-state
     , aeson
     , aeson-pretty
@@ -188,3 +191,27 @@ test-suite tests
     , transformers
     , wai
     , wai-extra
+
+benchmark load-test
+  default-language:
+      Haskell2010
+  type:       exitcode-stdio-1.0
+  hs-source-dirs:
+    bench
+  main-is:
+    Main.hs
+
+  build-depends:
+      base
+    , thentos
+    , aeson
+    , pronk
+    , conduit
+    , http-conduit
+    , resourcet
+    , text
+    , text-format
+    , time
+    , http-types
+    , random
+    , bytestring
