@@ -1,23 +1,81 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE ScopedTypeVariables                      #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
-
-module Thentos.Doc where
+module Main where
 
 import Control.Applicative (pure, (<*>))
 import Data.Functor.Infix ((<$>))
+import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
-import Data.Thyme.Time ()  -- (instance Num NominalDiffTime)
+import Data.Thyme.Time ()
 import Servant.API (Capture)
+import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
+import System.Environment (getArgs, getProgName)
+import System.Exit (ExitCode(ExitSuccess))
+import System.FilePath ((</>), (<.>))
+import System.Process (system)
+import System.Directory (setCurrentDirectory)
 
 import Thentos.Types
 
+import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
+import qualified Thentos.Backend.Api.Simple as Simple
 
--- instances for generating docs
+
+main :: IO ()
+main = do
+    let targetPath = "./docs/generated/"
+    xsystem $ "mkdir -p " ++ targetPath
+    setCurrentDirectory targetPath
+    xbuild "simple" (Proxy :: Proxy Simple.App)
+    xbuild "adhocracy3" (Proxy :: Proxy Adhocracy3.App)
+
+xbuild :: HasDocs a => String -> Proxy a -> IO ()
+xbuild fileName proxy = do
+    writeFile (fileName <.> "md") (markdown $ docs proxy)
+    xsystem $ "pandoc " ++ fileName <.> "md" ++ " -o " ++ fileName <.> "html"
+
+xsystem :: String -> IO ()
+xsystem cmd = do
+    putStrLn $ ">> " ++ cmd
+    ExitSuccess <- system cmd
+    return ()
+
+
+instance HasDocs sublayout => HasDocs (Simple.ThentosAuth sublayout) where
+    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+
+-- | (can this be derived entirely?)
+instance ToSample Adhocracy3.A3UserNoPass where
+    toSample = Adhocracy3.A3UserNoPass <$> toSample
+
+instance ToSample Adhocracy3.A3UserWithPass where
+    toSample = Adhocracy3.A3UserWithPass <$> toSample
+
+instance ToSample a => ToSample (Adhocracy3.A3Resource a) where
+    toSample = Adhocracy3.A3Resource <$> (Just <$> toSample) <*> (Just <$> toSample) <*> (Just <$> toSample)
+
+instance ToSample Adhocracy3.Path where
+    toSample = pure $ Adhocracy3.Path "/proposals/environment"
+
+instance ToSample Adhocracy3.ActivationRequest where
+    toSample = Adhocracy3.ActivationRequest <$> toSample
+
+instance ToSample Adhocracy3.LoginRequest where
+    toSample = pure $ Adhocracy3.LoginByName (UserName "wef") (UserPass "passwef")
+
+instance ToSample Adhocracy3.RequestResult where
+    toSample = Adhocracy3.RequestSuccess <$> toSample <*> toSample
+
+instance ToSample Adhocracy3.ContentType where
+    toSample = pure $ Adhocracy3.CTUser
+
 
 instance ToCapture (Capture "token" SessionToken) where
     toCapture _ = DocCapture "token" "Session Token"

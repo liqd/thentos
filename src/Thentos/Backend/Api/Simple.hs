@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Thentos.Backend.Api.Simple (runBackend, serveApi) where
+module Thentos.Backend.Api.Simple (App, ThentosAuth, runBackend, serveApi) where
 
 import Control.Applicative ((<$>))
 import Control.Arrow (first)
