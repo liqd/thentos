@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
+-- | FIXME: we need to find a less verbose way to combine command line
+-- arguments with data from config file.  See also: #1673, #1694.
 module Thentos.Config
     ( getCommand
     , configLogger
