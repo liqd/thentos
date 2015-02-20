@@ -23,7 +23,6 @@ library
     , Thentos.Types
     , Thentos.Util
     , Thentos.Config
-    , Thentos.Doc
     , Thentos.DB
     , Thentos.DB.Core
     , Thentos.DB.Trans
@@ -72,7 +71,6 @@ library
     , sandi
     , scrypt
     , servant
-    , servant-docs
     , servant-jquery
     , servant-server
     , snap
