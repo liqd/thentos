@@ -23,7 +23,6 @@ module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (assert)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (left)
@@ -32,7 +31,7 @@ import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (catMaybes, isJust)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs)
@@ -41,9 +40,8 @@ import GHC.Generics (Generic)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 import Safe (readMay, fromJustNote)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Docs (HasDocs, docsFor, docs, markdown)
-import Servant.Server.Internal (HasServer, Server, route)
+import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody)
+import Servant.Server.Internal (Server)
 import Servant.Server (serve)
 import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
 import System.Log (Priority(DEBUG))
@@ -55,16 +53,16 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 
+import System.Log.Missing
 import Thentos.Api
 import Thentos.Backend.Api.Proxy
-import Thentos.Backend.Core (RestAction, RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.DB
 import Thentos.Doc ()
 import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
-import System.Log.Missing
 
 
 -- * data types
@@ -114,8 +112,9 @@ data A3Resource a = A3Resource (Maybe Path) (Maybe ContentType) (Maybe a)
 instance ToJSON a => ToJSON (A3Resource a) where
     toJSON (A3Resource p ct r) =
         object $ "path" .= p : "content_type" .= ct : case Aeson.toJSON <$> r of
-            Nothing -> []
             Just (Object v) -> HashMap.toList v
+            Nothing -> []
+            Just _ -> []
 
 instance FromJSON a => FromJSON (A3Resource a) where
     parseJSON = withObject "resource object" $ \ v -> do

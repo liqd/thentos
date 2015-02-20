@@ -16,21 +16,19 @@
 module Test.Thentos.Backend.Api.Adhocracy3
 where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Crypto.Random (SystemRNG)
-import Data.Acid.Advanced (query', update')
+import Data.Acid.Advanced (query')
 import Data.String.Conversions (cs, (<>))
 import Network.Mail.Mime (Address(Address))
 import Network.Wai (Application)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith)
 import Test.QuickCheck (property)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
@@ -109,7 +107,7 @@ tests = do
 
                     let sessTok = case Aeson.eitherDecode $ simpleBody rsp2 of
                           Right (RequestSuccess _ t) -> t
-                          Left es -> error $ show es
+                          bad -> error $ show bad
 
                     liftIO $ sessTok `shouldSatisfy` (not . ST.null . fromSessionToken)
 
