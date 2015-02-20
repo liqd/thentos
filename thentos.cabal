@@ -130,14 +130,18 @@ test-suite tests
 
     , acid-state
     , aeson
+    , aeson-pretty
     , attoparsec
     , bytestring
     , cereal
+    , containers
     , crypto-random
     , functor-infix
     , hspec
     , http-types
+    , lens
     , lio
+    , mime-mail
     , mtl
     , pretty-show
     , QuickCheck
@@ -146,6 +150,8 @@ test-suite tests
     , servant-server
     , string-conversions
     , system-fileio
+    , text
     , thyme
+    , transformers
     , wai
     , wai-extra
