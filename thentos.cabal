@@ -117,12 +117,16 @@ executable build-docs
       base
     , thentos ==0.0.1
 
+    , blaze-markup
     , directory
     , filepath
     , functor-infix
+    , pandoc
     , process
+    , safe
     , servant
     , servant-docs
+    , servant-pandoc
     , thyme
 
 test-suite tests

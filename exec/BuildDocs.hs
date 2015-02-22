@@ -2,24 +2,35 @@
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE LambdaCase                               #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
 module Main where
 
 import Control.Applicative (pure, (<*>))
+import Control.Monad (forM_)
+import Data.Char (toLower)
 import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Data.Thyme.Time ()
+import Safe (readMay)
 import Servant.API (Capture)
 import Servant.Docs (HasDocs, docsFor, docs, markdown)
+import Servant.Docs.Pandoc (pandoc)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
+import System.Directory (setCurrentDirectory)
 import System.Environment (getArgs, getProgName)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>), (<.>))
 import System.Process (system)
-import System.Directory (setCurrentDirectory)
+import Text.Blaze.Renderer.Utf8 (renderMarkup)
+import Text.Pandoc.PDF (makePDF)
+import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, writeLaTeX, def)
+
+import qualified Data.ByteString.Lazy as LBS
+import qualified Servant.Docs as Docs
 
 import Thentos.Types
 
@@ -27,18 +38,45 @@ import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import qualified Thentos.Backend.Api.Simple as Simple
 
 
+targetPath :: FilePath
+targetPath = "./docs/generated/"
+
 main :: IO ()
 main = do
-    let targetPath = "./docs/generated/"
     xsystem $ "mkdir -p " ++ targetPath
     setCurrentDirectory targetPath
-    xbuild "simple" (Proxy :: Proxy Simple.App)
-    xbuild "adhocracy3" (Proxy :: Proxy Adhocracy3.App)
+    sequence_ $ xwriter <$> [minBound..] <*> [minBound..]
 
-xbuild :: HasDocs a => String -> Proxy a -> IO ()
-xbuild fileName proxy = do
-    writeFile (fileName <.> "md") (markdown $ docs proxy)
-    xsystem $ "pandoc " ++ fileName <.> "md" ++ " -o " ++ fileName <.> "html"
+xwriter :: ApiName -> FormatName -> IO ()
+xwriter apiName formatName = do
+    let fileName = map toLower $ show apiName
+        doc = pandoc $ xdocs apiName
+    case formatName of
+        Format_Markdown
+            -> writeFile (fileName <.> "md") (writeMarkdown def doc)
+        Format_Html
+            -> LBS.writeFile (fileName <.> "html") (renderMarkup $ writeHtml def doc)
+        Format_Docx
+            -> writeDocx def doc >>= LBS.writeFile (fileName <.> "docx")
+
+-- FIXME: this crashes for poorly understood reasons:
+--
+--        Format_Pdf
+--            -> do
+--                 makePDF "pdflatex" writeLaTeX def doc >>=
+--                     \case (Right pdf) -> LBS.writeFile (fileName <.> "pdf") pdf
+--                           (Left bad) -> error $ show bad
+
+xdocs :: ApiName -> Docs.API
+xdocs Api_Simple     = docs (Proxy :: Proxy Simple.App)
+xdocs Api_Adhocracy3 = docs (Proxy :: Proxy Adhocracy3.App)
+
+data ApiName = Api_Simple | Api_Adhocracy3
+  deriving (Eq, Enum, Bounded, Read, Show)
+
+data FormatName = Format_Markdown | Format_Html | Format_Docx
+  deriving (Eq, Enum, Bounded, Read, Show)
+
 
 xsystem :: String -> IO ()
 xsystem cmd = do
