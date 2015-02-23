@@ -9,25 +9,21 @@
 module Main where
 
 import Control.Applicative (pure, (<*>))
-import Control.Monad (forM_)
 import Data.Char (toLower)
 import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Data.Thyme.Time ()
-import Safe (readMay)
 import Servant.API (Capture)
-import Servant.Docs (HasDocs, docsFor, docs, markdown)
+import Servant.Docs (HasDocs, docsFor, docs)
 import Servant.Docs.Pandoc (pandoc)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
 import System.Directory (setCurrentDirectory)
-import System.Environment (getArgs, getProgName)
 import System.Exit (ExitCode(ExitSuccess))
-import System.FilePath ((</>), (<.>))
+import System.FilePath ((<.>))
 import System.Process (system)
 import Text.Blaze.Renderer.Utf8 (renderMarkup)
-import Text.Pandoc.PDF (makePDF)
-import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, writeLaTeX, def)
+import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, def)
 
 import qualified Data.ByteString.Lazy as LBS
 import qualified Servant.Docs as Docs
