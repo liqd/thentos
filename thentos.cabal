@@ -37,7 +37,6 @@ library
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Util
     , Thentos.Smtp
-    , Network.Mail.Mime.Missing
     , System.Log.Missing
   build-depends:
       base
@@ -63,7 +62,7 @@ library
     , http-types
     , lens
     , lio
-    , mime-mail
+    , mime-mail >= 0.4.8
     , mtl
     , old-locale
     , optparse-applicative

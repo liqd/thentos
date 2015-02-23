@@ -34,7 +34,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 
 import Thentos.Types
-import Network.Mail.Mime.Missing ()
 
 
 -- * the config type used by everyone else
