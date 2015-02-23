@@ -59,7 +59,6 @@ import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.DB
-import Thentos.Doc ()
 import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
@@ -267,9 +266,6 @@ runBackend port = run port . serveApi
 
 serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
 serveApi = serve (Proxy :: Proxy App) . app
-
--- apiDocs :: String
--- apiDocs = markdown $ docs (Proxy :: Proxy App)
 
 
 -- * api

@@ -32,7 +32,7 @@ import Thentos.DB
 import Thentos.Frontend (runFrontend)
 import System.Log.Missing (logger)
 
-import qualified Thentos.Backend.Api.Simple (runBackend, apiDocs)
+import qualified Thentos.Backend.Api.Simple (runBackend)
 import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
 
 
@@ -74,8 +74,6 @@ main =
                 _ <- createCheckpointLoop st 16000 Nothing
                 putStrLn "Press ^C to abort."
                 void $ concurrently backend frontend
-
-            Docs -> putStrLn Thentos.Backend.Api.Simple.apiDocs
 
             RunA3 config -> do
                 createDefaultUser st (defaultUser config)

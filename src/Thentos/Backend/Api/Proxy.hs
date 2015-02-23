@@ -41,7 +41,6 @@ import qualified Network.Wai as S
 import Thentos.Api
 import Thentos.Backend.Core
 import Thentos.DB
-import Thentos.Doc ()
 import Thentos.Types
 import Thentos.Config
 import System.Log.Missing (logger)

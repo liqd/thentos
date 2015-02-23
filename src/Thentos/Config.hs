@@ -146,7 +146,6 @@ finaliseProxyConfig builder = ProxyConfig <$> bProxyTarget builder
 
 finaliseCommand :: FilePath -> CommandBuilder -> IO (Either ConfigError Command)
 finaliseCommand _ BShowDB = return $ Right ShowDB
-finaliseCommand _ BDocs = return $ Right Docs
 finaliseCommand filePath (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile filePath
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
@@ -169,15 +168,14 @@ parseCommandBuilder = execParser opts
   where
     parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
                          command "runa3" (info parseRunA3 (progDesc "run with a3 backend")) <>
-                         command "docs" (info (pure BDocs) (progDesc "show")) <>
                          command "showdb" (info (pure BShowDB) (progDesc "show"))
     opts = info parser mempty
 
-data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB | Docs
+data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB
   deriving (Eq, Show)
 
 data CommandBuilder =
-    BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB | BDocs
+    BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseThentosConfig

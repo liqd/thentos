@@ -16,7 +16,7 @@
 
 {-# OPTIONS  #-}
 
-module Thentos.Backend.Api.Simple (runBackend, serveApi, apiDocs) where
+module Thentos.Backend.Api.Simple (App, ThentosAuth, runBackend, serveApi) where
 
 import Control.Applicative ((<$>))
 import Control.Arrow (first)
@@ -28,7 +28,6 @@ import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Docs (HasDocs, docsFor, docs, markdown)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
 
@@ -36,7 +35,6 @@ import Thentos.Api
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
 import Thentos.DB
-import Thentos.Doc ()
 import Thentos.Types
 import Thentos.Util
 
@@ -47,9 +45,6 @@ runBackend port = run port . serveApi
 -- | (Required in test suite.)
 serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
 serveApi = serve (Proxy :: Proxy App) . app
-
-apiDocs :: String
-apiDocs = markdown $ docs (Proxy :: Proxy App)
 
 
 -- * the application
@@ -99,10 +94,6 @@ instance ( PushActionC (Server sublayout)
                            (lookupRequestHeader request "X-Thentos-Password")
                            (lookupRequestHeader request "X-Thentos-Session")
                        )
-
--- | FIXME: not much documentation yet.
-instance HasDocs sublayout => HasDocs (ThentosAuth sublayout) where
-  docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 
 -- * user
