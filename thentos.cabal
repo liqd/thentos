@@ -79,7 +79,6 @@ library
     , sandi
     , scrypt
     , servant
-    , servant-jquery
     , servant-server
     , snap
     , snap-blaze
@@ -126,6 +125,7 @@ executable build-docs
     , thentos ==0.0.1
 
     , blaze-markup
+    , bytestring
     , directory
     , filepath
     , functor-infix
