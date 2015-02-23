@@ -144,7 +144,7 @@ loginHandler = do
                 r <- getResponse
                 finishWith r
             Just callback -> do
-                eSessionToken :: Either DbError SessionToken
+                eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do
                         tok <- startSessionNow (UserA uid)
                         addServiceLogin tok sid
@@ -162,8 +162,8 @@ loginHandler = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-snapRunAction :: (DB -> TimeStamp -> Either DbError ThentosClearance) -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either DbError a)
+snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
+      -> Handler FrontendApp FrontendApp (Either ThentosError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
     st :: AcidState DB <- getAcidState
@@ -171,5 +171,5 @@ snapRunAction clearanceAbs action = do
     runAction ((st, rn, _cfg), clearanceAbs) action
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either DbError a)
+      -> Handler FrontendApp FrontendApp (Either ThentosError a)
 snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)

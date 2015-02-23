@@ -13,8 +13,7 @@
 
 {-# OPTIONS  #-}
 
-module TestMain
-where
+module TestMain where
 
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
@@ -134,7 +133,7 @@ adhoc = do
       describe "lookup" $ do
         it "can be called by admins" $ \ (st, _, _) -> do
           let targetAgent = UserA $ UserId 1
-          result :: Either DbError [Role] <- query' st $ LookupAgentRoles targetAgent (RoleAdmin *%% RoleAdmin)
+          result :: Either ThentosError [Role] <- query' st $ LookupAgentRoles targetAgent (RoleAdmin *%% RoleAdmin)
           result `shouldSatisfy` isRight
 
         it "can be called by user for her own roles" $ \ (st, _, _) -> do

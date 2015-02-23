@@ -4,14 +4,12 @@
 {-# LANGUAGE ViewPatterns        #-}
 
 module Thentos.DB.Core
-  ( DbError(..)
-  , ThentosClearance(..)
+  ( ThentosClearance(..)
   , ThentosUpdate, ThentosUpdate'
   , runThentosUpdate
   , ThentosQuery, ThentosQuery'
   , runThentosQuery
   , liftThentosQuery
-  , showDbError
   , returnDb
   , throwDb
   , thentosPublic
@@ -34,54 +32,21 @@ module Thentos.DB.Core
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
 import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put)
 import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.EitherR (throwT)
-import Data.SafeCopy (SafeCopy, contain, putCopy, getCopy, safePut, safeGet)
-import Data.String.Conversions (ST)
-import Data.Typeable (Typeable)
 import LIO (canFlowTo)
 import LIO.DCLabel (DCLabel(DCLabel), ToCNF, (%%), (/\), (\/), toCNF)
-import Safe (readMay)
-import System.Log.Logger (Priority(INFO))
-import System.Log.Missing (logger)
 
 import Thentos.Types
 
 
 -- * types
 
--- FIXME: many of these aren't DB errors at all
-data DbError =
-      NoSuchUser
-    | NoSuchPendingUserConfirmation
-    | MalformedConfirmationToken ST
-    | NoSuchService
-    | NoSuchSession
-    | OperationNotPossibleInServiceSession
-    | ServiceAlreadyExists
-    | UserEmailAlreadyExists
-    | UserNameAlreadyExists
-    | PermissionDenied ThentosClearance ThentosLabel
-    | BadCredentials
-    | BadAuthenticationHeaders
-    | ProxyNotAvailable
-    | MissingServiceHeader
-    | ProxyNotConfiguredForService ServiceId
-    deriving (Eq, Ord, Show, Read, Typeable)
-
-instance SafeCopy DbError
-  where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
-
-
-type ThentosUpdate a = ThentosUpdate' (ThentosLabeled DbError) (ThentosLabeled a)
-type ThentosQuery  a = ThentosQuery'  (ThentosLabeled DbError) (ThentosLabeled a)
+type ThentosUpdate a = ThentosUpdate' (ThentosLabeled ThentosError) (ThentosLabeled a)
+type ThentosQuery  a = ThentosQuery'  (ThentosLabeled ThentosError) (ThentosLabeled a)
 
 type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
 type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
@@ -94,46 +59,27 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
     (, state) <$> runEitherT thentosQuery `runReaderT` state
 
 
--- | the type of this will change when servant has a better error type.
-showDbError :: MonadIO m => DbError -> m (Int, String)
-showDbError NoSuchUser                           = return (404, "user not found")
-showDbError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
-showDbError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
-showDbError NoSuchService                        = return (404, "service not found")
-showDbError NoSuchSession                        = return (404, "session not found")
-showDbError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-showDbError ServiceAlreadyExists                 = return (403, "service already exists")
-showDbError UserEmailAlreadyExists               = return (403, "email already in use")
-showDbError UserNameAlreadyExists                = return (403, "user name already in use")
-showDbError e@(PermissionDenied _ _)             = logger INFO (show e) >> return (401, "unauthorized")
-showDbError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
-showDbError BadAuthenticationHeaders             = return (400, "bad authentication headers")
-showDbError ProxyNotAvailable                    = return (404, "proxying not activated")
-showDbError MissingServiceHeader                 = return (404, "headers do not contain service id")
-showDbError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-
-
 -- | FIXME: generalize, so we can use this for both Update and Query.
 -- (remove 'runThentosQuery' and 'ThentosQuery' when done.)
-runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either DbError a)
+runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
 runThentosUpdate clearance action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
-        (Left (ThentosLabeled label (err :: DbError)), _) ->
+        (Left (ThentosLabeled label (err :: ThentosError)), _) ->
             checkClearance clearance label (return $ Left err)
         (Right (ThentosLabeled label result), state') ->
             checkClearance clearance label (put state' >> return (Right result))
 
-runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either DbError a)
+runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
 runThentosQuery clearance action = do
     state <- ask
     case runIdentity $ runReaderT (runEitherT action) state of
-        Left (ThentosLabeled label (err :: DbError)) ->
+        Left (ThentosLabeled label (err :: ThentosError)) ->
             checkClearance clearance label (return $ Left err)
         Right (ThentosLabeled label result) ->
             checkClearance clearance label (return $ Right result)
 
-checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either DbError a) -> m (Either DbError a)
+checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either ThentosError a) -> m (Either ThentosError a)
 checkClearance clearance label result =
     if fromThentosLabel label `canFlowTo` fromThentosClearance clearance
         then result
@@ -142,7 +88,7 @@ checkClearance clearance label result =
 returnDb :: Monad m => ThentosLabel -> a -> EitherT (ThentosLabeled e) m (ThentosLabeled a)
 returnDb l a = right $ ThentosLabeled l a
 
-throwDb :: Monad m => ThentosLabel -> DbError -> EitherT (ThentosLabeled DbError) m (ThentosLabeled a)
+throwDb :: Monad m => ThentosLabel -> ThentosError -> EitherT (ThentosLabeled ThentosError) m (ThentosLabeled a)
 throwDb l e = throwT $ ThentosLabeled l e
 
 

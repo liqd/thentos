@@ -61,22 +61,22 @@ import Thentos.Util
 -- * types
 
 type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
-type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either DbError ThentosClearance)
-type Action r = ReaderT (ActionState r) (EitherT DbError IO)
+type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either ThentosError ThentosClearance)
+type Action r = ReaderT (ActionState r) (EitherT ThentosError IO)
 
 
 -- * running actions
 
 runAction :: (MonadIO m, CPRG r) =>
-       ActionState (MVar r) -> Action (MVar r) a -> m (Either DbError a)
+       ActionState (MVar r) -> Action (MVar r) a -> m (Either ThentosError a)
 runAction actionState action =
     liftIO . eitherT (return . Left) (return . Right) $ action `runReaderT` actionState
 
 runAction' :: (MonadIO m, CPRG r) =>
-       (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either DbError a)
+       (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either ThentosError a)
 runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
 
-catchAction :: Action r a -> (DbError -> Action r a) -> Action r a
+catchAction :: Action r a -> (ThentosError -> Action r a) -> Action r a
 catchAction action handler =
     ReaderT $ \ state -> do
         EitherT $ do
@@ -96,14 +96,14 @@ logActionError action = action `catchAction` \ e -> do
 updateAction :: forall event a r .
                  ( UpdateEvent event
                  , EventState event ~ DB
-                 , EventResult event ~ Either DbError a
+                 , EventResult event ~ Either ThentosError a
                  ) => (ThentosClearance -> event) -> Action r a
 updateAction = accessAction Nothing update'
 
 queryAction :: forall event a r .
                  ( QueryEvent event
                  , EventState event ~ DB
-                 , EventResult event ~ Either DbError a
+                 , EventResult event ~ Either ThentosError a
                  ) => (ThentosClearance -> event) -> Action r a
 queryAction = accessAction Nothing query'
 
@@ -128,14 +128,14 @@ queryAction = accessAction Nothing query'
 -- that.)
 accessAction :: forall event a r .
                  ( EventState event ~ DB
-                 , EventResult event ~ Either DbError a
+                 , EventResult event ~ Either ThentosError a
                  ) => Maybe ThentosClearance
                    -> (AcidState (EventState event) -> event -> Action r (EventResult event))
                    -> (ThentosClearance -> event) -> Action r a
 accessAction overrideClearance access unclearedEvent = do
     ((st, _, _), clearanceAbs) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
-    clearanceE :: Either DbError ThentosClearance
+    clearanceE :: Either ThentosError ThentosClearance
         <- (>>= (`clearanceAbs` now)) <$> query' st (SnapShot allowEverything)
 
     case clearanceE of

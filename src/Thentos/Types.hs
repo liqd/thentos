@@ -13,6 +13,7 @@
 module Thentos.Types where
 
 import Control.Lens (makeLenses)
+import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Configurator.Types(Configured(convert), Value(String))
 import Data.Data (Typeable)
@@ -28,10 +29,13 @@ import LIO.Label (Label, canFlowTo, glb, lub)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
+import System.Log.Logger (Priority(INFO))
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
+
+import System.Log.Missing (logger)
 
 
 -- * db
@@ -253,6 +257,51 @@ instance Label ThentosClearance where
     lub (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ lub l l'
     glb (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ glb l l'
     canFlowTo (ThentosClearance l) (ThentosClearance l') = canFlowTo l l'
+
+
+-- * errors
+
+data ThentosError =
+      NoSuchUser
+    | NoSuchPendingUserConfirmation
+    | MalformedConfirmationToken ST
+    | NoSuchService
+    | NoSuchSession
+    | OperationNotPossibleInServiceSession
+    | ServiceAlreadyExists
+    | UserEmailAlreadyExists
+    | UserNameAlreadyExists
+    | PermissionDenied ThentosClearance ThentosLabel
+    | BadCredentials
+    | BadAuthenticationHeaders
+    | ProxyNotAvailable
+    | MissingServiceHeader
+    | ProxyNotConfiguredForService ServiceId
+    deriving (Eq, Ord, Show, Read, Typeable)
+
+instance SafeCopy ThentosError
+  where
+    putCopy = contain . safePut . show
+    getCopy = contain $ safeGet >>= \ raw ->
+      maybe (fail $ "instance SafeCopy ThentosError: no parse" ++ show raw) return . readMay $ raw
+
+-- | the type of this will change when servant has a better error type.
+showThentosError :: MonadIO m => ThentosError -> m (Int, String)
+showThentosError NoSuchUser                           = return (404, "user not found")
+showThentosError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
+showThentosError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
+showThentosError NoSuchService                        = return (404, "service not found")
+showThentosError NoSuchSession                        = return (404, "session not found")
+showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
+showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
+showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
+showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
+showThentosError e@(PermissionDenied _ _)             = logger INFO (show e) >> return (401, "unauthorized")
+showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
+showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
+showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
+showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
+showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 
 
 -- * boilerplate

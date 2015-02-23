@@ -43,7 +43,7 @@ import Thentos.Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-makeThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either DbError ThentosClearance
+makeThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either ThentosError ThentosClearance
 makeThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ UserPass password)
 makeThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
 makeThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
@@ -51,7 +51,7 @@ makeThentosClearance Nothing     Nothing        Nothing         Nothing    _  _ 
 makeThentosClearance _           _              _               _          _  _   = Left BadAuthenticationHeaders
 
 
-authenticateUser :: DB -> UserName -> Maybe UserPass -> Either DbError ThentosClearance
+authenticateUser :: DB -> UserName -> Maybe UserPass -> Either ThentosError ThentosClearance
 authenticateUser db name password = do
     (uid, user) :: (UserId, User)
         <- maybe (Left BadCredentials) Right $ pure_lookupUserByName db name
@@ -61,7 +61,7 @@ authenticateUser db name password = do
         else Left BadCredentials
 
 
-authenticateService :: DB -> ServiceId -> ServiceKey -> Either DbError ThentosClearance
+authenticateService :: DB -> ServiceId -> ServiceKey -> Either ThentosError ThentosClearance
 authenticateService db sid keyFromClient = do
     (_, Service hashedServiceKey Nothing)
         <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
@@ -82,11 +82,11 @@ makeClearance_ agent roles = s *%% i
     i = foldr (\/) (toCNF agent) roles
 
 
-authenticateSession :: DB -> TimeStamp -> SessionToken -> Either DbError ThentosClearance
+authenticateSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError ThentosClearance
 authenticateSession db now tok = getUserFromSession db now tok
     >>= \ user -> authenticateUser db (user ^. userName) Nothing
 
-getUserFromSession :: DB -> TimeStamp -> SessionToken -> Either DbError User
+getUserFromSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError User
 getUserFromSession db now tok = do
     uid <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session (UserA uid) _ _ _) -> Right uid

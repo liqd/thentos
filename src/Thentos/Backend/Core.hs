@@ -34,7 +34,7 @@ import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
 
 import Thentos.Api
-import Thentos.DB
+import Thentos.Types
 
 
 type RestAction      = Action (MVar SystemRNG)
@@ -67,7 +67,7 @@ instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
 
 instance PushActionC (RestActionRaw a) where
     type PushActionSubRoute (RestActionRaw a) = RestAction a
-    pushAction restState restAction = fmapLTM showDbError $ runReaderT restAction restState
+    pushAction restState restAction = fmapLTM showThentosError $ runReaderT restAction restState
 
 -- | For handling 'Raw'.  (The 'Application' type has been stripped of
 -- its arguments by the time the compiler will find this instance.)

@@ -132,6 +132,6 @@ catchProxy cont action =
         EitherT $ do
             outcome <- runEitherT $ action `runReaderT` state
             case outcome of
-                Left e -> showDbError e >>= \ (status, msg) -> Right <$>
+                Left e -> showThentosError e >>= \ (status, msg) -> Right <$>
                               cont (S.responseLBS (T.Status status (cs msg)) [] (cs msg))
                 Right r -> return $ Right r

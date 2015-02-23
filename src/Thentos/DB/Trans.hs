@@ -88,7 +88,7 @@ checkAllDbInvs uid user = checkDbInvs $
     dbInvUserAspectUnique UserNameAlreadyExists uid user (^. userName) :
     []
 
-checkDbInvs :: [DB -> Either DbError ()] -> ThentosQuery ()
+checkDbInvs :: [DB -> Either ThentosError ()] -> ThentosQuery ()
 checkDbInvs invs = do
     let label = thentosDenied
 
@@ -101,7 +101,7 @@ checkDbInvs invs = do
 
 -- | This function builds a set of the aspects of all users on the
 -- fly.  This may or may not be bad for performance.
-dbInvUserAspectUnique :: (Ord aspect) => DbError -> UserId -> User -> (User -> aspect) -> DB -> Either DbError ()
+dbInvUserAspectUnique :: (Ord aspect) => ThentosError -> UserId -> User -> (User -> aspect) -> DB -> Either ThentosError ()
 dbInvUserAspectUnique errorMsg uid user toAspect db =
     if length vs == length vs'
         then Right ()
@@ -607,90 +607,90 @@ trans_snapShot = do
 
 -- FIXME: this section should be entirely constructed by TemplateHaskell
 
-allUserIds :: ThentosClearance -> Query DB (Either DbError [UserId])
+allUserIds :: ThentosClearance -> Query DB (Either ThentosError [UserId])
 allUserIds clearance = runThentosQuery clearance trans_allUserIds
 
-lookupUser :: UserId -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUser :: UserId -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
 lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
 
-lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
 lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
 
-lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either DbError (UserId, User))
+lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
 lookupUserByEmail email clearance = runThentosQuery clearance $ trans_lookupUserByEmail email
 
-addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either DbError (UserId, ConfirmationToken))
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either ThentosError (UserId, ConfirmationToken))
 addUnconfirmedUser token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser token user
 
-finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either DbError UserId)
+finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
 finishUserRegistration token clearance =
     runThentosUpdate clearance $ trans_finishUserRegistration token
 
-addUser :: User -> ThentosClearance -> Update DB (Either DbError UserId)
+addUser :: User -> ThentosClearance -> Update DB (Either ThentosError UserId)
 addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 
-addUsers :: [User] -> ThentosClearance -> Update DB (Either DbError [UserId])
+addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
 addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 
-updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either DbError ())
+updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
 
-updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either DbError ())
+updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
 
-deleteUser :: UserId -> ThentosClearance -> Update DB (Either DbError ())
+deleteUser :: UserId -> ThentosClearance -> Update DB (Either ThentosError ())
 deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
 
-allServiceIds :: ThentosClearance -> Query DB (Either DbError [ServiceId])
+allServiceIds :: ThentosClearance -> Query DB (Either ThentosError [ServiceId])
 allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 
-lookupService :: ServiceId -> ThentosClearance -> Query DB (Either DbError (ServiceId, Service))
+lookupService :: ServiceId -> ThentosClearance -> Query DB (Either ThentosError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
 
-addService :: ServiceId -> HashedSecret ServiceKey -> ThentosClearance -> Update DB (Either DbError ())
+addService :: ServiceId -> HashedSecret ServiceKey -> ThentosClearance -> Update DB (Either ThentosError ())
 addService sid key clearance = runThentosUpdate clearance $ trans_addService sid key
 
-deleteService :: ServiceId -> ThentosClearance -> Update DB (Either DbError ())
+deleteService :: ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
 deleteService sid clearance = runThentosUpdate clearance $ trans_deleteService sid
 
-allSessionTokens :: ThentosClearance -> Query DB (Either DbError [SessionToken])
+allSessionTokens :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens
 
-lookupSessionQ :: Maybe TimeStamp -> SessionToken -> ThentosClearance -> Query DB (Either DbError (SessionToken, Session))
+lookupSessionQ :: Maybe TimeStamp -> SessionToken -> ThentosClearance -> Query DB (Either ThentosError (SessionToken, Session))
 lookupSessionQ mNow tok clearance = runThentosQuery clearance $ trans_lookupSessionQ mNow tok
 
-lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosClearance -> Update DB (Either DbError (SessionToken, Session))
+lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError (SessionToken, Session))
 lookupSession mNow tok clearance = runThentosUpdate clearance $ trans_lookupSession mNow tok
 
-startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either DbError SessionToken)
+startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either ThentosError SessionToken)
 startSession tok agent start lifetime clearance = runThentosUpdate clearance $ trans_startSession tok agent start lifetime
 
-endSession :: SessionToken -> ThentosClearance -> Update DB (Either DbError ())
+endSession :: SessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
 endSession tok clearance = runThentosUpdate clearance $ trans_endSession tok
 
-isActiveSession :: TimeStamp -> SessionToken -> ThentosClearance -> Query DB (Either DbError Bool)
+isActiveSession :: TimeStamp -> SessionToken -> ThentosClearance -> Query DB (Either ThentosError Bool)
 isActiveSession now tok clearance = runThentosQuery clearance $ trans_isActiveSession now tok
 
-isActiveSessionAndBump :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either DbError Bool)
+isActiveSessionAndBump :: TimeStamp -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
 isActiveSessionAndBump now tok clearance = runThentosUpdate clearance $ trans_isActiveSessionAndBump now tok
 
-isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either DbError Bool)
+isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError Bool)
 isLoggedIntoService now tok sid clearance = runThentosUpdate clearance $ trans_isLoggedIntoService now tok sid
 
-garbageCollectSessions :: ThentosClearance -> Query DB (Either DbError [SessionToken])
+garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
-assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either DbError ())
+assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
 assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
 
-unassignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either DbError ())
+unassignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
 unassignRole agent role clearance = runThentosUpdate clearance $ trans_unassignRole agent role
 
-lookupAgentRoles :: Agent -> ThentosClearance -> Query DB (Either DbError [Role])
+lookupAgentRoles :: Agent -> ThentosClearance -> Query DB (Either ThentosError [Role])
 lookupAgentRoles agent clearance = runThentosQuery clearance $ trans_lookupAgentRoles agent
 
-snapShot :: ThentosClearance -> Query DB (Either DbError DB)
+snapShot :: ThentosClearance -> Query DB (Either ThentosError DB)
 snapShot clearance = runThentosQuery clearance trans_snapShot
 
 
