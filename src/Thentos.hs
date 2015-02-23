@@ -17,7 +17,7 @@ module Thentos (main) where
 
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (bracket, finally)
+import Control.Exception (bracket_, finally)
 import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
@@ -43,7 +43,8 @@ main :: IO ()
 main =
   do
     let notify :: String -> IO a -> IO a
-        notify msg action = bracket (logger INFO msg) (\ _ -> logger INFO $ msg ++ ": [ok]") (\ _ -> action)
+        notify msg action = bracket_ (logger INFO msg)
+                                     (logger INFO $ msg ++ ": [ok]") action
 
     st :: AcidState DB <- notify "setting up acid-state" $ openLocalStateFrom ".acid-state/" emptyDB
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
