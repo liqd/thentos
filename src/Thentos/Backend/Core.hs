@@ -20,6 +20,7 @@ module Thentos.Backend.Core
 where
 
 import Control.Applicative ((<$>))
+import Control.Exception (assert)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Data.CaseInsensitive (CI)
@@ -81,7 +82,7 @@ instance PushActionC (IO ResponseReceived) where
     type PushActionSubRoute (IO ResponseReceived) = RestAction ResponseReceived
     pushAction restState restAction = (either crash id <$>) . runEitherT $ runReaderT restAction restState
       where
-        crash x = error $ "[PushActionC for Raw] somebody threw an error, but we can't handle those yet: "
+        crash x = assert False $ error $ "[PushActionC for Raw] somebody threw an error, but we can't handle those yet: "
                     ++ show x
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the
