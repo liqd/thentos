@@ -32,10 +32,11 @@ library
     , Thentos.Backend.Core
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Api.Proxy
+    , Thentos.Backend.Api.Adhocracy3
     , Thentos.Frontend
     , Thentos.Frontend.Pages
-    , Thentos.Frontend.Mail
     , Thentos.Frontend.Util
+    , Thentos.Smtp
     , System.Log.Missing
   build-depends:
       base
@@ -61,7 +62,7 @@ library
     , http-types
     , lens
     , lio
-    , mime-mail
+    , mime-mail >= 0.4.8
     , mtl
     , old-locale
     , optparse-applicative
@@ -115,6 +116,7 @@ test-suite tests
   other-modules:
       Test.Config
     , Test.Thentos.Backend.Api.Simple
+    , Test.Thentos.Backend.Api.Adhocracy3
     , Test.Thentos.Types
     , Test.Util
   ghc-options:
@@ -127,14 +129,18 @@ test-suite tests
 
     , acid-state
     , aeson
+    , aeson-pretty
     , attoparsec
     , bytestring
     , cereal
+    , containers
     , crypto-random
     , functor-infix
     , hspec
     , http-types
+    , lens
     , lio
+    , mime-mail
     , mtl
     , pretty-show
     , QuickCheck
@@ -143,6 +149,8 @@ test-suite tests
     , servant-server
     , string-conversions
     , system-fileio
+    , text
     , thyme
+    , transformers
     , wai
     , wai-extra

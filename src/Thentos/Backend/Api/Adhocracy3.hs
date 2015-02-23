@@ -23,37 +23,44 @@ module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (assert)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT, left)
+import Control.Monad.Trans.Either (left)
+import Control.Monad.Trans.Reader (ask)
 import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (catMaybes)
+import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
+import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Network.Wai (Request, Response, ResponseReceived, Application)
-import Safe (readMay)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Docs (HasDocs, docsFor, docs, markdown)
-import Servant.Server.Internal (HasServer, Server, route)
+import Safe (readMay, fromJustNote)
+import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody)
+import Servant.Server.Internal (Server)
 import Servant.Server (serve)
+import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
+import System.Log (Priority(DEBUG))
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 
+import System.Log.Missing
 import Thentos.Api
 import Thentos.Backend.Api.Proxy
-import Thentos.Backend.Core (RestAction, RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.DB
 import Thentos.Doc ()
+import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
 
@@ -78,8 +85,11 @@ instance Show ContentType where
 instance Read ContentType where
     readsPrec = readsPrecEnumBoundedShow
 
-instance ToJSON ContentType
-instance FromJSON ContentType
+instance ToJSON ContentType where
+    toJSON = Aeson.String . cs . show
+
+instance FromJSON ContentType where
+    parseJSON = Aeson.withText "content type string" $ maybe mzero return . readMay . cs
 
 data PropertySheet =
       PSUserBasic
@@ -101,65 +111,90 @@ data A3Resource a = A3Resource (Maybe Path) (Maybe ContentType) (Maybe a)
 
 instance ToJSON a => ToJSON (A3Resource a) where
     toJSON (A3Resource p ct r) =
-        case Aeson.toJSON r of
-            Object v -> object $ "path" .= p : "content_type" .= ct : HashMap.toList v
+        object $ "path" .= p : "content_type" .= ct : case Aeson.toJSON <$> r of
+            Just (Object v) -> HashMap.toList v
+            Nothing -> []
+            Just _ -> []
 
 instance FromJSON a => FromJSON (A3Resource a) where
     parseJSON = withObject "resource object" $ \ v -> do
-        A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*> Aeson.parseJSON (Object v)
+        A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*>
+            if "data" `HashMap.member` v
+                then Just <$> Aeson.parseJSON (Object v)
+                else pure Nothing
 
 
 -- ** individual resources
 
-newtype A3User = A3User { fromA3User :: UserFormData }
+newtype A3UserNoPass = A3UserNoPass { fromA3UserNoPass :: UserFormData }
   deriving (Eq, Show, Typeable, Generic)
 
-instance ToJSON A3User where
-    toJSON (A3User (UserFormData name _ email)) = object
-        [ "content_type" .= CTUser
-        , "data" .= object
-            [ cshow PSUserBasic .= object
-                [ "name" .= name
-                , "email" .= email
-                ]
+newtype A3UserWithPass = A3UserWithPass { fromA3UserWithPass :: UserFormData }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance ToJSON A3UserNoPass where
+    toJSON (A3UserNoPass user) = a3UserToJSON False user
+
+instance ToJSON A3UserWithPass where
+    toJSON (A3UserWithPass user) = a3UserToJSON True user
+
+instance FromJSON A3UserNoPass where
+    parseJSON value = A3UserNoPass <$> a3UserFromJSON False value
+
+instance FromJSON A3UserWithPass where
+    parseJSON value = A3UserWithPass <$> a3UserFromJSON True value
+
+a3UserToJSON :: Bool -> UserFormData -> Aeson.Value
+a3UserToJSON withPass (UserFormData name password email) = object
+    [ "content_type" .= CTUser
+    , "data" .= object (catMaybes
+        [ Just $ cshow PSUserBasic .= object
+            [ "name" .= name
+            , "email" .= email
             ]
-        ]
+        , if withPass
+            then Just $ cshow PSPasswordAuthentication .= object ["password" .= password]
+            else Nothing
+        ])
+    ]
 
-instance FromJSON A3User where
-    parseJSON = withObject "resource object" $ \ v -> do
-        content_type :: ContentType <- v .: "content_type"
-        when (content_type /= CTUser) $
-            fail $ "wrong content type: " ++ show content_type
-        name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-        password     <- v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
-        email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
-        when (not $ userNameValid name) $
-            fail $ "malformed user name: " ++ show name
-        when (not $ emailValid name) $
-            fail $ "malformed email address: " ++ show email
-        when (not $ passwordGood name) $
-            fail $ "bad password: " ++ show password
-        return . A3User $ UserFormData (UserName name) (textToPassword password) (UserEmail email)
+a3UserFromJSON :: Bool -> Aeson.Value -> Aeson.Parser UserFormData
+a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
+    content_type :: ContentType <- v .: "content_type"
+    when (content_type /= CTUser) $
+        fail $ "wrong content type: " ++ show content_type
+    name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
+    email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
+    password     <- if withPass
+        then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
+        else pure ""
+    when (not $ userNameValid name) $
+        fail $ "malformed user name: " ++ show name
+    when (not $ emailValid name) $
+        fail $ "malformed email address: " ++ show email
+    when (withPass && not (passwordGood name)) $
+        fail $ "bad password: " ++ show password
+    return $ UserFormData (UserName name) (UserPass password) (UserEmail email)
 
--- | FIXME: not implemented.
---
--- constraints on user name: The "name" field in the "IUserBasic"
+-- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
 -- '@' (to make user names distinguishable from email addresses). The
 -- username must not contain any whitespace except single spaces,
 -- preceded and followed by non-whitespace (no whitespace at begin or
 -- end, multiple subsequent spaces are forbidden, tabs and newlines
 -- are forbidden).
+--
+-- FIXME: not implemented.
 userNameValid :: ST -> Bool
 userNameValid _ = True
 
--- | FIXME: not implemented.
+-- | RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
 --
---  RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
+-- FIXME: not implemented.
 emailValid :: ST -> Bool
 emailValid _ = True
 
--- | FIXME: not implemented.  (or not very sophisticatedly.)
+-- | Only an empty password is a bad password.
 passwordGood :: ST -> Bool
 passwordGood "" = False
 passwordGood _ = True
@@ -181,6 +216,9 @@ data RequestResult =
   | RequestError [ST]
   deriving (Eq, Show, Typeable, Generic)
 
+instance ToJSON ActivationRequest where
+    toJSON (ActivationRequest p) = object ["path" .= p]
+
 instance FromJSON ActivationRequest where
     parseJSON = withObject "activation request" $ \ v -> do
         p :: ST <- v .: "path"
@@ -188,11 +226,15 @@ instance FromJSON ActivationRequest where
             fail $ "ActivationRequest with malformed path: " ++ show p
         return . ActivationRequest . Path $ p
 
+instance ToJSON LoginRequest where
+    toJSON (LoginByName  n p) = object ["name"  .= n, "password" .= p]
+    toJSON (LoginByEmail e p) = object ["email" .= e, "password" .= p]
+
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
-        n <- UserName       <$$> v .:? "name"
-        e <- UserEmail      <$$> v .:? "email"
-        p <- textToPassword <$>  v .: "password"
+        n <- UserName  <$$> v .:? "name"
+        e <- UserEmail <$$> v .:? "email"
+        p <- UserPass  <$>  v .: "password"
         case (n, e) of
           (Just x,  Nothing) -> return $ LoginByName x p
           (Nothing, Just x)  -> return $ LoginByEmail x p
@@ -200,14 +242,22 @@ instance FromJSON LoginRequest where
 
 instance ToJSON RequestResult where
     toJSON (RequestSuccess p t) = object $
-        "status" .= ("success" :: String) :
+        "status" .= ("success" :: ST) :
         "user_path" .= p :
         "token" .= t :
         []
     toJSON (RequestError es) = object $
-        "status" .= ("error" :: String) :
+        "status" .= ("error" :: ST) :
         "errors" .= map (\ d -> object ["description" .= d, "location" .= (), "name" .= ()]) es :
         []
+
+instance FromJSON RequestResult where
+    parseJSON = withObject "request result" $ \ v -> do
+        n :: ST <- v .: "status"
+        case n of
+            "success" -> RequestSuccess <$> v .: "user_path" <*> v .: "token"
+            "error" -> RequestError <$> v .: "errors"
+            _ -> mzero
 
 
 -- * main
@@ -229,7 +279,7 @@ serveApi = serve (Proxy :: Proxy App) . app
 -- @/login_email@.  This makes implementing all sides of the protocol
 -- a lot easier without sacrificing security.
 type App =
-       "principals" :> "users" :> ReqBody A3User :> Post (A3Resource ())  -- FIXME: this will probably crash because '()' is not a json object.
+       "principals" :> "users" :> ReqBody A3UserWithPass :> Post (A3Resource A3UserNoPass)
   :<|> "activate_account"      :> ReqBody ActivationRequest :> Post RequestResult
   :<|> "login_username"        :> ReqBody LoginRequest :> Post RequestResult
   :<|> "login_email"           :> ReqBody LoginRequest :> Post RequestResult
@@ -248,34 +298,36 @@ app asg = p $
 
 -- * handler
 
-addUser :: A3User -> RestAction (A3Resource ())
-addUser a3user = do
-    (uid :: UserId, _ :: ConfirmationToken) <- addUnconfirmedUser $ fromA3User a3user
-
-    -- FIXME: send confirmation email
-
-    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) Nothing
-
-    -- FIXME: catch errors and respond with RequestError
+addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
+addUser (A3UserWithPass user) = logActionError $ do
+    logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
+    ((_, _, config :: ThentosConfig), _) <- ask
+    (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
+    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> enctok
+        feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
+        enctok :: SBS = urlEncode . cs . fromConfimationToken $ tok
+    liftIO $ sendUserConfirmationMail (emailSender config) user activationUrl
+    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 
 activate :: ActivationRequest -> RestAction RequestResult
-activate (ActivationRequest p) = do
+activate (ActivationRequest p) = logActionError $ do
+    logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     ctok :: ConfirmationToken <- confirmationTokenFromPath p
     uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
     stok :: SessionToken      <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
-    -- FIXME: catch errors and respond with RequestError
-
 
 -- | FIXME: check password!
 login :: LoginRequest -> RestAction RequestResult
-login (LoginByName uname _) = do
+login r@(LoginByName uname _) = logActionError $ do
+    logger DEBUG $ "route login (name):" <> show r
     (uid, _)             <- queryAction $ LookupUserByName uname
     stok :: SessionToken <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
-login (LoginByEmail uemail _) = do
+login r@(LoginByEmail uemail _) = logActionError $ do
+    logger DEBUG $ "route login (email):" <> show r
     (uid, _)             <- queryAction $ LookupUserByEmail uemail
     stok :: SessionToken <- startSessionNow (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
@@ -295,4 +347,8 @@ userIdFromPath (Path s) = maybe (lift . left $ NoSuchUser) return $
     prefix = "/principals/users/"
 
 confirmationTokenFromPath :: Path -> RestAction ConfirmationToken
-confirmationTokenFromPath = assert False $ error "confirmationTokenFromPath"
+confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
+    (s, s') | s == prefix -> return $ ConfirmationToken s'
+    _ -> lift . left $ MalformedConfirmationToken p
+  where
+    prefix = "/activate/"

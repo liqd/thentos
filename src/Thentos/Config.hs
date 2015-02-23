@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
+-- | FIXME: we need to find a less verbose way to combine command line
+-- arguments with data from config file.  See also: #1673, #1694.
 module Thentos.Config
     ( getCommand
     , configLogger
@@ -16,6 +18,7 @@ import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
 import Data.Map (Map)
 import Data.Monoid (Monoid(..), (<>))
+import Network.Mail.Mime (Address(Address))
 import Options.Applicative (command, info, progDesc, long, short, auto, option, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
 import Safe (readDef)
@@ -36,7 +39,8 @@ import Thentos.Types
 -- * the config type used by everyone else
 
 data ThentosConfig = ThentosConfig
-    { frontendConfig :: Maybe FrontendConfig
+    { emailSender :: Address
+    , frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     , proxyConfig :: Maybe ProxyConfig
     , defaultUser :: Maybe (UserFormData, [Role])
@@ -53,7 +57,7 @@ data ProxyConfig = ProxyConfig { proxyTargets :: Map ServiceId String }
   deriving (Eq, Show)
 
 emptyThentosConfig :: ThentosConfig
-emptyThentosConfig = ThentosConfig Nothing Nothing Nothing Nothing
+emptyThentosConfig = ThentosConfig (Address Nothing "") Nothing Nothing Nothing Nothing
 
 
 -- * combining (partial) configurations from multiple sources
@@ -61,6 +65,7 @@ emptyThentosConfig = ThentosConfig Nothing Nothing Nothing Nothing
 data ThentosConfigBuilder = ThentosConfigBuilder
     { bRunFrontend :: Maybe Bool
     , bRunBackend :: Maybe Bool
+    , bEmailSender :: Maybe Address
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
     , bProxyConfig :: ProxyConfigBuilder
@@ -91,27 +96,34 @@ instance Monoid ProxyConfigBuilder where
             { bProxyTarget = bProxyTarget b1 <|> bProxyTarget b2 }
 
 instance Monoid ThentosConfigBuilder where
-    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty Nothing
+    mempty = ThentosConfigBuilder Nothing Nothing Nothing mempty mempty mempty Nothing
     b1 `mappend` b2 =
         ThentosConfigBuilder
             (bRunFrontend b1 <|> bRunFrontend b2)
             (bRunBackend b1 <|> bRunBackend b2)
+            (bEmailSender b1 <|> bEmailSender b2)
             (bBackendConfig b1 <> bBackendConfig b2)
             (bFrontendConfig b1 <> bFrontendConfig b2)
             (bProxyConfig b1 <> bProxyConfig b2)
             (bDefaultUser b1 <|> bDefaultUser b2)
 
-data ConfigError = FrontendConfigMissing | BackendConfigMissing | UnknownRoleForDefaultUser String
+data ConfigError =
+    FrontendConfigMissing
+  | BackendConfigMissing
+  | UnknownRoleForDefaultUser String
+  | NoEmailSender
   deriving (Eq, Show)
 
 finaliseConfig :: ThentosConfigBuilder -> Either ConfigError ThentosConfig
 finaliseConfig builder =
     ThentosConfig
-        <$> frontendConf
+        <$> emailSenderConf
+        <*> frontendConf
         <*> backendConf
         <*> proxyConf
         <*> defaultUserConf
   where
+    emailSenderConf = maybe (Left NoEmailSender) Right $ bEmailSender builder
     backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
         (Just True, Nothing) -> Left BackendConfigMissing
         (Just True, bConf) -> Right bConf
@@ -139,6 +151,10 @@ finaliseCommand filePath (BRun cmdLineConfigBuilder) = do
     fileConfigBuilder <- parseConfigFile filePath
     let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
     return $ Run <$> finalConfig
+finaliseCommand filePath (BRunA3 cmdLineConfigBuilder) = do
+    fileConfigBuilder <- parseConfigFile filePath
+    let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
+    return $ RunA3 <$> finalConfig
 
 getCommand :: FilePath -> IO (Either ConfigError Command)
 getCommand filePath = do
@@ -152,24 +168,29 @@ parseCommandBuilder :: IO CommandBuilder
 parseCommandBuilder = execParser opts
   where
     parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
+                         command "runa3" (info parseRunA3 (progDesc "run with a3 backend")) <>
                          command "docs" (info (pure BDocs) (progDesc "show")) <>
                          command "showdb" (info (pure BShowDB) (progDesc "show"))
     opts = info parser mempty
 
-data Command = Run ThentosConfig | ShowDB | Docs
+data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB | Docs
   deriving (Eq, Show)
 
 data CommandBuilder =
-    BRun ThentosConfigBuilder | BShowDB | BDocs
+    BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB | BDocs
 
 parseRun :: Parser CommandBuilder
 parseRun = BRun <$> parseThentosConfig
+
+parseRunA3 :: Parser CommandBuilder
+parseRunA3 = BRunA3 <$> parseThentosConfig
 
 parseThentosConfig :: Parser ThentosConfigBuilder
 parseThentosConfig =
     ThentosConfigBuilder <$>
         parseRunFrontend <*>
         parseRunBackend <*>
+        pure Nothing <*>
         parseBackendConfigBuilder <*>
         parseFrontendConfigBuilder <*>
         parseProxyConfigBuilder <*>
@@ -239,9 +260,13 @@ parseConfigFile filePath = do
             let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.
             return (u, map (\ r -> readDef (e r) r) rs)
 
+        getEmail :: Maybe Address
+        getEmail = Address (get "email_sender_name") <$> get "email_sender_address"
+
     return $ ThentosConfigBuilder
                 (get "run_frontend")
                 (get "run_backend")
+                getEmail
                 (BackendConfigBuilder $ get "backend_port")
                 (FrontendConfigBuilder $ get "frontend_port")
                 (ProxyConfigBuilder $ Map.fromList <$> get "proxy_targets")

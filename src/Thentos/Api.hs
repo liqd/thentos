@@ -16,6 +16,7 @@ module Thentos.Api
   , ActionState
   , Action
   , runAction', runAction
+  , catchAction, logActionError
   , updateAction
   , queryAction
   , addUnconfirmedUser
@@ -37,8 +38,8 @@ import Control.Concurrent.MVar (MVar, modifyMVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT, left, eitherT)
-import Control.Monad.Trans.Reader (ReaderT, ask, runReaderT)
+import Control.Monad.Trans.Either (EitherT(EitherT), left, eitherT, runEitherT)
+import Control.Monad.Trans.Reader (ReaderT(ReaderT), ask, runReaderT)
 import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
@@ -46,9 +47,11 @@ import Data.Maybe (fromMaybe)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme.Time ()
 import Data.Thyme (UTCTime, getCurrentTime)
+import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
 
+import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.DB
 import Thentos.Types
@@ -72,6 +75,20 @@ runAction actionState action =
 runAction' :: (MonadIO m, CPRG r) =>
        (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either DbError a)
 runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
+
+catchAction :: Action r a -> (DbError -> Action r a) -> Action r a
+catchAction action handler =
+    ReaderT $ \ state -> do
+        EitherT $ do
+            outcome <- runEitherT $ action `runReaderT` state
+            case outcome of
+                Left e -> runEitherT $ (handler e) `runReaderT` state
+                Right v -> return $ Right v
+
+logActionError :: Action r a -> Action r a
+logActionError action = action `catchAction` \ e -> do
+    logger DEBUG $ "error: " ++ show e
+    lift $ left e
 
 
 -- * actions and acid-state

@@ -122,6 +122,11 @@ getRqMod req = do
 -- | This is a work-around for the fact that we can't write an
 -- instance for 'Application'.  See FIXME in the corresponding
 -- 'PushActionC' instance.
+--
+-- (There is some redundancy between here and 'catchAction'.  Not sure
+-- if we should spend time cleaning that up, or if we should wait for
+-- something to happen to 'Raw' that cleans up this function
+-- automatically.)
 catchProxy :: forall r . (r ~ S.ResponseReceived) => (S.Response -> IO r) -> RestAction r -> RestAction r
 catchProxy cont action =
     ReaderT $ \ state ->
