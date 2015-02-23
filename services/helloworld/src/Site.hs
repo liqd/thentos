@@ -96,8 +96,8 @@ helloWorldLogin :: Handler App App ()
 helloWorldLogin = do
     hwConfig <- gets aHWConfig
     redirect'
-        (thentosFrontendUrl hwConfig <> "/login?sid=" <> (serviceId hwConfig) <> "&redirect="
-            <> urlEncode (helloWorldUrl hwConfig <> "/app?foo=bar"))
+        (thentosFrontendUrl hwConfig <> "/login?sid=" <> (urlEncode $ serviceId hwConfig) <> "&redirect="
+            <> urlEncode (helloWorldUrl hwConfig <> "/app"))
         303
 
 -- | FIXME: notify thentos that user is logged out of service.  this
@@ -112,7 +112,7 @@ tokenOk (Just token) = do
     hwConfig <- gets aHWConfig
     let sid = serviceId hwConfig
         key = serviceKey hwConfig
-        url = thentosBackendUrl hwConfig <> "/session/" <> token <> "/login/" <> sid
+        url = thentosBackendUrl hwConfig <> "/session/" <> urlEncode token <> "/login/" <> urlEncode sid
     liftIO . withManager $ do
         initReq <- parseUrl $ BC.unpack url
         let req = initReq

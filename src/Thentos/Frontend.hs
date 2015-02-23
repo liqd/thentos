@@ -7,7 +7,6 @@ module Thentos.Frontend (runFrontend) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (assert)
 import Control.Lens (makeLenses, view, (^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
@@ -19,7 +18,7 @@ import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8', encodeUtf8)
 import Snap.Blaze (blaze)
-import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop)
+import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
@@ -88,7 +87,7 @@ userAddHandler = do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
-                                <> "/signup_confirm?token=" <> encodeUtf8 token
+                                <> "/signup_confirm?token=" <> urlEncode (encodeUtf8 token)
                     liftIO $ sendUserConfirmationMail (emailSender config) user url
                     blaze "Please check your email!"
                 Left e -> blaze . errorPage $ show e
