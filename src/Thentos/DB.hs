@@ -1,5 +1,9 @@
-module Thentos.DB (module Everything) where
+module Thentos.DB
+  ( module Thentos.DB.Core
+  , module Thentos.DB.Trans
+  , module Thentos.DB.Protect
+  ) where
 
-import Thentos.DB.Core as Everything
-import Thentos.DB.Trans as Everything
-import Thentos.DB.Protect as Everything
+import Thentos.DB.Core
+import Thentos.DB.Trans
+import Thentos.DB.Protect
