@@ -17,7 +17,7 @@ module Thentos (main) where
 
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (SomeException, throw, catch)
+import Control.Exception (finally)
 import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
@@ -96,5 +96,4 @@ main =
             removeAllHandlers
             putStrLn " [ok]"
 
-    catch run (\ (e :: SomeException) -> finalize >> throw e)
-    finalize
+    run `finally` finalize
