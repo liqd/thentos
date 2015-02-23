@@ -1,15 +1,23 @@
 name:                thentos
 version:             0.0.1
--- synopsis:
--- description:
+synopsis:            Privacy-preserving identity management on the web
+description:
+  This is an experimental platform for identity management in web
+  applications, inspired by software like shibboleth and sproxy.  See
+  README.md for more (if still a bit sketchy) details.
 license:             AGPL-3
 license-file:        LICENSE
-author:              Matthias Fischmann
-maintainer:          mf@zerobuzz.net
--- copyright:
--- category:
+homepage:            https://github.com/liqd/thentos
+author:              Matthias Fischmann, Florian Hartwig
+maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de
+copyright:           liquid democracy e.V. (https://liqd.net/)
+category:            Authentication
 build-type:          Simple
 cabal-version:       >= 1.10
+
+Source-Repository head
+  type: git
+  location: https://github.com/liqd/thentos
 
 library
   default-language:
@@ -117,12 +125,16 @@ executable build-docs
       base
     , thentos ==0.0.1
 
+    , blaze-markup
     , directory
     , filepath
     , functor-infix
+    , pandoc
     , process
+    , safe
     , servant
     , servant-docs
+    , servant-pandoc
     , thyme
 
 test-suite tests

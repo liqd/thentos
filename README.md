@@ -87,7 +87,7 @@ To run the tests:
 
 ```shell
 $ cabal test
-$ cabal run -- run --runbackend --runfrontend
+$ cabal run -- thentos run --runbackend --runfrontend
 $ cabal bench  # requires thentos to be running  (FIXME: not in `master` branch yet)
 ```
 
