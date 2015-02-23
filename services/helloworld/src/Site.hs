@@ -74,6 +74,10 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
     loadConfig :: IO (Maybe HWConfig)
     loadConfig = do
         config <- Configurator.load [Configurator.Required "devel.config"]
+          -- (config file is hard-coded, but that's ok.  this is just
+          -- trying to be a helloworld app to test and demonstrate
+          -- some thentos concepts, not production code.)
+
         HWConfig <$$>
             Configurator.lookup config "thentos_backend_url" <**>
             Configurator.lookup config "thentos_frontend_url" <**>
