@@ -24,20 +24,21 @@ import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
 import Text.Digestive.Snap (runForm)
+import System.Log (Priority(DEBUG, INFO, WARNING))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 
+import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Config
 import Thentos.DB
-import Thentos.Types
-import Thentos.Util
-
 import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
 import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Smtp (sendUserConfirmationMail)
+import Thentos.Types
+import Thentos.Util
 
 
 data FrontendApp =
@@ -90,7 +91,7 @@ userAddHandler = do
                                 <> "/signup_confirm?token=" <> urlEncode (encodeUtf8 token)
                     liftIO $ sendUserConfirmationMail (emailSender config) user url
                     blaze "Please check your email!"
-                Left e -> blaze . errorPage $ show e
+                Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
@@ -100,8 +101,8 @@ userAddConfirmHandler = do
             result <- update $ FinishUserRegistration token allowEverything
             case result of
                 Right uid -> blaze $ userAddedPage uid
-                Left e -> blaze . errorPage $ show e
-        Left unicodeError -> blaze . errorPage $ show unicodeError
+                Left e -> logger INFO (show e) >> blaze (errorPage "finializing registration failed.")
+        Left unicodeError -> logger DEBUG (show unicodeError) >> blaze (errorPage $ show unicodeError)
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage
@@ -111,7 +112,7 @@ serviceAddedHandler = do
     result <- snapRunAction' allowEverything addService
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
-        Left e -> blaze . errorPage $ show e
+        Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
 
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do
@@ -129,7 +130,7 @@ loginHandler = do
                         then loginSuccess uid sid
                         else loginFail
                 Left NoSuchUser -> loginFail
-                Left e -> blaze . errorPage $ show e
+                Left e -> logger WARNING (show e) >> loginFail
   where
     loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
@@ -150,7 +151,7 @@ loginHandler = do
                         addServiceLogin tok sid
                         return tok
                 case eSessionToken of
-                    Left e -> blaze . errorPage $ show e
+                    Left e -> logger INFO (show e) >> blaze (errorPage "could not initiate session.")
                     Right sessionToken ->
                         redirect' (redirectUrl callback sessionToken) 303
 
