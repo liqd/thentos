@@ -151,3 +151,11 @@ FIXME: compile this into gh-pages.
 - module overview graph
 - haddock
 - rest api doc
+
+
+Warm thanks to (in alphanumerical order)
+----------------------------------------
+
+- Christian Siefkes
+- Julian Arni
+- Sönke Hahn
