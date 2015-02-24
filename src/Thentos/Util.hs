@@ -2,7 +2,7 @@
 
 module Thentos.Util
     ( makeUserFromFormData
-    , verifyPass
+    , Thentos.Util.verifyPass
     , secretMatches
     , hashServiceKey
     , hashUserPass
@@ -10,25 +10,35 @@ module Thentos.Util
     , readsPrecEnumBoundedShow
 ) where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Crypto.Scrypt (encryptPassIO', Pass(Pass), verifyPass')
+import Data.Maybe (fromJust)
 import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Thentos.Types
 
-hashUserPass :: MonadIO m => UserPass -> m (HashedSecret UserPass)
+import qualified Crypto.Scrypt as Scrypt
+
+-- | FIXME: @[2 2 1]@ is fast, but does not provide adequate
+-- protection for passwords in production mode.  change back to
+-- default params when done playing!
+thentosScryptParams :: Scrypt.ScryptParams
+-- thentosScryptParams = Scrypt.defaultScryptParams
+thentosScryptParams = fromJust $ Scrypt.scryptParams 2 1 1
+
+hashUserPass :: (Functor m, MonadIO m) => UserPass -> m (HashedSecret UserPass)
 hashUserPass = hashSecret fromUserPass
 
-hashServiceKey :: MonadIO m => ServiceKey -> m (HashedSecret ServiceKey)
+hashServiceKey :: (Functor m, MonadIO m) => ServiceKey -> m (HashedSecret ServiceKey)
 hashServiceKey = hashSecret fromServiceKey
 
 -- encryptPassIO' gets its entropy from /dev/urandom
-hashSecret :: MonadIO m => (a -> ST) -> a -> m (HashedSecret a)
-hashSecret a s =
-    (liftIO . encryptPassIO' . Pass . encodeUtf8 $ a s) >>= return . HashedSecret
+hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
+hashSecret a s = HashedSecret <$>
+    (liftIO . Scrypt.encryptPassIO thentosScryptParams . Scrypt.Pass . encodeUtf8 $ a s)
 
-makeUserFromFormData :: MonadIO m => UserFormData -> m User
+makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
 makeUserFromFormData userData = do
     hashedPassword <- hashUserPass $ udPassword userData
     return $ User (udName userData)
@@ -39,11 +49,13 @@ makeUserFromFormData userData = do
                   []
 
 secretMatches :: ST -> HashedSecret a -> Bool
-secretMatches t s = verifyPass' (Pass $ encodeUtf8 t) (fromHashedSecret s)
+secretMatches t s = fst $ Scrypt.verifyPass thentosScryptParams
+        (Scrypt.Pass $ encodeUtf8 t) (fromHashedSecret s)
 
 verifyPass :: UserPass -> User -> Bool
 verifyPass pass user = secretMatches (fromUserPass pass)
                                      (user ^. userPassword)
+
 
 -- | Convertible show.
 --
