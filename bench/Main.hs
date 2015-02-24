@@ -42,7 +42,7 @@ pronkConfig reqs = Pronk.Config {
     }
 
 data BenchmarkConfig = BenchmarkConfig
-    { targetHost :: String
+    { targetBackendHost :: String
     , targetBackendPort :: Int
     }
 
@@ -52,7 +52,7 @@ defaultBenchmarkConfig = BenchmarkConfig "localhost" 7001
 makeRequest :: BenchmarkConfig -> String -> Request
 makeRequest conf endpoint =
     (fromJust . parseUrl $
-        "http://" ++ targetHost conf ++ ":"
+        "http://" ++ targetBackendHost conf ++ ":"
         ++ show (targetBackendPort conf) ++ endpoint
     )
         { requestHeaders = thentosHeaders }
