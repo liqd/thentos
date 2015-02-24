@@ -23,7 +23,6 @@ import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query')
 import Data.String.Conversions ((<>))
-import System.IO (hPutStrLn, stderr)
 import System.Log.Logger (Priority(DEBUG, INFO), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -55,8 +54,8 @@ main =
     logger DEBUG (ppShow cmd)
     let run = case cmd of
             ShowDB -> do
-                putStrLn "database contents:"
-                query' st (SnapShot allowEverything) >>= either (error "oops?") (putStrLn . ppShow)
+                logger INFO "database contents:"
+                query' st (SnapShot allowEverything) >>= either (error "oops?") (logger INFO . ppShow)
 
             Run config -> do
                 createDefaultUser st (defaultUser config)
@@ -74,7 +73,7 @@ main =
                             runFrontend "localhost" frontendPort (st, rng, config)
 
                 _ <- createCheckpointLoop st 16000 Nothing
-                hPutStrLn stderr "Press ^C to abort."
+                logger INFO "Press ^C to abort."
                 void $ concurrently backend frontend
 
             RunA3 config -> do
@@ -85,7 +84,7 @@ main =
                         Nothing -> error "command `runa3` requires `--runbackend`"
                         Just (BackendConfig backendPort) -> do
                             logger INFO $ "running a3 rest api on localhost:" <> show backendPort <> "."
-                            hPutStrLn stderr "Press ^C to abort."
+                            logger INFO "Press ^C to abort."
                             Thentos.Backend.Api.Adhocracy3.runBackend backendPort (st, rng, config)
 
     let finalize = do
