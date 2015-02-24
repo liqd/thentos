@@ -271,7 +271,7 @@ data ThentosError =
     | ServiceAlreadyExists
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
-    | PermissionDenied ThentosClearance ThentosLabel
+    | PermissionDenied String ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
@@ -296,7 +296,7 @@ showThentosError OperationNotPossibleInServiceSession = return (404, "operation 
 showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
 showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
 showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
-showThentosError e@(PermissionDenied _ _)             = logger INFO (show e) >> return (401, "unauthorized")
+showThentosError e@(PermissionDenied _ _ _)           = logger INFO (show e) >> return (401, "unauthorized")
 showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
 showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
