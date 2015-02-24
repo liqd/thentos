@@ -82,17 +82,15 @@ import Thentos.Types
 
 -- * DB invariants
 
-checkAllDbInvs :: UserId -> User -> ThentosQuery ()
-checkAllDbInvs uid user = checkDbInvs $
+checkAllDbInvs :: ThentosLabel -> UserId -> User -> ThentosQuery ()
+checkAllDbInvs label uid user = checkDbInvs label $
     dbInvUserAspectUnique UserEmailAlreadyExists uid user (^. userEmail) :
     dbInvUserAspectUnique UserNameAlreadyExists uid user (^. userName) :
     []
 
-checkDbInvs :: [DB -> Either ThentosError ()] -> ThentosQuery ()
-checkDbInvs invs = do
-    let label = thentosDenied
-
-        decide []           = returnDb label ()
+checkDbInvs :: ThentosLabel -> [DB -> Either ThentosError ()] -> ThentosQuery ()
+checkDbInvs label invs = do
+    let decide []           = returnDb label ()
         decide (Left e:_)   = throwDb label e
         decide (Right _:es) = decide es
 
@@ -253,7 +251,7 @@ trans_deleteUser uid = do
 writeUser :: UserId -> User -> ThentosUpdate ()
 writeUser uid user = do
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
-    ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs uid user
+    ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs label uid user
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
 
