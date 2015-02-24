@@ -8,7 +8,6 @@ import Data.Monoid ((<>))
 
 import qualified Network.HTTP.LoadTest as Pronk
 import Network.HTTP.LoadTest.Types (Config(..), Req(..))
-import qualified  Network.HTTP.LoadTest.Types as Pronk
 import Network.HTTP.Conduit (Request(..), parseUrl, RequestBody(RequestBodyLBS))
 import Network.HTTP.Types.Header (RequestHeaders)
 import Network.HTTP.Types.Method (methodPost)
@@ -43,16 +42,18 @@ pronkConfig reqs = Pronk.Config {
 
 data BenchmarkConfig = BenchmarkConfig
     { targetHost :: String
-    , targetFrontendPort :: Int
     , targetBackendPort :: Int
     }
 
 defaultBenchmarkConfig :: BenchmarkConfig
-defaultBenchmarkConfig = BenchmarkConfig "localhost" 7002 7001
+defaultBenchmarkConfig = BenchmarkConfig "localhost" 7001
 
 makeRequest :: BenchmarkConfig -> String -> Request
-makeRequest (BenchmarkConfig host _ bPort) path =
-    (fromJust . parseUrl $ "http://" ++ host ++ ":" ++ show bPort ++ path)
+makeRequest conf endpoint =
+    (fromJust . parseUrl $
+        "http://" ++ targetHost conf ++ ":"
+        ++ show (targetBackendPort conf) ++ endpoint
+    )
         { requestHeaders = thentosHeaders }
 
 thentosHeaders :: RequestHeaders

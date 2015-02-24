@@ -200,6 +200,8 @@ benchmark load-test
     bench
   main-is:
     Main.hs
+  ghc-options:
+      -Wall -threaded -O2
 
   build-depends:
       base
