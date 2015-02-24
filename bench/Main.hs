@@ -2,28 +2,27 @@
 
 module Main (main) where
 
-import Data.Maybe (fromJust)
 import Data.Aeson (encode)
+import Data.List (unfoldr)
+import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 
-import System.IO (stdout)
-import qualified Network.HTTP.LoadTest as Pronk
-import qualified Network.HTTP.LoadTest.Report as Pronk
-import qualified Network.HTTP.LoadTest.Analysis as Pronk
-import Network.HTTP.LoadTest.Types (Config(..), Req(..))
 import Network.HTTP.Conduit (Request(..), parseUrl, RequestBody(RequestBodyLBS))
+import Network.HTTP.Conduit (Response)
+import Network.HTTP.LoadTest.Types (Config(..), Req(..))
 import Network.HTTP.Types.Header (RequestHeaders)
 import Network.HTTP.Types.Method (methodPost)
 
+import System.IO (stdout)
 import System.Random (RandomGen, split, randoms, newStdGen)
-import Data.List (unfoldr)
-import Network.HTTP.Conduit (Response)
+
+import qualified Network.HTTP.LoadTest as Pronk
+import qualified Network.HTTP.LoadTest.Report as Pronk
+import qualified Network.HTTP.LoadTest.Analysis as Pronk
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T
 
-
 import Util (timed)
-
 import Thentos.Types (UserFormData(UserFormData), UserName(..), UserEmail(..))
 
 main :: IO ()
