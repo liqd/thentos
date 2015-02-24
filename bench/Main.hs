@@ -6,7 +6,10 @@ import Data.Maybe (fromJust)
 import Data.Aeson (encode)
 import Data.Monoid ((<>))
 
+import System.IO (stdout)
 import qualified Network.HTTP.LoadTest as Pronk
+import qualified Network.HTTP.LoadTest.Report as Pronk
+import qualified Network.HTTP.LoadTest.Analysis as Pronk
 import Network.HTTP.LoadTest.Types (Config(..), Req(..))
 import Network.HTTP.Conduit (Request(..), parseUrl, RequestBody(RequestBodyLBS))
 import Network.HTTP.Types.Header (RequestHeaders)
@@ -27,14 +30,14 @@ main :: IO ()
 main = do
     gen <- newStdGen
     let conf = pronkConfig $ mkSignupGens gen
-    (run, time) <- timed $ Pronk.run conf
+    (Right summaryVector, time) <- timed $ Pronk.run conf
     print time
-    print run
+    Pronk.reportBasic stdout $ Pronk.analyseBasic summaryVector time
 
 pronkConfig :: [Pronk.RequestGenerator] -> Pronk.Config
 pronkConfig reqs = Pronk.Config {
-      concurrency = 10
-    , numRequests = 10000
+      concurrency = 100
+    , numRequests = 1000
     , requestsPerSecond = 1000
     , timeout = 5
     , requests = reqs
