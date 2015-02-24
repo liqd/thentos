@@ -13,7 +13,7 @@
 
 {-# OPTIONS  #-}
 
-module Test.Thentos.Backend.Api.Simple
+module Thentos.Backend.Api.SimpleSpec
 where
 
 import Control.Monad.State (liftIO)

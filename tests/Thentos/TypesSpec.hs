@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
-module Test.Thentos.Types where
+module Thentos.TypesSpec where
 
 import Data.SafeCopy (safeGet, safePut)
 import Data.Serialize.Get (runGet)

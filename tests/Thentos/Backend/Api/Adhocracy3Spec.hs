@@ -13,7 +13,7 @@
 
 {-# OPTIONS  #-}
 
-module Test.Thentos.Backend.Api.Adhocracy3
+module Thentos.Backend.Api.Adhocracy3Spec
 where
 
 import Control.Concurrent.MVar (MVar)
