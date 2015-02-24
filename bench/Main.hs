@@ -22,14 +22,13 @@ import qualified Network.HTTP.LoadTest.Analysis as Pronk
 import qualified Data.ByteString.Lazy as L
 import qualified Data.Text as T
 
-import Util (timed)
 import Thentos.Types (UserFormData(UserFormData), UserName(..), UserEmail(..))
 
 main :: IO ()
 main = do
     gen <- newStdGen
     let conf = pronkConfig $ mkSignupGens gen
-    (Right summaryVector, time) <- timed $ Pronk.run conf
+    (Right summaryVector, time) <- Pronk.timed "foo" $ Pronk.run conf
     print time
     Pronk.reportBasic stdout $ Pronk.analyseBasic summaryVector time
 
