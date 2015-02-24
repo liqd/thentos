@@ -19,10 +19,6 @@ Source-Repository head
   type: git
   location: https://github.com/liqd/thentos
 
-Flag loadTest
-  description: enable load testing
-  default: False
-
 library
   default-language:
       Haskell2010
