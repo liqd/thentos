@@ -83,12 +83,22 @@ This will take a while, as it will pull and build a lot of library
 dependencies.  `--enable-tests` and `--enable-documentation` are
 optional (but it will still take a while to build).
 
-To run the tests:
+To run the tests
+~~~~~~~~~~~~~~~~
 
 ```shell
 $ cabal test
 $ cabal run -- thentos run --runbackend --runfrontend
-$ cabal bench  # requires thentos to be running  (FIXME: not in `master` branch yet)
+```
+
+Benchmarks
+~~~~~~~~~~
+
+```shell
+$ git clone https://github.com/fhartwig/pronk -b barely-working-state
+$ cabal sandbox add-source ./pronk
+$ cabal install --enable-bench
+$ cabal bench  # requires thentos to be running in another shell
 ```
 
 
