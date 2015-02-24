@@ -22,6 +22,8 @@ import Network.Mail.Mime (Address(Address))
 import Options.Applicative (command, info, progDesc, long, short, auto, option, flag, help)
 import Options.Applicative (Parser, execParser, metavar, subparser)
 import Safe (readDef)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath (takeDirectory)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
@@ -275,10 +277,14 @@ parseConfigFile filePath = do
 
 configLogger :: IO ()
 configLogger = do
+    let loglevel = DEBUG
+        logfile = "./log/thentos.log"
+
     removeAllHandlers
+    createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./log/thentos.log" DEBUG
-    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr DEBUG
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
+    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr loglevel
 
     updateGlobalLogger loggerName $
         System.Log.Logger.setLevel DEBUG .
