@@ -20,7 +20,7 @@ import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
@@ -30,8 +30,11 @@ import Thentos.Types
 import Test.Util
 
 
-tests :: Spec
-tests = do
+tests :: IO ()
+tests = hspec spec
+
+spec :: Spec
+spec = do
     describe "Thentos.Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
         describe "user" $ do
             describe "Get [UserId]" $ do

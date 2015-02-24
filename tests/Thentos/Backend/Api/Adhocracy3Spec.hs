@@ -25,7 +25,7 @@ import Data.String.Conversions (cs, (<>))
 import Network.Mail.Mime (Address(Address))
 import Network.Wai (Application)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
 
 import qualified Data.Aeson as Aeson
@@ -56,8 +56,11 @@ setupTestA3Server = do
   return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)
 
 
-tests :: Spec
-tests = do
+tests :: IO ()
+tests = hspec spec
+
+spec :: Spec
+spec = do
     describe "Thentos.Backend.Api.Adhocracy3" $ do
         describe "A3UserNoPass" $ do
             it "has invertible *JSON instances" . property $

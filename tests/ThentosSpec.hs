@@ -27,10 +27,10 @@ import Thentos.Api
 import Thentos.Types
 
 import Test.Util
-import qualified Test.Thentos.Backend.Api.Simple
-import qualified Test.Thentos.Backend.Api.Adhocracy3
-import qualified Test.Thentos.Types
 
+
+tests :: IO ()
+tests = hspec spec
 
 spec :: Spec
 spec = do
