@@ -1,0 +1,74 @@
+digraph "Diagram of: Thentos.Backend.Core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_PushActionC {
+        graph [label="Class: PushActionC"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_PushActionC_Data_IOResponseReceived {
+            graph [label="Instance for: (IO ResponseReceived)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            4 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_PushActionC_Data_RestActionRawa {
+            graph [label="Instance for: (RestActionRaw a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            5 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a -> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a :<|> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            7 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        3 [label=pushAction
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    1 [label=fmapLTM
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 [label=lookupRequestHeader
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    3 -> 4 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 5 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 6 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    5 -> 1 [penwidth=1
+           ,color=chartreuse];
+    6 -> 3 [penwidth=1,color=black];
+    7 -> 3 [penwidth=1.6931471805599454
+           ,color=black];
+}

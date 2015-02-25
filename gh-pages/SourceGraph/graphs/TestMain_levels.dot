@@ -1,0 +1,24 @@
+digraph "Levels within TestMain" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        2 [label=main
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=adhoc
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    2 -> 1 [penwidth=1
+           ,color=chartreuse];
+}

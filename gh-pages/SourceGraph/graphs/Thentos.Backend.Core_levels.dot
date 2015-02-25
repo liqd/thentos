@@ -1,0 +1,59 @@
+digraph "Levels within Thentos.Backend.Core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=fmapLTM
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=lookupRequestHeader
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label="Class: PushActionC"
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        4 [label="Class: PushActionC, Data: (IO ResponseReceived)"
+          ,shape=octagon
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+        5 [label="Class: PushActionC, Data: (RestActionRaw a)"
+          ,shape=octagon
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+        6 [label="Class: PushActionC, Data: (a -> b)"
+          ,shape=octagon
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+        7 [label="Class: PushActionC, Data: (a :<|> b)"
+          ,shape=octagon
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+    }
+    3 -> 4 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 5 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 6 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    5 -> 1 [penwidth=1
+           ,color=chartreuse];
+    6 -> 3 [penwidth=1,color=black];
+    7 -> 3 [penwidth=1.6931471805599454
+           ,color=black];
+}

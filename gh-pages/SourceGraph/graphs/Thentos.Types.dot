@@ -1,0 +1,974 @@
+digraph "Diagram of: Thentos.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Configured {
+        graph [label="Class: Configured"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Configured_Data_ServiceId {
+            graph [label="Instance for: ServiceId"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            44 [label=convert
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        98 [label="Data.Configurator.Types\nconvert"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+    }
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_Agent {
+            graph [label="Instance for: Agent"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            69 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_Session {
+            graph [label="Instance for: Session"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            70 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_TimeStamp {
+            graph [label="Instance for: TimeStamp"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            71 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_Timeout {
+            graph [label="Instance for: Timeout"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            72 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_UserFormData {
+            graph [label="Instance for: UserFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            73 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_UserPass {
+            graph [label="Instance for: UserPass"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            74 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        103 [label="Unknown Module\nparseJSON"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Label {
+        graph [label="Class: Label"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Label_Data_ThentosClearance {
+            graph [label="Instance for: ThentosClearance"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            42 [label=canFlowTo
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            65 [label=glb
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            67 [label=lub
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Label_Data_ThentosLabel {
+            graph [label="Instance for: ThentosLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            43 [label=canFlowTo
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            66 [label=glb
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            68 [label=lub
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        99 [label="Unknown Module\ncanFlowTo"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        101 [label="Unknown Module\nglb"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+        102 [label="Unknown Module\nlub"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_SafeCopy {
+        graph [label="Class: SafeCopy"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_SafeCopy_Data_HashedSecreta {
+            graph [label="Instance for: (HashedSecret a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            59 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            75 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_SafeCopy_Data_ThentosLabeledt {
+            graph [label="Instance for: (ThentosLabeled t)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            60 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+            76 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_SafeCopy_Data_ThentosClearance {
+            graph [label="Instance for: ThentosClearance"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            61 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+            77 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_SafeCopy_Data_ThentosLabel {
+            graph [label="Instance for: ThentosLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            62 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+            78 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_SafeCopy_Data_TimeStamp {
+            graph [label="Instance for: TimeStamp"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            63 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            79 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_SafeCopy_Data_Timeout {
+            graph [label="Instance for: Timeout"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            64 [label=getCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            80 [label=putCopy
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        100 [label="Unknown Module\ngetCopy"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+        104 [label="Unknown Module\nputCopy"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToCNF {
+        graph [label="Class: ToCNF"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToCNF_Data_Agent {
+            graph [label="Instance for: Agent"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            87 [label=toCNF
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCNF_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            88 [label=toCNF
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        105 [label="Unknown Module\ntoCNF"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_Agent {
+            graph [label="Instance for: Agent"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            89 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_Session {
+            graph [label="Instance for: Session"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            90 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_TimeStamp {
+            graph [label="Instance for: TimeStamp"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            91 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_Timeout {
+            graph [label="Instance for: Timeout"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            92 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_UserFormData {
+            graph [label="Instance for: UserFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            93 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_UserPass {
+            graph [label="Instance for: UserPass"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            94 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        106 [label="Unknown Module\ntoJSON"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Data_Agent {
+        graph [label="Data: Agent"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        7 [label=ServiceA
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        18 [label=UserA
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ConfirmationToken {
+        graph [label="Data: ConfirmationToken"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=ConfirmationToken
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        45 [label=fromConfimationToken
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_DB {
+        graph [label="Data: DB"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        2 [label=DB
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        24 [label=_dbFreshUserId
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        25 [label=_dbRoles
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        26 [label=_dbServices
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        27 [label=_dbSessions
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        28 [label=_dbUnconfirmedUsers
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        29 [label=_dbUsers
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_Group {
+        graph [label="Data: Group"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        3 [label=Group
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        46 [label=fromGroup
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_HashedSecret {
+        graph [label="Data: HashedSecret"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        4 [label=HashedSecret
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        47 [label=fromHashedSecret
+           ,shape=component
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_Role {
+        graph [label="Data: Role"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        5 [label=RoleAdmin
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    subgraph cluster_Data_Service {
+        graph [label="Data: Service"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        6 [label=Service
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        30 [label=_serviceKey
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        31 [label=_serviceSession
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ServiceId {
+        graph [label="Data: ServiceId"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        8 [label=ServiceId
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        48 [label=fromServiceId
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ServiceKey {
+        graph [label="Data: ServiceKey"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        9 [label=ServiceKey
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        49 [label=fromServiceKey
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_Session {
+        graph [label="Data: Session"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        10 [label=Session
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        32 [label=_sessionAgent
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        33 [label=_sessionEnd
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        34 [label=_sessionStart
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        35 [label=_sessionTimeout
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_SessionToken {
+        graph [label="Data: SessionToken"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        11 [label=SessionToken
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        50 [label=fromSessionToken
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ThentosClearance {
+        graph [label="Data: ThentosClearance"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        12 [label=ThentosClearance
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        51 [label=fromThentosClearance
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ThentosLabel {
+        graph [label="Data: ThentosLabel"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        13 [label=ThentosLabel
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        52 [label=fromThentosLabel
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ThentosLabeled {
+        graph [label="Data: ThentosLabeled"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        14 [label=ThentosLabeled
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        81 [label=thentosLabelL
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        82 [label=thentosLabelV
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_TimeStamp {
+        graph [label="Data: TimeStamp"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        15 [label=TimeStamp
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        53 [label=fromTimeStamp
+           ,shape=component
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_Timeout {
+        graph [label="Data: Timeout"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        16 [label=Timeout
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        54 [label=fromTimeout
+           ,shape=component
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_User {
+        graph [label="Data: User"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        17 [label=User
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        36 [label=_userEmail
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        37 [label=_userGroups
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        38 [label=_userLogins
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        39 [label=_userName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        40 [label=_userPassword
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        41 [label=_userSession
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_UserEmail {
+        graph [label="Data: UserEmail"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        19 [label=UserEmail
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        55 [label=fromUserEmail
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_UserFormData {
+        graph [label="Data: UserFormData"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        20 [label=UserFormData
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        95 [label=udEmail
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        96 [label=udName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        97 [label=udPassword
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_UserId {
+        graph [label="Data: UserId"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        21 [label=UserId
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        56 [label=fromUserId
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_UserName {
+        graph [label="Data: UserName"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        22 [label=UserName
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        57 [label=fromUserName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_UserPass {
+        graph [label="Data: UserPass"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        23 [label=UserPass
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        58 [label=fromUserPass
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    83 [label=timeStampFromString
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    84 [label=timeStampToString
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    85 [label=timeoutFromString
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    86 [label=timeoutToString
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    24 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    25 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    26 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    27 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    28 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    29 -> 2 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    30 -> 6 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    31 -> 6 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    32 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    33 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    34 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    35 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    36 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    37 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    38 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    39 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    40 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    41 -> 17 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    42 -> 12 [penwidth=1.6931471805599454
+             ,color=black];
+    43 -> 13 [penwidth=1.6931471805599454
+             ,color=black];
+    44 -> 8 [penwidth=1
+            ,color=chartreuse];
+    45 -> 1 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    46 -> 3 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    47 -> 4 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    48 -> 8 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    49 -> 9 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    50 -> 11 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    51 -> 12 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    52 -> 13 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    53 -> 15 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    54 -> 16 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    55 -> 19 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    56 -> 21 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    57 -> 22 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    58 -> 23 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    59 -> 4 [penwidth=1
+            ,color=chartreuse];
+    63 -> 83 [penwidth=1
+             ,color=black];
+    64 -> 85 [penwidth=1
+             ,color=black];
+    65 -> 12 [penwidth=2.09861228866811
+             ,color=black];
+    66 -> 13 [penwidth=2.09861228866811
+             ,color=black];
+    67 -> 12 [penwidth=2.09861228866811
+             ,color=black];
+    68 -> 13 [penwidth=2.09861228866811
+             ,color=black];
+    71 -> 83 [penwidth=1
+             ,color=black];
+    72 -> 85 [penwidth=1
+             ,color=black];
+    74 -> 23 [penwidth=1
+             ,color=chartreuse];
+    75 -> 47 [penwidth=1
+             ,color=chartreuse];
+    79 -> 84 [penwidth=1
+             ,color=black];
+    80 -> 86 [penwidth=1
+             ,color=black];
+    81 -> 14 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    82 -> 14 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    83 -> 15 [penwidth=1
+             ,color=chartreuse];
+    84 -> 53 [penwidth=1
+             ,color=chartreuse];
+    85 -> 16 [penwidth=1
+             ,color=chartreuse];
+    86 -> 54 [penwidth=1
+             ,color=chartreuse];
+    91 -> 84 [penwidth=1
+             ,color=black];
+    92 -> 86 [penwidth=1
+             ,color=black];
+    95 -> 20 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    96 -> 20 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    97 -> 20 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    98 -> 44 [penwidth=1.6931471805599454
+             ,color=navy
+             ,dir=none];
+    99 -> 42 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    99 -> 43 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    100 -> 59 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    100 -> 60 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    100 -> 61 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    100 -> 62 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    100 -> 63 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    100 -> 64 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    101 -> 65 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    101 -> 66 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    102 -> 67 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    102 -> 68 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 69 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 70 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 71 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 72 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 73 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    103 -> 74 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 75 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 76 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 77 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 78 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 79 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    104 -> 80 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    105 -> 87 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    105 -> 88 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 89 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 90 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 91 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 92 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 93 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    106 -> 94 [penwidth=1
+              ,color=navy
+              ,dir=none];
+}

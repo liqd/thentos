@@ -1,0 +1,40 @@
+digraph "Core of Thentos.Backend.Core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_PushActionC {
+        graph [label="Class: PushActionC"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a -> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a :<|> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            7 [label=pushAction
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        3 [label=pushAction
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    3 -> 6 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    3 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    6 -> 3 [penwidth=1,color=black];
+    7 -> 3 [penwidth=1.6931471805599454
+           ,color=black];
+}

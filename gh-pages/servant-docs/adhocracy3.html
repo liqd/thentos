@@ -1,0 +1,82 @@
+<h2 id="post-login_email">POST /login_email</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>,
+    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
+}</code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
+}</code></pre>
+<h2 id="post-login_username">POST /login_username</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>,
+    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
+}</code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
+}</code></pre>
+<h2 id="post-principalsusers">POST /principals/users</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;data&quot;</span>: {
+        <span class="st">&quot;adhocracy_core.sheets.principal.IPasswordAuthentication&quot;</span>: {
+            <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
+        },
+        <span class="st">&quot;adhocracy_core.sheets.principal.IUserBasic&quot;</span>: {
+            <span class="st">&quot;email&quot;</span>: <span class="st">&quot;cobain@nirvana.com&quot;</span>,
+            <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>
+        }
+    },
+    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>
+}</code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;data&quot;</span>: {
+        <span class="st">&quot;adhocracy_core.sheets.principal.IUserBasic&quot;</span>: {
+            <span class="st">&quot;email&quot;</span>: <span class="st">&quot;cobain@nirvana.com&quot;</span>,
+            <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>
+        }
+    },
+    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>
+}</code></pre>
+<h2 id="post-activate_account">POST /activate_account</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>
+}</code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
+}</code></pre>
+<h2 id="get">GET /</h2>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>No response body</li>
+</ul>

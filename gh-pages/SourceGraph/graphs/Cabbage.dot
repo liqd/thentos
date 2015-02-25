@@ -1,0 +1,125 @@
+digraph "Diagram of: Cabbage" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_Item {
+        graph [label="Data: Item"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=Cabbage
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=Farmer
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        3 [label=Sheep
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        4 [label=Wolf
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    5 [label=eats
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    6 [label=initial
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    7 [label=move
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    8 [label=plusTailOf
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    9 [label=singleOut1
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    10 [label=singleOutAll
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    11 [label=solution1
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    12 [label=solution2
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    13 [label=solution3
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    14 [label=solution4
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    15 [label=solution5
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    16 [label=success
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    17 [label=unsafeIter
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    5 -> 1 [penwidth=1,color=black];
+    5 -> 3 [penwidth=1.6931471805599454
+           ,color=black];
+    5 -> 4 [penwidth=1,color=black];
+    6 -> 1 [penwidth=1,color=black];
+    6 -> 2 [penwidth=1,color=black];
+    6 -> 3 [penwidth=1,color=black];
+    6 -> 4 [penwidth=1,color=black];
+    7 -> 2 [penwidth=2.6094379124341005
+           ,color=black];
+    7 -> 5 [penwidth=1,color=black];
+    7 -> 9 [penwidth=1.6931471805599454
+           ,color=black];
+    7 -> 10 [penwidth=1
+            ,color=black];
+    9 -> 8 [penwidth=1,color=black];
+    10 -> 8 [penwidth=1
+            ,color=black];
+    11 -> 6 [penwidth=1
+            ,color=black];
+    11 -> 7 [penwidth=1
+            ,color=black];
+    11 -> 16 [penwidth=1
+             ,color=black];
+    12 -> 6 [penwidth=1
+            ,color=black];
+    12 -> 7 [penwidth=1
+            ,color=black];
+    12 -> 16 [penwidth=1
+             ,color=black];
+    13 -> 6 [penwidth=1
+            ,color=black];
+    13 -> 7 [penwidth=1
+            ,color=black];
+    13 -> 16 [penwidth=1
+             ,color=black];
+    14 -> 6 [penwidth=1
+            ,color=black];
+    14 -> 7 [penwidth=1
+            ,color=black];
+    14 -> 16 [penwidth=1
+             ,color=black];
+    15 -> 6 [penwidth=1
+            ,color=black];
+    15 -> 7 [penwidth=1
+            ,color=black];
+    15 -> 16 [penwidth=1
+             ,color=black];
+}

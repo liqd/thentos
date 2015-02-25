@@ -1,0 +1,169 @@
+<h1>GET <code>session/:token</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“token”</em>: Session Token</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>true</code></pre></li>
+</ul>
+<h1>GET <code>user/:userid/email</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“userid”</em>: User ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>&quot;cobain@nirvana.com&quot;</code></pre></li>
+</ul>
+<h1>DELETE <code>user/:userid</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“userid”</em>: User ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h1>PUT <code>user/:userid/name</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“userid”</em>: User ID</li>
+</ul>
+<h2>Request Body</h2>
+<pre class="javascript"><code>&quot;Kurt Cobain&quot;</code></pre>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>[]</code></pre></li>
+</ul>
+<h1>DELETE <code>session/:token</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“token”</em>: Session Token</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h1>GET <code>proxy-test</code></h1>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>No response body</li>
+</ul>
+<h1>GET <code>session/:token/login/:sid</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“token”</em>: Session Token</li>
+<li><em>“sid”</em>: Service ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>true</code></pre></li>
+</ul>
+<h1>POST <code>user</code></h1>
+<h2>Request Body</h2>
+<pre class="javascript"><code>{
+    &quot;udEmail&quot;: &quot;cobain@nirvana.com&quot;,
+    &quot;udName&quot;: &quot;Kurt Cobain&quot;,
+    &quot;udPassword&quot;: &quot;[password hidden]&quot;
+}</code></pre>
+<h2>Response</h2>
+<ul>
+<li>Status code 201</li>
+<li>Response body at below
+<pre class="javascript"><code>12</code></pre></li>
+</ul>
+<h1>GET <code>user/:userid/name</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“userid”</em>: User ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>&quot;Kurt Cobain&quot;</code></pre></li>
+</ul>
+<h1>POST <code>service</code></h1>
+<h2>Response</h2>
+<ul>
+<li>Status code 201</li>
+<li>No response body</li>
+</ul>
+<h1>DELETE <code>session/:token/login/:sid</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“token”</em>: Session Token</li>
+<li><em>“sid”</em>: Service ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h1>PUT <code>user/:userid/email</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“userid”</em>: User ID</li>
+</ul>
+<h2>Request Body</h2>
+<pre class="javascript"><code>&quot;cobain@nirvana.com&quot;</code></pre>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>[]</code></pre></li>
+</ul>
+<h1>GET <code>user</code></h1>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>[
+    3,
+    7,
+    23
+]</code></pre></li>
+</ul>
+<h1>GET <code>service</code></h1>
+<h2>Response</h2>
+<ul>
+<li>Status code 200</li>
+<li>Response body at below
+<pre class="javascript"><code>[
+    &quot;23t92ege0n&quot;,
+    &quot;f4ghwgegin0&quot;
+]</code></pre></li>
+</ul>
+<h1>POST <code>session/:token/login/:sid</code></h1>
+<h2>Captures</h2>
+<ul>
+<li><em>“token”</em>: Session Token</li>
+<li><em>“sid”</em>: Service ID</li>
+</ul>
+<h2>Response</h2>
+<ul>
+<li>Status code 201</li>
+<li>Response body at below
+<pre class="javascript"><code>[]</code></pre></li>
+</ul>
+<h1>POST <code>session</code></h1>
+<h2>Request Body</h2>
+<pre class="javascript"><code>12</code></pre>
+<h2>Response</h2>
+<ul>
+<li>Status code 201</li>
+<li>Response body at below
+<pre class="javascript"><code>&quot;abde1234llkjh&quot;</code></pre></li>
+</ul>

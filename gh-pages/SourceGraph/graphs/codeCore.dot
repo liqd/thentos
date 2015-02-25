@@ -1,0 +1,194 @@
+digraph "Overall core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Arbitrary {
+        graph [label="Class: Arbitrary"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Arbitrary_Data_HashedSecreta {
+            graph [label="Instance for: (HashedSecret a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            36 [label="Test.Arbitrary\narbitrary"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_CNF {
+            graph [label="Instance for: CNF"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            37 [label="Test.Arbitrary\narbitrary"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_DCLabel {
+            graph [label="Instance for: DCLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            38 [label="Test.Arbitrary\narbitrary"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_ThentosClearance {
+            graph [label="Instance for: ThentosClearance"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            39 [label="Test.Arbitrary\narbitrary"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_ThentosLabel {
+            graph [label="Instance for: ThentosLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            40 [label="Test.Arbitrary\narbitrary"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        473 [label="Unknown Module\narbitrary"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Monoid {
+        graph [label="Class: Monoid"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Monoid_Data_ThentosConfigBuilder {
+            graph [label="Instance for: ThentosConfigBuilder"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            178 [label="Thentos.Config\nmempty"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        480 [label="Unknown Module\nmempty"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_PushActionC {
+        graph [label="Class: PushActionC"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a -> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            125 [label="Thentos.Backend.Core\npushAction"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_PushActionC_Data_ab {
+            graph [label="Instance for: (a :<|> b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            126 [label="Thentos.Backend.Core\npushAction"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        122 [label="Thentos.Backend.Core\npushAction"
+            ,shape=doubleoctagon
+            ,fillcolor=bisque
+            ,style="filled,solid"];
+    }
+    subgraph cluster_Class_ToSample {
+        graph [label="Class: ToSample"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToSample_Data_UserIdServiceId {
+            graph [label="Instance for: (UserId, ServiceId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            331 [label="Thentos.Doc\ntoSample"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserIdTimeout {
+            graph [label="Instance for: (UserId, Timeout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            332 [label="Thentos.Doc\ntoSample"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToSample_Data_Session {
+            graph [label="Instance for: Session"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            336 [label="Thentos.Doc\ntoSample"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        471 [label="Servant.Docs\ntoSample"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dashed"];
+    }
+    36 -> 473 [penwidth=1
+              ,color=black];
+    37 -> 473 [penwidth=1.6931471805599454
+              ,color=black];
+    38 -> 473 [penwidth=1.6931471805599454
+              ,color=black];
+    39 -> 473 [penwidth=1
+              ,color=black];
+    40 -> 473 [penwidth=1
+              ,color=black];
+    122 -> 125 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    122 -> 126 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    125 -> 122 [penwidth=1
+               ,color=black];
+    126 -> 122 [penwidth=1.6931471805599454
+               ,color=black];
+    178 -> 480 [penwidth=2.09861228866811
+               ,color=black];
+    331 -> 471 [penwidth=1.6931471805599454
+               ,color=black];
+    332 -> 471 [penwidth=1
+               ,color=black];
+    336 -> 471 [penwidth=1
+               ,color=black];
+    471 -> 331 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    471 -> 332 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    471 -> 336 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    473 -> 36 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    473 -> 37 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    473 -> 38 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    473 -> 39 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    473 -> 40 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    480 -> 178 [penwidth=1
+               ,color=navy
+               ,dir=none];
+}

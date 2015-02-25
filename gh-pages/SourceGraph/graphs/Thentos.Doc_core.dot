@@ -1,0 +1,55 @@
+digraph "Core of Thentos.Doc" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_ToSample {
+        graph [label="Class: ToSample"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToSample_Data_UserIdServiceId {
+            graph [label="Instance for: (UserId, ServiceId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            7 [label=toSample
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserIdTimeout {
+            graph [label="Instance for: (UserId, Timeout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            8 [label=toSample
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_Session {
+            graph [label="Instance for: Session"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            12 [label=toSample
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        21 [label="Servant.Docs\ntoSample"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+    }
+    7 -> 21 [penwidth=1.6931471805599454
+            ,color=black];
+    8 -> 21 [penwidth=1
+            ,color=black];
+    12 -> 21 [penwidth=1
+             ,color=black];
+    21 -> 7 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 8 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 12 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

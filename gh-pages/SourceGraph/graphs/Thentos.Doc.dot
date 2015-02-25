@@ -1,0 +1,268 @@
+digraph "Diagram of: Thentos.Doc" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_ToCapture {
+        graph [label="Class: ToCapture"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToCapture_Data_CapturesidServiceId {
+            graph [label="Instance for: (Capture \"sid\" ServiceId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            1 [label=toCapture
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CapturetokenSessionToken {
+            graph [label="Instance for: (Capture \"token\" SessionToken)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label=toCapture
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CaptureuseridUserId {
+            graph [label="Instance for: (Capture \"userid\" UserId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            3 [label=toCapture
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        22 [label="Unknown Module\ntoCapture"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToSample {
+        graph [label="Class: ToSample"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToSample_Data_ {
+            graph [label="Instance for: ()"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            4 [label=toSample
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceIdServiceKey {
+            graph [label="Instance for: (ServiceId, ServiceKey)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            5 [label=toSample
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_SessionTokenSession {
+            graph [label="Instance for: (SessionToken, Session)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=toSample
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserIdServiceId {
+            graph [label="Instance for: (UserId, ServiceId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            7 [label=toSample
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserIdTimeout {
+            graph [label="Instance for: (UserId, Timeout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            8 [label=toSample
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_Agent {
+            graph [label="Instance for: Agent"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            9 [label=toSample
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_Bool {
+            graph [label="Instance for: Bool"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            10 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceId {
+            graph [label="Instance for: ServiceId"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            11 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_Session {
+            graph [label="Instance for: Session"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            12 [label=toSample
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_SessionToken {
+            graph [label="Instance for: SessionToken"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            13 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserEmail {
+            graph [label="Instance for: UserEmail"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            14 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserFormData {
+            graph [label="Instance for: UserFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            15 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserId {
+            graph [label="Instance for: UserId"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            16 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserName {
+            graph [label="Instance for: UserName"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            17 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceId {
+            graph [label="Instance for: [ServiceId]"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            18 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_SessionToken {
+            graph [label="Instance for: [SessionToken]"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            19 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserId {
+            graph [label="Instance for: [UserId]"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            20 [label=toSample
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        21 [label="Servant.Docs\ntoSample"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+    }
+    7 -> 21 [penwidth=1.6931471805599454
+            ,color=black];
+    8 -> 21 [penwidth=1
+            ,color=black];
+    12 -> 21 [penwidth=1
+             ,color=black];
+    21 -> 4 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 5 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 6 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 7 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 8 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 9 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    21 -> 10 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 11 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 12 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 13 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 14 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 15 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 16 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 17 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 18 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 19 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    21 -> 20 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    22 -> 1 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    22 -> 2 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    22 -> 3 [penwidth=1
+            ,color=navy
+            ,dir=none];
+}

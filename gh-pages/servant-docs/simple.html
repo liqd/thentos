@@ -1,0 +1,169 @@
+<h2 id="get-sessiontoken">GET /session/:token</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>token</em>: Session Token</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">true</span></code></pre>
+<h2 id="get-useruseridemail">GET /user/:userid/email</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>userid</em>: User ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;cobain@nirvana.com&quot;</span></code></pre>
+<h2 id="delete-useruserid">DELETE /user/:userid</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>userid</em>: User ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h2 id="put-useruseridname">PUT /user/:userid/name</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>userid</em>: User ID</li>
+</ul>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;Kurt Cobain&quot;</span></code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="delete-sessiontoken">DELETE /session/:token</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>token</em>: Session Token</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h2 id="get-proxy-test">GET /proxy-test</h2>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>No response body</li>
+</ul>
+<h2 id="get-sessiontokenloginsid">GET /session/:token/login/:sid</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>token</em>: Session Token</li>
+<li><em>sid</em>: Service ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">true</span></code></pre>
+<h2 id="post-user">POST /user</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;udEmail&quot;</span>: <span class="st">&quot;cobain@nirvana.com&quot;</span>,
+    <span class="st">&quot;udName&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>,
+    <span class="st">&quot;udPassword&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
+}</code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="dv">12</span></code></pre>
+<h2 id="get-useruseridname">GET /user/:userid/name</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>userid</em>: User ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;Kurt Cobain&quot;</span></code></pre>
+<h2 id="post-service">POST /service</h2>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>No response body</li>
+</ul>
+<h2 id="delete-sessiontokenloginsid">DELETE /session/:token/login/:sid</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>token</em>: Session Token</li>
+<li><em>sid</em>: Service ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 204</li>
+<li>No response body</li>
+</ul>
+<h2 id="put-useruseridemail">PUT /user/:userid/email</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>userid</em>: User ID</li>
+</ul>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;cobain@nirvana.com&quot;</span></code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="get-user">GET /user</h2>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[
+    <span class="dv">3</span>,
+    <span class="dv">7</span>,
+    <span class="dv">23</span>
+]</code></pre>
+<h2 id="get-service">GET /service</h2>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[
+    <span class="st">&quot;23t92ege0n&quot;</span>,
+    <span class="st">&quot;f4ghwgegin0&quot;</span>
+]</code></pre>
+<h2 id="post-sessiontokenloginsid">POST /session/:token/login/:sid</h2>
+<p><strong>Captures</strong>:</p>
+<ul>
+<li><em>token</em>: Session Token</li>
+<li><em>sid</em>: Service ID</li>
+</ul>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="post-session">POST /session</h2>
+<p><strong>Request Body</strong>:</p>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="dv">12</span></code></pre>
+<p><strong>Response</strong>:</p>
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.</li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;abde1234llkjh&quot;</span></code></pre>

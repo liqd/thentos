@@ -1,0 +1,80 @@
+digraph "Core of Test.Arbitrary" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Arbitrary {
+        graph [label="Class: Arbitrary"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Arbitrary_Data_HashedSecreta {
+            graph [label="Instance for: (HashedSecret a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            1 [label=arbitrary
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_CNF {
+            graph [label="Instance for: CNF"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label=arbitrary
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_DCLabel {
+            graph [label="Instance for: DCLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            3 [label=arbitrary
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_ThentosClearance {
+            graph [label="Instance for: ThentosClearance"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            4 [label=arbitrary
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Arbitrary_Data_ThentosLabel {
+            graph [label="Instance for: ThentosLabel"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            5 [label=arbitrary
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        9 [label="Unknown Module\narbitrary"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dotted"];
+    }
+    1 -> 9 [penwidth=1,color=black];
+    2 -> 9 [penwidth=1.6931471805599454
+           ,color=black];
+    3 -> 9 [penwidth=1.6931471805599454
+           ,color=black];
+    4 -> 9 [penwidth=1,color=black];
+    5 -> 9 [penwidth=1,color=black];
+    9 -> 1 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    9 -> 2 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    9 -> 3 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    9 -> 4 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    9 -> 5 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

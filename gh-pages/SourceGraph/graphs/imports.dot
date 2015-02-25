@@ -1,0 +1,222 @@
+digraph "Import visualisation" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Network {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Network];
+        subgraph cluster_Mail {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Mail];
+            subgraph cluster_Mime {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Mime];
+                3 [label=Missing
+                  ,fillcolor=crimson
+                  ,shape=tab];
+            }
+        }
+    }
+    subgraph cluster_System {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=System];
+        subgraph cluster_Log {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Log];
+            6 [label=Missing
+              ,fillcolor=crimson
+              ,shape=tab];
+        }
+    }
+    subgraph cluster_Test {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Test];
+        subgraph cluster_Thentos {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Thentos];
+            subgraph cluster_Backend {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Backend];
+                subgraph cluster_Api {
+                    graph [fillcolor=snow
+                          ,style=filled
+                          ,label=Api];
+                    9 [label=Adhocracy3
+                      ,fillcolor=crimson
+                      ,shape=tab];
+                    10 [label=Simple
+                       ,fillcolor=crimson
+                       ,shape=tab];
+                }
+            }
+            11 [label=Types
+               ,fillcolor=crimson
+               ,shape=tab];
+        }
+        7 [label=Arbitrary
+          ,fillcolor=crimson
+          ,shape=tab];
+        8 [label=Config
+          ,fillcolor=crimson
+          ,shape=tab];
+    }
+    subgraph cluster_Thentos {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Thentos];
+        subgraph cluster_Backend {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Backend];
+            subgraph cluster_Api {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Api];
+                14 [label=Adhocracy3
+                   ,fillcolor=crimson
+                   ,shape=tab];
+                15 [label=Proxy
+                   ,fillcolor=crimson
+                   ,shape=tab];
+                16 [label=Simple
+                   ,fillcolor=crimson
+                   ,shape=tab];
+            }
+            17 [label=Core
+               ,fillcolor=crimson
+               ,shape=tab];
+        }
+        subgraph cluster_DB {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=DB];
+            20 [label=Core
+               ,fillcolor=crimson
+               ,shape=tab];
+            21 [label=Protect
+               ,fillcolor=crimson
+               ,shape=tab];
+            22 [label=Trans
+               ,fillcolor=crimson
+               ,shape=tab];
+        }
+        subgraph cluster_Frontend {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Frontend];
+            25 [label=Pages
+               ,fillcolor=crimson
+               ,shape=tab];
+            26 [label=Util
+               ,fillcolor=crimson
+               ,shape=tab];
+        }
+        18 [label=Config
+           ,fillcolor=crimson
+           ,shape=tab];
+        19 [label=DB
+           ,fillcolor=crimson
+           ,shape=tab];
+        23 [label=Doc
+           ,fillcolor=crimson
+           ,shape=tab];
+        24 [label=Frontend
+           ,fillcolor=crimson
+           ,shape=tab];
+        27 [label=Smtp
+           ,fillcolor=crimson
+           ,shape=tab];
+        28 [label=Types
+           ,fillcolor=crimson
+           ,shape=tab];
+    }
+    1 [label=Cabbage
+      ,fillcolor=crimson
+      ,shape=tab];
+    2 [label=Main
+      ,fillcolor=gold
+      ,shape=tab];
+    4 [label=Pronk
+      ,fillcolor=crimson
+      ,shape=tab];
+    5 [label=Site
+      ,fillcolor=crimson
+      ,shape=tab];
+    12 [label=TestMain
+       ,fillcolor=crimson
+       ,shape=tab];
+    13 [label=Thentos
+       ,fillcolor=crimson
+       ,shape=tab];
+    7 -> 28 [color=black];
+    9 -> 7 [color=black];
+    9 -> 14 [color=black];
+    9 -> 18 [color=black];
+    9 -> 19 [color=black];
+    9 -> 28 [color=black];
+    10 -> 28 [color=black];
+    11 -> 7 [color=black];
+    11 -> 28 [color=black];
+    12 -> 9 [color=black];
+    12 -> 10 [color=black];
+    12 -> 11 [color=black];
+    12 -> 19 [color=black];
+    12 -> 28 [color=black];
+    13 -> 6 [color=black];
+    13 -> 14 [color=black];
+    13 -> 16 [color=black];
+    13 -> 18 [color=black];
+    13 -> 19 [color=black];
+    13 -> 24 [color=black];
+    13 -> 28 [color=black];
+    14 -> 6 [color=black];
+    14 -> 15 [color=black];
+    14 -> 17 [color=black];
+    14 -> 18 [color=black];
+    14 -> 19 [color=black];
+    14 -> 23 [color=black];
+    14 -> 27 [color=black];
+    14 -> 28 [color=black];
+    15 -> 6 [color=black];
+    15 -> 17 [color=black];
+    15 -> 18 [color=black];
+    15 -> 19 [color=black];
+    15 -> 23 [color=black];
+    15 -> 28 [color=black];
+    16 -> 15 [color=black];
+    16 -> 17 [color=black];
+    16 -> 19 [color=black];
+    16 -> 23 [color=black];
+    16 -> 28 [color=black];
+    17 -> 19 [color=black];
+    18 -> 3 [color=black];
+    18 -> 6 [color=black];
+    18 -> 28 [color=black];
+    19 -> 20 [color=black];
+    19 -> 21 [color=black];
+    19 -> 22 [color=black];
+    20 -> 6 [color=black];
+    20 -> 28 [color=black];
+    21 -> 6 [color=black];
+    21 -> 20 [color=black];
+    21 -> 22 [color=black];
+    21 -> 28 [color=black];
+    22 -> 20 [color=black];
+    22 -> 28 [color=black];
+    23 -> 28 [color=black];
+    24 -> 18 [color=black];
+    24 -> 19 [color=black];
+    24 -> 25 [color=black];
+    24 -> 26 [color=black];
+    24 -> 27 [color=black];
+    24 -> 28 [color=black];
+    25 -> 28 [color=black];
+    27 -> 28 [color=black];
+}
