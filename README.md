@@ -83,16 +83,14 @@ This will take a while, as it will pull and build a lot of library
 dependencies.  `--enable-tests` and `--enable-documentation` are
 optional (but it will still take a while to build).
 
-To run the tests
-~~~~~~~~~~~~~~~~
+To run the tests:
 
 ```shell
 $ cabal test
 $ cabal run -- thentos run --runbackend --runfrontend
 ```
 
-Benchmarks
-~~~~~~~~~~
+Benchmarks:
 
 ```shell
 $ git clone https://github.com/fhartwig/pronk -b barely-working-state
@@ -156,15 +154,20 @@ implementation. :)
 Further Reading
 ---------------
 
-FIXME: compile this into gh-pages.
+- `./docs/related_work.md`
 
-- module overview graph
-- haddock
-- rest api doc
+    An incomplete list of related software projects.
+
+- Generated Thentos documentation:
+    - [servant-docs](https://liqd.github.io/thentos/haddock/servant-docs/)
+    - [haddock](https://liqd.github.io/thentos/haddock/)
+    - [SourceGraph](https://liqd.github.io/thentos/haddock/SourceGraph/thentos.html)
 
 
-Warm thanks to (in alphanumerical order)
-----------------------------------------
+Thanks!
+-------
+
+(in alphanumerical order)
 
 - Christian Siefkes
 - Julian Arni
