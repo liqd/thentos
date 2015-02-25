@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TupleSections                            #-}
 
 -- | FIXME: we need to find a less verbose way to combine command line
 -- arguments with data from config file.  See also: #1673, #1694.
@@ -11,12 +12,15 @@ module Thentos.Config
     , FrontendConfig(..)
     , BackendConfig(..)
     , ProxyConfig(..)
+    , SmtpConfig(..)
+    , emptySmtpConfig
     , emptyThentosConfig
     ) where
 
 import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
 import Control.Monad (join)
 import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..), (<>))
 import Network.Mail.Mime (Address(Address))
 import Options.Applicative (command, info, progDesc, long, short, auto, option, flag, help)
@@ -41,10 +45,10 @@ import Thentos.Types
 -- * the config type used by everyone else
 
 data ThentosConfig = ThentosConfig
-    { emailSender :: Address
-    , frontendConfig :: Maybe FrontendConfig
+    { frontendConfig :: Maybe FrontendConfig
     , backendConfig :: Maybe BackendConfig
     , proxyConfig :: Maybe ProxyConfig
+    , smtpConfig :: SmtpConfig
     , defaultUser :: Maybe (UserFormData, [Role])
     }
   deriving (Eq, Show)
@@ -58,8 +62,22 @@ data FrontendConfig = FrontendConfig { frontendPort :: Int }
 data ProxyConfig = ProxyConfig { proxyTargets :: Map ServiceId String }
   deriving (Eq, Show)
 
+data SmtpConfig = SmtpConfig
+    { smtpSender       :: Address
+    , smtpSendmailPath :: FilePath
+    , smtpSendmailArgs :: [String]
+    }
+  deriving (Eq, Show)
+
+emptySmtpConfig :: SmtpConfig
+emptySmtpConfig = case mempty of
+    SmtpConfigBuilder mSender mProg mArgs -> SmtpConfig
+        (fromMaybe (Address Nothing "") mSender)
+        (fromMaybe "/usr/sbin/sendmail" mProg)
+        (fromMaybe ["-t"] mArgs)
+
 emptyThentosConfig :: ThentosConfig
-emptyThentosConfig = ThentosConfig (Address Nothing "") Nothing Nothing Nothing Nothing
+emptyThentosConfig = ThentosConfig Nothing Nothing Nothing emptySmtpConfig Nothing
 
 
 -- * combining (partial) configurations from multiple sources
@@ -67,10 +85,10 @@ emptyThentosConfig = ThentosConfig (Address Nothing "") Nothing Nothing Nothing 
 data ThentosConfigBuilder = ThentosConfigBuilder
     { bRunFrontend :: Maybe Bool
     , bRunBackend :: Maybe Bool
-    , bEmailSender :: Maybe Address
     , bBackendConfig :: BackendConfigBuilder
     , bFrontendConfig :: FrontendConfigBuilder
     , bProxyConfig :: ProxyConfigBuilder
+    , bSmtpConfig :: SmtpConfigBuilder
     , bDefaultUser :: Maybe (UserFormData, [Role])
     }
 
@@ -78,6 +96,7 @@ data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
 data FrontendConfigBuilder = FrontendConfigBuilder { bFrontendPort :: Maybe Int }
 data ProxyConfigBuilder = ProxyConfigBuilder
     { bProxyTarget :: Maybe (Map ServiceId String) }
+data SmtpConfigBuilder = SmtpConfigBuilder (Maybe Address) (Maybe FilePath) (Maybe [String])
 
 instance Monoid BackendConfigBuilder where
     mempty = BackendConfigBuilder Nothing
@@ -97,16 +116,21 @@ instance Monoid ProxyConfigBuilder where
         ProxyConfigBuilder
             { bProxyTarget = bProxyTarget b1 <|> bProxyTarget b2 }
 
+instance Monoid SmtpConfigBuilder where
+    mempty = SmtpConfigBuilder Nothing Nothing Nothing
+    (SmtpConfigBuilder sender prog args) `mappend` (SmtpConfigBuilder sender' prog' args') =
+        SmtpConfigBuilder (sender <|> sender') (prog <|> prog') (args <|> args')
+
 instance Monoid ThentosConfigBuilder where
-    mempty = ThentosConfigBuilder Nothing Nothing Nothing mempty mempty mempty Nothing
+    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty mempty Nothing
     b1 `mappend` b2 =
         ThentosConfigBuilder
             (bRunFrontend b1 <|> bRunFrontend b2)
             (bRunBackend b1 <|> bRunBackend b2)
-            (bEmailSender b1 <|> bEmailSender b2)
             (bBackendConfig b1 <> bBackendConfig b2)
             (bFrontendConfig b1 <> bFrontendConfig b2)
             (bProxyConfig b1 <> bProxyConfig b2)
+            (bSmtpConfig b1 <> bSmtpConfig b2)
             (bDefaultUser b1 <|> bDefaultUser b2)
 
 data ConfigError =
@@ -119,13 +143,18 @@ data ConfigError =
 finaliseConfig :: ThentosConfigBuilder -> Either ConfigError ThentosConfig
 finaliseConfig builder =
     ThentosConfig
-        <$> emailSenderConf
-        <*> frontendConf
+        <$> frontendConf
         <*> backendConf
         <*> proxyConf
+        <*> smtpConf
         <*> defaultUserConf
   where
-    emailSenderConf = maybe (Left NoEmailSender) Right $ bEmailSender builder
+    smtpConf = case bSmtpConfig builder of
+        SmtpConfigBuilder (Just sender) mProg mArgs ->
+            case emptySmtpConfig of
+                SmtpConfig _ defProg defArgs -> Right $
+                    SmtpConfig sender (fromMaybe defProg mProg) (fromMaybe defArgs mArgs)
+        SmtpConfigBuilder Nothing _ _ -> Left NoEmailSender
     backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
         (Just True, Nothing) -> Left BackendConfigMissing
         (Just True, bConf) -> Right bConf
@@ -190,10 +219,10 @@ parseThentosConfig =
     ThentosConfigBuilder <$>
         parseRunFrontend <*>
         parseRunBackend <*>
-        pure Nothing <*>
         parseBackendConfigBuilder <*>
         parseFrontendConfigBuilder <*>
         parseProxyConfigBuilder <*>
+        pure mempty <*>
         pure Nothing
 
 parseBackendConfigBuilder :: Parser BackendConfigBuilder
@@ -260,16 +289,19 @@ parseConfigFile filePath = do
             let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.
             return (u, map (\ r -> readDef (e r) r) rs)
 
-        getEmail :: Maybe Address
-        getEmail = Address (get "email_sender_name") <$> get "email_sender_address"
+        getEmail :: SmtpConfigBuilder
+        getEmail = SmtpConfigBuilder
+            (Address (get "smtp.sender_name") <$> get "smtp.sender_address")
+            (get "smtp.sendmail_path")
+            (get "smtp.sendmail_args")
 
     return $ ThentosConfigBuilder
                 (get "run_frontend")
                 (get "run_backend")
-                getEmail
                 (BackendConfigBuilder $ get "backend_port")
                 (FrontendConfigBuilder $ get "frontend_port")
                 (ProxyConfigBuilder $ Map.fromList <$> get "proxy_targets")
+                getEmail
                 getUser
 
 

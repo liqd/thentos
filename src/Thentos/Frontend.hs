@@ -92,7 +92,7 @@ userAddHandler = do
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token=" <> urlEncode (encodeUtf8 token)
-                    liftIO $ sendUserConfirmationMail (emailSender config) user url
+                    liftIO $ sendUserConfirmationMail (smtpConfig config) user url
                     blaze "Please check your email!"
                 Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
 
