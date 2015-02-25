@@ -61,29 +61,29 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 
 -- | FIXME: generalize, so we can use this for both Update and Query.
 -- (remove 'runThentosQuery' and 'ThentosQuery' when done.)
-runThentosUpdate :: forall a . ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdate :: forall a . Show a => ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
 runThentosUpdate clearance action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
         (Left (ThentosLabeled label (err :: ThentosError)), _) ->
-            checkClearance clearance label (return $ Left err)
+            checkClearance (show err) clearance label (return $ Left err)
         (Right (ThentosLabeled label result), state') ->
-            checkClearance clearance label (put state' >> return (Right result))
+            checkClearance (show result) clearance label (put state' >> return (Right result))
 
-runThentosQuery :: forall a . ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQuery :: forall a . Show a => ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
 runThentosQuery clearance action = do
     state <- ask
     case runIdentity $ runReaderT (runEitherT action) state of
         Left (ThentosLabeled label (err :: ThentosError)) ->
-            checkClearance clearance label (return $ Left err)
+            checkClearance (show err) clearance label (return $ Left err)
         Right (ThentosLabeled label result) ->
-            checkClearance clearance label (return $ Right result)
+            checkClearance (show result) clearance label (return $ Right result)
 
-checkClearance :: Monad m => ThentosClearance -> ThentosLabel -> m (Either ThentosError a) -> m (Either ThentosError a)
-checkClearance clearance label result =
+checkClearance :: Monad m => String -> ThentosClearance -> ThentosLabel -> m (Either ThentosError a) -> m (Either ThentosError a)
+checkClearance msg clearance label result =
     if fromThentosLabel label `canFlowTo` fromThentosClearance clearance
         then result
-        else return . Left $ PermissionDenied clearance label
+        else return . Left $ PermissionDenied msg clearance label
 
 returnDb :: Monad m => ThentosLabel -> a -> EitherT (ThentosLabeled e) m (ThentosLabeled a)
 returnDb l a = right $ ThentosLabeled l a

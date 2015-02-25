@@ -1,13 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
-module Test.Thentos.Types where
+module Thentos.TypesSpec where
 
 import Data.SafeCopy (safeGet, safePut)
 import Data.Serialize.Get (runGet)
 import Data.Serialize.Put (runPut)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel ((%%), (/\), (\/), toCNF)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 import Test.Hspec.QuickCheck (modifyMaxSize)
 import Test.QuickCheck (property)
 
@@ -18,8 +18,11 @@ import Test.Arbitrary ()
 testSizeFactor :: Int
 testSizeFactor = 1
 
-tests :: Spec
-tests = modifyMaxSize (* testSizeFactor) $ do
+tests :: IO ()
+tests = hspec spec
+
+spec :: Spec
+spec = modifyMaxSize (* testSizeFactor) $ do
     describe "Thentos.Types" $ do
         describe "instance SafeCopy (HashedSecret a)" $
             it "is invertible" $ property $

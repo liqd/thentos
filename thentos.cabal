@@ -145,15 +145,17 @@ test-suite tests
   hs-source-dirs:
       tests
   main-is:
-      TestMain.hs
+      Spec.hs
   other-modules:
-      Test.Config
-    , Test.Thentos.Backend.Api.Simple
-    , Test.Thentos.Backend.Api.Adhocracy3
-    , Test.Thentos.Types
+      Test.Arbitrary
+    , Test.Config
     , Test.Util
+    , ThentosSpec
+    , Thentos.Backend.Api.Adhocracy3Spec
+    , Thentos.Backend.Api.SimpleSpec
+    , Thentos.TypesSpec
   ghc-options:
-      -O2 -Wall -threaded -rtsopts -main-is TestMain
+      -O2 -Wall -threaded -rtsopts
   cpp-options:
       -DGHC_GENERICS
   build-depends:
@@ -169,6 +171,7 @@ test-suite tests
     , crypto-random
     , functor-infix
     , hspec
+    , hspec-discover
     , http-types
     , lens
     , lio

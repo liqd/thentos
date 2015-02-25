@@ -13,7 +13,7 @@
 
 {-# OPTIONS  #-}
 
-module TestMain where
+module ThentosSpec where
 
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
@@ -27,23 +27,13 @@ import Thentos.Api
 import Thentos.Types
 
 import Test.Util
-import qualified Test.Thentos.Backend.Api.Simple
-import qualified Test.Thentos.Backend.Api.Adhocracy3
-import qualified Test.Thentos.Types
 
 
--- * test suite
+tests :: IO ()
+tests = hspec spec
 
-main :: IO ()
-main = hspec $ do
-  Test.Thentos.Backend.Api.Simple.tests
-  Test.Thentos.Backend.Api.Adhocracy3.tests
-  Test.Thentos.Types.tests
-  adhoc
-
-
-adhoc :: Spec
-adhoc = do
+spec :: Spec
+spec = do
   describe "DB" . before setupDB . after teardownDB $ do
     describe "hspec meta" $ do
       it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ (st, _, _) -> do
