@@ -50,7 +50,7 @@ setupTestA3Server = do
         { frontendConfig = Just FrontendConfig { frontendPort = 7082 }
         , backendConfig = Just BackendConfig { backendPort = 7081 }
         , proxyConfig = Nothing
-        , smtpConfig = emptySmtpConfig { smtpSender = Address (Just "Thentos") "thentos@thentos.org" }
+        , smtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []
         , defaultUser = Nothing
         }
   return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)
