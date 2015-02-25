@@ -13,19 +13,17 @@ module Thentos.Util
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Maybe (fromJust)
 import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Thentos.Types
 
 import qualified Crypto.Scrypt as Scrypt
 
--- | FIXME: @[2 2 1]@ is fast, but does not provide adequate
--- protection for passwords in production mode.  change back to
--- default params when done playing!
+-- | @[2 2 1]@ is fast, but does not provide adequate
+-- protection for passwords in production mode!
 thentosScryptParams :: Scrypt.ScryptParams
--- thentosScryptParams = Scrypt.defaultScryptParams
-thentosScryptParams = fromJust $ Scrypt.scryptParams 2 1 1
+thentosScryptParams = Scrypt.defaultParams
+-- thentosScryptParams = fromJust $ Scrypt.scryptParams 2 1 1
 
 hashUserPass :: (Functor m, MonadIO m) => UserPass -> m (HashedSecret UserPass)
 hashUserPass = hashSecret fromUserPass
@@ -49,8 +47,8 @@ makeUserFromFormData userData = do
                   []
 
 secretMatches :: ST -> HashedSecret a -> Bool
-secretMatches t s = fst $ Scrypt.verifyPass thentosScryptParams
-        (Scrypt.Pass $ encodeUtf8 t) (fromHashedSecret s)
+secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
+                                       (fromHashedSecret s)
 
 verifyPass :: UserPass -> User -> Bool
 verifyPass pass user = secretMatches (fromUserPass pass)
