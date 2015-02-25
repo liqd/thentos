@@ -1,3 +1,6 @@
+Load Testing
+------------
+
 You can find a working version of the pronk load testing tool at
 https://github.com/fhartwig/pronk/tree/barely-working-state
 Example usage:
