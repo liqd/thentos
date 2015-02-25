@@ -76,6 +76,9 @@ routes = [ ("", ifTop $ mainPageHandler)
 mainPageHandler :: Handler FrontendApp FrontendApp ()
 mainPageHandler = blaze $ mainPage
 
+-- | FIXME (thanks to Sönke Hahn): this doesn't create a user on
+-- errors (e.g.  missing mail address), but does not show an error
+-- message.  (Even worse: it returns a 200.)
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
     (_view, result) <- runForm "create_user" userForm
@@ -114,6 +117,10 @@ serviceAddedHandler = do
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
 
+-- | FIXME (thanks to Sönke Hahn): The session token seems to be
+-- contained in the url. So if people copy the url from the address
+-- bar and send it to someone, they will get the same session.  The
+-- session token should be in a cookie, shouldn't it?
 loginHandler :: Handler FrontendApp FrontendApp ()
 loginHandler = do
     uri <- getsRequest rqURI
