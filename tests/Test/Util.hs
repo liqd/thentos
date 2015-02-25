@@ -50,10 +50,13 @@ import Thentos.Types
 
 import Test.Config
 
+-- | FIXME: the scrypt parameters used here need to match those in
+-- 'Thentos.Util.thentosScryptParams', or password verification will
+-- fail!  not sure if we've taken this into account.
 encryptTestSecret :: ByteString -> HashedSecret a
 encryptTestSecret pw =
     HashedSecret $
-        encryptPass (fromJust $ scryptParams 4 4 1) (Salt "") (Pass pw)
+        encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 user1, user2, user3, user4, user5 :: User
 user1 = User "name1" (encryptTestSecret "passwd") "em@il" [] Nothing []

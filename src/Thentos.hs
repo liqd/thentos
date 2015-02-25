@@ -50,14 +50,14 @@ main =
 
     configLogger
 
-    Right cmd <- getCommand "devel.config"
-    logger DEBUG (ppShow cmd)
-    let run = case cmd of
-            ShowDB -> do
+    eCmd <- getCommand "devel.config"
+    logger DEBUG (ppShow eCmd)
+    let run = case eCmd of
+            Right ShowDB -> do
                 logger INFO "database contents:"
                 query' st (SnapShot allowEverything) >>= either (error "oops?") (logger INFO . ppShow)
 
-            Run config -> do
+            Right (Run config) -> do
                 createDefaultUser st (defaultUser config)
 
                 let backend = case backendConfig config of
@@ -76,7 +76,7 @@ main =
                 logger INFO "Press ^C to abort."
                 void $ concurrently backend frontend
 
-            RunA3 config -> do
+            Right (RunA3 config) -> do
                 createDefaultUser st (defaultUser config)
                 _ <- createCheckpointLoop st 16000 Nothing
 
@@ -86,6 +86,8 @@ main =
                             logger INFO $ "running a3 rest api on localhost:" <> show backendPort <> "."
                             logger INFO "Press ^C to abort."
                             Thentos.Backend.Api.Adhocracy3.runBackend backendPort (st, rng, config)
+
+            Left e -> error $ "error parsing config (shell env, cli, or config files): " ++ show e
 
     let finalize = do
             notify "creating checkpoint and shutting down acid-state" $

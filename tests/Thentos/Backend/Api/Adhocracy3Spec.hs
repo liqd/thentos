@@ -47,10 +47,10 @@ setupTestA3Server :: IO (ActionStateGlobal (MVar SystemRNG), Application)
 setupTestA3Server = do
   (st, rng, _) <- setupDB
   let asg = (st, rng,) $ ThentosConfig
-        { emailSender = Address (Just "Thentos") "thentos@thentos.org"
-        , frontendConfig = Just FrontendConfig { frontendPort = 7082 }
+        { frontendConfig = Just FrontendConfig { frontendPort = 7082 }
         , backendConfig = Just BackendConfig { backendPort = 7081 }
         , proxyConfig = Nothing
+        , smtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []
         , defaultUser = Nothing
         }
   return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)

@@ -302,7 +302,7 @@ addUser (A3UserWithPass user) = logActionError $ do
     let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> enctok
         feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
         enctok :: SBS = urlEncode . cs . fromConfimationToken $ tok
-    liftIO $ sendUserConfirmationMail (emailSender config) user activationUrl
+    liftIO $ sendUserConfirmationMail (smtpConfig config) user activationUrl
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 

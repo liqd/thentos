@@ -19,6 +19,9 @@ Source-Repository head
   type: git
   location: https://github.com/liqd/thentos
 
+flag profiling
+  default: False
+
 library
   default-language:
       Haskell2010
@@ -26,6 +29,9 @@ library
       src
   ghc-options:
       -O2 -Wall -threaded -rtsopts
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
   exposed-modules:
       Thentos
     , Thentos.Types
@@ -108,6 +114,9 @@ executable thentos
       Main.hs
   ghc-options:
       -O2 -Wall -threaded -rtsopts
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
   build-depends:
       base
     , thentos
