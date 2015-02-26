@@ -214,13 +214,13 @@ benchmark load-test
       base
     , thentos
     , aeson
-    , pronk
+    , bytestring
     , conduit
     , http-conduit
+    , http-types
+    , pronk
+    , random
     , resourcet
     , text
     , text-format
     , time
-    , http-types
-    , random
-    , bytestring
