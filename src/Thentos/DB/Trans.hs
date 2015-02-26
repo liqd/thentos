@@ -391,7 +391,8 @@ lookupSessionWithMaybeService mSid mNow tok = do
 -- Throw error if user or service do not exist.  Otherwise, return
 -- session token.  If there is already an active session for this
 -- user, return the existing token again, and store new session under
--- it.  If agent is a user, remove all her logins.
+-- it.  If agent is a user, remove all her logins (even if session
+-- already exists).
 trans_startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
 trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
@@ -505,7 +506,7 @@ writeSession (fromMaybe id -> updateLogins) tok session = do
     _updateUser = (userSession .~ Just tok) . (userLogins %~ updateLogins)
 
     _updateService :: Service -> Service
-    _updateService = (serviceSession .~ Just tok)
+    _updateService = serviceSession .~ Just tok
 
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is 'User', write
