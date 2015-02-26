@@ -70,10 +70,16 @@ data User =
   deriving (Eq, Show, Typeable, Generic)
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, FromJSON, ToJSON, Show, Read, Typeable, Generic, FromText)
+    deriving (Eq, Ord, Enum, Show, Read, Typeable, Generic, FromText)
+
+instance Aeson.FromJSON UserId where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON UserId where toJSON = Aeson.gtoJson
 
 newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+instance Aeson.FromJSON UserName where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON UserName where toJSON = Aeson.gtoJson
 
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, Show, Typeable, Generic, IsString)
@@ -97,13 +103,16 @@ instance SafeCopy (HashedSecret a) where
     getCopy = contain $ safeGet >>= return . HashedSecret . Scrypt.EncryptedPass
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+instance Aeson.FromJSON UserEmail where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON UserEmail where toJSON = Aeson.gtoJson
 
 newtype Group = Group { fromGroup :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 -- | Information required to create a new User
 data UserFormData =
@@ -128,10 +137,16 @@ data Service =
   deriving (Eq, Show, Typeable, Generic)
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
-  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance Aeson.FromJSON ServiceId where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceId where toJSON = Aeson.gtoJson
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
-  deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
 
 instance Configured ServiceId where
     convert (String s) = Just $ ServiceId s
@@ -153,7 +168,10 @@ instance Aeson.FromJSON Session where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Session where toJSON = Aeson.gtoJson
 
 newtype SessionToken = SessionToken { fromSessionToken :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString, FromText)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
