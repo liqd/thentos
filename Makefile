@@ -5,7 +5,7 @@ lint:
 
 wc:
 	find src -name '*.hs' | xargs wc
-	find tests -name '*.hs' | xargs wc
+	find bench tests -name '*.hs' | xargs wc
 	find services/helloworld/src -name '*.hs' | xargs wc
 
 clean:
