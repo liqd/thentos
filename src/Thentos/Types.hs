@@ -81,8 +81,13 @@ newtype UserPass = UserPass { fromUserPass :: ST }
 instance FromJSON UserPass where
     parseJSON = Aeson.withText "user password string" $ return . UserPass
 
+-- | FIXME: this instance should go away entirely in order to avoid
+-- accidental leakage of cleartext passwords.  but for the
+-- experimentation phase this is too much of a headache.  either way,
+-- don't do any half-assed rendering to "[password hidden]".  causes
+-- too many confusing errors.
 instance ToJSON UserPass where
-    toJSON _ = "[password hidden]"
+    toJSON (UserPass p) = Aeson.toJSON p
 
 newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
