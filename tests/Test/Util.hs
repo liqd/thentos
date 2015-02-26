@@ -118,7 +118,7 @@ loginAsGod testServer = debugRunSession False testServer $ do
         then error $ ppShow response
         else do
             let Just (tok :: SessionToken) = Aeson.decode' $ simpleBody response
-            let credentials :: [Header] = [(mk "X-Session-Token", cs $ show tok)]
+            let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ show tok)]
             return (tok, credentials)
 
 logoutAsGod :: Application -> SessionToken -> [Header] -> IO ()
