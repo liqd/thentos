@@ -175,6 +175,7 @@ test-suite tests
     , aeson-pretty
     , attoparsec
     , bytestring
+    , case-insensitive
     , cereal
     , containers
     , crypto-random

@@ -50,10 +50,14 @@ setupTestA3Server = do
         { frontendConfig = Just FrontendConfig { frontendPort = 7082 }
         , backendConfig = Just BackendConfig { backendPort = 7081 }
         , proxyConfig = Nothing
-        , smtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []
+        , smtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []  -- FIXME: /bin/cat pollutes stdout.
         , defaultUser = Nothing
         }
   return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)
+
+teardownA3TestServer :: (ActionStateGlobal (MVar SystemRNG), Application) -> IO ()
+teardownA3TestServer (db, _) = do
+    teardownDB db
 
 
 tests :: IO ()
@@ -77,9 +81,9 @@ spec = do
                     (===) _ _ = False
                 in \ (A3UserWithPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u === Right u
 
-        describe "create user" . before setupTestA3Server . after teardownTestServer $ do
+        describe "create user" . before setupTestA3Server . after teardownA3TestServer $ do
             it "works" $
-                \ ((st, _, _), testServer) -> (debugRunSession True testServer) $ do
+                \ ((st, _, _), testServer) -> debugRunSession False testServer $ do
 
                     -- Aeson.encode would strip the password, so we
                     -- need to do this one by hand.
@@ -120,11 +124,11 @@ spec = do
 
                     return ()
 
-        describe "send email" . before setupTestA3Server . after teardownTestServer $ do
+        describe "send email" . before setupTestA3Server . after teardownA3TestServer $ do
             it "works" $
                 \ _ -> pendingWith "test missing."
 
-        describe "login" . before setupTestA3Server . after teardownTestServer $ do
+        describe "login" . before setupTestA3Server . after teardownA3TestServer $ do
             it "works" $
                 \ _ -> pendingWith "test missing."
 

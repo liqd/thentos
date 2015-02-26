@@ -18,12 +18,13 @@ where
 
 import Control.Applicative ((<*))
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Monad (when)
+import Control.Monad (when, void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
 import Data.Acid (AcidState, openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (update')
 import Data.ByteString (ByteString)
+import Data.CaseInsensitive (mk)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.String.Conversions (LBS, SBS, cs)
@@ -31,9 +32,10 @@ import Filesystem (isDirectory, removeTree)
 import GHC.Exts (fromString)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
+import Network.HTTP.Types.Status (statusCode)
 import Network.Wai (Application, StreamingBody, requestMethod, requestBody, strictRequestBody, requestHeaders)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
-import Network.Wai.Test (runSession, setPath, defaultRequest)
+import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import Text.Show.Pretty (ppShow)
 
@@ -63,12 +65,18 @@ user4 = User "name4" (encryptTestSecret "4") "4" [] Nothing []
 user5 = User "name5" (encryptTestSecret "5") "5" [] Nothing []
 
 
-godCredentials :: [Header]
-godCredentials = [("X-Thentos-User", "god"), ("X-Thentos-Password", "god")]
+godUid :: UserId
+godUid = UserId 0
+
+godName :: UserName
+godName = "god"
+
+godPass :: UserPass
+godPass = "god"
 
 createGod :: AcidState DB -> IO ()
 createGod st = createDefaultUser st
-    (Just (UserFormData "god" "god" "postmaster@localhost", [RoleAdmin]))
+    (Just (UserFormData godName godPass "postmaster@localhost", [RoleAdmin]))
 
 
 setupDB :: IO (ActionStateGlobal (MVar SystemRNG))
@@ -91,13 +99,31 @@ destroyDB = do
   let p = (fromString (dbPath config))
     in isDirectory p >>= \ yes -> when yes $ removeTree p
 
-setupTestServer :: IO (ActionStateGlobal (MVar SystemRNG), Application)
+setupTestServer :: IO (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header])
 setupTestServer = do
   asg <- setupDB
-  return (asg, serveApi asg)
+  let testServer = serveApi asg
+  (tok, headers) <- loginAsGod testServer
+  return (asg, testServer, tok, headers)
 
-teardownTestServer :: (ActionStateGlobal (MVar SystemRNG), Application) -> IO ()
-teardownTestServer (db, _) = teardownDB db
+teardownTestServer :: (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header]) -> IO ()
+teardownTestServer (db, testServer, tok, godCredentials) = do
+    logoutAsGod testServer tok godCredentials
+    teardownDB db
+
+loginAsGod :: Application -> IO (SessionToken, [Header])
+loginAsGod testServer = debugRunSession False testServer $ do
+    response <- srequest (makeSRequest "POST" "/session" [] $ Aeson.encode (godUid, godPass))
+    if (statusCode (simpleStatus response) /= 201)
+        then error $ ppShow response
+        else do
+            let Just (tok :: SessionToken) = Aeson.decode' $ simpleBody response
+            let credentials :: [Header] = [(mk "X-Session-Token", cs $ show tok)]
+            return (tok, credentials)
+
+logoutAsGod :: Application -> SessionToken -> [Header] -> IO ()
+logoutAsGod testServer tok godCredentials = debugRunSession False testServer $ do
+    void . srequest . makeSRequest "DELETE" "/session" godCredentials $ Aeson.encode tok
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
@@ -153,6 +179,7 @@ debugRunSession debug application session = runSession session (wrapApplication 
 -- objects and arrays.
 --
 -- Copied from https://github.com/haskell-servant/servant-client
+-- (FIXME: also available from attoparsec these days.  replace!)
 decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
   v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
