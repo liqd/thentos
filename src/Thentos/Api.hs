@@ -21,9 +21,9 @@ module Thentos.Api
   , queryAction
   , addUnconfirmedUser
   , addService
-  , startSession
-  , startSessionNow
-  , startSessionNowWithTimeout
+  , startSessionUser
+  , startSessionService
+  , startSessionNoPass
   , bumpSession
   , isActiveSession
   , isActiveSessionAndBump
@@ -46,7 +46,7 @@ import Data.Acid.Advanced (update', query')
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme.Time ()
-import Data.Thyme (UTCTime, getCurrentTime)
+import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
@@ -200,20 +200,33 @@ addService = do
 
 -- ** sessions
 
-startSession :: CPRG r => Agent -> TimeStamp -> Timeout -> Action (MVar r) SessionToken
-startSession agent start lifetime = do
+-- | Check user credentials and create a session for user.
+startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
+startSessionUser (uid, pass) = do
+    (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
+    if verifyPass pass user
+        then startSessionNoPass (UserA uid)
+        else lift $ left BadCredentials
+
+-- | Check service credentials and create a session for service.
+startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
+startSessionService (sid, key) = do
+    (_, service) <- accessAction (Just allowEverything) query' $ LookupService sid
+    if verifyKey key service
+        then startSessionNoPass (ServiceA sid)
+        else lift $ left BadCredentials
+
+-- | Do NOT check credentials, and just open a session for any agent.
+-- Only call this in the context of a successful authentication check!
+startSessionNoPass :: CPRG r => Agent -> Action (MVar r) SessionToken
+startSessionNoPass agent = do
+    now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshSessionToken
-    updateAction $ StartSession tok agent start lifetime
+    accessAction (Just allowEverything) update' $ StartSession tok agent now defaultSessionTimeout
 
 -- | Sessions have a fixed duration of 2 weeks.
-startSessionNow :: CPRG r => Agent -> Action (MVar r) SessionToken
-startSessionNow agent = startSessionNowWithTimeout (agent, Timeout $ 14 * 24 * 3600)
-
--- | Sessions with explicit timeout.
-startSessionNowWithTimeout :: CPRG r => (Agent, Timeout) -> Action (MVar r) SessionToken
-startSessionNowWithTimeout (agent, timeout) = do
-    now :: UTCTime <- liftIO getCurrentTime
-    startSession agent (TimeStamp now) timeout
+defaultSessionTimeout :: Timeout
+defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
 bumpSession :: SessionToken -> Action r (SessionToken, Session)
 bumpSession tok = do
@@ -225,6 +238,10 @@ isActiveSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     queryAction $ IsActiveSession now tok
 
+-- | FUTURE WORK [performance]: do a query first; if session has not
+-- aged beyond a certain threshold, do not bump.  (also, we should
+-- just bump the session in 'makeThentosClearance' and then be done
+-- with it.  much simpler!)
 isActiveSessionAndBump :: SessionToken -> Action r Bool
 isActiveSessionAndBump tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
@@ -235,8 +252,8 @@ isLoggedIntoService tok sid = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ IsLoggedIntoService now tok sid
 
-sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
-sessionAndUserIdFromToken tok = do
+_sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
+_sessionAndUserIdFromToken tok = do
     (_, session) <- bumpSession tok
     case session ^. sessionAgent of
         UserA uid -> return (session, uid)
@@ -244,12 +261,12 @@ sessionAndUserIdFromToken tok = do
 
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do
-    (_, uid) <- sessionAndUserIdFromToken tok
+    (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid)
 
 dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
 dropServiceLogin tok sid = do
-    (_, uid) <- sessionAndUserIdFromToken tok
+    (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
 
 

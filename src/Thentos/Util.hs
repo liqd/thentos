@@ -2,10 +2,11 @@
 
 module Thentos.Util
     ( makeUserFromFormData
-    , Thentos.Util.verifyPass
+    , verifyPass
+    , verifyKey
     , secretMatches
-    , hashServiceKey
     , hashUserPass
+    , hashServiceKey
     , cshow
     , readsPrecEnumBoundedShow
 ) where
@@ -53,6 +54,10 @@ secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
 verifyPass :: UserPass -> User -> Bool
 verifyPass pass user = secretMatches (fromUserPass pass)
                                      (user ^. userPassword)
+
+verifyKey :: ServiceKey -> Service -> Bool
+verifyKey key service = secretMatches (fromServiceKey key)
+                                      (service ^. serviceKey)
 
 
 -- | Convertible show.

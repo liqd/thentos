@@ -117,8 +117,8 @@ instance ToCapture (Capture "token" SessionToken) where
 instance ToCapture (Capture "sid" ServiceId) where
     toCapture _ = DocCapture "sid" "Service ID"
 
-instance ToCapture (Capture "userid" UserId) where
-    toCapture _ = DocCapture "userid" "User ID"
+instance ToCapture (Capture "uid" UserId) where
+    toCapture _ = DocCapture "uid" "User ID"
 
 instance ToSample Agent where
     toSample = Just . UserA . UserId $ 0
@@ -149,6 +149,9 @@ instance ToSample UserEmail where
 
 instance ToSample UserId where
     toSample = Just $ UserId 12
+
+instance ToSample (UserId, UserPass) where
+    toSample = Just (UserId 12, UserPass "geheim")
 
 instance ToSample [UserId] where
     toSample = Just [UserId 3, UserId 7, UserId 23]

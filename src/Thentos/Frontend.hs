@@ -154,7 +154,7 @@ loginHandler = do
             Just callback -> do
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do
-                        tok <- startSessionNow (UserA uid)
+                        tok <- startSessionNoPass (UserA uid)
                         addServiceLogin tok sid
                         return tok
                 case eSessionToken of

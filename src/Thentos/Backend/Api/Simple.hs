@@ -19,7 +19,6 @@
 module Thentos.Backend.Api.Simple (App, ThentosAuth, runBackend, serveApi) where
 
 import Control.Applicative ((<$>))
-import Control.Arrow (first)
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
@@ -88,66 +87,64 @@ instance ( PushActionC (Server sublayout)
       where
         routingState :: RestActionState
         routingState = ( asg
-                       , makeThentosClearance
-                           (lookupRequestHeader request "X-Thentos-User")
-                           (lookupRequestHeader request "X-Thentos-Service")
-                           (lookupRequestHeader request "X-Thentos-Password")
-                           (lookupRequestHeader request "X-Thentos-Session")
+                       , makeThentosClearance $ lookupRequestHeader request "X-Thentos-Session"
                        )
 
 
 -- * user
 
 type ThentosUser =
-       Get [UserId]
-  :<|> Capture "userid" UserId :> "name" :> Get UserName
-  :<|> Capture "userid" UserId :> "name" :> ReqBody UserName :> Put ()
-  :<|> Capture "userid" UserId :> "email" :> Get UserEmail
-  :<|> Capture "userid" UserId :> "email" :> ReqBody UserEmail :> Put ()
-  :<|> ReqBody UserFormData :> Post UserId
-  :<|> Capture "userid" UserId :> Delete
+       ReqBody UserFormData :> Post UserId
+  :<|> Capture "uid" UserId :> Delete
+  :<|> Capture "uid" UserId :> "name" :> ReqBody UserName :> Put ()
+  :<|> Capture "uid" UserId :> "name" :> Get UserName
+  :<|> Capture "uid" UserId :> "email" :> ReqBody UserEmail :> Put ()
+  :<|> Capture "uid" UserId :> "email" :> Get UserEmail
+  :<|> Get [UserId]
 
 
 thentosUser :: PushActionSubRoute (Server ThentosUser)
 thentosUser =
-       queryAction AllUserIds
-  :<|> (((^. userName) . snd) <$>) . queryAction . LookupUser
-  :<|> (\ uid name -> updateAction $ UpdateUserField uid (UpdateUserFieldName name))
-  :<|> (((^. userEmail) . snd) <$>) . queryAction . LookupUser
-  :<|> (\ uid email -> updateAction $ UpdateUserField uid (UpdateUserFieldEmail email))
-  :<|> (\ userFormData -> liftIO (makeUserFromFormData userFormData) >>= updateAction . AddUser)
+       (\ userFormData -> liftIO (makeUserFromFormData userFormData) >>= updateAction . AddUser)
   :<|> updateAction . DeleteUser
+  :<|> (\ uid name -> updateAction $ UpdateUserField uid (UpdateUserFieldName name))
+  :<|> (((^. userName) . snd) <$>) . queryAction . LookupUser
+  :<|> (\ uid email -> updateAction $ UpdateUserField uid (UpdateUserFieldEmail email))
+  :<|> (((^. userEmail) . snd) <$>) . queryAction . LookupUser
+  :<|> queryAction AllUserIds
 
 
 -- * service
 
 type ThentosService =
-       Get [ServiceId]
-  :<|> Post (ServiceId, ServiceKey)
+       Post (ServiceId, ServiceKey)
+  :<|> Capture "sid" ServiceId :> Delete
+  :<|> Get [ServiceId]
 
 thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
-         queryAction AllServiceIds
-    :<|> addService
+         addService
+    :<|> updateAction . DeleteService
+    :<|> queryAction AllServiceIds
 
 
 -- * session
 
 type ThentosSession =
-       ReqBody UserId               :> Post SessionToken
-  :<|> ReqBody (UserId, Timeout)    :> Post SessionToken
-  :<|> Capture "token" SessionToken :> Delete
-  :<|> Capture "token" SessionToken :> Get Bool
-  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Post ()
-  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Delete
-  :<|> Capture "token" SessionToken :> "login" :> Capture "sid" ServiceId :> Get Bool
+       ReqBody (UserId, UserPass)      :> Post SessionToken
+  :<|> ReqBody (ServiceId, ServiceKey) :> Post SessionToken
+  :<|> ReqBody SessionToken            :> Get Bool
+  :<|> ReqBody SessionToken            :> Delete
+  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Post ()
+  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Get Bool
+  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Delete
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
-       startSessionNow . UserA
-  :<|> startSessionNowWithTimeout . first UserA
-  :<|> updateAction . EndSession
+       startSessionUser
+  :<|> startSessionService
   :<|> isActiveSession
+  :<|> updateAction . EndSession
   :<|> addServiceLogin
-  :<|> dropServiceLogin
   :<|> isLoggedIntoService
+  :<|> dropServiceLogin

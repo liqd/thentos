@@ -18,8 +18,6 @@ module ThentosSpec where
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
-import Data.Functor.Infix ((<$>))
-import Data.Thyme (getCurrentTime)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
 import Thentos.DB
@@ -103,9 +101,8 @@ spec = do
 
     describe "StartSession" $ do
       it "works" $ \ asg -> do
-        from <- TimeStamp <$> getCurrentTime
-        let timeout = Timeout 600
-        Right _ <- runAction' (asg, allowEverything) $ startSession (UserA $ UserId 0) from timeout
+        result <- runAction' (asg, allowEverything) $ startSessionNoPass (UserA $ UserId 0)
+        result `shouldSatisfy` isRight
         return ()
 
     describe "agents and roles" $ do

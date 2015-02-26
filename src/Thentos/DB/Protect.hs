@@ -15,7 +15,6 @@ module Thentos.DB.Protect
   , createDefaultUser
   ) where
 
-import Control.Lens ((^.))
 import Control.Monad (when)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query', update')
@@ -24,8 +23,6 @@ import Data.String.Conversions (ST)
 import LIO.DCLabel (ToCNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty
-
-import qualified Data.Map as Map
 
 import Thentos.DB.Core
 import Thentos.DB.Trans
@@ -43,33 +40,9 @@ import Thentos.Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-makeThentosClearance :: Maybe ST -> Maybe ST -> Maybe ST -> Maybe ST -> DB -> TimeStamp -> Either ThentosError ThentosClearance
-makeThentosClearance (Just user) Nothing        (Just password) Nothing    db _   = authenticateUser db (UserName user) (Just $ UserPass password)
-makeThentosClearance Nothing     (Just service) (Just password) Nothing    db _   = authenticateService db (ServiceId service) (ServiceKey password)
-makeThentosClearance Nothing     Nothing        Nothing         (Just tok) db now = authenticateSession db now (SessionToken tok)
-makeThentosClearance Nothing     Nothing        Nothing         Nothing    _  _   = Right allowNothing
-makeThentosClearance _           _              _               _          _  _   = Left BadAuthenticationHeaders
-
-
-authenticateUser :: DB -> UserName -> Maybe UserPass -> Either ThentosError ThentosClearance
-authenticateUser db name password = do
-    (uid, user) :: (UserId, User)
-        <- maybe (Left BadCredentials) Right $ pure_lookupUserByName db name
-
-    if maybe True (`verifyPass` user) password
-        then Right $ makeClearance_ (UserA uid) (pure_lookupAgentRoles db $ UserA uid)
-        else Left BadCredentials
-
-
-authenticateService :: DB -> ServiceId -> ServiceKey -> Either ThentosError ThentosClearance
-authenticateService db sid keyFromClient = do
-    (_, Service hashedServiceKey Nothing)
-        <- maybe (Left BadCredentials) (Right) $ pure_lookupService db sid
-
-    if secretMatches (fromServiceKey keyFromClient) hashedServiceKey
-        then Right $ makeClearance_ (ServiceA sid) (pure_lookupAgentRoles db $ ServiceA sid)
-        else Left BadCredentials
-
+makeThentosClearance :: Maybe ST -> DB -> TimeStamp -> Either ThentosError ThentosClearance
+makeThentosClearance Nothing    _  _   = Right allowNothing
+makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToken tok)
 
 -- | The counter part to 'makeThentosLabel'.  (The argument types are
 -- much more specific becaues there is only one use case so far.  The
@@ -81,17 +54,15 @@ makeClearance_ agent roles = s *%% i
     s = foldr (/\) (toCNF agent) roles
     i = foldr (\/) (toCNF agent) roles
 
-
 authenticateSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError ThentosClearance
-authenticateSession db now tok = getUserFromSession db now tok
-    >>= \ user -> authenticateUser db (user ^. userName) Nothing
-
-getUserFromSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError User
-getUserFromSession db now tok = do
-    uid <- case pure_lookupSession db (Just (now, False)) tok of
-        LookupSessionUnchanged (_, Session (UserA uid) _ _ _) -> Right uid
+authenticateSession db now tok = do
+    agent <- case pure_lookupSession db (Just (now, False)) tok of
+        LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
         _ -> Left NoSuchSession
-    maybe (Left NoSuchUser) Right . Map.lookup uid $ db ^. dbUsers
+
+    case agent of
+        UserA    uid -> Right $ makeClearance_ (UserA uid)    (pure_lookupAgentRoles db $ UserA    uid)
+        ServiceA sid -> Right $ makeClearance_ (ServiceA sid) (pure_lookupAgentRoles db $ ServiceA sid)
 
 
 -- | Clearance for everything.

@@ -311,21 +311,18 @@ activate (ActivationRequest p) = logActionError $ do
     logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     ctok :: ConfirmationToken <- confirmationTokenFromPath p
     uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
-    stok :: SessionToken      <- startSessionNow (UserA uid)
+    stok :: SessionToken      <- startSessionNoPass (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
 
 -- | FIXME: check password!
 login :: LoginRequest -> RestAction RequestResult
-login r@(LoginByName uname _) = logActionError $ do
-    logger DEBUG $ "route login (name):" <> show r
-    (uid, _)             <- queryAction $ LookupUserByName uname
-    stok :: SessionToken <- startSessionNow (UserA uid)
-    return $ RequestSuccess (userIdToPath uid) stok
-login r@(LoginByEmail uemail _) = logActionError $ do
-    logger DEBUG $ "route login (email):" <> show r
-    (uid, _)             <- queryAction $ LookupUserByEmail uemail
-    stok :: SessionToken <- startSessionNow (UserA uid)
+login r = logActionError $ do
+    logger DEBUG $ "route login:" <> show r
+    (uid, _) <- case r of
+        LoginByName  uname _  -> queryAction $ LookupUserByName  uname
+        LoginByEmail uemail _ -> queryAction $ LookupUserByEmail uemail
+    stok :: SessionToken <- startSessionNoPass (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
 
