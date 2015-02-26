@@ -70,30 +70,18 @@ data User =
   deriving (Eq, Show, Typeable, Generic)
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Typeable, Generic, FromText)
-
-instance Aeson.FromJSON UserId where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON UserId where toJSON = Aeson.gtoJson
+    deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
 
 newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
 
-instance Aeson.FromJSON UserName where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON UserName where toJSON = Aeson.gtoJson
-
-newtype UserPass = UserPass { fromUserPass :: ST }
-    deriving (Eq, Show, Typeable, Generic, IsString)
-
-instance FromJSON UserPass where
-    parseJSON = Aeson.withText "user password string" $ return . UserPass
-
--- | FIXME: this instance should go away entirely in order to avoid
+-- | FIXME: ToJSON instance should go away in order to avoid
 -- accidental leakage of cleartext passwords.  but for the
 -- experimentation phase this is too much of a headache.  either way,
 -- don't do any half-assed rendering to "[password hidden]".  causes
 -- too many confusing errors.
-instance ToJSON UserPass where
-    toJSON (UserPass p) = Aeson.toJSON p
+newtype UserPass = UserPass { fromUserPass :: ST }
+    deriving (Eq, Show, FromJSON, ToJSON, Typeable, Generic, IsString)
 
 newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
@@ -103,10 +91,7 @@ instance SafeCopy (HashedSecret a) where
     getCopy = contain $ safeGet >>= return . HashedSecret . Scrypt.EncryptedPass
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
-
-instance Aeson.FromJSON UserEmail where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON UserEmail where toJSON = Aeson.gtoJson
+    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
 newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
