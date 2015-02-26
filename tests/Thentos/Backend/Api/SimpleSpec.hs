@@ -65,20 +65,7 @@ spec = do
                         \ _ -> pendingWith "test missing."
 
                 it "responds with an error if password is wrong" $
-                        \ (_, testServer, _, _) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ makeSRequest "GET" resource [("X-Thentos-User", "god"), ("X-Thentos-Password", "not-gods-password")] ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
-
-                it "responds with an error if only one of user (or service) and password is provided" $
-                        \ (_, testServer, _, _) -> (debugRunSession False testServer) $ do
-                    response1 <- srequest $ makeSRequest "GET" resource [("X-Thentos-User", "god")] ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 400
-                    response2 <- srequest $ makeSRequest "GET" resource [("X-Thentos-Service", "dog")] ""
-                    liftIO $ C.statusCode (simpleStatus response2) `shouldBe` 400
-                    response3 <- srequest $ makeSRequest "GET" resource [("X-Thentos-Password", "passwd")] ""
-                    liftIO $ C.statusCode (simpleStatus response3) `shouldBe` 400
-                    response4 <- srequest $ makeSRequest "GET" resource [("X-Thentos-User", "god"), ("X-Thentos-Service", "dog")] ""
-                    liftIO $ C.statusCode (simpleStatus response4) `shouldBe` 400
+                        \ _ -> pendingWith "test missing."
 
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
