@@ -1,0 +1,58 @@
+digraph "Diagram of: Application" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_HasHeist {
+        graph [label="Class: HasHeist"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasHeist_Data_App {
+            graph [label="Instance for: App"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            5 [label=heistLens
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        6 [label="Snap.Snaplet.Heist\nheistLens"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,solid"];
+    }
+    subgraph cluster_Data_App {
+        graph [label="Data: App"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=App
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=_auth
+          ,shape=component
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label=_heist
+          ,shape=component
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=_sess
+          ,shape=component
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    2 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+    3 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+    4 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+    6 -> 5 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

@@ -1,0 +1,45 @@
+digraph "Diagram of: Control.Access.RoleBased.Internal.RoleMap" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_RoleMap {
+        graph [label="Data: RoleMap"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=RoleMap
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    2 [label=delete
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    3 [label=empty
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=fromList
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    5 [label=insert
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    6 [label=lookup
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    7 [label=null
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    2 -> 1 [penwidth=1.6931471805599454
+           ,color=black];
+    3 -> 1 [penwidth=1,color=black];
+    4 -> 1 [penwidth=1,color=black];
+    5 -> 1 [penwidth=1.6931471805599454
+           ,color=black];
+    6 -> 1 [penwidth=1,color=black];
+    7 -> 1 [penwidth=1,color=black];
+}

@@ -7,7 +7,7 @@ Request Body
 ``` {.javascript}
 {
     "name": "wef",
-    "password": "[password hidden]"
+    "password": "passwef"
 }
 ```
 
@@ -20,7 +20,9 @@ Response
     {
         "status": "success",
         "user_path": "/proposals/environment",
-        "token": "abde1234llkjh"
+        "token": {
+            "fromSessionToken": "abde1234llkjh"
+        }
     }
     ```
 
@@ -33,7 +35,7 @@ Request Body
 ``` {.javascript}
 {
     "name": "wef",
-    "password": "[password hidden]"
+    "password": "passwef"
 }
 ```
 
@@ -46,7 +48,9 @@ Response
     {
         "status": "success",
         "user_path": "/proposals/environment",
-        "token": "abde1234llkjh"
+        "token": {
+            "fromSessionToken": "abde1234llkjh"
+        }
     }
     ```
 
@@ -60,7 +64,7 @@ Request Body
 {
     "data": {
         "adhocracy_core.sheets.principal.IPasswordAuthentication": {
-            "password": "[password hidden]"
+            "password": "Hunter2"
         },
         "adhocracy_core.sheets.principal.IUserBasic": {
             "email": "cobain@nirvana.com",
@@ -110,7 +114,9 @@ Response
     {
         "status": "success",
         "user_path": "/proposals/environment",
-        "token": "abde1234llkjh"
+        "token": {
+            "fromSessionToken": "abde1234llkjh"
+        }
     }
     ```
 

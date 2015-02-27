@@ -1,0 +1,101 @@
+digraph "Core of Snap.Snaplet.Auth.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_Password {
+            graph [label="Instance for: Password"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            29 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            30 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        58 [label="Unknown Module\nparseJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Show {
+        graph [label="Class: Show"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Show_Data_AuthFailure {
+            graph [label="Instance for: AuthFailure"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            32 [label=show
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        59 [label="Unknown Module\nshow"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_Password {
+            graph [label="Instance for: Password"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            34 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            35 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        60 [label="Unknown Module\ntoJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    29 -> 58 [penwidth=1
+             ,color=black];
+    30 -> 58 [penwidth=1
+             ,color=black];
+    32 -> 59 [penwidth=1
+             ,color=black];
+    34 -> 60 [penwidth=1
+             ,color=black];
+    35 -> 60 [penwidth=1
+             ,color=black];
+    58 -> 29 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    58 -> 30 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    59 -> 32 [penwidth=3.1972245773362196
+             ,color=navy
+             ,dir=none];
+    60 -> 34 [penwidth=1.6931471805599454
+             ,color=navy
+             ,dir=none];
+    60 -> 35 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

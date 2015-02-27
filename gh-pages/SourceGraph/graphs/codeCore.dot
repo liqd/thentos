@@ -1,6 +1,45 @@
 digraph "Overall core" {
     node [margin="0.4,0.1"
          ,style=filled];
+    subgraph cluster_Class_Alternative {
+        graph [label="Class: Alternative"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Alternative_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            411 [label="Snap.Snaplet.Internal.Lensed\n<|>"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            418 [label="Snap.Snaplet.Internal.Lensed\nempty"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Alternative_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            457 [label="Snap.Snaplet.Internal.RST\n<|>"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            463 [label="Snap.Snaplet.Internal.RST\nempty"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        993 [label="Unknown Module\n<|>"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+        1000 [label="Unknown Module\nempty"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
     subgraph cluster_Class_Arbitrary {
         graph [label="Class: Arbitrary"
               ,style="filled,rounded"
@@ -9,51 +48,521 @@ digraph "Overall core" {
             graph [label="Instance for: (HashedSecret a)"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            36 [label="Test.Arbitrary\narbitrary"
-               ,shape=octagon
-               ,fillcolor=bisque
-               ,style="filled,solid"];
+            567 [label="Test.Arbitrary\narbitrary"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
         }
         subgraph cluster_Class_Arbitrary_Data_CNF {
             graph [label="Instance for: CNF"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            37 [label="Test.Arbitrary\narbitrary"
-               ,shape=octagon
-               ,fillcolor=bisque
-               ,style="filled,solid"];
+            568 [label="Test.Arbitrary\narbitrary"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
         }
         subgraph cluster_Class_Arbitrary_Data_DCLabel {
             graph [label="Instance for: DCLabel"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            38 [label="Test.Arbitrary\narbitrary"
-               ,shape=octagon
-               ,fillcolor=bisque
-               ,style="filled,solid"];
+            569 [label="Test.Arbitrary\narbitrary"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
         }
         subgraph cluster_Class_Arbitrary_Data_ThentosClearance {
             graph [label="Instance for: ThentosClearance"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            39 [label="Test.Arbitrary\narbitrary"
-               ,shape=octagon
-               ,fillcolor=bisque
-               ,style="filled,solid"];
+            570 [label="Test.Arbitrary\narbitrary"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
         }
         subgraph cluster_Class_Arbitrary_Data_ThentosLabel {
             graph [label="Instance for: ThentosLabel"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            40 [label="Test.Arbitrary\narbitrary"
-               ,shape=octagon
-               ,fillcolor=bisque
-               ,style="filled,solid"];
+            571 [label="Test.Arbitrary\narbitrary"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
         }
-        473 [label="Unknown Module\narbitrary"
+        995 [label="Unknown Module\narbitrary"
             ,shape=doubleoctagon
             ,fillcolor=khaki
             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_A3UserNoPass {
+            graph [label="Instance for: A3UserNoPass"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            603 [label="Thentos.Backend.Api.Adhocracy3\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_A3UserWithPass {
+            graph [label="Instance for: A3UserWithPass"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            604 [label="Thentos.Backend.Api.Adhocracy3\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_ActivationRequest {
+            graph [label="Instance for: ActivationRequest"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            605 [label="Thentos.Backend.Api.Adhocracy3\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_LoginRequest {
+            graph [label="Instance for: LoginRequest"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            607 [label="Thentos.Backend.Api.Adhocracy3\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_Password {
+            graph [label="Instance for: Password"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            279 [label="Snap.Snaplet.Auth.Types\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            280 [label="Snap.Snaplet.Auth.Types\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_FromJSON_Data_UserIdCache {
+            graph [label="Instance for: UserIdCache"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            202 [label="Snap.Snaplet.Auth.Backends.JsonFile\nparseJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1018 [label="Unknown Module\nparseJSON"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Functor {
+        graph [label="Class: Functor"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Functor_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            467 [label="Snap.Snaplet.Internal.RST\nfmap"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1002 [label="Unknown Module\nfmap"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Hashable {
+        graph [label="Class: Hashable"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Hashable_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            131 [label="Control.Access.RoleBased.Internal.Role\nhashWithSalt"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Hashable_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            132 [label="Control.Access.RoleBased.Internal.Role\nhashWithSalt"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1008 [label="Unknown Module\nhashWithSalt"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_IAuthBackend {
+        graph [label="Class: IAuthBackend"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_IAuthBackend_Data_AuthManagerb {
+            graph [label="Instance for: (AuthManager b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            170 [label="Snap.Snaplet.Auth.AuthManager\ndestroy"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+            173 [label="Snap.Snaplet.Auth.AuthManager\nlookupByLogin"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+            175 [label="Snap.Snaplet.Auth.AuthManager\nlookupByRememberToken"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+            177 [label="Snap.Snaplet.Auth.AuthManager\nlookupByUserId"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+            183 [label="Snap.Snaplet.Auth.AuthManager\nsave"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_IAuthBackend_Data_JsonFileAuthManager {
+            graph [label="Instance for: JsonFileAuthManager"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            203 [label="Snap.Snaplet.Auth.Backends.JsonFile\nsave"
+                ,shape=octagon
+                ,fillcolor=crimson
+                ,style="filled,solid"];
+        }
+        169 [label="Snap.Snaplet.Auth.AuthManager\ndestroy"
+            ,shape=doubleoctagon
+            ,fillcolor=crimson
+            ,style="filled,solid"];
+        172 [label="Snap.Snaplet.Auth.AuthManager\nlookupByLogin"
+            ,shape=doubleoctagon
+            ,fillcolor=crimson
+            ,style="filled,solid"];
+        174 [label="Snap.Snaplet.Auth.AuthManager\nlookupByRememberToken"
+            ,shape=doubleoctagon
+            ,fillcolor=crimson
+            ,style="filled,solid"];
+        176 [label="Snap.Snaplet.Auth.AuthManager\nlookupByUserId"
+            ,shape=doubleoctagon
+            ,fillcolor=crimson
+            ,style="filled,solid"];
+        182 [label="Snap.Snaplet.Auth.AuthManager\nsave"
+            ,shape=doubleoctagon
+            ,fillcolor=crimson
+            ,style="filled,solid"];
+    }
+    subgraph cluster_Class_IsString {
+        graph [label="Class: IsString"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_IsString_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            129 [label="Control.Access.RoleBased.Internal.Role\nfromString"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_IsString_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            130 [label="Control.Access.RoleBased.Internal.Role\nfromString"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1003 [label="Unknown Module\nfromString"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Monad {
+        graph [label="Class: Monad"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Monad_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            434 [label="Snap.Snaplet.Internal.Lensed\nreturn"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_Monad_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            466 [label="Snap.Snaplet.Internal.RST\nfail"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            478 [label="Snap.Snaplet.Internal.RST\nreturn"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1001 [label="Unknown Module\nfail"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+        1024 [label="Unknown Module\nreturn"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadCatchIO {
+        graph [label="Class: MonadCatchIO"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadCatchIO_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            415 [label="Snap.Snaplet.Internal.Lensed\nblock"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            416 [label="Snap.Snaplet.Internal.Lensed\ncatch"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            436 [label="Snap.Snaplet.Internal.Lensed\nunblock"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadCatchIO_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            461 [label="Snap.Snaplet.Internal.RST\nblock"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            462 [label="Snap.Snaplet.Internal.RST\ncatch"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            481 [label="Snap.Snaplet.Internal.RST\nunblock"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        997 [label="Unknown Module\nblock"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+        999 [label="Unknown Module\ncatch"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+        1030 [label="Unknown Module\nunblock"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadIO {
+        graph [label="Class: MonadIO"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadIO_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            426 [label="Snap.Snaplet.Internal.Lensed\nliftIO"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadIO_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            470 [label="Snap.Snaplet.Internal.RST\nliftIO"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1010 [label="Unknown Module\nliftIO"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadPlus {
+        graph [label="Class: MonadPlus"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadPlus_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            430 [label="Snap.Snaplet.Internal.Lensed\nmplus"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            431 [label="Snap.Snaplet.Internal.Lensed\nmzero"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadPlus_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            474 [label="Snap.Snaplet.Internal.RST\nmplus"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            475 [label="Snap.Snaplet.Internal.RST\nmzero"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1016 [label="Unknown Module\nmplus"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+        1017 [label="Unknown Module\nmzero"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadSnap {
+        graph [label="Class: MonadSnap"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadSnap_Data_HeistTnm {
+            graph [label="Instance for: (HeistT n m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            372 [label="Snap.Snaplet.HeistNoClass\nliftSnap"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadSnap_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            427 [label="Snap.Snaplet.Internal.Lensed\nliftSnap"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadSnap_Data_RSTrsm {
+            graph [label="Instance for: (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            471 [label="Snap.Snaplet.Internal.RST\nliftSnap"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1011 [label="Unknown Module\nliftSnap"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadState {
+        graph [label="Class: MonadState"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadState_Data_sRSTrsm {
+            graph [label="Instance for: s (RST r s m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            468 [label="Snap.Snaplet.Internal.RST\nget"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            477 [label="Snap.Snaplet.Internal.RST\nput"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadState_Data_vLensTbvbm {
+            graph [label="Instance for: v (LensT b v b m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            386 [label="Snap.Snaplet.Internal.LensT\nget"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            390 [label="Snap.Snaplet.Internal.LensT\nput"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadState_Data_vLensedbvm {
+            graph [label="Instance for: v (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            420 [label="Snap.Snaplet.Internal.Lensed\nget"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+            433 [label="Snap.Snaplet.Internal.Lensed\nput"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1004 [label="Unknown Module\nget"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+        1020 [label="Unknown Module\nput"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadTrans {
+        graph [label="Class: MonadTrans"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadTrans_Data_Lensedbv {
+            graph [label="Instance for: (Lensed b v)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            425 [label="Snap.Snaplet.Internal.Lensed\nlift"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_MonadTrans_Data_RSTrs {
+            graph [label="Instance for: (RST r s)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            469 [label="Snap.Snaplet.Internal.RST\nlift"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1009 [label="Unknown Module\nlift"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
     }
     subgraph cluster_Class_Monoid {
         graph [label="Class: Monoid"
@@ -63,15 +572,15 @@ digraph "Overall core" {
             graph [label="Instance for: ThentosConfigBuilder"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            178 [label="Thentos.Config\nmempty"
+            708 [label="Thentos.Config\nmempty"
                 ,shape=octagon
                 ,fillcolor=bisque
                 ,style="filled,solid"];
         }
-        480 [label="Unknown Module\nmempty"
-            ,shape=doubleoctagon
-            ,fillcolor=khaki
-            ,style="filled,dotted"];
+        1015 [label="Unknown Module\nmempty"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
     }
     subgraph cluster_Class_PushActionC {
         graph [label="Class: PushActionC"
@@ -81,7 +590,7 @@ digraph "Overall core" {
             graph [label="Instance for: (a -> b)"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            125 [label="Thentos.Backend.Core\npushAction"
+            653 [label="Thentos.Backend.Core\npushAction"
                 ,shape=octagon
                 ,fillcolor=bisque
                 ,style="filled,solid"];
@@ -90,105 +599,422 @@ digraph "Overall core" {
             graph [label="Instance for: (a :<|> b)"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            126 [label="Thentos.Backend.Core\npushAction"
+            654 [label="Thentos.Backend.Core\npushAction"
                 ,shape=octagon
                 ,fillcolor=bisque
                 ,style="filled,solid"];
         }
-        122 [label="Thentos.Backend.Core\npushAction"
+        650 [label="Thentos.Backend.Core\npushAction"
             ,shape=doubleoctagon
             ,fillcolor=bisque
             ,style="filled,solid"];
     }
-    subgraph cluster_Class_ToSample {
-        graph [label="Class: ToSample"
+    subgraph cluster_Class_Show {
+        graph [label="Class: Show"
               ,style="filled,rounded"
               ,fillcolor=rosybrown1];
-        subgraph cluster_Class_ToSample_Data_UserIdServiceId {
-            graph [label="Instance for: (UserId, ServiceId)"
+        subgraph cluster_Class_Show_Data_AuthFailure {
+            graph [label="Instance for: AuthFailure"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            331 [label="Thentos.Doc\ntoSample"
+            282 [label="Snap.Snaplet.Auth.Types\nshow"
                 ,shape=octagon
                 ,fillcolor=bisque
                 ,style="filled,solid"];
         }
-        subgraph cluster_Class_ToSample_Data_UserIdTimeout {
-            graph [label="Instance for: (UserId, Timeout)"
-                  ,style="filled,rounded"
-                  ,fillcolor=slategray1];
-            332 [label="Thentos.Doc\ntoSample"
-                ,shape=octagon
-                ,fillcolor=bisque
-                ,style="filled,solid"];
-        }
-        subgraph cluster_Class_ToSample_Data_Session {
-            graph [label="Instance for: Session"
-                  ,style="filled,rounded"
-                  ,fillcolor=slategray1];
-            336 [label="Thentos.Doc\ntoSample"
-                ,shape=octagon
-                ,fillcolor=bisque
-                ,style="filled,solid"];
-        }
-        471 [label="Servant.Docs\ntoSample"
-            ,shape=doubleoctagon
-            ,fillcolor=khaki
-            ,style="filled,dashed"];
+        1026 [label="Unknown Module\nshow"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
     }
-    36 -> 473 [penwidth=1
-              ,color=black];
-    37 -> 473 [penwidth=1.6931471805599454
-              ,color=black];
-    38 -> 473 [penwidth=1.6931471805599454
-              ,color=black];
-    39 -> 473 [penwidth=1
-              ,color=black];
-    40 -> 473 [penwidth=1
-              ,color=black];
-    122 -> 125 [penwidth=1
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_ContentType {
+            graph [label="Instance for: ContentType"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            620 [label="Thentos.Backend.Api.Adhocracy3\ntoJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToJSON_Data_Password {
+            graph [label="Instance for: Password"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            284 [label="Snap.Snaplet.Auth.Types\ntoJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToJSON_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            285 [label="Snap.Snaplet.Auth.Types\ntoJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToJSON_Data_UserIdCache {
+            graph [label="Instance for: UserIdCache"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            206 [label="Snap.Snaplet.Auth.Backends.JsonFile\ntoJSON"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        1029 [label="Unknown Module\ntoJSON"
+             ,shape=doubleoctagon
+             ,fillcolor=khaki
+             ,style="filled,dotted"];
+    }
+    193 [label="Snap.Snaplet.Auth.Backends.JsonFile\njsonFileSave"
+        ,shape=box
+        ,fillcolor=crimson
+        ,style="filled,solid"];
+    388 [label="Snap.Snaplet.Internal.LensT\nlGet"
+        ,shape=box
+        ,fillcolor=bisque
+        ,style="filled,solid"];
+    389 [label="Snap.Snaplet.Internal.LensT\nlPut"
+        ,shape=box
+        ,fillcolor=bisque
+        ,style="filled,solid"];
+    592 [label="Thentos.Backend.Api.Adhocracy3\na3UserFromJSON"
+        ,shape=box
+        ,fillcolor=bisque
+        ,style="filled,solid"];
+    129 -> 1003 [penwidth=1
+                ,color=black];
+    130 -> 1003 [penwidth=1
+                ,color=black];
+    131 -> 1008 [penwidth=1.6931471805599454
+                ,color=black];
+    132 -> 1008 [penwidth=3.0794415416798357
+                ,color=black];
+    169 -> 170 [penwidth=1
                ,color=navy
                ,dir=none];
-    122 -> 126 [penwidth=1
+    170 -> 169 [penwidth=1
+               ,color=black];
+    172 -> 173 [penwidth=1
                ,color=navy
                ,dir=none];
-    125 -> 122 [penwidth=1
+    173 -> 172 [penwidth=1
                ,color=black];
-    126 -> 122 [penwidth=1.6931471805599454
-               ,color=black];
-    178 -> 480 [penwidth=2.09861228866811
-               ,color=black];
-    331 -> 471 [penwidth=1.6931471805599454
-               ,color=black];
-    332 -> 471 [penwidth=1
-               ,color=black];
-    336 -> 471 [penwidth=1
-               ,color=black];
-    471 -> 331 [penwidth=1
+    174 -> 175 [penwidth=1
                ,color=navy
                ,dir=none];
-    471 -> 332 [penwidth=1
+    175 -> 174 [penwidth=1
+               ,color=black];
+    176 -> 177 [penwidth=1
                ,color=navy
                ,dir=none];
-    471 -> 336 [penwidth=1
+    177 -> 176 [penwidth=1
+               ,color=black];
+    182 -> 183 [penwidth=1
                ,color=navy
                ,dir=none];
-    473 -> 36 [penwidth=1
-              ,color=navy
-              ,dir=none];
-    473 -> 37 [penwidth=1
-              ,color=navy
-              ,dir=none];
-    473 -> 38 [penwidth=1
-              ,color=navy
-              ,dir=none];
-    473 -> 39 [penwidth=1
-              ,color=navy
-              ,dir=none];
-    473 -> 40 [penwidth=1
-              ,color=navy
-              ,dir=none];
-    480 -> 178 [penwidth=1
+    182 -> 203 [penwidth=1
                ,color=navy
                ,dir=none];
+    183 -> 182 [penwidth=1
+               ,color=black];
+    193 -> 172 [penwidth=1
+               ,color=black];
+    193 -> 176 [penwidth=1
+               ,color=black];
+    202 -> 1018 [penwidth=1
+                ,color=black];
+    203 -> 193 [penwidth=1
+               ,color=chartreuse];
+    206 -> 1029 [penwidth=1
+                ,color=black];
+    279 -> 1018 [penwidth=1
+                ,color=black];
+    280 -> 1018 [penwidth=1
+                ,color=black];
+    282 -> 1026 [penwidth=1
+                ,color=black];
+    284 -> 1029 [penwidth=1
+                ,color=black];
+    285 -> 1029 [penwidth=1
+                ,color=black];
+    372 -> 1011 [penwidth=1
+                ,color=black];
+    386 -> 388 [penwidth=1
+               ,color=chartreuse];
+    388 -> 1004 [penwidth=1
+                ,color=black];
+    389 -> 1004 [penwidth=1
+                ,color=black];
+    389 -> 1020 [penwidth=1
+                ,color=black];
+    390 -> 389 [penwidth=1
+               ,color=chartreuse];
+    411 -> 993 [penwidth=1
+               ,color=black];
+    415 -> 997 [penwidth=1
+               ,color=black];
+    416 -> 999 [penwidth=1
+               ,color=black];
+    418 -> 1000 [penwidth=1
+                ,color=black];
+    418 -> 1009 [penwidth=1
+                ,color=black];
+    420 -> 1024 [penwidth=1
+                ,color=black];
+    425 -> 1024 [penwidth=1
+                ,color=black];
+    426 -> 1009 [penwidth=1
+                ,color=black];
+    426 -> 1010 [penwidth=1
+                ,color=black];
+    427 -> 1009 [penwidth=1
+                ,color=black];
+    427 -> 1011 [penwidth=1
+                ,color=black];
+    430 -> 1016 [penwidth=1
+                ,color=black];
+    431 -> 1009 [penwidth=1
+                ,color=black];
+    431 -> 1017 [penwidth=1
+                ,color=black];
+    433 -> 1024 [penwidth=1
+                ,color=black];
+    434 -> 1024 [penwidth=1
+                ,color=black];
+    436 -> 1030 [penwidth=1
+                ,color=black];
+    457 -> 1016 [penwidth=1
+                ,color=black];
+    461 -> 997 [penwidth=1
+               ,color=black];
+    462 -> 999 [penwidth=1
+               ,color=black];
+    463 -> 1017 [penwidth=1
+                ,color=black];
+    466 -> 1001 [penwidth=1
+                ,color=black];
+    467 -> 1002 [penwidth=1
+                ,color=black];
+    468 -> 1024 [penwidth=1
+                ,color=black];
+    469 -> 1024 [penwidth=1
+                ,color=black];
+    470 -> 1009 [penwidth=1
+                ,color=black];
+    470 -> 1010 [penwidth=1
+                ,color=black];
+    471 -> 1009 [penwidth=1
+                ,color=black];
+    471 -> 1011 [penwidth=1
+                ,color=black];
+    474 -> 1016 [penwidth=1
+                ,color=black];
+    475 -> 1017 [penwidth=1
+                ,color=black];
+    477 -> 1024 [penwidth=1
+                ,color=black];
+    478 -> 1024 [penwidth=1
+                ,color=black];
+    481 -> 1030 [penwidth=1
+                ,color=black];
+    567 -> 995 [penwidth=1
+               ,color=black];
+    568 -> 995 [penwidth=1.6931471805599454
+               ,color=black];
+    569 -> 995 [penwidth=1.6931471805599454
+               ,color=black];
+    570 -> 995 [penwidth=1
+               ,color=black];
+    571 -> 995 [penwidth=1
+               ,color=black];
+    592 -> 1026 [penwidth=2.386294361119891
+                ,color=black];
+    603 -> 592 [penwidth=1
+               ,color=black];
+    604 -> 592 [penwidth=1
+               ,color=black];
+    605 -> 1026 [penwidth=1
+                ,color=black];
+    607 -> 1026 [penwidth=1
+                ,color=black];
+    620 -> 1026 [penwidth=1
+                ,color=black];
+    650 -> 653 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    650 -> 654 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    653 -> 650 [penwidth=1
+               ,color=black];
+    654 -> 650 [penwidth=1.6931471805599454
+               ,color=black];
+    708 -> 1015 [penwidth=2.386294361119891
+                ,color=black];
+    993 -> 411 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    993 -> 457 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    995 -> 567 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    995 -> 568 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    995 -> 569 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    995 -> 570 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    995 -> 571 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    997 -> 415 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    997 -> 461 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    999 -> 416 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    999 -> 462 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    1000 -> 418 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1000 -> 463 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1001 -> 466 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1002 -> 467 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1003 -> 129 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1003 -> 130 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1004 -> 386 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1004 -> 420 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1004 -> 468 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1008 -> 131 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1008 -> 132 [penwidth=2.386294361119891
+                ,color=navy
+                ,dir=none];
+    1009 -> 425 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1009 -> 469 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1010 -> 426 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1010 -> 470 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1011 -> 372 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1011 -> 427 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1011 -> 471 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1015 -> 708 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1016 -> 430 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1016 -> 474 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1017 -> 431 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1017 -> 475 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 202 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 279 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 280 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 603 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 604 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 605 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1018 -> 607 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1020 -> 390 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1020 -> 433 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1020 -> 477 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1024 -> 434 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1024 -> 478 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1026 -> 282 [penwidth=3.1972245773362196
+                ,color=navy
+                ,dir=none];
+    1029 -> 206 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1029 -> 284 [penwidth=1.6931471805599454
+                ,color=navy
+                ,dir=none];
+    1029 -> 285 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1029 -> 620 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1030 -> 436 [penwidth=1
+                ,color=navy
+                ,dir=none];
+    1030 -> 481 [penwidth=1
+                ,color=navy
+                ,dir=none];
 }

@@ -1,0 +1,23 @@
+digraph "Levels within Blackbox.FooSnaplet" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: FooSnaplet"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        3 [label=fooInit
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=getFooField
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    3 -> 1 [penwidth=1,color=black];
+    4 -> 1 [penwidth=1,color=black];
+}

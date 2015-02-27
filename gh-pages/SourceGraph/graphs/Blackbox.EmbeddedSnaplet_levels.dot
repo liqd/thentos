@@ -1,0 +1,40 @@
+digraph "Levels within Blackbox.EmbeddedSnaplet" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: EmbeddedSnaplet"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        4 [label=embeddedInit
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=embeddedSplice
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        7 [label="Snap.Snaplet.Heist\nClass: HasHeist"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,solid"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        6 [label="Class: HasHeist, Data: EmbeddedSnaplet"
+          ,shape=octagon
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    4 -> 1 [penwidth=1,color=black];
+    4 -> 5 [penwidth=1,color=black];
+    5 -> 1 [penwidth=1,color=black];
+    7 -> 6 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

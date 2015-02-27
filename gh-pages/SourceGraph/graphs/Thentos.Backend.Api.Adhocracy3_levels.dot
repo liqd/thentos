@@ -237,11 +237,11 @@ digraph "Levels within Thentos.Backend.Api.Adhocracy3" {
              ,color=black];
     22 -> 6 [penwidth=1.6931471805599454
             ,color=black];
-    22 -> 11 [penwidth=1.6931471805599454
+    22 -> 11 [penwidth=1
              ,color=black];
-    22 -> 45 [penwidth=1.6931471805599454
+    22 -> 45 [penwidth=1
              ,color=black];
-    22 -> 49 [penwidth=1.6931471805599454
+    22 -> 49 [penwidth=1
              ,color=black];
     23 -> 1 [penwidth=1
             ,color=black];

@@ -1,0 +1,29 @@
+digraph "Levels within Blackbox.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: App"
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        8 [label="Snap.Snaplet.Heist\nClass: HasHeist"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,solid"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        7 [label="Class: HasHeist, Data: App"
+          ,shape=octagon
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    8 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

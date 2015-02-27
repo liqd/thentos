@@ -1,0 +1,29 @@
+digraph "Levels within Part2" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: Bar"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label="Data: Foo"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        3 [label=barInit
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=fooInit
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    3 -> 1 [penwidth=1
+           ,color=chartreuse];
+    4 -> 2 [penwidth=1
+           ,color=chartreuse];
+}

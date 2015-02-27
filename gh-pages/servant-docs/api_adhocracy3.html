@@ -2,7 +2,7 @@
 <h2>Request Body</h2>
 <pre class="javascript"><code>{
     &quot;name&quot;: &quot;wef&quot;,
-    &quot;password&quot;: &quot;[password hidden]&quot;
+    &quot;password&quot;: &quot;passwef&quot;
 }</code></pre>
 <h2>Response</h2>
 <ul>
@@ -11,14 +11,16 @@
 <pre class="javascript"><code>{
     &quot;status&quot;: &quot;success&quot;,
     &quot;user_path&quot;: &quot;/proposals/environment&quot;,
-    &quot;token&quot;: &quot;abde1234llkjh&quot;
+    &quot;token&quot;: {
+        &quot;fromSessionToken&quot;: &quot;abde1234llkjh&quot;
+    }
 }</code></pre></li>
 </ul>
 <h1>POST <code>login_username</code></h1>
 <h2>Request Body</h2>
 <pre class="javascript"><code>{
     &quot;name&quot;: &quot;wef&quot;,
-    &quot;password&quot;: &quot;[password hidden]&quot;
+    &quot;password&quot;: &quot;passwef&quot;
 }</code></pre>
 <h2>Response</h2>
 <ul>
@@ -27,7 +29,9 @@
 <pre class="javascript"><code>{
     &quot;status&quot;: &quot;success&quot;,
     &quot;user_path&quot;: &quot;/proposals/environment&quot;,
-    &quot;token&quot;: &quot;abde1234llkjh&quot;
+    &quot;token&quot;: {
+        &quot;fromSessionToken&quot;: &quot;abde1234llkjh&quot;
+    }
 }</code></pre></li>
 </ul>
 <h1>POST <code>principals/users</code></h1>
@@ -35,7 +39,7 @@
 <pre class="javascript"><code>{
     &quot;data&quot;: {
         &quot;adhocracy_core.sheets.principal.IPasswordAuthentication&quot;: {
-            &quot;password&quot;: &quot;[password hidden]&quot;
+            &quot;password&quot;: &quot;Hunter2&quot;
         },
         &quot;adhocracy_core.sheets.principal.IUserBasic&quot;: {
             &quot;email&quot;: &quot;cobain@nirvana.com&quot;,
@@ -71,7 +75,9 @@
 <pre class="javascript"><code>{
     &quot;status&quot;: &quot;success&quot;,
     &quot;user_path&quot;: &quot;/proposals/environment&quot;,
-    &quot;token&quot;: &quot;abde1234llkjh&quot;
+    &quot;token&quot;: {
+        &quot;fromSessionToken&quot;: &quot;abde1234llkjh&quot;
+    }
 }</code></pre></li>
 </ul>
 <h1>GET <code></code></h1>

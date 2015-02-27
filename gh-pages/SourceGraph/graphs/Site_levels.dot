@@ -5,7 +5,7 @@ digraph "Levels within Site" {
         graph [label="Exported root entities"
               ,style=filled
               ,fillcolor=lavender];
-        4 [label=app
+        1 [label=app
           ,shape=box
           ,fillcolor=gold
           ,style="filled,bold"];
@@ -14,32 +14,24 @@ digraph "Levels within Site" {
         graph [label="Level = 1"
               ,style=filled
               ,fillcolor=lavender];
-        1 [label="Data: App"
-          ,shape=box3d
-          ,fillcolor=cyan
+        6 [label=routes
+          ,shape=box
+          ,fillcolor=bisque
           ,style="filled,bold"];
-        2 [label="Data: HWConfig"
-          ,shape=box3d
-          ,fillcolor=cyan
-          ,style="filled,bold"];
-        10 [label=routes
-           ,shape=box
-           ,fillcolor=bisque
-           ,style="filled,bold"];
     }
     subgraph cluster_2 {
         graph [label="Level = 2"
               ,style=filled
               ,fillcolor=lavender];
-        6 [label=handleApp
+        3 [label=handleLoginSubmit
           ,shape=box
           ,fillcolor=bisque
           ,style="filled,bold"];
-        7 [label=helloWorldLogin
+        4 [label=handleLogout
           ,shape=box
-          ,fillcolor=bisque
+          ,fillcolor=cyan
           ,style="filled,bold"];
-        8 [label=helloWorldLogout
+        5 [label=handleNewUser
           ,shape=box
           ,fillcolor=cyan
           ,style="filled,bold"];
@@ -48,33 +40,16 @@ digraph "Levels within Site" {
         graph [label="Level = 3"
               ,style=filled
               ,fillcolor=lavender];
-        5 [label=appPage
+        2 [label=handleLogin
           ,shape=box
           ,fillcolor=cyan
           ,style="filled,bold"];
-        15 [label=tokenOk
-           ,shape=box
-           ,fillcolor=bisque
-           ,style="filled,bold"];
     }
-    4 -> 1 [penwidth=1,color=black];
-    4 -> 2 [penwidth=1,color=black];
-    4 -> 10 [penwidth=1
-            ,color=black];
+    1 -> 6 [penwidth=1
+           ,color=chartreuse];
+    3 -> 2 [penwidth=1
+           ,color=chartreuse];
+    6 -> 3 [penwidth=1,color=black];
+    6 -> 4 [penwidth=1,color=black];
     6 -> 5 [penwidth=1,color=black];
-    6 -> 15 [penwidth=1
-            ,color=black];
-    7 -> 1 [penwidth=1,color=black];
-    7 -> 2 [penwidth=2.09861228866811
-           ,color=black];
-    10 -> 6 [penwidth=1
-            ,color=black];
-    10 -> 7 [penwidth=1
-            ,color=black];
-    10 -> 8 [penwidth=1
-            ,color=black];
-    15 -> 1 [penwidth=1
-            ,color=black];
-    15 -> 2 [penwidth=2.09861228866811
-            ,color=black];
 }

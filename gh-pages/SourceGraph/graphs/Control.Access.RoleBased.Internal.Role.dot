@@ -1,0 +1,235 @@
+digraph "Diagram of: Control.Access.RoleBased.Internal.Role" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Hashable {
+        graph [label="Class: Hashable"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Hashable_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            23 [label=hashWithSalt
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Hashable_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            24 [label=hashWithSalt
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        27 [label="Unknown Module\nhashWithSalt"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_IsString {
+        graph [label="Class: IsString"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_IsString_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            21 [label=fromString
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_IsString_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            22 [label=fromString
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        26 [label="Unknown Module\nfromString"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Data_Role {
+        graph [label="Data: Role"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=Role
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        13 [label=_roleData
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        19 [label=_roleName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_RoleDataDefinition {
+        graph [label="Data: RoleDataDefinition"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        4 [label=RoleDataDefinition
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        15 [label=_roleDataDescription
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        16 [label=_roleDataName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        20 [label=_roleValueMeta
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_RoleMetadata {
+        graph [label="Data: RoleMetadata"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        10 [label=RoleMetadata
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        14 [label=_roleDataDefs
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        17 [label=_roleDescription
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        18 [label=_roleMetadataName
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_RoleValue {
+        graph [label="Data: RoleValue"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        2 [label=RoleBool
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        5 [label=RoleDouble
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label=RoleInt
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        11 [label=RoleText
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_RoleValueMeta {
+        graph [label="Data: RoleValueMeta"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        3 [label=RoleBoolMeta
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        6 [label=RoleDoubleMeta
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        7 [label=RoleEnumMeta
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        9 [label=RoleIntMeta
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        12 [label=RoleTextMeta
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    25 [label=toSortedList
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    13 -> 1 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    14 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    15 -> 4 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    16 -> 4 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    17 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    18 -> 10 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    19 -> 1 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    20 -> 4 [penwidth=1
+            ,color=magenta
+            ,arrowtail=odot
+            ,arrowhead=vee];
+    21 -> 1 [penwidth=1
+            ,color=black];
+    21 -> 26 [penwidth=1
+             ,color=black];
+    22 -> 11 [penwidth=1
+             ,color=black];
+    22 -> 26 [penwidth=1
+             ,color=black];
+    23 -> 1 [penwidth=1
+            ,color=black];
+    23 -> 25 [penwidth=1
+             ,color=black];
+    23 -> 27 [penwidth=1.6931471805599454
+             ,color=black];
+    24 -> 2 [penwidth=1
+            ,color=black];
+    24 -> 5 [penwidth=1
+            ,color=black];
+    24 -> 8 [penwidth=1
+            ,color=black];
+    24 -> 11 [penwidth=1
+             ,color=black];
+    24 -> 27 [penwidth=3.0794415416798357
+             ,color=black];
+    26 -> 21 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    26 -> 22 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    27 -> 23 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    27 -> 24 [penwidth=2.386294361119891
+             ,color=navy
+             ,dir=none];
+}

@@ -17,25 +17,25 @@
 <path fill="#c6e2ff" stroke="black" d="M48,-119.352C48,-119.352 234,-119.352 234,-119.352 240,-119.352 246,-125.352 246,-131.352 246,-131.352 246,-190.744 246,-190.744 246,-196.744 240,-202.744 234,-202.744 234,-202.744 48,-202.744 48,-202.744 42,-202.744 36,-196.744 36,-190.744 36,-190.744 36,-131.352 36,-131.352 36,-125.352 42,-119.352 48,-119.352"/>
 <text text-anchor="middle" x="141" y="-187.544" font-family="Times,serif" font-size="14.00">Instance for: ThentosConfigBuilder</text>
 </g>
-<!-- 52 -->
-<g id="node1" class="node"><title>52</title>
+<!-- 54 -->
+<g id="node1" class="node"><title>54</title>
 <polygon fill="bisque" stroke="black" stroke-width="2" points="220.696,-140.272 220.696,-158.823 174.011,-171.941 107.989,-171.941 61.3036,-158.823 61.3036,-140.272 107.989,-127.155 174.011,-127.155 220.696,-140.272"/>
 <text text-anchor="middle" x="141" y="-145.848" font-family="Times,serif" font-size="14.00">mempty</text>
 </g>
-<!-- 66 -->
-<g id="node2" class="node"><title>66</title>
+<!-- 72 -->
+<g id="node2" class="node"><title>72</title>
 <polygon fill="khaki" stroke="black" stroke-dasharray="1,5" points="261.858,-39.6615 261.858,-67.6908 191.061,-87.5105 90.9389,-87.5105 20.1417,-67.6908 20.1417,-39.6615 90.9389,-19.8418 191.061,-19.8418 261.858,-39.6615"/>
 <polygon fill="none" stroke="black" stroke-dasharray="1,5" points="265.856,-36.609 265.856,-70.7433 191.607,-91.5293 90.3926,-91.5293 16.144,-70.7433 16.144,-36.609 90.3926,-15.823 191.607,-15.823 265.856,-36.609"/>
 <text text-anchor="middle" x="141" y="-57.4761" font-family="Times,serif" font-size="14.00">Unknown Module</text>
 <text text-anchor="middle" x="141" y="-42.4761" font-family="Times,serif" font-size="14.00">mempty</text>
 </g>
-<!-- 52&#45;&gt;66 -->
-<g id="edge1" class="edge"><title>52&#45;&gt;66</title>
-<path fill="none" stroke="black" stroke-width="2.09861" d="M135.239,-127.247C134.577,-119.544 134.247,-110.511 134.25,-101.485"/>
-<polygon fill="black" stroke="black" stroke-width="2.09861" points="137.751,-101.418 134.395,-91.3685 130.752,-101.317 137.751,-101.418"/>
+<!-- 54&#45;&gt;72 -->
+<g id="edge1" class="edge"><title>54&#45;&gt;72</title>
+<path fill="none" stroke="black" stroke-width="2.38629" d="M135.239,-127.247C134.577,-119.544 134.247,-110.511 134.25,-101.485"/>
+<polygon fill="black" stroke="black" stroke-width="2.38629" points="137.751,-101.418 134.395,-91.3685 130.752,-101.317 137.751,-101.418"/>
 </g>
-<!-- 66&#45;&gt;52 -->
-<g id="edge2" class="edge"><title>66&#45;&gt;52</title>
+<!-- 72&#45;&gt;54 -->
+<g id="edge2" class="edge"><title>72&#45;&gt;54</title>
 <path fill="none" stroke="navy" d="M147.605,-91.3685C147.954,-103.525 147.673,-116.645 146.761,-127.247"/>
 </g>
 </g>

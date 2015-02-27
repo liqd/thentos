@@ -12,7 +12,7 @@
 <div id="header">
 <h1 class="title">Analysis of thentos</h1>
 <h2 class="author">Analysed by SourceGraph (version 0.7.0.6) using Graphalyze (version 0.14.1.0)</h2>
-<h3 class="date">Friday 20 February, 2015</h3>
+<h3 class="date">Friday 27 February, 2015</h3>
 </div>
 <div id="TOC">
 <ul>
@@ -35,133 +35,353 @@
 <li><a><span class="toc-section-number">4.2</span> Cyclomatic Complexity of imports</a></li>
 <li><a><span class="toc-section-number">4.3</span> Import root analysis</a></li>
 <li><a><span class="toc-section-number">4.4</span> Import component analysis</a></li>
+<li><a><span class="toc-section-number">4.5</span> Import chain analysis</a></li>
 </ul></li>
 <li><a><span class="toc-section-number">5</span> Analysis of each module</a><ul>
-<li><a><span class="toc-section-number">5.1</span> Analysis of <em>Cabbage</em></a><ul>
-<li><a><span class="toc-section-number">5.1.1</span> Visualisation of <em>Cabbage</em></a></li>
-<li><a><span class="toc-section-number">5.1.2</span> Visualisation of levels in <em>Cabbage</em></a></li>
-<li><a><span class="toc-section-number">5.1.3</span> Cyclomatic Complexity of <em>Cabbage</em></a></li>
-<li><a><span class="toc-section-number">5.1.4</span> Component analysis of <em>Cabbage</em></a></li>
+<li><a><span class="toc-section-number">5.1</span> Analysis of <em>Application</em></a><ul>
+<li><a><span class="toc-section-number">5.1.1</span> Visualisation of <em>Application</em></a></li>
+<li><a><span class="toc-section-number">5.1.2</span> Visualisation of levels in <em>Application</em></a></li>
+<li><a><span class="toc-section-number">5.1.3</span> Cyclomatic Complexity of <em>Application</em></a></li>
+<li><a><span class="toc-section-number">5.1.4</span> Component analysis of <em>Application</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.2</span> Analysis of <em>Site</em></a><ul>
-<li><a><span class="toc-section-number">5.2.1</span> Visualisation of <em>Site</em></a></li>
-<li><a><span class="toc-section-number">5.2.2</span> Visualisation of levels in <em>Site</em></a></li>
-<li><a><span class="toc-section-number">5.2.3</span> Cyclomatic Complexity of <em>Site</em></a></li>
+<li><a><span class="toc-section-number">5.2</span> Analysis of <em>Blackbox.App</em></a><ul>
+<li><a><span class="toc-section-number">5.2.1</span> Visualisation of <em>Blackbox.App</em></a></li>
+<li><a><span class="toc-section-number">5.2.2</span> Visualisation of levels in <em>Blackbox.App</em></a></li>
+<li><a><span class="toc-section-number">5.2.3</span> Cyclomatic Complexity of <em>Blackbox.App</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.3</span> Analysis of <em>System.Log.Missing</em></a><ul>
-<li><a><span class="toc-section-number">5.3.1</span> Visualisation of <em>System.Log.Missing</em></a></li>
-<li><a><span class="toc-section-number">5.3.2</span> Visualisation of levels in <em>System.Log.Missing</em></a></li>
-<li><a><span class="toc-section-number">5.3.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.3</span> Analysis of <em>Blackbox.BarSnaplet</em></a><ul>
+<li><a><span class="toc-section-number">5.3.1</span> Visualisation of <em>Blackbox.BarSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.3.2</span> Visualisation of levels in <em>Blackbox.BarSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.3.3</span> Cyclomatic Complexity of <em>Blackbox.BarSnaplet</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.4</span> Analysis of <em>Test.Arbitrary</em></a><ul>
-<li><a><span class="toc-section-number">5.4.1</span> Visualisation of <em>Test.Arbitrary</em></a></li>
-<li><a><span class="toc-section-number">5.4.2</span> Core analysis of <em>Test.Arbitrary</em></a></li>
-<li><a><span class="toc-section-number">5.4.3</span> Visualisation of levels in <em>Test.Arbitrary</em></a></li>
-<li><a><span class="toc-section-number">5.4.4</span> Cyclomatic Complexity of <em>Test.Arbitrary</em></a></li>
+<li><a><span class="toc-section-number">5.4</span> Analysis of <em>Blackbox.EmbeddedSnaplet</em></a><ul>
+<li><a><span class="toc-section-number">5.4.1</span> Visualisation of <em>Blackbox.EmbeddedSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.4.2</span> Visualisation of levels in <em>Blackbox.EmbeddedSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.4.3</span> Cyclomatic Complexity of <em>Blackbox.EmbeddedSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.4.4</span> Component analysis of <em>Blackbox.EmbeddedSnaplet</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.5</span> Analysis of <em>Test.Config</em></a><ul>
-<li><a><span class="toc-section-number">5.5.1</span> Visualisation of <em>Test.Config</em></a></li>
-<li><a><span class="toc-section-number">5.5.2</span> Visualisation of levels in <em>Test.Config</em></a></li>
-<li><a><span class="toc-section-number">5.5.3</span> Cyclomatic Complexity of <em>Test.Config</em></a></li>
+<li><a><span class="toc-section-number">5.5</span> Analysis of <em>Blackbox.FooSnaplet</em></a><ul>
+<li><a><span class="toc-section-number">5.5.1</span> Visualisation of <em>Blackbox.FooSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.5.2</span> Visualisation of levels in <em>Blackbox.FooSnaplet</em></a></li>
+<li><a><span class="toc-section-number">5.5.3</span> Cyclomatic Complexity of <em>Blackbox.FooSnaplet</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.6</span> Analysis of <em>Test.Thentos.Backend.Api.Adhocracy3</em></a><ul>
-<li><a><span class="toc-section-number">5.6.1</span> Visualisation of <em>Test.Thentos.Backend.Api.Adhocracy3</em></a></li>
-<li><a><span class="toc-section-number">5.6.2</span> Visualisation of levels in <em>Test.Thentos.Backend.Api.Adhocracy3</em></a></li>
-<li><a><span class="toc-section-number">5.6.3</span> Cyclomatic Complexity of <em>Test.Thentos.Backend.Api.Adhocracy3</em></a></li>
+<li><a><span class="toc-section-number">5.6</span> Analysis of <em>Blackbox.Tests</em></a><ul>
+<li><a><span class="toc-section-number">5.6.1</span> Visualisation of <em>Blackbox.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.6.2</span> Visualisation of levels in <em>Blackbox.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.6.3</span> Cyclomatic Complexity of <em>Blackbox.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.6.4</span> Root analysis of <em>Blackbox.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.6.5</span> Component analysis of <em>Blackbox.Tests</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.7</span> Analysis of <em>Test.Thentos.Types</em></a><ul>
-<li><a><span class="toc-section-number">5.7.1</span> Visualisation of <em>Test.Thentos.Types</em></a></li>
-<li><a><span class="toc-section-number">5.7.2</span> Visualisation of levels in <em>Test.Thentos.Types</em></a></li>
-<li><a><span class="toc-section-number">5.7.3</span> Cyclomatic Complexity of <em>Test.Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.7</span> Analysis of <em>Blackbox.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.7.1</span> Visualisation of <em>Blackbox.Types</em></a></li>
+<li><a><span class="toc-section-number">5.7.2</span> Visualisation of levels in <em>Blackbox.Types</em></a></li>
+<li><a><span class="toc-section-number">5.7.3</span> Cyclomatic Complexity of <em>Blackbox.Types</em></a></li>
+<li><a><span class="toc-section-number">5.7.4</span> Component analysis of <em>Blackbox.Types</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.8</span> Analysis of <em>TestMain</em></a><ul>
-<li><a><span class="toc-section-number">5.8.1</span> Visualisation of <em>TestMain</em></a></li>
-<li><a><span class="toc-section-number">5.8.2</span> Visualisation of levels in <em>TestMain</em></a></li>
-<li><a><span class="toc-section-number">5.8.3</span> Cyclomatic Complexity of <em>TestMain</em></a></li>
-<li><a><span class="toc-section-number">5.8.4</span> Chain analysis of <em>TestMain</em></a></li>
+<li><a><span class="toc-section-number">5.8</span> Analysis of <em>Cabbage</em></a><ul>
+<li><a><span class="toc-section-number">5.8.1</span> Visualisation of <em>Cabbage</em></a></li>
+<li><a><span class="toc-section-number">5.8.2</span> Visualisation of levels in <em>Cabbage</em></a></li>
+<li><a><span class="toc-section-number">5.8.3</span> Cyclomatic Complexity of <em>Cabbage</em></a></li>
+<li><a><span class="toc-section-number">5.8.4</span> Component analysis of <em>Cabbage</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.9</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3</em></a><ul>
-<li><a><span class="toc-section-number">5.9.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
-<li><a><span class="toc-section-number">5.9.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
-<li><a><span class="toc-section-number">5.9.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
-<li><a><span class="toc-section-number">5.9.4</span> Component analysis of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
+<li><a><span class="toc-section-number">5.9</span> Analysis of <em>Control.Access.RoleBased.Checker</em></a><ul>
+<li><a><span class="toc-section-number">5.9.1</span> Visualisation of <em>Control.Access.RoleBased.Checker</em></a></li>
+<li><a><span class="toc-section-number">5.9.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Checker</em></a></li>
+<li><a><span class="toc-section-number">5.9.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Checker</em></a></li>
+<li><a><span class="toc-section-number">5.9.4</span> Component analysis of <em>Control.Access.RoleBased.Checker</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.10</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></a><ul>
-<li><a><span class="toc-section-number">5.10.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></a></li>
-<li><a><span class="toc-section-number">5.10.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></a></li>
-<li><a><span class="toc-section-number">5.10.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.10</span> Analysis of <em>Control.Access.RoleBased.Internal.Role</em></a><ul>
+<li><a><span class="toc-section-number">5.10.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Role</em></a></li>
+<li><a><span class="toc-section-number">5.10.2</span> Core analysis of <em>Control.Access.RoleBased.Internal.Role</em></a></li>
+<li><a><span class="toc-section-number">5.10.3</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Role</em></a></li>
+<li><a><span class="toc-section-number">5.10.4</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Role</em></a></li>
+<li><a><span class="toc-section-number">5.10.5</span> Component analysis of <em>Control.Access.RoleBased.Internal.Role</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.11</span> Analysis of <em>Thentos.Backend.Api.Simple</em></a><ul>
-<li><a><span class="toc-section-number">5.11.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></a></li>
-<li><a><span class="toc-section-number">5.11.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></a></li>
-<li><a><span class="toc-section-number">5.11.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></a></li>
-<li><a><span class="toc-section-number">5.11.4</span> Component analysis of <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.11</span> Analysis of <em>Control.Access.RoleBased.Internal.RoleMap</em></a><ul>
+<li><a><span class="toc-section-number">5.11.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.RoleMap</em></a></li>
+<li><a><span class="toc-section-number">5.11.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.RoleMap</em></a></li>
+<li><a><span class="toc-section-number">5.11.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.RoleMap</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.12</span> Analysis of <em>Thentos.Backend.Core</em></a><ul>
-<li><a><span class="toc-section-number">5.12.1</span> Visualisation of <em>Thentos.Backend.Core</em></a></li>
-<li><a><span class="toc-section-number">5.12.2</span> Core analysis of <em>Thentos.Backend.Core</em></a></li>
-<li><a><span class="toc-section-number">5.12.3</span> Visualisation of levels in <em>Thentos.Backend.Core</em></a></li>
-<li><a><span class="toc-section-number">5.12.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></a></li>
-<li><a><span class="toc-section-number">5.12.5</span> Component analysis of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.12</span> Analysis of <em>Control.Access.RoleBased.Internal.Rule</em></a><ul>
+<li><a><span class="toc-section-number">5.12.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Rule</em></a></li>
+<li><a><span class="toc-section-number">5.12.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Rule</em></a></li>
+<li><a><span class="toc-section-number">5.12.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Rule</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.13</span> Analysis of <em>Thentos.Config</em></a><ul>
-<li><a><span class="toc-section-number">5.13.1</span> Visualisation of <em>Thentos.Config</em></a></li>
-<li><a><span class="toc-section-number">5.13.2</span> Core analysis of <em>Thentos.Config</em></a></li>
-<li><a><span class="toc-section-number">5.13.3</span> Visualisation of levels in <em>Thentos.Config</em></a></li>
-<li><a><span class="toc-section-number">5.13.4</span> Cyclomatic Complexity of <em>Thentos.Config</em></a></li>
-<li><a><span class="toc-section-number">5.13.5</span> Component analysis of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.13</span> Analysis of <em>Control.Access.RoleBased.Internal.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.13.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Types</em></a></li>
+<li><a><span class="toc-section-number">5.13.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Types</em></a></li>
+<li><a><span class="toc-section-number">5.13.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Types</em></a></li>
+<li><a><span class="toc-section-number">5.13.4</span> Component analysis of <em>Control.Access.RoleBased.Internal.Types</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.14</span> Analysis of <em>Thentos.DB.Core</em></a><ul>
-<li><a><span class="toc-section-number">5.14.1</span> Visualisation of <em>Thentos.DB.Core</em></a></li>
-<li><a><span class="toc-section-number">5.14.2</span> Visualisation of levels in <em>Thentos.DB.Core</em></a></li>
-<li><a><span class="toc-section-number">5.14.3</span> Cyclomatic Complexity of <em>Thentos.DB.Core</em></a></li>
-<li><a><span class="toc-section-number">5.14.4</span> Component analysis of <em>Thentos.DB.Core</em></a></li>
+<li><a><span class="toc-section-number">5.14</span> Analysis of <em>Control.Access.RoleBased.Role</em></a><ul>
+<li><a><span class="toc-section-number">5.14.1</span> Visualisation of <em>Control.Access.RoleBased.Role</em></a></li>
+<li><a><span class="toc-section-number">5.14.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Role</em></a></li>
+<li><a><span class="toc-section-number">5.14.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Role</em></a></li>
+<li><a><span class="toc-section-number">5.14.4</span> Component analysis of <em>Control.Access.RoleBased.Role</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.15</span> Analysis of <em>Thentos.DB.Protect</em></a><ul>
-<li><a><span class="toc-section-number">5.15.1</span> Visualisation of <em>Thentos.DB.Protect</em></a></li>
-<li><a><span class="toc-section-number">5.15.2</span> Visualisation of levels in <em>Thentos.DB.Protect</em></a></li>
-<li><a><span class="toc-section-number">5.15.3</span> Cyclomatic Complexity of <em>Thentos.DB.Protect</em></a></li>
+<li><a><span class="toc-section-number">5.15</span> Analysis of <em>Part2</em></a><ul>
+<li><a><span class="toc-section-number">5.15.1</span> Visualisation of <em>Part2</em></a></li>
+<li><a><span class="toc-section-number">5.15.2</span> Visualisation of levels in <em>Part2</em></a></li>
+<li><a><span class="toc-section-number">5.15.3</span> Cyclomatic Complexity of <em>Part2</em></a></li>
+<li><a><span class="toc-section-number">5.15.4</span> Component analysis of <em>Part2</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.16</span> Analysis of <em>Thentos.DB.Trans</em></a><ul>
-<li><a><span class="toc-section-number">5.16.1</span> Visualisation of <em>Thentos.DB.Trans</em></a></li>
-<li><a><span class="toc-section-number">5.16.2</span> Visualisation of levels in <em>Thentos.DB.Trans</em></a></li>
-<li><a><span class="toc-section-number">5.16.3</span> Cyclomatic Complexity of <em>Thentos.DB.Trans</em></a></li>
-<li><a><span class="toc-section-number">5.16.4</span> Root analysis of <em>Thentos.DB.Trans</em></a></li>
-<li><a><span class="toc-section-number">5.16.5</span> Component analysis of <em>Thentos.DB.Trans</em></a></li>
-<li><a><span class="toc-section-number">5.16.6</span> Chain analysis of <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.16</span> Analysis of <em>SafeCWD</em></a><ul>
+<li><a><span class="toc-section-number">5.16.1</span> Visualisation of <em>SafeCWD</em></a></li>
+<li><a><span class="toc-section-number">5.16.2</span> Visualisation of levels in <em>SafeCWD</em></a></li>
+<li><a><span class="toc-section-number">5.16.3</span> Cyclomatic Complexity of <em>SafeCWD</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.17</span> Analysis of <em>Thentos.Doc</em></a><ul>
-<li><a><span class="toc-section-number">5.17.1</span> Visualisation of <em>Thentos.Doc</em></a></li>
-<li><a><span class="toc-section-number">5.17.2</span> Core analysis of <em>Thentos.Doc</em></a></li>
-<li><a><span class="toc-section-number">5.17.3</span> Visualisation of levels in <em>Thentos.Doc</em></a></li>
-<li><a><span class="toc-section-number">5.17.4</span> Cyclomatic Complexity of <em>Thentos.Doc</em></a></li>
-<li><a><span class="toc-section-number">5.17.5</span> Component analysis of <em>Thentos.Doc</em></a></li>
+<li><a><span class="toc-section-number">5.17</span> Analysis of <em>Site</em></a><ul>
+<li><a><span class="toc-section-number">5.17.1</span> Visualisation of <em>Site</em></a></li>
+<li><a><span class="toc-section-number">5.17.2</span> Visualisation of levels in <em>Site</em></a></li>
+<li><a><span class="toc-section-number">5.17.3</span> Cyclomatic Complexity of <em>Site</em></a></li>
+<li><a><span class="toc-section-number">5.17.4</span> Chain analysis of <em>Site</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.18</span> Analysis of <em>Thentos.Frontend</em></a><ul>
-<li><a><span class="toc-section-number">5.18.1</span> Visualisation of <em>Thentos.Frontend</em></a></li>
-<li><a><span class="toc-section-number">5.18.2</span> Visualisation of levels in <em>Thentos.Frontend</em></a></li>
-<li><a><span class="toc-section-number">5.18.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></a></li>
-<li><a><span class="toc-section-number">5.18.4</span> Component analysis of <em>Thentos.Frontend</em></a></li>
-<li><a><span class="toc-section-number">5.18.5</span> Chain analysis of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.18</span> Analysis of <em>Snap.Snaplet.Auth.AuthManager</em></a><ul>
+<li><a><span class="toc-section-number">5.18.1</span> Visualisation of <em>Snap.Snaplet.Auth.AuthManager</em></a></li>
+<li><a><span class="toc-section-number">5.18.2</span> Core analysis of <em>Snap.Snaplet.Auth.AuthManager</em></a></li>
+<li><a><span class="toc-section-number">5.18.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.AuthManager</em></a></li>
+<li><a><span class="toc-section-number">5.18.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.AuthManager</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.19</span> Analysis of <em>Thentos.Frontend.Pages</em></a><ul>
-<li><a><span class="toc-section-number">5.19.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></a></li>
-<li><a><span class="toc-section-number">5.19.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></a></li>
-<li><a><span class="toc-section-number">5.19.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></a></li>
-<li><a><span class="toc-section-number">5.19.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.19</span> Analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a><ul>
+<li><a><span class="toc-section-number">5.19.1</span> Visualisation of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a></li>
+<li><a><span class="toc-section-number">5.19.2</span> Core analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a></li>
+<li><a><span class="toc-section-number">5.19.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a></li>
+<li><a><span class="toc-section-number">5.19.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a></li>
+<li><a><span class="toc-section-number">5.19.5</span> Chain analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></a></li>
 </ul></li>
-<li><a><span class="toc-section-number">5.20</span> Analysis of <em>Thentos.Types</em></a><ul>
-<li><a><span class="toc-section-number">5.20.1</span> Visualisation of <em>Thentos.Types</em></a></li>
-<li><a><span class="toc-section-number">5.20.2</span> Visualisation of levels in <em>Thentos.Types</em></a></li>
-<li><a><span class="toc-section-number">5.20.3</span> Cyclomatic Complexity of <em>Thentos.Types</em></a></li>
-<li><a><span class="toc-section-number">5.20.4</span> Component analysis of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.20</span> Analysis of <em>Snap.Snaplet.Auth.Handlers</em></a><ul>
+<li><a><span class="toc-section-number">5.20.1</span> Visualisation of <em>Snap.Snaplet.Auth.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.20.2</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.20.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.20.4</span> Component analysis of <em>Snap.Snaplet.Auth.Handlers</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.21</span> Analysis of <em>Snap.Snaplet.Auth.SpliceHelpers</em></a><ul>
+<li><a><span class="toc-section-number">5.21.1</span> Visualisation of <em>Snap.Snaplet.Auth.SpliceHelpers</em></a></li>
+<li><a><span class="toc-section-number">5.21.2</span> Visualisation of levels in <em>Snap.Snaplet.Auth.SpliceHelpers</em></a></li>
+<li><a><span class="toc-section-number">5.21.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.SpliceHelpers</em></a></li>
+<li><a><span class="toc-section-number">5.21.4</span> Component analysis of <em>Snap.Snaplet.Auth.SpliceHelpers</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.22</span> Analysis of <em>Snap.Snaplet.Auth.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.22.1</span> Visualisation of <em>Snap.Snaplet.Auth.Types</em></a></li>
+<li><a><span class="toc-section-number">5.22.2</span> Core analysis of <em>Snap.Snaplet.Auth.Types</em></a></li>
+<li><a><span class="toc-section-number">5.22.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Types</em></a></li>
+<li><a><span class="toc-section-number">5.22.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Types</em></a></li>
+<li><a><span class="toc-section-number">5.22.5</span> Component analysis of <em>Snap.Snaplet.Auth.Types</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.23</span> Analysis of <em>Snap.Snaplet.Heist</em></a><ul>
+<li><a><span class="toc-section-number">5.23.1</span> Visualisation of <em>Snap.Snaplet.Heist</em></a></li>
+<li><a><span class="toc-section-number">5.23.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist</em></a></li>
+<li><a><span class="toc-section-number">5.23.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.24</span> Analysis of <em>Snap.Snaplet.Heist.Compiled</em></a><ul>
+<li><a><span class="toc-section-number">5.24.1</span> Visualisation of <em>Snap.Snaplet.Heist.Compiled</em></a></li>
+<li><a><span class="toc-section-number">5.24.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist.Compiled</em></a></li>
+<li><a><span class="toc-section-number">5.24.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist.Compiled</em></a></li>
+<li><a><span class="toc-section-number">5.24.4</span> Component analysis of <em>Snap.Snaplet.Heist.Compiled</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.25</span> Analysis of <em>Snap.Snaplet.Heist.Internal</em></a><ul>
+<li><a><span class="toc-section-number">5.25.1</span> Visualisation of <em>Snap.Snaplet.Heist.Internal</em></a></li>
+<li><a><span class="toc-section-number">5.25.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist.Internal</em></a></li>
+<li><a><span class="toc-section-number">5.25.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist.Internal</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.26</span> Analysis of <em>Snap.Snaplet.HeistNoClass</em></a><ul>
+<li><a><span class="toc-section-number">5.26.1</span> Visualisation of <em>Snap.Snaplet.HeistNoClass</em></a></li>
+<li><a><span class="toc-section-number">5.26.2</span> Core analysis of <em>Snap.Snaplet.HeistNoClass</em></a></li>
+<li><a><span class="toc-section-number">5.26.3</span> Visualisation of levels in <em>Snap.Snaplet.HeistNoClass</em></a></li>
+<li><a><span class="toc-section-number">5.26.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.HeistNoClass</em></a></li>
+<li><a><span class="toc-section-number">5.26.5</span> Component analysis of <em>Snap.Snaplet.HeistNoClass</em></a></li>
+<li><a><span class="toc-section-number">5.26.6</span> Chain analysis of <em>Snap.Snaplet.HeistNoClass</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.27</span> Analysis of <em>Snap.Snaplet.Internal.LensT</em></a><ul>
+<li><a><span class="toc-section-number">5.27.1</span> Visualisation of <em>Snap.Snaplet.Internal.LensT</em></a></li>
+<li><a><span class="toc-section-number">5.27.2</span> Core analysis of <em>Snap.Snaplet.Internal.LensT</em></a></li>
+<li><a><span class="toc-section-number">5.27.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.LensT</em></a></li>
+<li><a><span class="toc-section-number">5.27.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.LensT</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.28</span> Analysis of <em>Snap.Snaplet.Internal.LensT.Tests</em></a><ul>
+<li><a><span class="toc-section-number">5.28.1</span> Visualisation of <em>Snap.Snaplet.Internal.LensT.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.28.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.LensT.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.28.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.LensT.Tests</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.29</span> Analysis of <em>Snap.Snaplet.Internal.Lensed</em></a><ul>
+<li><a><span class="toc-section-number">5.29.1</span> Visualisation of <em>Snap.Snaplet.Internal.Lensed</em></a></li>
+<li><a><span class="toc-section-number">5.29.2</span> Core analysis of <em>Snap.Snaplet.Internal.Lensed</em></a></li>
+<li><a><span class="toc-section-number">5.29.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.Lensed</em></a></li>
+<li><a><span class="toc-section-number">5.29.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.Lensed</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.30</span> Analysis of <em>Snap.Snaplet.Internal.Lensed.Tests</em></a><ul>
+<li><a><span class="toc-section-number">5.30.1</span> Visualisation of <em>Snap.Snaplet.Internal.Lensed.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.30.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.Lensed.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.30.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.Lensed.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.30.4</span> Root analysis of <em>Snap.Snaplet.Internal.Lensed.Tests</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.31</span> Analysis of <em>Snap.Snaplet.Internal.RST</em></a><ul>
+<li><a><span class="toc-section-number">5.31.1</span> Visualisation of <em>Snap.Snaplet.Internal.RST</em></a></li>
+<li><a><span class="toc-section-number">5.31.2</span> Core analysis of <em>Snap.Snaplet.Internal.RST</em></a></li>
+<li><a><span class="toc-section-number">5.31.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.RST</em></a></li>
+<li><a><span class="toc-section-number">5.31.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.RST</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.32</span> Analysis of <em>Snap.Snaplet.Internal.RST.Tests</em></a><ul>
+<li><a><span class="toc-section-number">5.32.1</span> Visualisation of <em>Snap.Snaplet.Internal.RST.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.32.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.RST.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.32.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.RST.Tests</em></a></li>
+<li><a><span class="toc-section-number">5.32.4</span> Chain analysis of <em>Snap.Snaplet.Internal.RST.Tests</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.33</span> Analysis of <em>Snap.Snaplet.Session</em></a><ul>
+<li><a><span class="toc-section-number">5.33.1</span> Visualisation of <em>Snap.Snaplet.Session</em></a></li>
+<li><a><span class="toc-section-number">5.33.2</span> Visualisation of levels in <em>Snap.Snaplet.Session</em></a></li>
+<li><a><span class="toc-section-number">5.33.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.34</span> Analysis of <em>Snap.Snaplet.Session.Backends.CookieSession</em></a><ul>
+<li><a><span class="toc-section-number">5.34.1</span> Visualisation of <em>Snap.Snaplet.Session.Backends.CookieSession</em></a></li>
+<li><a><span class="toc-section-number">5.34.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.Backends.CookieSession</em></a></li>
+<li><a><span class="toc-section-number">5.34.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.Backends.CookieSession</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.35</span> Analysis of <em>Snap.Snaplet.Session.Common</em></a><ul>
+<li><a><span class="toc-section-number">5.35.1</span> Visualisation of <em>Snap.Snaplet.Session.Common</em></a></li>
+<li><a><span class="toc-section-number">5.35.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.Common</em></a></li>
+<li><a><span class="toc-section-number">5.35.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.Common</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.36</span> Analysis of <em>Snap.Snaplet.Session.SecureCookie</em></a><ul>
+<li><a><span class="toc-section-number">5.36.1</span> Visualisation of <em>Snap.Snaplet.Session.SecureCookie</em></a></li>
+<li><a><span class="toc-section-number">5.36.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.SecureCookie</em></a></li>
+<li><a><span class="toc-section-number">5.36.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.SecureCookie</em></a></li>
+<li><a><span class="toc-section-number">5.36.4</span> Component analysis of <em>Snap.Snaplet.Session.SecureCookie</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.37</span> Analysis of <em>Snap.Snaplet.Session.SessionManager</em></a><ul>
+<li><a><span class="toc-section-number">5.37.1</span> Visualisation of <em>Snap.Snaplet.Session.SessionManager</em></a></li>
+<li><a><span class="toc-section-number">5.37.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.SessionManager</em></a></li>
+<li><a><span class="toc-section-number">5.37.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.SessionManager</em></a></li>
+<li><a><span class="toc-section-number">5.37.4</span> Component analysis of <em>Snap.Snaplet.Session.SessionManager</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.38</span> Analysis of <em>Snap.Snaplet.Test</em></a><ul>
+<li><a><span class="toc-section-number">5.38.1</span> Visualisation of <em>Snap.Snaplet.Test</em></a></li>
+<li><a><span class="toc-section-number">5.38.2</span> Visualisation of levels in <em>Snap.Snaplet.Test</em></a></li>
+<li><a><span class="toc-section-number">5.38.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Test</em></a></li>
+<li><a><span class="toc-section-number">5.38.4</span> Component analysis of <em>Snap.Snaplet.Test</em></a></li>
+<li><a><span class="toc-section-number">5.38.5</span> Chain analysis of <em>Snap.Snaplet.Test</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.39</span> Analysis of <em>Snap.StarterTH</em></a><ul>
+<li><a><span class="toc-section-number">5.39.1</span> Visualisation of <em>Snap.StarterTH</em></a></li>
+<li><a><span class="toc-section-number">5.39.2</span> Visualisation of levels in <em>Snap.StarterTH</em></a></li>
+<li><a><span class="toc-section-number">5.39.3</span> Cyclomatic Complexity of <em>Snap.StarterTH</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.40</span> Analysis of <em>Snap.TestCommon</em></a><ul>
+<li><a><span class="toc-section-number">5.40.1</span> Visualisation of <em>Snap.TestCommon</em></a></li>
+<li><a><span class="toc-section-number">5.40.2</span> Visualisation of levels in <em>Snap.TestCommon</em></a></li>
+<li><a><span class="toc-section-number">5.40.3</span> Cyclomatic Complexity of <em>Snap.TestCommon</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.41</span> Analysis of <em>System.Log.Missing</em></a><ul>
+<li><a><span class="toc-section-number">5.41.1</span> Visualisation of <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.41.2</span> Visualisation of levels in <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.41.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.42</span> Analysis of <em>Test.Arbitrary</em></a><ul>
+<li><a><span class="toc-section-number">5.42.1</span> Visualisation of <em>Test.Arbitrary</em></a></li>
+<li><a><span class="toc-section-number">5.42.2</span> Core analysis of <em>Test.Arbitrary</em></a></li>
+<li><a><span class="toc-section-number">5.42.3</span> Visualisation of levels in <em>Test.Arbitrary</em></a></li>
+<li><a><span class="toc-section-number">5.42.4</span> Cyclomatic Complexity of <em>Test.Arbitrary</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.43</span> Analysis of <em>Test.Config</em></a><ul>
+<li><a><span class="toc-section-number">5.43.1</span> Visualisation of <em>Test.Config</em></a></li>
+<li><a><span class="toc-section-number">5.43.2</span> Visualisation of levels in <em>Test.Config</em></a></li>
+<li><a><span class="toc-section-number">5.43.3</span> Cyclomatic Complexity of <em>Test.Config</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.44</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3</em></a><ul>
+<li><a><span class="toc-section-number">5.44.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
+<li><a><span class="toc-section-number">5.44.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
+<li><a><span class="toc-section-number">5.44.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
+<li><a><span class="toc-section-number">5.44.4</span> Component analysis of <em>Thentos.Backend.Api.Adhocracy3</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.45</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3Spec</em></a><ul>
+<li><a><span class="toc-section-number">5.45.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3Spec</em></a></li>
+<li><a><span class="toc-section-number">5.45.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3Spec</em></a></li>
+<li><a><span class="toc-section-number">5.45.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3Spec</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.46</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></a><ul>
+<li><a><span class="toc-section-number">5.46.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.46.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.46.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.47</span> Analysis of <em>Thentos.Backend.Api.Simple</em></a><ul>
+<li><a><span class="toc-section-number">5.47.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.47.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.47.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.48</span> Analysis of <em>Thentos.Backend.Api.SimpleSpec</em></a><ul>
+<li><a><span class="toc-section-number">5.48.1</span> Visualisation of <em>Thentos.Backend.Api.SimpleSpec</em></a></li>
+<li><a><span class="toc-section-number">5.48.2</span> Visualisation of levels in <em>Thentos.Backend.Api.SimpleSpec</em></a></li>
+<li><a><span class="toc-section-number">5.48.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.SimpleSpec</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.49</span> Analysis of <em>Thentos.Backend.Core</em></a><ul>
+<li><a><span class="toc-section-number">5.49.1</span> Visualisation of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.49.2</span> Core analysis of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.49.3</span> Visualisation of levels in <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.49.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.49.5</span> Component analysis of <em>Thentos.Backend.Core</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.50</span> Analysis of <em>Thentos.Config</em></a><ul>
+<li><a><span class="toc-section-number">5.50.1</span> Visualisation of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.50.2</span> Core analysis of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.50.3</span> Visualisation of levels in <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.50.4</span> Cyclomatic Complexity of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.50.5</span> Component analysis of <em>Thentos.Config</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.51</span> Analysis of <em>Thentos.DB.Core</em></a><ul>
+<li><a><span class="toc-section-number">5.51.1</span> Visualisation of <em>Thentos.DB.Core</em></a></li>
+<li><a><span class="toc-section-number">5.51.2</span> Visualisation of levels in <em>Thentos.DB.Core</em></a></li>
+<li><a><span class="toc-section-number">5.51.3</span> Cyclomatic Complexity of <em>Thentos.DB.Core</em></a></li>
+<li><a><span class="toc-section-number">5.51.4</span> Component analysis of <em>Thentos.DB.Core</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.52</span> Analysis of <em>Thentos.DB.Protect</em></a><ul>
+<li><a><span class="toc-section-number">5.52.1</span> Visualisation of <em>Thentos.DB.Protect</em></a></li>
+<li><a><span class="toc-section-number">5.52.2</span> Visualisation of levels in <em>Thentos.DB.Protect</em></a></li>
+<li><a><span class="toc-section-number">5.52.3</span> Cyclomatic Complexity of <em>Thentos.DB.Protect</em></a></li>
+<li><a><span class="toc-section-number">5.52.4</span> Chain analysis of <em>Thentos.DB.Protect</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.53</span> Analysis of <em>Thentos.DB.Trans</em></a><ul>
+<li><a><span class="toc-section-number">5.53.1</span> Visualisation of <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.53.2</span> Visualisation of levels in <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.53.3</span> Cyclomatic Complexity of <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.53.4</span> Root analysis of <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.53.5</span> Component analysis of <em>Thentos.DB.Trans</em></a></li>
+<li><a><span class="toc-section-number">5.53.6</span> Chain analysis of <em>Thentos.DB.Trans</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.54</span> Analysis of <em>Thentos.Frontend</em></a><ul>
+<li><a><span class="toc-section-number">5.54.1</span> Visualisation of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.54.2</span> Visualisation of levels in <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.54.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.54.4</span> Component analysis of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.54.5</span> Chain analysis of <em>Thentos.Frontend</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.55</span> Analysis of <em>Thentos.Frontend.Pages</em></a><ul>
+<li><a><span class="toc-section-number">5.55.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.55.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.55.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.55.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.56</span> Analysis of <em>Thentos.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.56.1</span> Visualisation of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.56.2</span> Visualisation of levels in <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.56.3</span> Cyclomatic Complexity of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.56.4</span> Component analysis of <em>Thentos.Types</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.57</span> Analysis of <em>Thentos.TypesSpec</em></a><ul>
+<li><a><span class="toc-section-number">5.57.1</span> Visualisation of <em>Thentos.TypesSpec</em></a></li>
+<li><a><span class="toc-section-number">5.57.2</span> Visualisation of levels in <em>Thentos.TypesSpec</em></a></li>
+<li><a><span class="toc-section-number">5.57.3</span> Cyclomatic Complexity of <em>Thentos.TypesSpec</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.58</span> Analysis of <em>ThentosSpec</em></a><ul>
+<li><a><span class="toc-section-number">5.58.1</span> Visualisation of <em>ThentosSpec</em></a></li>
+<li><a><span class="toc-section-number">5.58.2</span> Visualisation of levels in <em>ThentosSpec</em></a></li>
+<li><a><span class="toc-section-number">5.58.3</span> Cyclomatic Complexity of <em>ThentosSpec</em></a></li>
 </ul></li>
 </ul></li>
 </ul>
 </div>
 <h1>Document Information</h1>
 <blockquote><p><em>Analysed by SourceGraph (version 0.7.0.6) using Graphalyze (version 0.14.1.0)</em></p></blockquote>
-<blockquote><p><em>Friday 20 February, 2015</em></p></blockquote>
+<blockquote><p><em>Friday 27 February, 2015</em></p></blockquote>
 
 <h1><span class="header-section-number">1</span> Legend</h1>
 <dl>
@@ -201,6 +421,12 @@
 <li><p>./src/Thentos/Util.hs</p></li>
 <li><p>./src/Thentos/Api.hs</p></li>
 <li><p>./services/helloworld/src/Main.hs</p></li>
+<li><p>./snap-0.13.3.2/src/Snap/Snaplet/Config.hs</p></li>
+<li><p>./snap-0.13.3.2/src/Snap/Snaplet/Internal/Initializer.hs</p></li>
+<li><p>./snap-0.13.3.2/src/Snap/Snaplet/Internal/Types.hs</p></li>
+<li><p>./snap-0.13.3.2/test/suite/Blackbox/Common.hs</p></li>
+<li><p>./snap-0.13.3.2/test/suite/Snap/Snaplet/Internal/Tests.hs</p></li>
+<li><p>./snap-0.13.3.2/project_template/default/src/Main.hs</p></li>
 <li><p>./tests/Test/Util.hs</p></li>
 </ul>
 <h1><span class="header-section-number">3</span> Analysis of the entire codebase</h1>
@@ -220,73 +446,117 @@
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/code_levels.svg"><img src="graphs/code_levels.png" alt="Levels within software" /></a></p>
 <h2><span class="header-section-number">3.5</span> Overall Cyclomatic Complexity</h2>
-<p>The overall cyclomatic complexity is: 675</p>
+<p>The overall cyclomatic complexity is: 1428</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
 <h2><span class="header-section-number">3.6</span> Overall root analysis</h2>
 <p>These functions are those that are inaccessible:</p>
-<p><em>Cabbage.Cabbage,  Cabbage.Farmer,  Cabbage.Sheep,  Cabbage.Wolf,  Cabbage.eats,  Cabbage.initial,  Cabbage.move,  Cabbage.plusTailOf,  Cabbage.singleOut1,  Cabbage.singleOutAll, 
-Cabbage.solution1,  Cabbage.solution2,  Cabbage.solution3,  Cabbage.solution4,  Cabbage.solution5,  Cabbage.success,  Cabbage.unsafeIter,  Pronk.main,  Site.App,  Site.HWConfig, 
-Site.aHWConfig,  Site.app,  Site.appPage,  Site.handleApp,  Site.helloWorldLogin,  Site.helloWorldLogout,  Site.helloWorldUrl,  Site.routes,  Site.serviceId,  Site.serviceKey, 
-Site.thentosBackendUrl,  Site.thentosFrontendUrl,  Site.tokenOk,  System.Log.Missing.logger,  System.Log.Missing.loggerName,  Test.Config.Config,  Test.Config.config, 
-Test.Config.dbPath,  Test.Config.restPort,  Test.Thentos.Backend.Api.Adhocracy3.setupTestA3Server,  Test.Thentos.Backend.Api.Adhocracy3.tests,  Test.Thentos.Backend.Api.Simple.tests, 
-Test.Thentos.Types.testSizeFactor,  Test.Thentos.Types.tests,  TestMain.adhoc,  TestMain.main,  Thentos.main,  Thentos.Backend.Api.Adhocracy3.activate, 
-Thentos.Backend.Api.Adhocracy3.addUser,  Thentos.Backend.Api.Adhocracy3.app,  Thentos.Backend.Api.Adhocracy3.confirmationTokenFromPath,  Thentos.Backend.Api.Adhocracy3.fromA3UserNoPass, 
-Thentos.Backend.Api.Adhocracy3.fromA3UserWithPass,  Thentos.Backend.Api.Adhocracy3.login,  Thentos.Backend.Api.Adhocracy3.runBackend,  Thentos.Backend.Api.Adhocracy3.serveApi, 
-Thentos.Backend.Api.Adhocracy3.userIdFromPath,  Thentos.Backend.Api.Adhocracy3.userIdToPath,  Thentos.Backend.Api.Proxy.RqMod,  Thentos.Backend.Api.Proxy.catchProxy, 
-Thentos.Backend.Api.Proxy.clearThentosHeaders,  Thentos.Backend.Api.Proxy.getRqMod,  Thentos.Backend.Api.Proxy.prepareReq,  Thentos.Backend.Api.Proxy.prepareResp, 
-Thentos.Backend.Api.Proxy.serviceProxy,  Thentos.Backend.Api.Simple.apiDocs,  Thentos.Backend.Api.Simple.app,  Thentos.Backend.Api.Simple.runBackend, 
-Thentos.Backend.Api.Simple.serveApi,  Thentos.Backend.Api.Simple.thentosBasic,  Thentos.Backend.Api.Simple.thentosService,  Thentos.Backend.Api.Simple.thentosSession, 
-Thentos.Backend.Api.Simple.thentosUser,  Thentos.Config.BDocs,  Thentos.Config.BRun,  Thentos.Config.BRunA3,  Thentos.Config.BShowDB,  Thentos.Config.BackendConfig, 
-Thentos.Config.BackendConfigMissing,  Thentos.Config.Docs,  Thentos.Config.FrontendConfig,  Thentos.Config.FrontendConfigMissing,  Thentos.Config.NoEmailSender, 
-Thentos.Config.ProxyConfig,  Thentos.Config.Run,  Thentos.Config.RunA3,  Thentos.Config.ShowDB,  Thentos.Config.ThentosConfig,  Thentos.Config.UnknownRoleForDefaultUser, 
-Thentos.Config.backendConfig,  Thentos.Config.backendPort,  Thentos.Config.configLogger,  Thentos.Config.defaultUser,  Thentos.Config.emailSender,  Thentos.Config.emptyThentosConfig, 
-Thentos.Config.finaliseBackendConfig,  Thentos.Config.finaliseCommand,  Thentos.Config.finaliseConfig,  Thentos.Config.finaliseFrontendConfig,  Thentos.Config.finaliseProxyConfig, 
-Thentos.Config.frontendConfig,  Thentos.Config.frontendPort,  Thentos.Config.getCommand,  Thentos.Config.parseBackendConfigBuilder,  Thentos.Config.parseCommandBuilder, 
-Thentos.Config.parseConfigFile,  Thentos.Config.parseFrontendConfigBuilder,  Thentos.Config.parseProxyConfigBuilder,  Thentos.Config.parseRun,  Thentos.Config.parseRunA3, 
-Thentos.Config.parseRunBackend,  Thentos.Config.parseRunFrontend,  Thentos.Config.parseThentosConfig,  Thentos.Config.proxyConfig,  Thentos.Config.proxyTargets,  Thentos.DB.Core.=%%, 
-Thentos.DB.Core.BadAuthenticationHeaders,  Thentos.DB.Core.BadCredentials,  Thentos.DB.Core.MalformedConfirmationToken,  Thentos.DB.Core.MissingServiceHeader, 
-Thentos.DB.Core.NoSuchPendingUserConfirmation,  Thentos.DB.Core.NoSuchService,  Thentos.DB.Core.NoSuchSession,  Thentos.DB.Core.NoSuchUser, 
-Thentos.DB.Core.OperationNotPossibleInServiceSession,  Thentos.DB.Core.PermissionDenied,  Thentos.DB.Core.ProxyNotAvailable,  Thentos.DB.Core.ProxyNotConfiguredForService, 
-Thentos.DB.Core.ServiceAlreadyExists,  Thentos.DB.Core.TLRead,  Thentos.DB.Core.TLReadWrite,  Thentos.DB.Core.UserEmailAlreadyExists,  Thentos.DB.Core.UserNameAlreadyExists, 
-Thentos.DB.Core.checkClearance,  Thentos.DB.Core.createCheckpointLoop,  Thentos.DB.Core.liftThentosQuery,  Thentos.DB.Core.makeThentosLabel,  Thentos.DB.Core.makeThentosLabel1, 
-Thentos.DB.Core.makeThentosLabel2,  Thentos.DB.Core.makeThentosLabel3,  Thentos.DB.Core.makeThentosLabel4,  Thentos.DB.Core.makeThentosLabel5,  Thentos.DB.Core.restrictThentosLabel, 
-Thentos.DB.Core.restrictThentosLabel',  Thentos.DB.Core.returnDb,  Thentos.DB.Core.runThentosQuery,  Thentos.DB.Core.runThentosUpdate,  Thentos.DB.Core.showDbError, 
-Thentos.DB.Core.thentosDenied,  Thentos.DB.Core.thentosLabeledDenied,  Thentos.DB.Core.thentosLabeledPublic,  Thentos.DB.Core.thentosPublic,  Thentos.DB.Core.throwDb, 
-Thentos.DB.Protect.*%%,  Thentos.DB.Protect.allowEverything,  Thentos.DB.Protect.allowNothing,  Thentos.DB.Protect.allowReadEverything,  Thentos.DB.Protect.authenticateService, 
-Thentos.DB.Protect.authenticateSession,  Thentos.DB.Protect.authenticateUser,  Thentos.DB.Protect.createDefaultUser,  Thentos.DB.Protect.getUserFromSession, 
-Thentos.DB.Protect.makeClearance_,  Thentos.DB.Protect.makeThentosClearance,  Thentos.DB.Trans.LookupSessionBumped,  Thentos.DB.Trans.LookupSessionInactive, 
-Thentos.DB.Trans.LookupSessionNotThere,  Thentos.DB.Trans.LookupSessionUnchanged,  Thentos.DB.Trans.UpdateUserFieldAddService,  Thentos.DB.Trans.UpdateUserFieldDropService, 
-Thentos.DB.Trans.UpdateUserFieldEmail,  Thentos.DB.Trans.UpdateUserFieldName,  Thentos.DB.Trans.addService,  Thentos.DB.Trans.addUnconfirmedUser,  Thentos.DB.Trans.addUser, 
-Thentos.DB.Trans.addUsers,  Thentos.DB.Trans.allServiceIds,  Thentos.DB.Trans.allSessionTokens,  Thentos.DB.Trans.allUserIds,  Thentos.DB.Trans.assertAgent,  Thentos.DB.Trans.assignRole, 
-Thentos.DB.Trans.checkAllDbInvs,  Thentos.DB.Trans.checkDbInvs,  Thentos.DB.Trans.dbInvUserAspectUnique,  Thentos.DB.Trans.deleteService,  Thentos.DB.Trans.deleteSession, 
-Thentos.DB.Trans.deleteUser,  Thentos.DB.Trans.emptyDB,  Thentos.DB.Trans.endSession,  Thentos.DB.Trans.finishUserRegistration,  Thentos.DB.Trans.freshUserId, 
-Thentos.DB.Trans.garbageCollectSessions,  Thentos.DB.Trans.getSessionFromAgent,  Thentos.DB.Trans.isActiveSession,  Thentos.DB.Trans.isActiveSessionAndBump, 
-Thentos.DB.Trans.isLoggedIntoService,  Thentos.DB.Trans.label_lookupUser,  Thentos.DB.Trans.lookupAgentRoles,  Thentos.DB.Trans.lookupService,  Thentos.DB.Trans.lookupSession, 
-Thentos.DB.Trans.lookupSessionQ,  Thentos.DB.Trans.lookupSessionWithMaybeService,  Thentos.DB.Trans.lookupUser,  Thentos.DB.Trans.lookupUserByEmail,  Thentos.DB.Trans.lookupUserByName, 
-Thentos.DB.Trans.pure_lookupAgentRoles,  Thentos.DB.Trans.pure_lookupService,  Thentos.DB.Trans.pure_lookupSession,  Thentos.DB.Trans.pure_lookupUser, 
-Thentos.DB.Trans.pure_lookupUserByEmail,  Thentos.DB.Trans.pure_lookupUserByName,  Thentos.DB.Trans.sessionNowActive,  Thentos.DB.Trans.snapShot,  Thentos.DB.Trans.startSession, 
-Thentos.DB.Trans.trans_addService,  Thentos.DB.Trans.trans_addUnconfirmedUser,  Thentos.DB.Trans.trans_addUser,  Thentos.DB.Trans.trans_addUsers,  Thentos.DB.Trans.trans_allServiceIds, 
-Thentos.DB.Trans.trans_allSessionTokens,  Thentos.DB.Trans.trans_allUserIds,  Thentos.DB.Trans.trans_assignRole,  Thentos.DB.Trans.trans_deleteService, 
-Thentos.DB.Trans.trans_deleteUser,  Thentos.DB.Trans.trans_endSession,  Thentos.DB.Trans.trans_finishUserRegistration,  Thentos.DB.Trans.trans_garbageCollectSessions, 
-Thentos.DB.Trans.trans_isActiveSession,  Thentos.DB.Trans.trans_isActiveSessionAndBump,  Thentos.DB.Trans.trans_isLoggedIntoService,  Thentos.DB.Trans.trans_lookupAgentRoles, 
-Thentos.DB.Trans.trans_lookupService,  Thentos.DB.Trans.trans_lookupSession,  Thentos.DB.Trans.trans_lookupSessionQ,  Thentos.DB.Trans.trans_lookupUser, 
-Thentos.DB.Trans.trans_lookupUserByEmail,  Thentos.DB.Trans.trans_lookupUserByName,  Thentos.DB.Trans.trans_snapShot,  Thentos.DB.Trans.trans_startSession, 
-Thentos.DB.Trans.trans_unassignRole,  Thentos.DB.Trans.trans_updateUser,  Thentos.DB.Trans.trans_updateUserField,  Thentos.DB.Trans.unassignRole,  Thentos.DB.Trans.updateUser, 
-Thentos.DB.Trans.updateUserField,  Thentos.DB.Trans.writeSession,  Thentos.DB.Trans.writeUser,  Thentos.Frontend.addServiceHandler,  Thentos.Frontend.frontendApp, 
-Thentos.Frontend.loginHandler,  Thentos.Frontend.mainPageHandler,  Thentos.Frontend.routes,  Thentos.Frontend.runFrontend,  Thentos.Frontend.serviceAddedHandler, 
-Thentos.Frontend.snapRunAction,  Thentos.Frontend.snapRunAction',  Thentos.Frontend.userAddConfirmHandler,  Thentos.Frontend.userAddHandler,  Thentos.Frontend.Pages.addServicePage, 
-Thentos.Frontend.Pages.addUserPage,  Thentos.Frontend.Pages.errorPage,  Thentos.Frontend.Pages.loginForm,  Thentos.Frontend.Pages.loginPage,  Thentos.Frontend.Pages.mainPage, 
-Thentos.Frontend.Pages.nonEmpty,  Thentos.Frontend.Pages.serviceAddedPage,  Thentos.Frontend.Pages.userAddedPage,  Thentos.Frontend.Pages.userForm,  Thentos.Frontend.Util.serveSnaplet, 
-Thentos.Smtp.sendUserConfirmationMail,  Thentos.Types.ConfirmationToken,  Thentos.Types.Group,  Thentos.Types.RoleAdmin,  Thentos.Types.ServiceA,  Thentos.Types.ServiceKey, 
-Thentos.Types.SessionToken,  Thentos.Types.ThentosLabeled,  Thentos.Types.fromConfimationToken,  Thentos.Types.fromGroup,  Thentos.Types.fromServiceId,  Thentos.Types.fromServiceKey, 
-Thentos.Types.fromSessionToken,  Thentos.Types.fromThentosClearance,  Thentos.Types.fromThentosLabel,  Thentos.Types.fromUserEmail,  Thentos.Types.fromUserId, 
-Thentos.Types.fromUserName,  Thentos.Types.fromUserPass,  Thentos.Types.thentosLabelL,  Thentos.Types.thentosLabelV,  Thentos.Types.udEmail,  Thentos.Types.udName, 
-Thentos.Types.udPassword</em></p>
+<p><em>Application.heistLens,  Blackbox.App.app,  Blackbox.App.fooMod,  Blackbox.App.routeWithConfig,  Blackbox.App.routeWithSplice,  Blackbox.App.sessionDemo,  Blackbox.App.sessionTest,  Blackbox.BarSnaplet.barInit,  Blackbox.BarSnaplet.barsplice,  Blackbox.BarSnaplet.fooLens, 
+Blackbox.EmbeddedSnaplet.embeddedInit,  Blackbox.EmbeddedSnaplet.embeddedSplice,  Blackbox.EmbeddedSnaplet.heistLens,  Blackbox.FooSnaplet.FooSnaplet,  Blackbox.FooSnaplet.fooField,  Blackbox.FooSnaplet.fooInit,  Blackbox.FooSnaplet.getFooField,  Blackbox.Tests.assertRelativelyTheSame, 
+Blackbox.Tests.barHandlerConfigTest,  Blackbox.Tests.bazConfigTest,  Blackbox.Tests.bazpage5Test,  Blackbox.Tests.expect404,  Blackbox.Tests.fooConfigPathTest,  Blackbox.Tests.fooHandlerConfigTest,  Blackbox.Tests.grab,  Blackbox.Tests.reloadTest,  Blackbox.Tests.remove, 
+Blackbox.Tests.removeDir,  Blackbox.Tests.request404Test,  Blackbox.Tests.requestExpectingError,  Blackbox.Tests.requestExpectingError',  Blackbox.Tests.requestTest,  Blackbox.Tests.requestTest',  Blackbox.Tests.testName,  Blackbox.Tests.testPort,  Blackbox.Tests.testServer, 
+Blackbox.Tests.testServerUri,  Blackbox.Tests.testServerUrl,  Blackbox.Tests.testWithCwd,  Blackbox.Tests.testWithCwd',  Blackbox.Tests.tests,  Blackbox.Types.heistLens,  Cabbage.Cabbage,  Cabbage.Farmer,  Cabbage.Sheep,  Cabbage.Wolf,  Cabbage.eats,  Cabbage.initial,  Cabbage.move, 
+Cabbage.plusTailOf,  Cabbage.singleOut1,  Cabbage.singleOutAll,  Cabbage.solution1,  Cabbage.solution2,  Cabbage.solution3,  Cabbage.solution4,  Cabbage.solution5,  Cabbage.success,  Cabbage.unsafeIter,  Control.Access.RoleBased.Checker.applyRule, 
+Control.Access.RoleBased.Checker.applyRuleSet,  Control.Access.RoleBased.Checker.checkSeen,  Control.Access.RoleBased.Checker.checkUnseen,  Control.Access.RoleBased.Checker.expandRoles,  Control.Access.RoleBased.Checker.hasAllRoles,  Control.Access.RoleBased.Checker.hasAnyRoles, 
+Control.Access.RoleBased.Checker.hasRole,  Control.Access.RoleBased.Checker.implies,  Control.Access.RoleBased.Checker.impliesWith,  Control.Access.RoleBased.Checker.isum,  Control.Access.RoleBased.Checker.markSeen,  Control.Access.RoleBased.Checker.missingRole, 
+Control.Access.RoleBased.Checker.mkRule,  Control.Access.RoleBased.Checker.runRuleChecker,  Control.Access.RoleBased.Checker.t1,  Control.Access.RoleBased.Checker.t10,  Control.Access.RoleBased.Checker.t11,  Control.Access.RoleBased.Checker.t12,  Control.Access.RoleBased.Checker.t13, 
+Control.Access.RoleBased.Checker.t14,  Control.Access.RoleBased.Checker.t15,  Control.Access.RoleBased.Checker.t16,  Control.Access.RoleBased.Checker.t17,  Control.Access.RoleBased.Checker.t2,  Control.Access.RoleBased.Checker.t3,  Control.Access.RoleBased.Checker.t4, 
+Control.Access.RoleBased.Checker.t5,  Control.Access.RoleBased.Checker.t6,  Control.Access.RoleBased.Checker.t7,  Control.Access.RoleBased.Checker.t8,  Control.Access.RoleBased.Checker.t9,  Control.Access.RoleBased.Checker.tX,  Control.Access.RoleBased.Checker.testRules, 
+Control.Access.RoleBased.Internal.Role.RoleBoolMeta,  Control.Access.RoleBased.Internal.Role.RoleDoubleMeta,  Control.Access.RoleBased.Internal.Role.RoleEnumMeta,  Control.Access.RoleBased.Internal.Role.RoleIntMeta,  Control.Access.RoleBased.Internal.Role.RoleTextMeta, 
+Control.Access.RoleBased.Internal.RoleMap.RoleMap,  Control.Access.RoleBased.Internal.RoleMap.delete,  Control.Access.RoleBased.Internal.RoleMap.empty,  Control.Access.RoleBased.Internal.RoleMap.fromList,  Control.Access.RoleBased.Internal.RoleMap.insert, 
+Control.Access.RoleBased.Internal.RoleMap.lookup,  Control.Access.RoleBased.Internal.RoleMap.null,  Control.Access.RoleBased.Internal.Rule.Rule,  Control.Access.RoleBased.Internal.Rule.ruleToSet,  Control.Access.RoleBased.Internal.Rule.rulesToSet, 
+Control.Access.RoleBased.Internal.Types.RuleChecker,  Control.Access.RoleBased.Role.addRoleData,  Control.Access.RoleBased.Role.matches,  Part2.Bar,  Part2.Foo,  Part2.barInit,  Part2.fooInit,  SafeCWD.inDir,  SafeCWD.removeDirectoryRecursiveSafe,  SafeCWD.sem,  Site.app,  Site.handleLogin, 
+Site.handleLoginSubmit,  Site.handleLogout,  Site.handleNewUser,  Site.routes,  Snap.Snaplet.Auth.AuthManager.AuthManager,  Snap.Snaplet.Auth.AuthManager.activeUser,  Snap.Snaplet.Auth.AuthManager.backend,  Snap.Snaplet.Auth.AuthManager.buildAuthUser,  Snap.Snaplet.Auth.AuthManager.destroy, 
+Snap.Snaplet.Auth.AuthManager.destroy,  Snap.Snaplet.Auth.AuthManager.lockout,  Snap.Snaplet.Auth.AuthManager.lookupByLogin,  Snap.Snaplet.Auth.AuthManager.lookupByLogin,  Snap.Snaplet.Auth.AuthManager.lookupByRememberToken,  Snap.Snaplet.Auth.AuthManager.lookupByRememberToken, 
+Snap.Snaplet.Auth.AuthManager.lookupByUserId,  Snap.Snaplet.Auth.AuthManager.lookupByUserId,  Snap.Snaplet.Auth.AuthManager.minPasswdLen,  Snap.Snaplet.Auth.AuthManager.randomNumberGenerator,  Snap.Snaplet.Auth.AuthManager.rememberCookieName,  Snap.Snaplet.Auth.AuthManager.rememberPeriod, 
+Snap.Snaplet.Auth.AuthManager.save,  Snap.Snaplet.Auth.AuthManager.save,  Snap.Snaplet.Auth.AuthManager.session,  Snap.Snaplet.Auth.AuthManager.siteKey,  Snap.Snaplet.Auth.Backends.JsonFile.JsonFileAuthManager,  Snap.Snaplet.Auth.Backends.JsonFile.dbfile, 
+Snap.Snaplet.Auth.Backends.JsonFile.defUserCache,  Snap.Snaplet.Auth.Backends.JsonFile.destroy,  Snap.Snaplet.Auth.Backends.JsonFile.getUser,  Snap.Snaplet.Auth.Backends.JsonFile.initJsonFileAuthManager,  Snap.Snaplet.Auth.Backends.JsonFile.jsonFileSave, 
+Snap.Snaplet.Auth.Backends.JsonFile.loadUserCache,  Snap.Snaplet.Auth.Backends.JsonFile.lookupByLogin,  Snap.Snaplet.Auth.Backends.JsonFile.lookupByRememberToken,  Snap.Snaplet.Auth.Backends.JsonFile.lookupByUserId,  Snap.Snaplet.Auth.Backends.JsonFile.memcache, 
+Snap.Snaplet.Auth.Backends.JsonFile.mkJsonAuthMgr,  Snap.Snaplet.Auth.Backends.JsonFile.save,  Snap.Snaplet.Auth.Backends.JsonFile.showT,  Snap.Snaplet.Auth.Backends.JsonFile.withCache,  Snap.Snaplet.Auth.Handlers.authenticatePassword,  Snap.Snaplet.Auth.Handlers.cacheOrLookup, 
+Snap.Snaplet.Auth.Handlers.checkPasswordAndLogin,  Snap.Snaplet.Auth.Handlers.clearPasswordResetToken,  Snap.Snaplet.Auth.Handlers.createUser,  Snap.Snaplet.Auth.Handlers.currentUser,  Snap.Snaplet.Auth.Handlers.destroyUser,  Snap.Snaplet.Auth.Handlers.forceLogin, 
+Snap.Snaplet.Auth.Handlers.forgetRememberToken,  Snap.Snaplet.Auth.Handlers.getRememberToken,  Snap.Snaplet.Auth.Handlers.getSessionUserId,  Snap.Snaplet.Auth.Handlers.isLoggedIn,  Snap.Snaplet.Auth.Handlers.loginByRememberToken,  Snap.Snaplet.Auth.Handlers.loginByUsername, 
+Snap.Snaplet.Auth.Handlers.loginUser,  Snap.Snaplet.Auth.Handlers.loginUser',  Snap.Snaplet.Auth.Handlers.logout,  Snap.Snaplet.Auth.Handlers.logoutUser,  Snap.Snaplet.Auth.Handlers.markAuthFail,  Snap.Snaplet.Auth.Handlers.markAuthSuccess,  Snap.Snaplet.Auth.Handlers.modPasswordResetToken, 
+Snap.Snaplet.Auth.Handlers.registerUser,  Snap.Snaplet.Auth.Handlers.removeSessionUserId,  Snap.Snaplet.Auth.Handlers.requireUser,  Snap.Snaplet.Auth.Handlers.saveUser,  Snap.Snaplet.Auth.Handlers.setPasswordResetToken,  Snap.Snaplet.Auth.Handlers.setRememberToken, 
+Snap.Snaplet.Auth.Handlers.setSessionUserId,  Snap.Snaplet.Auth.Handlers.usernameExists,  Snap.Snaplet.Auth.Handlers.withBackend,  Snap.Snaplet.Auth.SpliceHelpers.addAuthSplices,  Snap.Snaplet.Auth.SpliceHelpers.cIfLoggedIn,  Snap.Snaplet.Auth.SpliceHelpers.cIfLoggedOut, 
+Snap.Snaplet.Auth.SpliceHelpers.cLoggedInUser,  Snap.Snaplet.Auth.SpliceHelpers.compiledAuthSplices,  Snap.Snaplet.Auth.SpliceHelpers.ifLoggedIn,  Snap.Snaplet.Auth.SpliceHelpers.ifLoggedOut,  Snap.Snaplet.Auth.SpliceHelpers.loggedInUser,  Snap.Snaplet.Auth.SpliceHelpers.userCSplices, 
+Snap.Snaplet.Auth.SpliceHelpers.userISplices,  Snap.Snaplet.Auth.Types.AuthSettings,  Snap.Snaplet.Auth.Types.UserId,  Snap.Snaplet.Auth.Types.asLockout,  Snap.Snaplet.Auth.Types.asMinPasswdLen,  Snap.Snaplet.Auth.Types.asRememberCookieName,  Snap.Snaplet.Auth.Types.asRememberPeriod, 
+Snap.Snaplet.Auth.Types.asSiteKey,  Snap.Snaplet.Auth.Types.authSettingsFromConfig,  Snap.Snaplet.Auth.Types.checkPassword,  Snap.Snaplet.Auth.Types.defAuthSettings,  Snap.Snaplet.Auth.Types.defAuthUser,  Snap.Snaplet.Auth.Types.defaultStrength,  Snap.Snaplet.Auth.Types.encrypt, 
+Snap.Snaplet.Auth.Types.encryptPassword,  Snap.Snaplet.Auth.Types.setPassword,  Snap.Snaplet.Auth.Types.unUid,  Snap.Snaplet.Auth.Types.verify,  Snap.Snaplet.Heist.addTemplates,  Snap.Snaplet.Heist.addTemplatesAt,  Snap.Snaplet.Heist.cHeistServe,  Snap.Snaplet.Heist.cHeistServeSingle, 
+Snap.Snaplet.Heist.cRender,  Snap.Snaplet.Heist.cRenderAs,  Snap.Snaplet.Heist.chooseMode,  Snap.Snaplet.Heist.gHeistServe,  Snap.Snaplet.Heist.gHeistServeSingle,  Snap.Snaplet.Heist.gRender,  Snap.Snaplet.Heist.gRenderAs,  Snap.Snaplet.Heist.getHeistState,  Snap.Snaplet.Heist.heistLens, 
+Snap.Snaplet.Heist.heistLocal,  Snap.Snaplet.Heist.heistServe,  Snap.Snaplet.Heist.heistServeSingle,  Snap.Snaplet.Heist.modifyHeistState,  Snap.Snaplet.Heist.render,  Snap.Snaplet.Heist.renderAs,  Snap.Snaplet.Heist.renderWithSplices,  Snap.Snaplet.Heist.withHeistState, 
+Snap.Snaplet.Heist.withSplices,  Snap.Snaplet.Heist.Compiled.heistInit,  Snap.Snaplet.Heist.Compiled.heistServe,  Snap.Snaplet.Heist.Compiled.heistServeSingle,  Snap.Snaplet.Heist.Compiled.render,  Snap.Snaplet.Heist.Compiled.renderAs,  Snap.Snaplet.Heist.Internal.Compiled, 
+Snap.Snaplet.Heist.Internal.Interpreted,  Snap.Snaplet.Heist.Internal.finalLoadHook,  Snap.Snaplet.Heist.Internal.gHeistInit,  Snap.Snaplet.Heist.Internal.heistInitWorker,  Snap.Snaplet.Heist.Internal.heistReloader,  Snap.Snaplet.HeistNoClass.addConfig, 
+Snap.Snaplet.HeistNoClass.addTemplates,  Snap.Snaplet.HeistNoClass.addTemplatesAt,  Snap.Snaplet.HeistNoClass.cHeistServe,  Snap.Snaplet.HeistNoClass.cHeistServeSingle,  Snap.Snaplet.HeistNoClass.cRender,  Snap.Snaplet.HeistNoClass.cRenderAs,  Snap.Snaplet.HeistNoClass.cRenderHelper, 
+Snap.Snaplet.HeistNoClass.changeState,  Snap.Snaplet.HeistNoClass.chooseMode,  Snap.Snaplet.HeistNoClass.clearHeistCache,  Snap.Snaplet.HeistNoClass.gHeistServe,  Snap.Snaplet.HeistNoClass.gHeistServeSingle,  Snap.Snaplet.HeistNoClass.gRender,  Snap.Snaplet.HeistNoClass.gRenderAs, 
+Snap.Snaplet.HeistNoClass.getCurHeistConfig,  Snap.Snaplet.HeistNoClass.getHeistState,  Snap.Snaplet.HeistNoClass.heistInit,  Snap.Snaplet.HeistNoClass.heistInit',  Snap.Snaplet.HeistNoClass.heistLocal,  Snap.Snaplet.HeistNoClass.heistLocal',  Snap.Snaplet.HeistNoClass.heistServe, 
+Snap.Snaplet.HeistNoClass.heistServeSingle,  Snap.Snaplet.HeistNoClass.iRenderHelper,  Snap.Snaplet.HeistNoClass.modifyHeistState,  Snap.Snaplet.HeistNoClass.modifyHeistState',  Snap.Snaplet.HeistNoClass.render,  Snap.Snaplet.HeistNoClass.renderAs, 
+Snap.Snaplet.HeistNoClass.renderWithSplices,  Snap.Snaplet.HeistNoClass.renderWithSplices',  Snap.Snaplet.HeistNoClass.serveURI,  Snap.Snaplet.HeistNoClass.setInterpreted,  Snap.Snaplet.HeistNoClass.withHeistState,  Snap.Snaplet.HeistNoClass.withHeistState', 
+Snap.Snaplet.HeistNoClass.withSplices,  Snap.Snaplet.HeistNoClass.withSplices',  Snap.Snaplet.Internal.LensT.getBase,  Snap.Snaplet.Internal.LensT.putBase,  Snap.Snaplet.Internal.LensT.runLensT,  Snap.Snaplet.Internal.LensT.with,  Snap.Snaplet.Internal.LensT.withLensT, 
+Snap.Snaplet.Internal.LensT.withTop,  Snap.Snaplet.Internal.LensT.Tests.defaultState,  Snap.Snaplet.Internal.LensT.Tests.testApplicative,  Snap.Snaplet.Internal.LensT.Tests.testMonadState,  Snap.Snaplet.Internal.LensT.Tests.testfmap,  Snap.Snaplet.Internal.LensT.Tests.tests, 
+Snap.Snaplet.Internal.Lensed.embed,  Snap.Snaplet.Internal.Lensed.getBase,  Snap.Snaplet.Internal.Lensed.locally,  Snap.Snaplet.Internal.Lensed.runLensed,  Snap.Snaplet.Internal.Lensed.with,  Snap.Snaplet.Internal.Lensed.Tests.defaultState,  Snap.Snaplet.Internal.Lensed.Tests.eat, 
+Snap.Snaplet.Internal.Lensed.Tests.qqq,  Snap.Snaplet.Internal.Lensed.Tests.testApplicative,  Snap.Snaplet.Internal.Lensed.Tests.testMonadState,  Snap.Snaplet.Internal.Lensed.Tests.testfmap,  Snap.Snaplet.Internal.Lensed.Tests.tests,  Snap.Snaplet.Internal.RST.evalRST, 
+Snap.Snaplet.Internal.RST.execRST,  Snap.Snaplet.Internal.RST.withRST,  Snap.Snaplet.Internal.RST.Tests.addEnv,  Snap.Snaplet.Internal.RST.Tests.rstAlt,  Snap.Snaplet.Internal.RST.Tests.rstAlt2,  Snap.Snaplet.Internal.RST.Tests.rstFail,  Snap.Snaplet.Internal.RST.Tests.testAlternative, 
+Snap.Snaplet.Internal.RST.Tests.testEval,  Snap.Snaplet.Internal.RST.Tests.testExec,  Snap.Snaplet.Internal.RST.Tests.testFail,  Snap.Snaplet.Internal.RST.Tests.tests,  Snap.Snaplet.Session.commitSession,  Snap.Snaplet.Session.csrfToken,  Snap.Snaplet.Session.deleteFromSession, 
+Snap.Snaplet.Session.getFromSession,  Snap.Snaplet.Session.loadSession,  Snap.Snaplet.Session.resetSession,  Snap.Snaplet.Session.sessionToList,  Snap.Snaplet.Session.setInSession,  Snap.Snaplet.Session.touchSession,  Snap.Snaplet.Session.withSession, 
+Snap.Snaplet.Session.Backends.CookieSession.CookieSessionManager,  Snap.Snaplet.Session.Backends.CookieSession.Payload,  Snap.Snaplet.Session.Backends.CookieSession.commit,  Snap.Snaplet.Session.Backends.CookieSession.cookieName,  Snap.Snaplet.Session.Backends.CookieSession.csCSRFToken, 
+Snap.Snaplet.Session.Backends.CookieSession.csSession,  Snap.Snaplet.Session.Backends.CookieSession.csrf,  Snap.Snaplet.Session.Backends.CookieSession.delete,  Snap.Snaplet.Session.Backends.CookieSession.getPayload,  Snap.Snaplet.Session.Backends.CookieSession.initCookieSessionManager, 
+Snap.Snaplet.Session.Backends.CookieSession.insert,  Snap.Snaplet.Session.Backends.CookieSession.load,  Snap.Snaplet.Session.Backends.CookieSession.loadDefSession,  Snap.Snaplet.Session.Backends.CookieSession.lookup,  Snap.Snaplet.Session.Backends.CookieSession.mkCookieSession, 
+Snap.Snaplet.Session.Backends.CookieSession.modSession,  Snap.Snaplet.Session.Backends.CookieSession.randomNumberGenerator,  Snap.Snaplet.Session.Backends.CookieSession.reset,  Snap.Snaplet.Session.Backends.CookieSession.session,  Snap.Snaplet.Session.Backends.CookieSession.setPayload, 
+Snap.Snaplet.Session.Backends.CookieSession.siteKey,  Snap.Snaplet.Session.Backends.CookieSession.timeOut,  Snap.Snaplet.Session.Backends.CookieSession.toList,  Snap.Snaplet.Session.Backends.CookieSession.touch,  Snap.Snaplet.Session.Common.RNG,  Snap.Snaplet.Session.Common.mkCSRFToken, 
+Snap.Snaplet.Session.Common.mkRNG,  Snap.Snaplet.Session.Common.randomToken,  Snap.Snaplet.Session.Common.withRNG,  Snap.Snaplet.Session.SecureCookie.checkTimeout,  Snap.Snaplet.Session.SecureCookie.getSecureCookie,  Snap.Snaplet.Session.SecureCookie.setSecureCookie, 
+Snap.Snaplet.Session.SessionManager.SessionManager,  Snap.Snaplet.Session.SessionManager.commit,  Snap.Snaplet.Session.SessionManager.csrf,  Snap.Snaplet.Session.SessionManager.delete,  Snap.Snaplet.Session.SessionManager.insert,  Snap.Snaplet.Session.SessionManager.load, 
+Snap.Snaplet.Session.SessionManager.lookup,  Snap.Snaplet.Session.SessionManager.reset,  Snap.Snaplet.Session.SessionManager.toList,  Snap.Snaplet.Session.SessionManager.touch,  Snap.Snaplet.Test.closeSnaplet,  Snap.Snaplet.Test.evalHandler,  Snap.Snaplet.Test.evalHandler', 
+Snap.Snaplet.Test.execHandlerComputation,  Snap.Snaplet.Test.execHandlerSnaplet,  Snap.Snaplet.Test.getSnaplet,  Snap.Snaplet.Test.removeFileMayNotExist,  Snap.Snaplet.Test.runHandler,  Snap.Snaplet.Test.runHandler',  Snap.Snaplet.Test.withTemporaryFile,  Snap.StarterTH.buildData, 
+Snap.StarterTH.dirQ,  Snap.StarterTH.getDirs,  Snap.StarterTH.readTree,  Snap.TestCommon.systemOrDie,  Snap.TestCommon.testGeneratedProject,  Test.Config.Config,  Test.Config.config,  Test.Config.dbPath,  Test.Config.restPort,  Thentos.main,  Thentos.Backend.Api.Adhocracy3.activate, 
+Thentos.Backend.Api.Adhocracy3.addUser,  Thentos.Backend.Api.Adhocracy3.app,  Thentos.Backend.Api.Adhocracy3.confirmationTokenFromPath,  Thentos.Backend.Api.Adhocracy3.fromA3UserNoPass,  Thentos.Backend.Api.Adhocracy3.fromA3UserWithPass,  Thentos.Backend.Api.Adhocracy3.login, 
+Thentos.Backend.Api.Adhocracy3.runBackend,  Thentos.Backend.Api.Adhocracy3.serveApi,  Thentos.Backend.Api.Adhocracy3.userIdFromPath,  Thentos.Backend.Api.Adhocracy3.userIdToPath,  Thentos.Backend.Api.Adhocracy3Spec.setupTestA3Server,  Thentos.Backend.Api.Adhocracy3Spec.spec, 
+Thentos.Backend.Api.Adhocracy3Spec.teardownA3TestServer,  Thentos.Backend.Api.Adhocracy3Spec.tests,  Thentos.Backend.Api.Proxy.RqMod,  Thentos.Backend.Api.Proxy.catchProxy,  Thentos.Backend.Api.Proxy.clearThentosHeaders,  Thentos.Backend.Api.Proxy.getRqMod, 
+Thentos.Backend.Api.Proxy.prepareReq,  Thentos.Backend.Api.Proxy.prepareResp,  Thentos.Backend.Api.Proxy.serviceProxy,  Thentos.Backend.Api.Simple.app,  Thentos.Backend.Api.Simple.runBackend,  Thentos.Backend.Api.Simple.serveApi,  Thentos.Backend.Api.Simple.thentosBasic, 
+Thentos.Backend.Api.Simple.thentosService,  Thentos.Backend.Api.Simple.thentosSession,  Thentos.Backend.Api.Simple.thentosUser,  Thentos.Backend.Api.SimpleSpec.spec,  Thentos.Backend.Api.SimpleSpec.tests,  Thentos.Config.BRun,  Thentos.Config.BRunA3,  Thentos.Config.BShowDB, 
+Thentos.Config.BackendConfig,  Thentos.Config.BackendConfigMissing,  Thentos.Config.FrontendConfig,  Thentos.Config.FrontendConfigMissing,  Thentos.Config.NoEmailSender,  Thentos.Config.ProxyConfig,  Thentos.Config.Run,  Thentos.Config.RunA3,  Thentos.Config.ShowDB, 
+Thentos.Config.SmtpConfig,  Thentos.Config.ThentosConfig,  Thentos.Config.UnknownRoleForDefaultUser,  Thentos.Config.backendConfig,  Thentos.Config.backendPort,  Thentos.Config.configLogger,  Thentos.Config.defaultUser,  Thentos.Config.emptySmtpConfig,  Thentos.Config.emptyThentosConfig, 
+Thentos.Config.finaliseBackendConfig,  Thentos.Config.finaliseCommand,  Thentos.Config.finaliseConfig,  Thentos.Config.finaliseFrontendConfig,  Thentos.Config.finaliseProxyConfig,  Thentos.Config.frontendConfig,  Thentos.Config.frontendPort,  Thentos.Config.getCommand, 
+Thentos.Config.parseBackendConfigBuilder,  Thentos.Config.parseCommandBuilder,  Thentos.Config.parseConfigFile,  Thentos.Config.parseFrontendConfigBuilder,  Thentos.Config.parseProxyConfigBuilder,  Thentos.Config.parseRun,  Thentos.Config.parseRunA3,  Thentos.Config.parseRunBackend, 
+Thentos.Config.parseRunFrontend,  Thentos.Config.parseThentosConfig,  Thentos.Config.proxyConfig,  Thentos.Config.proxyTargets,  Thentos.Config.smtpConfig,  Thentos.Config.smtpSender,  Thentos.Config.smtpSendmailArgs,  Thentos.Config.smtpSendmailPath,  Thentos.DB.Core.=%%, 
+Thentos.DB.Core.TLRead,  Thentos.DB.Core.TLReadWrite,  Thentos.DB.Core.checkClearance,  Thentos.DB.Core.createCheckpointLoop,  Thentos.DB.Core.liftThentosQuery,  Thentos.DB.Core.makeThentosLabel,  Thentos.DB.Core.makeThentosLabel1,  Thentos.DB.Core.makeThentosLabel2, 
+Thentos.DB.Core.makeThentosLabel3,  Thentos.DB.Core.makeThentosLabel4,  Thentos.DB.Core.makeThentosLabel5,  Thentos.DB.Core.restrictThentosLabel,  Thentos.DB.Core.restrictThentosLabel',  Thentos.DB.Core.returnDb,  Thentos.DB.Core.runThentosQuery,  Thentos.DB.Core.runThentosUpdate, 
+Thentos.DB.Core.thentosDenied,  Thentos.DB.Core.thentosLabeledDenied,  Thentos.DB.Core.thentosLabeledPublic,  Thentos.DB.Core.thentosPublic,  Thentos.DB.Core.throwDb,  Thentos.DB.Protect.allowEverything,  Thentos.DB.Protect.allowReadEverything,  Thentos.DB.Protect.createDefaultUser, 
+Thentos.DB.Trans.UpdateUserFieldAddService,  Thentos.DB.Trans.UpdateUserFieldDropService,  Thentos.DB.Trans.UpdateUserFieldEmail,  Thentos.DB.Trans.UpdateUserFieldName,  Thentos.DB.Trans.addService,  Thentos.DB.Trans.addUnconfirmedUser,  Thentos.DB.Trans.addUser,  Thentos.DB.Trans.addUsers, 
+Thentos.DB.Trans.allServiceIds,  Thentos.DB.Trans.allSessionTokens,  Thentos.DB.Trans.allUserIds,  Thentos.DB.Trans.assertAgent,  Thentos.DB.Trans.assignRole,  Thentos.DB.Trans.checkAllDbInvs,  Thentos.DB.Trans.checkDbInvs,  Thentos.DB.Trans.dbInvUserAspectUnique, 
+Thentos.DB.Trans.deleteService,  Thentos.DB.Trans.deleteSession,  Thentos.DB.Trans.deleteUser,  Thentos.DB.Trans.emptyDB,  Thentos.DB.Trans.endSession,  Thentos.DB.Trans.finishUserRegistration,  Thentos.DB.Trans.freshUserId,  Thentos.DB.Trans.garbageCollectSessions, 
+Thentos.DB.Trans.getSessionFromAgent,  Thentos.DB.Trans.isActiveSession,  Thentos.DB.Trans.isActiveSessionAndBump,  Thentos.DB.Trans.isLoggedIntoService,  Thentos.DB.Trans.label_lookupUser,  Thentos.DB.Trans.lookupAgentRoles,  Thentos.DB.Trans.lookupService,  Thentos.DB.Trans.lookupSession, 
+Thentos.DB.Trans.lookupSessionQ,  Thentos.DB.Trans.lookupSessionWithMaybeService,  Thentos.DB.Trans.lookupUser,  Thentos.DB.Trans.lookupUserByEmail,  Thentos.DB.Trans.lookupUserByName,  Thentos.DB.Trans.pure_lookupService,  Thentos.DB.Trans.pure_lookupUser, 
+Thentos.DB.Trans.pure_lookupUserByEmail,  Thentos.DB.Trans.pure_lookupUserByName,  Thentos.DB.Trans.snapShot,  Thentos.DB.Trans.startSession,  Thentos.DB.Trans.trans_addService,  Thentos.DB.Trans.trans_addUnconfirmedUser,  Thentos.DB.Trans.trans_addUser,  Thentos.DB.Trans.trans_addUsers, 
+Thentos.DB.Trans.trans_allServiceIds,  Thentos.DB.Trans.trans_allSessionTokens,  Thentos.DB.Trans.trans_allUserIds,  Thentos.DB.Trans.trans_assignRole,  Thentos.DB.Trans.trans_deleteService,  Thentos.DB.Trans.trans_deleteUser,  Thentos.DB.Trans.trans_endSession, 
+Thentos.DB.Trans.trans_finishUserRegistration,  Thentos.DB.Trans.trans_garbageCollectSessions,  Thentos.DB.Trans.trans_isActiveSession,  Thentos.DB.Trans.trans_isActiveSessionAndBump,  Thentos.DB.Trans.trans_isLoggedIntoService,  Thentos.DB.Trans.trans_lookupAgentRoles, 
+Thentos.DB.Trans.trans_lookupService,  Thentos.DB.Trans.trans_lookupSession,  Thentos.DB.Trans.trans_lookupSessionQ,  Thentos.DB.Trans.trans_lookupUser,  Thentos.DB.Trans.trans_lookupUserByEmail,  Thentos.DB.Trans.trans_lookupUserByName,  Thentos.DB.Trans.trans_snapShot, 
+Thentos.DB.Trans.trans_startSession,  Thentos.DB.Trans.trans_unassignRole,  Thentos.DB.Trans.trans_updateUser,  Thentos.DB.Trans.trans_updateUserField,  Thentos.DB.Trans.unassignRole,  Thentos.DB.Trans.updateUser,  Thentos.DB.Trans.updateUserField,  Thentos.DB.Trans.writeSession, 
+Thentos.DB.Trans.writeUser,  Thentos.Frontend.addServiceHandler,  Thentos.Frontend.frontendApp,  Thentos.Frontend.loginHandler,  Thentos.Frontend.mainPageHandler,  Thentos.Frontend.routes,  Thentos.Frontend.runFrontend,  Thentos.Frontend.serviceAddedHandler,  Thentos.Frontend.snapRunAction, 
+Thentos.Frontend.snapRunAction',  Thentos.Frontend.userAddConfirmHandler,  Thentos.Frontend.userAddHandler,  Thentos.Frontend.Pages.addServicePage,  Thentos.Frontend.Pages.addUserPage,  Thentos.Frontend.Pages.errorPage,  Thentos.Frontend.Pages.loginForm,  Thentos.Frontend.Pages.loginPage, 
+Thentos.Frontend.Pages.mainPage,  Thentos.Frontend.Pages.nonEmpty,  Thentos.Frontend.Pages.serviceAddedPage,  Thentos.Frontend.Pages.userAddedPage,  Thentos.Frontend.Pages.userForm,  Thentos.Frontend.Util.serveSnaplet,  Thentos.Smtp.sendUserConfirmationMail,  Thentos.Types.ConfirmationToken, 
+Thentos.Types.Group,  Thentos.Types.RoleAdmin,  Thentos.Types.ServiceKey,  Thentos.Types.ThentosLabeled,  Thentos.Types.UserId,  Thentos.Types.fromConfimationToken,  Thentos.Types.fromGroup,  Thentos.Types.fromServiceId,  Thentos.Types.fromServiceKey,  Thentos.Types.fromSessionToken, 
+Thentos.Types.fromThentosClearance,  Thentos.Types.fromThentosLabel,  Thentos.Types.fromUserEmail,  Thentos.Types.fromUserId,  Thentos.Types.fromUserName,  Thentos.Types.fromUserPass,  Thentos.Types.thentosLabelL,  Thentos.Types.thentosLabelV,  Thentos.Types.udEmail,  Thentos.Types.udName, 
+Thentos.Types.udPassword,  Thentos.TypesSpec.spec,  Thentos.TypesSpec.testSizeFactor,  Thentos.TypesSpec.tests,  ThentosSpec.spec,  ThentosSpec.tests</em></p>
 <h2><span class="header-section-number">3.7</span> Function component analysis</h2>
-<p>The functions are split up into 15 components.  You may wish to consider splitting the code up into multiple libraries.</p>
+<p>The functions are split up into 21 components.  You may wish to consider splitting the code up into multiple libraries.</p>
 <h2><span class="header-section-number">3.8</span> Overall chain analysis</h2>
 <p>The code has the following cross-module chains:</p>
 <ul>
+<li><p>Blackbox.App.routeWithSplice
+-&gt; Blackbox.FooSnaplet.getFooField</p></li>
+<li><p>Control.Access.RoleBased.Checker.markSeen
+-&gt; Control.Access.RoleBased.Internal.RoleMap.insert</p></li>
+<li><p>Snap.Snaplet.Auth.Handlers.removeSessionUserId
+-&gt; Snap.Snaplet.Session.deleteFromSession</p></li>
+<li><p>Snap.Snaplet.Heist.Compiled.heistServe
+-&gt; Snap.Snaplet.Heist.cHeistServe</p></li>
+<li><p>Snap.Snaplet.Heist.Compiled.heistServeSingle
+-&gt; Snap.Snaplet.Heist.cHeistServeSingle</p></li>
+<li><p>Snap.Snaplet.Heist.Compiled.render
+-&gt; Snap.Snaplet.Heist.cRender</p></li>
+<li><p>Snap.Snaplet.Heist.Compiled.renderAs
+-&gt; Snap.Snaplet.Heist.cRenderAs</p></li>
+<li><p>Snap.Snaplet.Internal.RST.Tests.testExec
+-&gt; Snap.Snaplet.Internal.RST.execRST</p></li>
 <li><p>Thentos.Frontend.addServiceHandler
 -&gt; Thentos.Frontend.Pages.addServicePage</p></li>
 <li><p>Thentos.Frontend.mainPageHandler
@@ -297,202 +567,661 @@ Thentos.Types.udPassword</em></p>
 <h2><span class="header-section-number">4.1</span> Visualisation of imports</h2>
 <p><a href="graphs/imports.svg"><img src="graphs/imports.png" alt="Import visualisation" /></a></p>
 <h2><span class="header-section-number">4.2</span> Cyclomatic Complexity of imports</h2>
-<p>The cyclomatic complexity of the imports is: 48</p>
+<p>The cyclomatic complexity of the imports is: 103</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
 <h2><span class="header-section-number">4.3</span> Import root analysis</h2>
 <p>These modules are those that are inaccessible:</p>
-<p><em>Cabbage,  Network.Mail.Mime.Missing, 
-Pronk,  Site,  System.Log.Missing, 
-Test.Arbitrary,  Test.Config, 
-Test.Thentos.Backend.Api.Adhocracy3, 
-Test.Thentos.Backend.Api.Simple, 
-Test.Thentos.Types,  TestMain,  Thentos, 
-Thentos.Backend.Api.Adhocracy3, 
-Thentos.Backend.Api.Proxy, 
-Thentos.Backend.Api.Simple, 
-Thentos.Backend.Core,  Thentos.Config, 
-Thentos.DB,  Thentos.DB.Core, 
-Thentos.DB.Protect,  Thentos.DB.Trans, 
-Thentos.Doc,  Thentos.Frontend, 
-Thentos.Frontend.Pages, 
-Thentos.Frontend.Util,  Thentos.Smtp, 
-Thentos.Types</em></p>
+<p><em>Application,  Blackbox.App,  Blackbox.BarSnaplet,  Blackbox.EmbeddedSnaplet, 
+Blackbox.FooSnaplet,  Blackbox.Tests,  Blackbox.Types,  Cabbage, 
+Control.Access.RoleBased.Checker,  Control.Access.RoleBased.Internal.Role, 
+Control.Access.RoleBased.Internal.RoleMap, 
+Control.Access.RoleBased.Internal.Rule, 
+Control.Access.RoleBased.Internal.Types,  Control.Access.RoleBased.Role, 
+Control.Access.RoleBased.Types,  Part2,  SafeCWD,  Site,  Snap, 
+Snap.Snaplet,  Snap.Snaplet.Auth,  Snap.Snaplet.Auth.AuthManager, 
+Snap.Snaplet.Auth.Backends.JsonFile,  Snap.Snaplet.Auth.Handlers, 
+Snap.Snaplet.Auth.SpliceHelpers,  Snap.Snaplet.Auth.Types, 
+Snap.Snaplet.Heist,  Snap.Snaplet.Heist.Compiled, 
+Snap.Snaplet.Heist.Generic,  Snap.Snaplet.Heist.Internal, 
+Snap.Snaplet.Heist.Interpreted,  Snap.Snaplet.HeistNoClass, 
+Snap.Snaplet.Internal.LensT,  Snap.Snaplet.Internal.LensT.Tests, 
+Snap.Snaplet.Internal.Lensed,  Snap.Snaplet.Internal.Lensed.Tests, 
+Snap.Snaplet.Internal.RST,  Snap.Snaplet.Internal.RST.Tests, 
+Snap.Snaplet.Session,  Snap.Snaplet.Session.Backends.CookieSession, 
+Snap.Snaplet.Session.Common,  Snap.Snaplet.Session.SecureCookie, 
+Snap.Snaplet.Session.SessionManager,  Snap.Snaplet.Test,  Snap.StarterTH, 
+Snap.TestCommon,  System.Log.Missing,  Test.Arbitrary,  Test.Config, 
+Thentos,  Thentos.Backend.Api.Adhocracy3, 
+Thentos.Backend.Api.Adhocracy3Spec,  Thentos.Backend.Api.Proxy, 
+Thentos.Backend.Api.Simple,  Thentos.Backend.Api.SimpleSpec, 
+Thentos.Backend.Core,  Thentos.Config,  Thentos.DB,  Thentos.DB.Core, 
+Thentos.DB.Protect,  Thentos.DB.Trans,  Thentos.Frontend, 
+Thentos.Frontend.Pages,  Thentos.Frontend.Util,  Thentos.Smtp, 
+Thentos.Types,  Thentos.TypesSpec,  ThentosSpec</em></p>
 <h2><span class="header-section-number">4.4</span> Import component analysis</h2>
-<p>The imports have 6 components.  You may wish to consider splitting the code up.</p>
+<p>The imports have 10 components.  You may wish to consider splitting the code up.</p>
+<h2><span class="header-section-number">4.5</span> Import chain analysis</h2>
+<p>The imports have the following chains:</p>
+<ul>
+<li><p>Snap.Snaplet.Internal.LensT.Tests
+-&gt; Snap.Snaplet.Internal.LensT</p></li>
+<li><p>Snap.Snaplet.Internal.Lensed.Tests
+-&gt; Snap.Snaplet.Internal.Lensed</p></li>
+<li><p>Snap.TestCommon
+-&gt; SafeCWD</p></li>
+</ul>
+<p>These chains can all be compressed down to a single module.</p>
 <h1><span class="header-section-number">5</span> Analysis of each module</h1>
-<h2><span class="header-section-number">5.1</span> Analysis of <em>Cabbage</em></h2>
-<h3><span class="header-section-number">5.1.1</span> Visualisation of <em>Cabbage</em></h3>
+<h2><span class="header-section-number">5.1</span> Analysis of <em>Application</em></h2>
+<h3><span class="header-section-number">5.1.1</span> Visualisation of <em>Application</em></h3>
+<p><a href="graphs/Application.svg"><img src="graphs/Application.png" alt="Diagram of: Application" /></a></p>
+<h3><span class="header-section-number">5.1.2</span> Visualisation of levels in <em>Application</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Application_levels.svg"><img src="graphs/Application_levels.png" alt="Levels within Application" /></a></p>
+<h3><span class="header-section-number">5.1.3</span> Cyclomatic Complexity of <em>Application</em></h3>
+<p>The cyclomatic complexity of Application is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.1.4</span> Component analysis of <em>Application</em></h3>
+<p>The module Application has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.2</span> Analysis of <em>Blackbox.App</em></h2>
+<h3><span class="header-section-number">5.2.1</span> Visualisation of <em>Blackbox.App</em></h3>
+<p><a href="graphs/Blackbox-App.svg"><img src="graphs/Blackbox-App.png" alt="Diagram of: Blackbox.App" /></a></p>
+<h3><span class="header-section-number">5.2.2</span> Visualisation of levels in <em>Blackbox.App</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-App_levels.svg"><img src="graphs/Blackbox-App_levels.png" alt="Levels within Blackbox.App" /></a></p>
+<h3><span class="header-section-number">5.2.3</span> Cyclomatic Complexity of <em>Blackbox.App</em></h3>
+<p>The cyclomatic complexity of Blackbox.App is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.3</span> Analysis of <em>Blackbox.BarSnaplet</em></h2>
+<h3><span class="header-section-number">5.3.1</span> Visualisation of <em>Blackbox.BarSnaplet</em></h3>
+<p><a href="graphs/Blackbox-BarSnaplet.svg"><img src="graphs/Blackbox-BarSnaplet.png" alt="Diagram of: Blackbox.BarSnaplet" /></a></p>
+<h3><span class="header-section-number">5.3.2</span> Visualisation of levels in <em>Blackbox.BarSnaplet</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-BarSnaplet_levels.svg"><img src="graphs/Blackbox-BarSnaplet_levels.png" alt="Levels within Blackbox.BarSnaplet" /></a></p>
+<h3><span class="header-section-number">5.3.3</span> Cyclomatic Complexity of <em>Blackbox.BarSnaplet</em></h3>
+<p>The cyclomatic complexity of Blackbox.BarSnaplet is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.4</span> Analysis of <em>Blackbox.EmbeddedSnaplet</em></h2>
+<h3><span class="header-section-number">5.4.1</span> Visualisation of <em>Blackbox.EmbeddedSnaplet</em></h3>
+<p><a href="graphs/Blackbox-EmbeddedSnaplet.svg"><img src="graphs/Blackbox-EmbeddedSnaplet.png" alt="Diagram of: Blackbox.EmbeddedSnaplet" /></a></p>
+<h3><span class="header-section-number">5.4.2</span> Visualisation of levels in <em>Blackbox.EmbeddedSnaplet</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-EmbeddedSnaplet_levels.svg"><img src="graphs/Blackbox-EmbeddedSnaplet_levels.png" alt="Levels within Blackbox.EmbeddedSnaplet" /></a></p>
+<h3><span class="header-section-number">5.4.3</span> Cyclomatic Complexity of <em>Blackbox.EmbeddedSnaplet</em></h3>
+<p>The cyclomatic complexity of Blackbox.EmbeddedSnaplet is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.4.4</span> Component analysis of <em>Blackbox.EmbeddedSnaplet</em></h3>
+<p>The module Blackbox.EmbeddedSnaplet has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.5</span> Analysis of <em>Blackbox.FooSnaplet</em></h2>
+<h3><span class="header-section-number">5.5.1</span> Visualisation of <em>Blackbox.FooSnaplet</em></h3>
+<p><a href="graphs/Blackbox-FooSnaplet.svg"><img src="graphs/Blackbox-FooSnaplet.png" alt="Diagram of: Blackbox.FooSnaplet" /></a></p>
+<h3><span class="header-section-number">5.5.2</span> Visualisation of levels in <em>Blackbox.FooSnaplet</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-FooSnaplet_levels.svg"><img src="graphs/Blackbox-FooSnaplet_levels.png" alt="Levels within Blackbox.FooSnaplet" /></a></p>
+<h3><span class="header-section-number">5.5.3</span> Cyclomatic Complexity of <em>Blackbox.FooSnaplet</em></h3>
+<p>The cyclomatic complexity of Blackbox.FooSnaplet is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.6</span> Analysis of <em>Blackbox.Tests</em></h2>
+<h3><span class="header-section-number">5.6.1</span> Visualisation of <em>Blackbox.Tests</em></h3>
+<p><a href="graphs/Blackbox-Tests.svg"><img src="graphs/Blackbox-Tests.png" alt="Diagram of: Blackbox.Tests" /></a></p>
+<h3><span class="header-section-number">5.6.2</span> Visualisation of levels in <em>Blackbox.Tests</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-Tests_levels.svg"><img src="graphs/Blackbox-Tests_levels.png" alt="Levels within Blackbox.Tests" /></a></p>
+<h3><span class="header-section-number">5.6.3</span> Cyclomatic Complexity of <em>Blackbox.Tests</em></h3>
+<p>The cyclomatic complexity of Blackbox.Tests is: 37.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.6.4</span> Root analysis of <em>Blackbox.Tests</em></h3>
+<p>These functions are those that are inaccessible:</p>
+<p><em>request404Test</em></p>
+<h3><span class="header-section-number">5.6.5</span> Component analysis of <em>Blackbox.Tests</em></h3>
+<p>The module Blackbox.Tests has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.7</span> Analysis of <em>Blackbox.Types</em></h2>
+<h3><span class="header-section-number">5.7.1</span> Visualisation of <em>Blackbox.Types</em></h3>
+<p><a href="graphs/Blackbox-Types.svg"><img src="graphs/Blackbox-Types.png" alt="Diagram of: Blackbox.Types" /></a></p>
+<h3><span class="header-section-number">5.7.2</span> Visualisation of levels in <em>Blackbox.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Blackbox-Types_levels.svg"><img src="graphs/Blackbox-Types_levels.png" alt="Levels within Blackbox.Types" /></a></p>
+<h3><span class="header-section-number">5.7.3</span> Cyclomatic Complexity of <em>Blackbox.Types</em></h3>
+<p>The cyclomatic complexity of Blackbox.Types is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.7.4</span> Component analysis of <em>Blackbox.Types</em></h3>
+<p>The module Blackbox.Types has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.8</span> Analysis of <em>Cabbage</em></h2>
+<h3><span class="header-section-number">5.8.1</span> Visualisation of <em>Cabbage</em></h3>
 <p><a href="graphs/Cabbage.svg"><img src="graphs/Cabbage.png" alt="Diagram of: Cabbage" /></a></p>
-<h3><span class="header-section-number">5.1.2</span> Visualisation of levels in <em>Cabbage</em></h3>
+<h3><span class="header-section-number">5.8.2</span> Visualisation of levels in <em>Cabbage</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Cabbage_levels.svg"><img src="graphs/Cabbage_levels.png" alt="Levels within Cabbage" /></a></p>
-<h3><span class="header-section-number">5.1.3</span> Cyclomatic Complexity of <em>Cabbage</em></h3>
+<h3><span class="header-section-number">5.8.3</span> Cyclomatic Complexity of <em>Cabbage</em></h3>
 <p>The cyclomatic complexity of Cabbage is: 24.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.1.4</span> Component analysis of <em>Cabbage</em></h3>
+<h3><span class="header-section-number">5.8.4</span> Component analysis of <em>Cabbage</em></h3>
 <p>The module Cabbage has 2 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.2</span> Analysis of <em>Site</em></h2>
-<h3><span class="header-section-number">5.2.1</span> Visualisation of <em>Site</em></h3>
+<h2><span class="header-section-number">5.9</span> Analysis of <em>Control.Access.RoleBased.Checker</em></h2>
+<h3><span class="header-section-number">5.9.1</span> Visualisation of <em>Control.Access.RoleBased.Checker</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Checker.svg"><img src="graphs/Control-Access-RoleBased-Checker.png" alt="Diagram of: Control.Access.RoleBased.Checker" /></a></p>
+<h3><span class="header-section-number">5.9.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Checker</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Checker_levels.svg"><img src="graphs/Control-Access-RoleBased-Checker_levels.png" alt="Levels within Control.Access.RoleBased.Checker" /></a></p>
+<h3><span class="header-section-number">5.9.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Checker</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Checker is: 24.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.9.4</span> Component analysis of <em>Control.Access.RoleBased.Checker</em></h3>
+<p>The module Control.Access.RoleBased.Checker has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.10</span> Analysis of <em>Control.Access.RoleBased.Internal.Role</em></h2>
+<h3><span class="header-section-number">5.10.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Role</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Role.svg"><img src="graphs/Control-Access-RoleBased-Internal-Role.png" alt="Diagram of: Control.Access.RoleBased.Internal.Role" /></a></p>
+<h3><span class="header-section-number">5.10.2</span> Core analysis of <em>Control.Access.RoleBased.Internal.Role</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Role_core.svg"><img src="graphs/Control-Access-RoleBased-Internal-Role_core.png" alt="Core of Control.Access.RoleBased.Internal.Role" /></a></p>
+<h3><span class="header-section-number">5.10.3</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Role</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Role_levels.svg"><img src="graphs/Control-Access-RoleBased-Internal-Role_levels.png" alt="Levels within Control.Access.RoleBased.Internal.Role" /></a></p>
+<h3><span class="header-section-number">5.10.4</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Role</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Internal.Role is: 23.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.10.5</span> Component analysis of <em>Control.Access.RoleBased.Internal.Role</em></h3>
+<p>The module Control.Access.RoleBased.Internal.Role has 4 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.11</span> Analysis of <em>Control.Access.RoleBased.Internal.RoleMap</em></h2>
+<h3><span class="header-section-number">5.11.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.RoleMap</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Internal-RoleMap.svg"><img src="graphs/Control-Access-RoleBased-Internal-RoleMap.png" alt="Diagram of: Control.Access.RoleBased.Internal.RoleMap" /></a></p>
+<h3><span class="header-section-number">5.11.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.RoleMap</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Internal-RoleMap_levels.svg"><img src="graphs/Control-Access-RoleBased-Internal-RoleMap_levels.png" alt="Levels within Control.Access.RoleBased.Internal.RoleMap" /></a></p>
+<h3><span class="header-section-number">5.11.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.RoleMap</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Internal.RoleMap is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.12</span> Analysis of <em>Control.Access.RoleBased.Internal.Rule</em></h2>
+<h3><span class="header-section-number">5.12.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Rule</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Rule.svg"><img src="graphs/Control-Access-RoleBased-Internal-Rule.png" alt="Diagram of: Control.Access.RoleBased.Internal.Rule" /></a></p>
+<h3><span class="header-section-number">5.12.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Rule</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Rule_levels.svg"><img src="graphs/Control-Access-RoleBased-Internal-Rule_levels.png" alt="Levels within Control.Access.RoleBased.Internal.Rule" /></a></p>
+<h3><span class="header-section-number">5.12.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Rule</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Internal.Rule is: 7.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.13</span> Analysis of <em>Control.Access.RoleBased.Internal.Types</em></h2>
+<h3><span class="header-section-number">5.13.1</span> Visualisation of <em>Control.Access.RoleBased.Internal.Types</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Types.svg"><img src="graphs/Control-Access-RoleBased-Internal-Types.png" alt="Diagram of: Control.Access.RoleBased.Internal.Types" /></a></p>
+<h3><span class="header-section-number">5.13.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Internal.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Internal-Types_levels.svg"><img src="graphs/Control-Access-RoleBased-Internal-Types_levels.png" alt="Levels within Control.Access.RoleBased.Internal.Types" /></a></p>
+<h3><span class="header-section-number">5.13.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Internal.Types</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Internal.Types is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.13.4</span> Component analysis of <em>Control.Access.RoleBased.Internal.Types</em></h3>
+<p>The module Control.Access.RoleBased.Internal.Types has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.14</span> Analysis of <em>Control.Access.RoleBased.Role</em></h2>
+<h3><span class="header-section-number">5.14.1</span> Visualisation of <em>Control.Access.RoleBased.Role</em></h3>
+<p><a href="graphs/Control-Access-RoleBased-Role.svg"><img src="graphs/Control-Access-RoleBased-Role.png" alt="Diagram of: Control.Access.RoleBased.Role" /></a></p>
+<h3><span class="header-section-number">5.14.2</span> Visualisation of levels in <em>Control.Access.RoleBased.Role</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Control-Access-RoleBased-Role_levels.svg"><img src="graphs/Control-Access-RoleBased-Role_levels.png" alt="Levels within Control.Access.RoleBased.Role" /></a></p>
+<h3><span class="header-section-number">5.14.3</span> Cyclomatic Complexity of <em>Control.Access.RoleBased.Role</em></h3>
+<p>The cyclomatic complexity of Control.Access.RoleBased.Role is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.14.4</span> Component analysis of <em>Control.Access.RoleBased.Role</em></h3>
+<p>The module Control.Access.RoleBased.Role has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.15</span> Analysis of <em>Part2</em></h2>
+<h3><span class="header-section-number">5.15.1</span> Visualisation of <em>Part2</em></h3>
+<p><a href="graphs/Part2.svg"><img src="graphs/Part2.png" alt="Diagram of: Part2" /></a></p>
+<h3><span class="header-section-number">5.15.2</span> Visualisation of levels in <em>Part2</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Part2_levels.svg"><img src="graphs/Part2_levels.png" alt="Levels within Part2" /></a></p>
+<h3><span class="header-section-number">5.15.3</span> Cyclomatic Complexity of <em>Part2</em></h3>
+<p>The cyclomatic complexity of Part2 is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.15.4</span> Component analysis of <em>Part2</em></h3>
+<p>The module Part2 has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.16</span> Analysis of <em>SafeCWD</em></h2>
+<h3><span class="header-section-number">5.16.1</span> Visualisation of <em>SafeCWD</em></h3>
+<p><a href="graphs/SafeCWD.svg"><img src="graphs/SafeCWD.png" alt="Diagram of: SafeCWD" /></a></p>
+<h3><span class="header-section-number">5.16.2</span> Visualisation of levels in <em>SafeCWD</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/SafeCWD_levels.svg"><img src="graphs/SafeCWD_levels.png" alt="Levels within SafeCWD" /></a></p>
+<h3><span class="header-section-number">5.16.3</span> Cyclomatic Complexity of <em>SafeCWD</em></h3>
+<p>The cyclomatic complexity of SafeCWD is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.17</span> Analysis of <em>Site</em></h2>
+<h3><span class="header-section-number">5.17.1</span> Visualisation of <em>Site</em></h3>
 <p><a href="graphs/Site.svg"><img src="graphs/Site.png" alt="Diagram of: Site" /></a></p>
-<h3><span class="header-section-number">5.2.2</span> Visualisation of levels in <em>Site</em></h3>
+<h3><span class="header-section-number">5.17.2</span> Visualisation of levels in <em>Site</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Site_levels.svg"><img src="graphs/Site_levels.png" alt="Levels within Site" /></a></p>
-<h3><span class="header-section-number">5.2.3</span> Cyclomatic Complexity of <em>Site</em></h3>
-<p>The cyclomatic complexity of Site is: 9.</p>
+<h3><span class="header-section-number">5.17.3</span> Cyclomatic Complexity of <em>Site</em></h3>
+<p>The cyclomatic complexity of Site is: 1.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.3</span> Analysis of <em>System.Log.Missing</em></h2>
-<h3><span class="header-section-number">5.3.1</span> Visualisation of <em>System.Log.Missing</em></h3>
-<p><a href="graphs/System-Log-Missing.svg"><img src="graphs/System-Log-Missing.png" alt="Diagram of: System.Log.Missing" /></a></p>
-<h3><span class="header-section-number">5.3.2</span> Visualisation of levels in <em>System.Log.Missing</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/System-Log-Missing_levels.svg"><img src="graphs/System-Log-Missing_levels.png" alt="Levels within System.Log.Missing" /></a></p>
-<h3><span class="header-section-number">5.3.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></h3>
-<p>The cyclomatic complexity of System.Log.Missing is: 1.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.4</span> Analysis of <em>Test.Arbitrary</em></h2>
-<h3><span class="header-section-number">5.4.1</span> Visualisation of <em>Test.Arbitrary</em></h3>
-<p><a href="graphs/Test-Arbitrary.svg"><img src="graphs/Test-Arbitrary.png" alt="Diagram of: Test.Arbitrary" /></a></p>
-<h3><span class="header-section-number">5.4.2</span> Core analysis of <em>Test.Arbitrary</em></h3>
-<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
-<p><a href="graphs/Test-Arbitrary_core.svg"><img src="graphs/Test-Arbitrary_core.png" alt="Core of Test.Arbitrary" /></a></p>
-<h3><span class="header-section-number">5.4.3</span> Visualisation of levels in <em>Test.Arbitrary</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/Test-Arbitrary_levels.svg"><img src="graphs/Test-Arbitrary_levels.png" alt="Levels within Test.Arbitrary" /></a></p>
-<h3><span class="header-section-number">5.4.4</span> Cyclomatic Complexity of <em>Test.Arbitrary</em></h3>
-<p>The cyclomatic complexity of Test.Arbitrary is: 10.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.5</span> Analysis of <em>Test.Config</em></h2>
-<h3><span class="header-section-number">5.5.1</span> Visualisation of <em>Test.Config</em></h3>
-<p><a href="graphs/Test-Config.svg"><img src="graphs/Test-Config.png" alt="Diagram of: Test.Config" /></a></p>
-<h3><span class="header-section-number">5.5.2</span> Visualisation of levels in <em>Test.Config</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/Test-Config_levels.svg"><img src="graphs/Test-Config_levels.png" alt="Levels within Test.Config" /></a></p>
-<h3><span class="header-section-number">5.5.3</span> Cyclomatic Complexity of <em>Test.Config</em></h3>
-<p>The cyclomatic complexity of Test.Config is: 3.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.6</span> Analysis of <em>Test.Thentos.Backend.Api.Adhocracy3</em></h2>
-<h3><span class="header-section-number">5.6.1</span> Visualisation of <em>Test.Thentos.Backend.Api.Adhocracy3</em></h3>
-<p><a href="graphs/Test-Thentos-Backend-Api-Adhocracy3.svg"><img src="graphs/Test-Thentos-Backend-Api-Adhocracy3.png" alt="Diagram of: Test.Thentos.Backend.Api.Adhocracy3" /></a></p>
-<h3><span class="header-section-number">5.6.2</span> Visualisation of levels in <em>Test.Thentos.Backend.Api.Adhocracy3</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/Test-Thentos-Backend-Api-Adhocracy3_levels.svg"><img src="graphs/Test-Thentos-Backend-Api-Adhocracy3_levels.png" alt="Levels within Test.Thentos.Backend.Api.Adhocracy3" /></a></p>
-<h3><span class="header-section-number">5.6.3</span> Cyclomatic Complexity of <em>Test.Thentos.Backend.Api.Adhocracy3</em></h3>
-<p>The cyclomatic complexity of Test.Thentos.Backend.Api.Adhocracy3 is: 3.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.7</span> Analysis of <em>Test.Thentos.Types</em></h2>
-<h3><span class="header-section-number">5.7.1</span> Visualisation of <em>Test.Thentos.Types</em></h3>
-<p><a href="graphs/Test-Thentos-Types.svg"><img src="graphs/Test-Thentos-Types.png" alt="Diagram of: Test.Thentos.Types" /></a></p>
-<h3><span class="header-section-number">5.7.2</span> Visualisation of levels in <em>Test.Thentos.Types</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/Test-Thentos-Types_levels.svg"><img src="graphs/Test-Thentos-Types_levels.png" alt="Levels within Test.Thentos.Types" /></a></p>
-<h3><span class="header-section-number">5.7.3</span> Cyclomatic Complexity of <em>Test.Thentos.Types</em></h3>
-<p>The cyclomatic complexity of Test.Thentos.Types is: 1.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.8</span> Analysis of <em>TestMain</em></h2>
-<h3><span class="header-section-number">5.8.1</span> Visualisation of <em>TestMain</em></h3>
-<p><a href="graphs/TestMain.svg"><img src="graphs/TestMain.png" alt="Diagram of: TestMain" /></a></p>
-<h3><span class="header-section-number">5.8.2</span> Visualisation of levels in <em>TestMain</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/TestMain_levels.svg"><img src="graphs/TestMain_levels.png" alt="Levels within TestMain" /></a></p>
-<h3><span class="header-section-number">5.8.3</span> Cyclomatic Complexity of <em>TestMain</em></h3>
-<p>The cyclomatic complexity of TestMain is: 1.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.8.4</span> Chain analysis of <em>TestMain</em></h3>
-<p>The module TestMain has the following chains:</p>
+<h3><span class="header-section-number">5.17.4</span> Chain analysis of <em>Site</em></h3>
+<p>The module Site has the following chains:</p>
 <ul>
-<li><p>main
--&gt; adhoc</p></li>
+<li><p>app
+-&gt; routes</p></li>
+<li><p>handleLoginSubmit
+-&gt; handleLogin</p></li>
 </ul>
 <p>These chains can all be compressed down to a single function.</p>
-<h2><span class="header-section-number">5.9</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3</em></h2>
-<h3><span class="header-section-number">5.9.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
+<h2><span class="header-section-number">5.18</span> Analysis of <em>Snap.Snaplet.Auth.AuthManager</em></h2>
+<h3><span class="header-section-number">5.18.1</span> Visualisation of <em>Snap.Snaplet.Auth.AuthManager</em></h3>
+<p><a href="graphs/Snap-Snaplet-Auth-AuthManager.svg"><img src="graphs/Snap-Snaplet-Auth-AuthManager.png" alt="Diagram of: Snap.Snaplet.Auth.AuthManager" /></a></p>
+<h3><span class="header-section-number">5.18.2</span> Core analysis of <em>Snap.Snaplet.Auth.AuthManager</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-AuthManager_core.svg"><img src="graphs/Snap-Snaplet-Auth-AuthManager_core.png" alt="Core of Snap.Snaplet.Auth.AuthManager" /></a></p>
+<h3><span class="header-section-number">5.18.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.AuthManager</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-AuthManager_levels.svg"><img src="graphs/Snap-Snaplet-Auth-AuthManager_levels.png" alt="Levels within Snap.Snaplet.Auth.AuthManager" /></a></p>
+<h3><span class="header-section-number">5.18.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.AuthManager</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Auth.AuthManager is: 19.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.19</span> Analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h2>
+<h3><span class="header-section-number">5.19.1</span> Visualisation of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h3>
+<p><a href="graphs/Snap-Snaplet-Auth-Backends-JsonFile.svg"><img src="graphs/Snap-Snaplet-Auth-Backends-JsonFile.png" alt="Diagram of: Snap.Snaplet.Auth.Backends.JsonFile" /></a></p>
+<h3><span class="header-section-number">5.19.2</span> Core analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-Backends-JsonFile_core.svg"><img src="graphs/Snap-Snaplet-Auth-Backends-JsonFile_core.png" alt="Core of Snap.Snaplet.Auth.Backends.JsonFile" /></a></p>
+<h3><span class="header-section-number">5.19.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-Backends-JsonFile_levels.svg"><img src="graphs/Snap-Snaplet-Auth-Backends-JsonFile_levels.png" alt="Levels within Snap.Snaplet.Auth.Backends.JsonFile" /></a></p>
+<h3><span class="header-section-number">5.19.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Auth.Backends.JsonFile is: 50.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.19.5</span> Chain analysis of <em>Snap.Snaplet.Auth.Backends.JsonFile</em></h3>
+<p>The module Snap.Snaplet.Auth.Backends.JsonFile has the following chains:</p>
+<ul>
+<li><p>loadUserCache
+-&gt; defUserCache</p></li>
+<li><p>Class: FromJSON, Data: UserIdCache
+-&gt; Class: FromJSON</p></li>
+<li><p>Class: ToJSON, Data: UserIdCache
+-&gt; Class: ToJSON</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.20</span> Analysis of <em>Snap.Snaplet.Auth.Handlers</em></h2>
+<h3><span class="header-section-number">5.20.1</span> Visualisation of <em>Snap.Snaplet.Auth.Handlers</em></h3>
+<p><a href="graphs/Snap-Snaplet-Auth-Handlers.svg"><img src="graphs/Snap-Snaplet-Auth-Handlers.png" alt="Diagram of: Snap.Snaplet.Auth.Handlers" /></a></p>
+<h3><span class="header-section-number">5.20.2</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Handlers</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-Handlers_levels.svg"><img src="graphs/Snap-Snaplet-Auth-Handlers_levels.png" alt="Levels within Snap.Snaplet.Auth.Handlers" /></a></p>
+<h3><span class="header-section-number">5.20.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Handlers</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Auth.Handlers is: 9.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.20.4</span> Component analysis of <em>Snap.Snaplet.Auth.Handlers</em></h3>
+<p>The module Snap.Snaplet.Auth.Handlers has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.21</span> Analysis of <em>Snap.Snaplet.Auth.SpliceHelpers</em></h2>
+<h3><span class="header-section-number">5.21.1</span> Visualisation of <em>Snap.Snaplet.Auth.SpliceHelpers</em></h3>
+<p><a href="graphs/Snap-Snaplet-Auth-SpliceHelpers.svg"><img src="graphs/Snap-Snaplet-Auth-SpliceHelpers.png" alt="Diagram of: Snap.Snaplet.Auth.SpliceHelpers" /></a></p>
+<h3><span class="header-section-number">5.21.2</span> Visualisation of levels in <em>Snap.Snaplet.Auth.SpliceHelpers</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-SpliceHelpers_levels.svg"><img src="graphs/Snap-Snaplet-Auth-SpliceHelpers_levels.png" alt="Levels within Snap.Snaplet.Auth.SpliceHelpers" /></a></p>
+<h3><span class="header-section-number">5.21.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.SpliceHelpers</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Auth.SpliceHelpers is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.21.4</span> Component analysis of <em>Snap.Snaplet.Auth.SpliceHelpers</em></h3>
+<p>The module Snap.Snaplet.Auth.SpliceHelpers has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.22</span> Analysis of <em>Snap.Snaplet.Auth.Types</em></h2>
+<h3><span class="header-section-number">5.22.1</span> Visualisation of <em>Snap.Snaplet.Auth.Types</em></h3>
+<p><a href="graphs/Snap-Snaplet-Auth-Types.svg"><img src="graphs/Snap-Snaplet-Auth-Types.png" alt="Diagram of: Snap.Snaplet.Auth.Types" /></a></p>
+<h3><span class="header-section-number">5.22.2</span> Core analysis of <em>Snap.Snaplet.Auth.Types</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-Types_core.svg"><img src="graphs/Snap-Snaplet-Auth-Types_core.png" alt="Core of Snap.Snaplet.Auth.Types" /></a></p>
+<h3><span class="header-section-number">5.22.3</span> Visualisation of levels in <em>Snap.Snaplet.Auth.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Auth-Types_levels.svg"><img src="graphs/Snap-Snaplet-Auth-Types_levels.png" alt="Levels within Snap.Snaplet.Auth.Types" /></a></p>
+<h3><span class="header-section-number">5.22.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Auth.Types</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Auth.Types is: 88.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.22.5</span> Component analysis of <em>Snap.Snaplet.Auth.Types</em></h3>
+<p>The module Snap.Snaplet.Auth.Types has 4 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.23</span> Analysis of <em>Snap.Snaplet.Heist</em></h2>
+<h3><span class="header-section-number">5.23.1</span> Visualisation of <em>Snap.Snaplet.Heist</em></h3>
+<p><a href="graphs/Snap-Snaplet-Heist.svg"><img src="graphs/Snap-Snaplet-Heist.png" alt="Diagram of: Snap.Snaplet.Heist" /></a></p>
+<h3><span class="header-section-number">5.23.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Heist_levels.svg"><img src="graphs/Snap-Snaplet-Heist_levels.png" alt="Levels within Snap.Snaplet.Heist" /></a></p>
+<h3><span class="header-section-number">5.23.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Heist is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.24</span> Analysis of <em>Snap.Snaplet.Heist.Compiled</em></h2>
+<h3><span class="header-section-number">5.24.1</span> Visualisation of <em>Snap.Snaplet.Heist.Compiled</em></h3>
+<p><a href="graphs/Snap-Snaplet-Heist-Compiled.svg"><img src="graphs/Snap-Snaplet-Heist-Compiled.png" alt="Diagram of: Snap.Snaplet.Heist.Compiled" /></a></p>
+<h3><span class="header-section-number">5.24.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist.Compiled</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Heist-Compiled_levels.svg"><img src="graphs/Snap-Snaplet-Heist-Compiled_levels.png" alt="Levels within Snap.Snaplet.Heist.Compiled" /></a></p>
+<h3><span class="header-section-number">5.24.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist.Compiled</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Heist.Compiled is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.24.4</span> Component analysis of <em>Snap.Snaplet.Heist.Compiled</em></h3>
+<p>The module Snap.Snaplet.Heist.Compiled has 5 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.25</span> Analysis of <em>Snap.Snaplet.Heist.Internal</em></h2>
+<h3><span class="header-section-number">5.25.1</span> Visualisation of <em>Snap.Snaplet.Heist.Internal</em></h3>
+<p><a href="graphs/Snap-Snaplet-Heist-Internal.svg"><img src="graphs/Snap-Snaplet-Heist-Internal.png" alt="Diagram of: Snap.Snaplet.Heist.Internal" /></a></p>
+<h3><span class="header-section-number">5.25.2</span> Visualisation of levels in <em>Snap.Snaplet.Heist.Internal</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Heist-Internal_levels.svg"><img src="graphs/Snap-Snaplet-Heist-Internal_levels.png" alt="Levels within Snap.Snaplet.Heist.Internal" /></a></p>
+<h3><span class="header-section-number">5.25.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Heist.Internal</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Heist.Internal is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.26</span> Analysis of <em>Snap.Snaplet.HeistNoClass</em></h2>
+<h3><span class="header-section-number">5.26.1</span> Visualisation of <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p><a href="graphs/Snap-Snaplet-HeistNoClass.svg"><img src="graphs/Snap-Snaplet-HeistNoClass.png" alt="Diagram of: Snap.Snaplet.HeistNoClass" /></a></p>
+<h3><span class="header-section-number">5.26.2</span> Core analysis of <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-HeistNoClass_core.svg"><img src="graphs/Snap-Snaplet-HeistNoClass_core.png" alt="Core of Snap.Snaplet.HeistNoClass" /></a></p>
+<h3><span class="header-section-number">5.26.3</span> Visualisation of levels in <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-HeistNoClass_levels.svg"><img src="graphs/Snap-Snaplet-HeistNoClass_levels.png" alt="Levels within Snap.Snaplet.HeistNoClass" /></a></p>
+<h3><span class="header-section-number">5.26.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.HeistNoClass is: 20.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.26.5</span> Component analysis of <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p>The module Snap.Snaplet.HeistNoClass has 10 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.26.6</span> Chain analysis of <em>Snap.Snaplet.HeistNoClass</em></h3>
+<p>The module Snap.Snaplet.HeistNoClass has the following chains:</p>
+<ul>
+<li><p>Class: MonadSnap, Data: (HeistT n m)
+-&gt; Class: MonadSnap</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.27</span> Analysis of <em>Snap.Snaplet.Internal.LensT</em></h2>
+<h3><span class="header-section-number">5.27.1</span> Visualisation of <em>Snap.Snaplet.Internal.LensT</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-LensT.svg"><img src="graphs/Snap-Snaplet-Internal-LensT.png" alt="Diagram of: Snap.Snaplet.Internal.LensT" /></a></p>
+<h3><span class="header-section-number">5.27.2</span> Core analysis of <em>Snap.Snaplet.Internal.LensT</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-LensT_core.svg"><img src="graphs/Snap-Snaplet-Internal-LensT_core.png" alt="Core of Snap.Snaplet.Internal.LensT" /></a></p>
+<h3><span class="header-section-number">5.27.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.LensT</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-LensT_levels.svg"><img src="graphs/Snap-Snaplet-Internal-LensT_levels.png" alt="Levels within Snap.Snaplet.Internal.LensT" /></a></p>
+<h3><span class="header-section-number">5.27.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.LensT</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.LensT is: 9.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.28</span> Analysis of <em>Snap.Snaplet.Internal.LensT.Tests</em></h2>
+<h3><span class="header-section-number">5.28.1</span> Visualisation of <em>Snap.Snaplet.Internal.LensT.Tests</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-LensT-Tests.svg"><img src="graphs/Snap-Snaplet-Internal-LensT-Tests.png" alt="Diagram of: Snap.Snaplet.Internal.LensT.Tests" /></a></p>
+<h3><span class="header-section-number">5.28.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.LensT.Tests</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-LensT-Tests_levels.svg"><img src="graphs/Snap-Snaplet-Internal-LensT-Tests_levels.png" alt="Levels within Snap.Snaplet.Internal.LensT.Tests" /></a></p>
+<h3><span class="header-section-number">5.28.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.LensT.Tests</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.LensT.Tests is: 22.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.29</span> Analysis of <em>Snap.Snaplet.Internal.Lensed</em></h2>
+<h3><span class="header-section-number">5.29.1</span> Visualisation of <em>Snap.Snaplet.Internal.Lensed</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-Lensed.svg"><img src="graphs/Snap-Snaplet-Internal-Lensed.png" alt="Diagram of: Snap.Snaplet.Internal.Lensed" /></a></p>
+<h3><span class="header-section-number">5.29.2</span> Core analysis of <em>Snap.Snaplet.Internal.Lensed</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-Lensed_core.svg"><img src="graphs/Snap-Snaplet-Internal-Lensed_core.png" alt="Core of Snap.Snaplet.Internal.Lensed" /></a></p>
+<h3><span class="header-section-number">5.29.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.Lensed</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-Lensed_levels.svg"><img src="graphs/Snap-Snaplet-Internal-Lensed_levels.png" alt="Levels within Snap.Snaplet.Internal.Lensed" /></a></p>
+<h3><span class="header-section-number">5.29.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.Lensed</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.Lensed is: 52.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.30</span> Analysis of <em>Snap.Snaplet.Internal.Lensed.Tests</em></h2>
+<h3><span class="header-section-number">5.30.1</span> Visualisation of <em>Snap.Snaplet.Internal.Lensed.Tests</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-Lensed-Tests.svg"><img src="graphs/Snap-Snaplet-Internal-Lensed-Tests.png" alt="Diagram of: Snap.Snaplet.Internal.Lensed.Tests" /></a></p>
+<h3><span class="header-section-number">5.30.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.Lensed.Tests</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-Lensed-Tests_levels.svg"><img src="graphs/Snap-Snaplet-Internal-Lensed-Tests_levels.png" alt="Levels within Snap.Snaplet.Internal.Lensed.Tests" /></a></p>
+<h3><span class="header-section-number">5.30.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.Lensed.Tests</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.Lensed.Tests is: 22.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.30.4</span> Root analysis of <em>Snap.Snaplet.Internal.Lensed.Tests</em></h3>
+<p>These functions are those that are inaccessible:</p>
+<p><em>eat, 
+qqq</em></p>
+<h2><span class="header-section-number">5.31</span> Analysis of <em>Snap.Snaplet.Internal.RST</em></h2>
+<h3><span class="header-section-number">5.31.1</span> Visualisation of <em>Snap.Snaplet.Internal.RST</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-RST.svg"><img src="graphs/Snap-Snaplet-Internal-RST.png" alt="Diagram of: Snap.Snaplet.Internal.RST" /></a></p>
+<h3><span class="header-section-number">5.31.2</span> Core analysis of <em>Snap.Snaplet.Internal.RST</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-RST_core.svg"><img src="graphs/Snap-Snaplet-Internal-RST_core.png" alt="Core of Snap.Snaplet.Internal.RST" /></a></p>
+<h3><span class="header-section-number">5.31.3</span> Visualisation of levels in <em>Snap.Snaplet.Internal.RST</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-RST_levels.svg"><img src="graphs/Snap-Snaplet-Internal-RST_levels.png" alt="Levels within Snap.Snaplet.Internal.RST" /></a></p>
+<h3><span class="header-section-number">5.31.4</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.RST</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.RST is: 44.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.32</span> Analysis of <em>Snap.Snaplet.Internal.RST.Tests</em></h2>
+<h3><span class="header-section-number">5.32.1</span> Visualisation of <em>Snap.Snaplet.Internal.RST.Tests</em></h3>
+<p><a href="graphs/Snap-Snaplet-Internal-RST-Tests.svg"><img src="graphs/Snap-Snaplet-Internal-RST-Tests.png" alt="Diagram of: Snap.Snaplet.Internal.RST.Tests" /></a></p>
+<h3><span class="header-section-number">5.32.2</span> Visualisation of levels in <em>Snap.Snaplet.Internal.RST.Tests</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Internal-RST-Tests_levels.svg"><img src="graphs/Snap-Snaplet-Internal-RST-Tests_levels.png" alt="Levels within Snap.Snaplet.Internal.RST.Tests" /></a></p>
+<h3><span class="header-section-number">5.32.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Internal.RST.Tests</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Internal.RST.Tests is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.32.4</span> Chain analysis of <em>Snap.Snaplet.Internal.RST.Tests</em></h3>
+<p>The module Snap.Snaplet.Internal.RST.Tests has the following chains:</p>
+<ul>
+<li><p>testFail
+-&gt; rstFail</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.33</span> Analysis of <em>Snap.Snaplet.Session</em></h2>
+<h3><span class="header-section-number">5.33.1</span> Visualisation of <em>Snap.Snaplet.Session</em></h3>
+<p><a href="graphs/Snap-Snaplet-Session.svg"><img src="graphs/Snap-Snaplet-Session.png" alt="Diagram of: Snap.Snaplet.Session" /></a></p>
+<h3><span class="header-section-number">5.33.2</span> Visualisation of levels in <em>Snap.Snaplet.Session</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Session_levels.svg"><img src="graphs/Snap-Snaplet-Session_levels.png" alt="Levels within Snap.Snaplet.Session" /></a></p>
+<h3><span class="header-section-number">5.33.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Session is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.34</span> Analysis of <em>Snap.Snaplet.Session.Backends.CookieSession</em></h2>
+<h3><span class="header-section-number">5.34.1</span> Visualisation of <em>Snap.Snaplet.Session.Backends.CookieSession</em></h3>
+<p><a href="graphs/Snap-Snaplet-Session-Backends-CookieSession.svg"><img src="graphs/Snap-Snaplet-Session-Backends-CookieSession.png" alt="Diagram of: Snap.Snaplet.Session.Backends.CookieSession" /></a></p>
+<h3><span class="header-section-number">5.34.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.Backends.CookieSession</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Session-Backends-CookieSession_levels.svg"><img src="graphs/Snap-Snaplet-Session-Backends-CookieSession_levels.png" alt="Levels within Snap.Snaplet.Session.Backends.CookieSession" /></a></p>
+<h3><span class="header-section-number">5.34.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.Backends.CookieSession</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Session.Backends.CookieSession is: 41.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.35</span> Analysis of <em>Snap.Snaplet.Session.Common</em></h2>
+<h3><span class="header-section-number">5.35.1</span> Visualisation of <em>Snap.Snaplet.Session.Common</em></h3>
+<p><a href="graphs/Snap-Snaplet-Session-Common.svg"><img src="graphs/Snap-Snaplet-Session-Common.png" alt="Diagram of: Snap.Snaplet.Session.Common" /></a></p>
+<h3><span class="header-section-number">5.35.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.Common</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Session-Common_levels.svg"><img src="graphs/Snap-Snaplet-Session-Common_levels.png" alt="Levels within Snap.Snaplet.Session.Common" /></a></p>
+<h3><span class="header-section-number">5.35.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.Common</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Session.Common is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.36</span> Analysis of <em>Snap.Snaplet.Session.SecureCookie</em></h2>
+<h3><span class="header-section-number">5.36.1</span> Visualisation of <em>Snap.Snaplet.Session.SecureCookie</em></h3>
+<p><a href="graphs/Snap-Snaplet-Session-SecureCookie.svg"><img src="graphs/Snap-Snaplet-Session-SecureCookie.png" alt="Diagram of: Snap.Snaplet.Session.SecureCookie" /></a></p>
+<h3><span class="header-section-number">5.36.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.SecureCookie</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Session-SecureCookie_levels.svg"><img src="graphs/Snap-Snaplet-Session-SecureCookie_levels.png" alt="Levels within Snap.Snaplet.Session.SecureCookie" /></a></p>
+<h3><span class="header-section-number">5.36.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.SecureCookie</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Session.SecureCookie is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.36.4</span> Component analysis of <em>Snap.Snaplet.Session.SecureCookie</em></h3>
+<p>The module Snap.Snaplet.Session.SecureCookie has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.37</span> Analysis of <em>Snap.Snaplet.Session.SessionManager</em></h2>
+<h3><span class="header-section-number">5.37.1</span> Visualisation of <em>Snap.Snaplet.Session.SessionManager</em></h3>
+<p><a href="graphs/Snap-Snaplet-Session-SessionManager.svg"><img src="graphs/Snap-Snaplet-Session-SessionManager.png" alt="Diagram of: Snap.Snaplet.Session.SessionManager" /></a></p>
+<h3><span class="header-section-number">5.37.2</span> Visualisation of levels in <em>Snap.Snaplet.Session.SessionManager</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Session-SessionManager_levels.svg"><img src="graphs/Snap-Snaplet-Session-SessionManager_levels.png" alt="Levels within Snap.Snaplet.Session.SessionManager" /></a></p>
+<h3><span class="header-section-number">5.37.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Session.SessionManager</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Session.SessionManager is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.37.4</span> Component analysis of <em>Snap.Snaplet.Session.SessionManager</em></h3>
+<p>The module Snap.Snaplet.Session.SessionManager has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.38</span> Analysis of <em>Snap.Snaplet.Test</em></h2>
+<h3><span class="header-section-number">5.38.1</span> Visualisation of <em>Snap.Snaplet.Test</em></h3>
+<p><a href="graphs/Snap-Snaplet-Test.svg"><img src="graphs/Snap-Snaplet-Test.png" alt="Diagram of: Snap.Snaplet.Test" /></a></p>
+<h3><span class="header-section-number">5.38.2</span> Visualisation of levels in <em>Snap.Snaplet.Test</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-Snaplet-Test_levels.svg"><img src="graphs/Snap-Snaplet-Test_levels.png" alt="Levels within Snap.Snaplet.Test" /></a></p>
+<h3><span class="header-section-number">5.38.3</span> Cyclomatic Complexity of <em>Snap.Snaplet.Test</em></h3>
+<p>The cyclomatic complexity of Snap.Snaplet.Test is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.38.4</span> Component analysis of <em>Snap.Snaplet.Test</em></h3>
+<p>The module Snap.Snaplet.Test has 2 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.38.5</span> Chain analysis of <em>Snap.Snaplet.Test</em></h3>
+<p>The module Snap.Snaplet.Test has the following chains:</p>
+<ul>
+<li><p>withTemporaryFile
+-&gt; removeFileMayNotExist</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.39</span> Analysis of <em>Snap.StarterTH</em></h2>
+<h3><span class="header-section-number">5.39.1</span> Visualisation of <em>Snap.StarterTH</em></h3>
+<p><a href="graphs/Snap-StarterTH.svg"><img src="graphs/Snap-StarterTH.png" alt="Diagram of: Snap.StarterTH" /></a></p>
+<h3><span class="header-section-number">5.39.2</span> Visualisation of levels in <em>Snap.StarterTH</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-StarterTH_levels.svg"><img src="graphs/Snap-StarterTH_levels.png" alt="Levels within Snap.StarterTH" /></a></p>
+<h3><span class="header-section-number">5.39.3</span> Cyclomatic Complexity of <em>Snap.StarterTH</em></h3>
+<p>The cyclomatic complexity of Snap.StarterTH is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.40</span> Analysis of <em>Snap.TestCommon</em></h2>
+<h3><span class="header-section-number">5.40.1</span> Visualisation of <em>Snap.TestCommon</em></h3>
+<p><a href="graphs/Snap-TestCommon.svg"><img src="graphs/Snap-TestCommon.png" alt="Diagram of: Snap.TestCommon" /></a></p>
+<h3><span class="header-section-number">5.40.2</span> Visualisation of levels in <em>Snap.TestCommon</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Snap-TestCommon_levels.svg"><img src="graphs/Snap-TestCommon_levels.png" alt="Levels within Snap.TestCommon" /></a></p>
+<h3><span class="header-section-number">5.40.3</span> Cyclomatic Complexity of <em>Snap.TestCommon</em></h3>
+<p>The cyclomatic complexity of Snap.TestCommon is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.41</span> Analysis of <em>System.Log.Missing</em></h2>
+<h3><span class="header-section-number">5.41.1</span> Visualisation of <em>System.Log.Missing</em></h3>
+<p><a href="graphs/System-Log-Missing.svg"><img src="graphs/System-Log-Missing.png" alt="Diagram of: System.Log.Missing" /></a></p>
+<h3><span class="header-section-number">5.41.2</span> Visualisation of levels in <em>System.Log.Missing</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/System-Log-Missing_levels.svg"><img src="graphs/System-Log-Missing_levels.png" alt="Levels within System.Log.Missing" /></a></p>
+<h3><span class="header-section-number">5.41.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></h3>
+<p>The cyclomatic complexity of System.Log.Missing is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.42</span> Analysis of <em>Test.Arbitrary</em></h2>
+<h3><span class="header-section-number">5.42.1</span> Visualisation of <em>Test.Arbitrary</em></h3>
+<p><a href="graphs/Test-Arbitrary.svg"><img src="graphs/Test-Arbitrary.png" alt="Diagram of: Test.Arbitrary" /></a></p>
+<h3><span class="header-section-number">5.42.2</span> Core analysis of <em>Test.Arbitrary</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Test-Arbitrary_core.svg"><img src="graphs/Test-Arbitrary_core.png" alt="Core of Test.Arbitrary" /></a></p>
+<h3><span class="header-section-number">5.42.3</span> Visualisation of levels in <em>Test.Arbitrary</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Test-Arbitrary_levels.svg"><img src="graphs/Test-Arbitrary_levels.png" alt="Levels within Test.Arbitrary" /></a></p>
+<h3><span class="header-section-number">5.42.4</span> Cyclomatic Complexity of <em>Test.Arbitrary</em></h3>
+<p>The cyclomatic complexity of Test.Arbitrary is: 10.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.43</span> Analysis of <em>Test.Config</em></h2>
+<h3><span class="header-section-number">5.43.1</span> Visualisation of <em>Test.Config</em></h3>
+<p><a href="graphs/Test-Config.svg"><img src="graphs/Test-Config.png" alt="Diagram of: Test.Config" /></a></p>
+<h3><span class="header-section-number">5.43.2</span> Visualisation of levels in <em>Test.Config</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Test-Config_levels.svg"><img src="graphs/Test-Config_levels.png" alt="Levels within Test.Config" /></a></p>
+<h3><span class="header-section-number">5.43.3</span> Cyclomatic Complexity of <em>Test.Config</em></h3>
+<p>The cyclomatic complexity of Test.Config is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.44</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3</em></h2>
+<h3><span class="header-section-number">5.44.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
 <p><a href="graphs/Thentos-Backend-Api-Adhocracy3.svg"><img src="graphs/Thentos-Backend-Api-Adhocracy3.png" alt="Diagram of: Thentos.Backend.Api.Adhocracy3" /></a></p>
-<h3><span class="header-section-number">5.9.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3</em></h3>
+<h3><span class="header-section-number">5.44.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Backend-Api-Adhocracy3_levels.svg"><img src="graphs/Thentos-Backend-Api-Adhocracy3_levels.png" alt="Levels within Thentos.Backend.Api.Adhocracy3" /></a></p>
-<h3><span class="header-section-number">5.9.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
-<p>The cyclomatic complexity of Thentos.Backend.Api.Adhocracy3 is: 50.</p>
+<h3><span class="header-section-number">5.44.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Adhocracy3 is: 47.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.9.4</span> Component analysis of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
+<h3><span class="header-section-number">5.44.4</span> Component analysis of <em>Thentos.Backend.Api.Adhocracy3</em></h3>
 <p>The module Thentos.Backend.Api.Adhocracy3 has 2 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.10</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></h2>
-<h3><span class="header-section-number">5.10.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></h3>
+<h2><span class="header-section-number">5.45</span> Analysis of <em>Thentos.Backend.Api.Adhocracy3Spec</em></h2>
+<h3><span class="header-section-number">5.45.1</span> Visualisation of <em>Thentos.Backend.Api.Adhocracy3Spec</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Adhocracy3Spec.svg"><img src="graphs/Thentos-Backend-Api-Adhocracy3Spec.png" alt="Diagram of: Thentos.Backend.Api.Adhocracy3Spec" /></a></p>
+<h3><span class="header-section-number">5.45.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Adhocracy3Spec</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Adhocracy3Spec_levels.svg"><img src="graphs/Thentos-Backend-Api-Adhocracy3Spec_levels.png" alt="Levels within Thentos.Backend.Api.Adhocracy3Spec" /></a></p>
+<h3><span class="header-section-number">5.45.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Adhocracy3Spec</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Adhocracy3Spec is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.46</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></h2>
+<h3><span class="header-section-number">5.46.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></h3>
 <p><a href="graphs/Thentos-Backend-Api-Proxy.svg"><img src="graphs/Thentos-Backend-Api-Proxy.png" alt="Diagram of: Thentos.Backend.Api.Proxy" /></a></p>
-<h3><span class="header-section-number">5.10.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></h3>
+<h3><span class="header-section-number">5.46.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Backend-Api-Proxy_levels.svg"><img src="graphs/Thentos-Backend-Api-Proxy_levels.png" alt="Levels within Thentos.Backend.Api.Proxy" /></a></p>
-<h3><span class="header-section-number">5.10.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></h3>
+<h3><span class="header-section-number">5.46.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></h3>
 <p>The cyclomatic complexity of Thentos.Backend.Api.Proxy is: 2.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.11</span> Analysis of <em>Thentos.Backend.Api.Simple</em></h2>
-<h3><span class="header-section-number">5.11.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></h3>
+<h2><span class="header-section-number">5.47</span> Analysis of <em>Thentos.Backend.Api.Simple</em></h2>
+<h3><span class="header-section-number">5.47.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></h3>
 <p><a href="graphs/Thentos-Backend-Api-Simple.svg"><img src="graphs/Thentos-Backend-Api-Simple.png" alt="Diagram of: Thentos.Backend.Api.Simple" /></a></p>
-<h3><span class="header-section-number">5.11.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></h3>
+<h3><span class="header-section-number">5.47.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Backend-Api-Simple_levels.svg"><img src="graphs/Thentos-Backend-Api-Simple_levels.png" alt="Levels within Thentos.Backend.Api.Simple" /></a></p>
-<h3><span class="header-section-number">5.11.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></h3>
-<p>The cyclomatic complexity of Thentos.Backend.Api.Simple is: 3.</p>
+<h3><span class="header-section-number">5.47.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Simple is: 1.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.11.4</span> Component analysis of <em>Thentos.Backend.Api.Simple</em></h3>
-<p>The module Thentos.Backend.Api.Simple has 3 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.12</span> Analysis of <em>Thentos.Backend.Core</em></h2>
-<h3><span class="header-section-number">5.12.1</span> Visualisation of <em>Thentos.Backend.Core</em></h3>
+<h2><span class="header-section-number">5.48</span> Analysis of <em>Thentos.Backend.Api.SimpleSpec</em></h2>
+<h3><span class="header-section-number">5.48.1</span> Visualisation of <em>Thentos.Backend.Api.SimpleSpec</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-SimpleSpec.svg"><img src="graphs/Thentos-Backend-Api-SimpleSpec.png" alt="Diagram of: Thentos.Backend.Api.SimpleSpec" /></a></p>
+<h3><span class="header-section-number">5.48.2</span> Visualisation of levels in <em>Thentos.Backend.Api.SimpleSpec</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-SimpleSpec_levels.svg"><img src="graphs/Thentos-Backend-Api-SimpleSpec_levels.png" alt="Levels within Thentos.Backend.Api.SimpleSpec" /></a></p>
+<h3><span class="header-section-number">5.48.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.SimpleSpec</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.SimpleSpec is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.49</span> Analysis of <em>Thentos.Backend.Core</em></h2>
+<h3><span class="header-section-number">5.49.1</span> Visualisation of <em>Thentos.Backend.Core</em></h3>
 <p><a href="graphs/Thentos-Backend-Core.svg"><img src="graphs/Thentos-Backend-Core.png" alt="Diagram of: Thentos.Backend.Core" /></a></p>
-<h3><span class="header-section-number">5.12.2</span> Core analysis of <em>Thentos.Backend.Core</em></h3>
+<h3><span class="header-section-number">5.49.2</span> Core analysis of <em>Thentos.Backend.Core</em></h3>
 <p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
 <p><a href="graphs/Thentos-Backend-Core_core.svg"><img src="graphs/Thentos-Backend-Core_core.png" alt="Core of Thentos.Backend.Core" /></a></p>
-<h3><span class="header-section-number">5.12.3</span> Visualisation of levels in <em>Thentos.Backend.Core</em></h3>
+<h3><span class="header-section-number">5.49.3</span> Visualisation of levels in <em>Thentos.Backend.Core</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Backend-Core_levels.svg"><img src="graphs/Thentos-Backend-Core_levels.png" alt="Levels within Thentos.Backend.Core" /></a></p>
-<h3><span class="header-section-number">5.12.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></h3>
+<h3><span class="header-section-number">5.49.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></h3>
 <p>The cyclomatic complexity of Thentos.Backend.Core is: 5.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.12.5</span> Component analysis of <em>Thentos.Backend.Core</em></h3>
+<h3><span class="header-section-number">5.49.5</span> Component analysis of <em>Thentos.Backend.Core</em></h3>
 <p>The module Thentos.Backend.Core has 2 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.13</span> Analysis of <em>Thentos.Config</em></h2>
-<h3><span class="header-section-number">5.13.1</span> Visualisation of <em>Thentos.Config</em></h3>
+<h2><span class="header-section-number">5.50</span> Analysis of <em>Thentos.Config</em></h2>
+<h3><span class="header-section-number">5.50.1</span> Visualisation of <em>Thentos.Config</em></h3>
 <p><a href="graphs/Thentos-Config.svg"><img src="graphs/Thentos-Config.png" alt="Diagram of: Thentos.Config" /></a></p>
-<h3><span class="header-section-number">5.13.2</span> Core analysis of <em>Thentos.Config</em></h3>
+<h3><span class="header-section-number">5.50.2</span> Core analysis of <em>Thentos.Config</em></h3>
 <p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
 <p><a href="graphs/Thentos-Config_core.svg"><img src="graphs/Thentos-Config_core.png" alt="Core of Thentos.Config" /></a></p>
-<h3><span class="header-section-number">5.13.3</span> Visualisation of levels in <em>Thentos.Config</em></h3>
+<h3><span class="header-section-number">5.50.3</span> Visualisation of levels in <em>Thentos.Config</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Config_levels.svg"><img src="graphs/Thentos-Config_levels.png" alt="Levels within Thentos.Config" /></a></p>
-<h3><span class="header-section-number">5.13.4</span> Cyclomatic Complexity of <em>Thentos.Config</em></h3>
-<p>The cyclomatic complexity of Thentos.Config is: 70.</p>
+<h3><span class="header-section-number">5.50.4</span> Cyclomatic Complexity of <em>Thentos.Config</em></h3>
+<p>The cyclomatic complexity of Thentos.Config is: 81.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.13.5</span> Component analysis of <em>Thentos.Config</em></h3>
+<h3><span class="header-section-number">5.50.5</span> Component analysis of <em>Thentos.Config</em></h3>
 <p>The module Thentos.Config has 2 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.14</span> Analysis of <em>Thentos.DB.Core</em></h2>
-<h3><span class="header-section-number">5.14.1</span> Visualisation of <em>Thentos.DB.Core</em></h3>
+<h2><span class="header-section-number">5.51</span> Analysis of <em>Thentos.DB.Core</em></h2>
+<h3><span class="header-section-number">5.51.1</span> Visualisation of <em>Thentos.DB.Core</em></h3>
 <p><a href="graphs/Thentos-DB-Core.svg"><img src="graphs/Thentos-DB-Core.png" alt="Diagram of: Thentos.DB.Core" /></a></p>
-<h3><span class="header-section-number">5.14.2</span> Visualisation of levels in <em>Thentos.DB.Core</em></h3>
+<h3><span class="header-section-number">5.51.2</span> Visualisation of levels in <em>Thentos.DB.Core</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-DB-Core_levels.svg"><img src="graphs/Thentos-DB-Core_levels.png" alt="Levels within Thentos.DB.Core" /></a></p>
-<h3><span class="header-section-number">5.14.3</span> Cyclomatic Complexity of <em>Thentos.DB.Core</em></h3>
-<p>The cyclomatic complexity of Thentos.DB.Core is: 30.</p>
+<h3><span class="header-section-number">5.51.3</span> Cyclomatic Complexity of <em>Thentos.DB.Core</em></h3>
+<p>The cyclomatic complexity of Thentos.DB.Core is: 14.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.14.4</span> Component analysis of <em>Thentos.DB.Core</em></h3>
-<p>The module Thentos.DB.Core has 7 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.15</span> Analysis of <em>Thentos.DB.Protect</em></h2>
-<h3><span class="header-section-number">5.15.1</span> Visualisation of <em>Thentos.DB.Protect</em></h3>
+<h3><span class="header-section-number">5.51.4</span> Component analysis of <em>Thentos.DB.Core</em></h3>
+<p>The module Thentos.DB.Core has 6 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.52</span> Analysis of <em>Thentos.DB.Protect</em></h2>
+<h3><span class="header-section-number">5.52.1</span> Visualisation of <em>Thentos.DB.Protect</em></h3>
 <p><a href="graphs/Thentos-DB-Protect.svg"><img src="graphs/Thentos-DB-Protect.png" alt="Diagram of: Thentos.DB.Protect" /></a></p>
-<h3><span class="header-section-number">5.15.2</span> Visualisation of levels in <em>Thentos.DB.Protect</em></h3>
+<h3><span class="header-section-number">5.52.2</span> Visualisation of levels in <em>Thentos.DB.Protect</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-DB-Protect_levels.svg"><img src="graphs/Thentos-DB-Protect_levels.png" alt="Levels within Thentos.DB.Protect" /></a></p>
-<h3><span class="header-section-number">5.15.3</span> Cyclomatic Complexity of <em>Thentos.DB.Protect</em></h3>
-<p>The cyclomatic complexity of Thentos.DB.Protect is: 6.</p>
+<h3><span class="header-section-number">5.52.3</span> Cyclomatic Complexity of <em>Thentos.DB.Protect</em></h3>
+<p>The cyclomatic complexity of Thentos.DB.Protect is: 5.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h2><span class="header-section-number">5.16</span> Analysis of <em>Thentos.DB.Trans</em></h2>
-<h3><span class="header-section-number">5.16.1</span> Visualisation of <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.52.4</span> Chain analysis of <em>Thentos.DB.Protect</em></h3>
+<p>The module Thentos.DB.Protect has the following chains:</p>
+<ul>
+<li><p>authenticateSession
+-&gt; makeClearance_</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.53</span> Analysis of <em>Thentos.DB.Trans</em></h2>
+<h3><span class="header-section-number">5.53.1</span> Visualisation of <em>Thentos.DB.Trans</em></h3>
 <p><a href="graphs/Thentos-DB-Trans.svg"><img src="graphs/Thentos-DB-Trans.png" alt="Diagram of: Thentos.DB.Trans" /></a></p>
-<h3><span class="header-section-number">5.16.2</span> Visualisation of levels in <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.53.2</span> Visualisation of levels in <em>Thentos.DB.Trans</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-DB-Trans_levels.svg"><img src="graphs/Thentos-DB-Trans_levels.png" alt="Levels within Thentos.DB.Trans" /></a></p>
-<h3><span class="header-section-number">5.16.3</span> Cyclomatic Complexity of <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.53.3</span> Cyclomatic Complexity of <em>Thentos.DB.Trans</em></h3>
 <p>The cyclomatic complexity of Thentos.DB.Trans is: 30.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.16.4</span> Root analysis of <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.53.4</span> Root analysis of <em>Thentos.DB.Trans</em></h3>
 <p>These functions are those that are inaccessible:</p>
 <p><em>addService,  addUnconfirmedUser, 
 addUser,  addUsers,  allServiceIds, 
@@ -509,41 +1238,27 @@ lookupSessionQ,  lookupUser,
 lookupUserByEmail,  lookupUserByName, 
 snapShot,  startSession,  unassignRole, 
 updateUser,  updateUserField</em></p>
-<h3><span class="header-section-number">5.16.5</span> Component analysis of <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.53.5</span> Component analysis of <em>Thentos.DB.Trans</em></h3>
 <p>The module Thentos.DB.Trans has 10 components.  You may wish to consider splitting it up.</p>
-<h3><span class="header-section-number">5.16.6</span> Chain analysis of <em>Thentos.DB.Trans</em></h3>
+<h3><span class="header-section-number">5.53.6</span> Chain analysis of <em>Thentos.DB.Trans</em></h3>
 <p>The module Thentos.DB.Trans has the following chains:</p>
 <ul>
 <li><p>writeUser
 -&gt; checkAllDbInvs</p></li>
 </ul>
 <p>These chains can all be compressed down to a single function.</p>
-<h2><span class="header-section-number">5.17</span> Analysis of <em>Thentos.Doc</em></h2>
-<h3><span class="header-section-number">5.17.1</span> Visualisation of <em>Thentos.Doc</em></h3>
-<p><a href="graphs/Thentos-Doc.svg"><img src="graphs/Thentos-Doc.png" alt="Diagram of: Thentos.Doc" /></a></p>
-<h3><span class="header-section-number">5.17.2</span> Core analysis of <em>Thentos.Doc</em></h3>
-<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
-<p><a href="graphs/Thentos-Doc_core.svg"><img src="graphs/Thentos-Doc_core.png" alt="Core of Thentos.Doc" /></a></p>
-<h3><span class="header-section-number">5.17.3</span> Visualisation of levels in <em>Thentos.Doc</em></h3>
-<p>Visualises how far away from the exported root entities an entity is.</p>
-<p><a href="graphs/Thentos-Doc_levels.svg"><img src="graphs/Thentos-Doc_levels.png" alt="Levels within Thentos.Doc" /></a></p>
-<h3><span class="header-section-number">5.17.4</span> Cyclomatic Complexity of <em>Thentos.Doc</em></h3>
-<p>The cyclomatic complexity of Thentos.Doc is: 6.</p>
-<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.17.5</span> Component analysis of <em>Thentos.Doc</em></h3>
-<p>The module Thentos.Doc has 2 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.18</span> Analysis of <em>Thentos.Frontend</em></h2>
-<h3><span class="header-section-number">5.18.1</span> Visualisation of <em>Thentos.Frontend</em></h3>
+<h2><span class="header-section-number">5.54</span> Analysis of <em>Thentos.Frontend</em></h2>
+<h3><span class="header-section-number">5.54.1</span> Visualisation of <em>Thentos.Frontend</em></h3>
 <p><a href="graphs/Thentos-Frontend.svg"><img src="graphs/Thentos-Frontend.png" alt="Diagram of: Thentos.Frontend" /></a></p>
-<h3><span class="header-section-number">5.18.2</span> Visualisation of levels in <em>Thentos.Frontend</em></h3>
+<h3><span class="header-section-number">5.54.2</span> Visualisation of levels in <em>Thentos.Frontend</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Frontend_levels.svg"><img src="graphs/Thentos-Frontend_levels.png" alt="Levels within Thentos.Frontend" /></a></p>
-<h3><span class="header-section-number">5.18.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></h3>
+<h3><span class="header-section-number">5.54.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></h3>
 <p>The cyclomatic complexity of Thentos.Frontend is: 4.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.18.4</span> Component analysis of <em>Thentos.Frontend</em></h3>
+<h3><span class="header-section-number">5.54.4</span> Component analysis of <em>Thentos.Frontend</em></h3>
 <p>The module Thentos.Frontend has 2 components.  You may wish to consider splitting it up.</p>
-<h3><span class="header-section-number">5.18.5</span> Chain analysis of <em>Thentos.Frontend</em></h3>
+<h3><span class="header-section-number">5.54.5</span> Chain analysis of <em>Thentos.Frontend</em></h3>
 <p>The module Thentos.Frontend has the following chains:</p>
 <ul>
 <li><p>runFrontend
@@ -552,27 +1267,45 @@ updateUser,  updateUserField</em></p>
 -&gt; snapRunAction</p></li>
 </ul>
 <p>These chains can all be compressed down to a single function.</p>
-<h2><span class="header-section-number">5.19</span> Analysis of <em>Thentos.Frontend.Pages</em></h2>
-<h3><span class="header-section-number">5.19.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></h3>
+<h2><span class="header-section-number">5.55</span> Analysis of <em>Thentos.Frontend.Pages</em></h2>
+<h3><span class="header-section-number">5.55.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></h3>
 <p><a href="graphs/Thentos-Frontend-Pages.svg"><img src="graphs/Thentos-Frontend-Pages.png" alt="Diagram of: Thentos.Frontend.Pages" /></a></p>
-<h3><span class="header-section-number">5.19.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></h3>
+<h3><span class="header-section-number">5.55.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Frontend-Pages_levels.svg"><img src="graphs/Thentos-Frontend-Pages_levels.png" alt="Levels within Thentos.Frontend.Pages" /></a></p>
-<h3><span class="header-section-number">5.19.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></h3>
+<h3><span class="header-section-number">5.55.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></h3>
 <p>The cyclomatic complexity of Thentos.Frontend.Pages is: 10.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.19.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></h3>
+<h3><span class="header-section-number">5.55.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></h3>
 <p>The module Thentos.Frontend.Pages has 8 components.  You may wish to consider splitting it up.</p>
-<h2><span class="header-section-number">5.20</span> Analysis of <em>Thentos.Types</em></h2>
-<h3><span class="header-section-number">5.20.1</span> Visualisation of <em>Thentos.Types</em></h3>
+<h2><span class="header-section-number">5.56</span> Analysis of <em>Thentos.Types</em></h2>
+<h3><span class="header-section-number">5.56.1</span> Visualisation of <em>Thentos.Types</em></h3>
 <p><a href="graphs/Thentos-Types.svg"><img src="graphs/Thentos-Types.png" alt="Diagram of: Thentos.Types" /></a></p>
-<h3><span class="header-section-number">5.20.2</span> Visualisation of levels in <em>Thentos.Types</em></h3>
+<h3><span class="header-section-number">5.56.2</span> Visualisation of levels in <em>Thentos.Types</em></h3>
 <p>Visualises how far away from the exported root entities an entity is.</p>
 <p><a href="graphs/Thentos-Types_levels.svg"><img src="graphs/Thentos-Types_levels.png" alt="Levels within Thentos.Types" /></a></p>
-<h3><span class="header-section-number">5.20.3</span> Cyclomatic Complexity of <em>Thentos.Types</em></h3>
-<p>The cyclomatic complexity of Thentos.Types is: 49.</p>
+<h3><span class="header-section-number">5.56.3</span> Cyclomatic Complexity of <em>Thentos.Types</em></h3>
+<p>The cyclomatic complexity of Thentos.Types is: 66.</p>
 <p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
-<h3><span class="header-section-number">5.20.4</span> Component analysis of <em>Thentos.Types</em></h3>
-<p>The module Thentos.Types has 19 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.56.4</span> Component analysis of <em>Thentos.Types</em></h3>
+<p>The module Thentos.Types has 21 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.57</span> Analysis of <em>Thentos.TypesSpec</em></h2>
+<h3><span class="header-section-number">5.57.1</span> Visualisation of <em>Thentos.TypesSpec</em></h3>
+<p><a href="graphs/Thentos-TypesSpec.svg"><img src="graphs/Thentos-TypesSpec.png" alt="Diagram of: Thentos.TypesSpec" /></a></p>
+<h3><span class="header-section-number">5.57.2</span> Visualisation of levels in <em>Thentos.TypesSpec</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-TypesSpec_levels.svg"><img src="graphs/Thentos-TypesSpec_levels.png" alt="Levels within Thentos.TypesSpec" /></a></p>
+<h3><span class="header-section-number">5.57.3</span> Cyclomatic Complexity of <em>Thentos.TypesSpec</em></h3>
+<p>The cyclomatic complexity of Thentos.TypesSpec is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.58</span> Analysis of <em>ThentosSpec</em></h2>
+<h3><span class="header-section-number">5.58.1</span> Visualisation of <em>ThentosSpec</em></h3>
+<p><a href="graphs/ThentosSpec.svg"><img src="graphs/ThentosSpec.png" alt="Diagram of: ThentosSpec" /></a></p>
+<h3><span class="header-section-number">5.58.2</span> Visualisation of levels in <em>ThentosSpec</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/ThentosSpec_levels.svg"><img src="graphs/ThentosSpec_levels.png" alt="Levels within ThentosSpec" /></a></p>
+<h3><span class="header-section-number">5.58.3</span> Cyclomatic Complexity of <em>ThentosSpec</em></h3>
+<p>The cyclomatic complexity of ThentosSpec is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
 </body>
 </html>

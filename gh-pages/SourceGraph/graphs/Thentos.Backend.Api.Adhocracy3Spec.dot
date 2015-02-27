@@ -1,0 +1,26 @@
+digraph "Diagram of: Thentos.Backend.Api.Adhocracy3Spec" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    1 [label=setupTestA3Server
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 [label=spec
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    3 [label=teardownA3TestServer
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    4 [label=tests
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    2 -> 1 [penwidth=2.09861228866811
+           ,color=black];
+    2 -> 3 [penwidth=2.09861228866811
+           ,color=black];
+    4 -> 2 [penwidth=1
+           ,color=chartreuse];
+}

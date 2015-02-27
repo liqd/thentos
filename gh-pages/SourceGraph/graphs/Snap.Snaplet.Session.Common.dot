@@ -1,0 +1,35 @@
+digraph "Diagram of: Snap.Snaplet.Session.Common" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_RNG {
+        graph [label="Data: RNG"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=RNG
+          ,shape=box3d
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    2 [label=mkCSRFToken
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    3 [label=mkRNG
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=randomToken
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    5 [label=withRNG
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 -> 4 [penwidth=1
+           ,color=chartreuse];
+    3 -> 1 [penwidth=1,color=black];
+    4 -> 5 [penwidth=1
+           ,color=chartreuse];
+    5 -> 1 [penwidth=1,color=black];
+}

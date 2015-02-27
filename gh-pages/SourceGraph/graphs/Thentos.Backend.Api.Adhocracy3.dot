@@ -416,11 +416,11 @@ digraph "Diagram of: Thentos.Backend.Api.Adhocracy3" {
             ,color=black];
     22 -> 7 [penwidth=1
             ,color=black];
-    22 -> 12 [penwidth=1.6931471805599454
+    22 -> 12 [penwidth=1
              ,color=black];
-    22 -> 45 [penwidth=1.6931471805599454
+    22 -> 45 [penwidth=1
              ,color=black];
-    22 -> 49 [penwidth=1.6931471805599454
+    22 -> 49 [penwidth=1
              ,color=black];
     23 -> 1 [penwidth=1
             ,color=black];

@@ -1,24 +1,6 @@
 digraph "Diagram of: Thentos.Backend.Api.Simple" {
     node [margin="0.4,0.1"
          ,style=filled];
-    subgraph cluster_Class_HasDocs {
-        graph [label="Class: HasDocs"
-              ,style="filled,rounded"
-              ,fillcolor=rosybrown1];
-        subgraph cluster_Class_HasDocs_Data_ThentosAuthsublayout {
-            graph [label="Instance for: (ThentosAuth sublayout)"
-                  ,style="filled,rounded"
-                  ,fillcolor=slategray1];
-            4 [label=docsFor
-              ,shape=octagon
-              ,fillcolor=cyan
-              ,style="filled,bold"];
-        }
-        12 [label="Unknown Module\ndocsFor"
-           ,shape=doubleoctagon
-           ,fillcolor=khaki
-           ,style="filled,dotted"];
-    }
     subgraph cluster_Class_HasServer {
         graph [label="Class: HasServer"
               ,style="filled,rounded"
@@ -27,12 +9,12 @@ digraph "Diagram of: Thentos.Backend.Api.Simple" {
             graph [label="Instance for: (ThentosAuth sublayout)"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            5 [label=route
+            3 [label=route
               ,shape=octagon
               ,fillcolor=bisque
               ,style="filled,bold"];
         }
-        13 [label="Unknown Module\nroute"
+        10 [label="Unknown Module\nroute"
            ,shape=doubleoctagon
            ,fillcolor=khaki
            ,style="filled,dotted"];
@@ -46,54 +28,45 @@ digraph "Diagram of: Thentos.Backend.Api.Simple" {
           ,fillcolor=cyan
           ,style="filled,bold"];
     }
-    2 [label=apiDocs
-      ,shape=box
-      ,fillcolor=gold
-      ,style="filled,bold"];
-    3 [label=app
+    2 [label=app
       ,shape=box
       ,fillcolor=bisque
       ,style="filled,bold"];
-    6 [label=runBackend
+    4 [label=runBackend
       ,shape=box
       ,fillcolor=gold
       ,style="filled,bold"];
-    7 [label=serveApi
+    5 [label=serveApi
       ,shape=box
       ,fillcolor=goldenrod
       ,style="filled,bold"];
-    8 [label=thentosBasic
+    6 [label=thentosBasic
       ,shape=box
       ,fillcolor=bisque
       ,style="filled,bold"];
-    9 [label=thentosService
+    7 [label=thentosService
       ,shape=box
       ,fillcolor=cyan
       ,style="filled,bold"];
-    10 [label=thentosSession
-       ,shape=box
-       ,fillcolor=cyan
-       ,style="filled,bold"];
-    11 [label=thentosUser
-       ,shape=box
-       ,fillcolor=cyan
-       ,style="filled,bold"];
+    8 [label=thentosSession
+      ,shape=box
+      ,fillcolor=cyan
+      ,style="filled,bold"];
+    9 [label=thentosUser
+      ,shape=box
+      ,fillcolor=cyan
+      ,style="filled,bold"];
+    2 -> 1 [penwidth=1,color=black];
+    2 -> 6 [penwidth=1,color=black];
     3 -> 1 [penwidth=1,color=black];
-    3 -> 8 [penwidth=1,color=black];
-    5 -> 1 [penwidth=1,color=black];
-    6 -> 7 [penwidth=1
+    4 -> 5 [penwidth=1
            ,color=chartreuse];
-    7 -> 3 [penwidth=1
+    5 -> 2 [penwidth=1
            ,color=chartreuse];
-    8 -> 9 [penwidth=1,color=black];
-    8 -> 10 [penwidth=1
-            ,color=black];
-    8 -> 11 [penwidth=1
-            ,color=black];
-    12 -> 4 [penwidth=1
-            ,color=navy
-            ,dir=none];
-    13 -> 5 [penwidth=1
+    6 -> 7 [penwidth=1,color=black];
+    6 -> 8 [penwidth=1,color=black];
+    6 -> 9 [penwidth=1,color=black];
+    10 -> 3 [penwidth=1
             ,color=navy
             ,dir=none];
 }

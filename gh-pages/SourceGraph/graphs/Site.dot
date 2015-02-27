@@ -1,125 +1,35 @@
 digraph "Diagram of: Site" {
     node [margin="0.4,0.1"
          ,style=filled];
-    subgraph cluster_Data_App {
-        graph [label="Data: App"
-              ,style="filled,rounded"
-              ,fillcolor=papayawhip];
-        1 [label=App
-          ,shape=box3d
-          ,fillcolor=cyan
-          ,style="filled,bold"];
-        3 [label=aHWConfig
-          ,shape=component
-          ,fillcolor=bisque
-          ,style="filled,bold"];
-    }
-    subgraph cluster_Data_HWConfig {
-        graph [label="Data: HWConfig"
-              ,style="filled,rounded"
-              ,fillcolor=papayawhip];
-        2 [label=HWConfig
-          ,shape=box3d
-          ,fillcolor=cyan
-          ,style="filled,bold"];
-        9 [label=helloWorldUrl
-          ,shape=component
-          ,fillcolor=bisque
-          ,style="filled,bold"];
-        11 [label=serviceId
-           ,shape=component
-           ,fillcolor=bisque
-           ,style="filled,bold"];
-        12 [label=serviceKey
-           ,shape=component
-           ,fillcolor=bisque
-           ,style="filled,bold"];
-        13 [label=thentosBackendUrl
-           ,shape=component
-           ,fillcolor=bisque
-           ,style="filled,bold"];
-        14 [label=thentosFrontendUrl
-           ,shape=component
-           ,fillcolor=bisque
-           ,style="filled,bold"];
-    }
-    4 [label=app
+    1 [label=app
       ,shape=box
       ,fillcolor=gold
       ,style="filled,bold"];
-    5 [label=appPage
+    2 [label=handleLogin
       ,shape=box
       ,fillcolor=cyan
       ,style="filled,bold"];
-    6 [label=handleApp
+    3 [label=handleLoginSubmit
       ,shape=box
       ,fillcolor=bisque
       ,style="filled,bold"];
-    7 [label=helloWorldLogin
-      ,shape=box
-      ,fillcolor=bisque
-      ,style="filled,bold"];
-    8 [label=helloWorldLogout
+    4 [label=handleLogout
       ,shape=box
       ,fillcolor=cyan
       ,style="filled,bold"];
-    10 [label=routes
-       ,shape=box
-       ,fillcolor=bisque
-       ,style="filled,bold"];
-    15 [label=tokenOk
-       ,shape=box
-       ,fillcolor=bisque
-       ,style="filled,bold"];
-    3 -> 1 [penwidth=1
-           ,color=magenta
-           ,arrowtail=odot
-           ,arrowhead=vee];
-    4 -> 1 [penwidth=1,color=black];
-    4 -> 2 [penwidth=1,color=black];
-    4 -> 10 [penwidth=1
-            ,color=black];
+    5 [label=handleNewUser
+      ,shape=box
+      ,fillcolor=cyan
+      ,style="filled,bold"];
+    6 [label=routes
+      ,shape=box
+      ,fillcolor=bisque
+      ,style="filled,bold"];
+    1 -> 6 [penwidth=1
+           ,color=chartreuse];
+    3 -> 2 [penwidth=1
+           ,color=chartreuse];
+    6 -> 3 [penwidth=1,color=black];
+    6 -> 4 [penwidth=1,color=black];
     6 -> 5 [penwidth=1,color=black];
-    6 -> 15 [penwidth=1
-            ,color=black];
-    7 -> 3 [penwidth=1,color=black];
-    7 -> 9 [penwidth=1,color=black];
-    7 -> 11 [penwidth=1
-            ,color=black];
-    7 -> 14 [penwidth=1
-            ,color=black];
-    9 -> 2 [penwidth=1
-           ,color=magenta
-           ,arrowtail=odot
-           ,arrowhead=vee];
-    10 -> 6 [penwidth=1
-            ,color=black];
-    10 -> 7 [penwidth=1
-            ,color=black];
-    10 -> 8 [penwidth=1
-            ,color=black];
-    11 -> 2 [penwidth=1
-            ,color=magenta
-            ,arrowtail=odot
-            ,arrowhead=vee];
-    12 -> 2 [penwidth=1
-            ,color=magenta
-            ,arrowtail=odot
-            ,arrowhead=vee];
-    13 -> 2 [penwidth=1
-            ,color=magenta
-            ,arrowtail=odot
-            ,arrowhead=vee];
-    14 -> 2 [penwidth=1
-            ,color=magenta
-            ,arrowtail=odot
-            ,arrowhead=vee];
-    15 -> 3 [penwidth=1
-            ,color=black];
-    15 -> 11 [penwidth=1
-             ,color=black];
-    15 -> 12 [penwidth=1
-             ,color=black];
-    15 -> 13 [penwidth=1
-             ,color=black];
 }

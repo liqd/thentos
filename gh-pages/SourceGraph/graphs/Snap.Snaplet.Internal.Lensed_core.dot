@@ -1,0 +1,225 @@
+digraph "Core of Snap.Snaplet.Internal.Lensed" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Alternative {
+        graph [label="Class: Alternative"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Alternative_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label="<|>"
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            9 [label=empty
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        32 [label="Unknown Module\n<|>"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        37 [label="Unknown Module\nempty"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Monad {
+        graph [label="Class: Monad"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Monad_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            25 [label=return
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        48 [label="Unknown Module\nreturn"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadCatchIO {
+        graph [label="Class: MonadCatchIO"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadCatchIO_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=block
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            7 [label=catch
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            27 [label=unblock
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        35 [label="Unknown Module\nblock"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        36 [label="Unknown Module\ncatch"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        49 [label="Unknown Module\nunblock"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadIO {
+        graph [label="Class: MonadIO"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadIO_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            17 [label=liftIO
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        41 [label="Unknown Module\nliftIO"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadPlus {
+        graph [label="Class: MonadPlus"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadPlus_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            21 [label=mplus
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            22 [label=mzero
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        44 [label="Unknown Module\nmplus"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        45 [label="Unknown Module\nmzero"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadSnap {
+        graph [label="Class: MonadSnap"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadSnap_Data_Lensedbvm {
+            graph [label="Instance for: (Lensed b v m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            18 [label=liftSnap
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        42 [label="Unknown Module\nliftSnap"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MonadTrans {
+        graph [label="Class: MonadTrans"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadTrans_Data_Lensedbv {
+            graph [label="Instance for: (Lensed b v)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            16 [label=lift
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        40 [label="Unknown Module\nlift"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    2 -> 32 [penwidth=1
+            ,color=black];
+    6 -> 35 [penwidth=1
+            ,color=black];
+    7 -> 36 [penwidth=1
+            ,color=black];
+    9 -> 37 [penwidth=1
+            ,color=black];
+    9 -> 40 [penwidth=1
+            ,color=black];
+    16 -> 48 [penwidth=1
+             ,color=black];
+    17 -> 40 [penwidth=1
+             ,color=black];
+    17 -> 41 [penwidth=1
+             ,color=black];
+    18 -> 40 [penwidth=1
+             ,color=black];
+    18 -> 42 [penwidth=1
+             ,color=black];
+    21 -> 44 [penwidth=1
+             ,color=black];
+    22 -> 40 [penwidth=1
+             ,color=black];
+    22 -> 45 [penwidth=1
+             ,color=black];
+    25 -> 48 [penwidth=1
+             ,color=black];
+    27 -> 49 [penwidth=1
+             ,color=black];
+    32 -> 2 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    35 -> 6 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    36 -> 7 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    37 -> 9 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    40 -> 16 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    41 -> 17 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    42 -> 18 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    44 -> 21 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    45 -> 22 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 25 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 27 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

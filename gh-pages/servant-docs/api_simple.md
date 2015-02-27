@@ -1,58 +1,10 @@
-GET `session/:token`
+PUT `user/:uid/name`
 ====================
 
 Captures
 --------
 
--   *“token”*: Session Token
-
-Response
---------
-
--   Status code 200
--   Response body at below
-    ``` {.javascript}
-    true
-    ```
-
-GET `user/:userid/email`
-========================
-
-Captures
---------
-
--   *“userid”*: User ID
-
-Response
---------
-
--   Status code 200
--   Response body at below
-    ``` {.javascript}
-    "cobain@nirvana.com"
-    ```
-
-DELETE `user/:userid`
-=====================
-
-Captures
---------
-
--   *“userid”*: User ID
-
-Response
---------
-
--   Status code 204
--   No response body
-
-PUT `user/:userid/name`
-=======================
-
-Captures
---------
-
--   *“userid”*: User ID
+-   *“uid”*: User ID
 
 Request Body
 ------------
@@ -70,13 +22,79 @@ Response
     []
     ```
 
-DELETE `session/:token`
-=======================
+GET `session/:sid`
+==================
 
 Captures
 --------
 
--   *“token”*: Session Token
+-   *“sid”*: Service ID
+
+Request Body
+------------
+
+``` {.javascript}
+{
+    "fromSessionToken": "abde1234llkjh"
+}
+```
+
+Response
+--------
+
+-   Status code 200
+-   Response body at below
+    ``` {.javascript}
+    true
+    ```
+
+GET `user/:uid/email`
+=====================
+
+Captures
+--------
+
+-   *“uid”*: User ID
+
+Response
+--------
+
+-   Status code 200
+-   Response body at below
+    ``` {.javascript}
+    "cobain@nirvana.com"
+    ```
+
+DELETE `session/:sid`
+=====================
+
+Captures
+--------
+
+-   *“sid”*: Service ID
+
+Request Body
+------------
+
+``` {.javascript}
+{
+    "fromSessionToken": "abde1234llkjh"
+}
+```
+
+Response
+--------
+
+-   Status code 204
+-   No response body
+
+DELETE `user/:uid`
+==================
+
+Captures
+--------
+
+-   *“uid”*: User ID
 
 Response
 --------
@@ -93,35 +111,20 @@ Response
 -   Status code 200
 -   No response body
 
-GET `session/:token/login/:sid`
-===============================
+POST `session/:sid`
+===================
 
 Captures
 --------
 
--   *“token”*: Session Token
 -   *“sid”*: Service ID
-
-Response
---------
-
--   Status code 200
--   Response body at below
-    ``` {.javascript}
-    true
-    ```
-
-POST `user`
-===========
 
 Request Body
 ------------
 
 ``` {.javascript}
 {
-    "udEmail": "cobain@nirvana.com",
-    "udName": "Kurt Cobain",
-    "udPassword": "[password hidden]"
+    "fromSessionToken": "abde1234llkjh"
 }
 ```
 
@@ -131,43 +134,20 @@ Response
 -   Status code 201
 -   Response body at below
     ``` {.javascript}
-    12
+    []
     ```
 
-GET `user/:userid/name`
-=======================
+DELETE `session`
+================
 
-Captures
---------
+Request Body
+------------
 
--   *“userid”*: User ID
-
-Response
---------
-
--   Status code 200
--   Response body at below
-    ``` {.javascript}
-    "Kurt Cobain"
-    ```
-
-POST `service`
-==============
-
-Response
---------
-
--   Status code 201
--   No response body
-
-DELETE `session/:token/login/:sid`
-==================================
-
-Captures
---------
-
--   *“token”*: Session Token
--   *“sid”*: Service ID
+``` {.javascript}
+{
+    "fromSessionToken": "abde1234llkjh"
+}
+```
 
 Response
 --------
@@ -175,13 +155,13 @@ Response
 -   Status code 204
 -   No response body
 
-PUT `user/:userid/email`
-========================
+PUT `user/:uid/email`
+=====================
 
 Captures
 --------
 
--   *“userid”*: User ID
+-   *“uid”*: User ID
 
 Request Body
 ------------
@@ -197,6 +177,90 @@ Response
 -   Response body at below
     ``` {.javascript}
     []
+    ```
+
+DELETE `service/:sid`
+=====================
+
+Captures
+--------
+
+-   *“sid”*: Service ID
+
+Response
+--------
+
+-   Status code 204
+-   No response body
+
+POST `user`
+===========
+
+Request Body
+------------
+
+``` {.javascript}
+{
+    "udEmail": "cobain@nirvana.com",
+    "udName": "Kurt Cobain",
+    "udPassword": "Hunter2"
+}
+```
+
+Response
+--------
+
+-   Status code 201
+-   Response body at below
+    ``` {.javascript}
+    12
+    ```
+
+POST `service`
+==============
+
+Response
+--------
+
+-   Status code 201
+-   No response body
+
+GET `session`
+=============
+
+Request Body
+------------
+
+``` {.javascript}
+{
+    "fromSessionToken": "abde1234llkjh"
+}
+```
+
+Response
+--------
+
+-   Status code 200
+-   Response body at below
+    ``` {.javascript}
+    true
+    ```
+
+GET `user/:uid/name`
+====================
+
+Captures
+--------
+
+-   *“uid”*: User ID
+
+Response
+--------
+
+-   Status code 200
+-   Response body at below
+    ``` {.javascript}
+    "Kurt Cobain"
     ```
 
 GET `user`
@@ -225,27 +289,13 @@ Response
 -   Response body at below
     ``` {.javascript}
     [
-        "23t92ege0n",
-        "f4ghwgegin0"
+        {
+            "fromServiceId": "23t92ege0n"
+        },
+        {
+            "fromServiceId": "f4ghwgegin0"
+        }
     ]
-    ```
-
-POST `session/:token/login/:sid`
-================================
-
-Captures
---------
-
--   *“token”*: Session Token
--   *“sid”*: Service ID
-
-Response
---------
-
--   Status code 201
--   Response body at below
-    ``` {.javascript}
-    []
     ```
 
 POST `session`
@@ -255,7 +305,10 @@ Request Body
 ------------
 
 ``` {.javascript}
-12
+[
+    12,
+    "geheim"
+]
 ```
 
 Response
@@ -264,6 +317,8 @@ Response
 -   Status code 201
 -   Response body at below
     ``` {.javascript}
-    "abde1234llkjh"
+    {
+        "fromSessionToken": "abde1234llkjh"
+    }
     ```
 

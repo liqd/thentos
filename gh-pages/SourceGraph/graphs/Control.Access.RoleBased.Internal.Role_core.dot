@@ -1,0 +1,78 @@
+digraph "Core of Control.Access.RoleBased.Internal.Role" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Hashable {
+        graph [label="Class: Hashable"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Hashable_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            23 [label=hashWithSalt
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Hashable_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            24 [label=hashWithSalt
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        27 [label="Unknown Module\nhashWithSalt"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_IsString {
+        graph [label="Class: IsString"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_IsString_Data_Role {
+            graph [label="Instance for: Role"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            21 [label=fromString
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_IsString_Data_RoleValue {
+            graph [label="Instance for: RoleValue"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            22 [label=fromString
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        26 [label="Unknown Module\nfromString"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    21 -> 26 [penwidth=1
+             ,color=black];
+    22 -> 26 [penwidth=1
+             ,color=black];
+    23 -> 27 [penwidth=1.6931471805599454
+             ,color=black];
+    24 -> 27 [penwidth=3.0794415416798357
+             ,color=black];
+    26 -> 21 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    26 -> 22 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    27 -> 23 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    27 -> 24 [penwidth=2.386294361119891
+             ,color=navy
+             ,dir=none];
+}

@@ -1,0 +1,39 @@
+digraph "Diagram of: Blackbox.BarSnaplet" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_BarSnaplet {
+        graph [label="Data: BarSnaplet"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=BarSnaplet
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=_barField
+          ,shape=component
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=fooLens
+          ,shape=component
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    3 [label=barInit
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=barsplice
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+    3 -> 1 [penwidth=1,color=black];
+    3 -> 4 [penwidth=1,color=black];
+    5 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+}

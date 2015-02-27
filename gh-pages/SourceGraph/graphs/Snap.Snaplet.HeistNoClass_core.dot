@@ -1,0 +1,27 @@
+digraph "Core of Snap.Snaplet.HeistNoClass" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_MonadSnap {
+        graph [label="Class: MonadSnap"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadSnap_Data_HeistTnm {
+            graph [label="Instance for: (HeistT n m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            25 [label=liftSnap
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        38 [label="Unknown Module\nliftSnap"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    25 -> 38 [penwidth=1
+             ,color=chartreuse];
+    38 -> 25 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

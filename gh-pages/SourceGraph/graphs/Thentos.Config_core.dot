@@ -9,19 +9,19 @@ digraph "Core of Thentos.Config" {
             graph [label="Instance for: ThentosConfigBuilder"
                   ,style="filled,rounded"
                   ,fillcolor=slategray1];
-            52 [label=mempty
+            54 [label=mempty
                ,shape=octagon
                ,fillcolor=bisque
                ,style="filled,bold"];
         }
-        66 [label="Unknown Module\nmempty"
+        72 [label="Unknown Module\nmempty"
            ,shape=doubleoctagon
            ,fillcolor=khaki
            ,style="filled,dotted"];
     }
-    52 -> 66 [penwidth=2.09861228866811
+    54 -> 72 [penwidth=2.386294361119891
              ,color=black];
-    66 -> 52 [penwidth=1
+    72 -> 54 [penwidth=1
              ,color=navy
              ,dir=none];
 }

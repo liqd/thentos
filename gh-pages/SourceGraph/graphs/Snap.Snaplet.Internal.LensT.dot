@@ -1,0 +1,102 @@
+digraph "Diagram of: Snap.Snaplet.Internal.LensT" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_MonadState {
+        graph [label="Class: MonadState"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MonadState_Data_vLensTbvbm {
+            graph [label="Instance for: v (LensT b v b m)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label=get
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            6 [label=put
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        12 [label="Unknown Module\nget"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+        13 [label="Unknown Module\nput"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Data_LensT {
+        graph [label="Data: LensT"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=LensT
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    3 [label=getBase
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=lGet
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    5 [label=lPut
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    7 [label=putBase
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    8 [label=runLensT
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    9 [label=with
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    10 [label=withLensT
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    11 [label=withTop
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    2 -> 4 [penwidth=1
+           ,color=chartreuse];
+    3 -> 1 [penwidth=1,color=black];
+    3 -> 12 [penwidth=1
+            ,color=black];
+    4 -> 1 [penwidth=1,color=black];
+    4 -> 12 [penwidth=1
+            ,color=black];
+    5 -> 1 [penwidth=1,color=black];
+    5 -> 12 [penwidth=1
+            ,color=black];
+    5 -> 13 [penwidth=1
+            ,color=black];
+    6 -> 5 [penwidth=1
+           ,color=chartreuse];
+    7 -> 1 [penwidth=1,color=black];
+    7 -> 13 [penwidth=1
+            ,color=black];
+    8 -> 1 [penwidth=1,color=black];
+    9 -> 10 [penwidth=1
+            ,color=black];
+    10 -> 1 [penwidth=1.6931471805599454
+            ,color=black];
+    11 -> 10 [penwidth=1
+             ,color=black];
+    12 -> 2 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    13 -> 6 [penwidth=1
+            ,color=navy
+            ,dir=none];
+}

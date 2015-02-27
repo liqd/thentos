@@ -1,0 +1,77 @@
+digraph "Core of Snap.Snaplet.Auth.AuthManager" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_IAuthBackend {
+        graph [label="Class: IAuthBackend"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_IAuthBackend_Data_AuthManagerb {
+            graph [label="Instance for: (AuthManager b)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=destroy
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            9 [label=lookupByLogin
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+            11 [label=lookupByRememberToken
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            13 [label=lookupByUserId
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+            19 [label=save
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        5 [label=destroy
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label=lookupByLogin
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        10 [label=lookupByRememberToken
+           ,shape=doubleoctagon
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        12 [label=lookupByUserId
+           ,shape=doubleoctagon
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        18 [label=save
+           ,shape=doubleoctagon
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    5 -> 6 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    6 -> 5 [penwidth=1,color=black];
+    8 -> 9 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    9 -> 8 [penwidth=1,color=black];
+    10 -> 11 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    11 -> 10 [penwidth=1
+             ,color=black];
+    12 -> 13 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    13 -> 12 [penwidth=1
+             ,color=black];
+    18 -> 19 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    19 -> 18 [penwidth=1
+             ,color=black];
+}
