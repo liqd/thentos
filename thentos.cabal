@@ -1,6 +1,6 @@
 name:                thentos
 version:             0.0.1
-synopsis:            Privacy-preserving identity management on the web
+synopsis:            The swiss army knife of privacy-preserving identity management
 description:
   This is an experimental platform for identity management in web
   applications, inspired by software like shibboleth and sproxy.  See

@@ -1,5 +1,5 @@
-Thentos: Privacy-Preserving Identity Management
-===============================================
+Thentos: The swiss army knife of privacy-preserving identity management
+=======================================================================
 
 Warning
 -------
