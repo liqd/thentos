@@ -94,7 +94,7 @@ getRqMod req = do
 
     hdrs <- do
         (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
-            lookupRequestHeader req "X-Thentos-Session"
+            lookupRequestHeader req ThentosHeaderSession
         (_, user) <- case session ^. sessionAgent of
             UserA uid  -> queryAction $ LookupUser uid
             ServiceA _ -> lift $ left NoSuchUser
@@ -105,7 +105,7 @@ getRqMod req = do
                 []
         return newHdrs
 
-    sid <- case lookupRequestHeader req "X-Thentos-Service" of
+    sid <- case lookupRequestHeader req ThentosHeaderService of
             Just s  -> return $ ServiceId s
             Nothing -> lift $ left MissingServiceHeader
 

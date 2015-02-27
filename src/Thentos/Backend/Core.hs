@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                                #-}
+{-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
@@ -20,18 +21,24 @@ module Thentos.Backend.Core
 where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent.MVar (MVar)
 import Control.Exception (assert)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
-import Data.CaseInsensitive (CI)
+import Crypto.Random (SystemRNG)
+import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
+import Data.Char (isUpper)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
+import Data.Typeable (Typeable)
+import Network.HTTP.Types (Header)
 import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
+import Servant.Server (HasServer, Server, route)
 
-import Control.Concurrent.MVar (MVar)
-import Crypto.Random (SystemRNG)
+import qualified Data.ByteString.Char8 as SBS
 
 import Thentos.Api
 import Thentos.Types
@@ -41,10 +48,6 @@ type RestAction      = Action (MVar SystemRNG)
 type RestActionState = ActionState (MVar SystemRNG)
 type RestActionRaw   = EitherT RestError IO
 type RestError       = (Int, String)
-
-
-lookupRequestHeader :: Request -> CI SBS -> Maybe ST
-lookupRequestHeader req key = lookup key (requestHeaders req) >>= either (const Nothing) Just . decodeUtf8'
 
 
 -- | This is a work-around: The 'Server' type family terminates in
@@ -93,3 +96,53 @@ fmapLTM trans e = EitherT $ do
     case result of
         Right r -> return $ Right r
         Left l -> Left <$> trans l
+
+
+-- * header invariant
+
+data ThentosHeaderName =
+    ThentosHeaderSession
+  | ThentosHeaderService
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
+
+renderThentosHeaderName :: ThentosHeaderName -> CI SBS
+renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
+    (_, s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
+
+    -- (oddness: it would be strictly better to use the pattern
+    -- @("ThentosHeader", s)@ here: if "ThentosHeader" does not match,
+    -- we *want* this to crash, but we are pretty confident that it
+    -- won't.  but if we do not use an @_@ here, we get an
+    -- unmatched-pattern warning.)
+
+  where
+    dashify ""    = ""
+    dashify (h:t) = if isUpper h
+        then '-' : h : dashify t
+        else       h : dashify t
+
+assertSoundHeadersHelper :: [Header] -> Bool
+assertSoundHeadersHelper = null . badHeadersHelper
+
+badHeadersHelper :: [Header] -> [Header]
+badHeadersHelper = filter g . filter f
+  where
+    f (k, _) = foldCase "X-Thentos-" `SBS.isPrefixOf` foldedCase k
+    g (k, _) = not $ k `elem` map renderThentosHeaderName [minBound..]
+
+lookupRequestHeader :: Request -> ThentosHeaderName -> Maybe ST
+lookupRequestHeader req key =
+          lookup (renderThentosHeaderName key) (requestHeaders req)
+      >>= either (const Nothing) Just . decodeUtf8'
+
+data ThentosAssertHeaders layout = ThentosAssertHeaders layout
+
+instance ( HasServer sublayout ) => HasServer (ThentosAssertHeaders sublayout)
+  where
+    type Server (ThentosAssertHeaders sublayout) = Server sublayout
+
+    route Proxy subserver request respond =
+        case badHeadersHelper (requestHeaders request) of
+            []  -> route (Proxy :: Proxy sublayout) subserver request respond
+            bad -> error $ "ThentosAssertHeaders: " ++ show bad
+                  -- FIXME: wait for better error support in servant?

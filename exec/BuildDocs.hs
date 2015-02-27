@@ -28,6 +28,7 @@ import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, def)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Servant.Docs as Docs
 
+import Thentos.Backend.Core
 import Thentos.Types
 
 import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
@@ -82,6 +83,9 @@ xsystem cmd = do
 
 
 instance HasDocs sublayout => HasDocs (Simple.ThentosAuth sublayout) where
+    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+instance HasDocs sublayout => HasDocs (ThentosAssertHeaders sublayout) where
     docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 

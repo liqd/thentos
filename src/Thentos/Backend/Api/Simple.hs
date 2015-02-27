@@ -32,7 +32,8 @@ import Servant.Server (serve)
 
 import Thentos.Api
 import Thentos.Backend.Api.Proxy
-import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction, lookupRequestHeader)
+import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction)
+import Thentos.Backend.Core (ThentosAssertHeaders, ThentosHeaderName(..), lookupRequestHeader)
 import Thentos.DB
 import Thentos.Types
 import Thentos.Util
@@ -48,7 +49,7 @@ serveApi = serve (Proxy :: Proxy App) . app
 
 -- * the application
 
-type App = ThentosAuth ThentosBasic
+type App = ThentosAssertHeaders (ThentosAuth ThentosBasic)
 
 app :: ActionStateGlobal (MVar SystemRNG) -> Server App
 app asg = ThentosAuth asg thentosBasic
@@ -87,7 +88,7 @@ instance ( PushActionC (Server sublayout)
       where
         routingState :: RestActionState
         routingState = ( asg
-                       , makeThentosClearance $ lookupRequestHeader request "X-Thentos-Session"
+                       , makeThentosClearance $ lookupRequestHeader request ThentosHeaderSession
                        )
 
 

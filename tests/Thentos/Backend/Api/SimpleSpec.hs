@@ -19,8 +19,8 @@ where
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
-import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
+import Network.Wai.Test (srequest, simpleStatus, simpleBody, runSession)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldThrow, anyException, pendingWith, hspec)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
@@ -36,6 +36,16 @@ tests = hspec spec
 spec :: Spec
 spec = do
     describe "Thentos.Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
+        describe "headers" $ do
+            it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
+                    \ (_, testServer, _, godCredentials) -> debugRunSession False testServer $ do
+                let req = makeSRequest "GET" "/" (godCredentials ++ [("X-Thentos-No-Such-Header", "3")]) ""
+                liftIO $ runSession (srequest req) testServer `shouldThrow` anyException
+
+                -- (sending 500 errors for user mistakes is not ideal,
+                -- but the error reporting functionality of servant is
+                -- still evolving.)
+
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $
