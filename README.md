@@ -158,7 +158,7 @@ Further Reading
 
     An incomplete list of related software projects.
 
-- Generated Thentos documentation (may be out of sync):
+- Generated Thentos documentation (version 0.0.1):
     - [servant-docs](https://liqd.github.io/thentos/gh-pages/servant-docs/)
     - [haddock](https://liqd.github.io/thentos/gh-pages/haddock/)
     - [SourceGraph](https://liqd.github.io/thentos/gh-pages/SourceGraph/thentos.html)
