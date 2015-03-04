@@ -30,22 +30,27 @@ main = do
     Just sessToken <- getSessionToken defaultBenchmarkConfig
     runSignupBench sessToken
     runLoginBench sessToken
+    runCheckTokenBench sessToken
 
 runSignupBench :: SessionToken -> IO ()
 runSignupBench sessionToken = do
     gen <- newStdGen
     let conf = pronkConfig $ mkSignupGens gen sessionToken
-    runBench conf
+    runBench "Signup Benchmark" conf
 
 runLoginBench :: SessionToken -> IO ()
 runLoginBench sessionToken = do
     conf <- pronkConfig `fmap` mkLoginGens sessionToken
-    runBench conf
+    runBench "Login Benchmark" conf
 
-runBench :: Pronk.Config -> IO ()
-runBench conf = do
-    (Right summaryVector, time) <- Pronk.timed "foo" $ Pronk.run conf
-    print time
+runCheckTokenBench :: SessionToken -> IO ()
+runCheckTokenBench sessionToken = do
+    let conf = pronkConfig (repeat $ sessionCheckGen sessionToken)
+    runBench "Session-check Benchmark" conf
+
+runBench :: T.Text -> Pronk.Config -> IO ()
+runBench benchmarkName conf = do
+    (Right summaryVector, time) <- Pronk.timed benchmarkName $ Pronk.run conf
     Pronk.reportBasic stdout $ Pronk.analyseBasic summaryVector time
 
 pronkConfig :: [Pronk.RequestGenerator] -> Pronk.Config
@@ -145,7 +150,7 @@ loginGenTrans (MachineState uid loginState) =
     logoutReq tok =
         (makeRequest (Just tok) defaultBenchmarkConfig "/session")
             { method = methodDelete
-            , requestBody = RequestBodyLBS (encode tok)
+            , requestBody = RequestBodyLBS $ encode tok
             }
 
 mkLoginGens :: SessionToken -> IO [Pronk.RequestGenerator]
@@ -168,3 +173,10 @@ mkLoginGens sessionToken = do
         withManager $ \m -> do
             resp <- httpLbs req m
             return $ decode (responseBody resp)
+
+-- checking session tokens
+sessionCheckGen :: SessionToken -> Pronk.RequestGenerator
+sessionCheckGen sessionToken = Pronk.RequestGeneratorConstant $ Req req
+  where
+    req = (makeRequest (Just sessionToken) defaultBenchmarkConfig "/session")
+            {requestBody = RequestBodyLBS $ encode sessionToken }
