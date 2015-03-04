@@ -393,6 +393,13 @@ lookupSessionWithMaybeService mSid mNow tok = do
 -- user, return the existing token again, and store new session under
 -- it.  If agent is a user, remove all her logins (even if session
 -- already exists).
+--
+-- FUTURE WORK: Alternatives (not sure which it is we really want):
+-- (1) do not allow to login twice, and respond with an error if
+-- somebody tries (probably too disruptive); (2) allow for multiple
+-- logins, but create a new session token for each (one difference is
+-- that this does not bump logins on all devices a user may log in
+-- from); (3) ... (probably).
 trans_startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
 trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
