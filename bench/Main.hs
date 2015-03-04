@@ -4,7 +4,7 @@ module Main (main) where
 
 import Data.Aeson (encode, decode)
 import Data.List (unfoldr)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text.Encoding (encodeUtf8)
 
@@ -35,17 +35,18 @@ runSignupBench :: SessionToken -> IO ()
 runSignupBench sessionToken = do
     gen <- newStdGen
     let conf = pronkConfig $ mkSignupGens gen sessionToken
-    (Right summaryVector, time) <- Pronk.timed "foo" $ Pronk.run conf
-    print time
-    Pronk.reportBasic stdout $ Pronk.analyseBasic summaryVector time
+    runBench conf
 
 runLoginBench :: SessionToken -> IO ()
 runLoginBench sessionToken = do
     conf <- pronkConfig `fmap` mkLoginGens sessionToken
+    runBench conf
+
+runBench :: Pronk.Config -> IO ()
+runBench conf = do
     (Right summaryVector, time) <- Pronk.timed "foo" $ Pronk.run conf
     print time
     Pronk.reportBasic stdout $ Pronk.analyseBasic summaryVector time
-    
 
 pronkConfig :: [Pronk.RequestGenerator] -> Pronk.Config
 pronkConfig reqs = Pronk.Config {
@@ -74,7 +75,6 @@ getSessionToken conf = do
     withManager $ \m -> do
             resp <- httpLbs req m
             return $ decode (responseBody resp)
-    
 
 makeRequest :: Maybe SessionToken -> BenchmarkConfig -> String -> Request
 makeRequest mSession conf endpoint =
@@ -132,9 +132,7 @@ loginGenTrans (MachineState uid loginState) =
     login = (loginReq, loginCont)
     loginCont resp =
         let sessionToken = decode $ responseBody resp in
-        LoggedIn $ case sessionToken of
-                    Just token -> token
-                    Nothing -> error "Got no response code"
+        LoggedIn $ fromMaybe (error "Got no session token") sessionToken
 
     loginReq =
         (makeRequest Nothing defaultBenchmarkConfig "/session")
@@ -152,7 +150,8 @@ loginGenTrans (MachineState uid loginState) =
 
 mkLoginGens :: SessionToken -> IO [Pronk.RequestGenerator]
 mkLoginGens sessionToken = do
-    uids <- fromJust `fmap` getUIDs
+    Just uids <- getUIDs
+    -- take out god user so all users have the same password
     let uids' = filter (\(UserId n) -> n /= 0) uids
     return . cycle $ map makeGenerator uids'
   where
