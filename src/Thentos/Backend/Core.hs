@@ -107,14 +107,8 @@ data ThentosHeaderName =
 
 renderThentosHeaderName :: ThentosHeaderName -> CI SBS
 renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
-    (_, s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
-
-    -- (oddness: it would be strictly better to use the pattern
-    -- @("ThentosHeader", s)@ here: if "ThentosHeader" does not match,
-    -- we *want* this to crash, but we are pretty confident that it
-    -- won't.  but if we do not use an @_@ here, we get an
-    -- unmatched-pattern warning.)
-
+    ("ThentosHeader", s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
+    bad -> error $ "renderThentosHeaderName: bad prefix (left side) in " ++ show bad
   where
     dashify ""    = ""
     dashify (h:t) = if isUpper h
