@@ -169,9 +169,13 @@ pure_lookupUserByEmail db email =
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
     let label = thentosPublic
-    uid <- freshUserId
-    modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
-    returnDb label (uid, token)
+    db <- get
+    if (emailAddressExists (user ^. userEmail) db)
+        then throwDb label UserEmailAlreadyExists
+        else do
+            uid <- freshUserId
+            modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
+            returnDb label (uid, token)
 
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
@@ -607,6 +611,11 @@ trans_snapShot :: ThentosQuery DB
 trans_snapShot = do
     let label = RoleAdmin =%% False
     ask >>= returnDb label
+
+emailAddressExists :: UserEmail -> DB -> Bool
+emailAddressExists address db =
+    let userEmails = map (^. userEmail) . Map.elems $ db ^. dbUsers in
+    address `elem` userEmails
 
 
 -- * event types

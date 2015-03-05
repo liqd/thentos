@@ -10,6 +10,7 @@ module Thentos.Frontend.Pages
     , serviceAddedPage
     , loginPage
     , loginForm
+    , emailSentPage
     , errorPage
 ) where
 
@@ -119,6 +120,9 @@ loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+emailSentPage :: Html
+emailSentPage = H.string $ "Please check your email"
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString

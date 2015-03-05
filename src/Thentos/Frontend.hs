@@ -34,9 +34,9 @@ import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Config
 import Thentos.DB
-import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage)
+import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage, emailSentPage)
 import Thentos.Frontend.Util (serveSnaplet)
-import Thentos.Smtp (sendUserConfirmationMail)
+import Thentos.Smtp (sendUserConfirmationMail, sendUserExistsMail)
 import Thentos.Types
 import Thentos.Util
 
@@ -93,7 +93,11 @@ userAddHandler = do
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token=" <> urlEncode (encodeUtf8 token)
                     liftIO $ sendUserConfirmationMail (smtpConfig config) user url
-                    blaze "Please check your email!"
+                    blaze emailSentPage
+                Left UserEmailAlreadyExists -> do
+                    config :: ThentosConfig <- gets (^. cfg)
+                    liftIO $ sendUserExistsMail (smtpConfig config) (udEmail user)
+                    blaze emailSentPage
                 Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
