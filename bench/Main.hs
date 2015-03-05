@@ -175,6 +175,9 @@ mkLoginGens sessionToken = do
             return $ decode (responseBody resp)
 
 -- checking session tokens
+-- This is an intentionally trivial benchmark that is supposed to give
+-- us a performance baseline by measuring mostly overhead (routing, json
+-- decoding etc.)
 sessionCheckGen :: SessionToken -> Pronk.RequestGenerator
 sessionCheckGen sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
