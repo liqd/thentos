@@ -112,7 +112,7 @@ dbInvUserAspectUnique errorMsg uid user toAspect db =
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
 
 
 -- ** smart accessors

@@ -47,6 +47,7 @@ data DB =
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]
+      , _dbPwResetTokens    :: Map PasswordResetToken (UserId, User)
       , _dbFreshUserId      :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -97,6 +98,9 @@ newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype PasswordResetToken = PasswordResetToken { fromPwResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 -- | Information required to create a new User
@@ -329,6 +333,7 @@ $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
+$(deriveSafeCopy 0 'base ''PasswordResetToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''Agent)

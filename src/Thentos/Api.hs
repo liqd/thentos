@@ -20,6 +20,7 @@ module Thentos.Api
   , updateAction
   , queryAction
   , addUnconfirmedUser
+  , freshPasswordResetToken
   , addService
   , startSessionUser
   , startSessionService
@@ -176,6 +177,9 @@ freshSessionToken = SessionToken <$> freshRandomName
 
 freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
+
+freshPasswordResetToken :: CPRG r => Action (MVar r) PasswordResetToken
+freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 
 -- ** users
