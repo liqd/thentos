@@ -51,7 +51,7 @@ data ThentosConfig = ThentosConfig
     , smtpConfig :: SmtpConfig
     , defaultUser :: Maybe (UserFormData, [Role])
     }
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data BackendConfig = BackendConfig { backendPort :: Int }
   deriving (Eq, Show)
@@ -203,7 +203,7 @@ parseCommandBuilder = execParser opts
     opts = info parser mempty
 
 data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data CommandBuilder =
     BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB

@@ -6,7 +6,7 @@ module Thentos.Smtp
 ) where
 
 import Data.Monoid ((<>))
-import Data.String.Conversions (cs, ST, LT)
+import Data.String.Conversions (ST, LT)
 import Network.Mail.Mime (Address(Address), renderSendMailCustom, simpleMail')
 import System.Log (Priority(DEBUG))
 
@@ -16,7 +16,7 @@ import Thentos.Types
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> LT -> IO ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
-    logger DEBUG $ "sending user-create-confirm mail: " ++ show user ++ " " ++ cs callbackUrl
+    logger DEBUG $ "sending user-create-confirm mail: " ++ show (udEmail user) -- ++ " " ++ cs callbackUrl
     sendMail smtpConfig subject message (udEmail user)
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."

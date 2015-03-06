@@ -126,10 +126,10 @@ instance FromJSON a => FromJSON (A3Resource a) where
 -- ** individual resources
 
 newtype A3UserNoPass = A3UserNoPass { fromA3UserNoPass :: UserFormData }
-  deriving (Eq, Show, Typeable, Generic)
+  deriving (Eq, Typeable, Generic)
 
 newtype A3UserWithPass = A3UserWithPass { fromA3UserWithPass :: UserFormData }
-  deriving (Eq, Show, Typeable, Generic)
+  deriving (Eq, Typeable, Generic)
 
 instance ToJSON A3UserNoPass where
     toJSON (A3UserNoPass user) = a3UserToJSON False user
@@ -208,7 +208,7 @@ data ActivationRequest =
 data LoginRequest =
     LoginByName UserName UserPass
   | LoginByEmail UserEmail UserPass
-  deriving (Eq, Show, Typeable, Generic)
+  deriving (Eq, Typeable, Generic)
 
 data RequestResult =
     RequestSuccess Path SessionToken
@@ -318,7 +318,7 @@ activate (ActivationRequest p) = logActionError $ do
 -- | FIXME: check password!
 login :: LoginRequest -> RestAction RequestResult
 login r = logActionError $ do
-    logger DEBUG $ "route login:" <> show r
+    -- logger DEBUG $ "route login:" <> show r
     (uid, _) <- case r of
         LoginByName  uname _  -> queryAction $ LookupUserByName  uname
         LoginByEmail uemail _ -> queryAction $ LookupUserByEmail uemail

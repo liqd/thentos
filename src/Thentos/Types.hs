@@ -81,7 +81,7 @@ newtype UserName = UserName { fromUserName :: ST }
 -- don't do any half-assed rendering to "[password hidden]".  causes
 -- too many confusing errors.
 newtype UserPass = UserPass { fromUserPass :: ST }
-    deriving (Eq, Show, FromJSON, ToJSON, Typeable, Generic, IsString)
+    deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
 newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
@@ -106,7 +106,7 @@ data UserFormData =
         , udPassword :: !UserPass
         , udEmail    :: !UserEmail
         }
-    deriving (Eq, Show, Typeable, Generic)
+    deriving (Eq, Typeable, Generic)
 
 instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
