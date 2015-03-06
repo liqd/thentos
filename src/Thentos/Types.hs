@@ -47,6 +47,7 @@ data DB =
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]
+      , _dbPwResetTokens    :: Map PasswordResetToken (TimeStamp, UserId)
       , _dbFreshUserId      :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -97,6 +98,9 @@ newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype PasswordResetToken = PasswordResetToken { fromPwResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 -- | Information required to create a new User
@@ -285,6 +289,8 @@ data ThentosError =
     | ProxyNotAvailable
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
+    | NoSuchResetToken
+    | ResetTokenExpired
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -310,6 +316,8 @@ showThentosError BadAuthenticationHeaders             = return (400, "bad authen
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
+showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
+showThentosError (ResetTokenExpired)                  = return (404, "reset token expired")
 
 
 -- * boilerplate
@@ -329,6 +337,7 @@ $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
+$(deriveSafeCopy 0 'base ''PasswordResetToken)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''Agent)

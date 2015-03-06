@@ -20,6 +20,8 @@ module Thentos.Api
   , updateAction
   , queryAction
   , addUnconfirmedUser
+  , addPasswordResetToken
+  , resetPassword
   , addService
   , startSessionUser
   , startSessionService
@@ -177,6 +179,9 @@ freshSessionToken = SessionToken <$> freshRandomName
 freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
+freshPasswordResetToken :: CPRG r => Action (MVar r) PasswordResetToken
+freshPasswordResetToken = PasswordResetToken <$> freshRandomName
+
 
 -- ** users
 
@@ -185,6 +190,19 @@ addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
     user <- makeUserFromFormData userData
     updateAction $ AddUnconfirmedUser tok user
+
+addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
+addPasswordResetToken email = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    tok <- freshPasswordResetToken
+    user <- updateAction $ AddPasswordResetToken now email tok
+    return (user, tok)
+
+resetPassword :: PasswordResetToken -> UserPass -> Action r ()
+resetPassword token password = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    hashedPassword <- hashUserPass password
+    updateAction $ ResetPassword now token hashedPassword
 
 
 -- ** services

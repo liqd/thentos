@@ -26,6 +26,8 @@ module Thentos.DB.Trans
   , UpdateUser(..), trans_updateUser
   , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
   , DeleteUser(..), trans_deleteUser
+  , AddPasswordResetToken(..), trans_addPasswordResetToken
+  , ResetPassword(..), trans_resetPassword
 
   , AllServiceIds(..), trans_allServiceIds
   , LookupService(..), trans_lookupService
@@ -70,6 +72,7 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (find, (\\))
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
+import Data.Thyme.Time ()
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 
@@ -112,7 +115,7 @@ dbInvUserAspectUnique errorMsg uid user toAspect db =
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
 
 
 -- ** smart accessors
@@ -209,6 +212,42 @@ trans_addUsers (u:us) = do
     ThentosLabeled l  uid  <- trans_addUser  u
     ThentosLabeled l' uids <- trans_addUsers us
     returnDb (lub l l') (uid:uids)
+
+-- | Add a password reset token to the DB. Return the user whose password this
+-- token can change.
+trans_addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User
+trans_addPasswordResetToken timestamp email token = do
+    let label = thentosPublic
+    db <- get
+    case pure_lookupUserByEmail db email of
+        Nothing -> throwDb label NoSuchUser
+        Just (uid, user) -> do
+            modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
+            returnDb label user
+
+-- | Change a password with a given password reset token. Throws an error if
+-- the token does not exist, has already been used or has expired
+trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+trans_resetPassword now token newPass = do
+    let label = thentosPublic
+    resetTokens <- gets (^. dbPwResetTokens)
+    -- FIXME: we should lookup and remove the token in the same traversal
+    case Map.lookup token resetTokens of
+        Nothing -> throwDb label NoSuchResetToken
+        Just (timestamp, uid) -> do
+            -- FIXME: handle the case where the user has been deleted after
+                -- the password reset was requested
+            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
+                then throwDb label ResetTokenExpired
+                else do
+                    Just user <- gets $ Map.lookup uid . (^. dbUsers)
+                    let user' = userPassword .~ newPass $ user
+                    _ <- writeUser uid user'
+                    modify $ dbPwResetTokens %~ Map.delete token
+                    returnDb label ()
+
+resetTokenExpiryPeriod :: Timeout
+resetTokenExpiryPeriod = Timeout 3600
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
@@ -647,6 +686,12 @@ addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
 addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 
+addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosClearance -> Update DB (Either ThentosError User)
+addPasswordResetToken timestamp email token clearance = runThentosUpdate clearance $ trans_addPasswordResetToken timestamp email token
+
+resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
+resetPassword timestamp token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp token newPass
+
 updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
 
@@ -722,6 +767,8 @@ $(makeAcidic ''DB
     , 'updateUser
     , 'updateUserField
     , 'deleteUser
+    , 'addPasswordResetToken
+    , 'resetPassword
 
     , 'allServiceIds
     , 'lookupService

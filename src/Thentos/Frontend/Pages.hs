@@ -12,6 +12,10 @@ module Thentos.Frontend.Pages
     , loginForm
     , emailSentPage
     , errorPage
+    , requestPasswordResetPage
+    , requestPasswordResetForm
+    , resetPasswordPage
+    , resetPasswordForm
 ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -43,6 +47,7 @@ mainPage = do
             H.li . (H.a ! A.href "/create_user") $ "create_user"
             H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
             H.li . (H.a ! A.href "/create_service") $ "create_service"
+            H.li . (H.a ! A.href "/request_password_reset") $ "request_password_reset"
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
@@ -118,8 +123,39 @@ loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
 
 loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
-    <$> (UserName  <$> "name"     .: check "name must not be empty"     nonEmpty   (text Nothing))
+    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+requestPasswordResetPage :: View Html -> Html
+requestPasswordResetPage v =
+    H.docTypeHtml $ do
+        H.head $ H.title "Reset your password"
+        H.body $ do
+            form v "request_password_reset" $ do
+                H.p $ do
+                    label "email" v "Email address: "
+                    inputText "email" v
+                inputSubmit "Reset your password"
+
+requestPasswordResetForm :: Monad m => Form Html m UserEmail
+requestPasswordResetForm =
+    UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
+
+resetPasswordPage :: Text -> View Html -> Html
+resetPasswordPage reqUrl v =
+    H.docTypeHtml $ do
+        H.head $ H.title "Enter a new password"
+        H.body $ do
+            form v reqUrl $ do
+                H.p $ do
+                    label "password" v "New password: "
+                    inputPassword "password" v
+                inputSubmit "Set your new password"
+
+-- FIXME: should be entered twice to minimise chance of typos
+resetPasswordForm :: Monad m => Form Html m UserPass
+resetPasswordForm =
+    UserPass <$> "password" .: check "password must not be empty" nonEmpty (text Nothing)
 
 emailSentPage :: Html
 emailSentPage = H.string $ "Please check your email"

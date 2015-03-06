@@ -3,8 +3,10 @@
 module Thentos.Smtp
     ( sendUserConfirmationMail
     , sendUserExistsMail
+    , sendPasswordResetMail
 ) where
 
+import Control.Lens ((^.))
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST, LT)
 import Network.Mail.Mime (Address(Address), renderSendMailCustom, simpleMail')
@@ -33,6 +35,15 @@ sendUserExistsMail smtpConfig address = do
                 <> " can just ignore this email. If you have, you are hereby"
                 <> " reminded that you already have an account."
     subject = "Attempted Thentos Signup"
+
+
+sendPasswordResetMail :: SmtpConfig -> User -> LT -> IO ()
+sendPasswordResetMail smtpConfig user callbackUrl = do
+    logger DEBUG $ "sending password-reset email: " ++ show (user ^. userEmail)
+    sendMail smtpConfig subject message (user ^. userEmail)
+  where
+    message = "To set a new password, go to " <> callbackUrl
+    subject = "Thentos Password Reset"
 
 sendMail :: SmtpConfig -> ST -> LT -> UserEmail -> IO ()
 sendMail config subject message address = do

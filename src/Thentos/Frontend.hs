@@ -35,9 +35,9 @@ import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Config
 import Thentos.DB
-import Thentos.Frontend.Pages (mainPage, addUserPage, userForm, userAddedPage, loginForm, loginPage, errorPage, addServicePage, serviceAddedPage, emailSentPage)
+import Thentos.Frontend.Pages
 import Thentos.Frontend.Util (serveSnaplet)
-import Thentos.Smtp (sendUserConfirmationMail, sendUserExistsMail)
+import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
 
@@ -70,12 +70,14 @@ routes = [ ("", ifTop $ mainPageHandler)
          , ("login", loginHandler)
          , ("create_user", userAddHandler)
          , ("signup_confirm", userAddConfirmHandler)
+         , ("request_password_reset", requestPasswordResetHandler)
+         , ("reset_password", resetPasswordHandler)
          , ("create_service", method GET addServiceHandler)
          , ("create_service", method POST serviceAddedHandler)
          ]
 
 mainPageHandler :: Handler FrontendApp FrontendApp ()
-mainPageHandler = blaze $ mainPage
+mainPageHandler = blaze mainPage
 
 -- | FIXME (thanks to Sönke Hahn): this doesn't create a user on
 -- errors (e.g.  missing mail address), but does not show an error
@@ -91,6 +93,7 @@ userAddHandler = do
                 Right (_, ConfirmationToken token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
+                        -- FIXME: use hostname from config instead of localhost
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token="
                                 <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
@@ -176,6 +179,50 @@ loginHandler = do
         let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
         base_url <> "?" <> printUrlEncoded params'
 
+requestPasswordResetHandler :: Handler FrontendApp FrontendApp ()
+requestPasswordResetHandler = do
+    uri <- getsRequest rqURI
+    (_view, result) <- runForm (cs uri) requestPasswordResetForm
+    case result of
+        Nothing -> blaze $ requestPasswordResetPage _view
+        Just address -> do
+            config :: ThentosConfig <- gets (^. cfg)
+            let Just (feConfig :: FrontendConfig) = frontendConfig config
+            eToken <-
+                snapRunAction' allowEverything $ addPasswordResetToken address
+            case eToken of
+                Left NoSuchUser -> blaze emailSentPage
+                Right (user, token) -> do
+                    let url = "http://localhost:"
+                                <> (cs . show . frontendPort $ feConfig)
+                                <> "/reset_password?token="
+                                <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ fromPwResetToken token)
+                    liftIO $ sendPasswordResetMail (smtpConfig config) user url
+                    blaze emailSentPage
+                Left _ -> error "requestPasswordResetHandler: branch should not be reachable"
+
+resetPasswordHandler :: Handler FrontendApp FrontendApp ()
+resetPasswordHandler = do
+    url <- decodeUtf8 <$> getsRequest rqURI
+    mTokenBS <- getParam "token"
+    -- decodeUtf8 should be fine, since the bs came from a query parameter
+    let mToken = PasswordResetToken . decodeUtf8 <$> mTokenBS
+    (_view, mPassword) <- runForm url resetPasswordForm
+    case (mPassword, mToken) of
+        (_, Nothing) -> do
+            modifyResponse $ setResponseStatus 400 "Bad Request"
+            blaze "400 Bad Request"
+            r <- getResponse
+            finishWith r
+        (Nothing, _) -> blaze $ resetPasswordPage url _view
+        (Just password, Just token) -> do
+            result <- snapRunAction' allowEverything $ resetPassword token password
+            case result of
+                Right () -> blaze $ "Password succesfully changed"
+                Left NoSuchResetToken -> blaze $ errorPage "No such reset token"
+                Left e -> do
+                    logger WARNING (show e)
+                    blaze $ errorPage "Error when trying to change password"
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either ThentosError a)
