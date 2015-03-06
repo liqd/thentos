@@ -299,7 +299,7 @@ addUser (A3UserWithPass user) = logActionError $ do
     logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
     ((_, _, config :: ThentosConfig), _) <- ask
     (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
-    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> enctok
+    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> cs enctok
         feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
         enctok :: SBS = urlEncode . cs . fromConfimationToken $ tok
     liftIO $ sendUserConfirmationMail (smtpConfig config) user activationUrl

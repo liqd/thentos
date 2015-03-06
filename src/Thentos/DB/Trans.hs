@@ -259,6 +259,11 @@ writeUser uid user = do
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
 
+emailAddressExists :: UserEmail -> DB -> Bool
+emailAddressExists address db =
+    let userEmails = map (^. userEmail) . Map.elems $ db ^. dbUsers in
+    address `elem` userEmails
+
 
 -- ** services
 
@@ -611,12 +616,6 @@ trans_snapShot :: ThentosQuery DB
 trans_snapShot = do
     let label = RoleAdmin =%% False
     ask >>= returnDb label
-
-emailAddressExists :: UserEmail -> DB -> Bool
-emailAddressExists address db =
-    let userEmails = map (^. userEmail) . Map.elems $ db ^. dbUsers in
-    address `elem` userEmails
-
 
 -- * event types
 

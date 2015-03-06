@@ -16,7 +16,7 @@ import Data.ByteString (ByteString)
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
-import Data.Text.Encoding (decodeUtf8', encodeUtf8)
+import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
@@ -29,6 +29,7 @@ import System.Log (Priority(DEBUG, INFO, WARNING))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
+import qualified Data.Text.Lazy as L
 
 import System.Log.Missing (logger)
 import Thentos.Api
@@ -91,7 +92,9 @@ userAddHandler = do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
-                                <> "/signup_confirm?token=" <> urlEncode (encodeUtf8 token)
+                                <> "/signup_confirm?token="
+                                <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
+                                -- encodeUtf8 . urlEncode is fine
                     liftIO $ sendUserConfirmationMail (smtpConfig config) user url
                     blaze emailSentPage
                 Left UserEmailAlreadyExists -> do
