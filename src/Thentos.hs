@@ -23,7 +23,7 @@ import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query')
 import Data.String.Conversions ((<>))
-import System.Log.Logger (Priority(DEBUG, INFO), removeAllHandlers)
+import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
 import Thentos.Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
@@ -51,7 +51,7 @@ main =
     configLogger
 
     eCmd <- getCommand "devel.config"
-    logger DEBUG (ppShow eCmd)
+    -- logger DEBUG (ppShow eCmd)
     let run = case eCmd of
             Right ShowDB -> do
                 logger INFO "database contents:"

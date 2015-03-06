@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Test.Arbitrary () where
 
@@ -10,6 +11,7 @@ import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 import qualified Data.ByteString as SBS
 
 import Thentos.Types
+import Thentos.Backend.Api.Adhocracy3
 
 import Test.Util
 
@@ -52,3 +54,7 @@ readableStrings =
 instance Arbitrary UserFormData where
     arbitrary = UserFormData <$> s UserName <*> s UserPass <*> s UserEmail
       where s cons = cons . cs <$> elements readableStrings
+
+deriving instance Show UserPass
+deriving instance Show UserFormData
+deriving instance Show A3UserNoPass
