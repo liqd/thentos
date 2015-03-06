@@ -50,11 +50,14 @@ readableStrings =
     "few" : "public" : "bad" : "same" : "able" :
     []
 
-
 instance Arbitrary UserFormData where
     arbitrary = UserFormData <$> s UserName <*> s UserPass <*> s UserEmail
       where s cons = cons . cs <$> elements readableStrings
 
+-- | 'UserPass' has no 'Show' instance so we cannot accidentally leak
+-- it into, say, a log file.  For testing, password leakage is not a
+-- problem, but it helps using quickcheck, so we add orphan instances
+-- here.
 deriving instance Show UserPass
 deriving instance Show UserFormData
 deriving instance Show A3UserNoPass
