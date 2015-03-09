@@ -64,8 +64,8 @@ library
     , containers
     , crypto-random
     , digestive-functors
-    , digestive-functors-blaze
-    , digestive-functors-snap
+    , digestive-functors-blaze >= 0.6.0.5
+    , digestive-functors-snap >= 0.6.1.1
     , either
     , errors
     , filepath
