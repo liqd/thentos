@@ -47,7 +47,7 @@ data DB =
       , _dbServices         :: Map ServiceId Service
       , _dbSessions         :: Map SessionToken Session
       , _dbRoles            :: Map Agent [Role]
-      , _dbPwResetTokens    :: Map PasswordResetToken (UserId, User)
+      , _dbPwResetTokens    :: Map PasswordResetToken UserId
       , _dbFreshUserId      :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -289,6 +289,7 @@ data ThentosError =
     | ProxyNotAvailable
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
+    | NoSuchResetToken
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -314,6 +315,7 @@ showThentosError BadAuthenticationHeaders             = return (400, "bad authen
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
+showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
 
 
 -- * boilerplate

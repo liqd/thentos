@@ -181,14 +181,14 @@ loginHandler = do
 
 requestPasswordResetHandler :: Handler FrontendApp FrontendApp ()
 requestPasswordResetHandler = do
-    (_view, result) <- runForm "create_user" requestPasswordResetForm
+    uri <- getsRequest rqURI
+    (_view, result) <- runForm (cs uri) requestPasswordResetForm
     case result of
         Nothing -> blaze $ requestPasswordResetPage _view
         Just address -> do
             config :: ThentosConfig <- gets (^. cfg)
             let Just (feConfig :: FrontendConfig) = frontendConfig config
             eUser <- query $ LookupUserByEmail address allowEverything
-            logger DEBUG "Got to here"
             case eUser of
                 Right (_uid, user) -> do
                     Right token <- snapRunAction' allowEverything $ freshPasswordResetToken
@@ -201,11 +201,22 @@ requestPasswordResetHandler = do
                 Left NoSuchUser -> blaze emailSentPage
                 Left _ -> error "requestPasswordResetHandler: branch should not be reachable"
 
-resetPasswordHandler :: Handler FrontentApp FronetnApp ()
+resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
+    uri <- getsRequest rqURI
     Just tokenBS <- getParam "token" -- FIXME: error handling
     -- decodeUtf8 should be fine, since the bs came from a query parameter
     let token = PasswordResetToken $ decodeUtf8 tokenBS
+    (_view, mPassword) <- runForm (cs uri) resetPasswordForm
+    case mPassword of
+        Nothing -> blaze $ resetPasswordPage _view
+        Just password -> do
+            hashedPassword <- hashUserPass password
+            result <- update $ ResetPassword token hashedPassword allowEverything
+            case result of
+                Right () -> blaze $ "Password succesfully changed"
+                Left _ -> undefined -- TODO
+            
     
     
 

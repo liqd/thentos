@@ -14,6 +14,8 @@ module Thentos.Frontend.Pages
     , errorPage
     , requestPasswordResetPage
     , requestPasswordResetForm
+    , resetPasswordPage
+    , resetPasswordForm
 ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -129,7 +131,7 @@ requestPasswordResetPage v =
     H.docTypeHtml $ do
         H.head $ H.title "Reset your password"
         H.body $ do
-            form v ("request_password_reset") $ do
+            form v "request_password_reset" $ do
                 H.p $ do
                     label "email" v "Email address: "
                     inputText "email" v
@@ -137,7 +139,23 @@ requestPasswordResetPage v =
 
 requestPasswordResetForm :: Monad m => Form Html m UserEmail
 requestPasswordResetForm =
-    UserEmail <$> "email" .: check "name must not be empty" nonEmpty (text Nothing)
+    UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
+
+resetPasswordPage :: View Html -> Html
+resetPasswordPage v =
+    H.docTypeHtml $ do
+        H.head $ H.title "Enter a new password"
+        H.body $ do
+            form v "reset_password" $ do
+                H.p $ do
+                    label "password" v "New password: "
+                    inputPassword "password" v
+        
+
+-- FIXME: should be entered twice to minimise chance of typos
+resetPasswordForm :: Monad m => Form Html m UserPass
+resetPasswordForm =
+    UserPass <$> "password" .: check "password must not be empty" nonEmpty (text Nothing)
 
 emailSentPage :: Html
 emailSentPage = H.string $ "Please check your email"

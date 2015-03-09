@@ -26,6 +26,7 @@ module Thentos.DB.Trans
   , UpdateUser(..), trans_updateUser
   , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
   , DeleteUser(..), trans_deleteUser
+  , ResetPassword(..), trans_resetPassword
 
   , AllServiceIds(..), trans_allServiceIds
   , LookupService(..), trans_lookupService
@@ -209,6 +210,24 @@ trans_addUsers (u:us) = do
     ThentosLabeled l  uid  <- trans_addUser  u
     ThentosLabeled l' uids <- trans_addUsers us
     returnDb (lub l l') (uid:uids)
+
+-- | Change a password with a given password reset token. Throws an error on
+-- non-existent (or already used) token
+trans_resetPassword :: PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+trans_resetPassword token newPass = do
+    let label = thentosPublic
+    resetTokens <- gets (^. dbPwResetTokens)
+    -- FIXME: can we somehow lookup and remove the token in the same traversal?
+    case Map.lookup token resetTokens of
+        Nothing -> throwDb label NoSuchResetToken
+        Just uid -> do
+            -- FIXME: handle the case where the user has been deleted after
+                -- the password reset was requested
+            Just user <- gets $ Map.lookup uid . (^. dbUsers)
+            let user' = userPassword .~ newPass $ user
+            _ <- writeUser uid user'
+            modify $ dbPwResetTokens %~ Map.delete token
+            returnDb label ()
 
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
@@ -647,6 +666,9 @@ addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
 addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 
+resetPassword :: PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
+resetPassword token newPass clearance = runThentosUpdate clearance $ trans_resetPassword token newPass
+
 updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
 
@@ -722,6 +744,7 @@ $(makeAcidic ''DB
     , 'updateUser
     , 'updateUserField
     , 'deleteUser
+    , 'resetPassword
 
     , 'allServiceIds
     , 'lookupService
