@@ -290,7 +290,6 @@ data ThentosError =
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
     | NoSuchResetToken
-    | ResetTokenExpired
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -317,7 +316,6 @@ showThentosError ProxyNotAvailable                    = return (404, "proxying n
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
-showThentosError (ResetTokenExpired)                  = return (404, "reset token expired")
 
 
 -- * boilerplate

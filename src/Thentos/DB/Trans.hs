@@ -234,16 +234,18 @@ trans_resetPassword now token newPass = do
     case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
         (Nothing, _) -> throwDb label NoSuchResetToken
         (Just (timestamp, uid), newResetTokens) -> do
-            -- FIXME: handle the case where the user has been deleted after
-                -- the password reset was requested
+            modify $ dbPwResetTokens .~ newResetTokens
             if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb label ResetTokenExpired
+                then throwDb label NoSuchResetToken
                 else do
-                    Just user <- gets $ Map.lookup uid . (^. dbUsers)
-                    let user' = userPassword .~ newPass $ user
-                    _ <- writeUser uid user'
-                    modify $ dbPwResetTokens .~ newResetTokens
-                    returnDb label ()
+                    mUser <- gets $ Map.lookup uid . (^. dbUsers)
+                    case mUser of
+                        Just user -> do
+                            let user' = userPassword .~ newPass $ user
+                            _ <- writeUser uid user'
+                            returnDb label ()
+                        Nothing ->
+                            throwDb label NoSuchResetToken
 
 resetTokenExpiryPeriod :: Timeout
 resetTokenExpiryPeriod = Timeout 3600
