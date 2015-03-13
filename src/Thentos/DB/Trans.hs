@@ -231,10 +231,9 @@ trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass 
 trans_resetPassword now token newPass = do
     let label = thentosPublic
     resetTokens <- gets (^. dbPwResetTokens)
-    -- FIXME: we should lookup and remove the token in the same traversal
-    case Map.lookup token resetTokens of
-        Nothing -> throwDb label NoSuchResetToken
-        Just (timestamp, uid) -> do
+    case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
+        (Nothing, _) -> throwDb label NoSuchResetToken
+        (Just (timestamp, uid), newResetTokens) -> do
             -- FIXME: handle the case where the user has been deleted after
                 -- the password reset was requested
             if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
@@ -243,7 +242,7 @@ trans_resetPassword now token newPass = do
                     Just user <- gets $ Map.lookup uid . (^. dbUsers)
                     let user' = userPassword .~ newPass $ user
                     _ <- writeUser uid user'
-                    modify $ dbPwResetTokens %~ Map.delete token
+                    modify $ dbPwResetTokens .~ newResetTokens
                     returnDb label ()
 
 resetTokenExpiryPeriod :: Timeout
