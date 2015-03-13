@@ -1,4 +1,4 @@
 language: haskell
 ghc: 7.8
 install:
-  - cabal install --only-dependencies --enable-tests -j1
+  - cabal install --only-dependencies --enable-tests || cat /home/travis/.cabal/logs/pretty-show-1.6.8.log
