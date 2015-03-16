@@ -203,7 +203,15 @@ requestPasswordResetHandler = do
 
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
-    url <- decodeUtf8 <$> getsRequest rqURI
+    eUrl <- decodeUtf8' <$> getsRequest rqURI
+    case eUrl of
+        Left _ -> do
+            modifyResponse $ setResponseStatus 400 "Bad Request"
+            blaze "Bad request: bad reset token"
+            r <- getResponse
+            finishWith r
+        Right _ -> return ()
+    let Right url = eUrl
     mTokenBS <- getParam "token"
     -- decodeUtf8 should be fine, since the bs came from a query parameter
     let mToken = PasswordResetToken . decodeUtf8 <$> mTokenBS
@@ -211,7 +219,7 @@ resetPasswordHandler = do
     case (mPassword, mToken) of
         (_, Nothing) -> do
             modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "400 Bad Request"
+            blaze "Bad request: reset password, but no token given."
             r <- getResponse
             finishWith r
         (Nothing, _) -> blaze $ resetPasswordPage url _view
