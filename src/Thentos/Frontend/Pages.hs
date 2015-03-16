@@ -26,7 +26,8 @@ import Data.String.Conversions (cs)
 import Data.Text (Text)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
-import Text.Digestive.Form (Form, check, text, (.:))
+import Text.Digestive.Form (Form, check, validate, text, (.:))
+import Text.Digestive.Types (Result(Success, Error))
 import Text.Digestive.View (View)
 
 import qualified Data.Text as T
@@ -98,7 +99,7 @@ serviceAddedPage sid key = H.docTypeHtml $ do
 userForm :: Monad m => Form Html m UserFormData
 userForm = UserFormData
     <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserPass  <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
   where
     checkEmail :: Text -> Bool
@@ -148,14 +149,23 @@ resetPasswordPage reqUrl v =
         H.body $ do
             form v reqUrl $ do
                 H.p $ do
-                    label "password" v "New password: "
-                    inputPassword "password" v
+                    label "password1" v "New password: "
+                    inputPassword "password1" v
+                H.p $ do
+                    label "password2" v "repeat password: "
+                    inputPassword "password2" v
                 inputSubmit "Set your new password"
 
--- FIXME: should be entered twice to minimise chance of typos
 resetPasswordForm :: Monad m => Form Html m UserPass
-resetPasswordForm =
-    UserPass <$> "password" .: check "password must not be empty" nonEmpty (text Nothing)
+resetPasswordForm = (validate validatePass) $
+    (,)
+      <$> (UserPass <$> "password1" .: check "password must not be empty" nonEmpty (text Nothing))
+      <*> (UserPass <$> "password2" .: check "password must not be empty" nonEmpty (text Nothing))
+  where
+    validatePass :: (UserPass, UserPass) -> Result Html UserPass
+    validatePass (p1, p2) = if p1 == p2
+                                then Success p1
+                                else Error "passwords don't match"
 
 emailSentPage :: Html
 emailSentPage = H.string $ "Please check your email"
