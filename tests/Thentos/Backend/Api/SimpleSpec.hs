@@ -35,7 +35,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    describe "Thentos.Backend.Api.Simple" . before setupTestServer . after teardownTestServer $ do
+    describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
                     \ (_, testServer, _, godCredentials) -> debugRunSession False testServer $ do

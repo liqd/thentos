@@ -90,6 +90,10 @@ $ cabal test
 $ cabal run -- thentos run --runbackend --runfrontend
 ```
 
+(If you haven't set up a selenium grid server, some of the tests will
+fail.  Read `./misc/selenium/Makefile` for some hints on how to set up
+a selenium grid server.)
+
 Benchmarks:
 
 ```shell
