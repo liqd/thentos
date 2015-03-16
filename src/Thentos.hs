@@ -46,6 +46,11 @@ main =
                                      (logger INFO $ msg ++ ": [ok]") action
 
     st :: AcidState DB <- notify "setting up acid-state" $ openLocalStateFrom ".acid-state/" emptyDB
+        -- (opening acid-state can take rather long if a large
+        -- changelog needs to be replayed.  use asci-progress here?
+        -- even though that would probably require patching
+        -- acid-state.)
+
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
 
     configLogger
