@@ -52,7 +52,8 @@ spec = do
                         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
                     fill "create_user.name" myUsername
-                    fill "create_user.password" myPassword
+                    fill "create_user.password1" myPassword
+                    fill "create_user.password2" myPassword
                     fill "create_user.email" myEmail
 
                     WD.findElem (WD.ById "create_user_submit") >>= WD.click
