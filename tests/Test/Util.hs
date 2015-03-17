@@ -41,6 +41,7 @@ import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBo
 import Network.Wai.Test (Session, SRequest(SRequest))
 import System.FilePath ((</>))
 import Text.Show.Pretty (ppShow)
+import Network.Mail.Mime (Address(Address))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -56,6 +57,10 @@ import Thentos.Frontend
 import Thentos.Types
 
 import Test.Config
+
+testSmtpConfig :: SmtpConfig
+testSmtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []  -- FIXME: /bin/cat pollutes stdout.
+
 
 encryptTestSecret :: ByteString -> HashedSecret a
 encryptTestSecret pw =
@@ -134,6 +139,7 @@ setupTestServerFull = do
     let cfg = emptyThentosConfig
                 { frontendConfig = Just $ FrontendConfig fport
                 , backendConfig = Just $ BackendConfig bport
+                , smtpConfig = testSmtpConfig
                 }
 
         bport = serverFullBackendPort config
