@@ -8,6 +8,7 @@ module Thentos.Frontend (runFrontend) where
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view, (^.))
+import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
@@ -18,7 +19,7 @@ import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import Snap.Blaze (blaze)
-import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode)
+import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode, urlDecode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
@@ -97,7 +98,6 @@ userAddHandler = do
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token="
                                 <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
-                                -- encodeUtf8 . urlEncode is fine
                     liftIO $ sendUserConfirmationMail (smtpConfig config) user url
                     blaze emailSentPage
                 Left UserEmailAlreadyExists -> do
@@ -203,27 +203,25 @@ requestPasswordResetHandler = do
 
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
-    eUrl <- decodeUtf8' <$> getsRequest rqURI
-    case eUrl of
-        Left _ -> do
+    url <- decodeUtf8 <$> getsRequest rqURI
+    mTokenBS <- getParam "token"
+    let mDecodedToken = join $ urlDecode <$> mTokenBS
+    let emToken =
+            (fmap . fmap) PasswordResetToken $ (decodeUtf8' <$> mDecodedToken)
+    (_view, mPassword) <- runForm url resetPasswordForm
+    case (mPassword, emToken) of
+        (_, Just (Left _)) -> do
             modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "Bad request: bad reset token"
+            blaze "Bad request: bad reset token."
             r <- getResponse
             finishWith r
-        Right _ -> return ()
-    let Right url = eUrl
-    mTokenBS <- getParam "token"
-    -- decodeUtf8 should be fine, since the bs came from a query parameter
-    let mToken = PasswordResetToken . decodeUtf8 <$> mTokenBS
-    (_view, mPassword) <- runForm url resetPasswordForm
-    case (mPassword, mToken) of
         (_, Nothing) -> do
             modifyResponse $ setResponseStatus 400 "Bad Request"
             blaze "Bad request: reset password, but no token given."
             r <- getResponse
             finishWith r
         (Nothing, _) -> blaze $ resetPasswordPage url _view
-        (Just password, Just token) -> do
+        (Just password, Just (Right token)) -> do
             result <- snapRunAction' allowEverything $ resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
