@@ -8,7 +8,6 @@ module Thentos.Frontend (runFrontend) where
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view, (^.))
-import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
@@ -31,6 +30,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
 import qualified Data.Text.Lazy as L
+import qualified Text.Blaze.Html5 as H
 
 import System.Log.Missing (logger)
 import Thentos.Api
@@ -204,22 +204,15 @@ requestPasswordResetHandler = do
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
     eUrl <- decodeUtf8' <$> getsRequest rqURI
-    mTokenBS <- getParam "token"
-    let mDecodedToken = join $ urlDecode <$> mTokenBS
-    let emToken =
-            (fmap . fmap) PasswordResetToken $ (decodeUtf8' <$> mDecodedToken)
+    mToken <- (>>= urlDecode) <$> getParam "token"
+    let meToken = PasswordResetToken <$$> decodeUtf8' <$> mToken
     (_view, mPassword) <- runForm "password_reset_form" resetPasswordForm
-    case (mPassword, emToken, eUrl) of
-        (_, _, Left _) -> do
-            modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "Bad request"
-        (_, Just (Left _), _) -> do
-            modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "Bad request: bad reset token."
-        (_, Nothing, _) -> do
-            modifyResponse $ setResponseStatus 400 "Bad Request"
-            blaze "Bad request: reset password, but no token given."
-        (Nothing, _, Right url) -> blaze $ resetPasswordPage url _view
+    case (mPassword, meToken, eUrl) of
+        -- show reset form
+        (Nothing, Nothing, Right url) -> do
+            blaze $ resetPasswordPage url _view
+
+        -- process reset form input
         (Just password, Just (Right token), Right _) -> do
             result <- snapRunAction' allowEverything $ resetPassword token password
             case result of
@@ -228,6 +221,24 @@ resetPasswordHandler = do
                 Left e -> do
                     logger WARNING (show e)
                     blaze $ errorPage "Error when trying to change password"
+
+        -- error cases
+        (_, _, Left _) -> do
+            let msg = "Bad Request: corrupt url!"
+            modifyResponse $ setResponseStatus 400 (cs msg)
+            blaze (H.text msg)
+        (_, Just (Left _), _) -> do
+            let msg = "Bad request: bad reset token."
+            modifyResponse $ setResponseStatus 400 (cs msg)
+            blaze (H.text msg)
+        (_, Nothing, _) -> do
+            let msg = "Bad request: reset password, but no token."
+            modifyResponse $ setResponseStatus 400 (cs msg)
+            blaze (H.text msg)
+        (Nothing, Just (Right _), Right _) -> do
+            let msg = "Bad request: reset token, but no password."
+            modifyResponse $ setResponseStatus 400 (cs msg)
+            blaze (H.text msg)
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
       -> Handler FrontendApp FrontendApp (Either ThentosError a)
