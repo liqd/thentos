@@ -28,7 +28,7 @@ SELENIUM_HUB_PORT=4451
 SELENIUM_NODE_PORT=4452
 # (default: 5555)
 
-SELENIUM_ARGS=-jar selenium-server-standalone-2.45.0.jar -host $(SELENIUM_HOST) -port $(SELENIUM_HUB_PORT)
+SELENIUM_ARGS=-jar selenium-server-standalone-2.45.0.jar -host $(SELENIUM_HOST)
 
 default:
 	cat Makefile
@@ -43,9 +43,9 @@ kill:
 	killall tail > /dev/null 2>&1 || true
 
 start:
-	nohup java $(SELENIUM_ARGS) -role hub > log/hub 2>&1 &
+	nohup java $(SELENIUM_ARGS) -port $(SELENIUM_HUB_PORT) -role hub > log/hub 2>&1 &
 	sleep 3
-	nohup java $(SELENIUM_ARGS) -role node -hub http://$(SELENIUM_HOST):$(SELENIUM_HUB_PORT)/grid/register > log/node 2>&1 &
+	nohup java $(SELENIUM_ARGS) -port $(SELENIUM_NODE_PORT) -role node -hub http://$(SELENIUM_HOST):$(SELENIUM_HUB_PORT)/grid/register > log/node 2>&1 &
 
 watch:
 	( sleep 1; tail -f log/hub ) &
