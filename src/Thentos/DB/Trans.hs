@@ -21,6 +21,7 @@ module Thentos.DB.Trans
   , LookupUserByEmail(..), trans_lookupUserByEmail
   , AddUser(..), trans_addUser
   , AddUnconfirmedUser(..), trans_addUnconfirmedUser
+  , LookupUnconfirmedUser(..), trans_lookupUnconfirmedUser
   , FinishUserRegistration(..), trans_finishUserRegistration
   , AddUsers(..), trans_addUsers
   , UpdateUser(..), trans_updateUser
@@ -180,20 +181,38 @@ trans_addUnconfirmedUser token user = do
             modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
             returnDb label (uid, token)
 
+-- | This is required for authorization management.
+--
+-- Alternatively, we could offer a transaction 'PopUnconfirmedUser'
+-- that removes a user from the dict of unconfirmeds and returns it,
+-- and use 'UpdateUser' instead of 'AddUnconfimredUser' to add it to
+-- the dict of activated users.  The relative performance is unclear
+-- (one redundant lookup in dict of unconfirmeds, but two update
+-- transactions instead of one update and one query), but it would be
+-- less safe: if the server fails between pop and update, the
+-- unconfirmed user data will be lost.
+trans_lookupUnconfirmedUser :: ConfirmationToken -> ThentosQuery UserId
+trans_lookupUnconfirmedUser token = do
+    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
+    v <- (Map.lookup token . (^. dbUnconfirmedUsers)) <$> ask
+    case v of
+        Just (uid, _) -> returnDb label uid
+        Nothing       -> throwDb label NoSuchPendingUserConfirmation
+
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
 -- 'makeThentosClearance' does not check for confirmation tokens, this
 -- transaction is publicly accessible.
 trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
 trans_finishUserRegistration token = do
-    let label = thentosPublic
+    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
         Nothing -> throwDb label NoSuchPendingUserConfirmation
         Just (uid, user) -> do
             modify $ dbUnconfirmedUsers %~ Map.delete token
-            ThentosLabeled _ () <- writeUser uid user
-            returnDb label uid
+            ThentosLabeled label' () <- writeUser uid user
+            returnDb (lub label label') uid
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
@@ -677,6 +696,10 @@ addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB
 addUnconfirmedUser token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser token user
 
+lookupUnconfirmedUser :: ConfirmationToken -> ThentosClearance -> Query DB (Either ThentosError UserId)
+lookupUnconfirmedUser token clearance =
+    runThentosQuery clearance $ trans_lookupUnconfirmedUser token
+
 finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
 finishUserRegistration token clearance =
     runThentosUpdate clearance $ trans_finishUserRegistration token
@@ -763,6 +786,7 @@ $(makeAcidic ''DB
     , 'lookupUserByEmail
     , 'addUser
     , 'addUnconfirmedUser
+    , 'lookupUnconfirmedUser
     , 'finishUserRegistration
     , 'addUsers
     , 'updateUser

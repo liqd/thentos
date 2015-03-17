@@ -17,14 +17,16 @@ import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
+import LIO.Label (lub)
+import LIO.DCLabel ((/\), (\/))
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode, urlDecode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
-import System.Log (Priority(DEBUG, INFO, WARNING))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
@@ -124,15 +126,24 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
+    let clearance = RoleOwnsUnconfirmedUser *%% RoleOwnsUnconfirmedUser
+        clearance' uid = lub clearance $ UserA uid *%% UserA uid
+
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
-            result <- update $ FinishUserRegistration token allowEverything
-            case result of
-                Right uid -> blaze $ userAddedPage uid
+            eUid <- query $ LookupUnconfirmedUser token clearance
+            case eUid of
+                Right uid -> do
+                    eResult <- update $ FinishUserRegistration token (clearance' uid)
+                    case eResult of
+                        Right uid' | uid' == uid -> blaze $ userAddedPage uid
+                        bad -> do
+                            logger CRITICAL ("unreachable: " ++ show bad)
+                            blaze (errorPage "finializing registration failed.")
                 Left e -> do
                     logger INFO (show e)
-                    blaze (errorPage "finializing registration failed.")
+                    blaze (errorPage "finializing registration failed: unknown token.")
         Just (Left unicodeError) -> do
             logger DEBUG (show unicodeError)
             blaze (errorPage $ show unicodeError)
