@@ -38,9 +38,9 @@ spec = do
     describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
-                    \ (_, testServer, _, godCredentials) -> debugRunSession False testServer $ do
+                    \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
                 let req = makeSRequest "GET" "/" (godCredentials ++ [("X-Thentos-No-Such-Header", "3")]) ""
-                liftIO $ runSession (srequest req) testServer `shouldThrow` anyException
+                liftIO $ runSession (srequest req) testBackend `shouldThrow` anyException
 
                 -- (sending 500 errors for user mistakes is not ideal,
                 -- but the error reporting functionality of servant is
@@ -49,19 +49,19 @@ spec = do
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $
-                        \ (_, testServer, _, godCredentials) -> debugRunSession False testServer $ do
+                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
                     liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
                 it "is not accessible for users without 'Admin' role" $
-                        \ (_, testServer, _, _) -> debugRunSession False testServer $ do
+                        \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $
-                        \ (_, testServer, _, godCredentials) -> (debugRunSession False testServer) $ do
+                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
                     response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
@@ -80,14 +80,14 @@ spec = do
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
                 it "yields an email address" $
-                        \ (_, testServer, _, godCredentials) -> (debugRunSession False testServer) $ do
+                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
                     response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $
-                        \ (_, testServer, _, godCredentials) -> (debugRunSession False testServer) $ do
+                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
                     let userData = UserFormData "1" "2" "3"
                     response1 <- srequest $ makeSRequest "POST" "/user" godCredentials (Aeson.encode userData)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
