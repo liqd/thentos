@@ -95,6 +95,20 @@ userAddHandler = do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
                         -- FIXME: use hostname from config instead of localhost
+
+                        -- FIXME: factor out two functions here: (1)
+                        -- @materializeUrl :: FrontendConfig -> LBS ->
+                        -- LBS that@ for turning config and local path
+                        -- into full url with schema, host, port; and
+                        -- (2) @mkUrlSignupConfirm ::
+                        -- ConfirmationToken -> LBS@ that constructs
+                        -- @"/signup_confirm?..."@.  we may be able to
+                        -- find better names, too.  and there are
+                        -- probably other places in this module where
+                        -- functions can be factored out similarly.
+                        -- see also @activationLink@ in
+                        -- @FrontendSpec.hs@.
+
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token="
                                 <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
