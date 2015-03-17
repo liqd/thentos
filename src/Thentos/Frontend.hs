@@ -209,7 +209,7 @@ resetPasswordHandler = do
     (_view, mPassword) <- runForm "password_reset_form" resetPasswordForm
     case (mPassword, meToken, eUrl) of
         -- show reset form
-        (Nothing, Nothing, Right url) -> do
+        (Nothing, Just (Right _), Right url) -> do
             blaze $ resetPasswordPage url _view
 
         -- process reset form input
@@ -233,10 +233,6 @@ resetPasswordHandler = do
             blaze (H.text msg)
         (_, Nothing, _) -> do
             let msg = "Bad request: reset password, but no token."
-            modifyResponse $ setResponseStatus 400 (cs msg)
-            blaze (H.text msg)
-        (Nothing, Just (Right _), Right _) -> do
-            let msg = "Bad request: reset token, but no password."
             modifyResponse $ setResponseStatus 400 (cs msg)
             blaze (H.text msg)
 
