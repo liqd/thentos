@@ -85,15 +85,15 @@ createGod st = createDefaultUser st
     (Just (UserFormData godName godPass "postmaster@localhost", [RoleAdmin]))
 
 
-setupDB :: IO (ActionStateGlobal (MVar SystemRNG))
-setupDB = do
+setupDB :: ThentosConfig -> IO (ActionStateGlobal (MVar SystemRNG))
+setupDB thentosConfig = do
     destroyDB
     st <- openLocalStateFrom (dbPath config) emptyDB
     createGod st
     Right (UserId 1) <- update' st $ AddUser user1 allowEverything
     Right (UserId 2) <- update' st $ AddUser user2 allowEverything
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-    return (st, rng, emptyThentosConfig)
+    return (st, rng, thentosConfig)
 
 teardownDB :: (ActionStateGlobal (MVar SystemRNG)) -> IO ()
 teardownDB (st, _, _) = do
@@ -110,7 +110,7 @@ destroyDB = do
 -- headers for default god user.
 setupTestBackend :: IO (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header])
 setupTestBackend = do
-    asg <- setupDB
+    asg <- setupDB emptyThentosConfig
     let testBackend = serveApi asg
     (tok, headers) <- loginAsGod testBackend
     return (asg, testBackend, tok, headers)
@@ -132,10 +132,16 @@ type TestServerFull =
 -- for webdriver testing, but may be used elsewhere).
 setupTestServerFull :: IO TestServerFull
 setupTestServerFull = do
-    asg <- setupDB
-    let bport = serverFullBackendPort config
-        fhost = "localhost"
+    let cfg = emptyThentosConfig
+                { frontendConfig = Just $ FrontendConfig fport
+                , backendConfig = Just $ BackendConfig bport
+                }
+
+        bport = serverFullBackendPort config
         fport = serverFullFrontendPort config
+        fhost = "localhost"
+
+    asg <- setupDB cfg
     backend  <- async $ Thentos.Backend.Api.Simple.runBackend bport asg
     frontend <- async $ Thentos.Frontend.runFrontend fhost fport asg
 
