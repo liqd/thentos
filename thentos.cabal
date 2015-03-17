@@ -196,6 +196,7 @@ test-suite tests
     , safecopy
     , scrypt
     , servant-server
+    , snap-core
     , string-conversions
     , system-fileio
     , text
