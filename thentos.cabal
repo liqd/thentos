@@ -192,6 +192,7 @@ test-suite tests
     , mtl
     , pretty-show
     , QuickCheck
+    , regex-easy
     , safecopy
     , scrypt
     , servant-server

@@ -60,4 +60,4 @@ spec = do
                     -- we can't use hspec infrastructure from within
                     -- @wd@, but we can still crash if something goes
                     -- wrong.
-                    assert (text == "Please check your email") $ return ()
+                    assert (cs text =~# "Please check your email") $ return ()
