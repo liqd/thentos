@@ -203,25 +203,24 @@ requestPasswordResetHandler = do
 
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
-    url <- decodeUtf8 <$> getsRequest rqURI
+    eUrl <- decodeUtf8' <$> getsRequest rqURI
     mTokenBS <- getParam "token"
     let mDecodedToken = join $ urlDecode <$> mTokenBS
     let emToken =
             (fmap . fmap) PasswordResetToken $ (decodeUtf8' <$> mDecodedToken)
-    (_view, mPassword) <- runForm url resetPasswordForm
-    case (mPassword, emToken) of
-        (_, Just (Left _)) -> do
+    (_view, mPassword) <- runForm "password_reset_form" resetPasswordForm
+    case (mPassword, emToken, eUrl) of
+        (_, _, Left _) -> do
+            modifyResponse $ setResponseStatus 400 "Bad Request"
+            blaze "Bad request"
+        (_, Just (Left _), _) -> do
             modifyResponse $ setResponseStatus 400 "Bad Request"
             blaze "Bad request: bad reset token."
-            r <- getResponse
-            finishWith r
-        (_, Nothing) -> do
+        (_, Nothing, _) -> do
             modifyResponse $ setResponseStatus 400 "Bad Request"
             blaze "Bad request: reset password, but no token given."
-            r <- getResponse
-            finishWith r
-        (Nothing, _) -> blaze $ resetPasswordPage url _view
-        (Just password, Just (Right token)) -> do
+        (Nothing, _, Right url) -> blaze $ resetPasswordPage url _view
+        (Just password, Just (Right token), Right _) -> do
             result <- snapRunAction' allowEverything $ resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
