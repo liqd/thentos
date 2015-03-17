@@ -171,7 +171,7 @@ pure_lookupUserByEmail db email =
 -- uniqueness of email adresses.
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
-    let label = thentosPublic
+    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
     db <- get
     if (emailAddressExists (user ^. userEmail) db)
         then throwDb label UserEmailAlreadyExists

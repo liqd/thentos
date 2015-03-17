@@ -85,11 +85,13 @@ mainPageHandler = blaze mainPage
 -- message.  (Even worse: it returns a 200.)
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
+    let clearance = RoleOwnsUnconfirmedUser *%% RoleOwnsUnconfirmedUser
+
     (_view, result) <- runForm "create_user" userForm
     case result of
         Nothing -> blaze $ addUserPage _view
         Just user -> do
-            result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
+            result' <- snapRunAction' clearance $ addUnconfirmedUser user
             case result' of
                 Right (_, ConfirmationToken token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
