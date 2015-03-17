@@ -124,14 +124,21 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
-    Just tokenBS <- getParam "token" -- FIXME: error handling
-    case ConfirmationToken <$> decodeUtf8' tokenBS of
-        Right token -> do
+    mTokenBS <- getParam "token"
+    case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
+        Just (Right token) -> do
             result <- update $ FinishUserRegistration token allowEverything
             case result of
                 Right uid -> blaze $ userAddedPage uid
-                Left e -> logger INFO (show e) >> blaze (errorPage "finializing registration failed.")
-        Left unicodeError -> logger DEBUG (show unicodeError) >> blaze (errorPage $ show unicodeError)
+                Left e -> do
+                    logger INFO (show e)
+                    blaze (errorPage "finializing registration failed.")
+        Just (Left unicodeError) -> do
+            logger DEBUG (show unicodeError)
+            blaze (errorPage $ show unicodeError)
+        Nothing -> do
+            logger DEBUG "no token"
+            blaze (errorPage "finializing registration failed: token is missing.")
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage
