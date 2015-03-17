@@ -22,7 +22,8 @@ import Data.String.Conversions (cs)
 import Data.Text (Text)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
-import Text.Digestive.Form (Form, check, text, (.:))
+import Text.Digestive.Form (Form, check, validate, text, (.:))
+import Text.Digestive.Types (Result(Success, Error))
 import Text.Digestive.View (View)
 
 import qualified Data.Text as T
@@ -55,8 +56,11 @@ addUserPage v = H.docTypeHtml $ do
                 label "name" v "User name:"
                 inputText "name" v
             H.p $ do
-                label "password" v "Password:"
-                inputPassword "password" v
+                label "password1" v "Password:"
+                inputPassword "password1" v
+            H.p $ do
+                label "password2" v "Repeat Password:"
+                inputPassword "password2" v
             H.p $ do
                 label "email" v "Email Address:"
                 inputText "email" v
@@ -89,15 +93,19 @@ serviceAddedPage sid key = H.docTypeHtml $ do
             H.p "Service id: " <> H.text (fromServiceId sid)
             H.p "Service key: " <> H.text (fromServiceKey key)
 
--- FIXME: move forms into separate module
 userForm :: Monad m => Form Html m UserFormData
-userForm = UserFormData
-    <$> (UserName  <$> "name"     .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserEmail <$> "email"    .: check "must be a valid email address" checkEmail (text Nothing))
+userForm = (validate validateUserData) $ (,,,)
+    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
   where
     checkEmail :: Text -> Bool
     checkEmail = isJust . T.find (== '@')
+
+    validateUserData (name, pw1, pw2, email)
+        | pw1 == pw2 = Success $ UserFormData name pw1 email
+        | otherwise  = Error "Passwords don't match"
 
 loginPage :: ServiceId -> View Html -> ByteString -> Html
 loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
