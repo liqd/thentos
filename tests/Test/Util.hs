@@ -47,7 +47,6 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Test.WebDriver as WebDriver
-import qualified Test.WebDriver.Config as WebDriver
 
 import Thentos.Api
 import Thentos.Backend.Api.Simple

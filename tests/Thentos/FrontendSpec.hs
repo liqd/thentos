@@ -3,27 +3,19 @@
 
 module Thentos.FrontendSpec where
 
-import Control.Applicative ((<$>))
-import Control.Concurrent (threadDelay)
 import Control.Exception (assert)
-import Control.Monad.IO.Class (liftIO)
-import Data.SafeCopy (safeGet, safePut)
-import Data.Serialize.Get (runGet)
-import Data.Serialize.Put (runPut)
-import Data.String.Conversions (ST)
-import LIO (canFlowTo, lub, glb)
-import LIO.DCLabel ((%%), (/\), (\/), toCNF)
-import Network.Wai.Test (srequest, simpleStatus, simpleBody, runSession)
-import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldThrow, anyException, hspec)
-import Test.Hspec (Spec, describe, it, shouldBe, hspec)
-import Test.QuickCheck (property)
+import Control.Lens
+import Data.Acid.Advanced
+import Data.Map (size)
+import Data.String.Conversions (ST, cs)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, hspec)
+import Text.Regex.Easy ((=~#))
 
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
-import qualified Test.WebDriver.Config as WD
-import qualified Test.WebDriver.Session as WD
 
+import Thentos.DB.Protect
+import Thentos.DB.Trans
 import Thentos.Types
 
 import Test.Arbitrary ()
@@ -38,8 +30,14 @@ spec = do
     describe "Thentos.Frontend (requires selenium grid)" . before setupTestServerFull . after teardownTestServerFull $ do
         describe "reset password" $
             it "works" $
-                   \ ((_, _, _, mkUrl, wd) :: TestServerFull) -> do
+                   \ (((st, _, _), _, _, mkUrl, wd) :: TestServerFull) -> do
+
+                -- create confirmation token
                 wd $ do
+                    WD.setImplicitWait 1000
+                    WD.setScriptTimeout 1000
+                    WD.setPageLoadTimeout 1000
+
                     WD.openPage (mkUrl "")
 
                     WD.findElem (WD.ByLinkText "create_user") >>= WD.click
@@ -51,8 +49,7 @@ spec = do
                     fill "create_user.password" "password"
                     fill "create_user.email" "email@ad.dress"
 
-                    WD.findElem (WD.ByName "submit") >>= WD.click
-
+                    WD.findElem (WD.ById "create_user_submit") >>= WD.click
                     text <- WD.getSource
 
                     -- we are thinking about getting hspec-webdriver
@@ -61,3 +58,12 @@ spec = do
                     -- @wd@, but we can still crash if something goes
                     -- wrong.
                     assert (cs text =~# "Please check your email") $ return ()
+
+                -- check that confirmation token is in DB.
+                Right (db :: DB) <- query' st $ SnapShot allowEverything
+                size (db ^. dbUnconfirmedUsers) `shouldBe` 1
+
+                -- click activation link.  (FUTURE WORK: it would be
+                -- nice if we somehow had the email here to extract
+                -- the link from there.)
+                -- ...
