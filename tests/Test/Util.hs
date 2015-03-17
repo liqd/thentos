@@ -39,7 +39,6 @@ import Network.Wai (Application, StreamingBody, requestMethod, requestBody, stri
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
-import System.FilePath ((</>))
 import Text.Show.Pretty (ppShow)
 import Network.Mail.Mime (Address(Address))
 
@@ -152,7 +151,7 @@ setupTestServerFull = do
 
     let wdConfig = WebDriver.defaultConfig { WebDriver.wdHost = webdriverHost config, WebDriver.wdPort = webdriverPort config }
         wd = WebDriver.runSession wdConfig . WebDriver.finallyClose . WebDriver.closeOnException
-        mkUrl path = "http://" <> cs fhost <> ":" <> show fport <> "/" </> path
+        mkUrl path = "http://" <> cs fhost <> ":" <> show fport <> path
     return (asg, (backend, bport), (frontend, fport), mkUrl, wd)
 
 teardownTestServerFull :: TestServerFull -> IO ()
