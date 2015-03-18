@@ -28,8 +28,8 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = do
-    describe "Thentos.Frontend (requires selenium grid)" . before setupTestServerFull . after teardownTestServerFull $ do
+spec = describe "selenium" $ do
+    describe "Thentos.Frontend" . before setupTestServerFull . after teardownTestServerFull $ do
         describe "reset password" $
             it "works" $
                    \ (((st, _, _), _, _, mkUrl, wd) :: TestServerFull) -> do

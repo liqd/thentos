@@ -92,14 +92,14 @@ $ cabal run -- thentos run --runbackend --runfrontend
 To run the tests:
 
 ```shell
-$ cabal test --test-option=--with-selenium
+$ cabal test
 ```
 
 If you have no selenium grid set up, you can either read
 `./misc/selenium/Makefile` and get it to work, or do without:
 
 ```shell
-$ cabal test
+$ cabal test --test-option=--skip --test-option=selenium
 ```
 
 Benchmarks:
