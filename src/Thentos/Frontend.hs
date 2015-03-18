@@ -126,24 +126,20 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
-    let clearance = RoleOwnsUnconfirmedUser *%% RoleOwnsUnconfirmedUser
-        clearance' uid = lub clearance $ UserA uid *%% UserA uid
+    let clearance = RoleOwnsUnconfirmedUser /\ RoleOwnsUser *%% RoleOwnsUnconfirmedUser \/ RoleOwnsUser
 
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
-            eUid <- query $ LookupUnconfirmedUser token clearance
-            case eUid of
-                Right uid -> do
-                    eResult <- update $ FinishUserRegistration token (clearance' uid)
-                    case eResult of
-                        Right uid' | uid' == uid -> blaze $ userAddedPage uid
-                        bad -> do
-                            logger CRITICAL ("unreachable: " ++ show bad)
-                            blaze (errorPage "finializing registration failed.")
-                Left e -> do
+            eResult <- update $ FinishUserRegistration token clearance
+            case eResult of
+                Right uid -> blaze $ userAddedPage uid
+                Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO (show e)
                     blaze (errorPage "finializing registration failed: unknown token.")
+                Left e -> do
+                    logger CRITICAL ("unreachable: " ++ show e)
+                    blaze (errorPage "finializing registration failed.")
         Just (Left unicodeError) -> do
             logger DEBUG (show unicodeError)
             blaze (errorPage $ show unicodeError)

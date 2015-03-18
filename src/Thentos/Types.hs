@@ -220,7 +220,7 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
-data Role = RoleAdmin | RoleOwnsUnconfirmedUser
+data Role = RoleAdmin | RoleOwnsUser | RoleOwnsUnconfirmedUser
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance ToCNF Agent where toCNF = toCNF . show

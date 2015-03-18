@@ -313,7 +313,7 @@ trans_deleteUser uid = do
 -- | (db ^. dbUser) must only be modified using this function.
 writeUser :: UserId -> User -> ThentosUpdate ()
 writeUser uid user = do
-    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    let label = RoleAdmin \/ RoleOwnsUser \/ UserA uid =%% RoleAdmin /\ RoleOwnsUser /\ UserA uid
     ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs label uid user
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
