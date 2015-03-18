@@ -17,14 +17,15 @@ import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
+import LIO.DCLabel ((/\), (\/))
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode, urlDecode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
 import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
-import System.Log (Priority(DEBUG, INFO, WARNING))
 
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
@@ -85,16 +86,32 @@ mainPageHandler = blaze mainPage
 -- message.  (Even worse: it returns a 200.)
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
+    let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
+
     (_view, result) <- runForm "create_user" userForm
     case result of
         Nothing -> blaze $ addUserPage _view
         Just user -> do
-            result' <- snapRunAction' allowEverything $ addUnconfirmedUser user
+            result' <- snapRunAction' clearance $ addUnconfirmedUser user
             case result' of
                 Right (_, ConfirmationToken token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: FrontendConfig) = frontendConfig config
                         -- FIXME: use hostname from config instead of localhost
+
+                        -- FIXME: factor out two functions here: (1)
+                        -- @materializeUrl :: FrontendConfig -> LBS ->
+                        -- LBS that@ for turning config and local path
+                        -- into full url with schema, host, port; and
+                        -- (2) @mkUrlSignupConfirm ::
+                        -- ConfirmationToken -> LBS@ that constructs
+                        -- @"/signup_confirm?..."@.  we may be able to
+                        -- find better names, too.  and there are
+                        -- probably other places in this module where
+                        -- functions can be factored out similarly.
+                        -- see also @activationLink@ in
+                        -- @FrontendSpec.hs@.
+
                         url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
                                 <> "/signup_confirm?token="
                                 <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
@@ -108,14 +125,26 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
-    Just tokenBS <- getParam "token" -- FIXME: error handling
-    case ConfirmationToken <$> decodeUtf8' tokenBS of
-        Right token -> do
-            result <- update $ FinishUserRegistration token allowEverything
-            case result of
+    let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
+
+    mTokenBS <- getParam "token"
+    case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
+        Just (Right token) -> do
+            eResult <- update $ FinishUserRegistration token clearance
+            case eResult of
                 Right uid -> blaze $ userAddedPage uid
-                Left e -> logger INFO (show e) >> blaze (errorPage "finializing registration failed.")
-        Left unicodeError -> logger DEBUG (show unicodeError) >> blaze (errorPage $ show unicodeError)
+                Left e@NoSuchPendingUserConfirmation -> do
+                    logger INFO (show e)
+                    blaze (errorPage "finializing registration failed: unknown token.")
+                Left e -> do
+                    logger CRITICAL ("unreachable: " ++ show e)
+                    blaze (errorPage "finializing registration failed.")
+        Just (Left unicodeError) -> do
+            logger DEBUG (show unicodeError)
+            blaze (errorPage $ show unicodeError)
+        Nothing -> do
+            logger DEBUG "no token"
+            blaze (errorPage "finializing registration failed: token is missing.")
 
 addServiceHandler :: Handler FrontendApp FrontendApp ()
 addServiceHandler = blaze addServicePage
