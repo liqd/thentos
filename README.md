@@ -81,13 +81,25 @@ $ cabal install --enable-tests --enable-documentation
 
 This will take a while, as it will pull and build a lot of library
 dependencies.  `--enable-tests` and `--enable-documentation` are
-optional (but it will still take a while to build).
+optional (but it will take a while to build no matter what).
+
+Start like this (in interpreted mode):
+
+```shell
+$ cabal run -- thentos run --runbackend --runfrontend
+```
 
 To run the tests:
 
 ```shell
+$ cabal test --test-option=--with-selenium
+```
+
+If you have no selenium grid set up, you can either read
+`./misc/selenium/Makefile` and get it to work, or do without:
+
+```shell
 $ cabal test
-$ cabal run -- thentos run --runbackend --runfrontend
 ```
 
 Benchmarks:

@@ -162,6 +162,7 @@ test-suite tests
     , ThentosSpec
     , Thentos.Backend.Api.Adhocracy3Spec
     , Thentos.Backend.Api.SimpleSpec
+    , Thentos.FrontendSpec
     , Thentos.TypesSpec
   ghc-options:
       -O2 -Wall -threaded -rtsopts
@@ -173,15 +174,16 @@ test-suite tests
     , acid-state
     , aeson
     , aeson-pretty
+    , async
     , attoparsec
     , bytestring
     , case-insensitive
     , cereal
     , containers
     , crypto-random
+    , filepath
     , functor-infix
     , hspec
-    , hspec-discover
     , http-types
     , lens
     , lio
@@ -189,9 +191,11 @@ test-suite tests
     , mtl
     , pretty-show
     , QuickCheck
+    , regex-easy
     , safecopy
     , scrypt
     , servant-server
+    , snap-core
     , string-conversions
     , system-fileio
     , text
@@ -199,6 +203,7 @@ test-suite tests
     , transformers
     , wai
     , wai-extra
+    , webdriver
 
 benchmark load-test
   default-language:

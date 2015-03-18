@@ -17,6 +17,7 @@ module Test.Util
 where
 
 import Control.Applicative ((<*))
+import Control.Concurrent.Async (Async, async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when, void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
@@ -27,6 +28,7 @@ import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
+import Data.Monoid ((<>))
 import Data.String.Conversions (LBS, SBS, cs)
 import Filesystem (isDirectory, removeTree)
 import GHC.Exts (fromString)
@@ -38,19 +40,26 @@ import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStr
 import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import Text.Show.Pretty (ppShow)
+import Network.Mail.Mime (Address(Address))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
+import qualified Test.WebDriver as WebDriver
 
+import Thentos.Api
 import Thentos.Backend.Api.Simple
 import Thentos.Config
 import Thentos.DB
-import Thentos.Api
+import Thentos.Frontend
 import Thentos.Types
 
 import Test.Config
+
+testSmtpConfig :: SmtpConfig
+testSmtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []  -- FIXME: /bin/cat pollutes stdout.
+
 
 encryptTestSecret :: ByteString -> HashedSecret a
 encryptTestSecret pw =
@@ -79,40 +88,80 @@ createGod st = createDefaultUser st
     (Just (UserFormData godName godPass "postmaster@localhost", [RoleAdmin]))
 
 
-setupDB :: IO (ActionStateGlobal (MVar SystemRNG))
-setupDB = do
-  destroyDB
-  st <- openLocalStateFrom (dbPath config) emptyDB
-  createGod st
-  Right (UserId 1) <- update' st $ AddUser user1 allowEverything
-  Right (UserId 2) <- update' st $ AddUser user2 allowEverything
-  rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-  return (st, rng, emptyThentosConfig)
+setupDB :: ThentosConfig -> IO (ActionStateGlobal (MVar SystemRNG))
+setupDB thentosConfig = do
+    destroyDB
+    st <- openLocalStateFrom (dbPath config) emptyDB
+    createGod st
+    Right (UserId 1) <- update' st $ AddUser user1 allowEverything
+    Right (UserId 2) <- update' st $ AddUser user2 allowEverything
+    rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+    return (st, rng, thentosConfig)
 
 teardownDB :: (ActionStateGlobal (MVar SystemRNG)) -> IO ()
 teardownDB (st, _, _) = do
-  closeAcidState st
-  destroyDB
+    closeAcidState st
+    destroyDB
 
 destroyDB :: IO ()
 destroyDB = do
-  let p = (fromString (dbPath config))
-    in isDirectory p >>= \ yes -> when yes $ removeTree p
+    let p = (fromString (dbPath config))
+        in isDirectory p >>= \ yes -> when yes $ removeTree p
 
-setupTestServer :: IO (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header])
-setupTestServer = do
-  asg <- setupDB
-  let testServer = serveApi asg
-  (tok, headers) <- loginAsGod testServer
-  return (asg, testServer, tok, headers)
+-- | Test backend does not open a tcp socket, but uses hspec-wai
+-- instead.  Comes with a session token and authentication headers
+-- headers for default god user.
+setupTestBackend :: IO (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header])
+setupTestBackend = do
+    asg <- setupDB emptyThentosConfig
+    let testBackend = serveApi asg
+    (tok, headers) <- loginAsGod testBackend
+    return (asg, testBackend, tok, headers)
 
-teardownTestServer :: (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header]) -> IO ()
-teardownTestServer (db, testServer, tok, godCredentials) = do
-    logoutAsGod testServer tok godCredentials
+teardownTestBackend :: (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header]) -> IO ()
+teardownTestBackend (db, testBackend, tok, godCredentials) = do
+    logoutAsGod testBackend tok godCredentials
+    teardownDB db
+
+type TestServerFull =
+    ( ActionStateGlobal (MVar SystemRNG)
+    , (Async (), Int)
+    , (Async (), Int)
+    , String -> String
+    , WebDriver.WD () -> IO ()
+    )
+
+-- | Set up both frontend and backend on real tcp sockets (introduced
+-- for webdriver testing, but may be used elsewhere).
+setupTestServerFull :: IO TestServerFull
+setupTestServerFull = do
+    let cfg = emptyThentosConfig
+                { frontendConfig = Just $ FrontendConfig fport
+                , backendConfig = Just $ BackendConfig bport
+                , smtpConfig = testSmtpConfig
+                }
+
+        bport = serverFullBackendPort config
+        fport = serverFullFrontendPort config
+        fhost = "localhost"
+
+    asg <- setupDB cfg
+    backend  <- async $ Thentos.Backend.Api.Simple.runBackend bport asg
+    frontend <- async $ Thentos.Frontend.runFrontend fhost fport asg
+
+    let wdConfig = WebDriver.defaultConfig { WebDriver.wdHost = webdriverHost config, WebDriver.wdPort = webdriverPort config }
+        wd = WebDriver.runSession wdConfig . WebDriver.finallyClose . WebDriver.closeOnException
+        mkUrl path = "http://" <> cs fhost <> ":" <> show fport <> path
+    return (asg, (backend, bport), (frontend, fport), mkUrl, wd)
+
+teardownTestServerFull :: TestServerFull -> IO ()
+teardownTestServerFull (db, (backend, _), (frontend, _), _, _) = do
+    cancel backend
+    cancel frontend
     teardownDB db
 
 loginAsGod :: Application -> IO (SessionToken, [Header])
-loginAsGod testServer = debugRunSession False testServer $ do
+loginAsGod testBackend = debugRunSession False testBackend $ do
     response <- srequest (makeSRequest "POST" "/session" [] $ Aeson.encode (godUid, godPass))
     if (statusCode (simpleStatus response) /= 201)
         then error $ ppShow response
@@ -122,7 +171,7 @@ loginAsGod testServer = debugRunSession False testServer $ do
             return (tok, credentials)
 
 logoutAsGod :: Application -> SessionToken -> [Header] -> IO ()
-logoutAsGod testServer tok godCredentials = debugRunSession False testServer $ do
+logoutAsGod testBackend tok godCredentials = debugRunSession False testBackend $ do
     void . srequest . makeSRequest "DELETE" "/session" godCredentials $ Aeson.encode tok
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
@@ -141,9 +190,9 @@ debugRunSession debug application session = runSession session (wrapApplication 
     wrapApplication :: Bool -> Application
     wrapApplication False = application
     wrapApplication True = \ _request respond -> do
-      (requestRendered, request') <- showRequest _request
-      print requestRendered
-      application request' (\ response -> putStrLn (showResponse response)  >> respond response)
+        (requestRendered, request') <- showRequest _request
+        print requestRendered
+        application request' (\ response -> putStrLn (showResponse response)  >> respond response)
 
     showRequest _request = do
         body :: LBS <- strictRequestBody _request
@@ -182,5 +231,5 @@ debugRunSession debug application session = runSession session (wrapApplication 
 -- (FIXME: also available from attoparsec these days.  replace!)
 decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
-  v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
-  Aeson.parseEither Aeson.parseJSON v
+    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
+    Aeson.parseEither Aeson.parseJSON v
