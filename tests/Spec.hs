@@ -24,7 +24,7 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        "enableBrowserTests" : xs -> withArgs xs $ hspec (spec True)
+        "--with-selenium" : xs -> withArgs xs $ hspec (spec True)
         _ -> hspec $ spec False
 
 spec :: Bool -> Spec
