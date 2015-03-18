@@ -22,7 +22,6 @@ import Control.Monad.IO.Class (liftIO)
 import Crypto.Random (SystemRNG)
 import Data.Acid.Advanced (query')
 import Data.String.Conversions (cs, (<>))
-import Network.Mail.Mime (Address(Address))
 import Network.Wai (Application)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
@@ -45,12 +44,12 @@ import Test.Util
 
 setupTestA3Server :: IO (ActionStateGlobal (MVar SystemRNG), Application)
 setupTestA3Server = do
-  (st, rng, _) <- setupDB
+  (st, rng, _) <- setupDB emptyThentosConfig
   let asg = (st, rng,) $ ThentosConfig
         { frontendConfig = Just FrontendConfig { frontendPort = 7082 }
         , backendConfig = Just BackendConfig { backendPort = 7081 }
         , proxyConfig = Nothing
-        , smtpConfig = SmtpConfig (Address (Just "Thentos") "thentos@thentos.org") "/bin/cat" []  -- FIXME: /bin/cat pollutes stdout.
+        , smtpConfig = testSmtpConfig
         , defaultUser = Nothing
         }
   return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)

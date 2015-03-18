@@ -20,8 +20,9 @@ import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
-import Thentos.DB
 import Thentos.Api
+import Thentos.Config
+import Thentos.DB
 import Thentos.Types
 
 import Test.Util
@@ -32,7 +33,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-  describe "DB" . before setupDB . after teardownDB $ do
+  describe "DB" . before (setupDB emptyThentosConfig) . after teardownDB $ do
     describe "hspec meta" $ do
       it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ (st, _, _) -> do
         Right _ <- update' st $ AddUser user3 allowEverything

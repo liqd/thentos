@@ -69,7 +69,7 @@ addUserPage v = H.docTypeHtml $ do
             H.p $ do
                 label "email" v "Email Address:"
                 inputText "email" v
-            inputSubmit "Create User"
+            inputSubmit "Create User" ! A.id "create_user_submit"
 
 userAddedPage :: UserId -> Html
 userAddedPage uid =
