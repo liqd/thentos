@@ -21,7 +21,6 @@ module Thentos.DB.Trans
   , LookupUserByEmail(..), trans_lookupUserByEmail
   , AddUser(..), trans_addUser
   , AddUnconfirmedUser(..), trans_addUnconfirmedUser
-  , LookupUnconfirmedUser(..), trans_lookupUnconfirmedUser
   , FinishUserRegistration(..), trans_finishUserRegistration
   , AddUsers(..), trans_addUsers
   , UpdateUser(..), trans_updateUser
@@ -180,24 +179,6 @@ trans_addUnconfirmedUser token user = do
             uid <- freshUserId
             modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
             returnDb label (uid, token)
-
--- | This is required for authorization management.
---
--- Alternatively, we could offer a transaction 'PopUnconfirmedUser'
--- that removes a user from the dict of unconfirmeds and returns it,
--- and use 'UpdateUser' instead of 'AddUnconfimredUser' to add it to
--- the dict of activated users.  The relative performance is unclear
--- (one redundant lookup in dict of unconfirmeds, but two update
--- transactions instead of one update and one query), but it would be
--- less safe: if the server fails between pop and update, the
--- unconfirmed user data will be lost.
-trans_lookupUnconfirmedUser :: ConfirmationToken -> ThentosQuery UserId
-trans_lookupUnconfirmedUser token = do
-    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
-    v <- (Map.lookup token . (^. dbUnconfirmedUsers)) <$> ask
-    case v of
-        Just (uid, _) -> returnDb label uid
-        Nothing       -> throwDb label NoSuchPendingUserConfirmation
 
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
@@ -696,10 +677,6 @@ addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB
 addUnconfirmedUser token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser token user
 
-lookupUnconfirmedUser :: ConfirmationToken -> ThentosClearance -> Query DB (Either ThentosError UserId)
-lookupUnconfirmedUser token clearance =
-    runThentosQuery clearance $ trans_lookupUnconfirmedUser token
-
 finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
 finishUserRegistration token clearance =
     runThentosUpdate clearance $ trans_finishUserRegistration token
@@ -786,7 +763,6 @@ $(makeAcidic ''DB
     , 'lookupUserByEmail
     , 'addUser
     , 'addUnconfirmedUser
-    , 'lookupUnconfirmedUser
     , 'finishUserRegistration
     , 'addUsers
     , 'updateUser
