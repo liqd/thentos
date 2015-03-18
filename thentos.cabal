@@ -184,7 +184,6 @@ test-suite tests
     , filepath
     , functor-infix
     , hspec
-    , hspec-discover
     , http-types
     , lens
     , lio
