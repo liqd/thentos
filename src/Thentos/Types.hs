@@ -220,7 +220,17 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
-data Role = RoleAdmin | RoleOwnsUser | RoleOwnsUnconfirmedUser
+data Role =
+    RoleAdmin
+    -- ^ Can do anything.  (FIXME: do we even need a role for this, or
+    -- could we just use 'True'?)
+
+  | RoleOwnsUsers
+    -- ^ Can do anything to map 'dbUsers'
+
+  | RoleOwnsUnconfirmedUsers
+    -- ^ Can do anything to map 'dbUnConfirmedUsers'
+
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance ToCNF Agent where toCNF = toCNF . show

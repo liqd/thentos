@@ -87,7 +87,7 @@ mainPageHandler = blaze mainPage
 -- message.  (Even worse: it returns a 200.)
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
-    let clearance = RoleOwnsUnconfirmedUser *%% RoleOwnsUnconfirmedUser
+    let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
 
     (_view, result) <- runForm "create_user" userForm
     case result of
@@ -126,7 +126,7 @@ userAddHandler = do
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
-    let clearance = RoleOwnsUnconfirmedUser /\ RoleOwnsUser *%% RoleOwnsUnconfirmedUser \/ RoleOwnsUser
+    let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of

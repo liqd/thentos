@@ -172,7 +172,7 @@ pure_lookupUserByEmail db email =
 -- uniqueness of email adresses.
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
-    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
+    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     db <- get
     if (emailAddressExists (user ^. userEmail) db)
         then throwDb label UserEmailAlreadyExists
@@ -193,7 +193,7 @@ trans_addUnconfirmedUser token user = do
 -- unconfirmed user data will be lost.
 trans_lookupUnconfirmedUser :: ConfirmationToken -> ThentosQuery UserId
 trans_lookupUnconfirmedUser token = do
-    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
+    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     v <- (Map.lookup token . (^. dbUnconfirmedUsers)) <$> ask
     case v of
         Just (uid, _) -> returnDb label uid
@@ -205,7 +205,7 @@ trans_lookupUnconfirmedUser token = do
 -- transaction is publicly accessible.
 trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
 trans_finishUserRegistration token = do
-    let label = RoleOwnsUnconfirmedUser =%% RoleOwnsUnconfirmedUser
+    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
         Nothing -> throwDb label NoSuchPendingUserConfirmation
@@ -313,7 +313,7 @@ trans_deleteUser uid = do
 -- | (db ^. dbUser) must only be modified using this function.
 writeUser :: UserId -> User -> ThentosUpdate ()
 writeUser uid user = do
-    let label = RoleAdmin \/ RoleOwnsUser \/ UserA uid =%% RoleAdmin /\ RoleOwnsUser /\ UserA uid
+    let label = RoleAdmin \/ RoleOwnsUsers \/ UserA uid =%% RoleAdmin /\ RoleOwnsUsers /\ UserA uid
     ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs label uid user
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
