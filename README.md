@@ -99,7 +99,7 @@ If you have no selenium grid set up, you can either read
 `./misc/selenium/Makefile` and get it to work, or do without:
 
 ```shell
-$ cabal test --test-option=--skip --test-option=selenium
+$ cabal test --test-options="--skip selenium"
 ```
 
 Benchmarks:

@@ -1,5 +1,11 @@
 SHELL=/bin/bash
 
+test:
+	cabal test --test-options="--skip selenium"
+
+test-all:
+	cabal test
+
 lint:
 	find src tests -name '*.hs' | xargs hlint
 
