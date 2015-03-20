@@ -28,10 +28,9 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "selenium" $ do
-    describe "Thentos.Frontend" . before setupTestServerFull . after teardownTestServerFull $ do
-        describe "reset password" $
-            it "works" $
+spec = describe "selenium (consult README.md if this test fails)"
+           . before setupTestServerFull . after teardownTestServerFull $ do
+        it "reset password" $
                    \ (((st, _, _), _, _, mkUrl, wd) :: TestServerFull) -> do
 
                 let myUsername = "username"
