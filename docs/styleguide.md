@@ -39,6 +39,8 @@ import Data.Text as ST
 import Data.Text.Lazy as LT
 ```
 
+(FIXME: `LT` is `less than` from prelude.  is there a better name?  (should string-conversions adopt that, too?))
+
 ## naming
 
 Names for `Either` values start with an `e` (example: `eSession`).

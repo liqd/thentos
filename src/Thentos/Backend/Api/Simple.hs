@@ -25,22 +25,26 @@ import Control.Monad.IO.Class (liftIO)
 import Crypto.Random (SystemRNG)
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
-import Network.Wai.Handler.Warp (run)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
 import Servant.Server.Internal (HasServer, Server, route)
 import Servant.Server (serve)
+import System.Log.Logger (Priority(INFO))
 
+import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction)
-import Thentos.Backend.Core (ThentosAssertHeaders, ThentosHeaderName(..), lookupRequestHeader)
+import Thentos.Backend.Core (ThentosAssertHeaders, ThentosHeaderName(..), lookupRequestHeader, runWarpWithCfg)
+import Thentos.Config
 import Thentos.DB
 import Thentos.Types
 import Thentos.Util
 
 
-runBackend :: Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
-runBackend port = run port . serveApi
+runBackend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runBackend cfg asg = do
+    logger INFO $ "running rest api (simple style) on " ++show (bindUrl cfg) ++ "."
+    runWarpWithCfg cfg $ serveApi asg
 
 -- | (Required in test suite.)
 serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application

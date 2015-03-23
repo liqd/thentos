@@ -15,7 +15,6 @@ module Thentos.Types where
 import Control.Lens (makeLenses)
 import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
-import Data.Configurator.Types(Configured(convert), Value(String))
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
@@ -136,10 +135,6 @@ newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
 
 instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
-
-instance Configured ServiceId where
-    convert (String s) = Just $ ServiceId s
-    convert _          = Nothing
 
 
 -- * session, timestamp, timeout

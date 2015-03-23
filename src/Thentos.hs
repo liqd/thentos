@@ -1,20 +1,22 @@
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 {-# OPTIONS  #-}
 
 module Thentos (main) where
 
+import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket_, finally)
@@ -22,11 +24,12 @@ import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query')
-import Data.String.Conversions ((<>))
+import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Proxy (Proxy(Proxy))
 import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
-import Thentos.Config (configLogger, getCommand, Command(..), ThentosConfig(..), BackendConfig(BackendConfig), FrontendConfig(FrontendConfig))
+import Thentos.Config
 import Thentos.Types
 import Thentos.DB
 import Thentos.Frontend (runFrontend)
@@ -52,47 +55,37 @@ main =
         -- acid-state.)
 
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-
+    config :: ThentosConfig <- getConfig "devel.config"
     configLogger
+    _ <- createCheckpointLoop st 16000 Nothing
+    createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
 
-    eCmd <- getCommand "devel.config"
-    -- logger DEBUG (ppShow eCmd)
-    let run = case eCmd of
-            Right ShowDB -> do
+    let mBeConfig :: Maybe HttpConfig
+        mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
+
+        mFeConfig :: Maybe HttpConfig
+        mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+
+    logger INFO "Press ^C to abort."
+    let run = case getCommand config of
+            ShowDB -> do
                 logger INFO "database contents:"
                 query' st (SnapShot allowEverything) >>= either (error "oops?") (logger INFO . ppShow)
 
-            Right (Run config) -> do
-                createDefaultUser st (defaultUser config)
+            Run -> do
+                let backend = maybe (return ())
+                        (`Thentos.Backend.Api.Simple.runBackend` (st, rng, config))
+                        mBeConfig
+                let frontend = maybe (return ())
+                        (`runFrontend` (st, rng, config))
+                        mFeConfig
 
-                let backend = case backendConfig config of
-                        Nothing -> return ()
-                        Just (BackendConfig backendPort) -> do
-                            logger INFO $ "running rest api on localhost:" <> show backendPort <> "."
-                            Thentos.Backend.Api.Simple.runBackend backendPort (st, rng, config)
-
-                let frontend = case frontendConfig config of
-                        Nothing -> return ()
-                        Just (FrontendConfig frontendPort) -> do
-                            logger INFO $ "running frontend on localhost:" <> show frontendPort <> "."
-                            runFrontend "localhost" frontendPort (st, rng, config)
-
-                _ <- createCheckpointLoop st 16000 Nothing
-                logger INFO "Press ^C to abort."
                 void $ concurrently backend frontend
 
-            Right (RunA3 config) -> do
-                createDefaultUser st (defaultUser config)
-                _ <- createCheckpointLoop st 16000 Nothing
-
-                case backendConfig config of
-                        Nothing -> error "command `runa3` requires `--runbackend`"
-                        Just (BackendConfig backendPort) -> do
-                            logger INFO $ "running a3 rest api on localhost:" <> show backendPort <> "."
-                            logger INFO "Press ^C to abort."
-                            Thentos.Backend.Api.Adhocracy3.runBackend backendPort (st, rng, config)
-
-            Left e -> error $ "error parsing config (shell env, cli, or config files): " ++ show e
+            RunA3 -> do
+                maybe (error "command `runa3` requires `--runbackend`")
+                    (`Thentos.Backend.Api.Adhocracy3.runBackend` (st, rng, config))
+                    mBeConfig
 
     let finalize = do
             notify "creating checkpoint and shutting down acid-state" $

@@ -60,7 +60,7 @@ library
     , blaze-html
     , bytestring
     , case-insensitive
-    , configurator
+    , configifier
     , containers
     , crypto-random
     , digestive-functors
@@ -79,7 +79,6 @@ library
     , mime-mail >= 0.4.8
     , mtl
     , old-locale
-    , optparse-applicative
     , pretty-show
     , safe
     , safecopy

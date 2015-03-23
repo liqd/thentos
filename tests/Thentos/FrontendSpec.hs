@@ -16,6 +16,7 @@ import qualified Data.Map as Map
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
+import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
 import Thentos.Types
@@ -31,7 +32,7 @@ spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)"
            . before setupTestServerFull . after teardownTestServerFull $ do
         it "reset password" $
-                   \ (((st, _, _), _, _, mkUrl, wd) :: TestServerFull) -> do
+                   \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
 
                 let myUsername = "username"
                     myPassword = "password"
@@ -43,7 +44,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                     WD.setScriptTimeout 1000
                     WD.setPageLoadTimeout 1000
 
-                    WD.openPage (mkUrl "")
+                    WD.openPage (cs $ exposeUrl feConfig)
 
                     WD.findElem (WD.ByLinkText "create_user") >>= WD.click
 
@@ -73,7 +74,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage . mkUrl . cs . activationLink $ tok
+                          WD.openPage . (cs (exposeUrl feConfig) <>) . cs . activationLink $ tok
                           WD.getSource >>= \ source ->
                               assert (cs source =~# "Added a user!") $ return ()
 

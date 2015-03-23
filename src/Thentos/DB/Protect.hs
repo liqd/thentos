@@ -1,10 +1,9 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
-
-{-# OPTIONS  #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.DB.Protect
   ( makeThentosClearance
@@ -22,11 +21,12 @@ import Data.Either (isLeft, isRight)
 import Data.String.Conversions (ST)
 import LIO.DCLabel (ToCNF, toCNF, (%%), (/\), (\/))
 import System.Log (Priority(DEBUG, ERROR))
-import Text.Show.Pretty
+import Text.Show.Pretty (ppShow)
 
+import System.Log.Missing (logger)
+import Thentos.Config
 import Thentos.DB.Core
 import Thentos.DB.Trans
-import System.Log.Missing (logger)
 import Thentos.Types
 import Thentos.Util
 
@@ -87,9 +87,9 @@ infix 6 *%%
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: AcidState DB -> Maybe (UserFormData, [Role]) -> IO ()
+createDefaultUser :: AcidState DB -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
-createDefaultUser st (Just (userData, roles)) = do
+createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
     eq <- query' st (LookupUser (UserId 0) allowEverything)
     when (isLeft eq) $ do
         -- user
