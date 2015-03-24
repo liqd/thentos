@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
@@ -15,6 +17,8 @@ import Data.Configifier (NoDesc, ToConfigCode, ToConfig, Source(..), Tagged(Tagg
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs, (<>))
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getEnvironment, getArgs)
@@ -26,9 +30,11 @@ import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGl
 import System.Log.Missing (loggerName, logger)
 import Text.Show.Pretty (ppShow)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as SBS
 import qualified Data.Map as Map
 import qualified Data.Text.IO as ST
+import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Types
 
@@ -38,7 +44,7 @@ type ThentosConfigUntagged = NoDesc ThentosConfigDesc
 type ThentosConfigDesc     = ToConfigCode ThentosConfig'
 
 type ThentosConfig' =
-            ("command"      :> ST)                :>: "One of 'run', runa3, 'showdb'."  -- FIXME: use more specific type.
+            ("command"      :> Command)           :>: "One of 'run', runA3, 'showDB'."
   :*> Maybe ("frontend"     :> HttpConfig'        :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'        :>: "HTTP server for rest api.")
   :*> Maybe ("proxies"      :> [HttpProxyConfig'] :>: "HTTP server for tunneling requests to services.")
@@ -48,7 +54,7 @@ type ThentosConfig' =
 
 defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
 defaultThentosConfig =
-      Just "run"
+      Just Run
   :*> NothingO
   :*> NothingO
   :*> NothingO
@@ -90,6 +96,13 @@ type DefaultUserConfig' =
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
   :*> Maybe ("roles"    :> [ST])
+
+
+data Command = Run | RunA3 | ShowDB
+  deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
+
+instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON Command where parseJSON = Aeson.gparseJson
 
 
 printConfigUsage :: IO ()
@@ -147,16 +160,6 @@ exposeUrl cfg = fromMaybe "http" bs <> "://" <> bh <> ":" <> cs (show bp) <> "/"
 buildEmailAddress :: SmtpConfig -> Address
 buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
                                 (cfg >>. (Proxy :: Proxy '["sender_address"]))
-
-data Command = Run | RunA3 | ShowDB
-  deriving (Eq, Ord, Show)
-
-getCommand :: ThentosConfig -> Command
-getCommand cfg = case cfg >>. (Proxy :: Proxy '["command"]) of
-    "showdb" -> ShowDB
-    "run"    -> Run
-    "runa3"  -> RunA3
-    bad      -> error $ "Thentos.Config.getCommand: unknown: " ++ show bad
 
 getRole :: ST -> Role
 getRole "RoleAdmin" = RoleAdmin

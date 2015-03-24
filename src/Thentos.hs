@@ -67,7 +67,7 @@ main =
         mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
 
     logger INFO "Press ^C to abort."
-    let run = case getCommand config of
+    let run = case config >>. (Proxy :: Proxy '["command"]) of
             ShowDB -> do
                 logger INFO "database contents:"
                 query' st (SnapShot allowEverything) >>= either (error "oops?") (logger INFO . ppShow)

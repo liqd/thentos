@@ -36,7 +36,7 @@ testConfig =
 
 testThentosConfig :: ThentosConfig
 testThentosConfig = Tagged $
-      Id "run"
+      Id Run
   :*> JustO (Id (fromTagged testFeConfig))
   :*> JustO (Id (fromTagged testBeConfig))
   :*> NothingO
