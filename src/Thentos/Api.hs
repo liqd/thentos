@@ -22,6 +22,7 @@ module Thentos.Api
   , addUnconfirmedUser
   , addPasswordResetToken
   , resetPassword
+  , checkPassword
   , addService
   , startSessionUser
   , startSessionService
@@ -203,6 +204,13 @@ resetPassword token password = do
     now <- TimeStamp <$> liftIO getCurrentTime
     hashedPassword <- hashUserPass password
     updateAction $ ResetPassword now token hashedPassword
+
+checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
+checkPassword username password = do
+    (uid, user) <- queryAction $ LookupUserByName username
+    return $ if verifyPass password user
+        then Just (uid, user)
+        else Nothing
 
 
 -- ** services

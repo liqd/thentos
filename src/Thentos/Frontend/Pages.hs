@@ -10,6 +10,7 @@ module Thentos.Frontend.Pages
     , serviceAddedPage
     , loginPage
     , loginForm
+    , logIntoThentosPage
     , emailSentPage
     , errorPage
     , requestPasswordResetPage
@@ -49,6 +50,7 @@ mainPage = do
             H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
             H.li . (H.a ! A.href "/create_service") $ "create_service"
             H.li . (H.a ! A.href "/request_password_reset") $ "request_password_reset"
+            H.li . (H.a ! A.href "/log_into_thentos") $ "log_into_thentos"
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
@@ -133,6 +135,23 @@ loginForm :: Monad m => Form Html m (UserName, UserPass)
 loginForm = (,)
     <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+logIntoThentosPage :: View Html -> Html
+logIntoThentosPage v = do
+    H.docTypeHtml $ do
+        H.head $
+            H.title "Log into thentos"
+        H.body $ do
+            form v "log_into_thentos" $ do
+                H.p $ do
+                    label "usernamme" v "User name:"
+                    inputText "name" v
+                H.p $ do
+                    label "password" v "Password:"
+                    inputPassword "password" v
+                inputSubmit "Log in"
+
+
 
 requestPasswordResetPage :: View Html -> Html
 requestPasswordResetPage v =
