@@ -39,6 +39,8 @@ import qualified Generics.Generic.Aeson as Aeson
 import Thentos.Types
 
 
+-- * config structure
+
 type ThentosConfig         = Tagged ThentosConfigUntagged
 type ThentosConfigUntagged = NoDesc ThentosConfigDesc
 type ThentosConfigDesc     = ToConfigCode ThentosConfig'
@@ -63,10 +65,10 @@ defaultThentosConfig =
 
 type HttpConfig = Tagged (NoDesc (ToConfigCode HttpConfig'))
 type HttpConfig' =
-      Maybe ("bind_schema"   :> ST)  -- FIXME: use more specific type
+      Maybe ("bind_schema"   :> HttpSchema)
   :*>       ("bind_host"     :> ST)
   :*>       ("bind_port"     :> Int)
-  :*> Maybe ("expose_schema" :> ST)  -- FIXME: use more specific type
+  :*> Maybe ("expose_schema" :> HttpSchema)
   :*> Maybe ("expose_host"   :> ST)
   :*> Maybe ("expose_port"   :> Int)
 
@@ -92,11 +94,13 @@ defaultSmtpConfig =
 
 type DefaultUserConfig = Tagged (NoDesc (ToConfigCode DefaultUserConfig'))
 type DefaultUserConfig' =
-            ("name"     :> ST)
+            ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
-  :*> Maybe ("roles"    :> [ST])
+  :*> Maybe ("roles"    :> [Role])
 
+
+-- * leaf types
 
 data Command = Run | RunA3 | ShowDB
   deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
@@ -104,6 +108,18 @@ data Command = Run | RunA3 | ShowDB
 instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
 instance Aeson.FromJSON Command where parseJSON = Aeson.gparseJson
 
+data HttpSchema = Http | Https
+  deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
+
+instance Show HttpSchema where
+    show Http = "http"
+    show Https = "https"
+
+instance Aeson.ToJSON HttpSchema where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON HttpSchema where parseJSON = Aeson.gparseJson
+
+
+-- * driver
 
 printConfigUsage :: IO ()
 printConfigUsage = do
@@ -144,28 +160,25 @@ getProxyConfigMap cfg = (Map.fromList . fmap (exposeKey . Tagged)) <$>
     exposeKey w = (ServiceId (w >>. (Proxy :: Proxy '["service_id"])), w)
 
 bindUrl :: HttpConfig -> ST
-bindUrl cfg = fromMaybe "http" bs <> "://" <> bh <> ":" <> cs (show bp) <> "/"
+bindUrl cfg = _renderUrl bs bh bp
   where
     bs = cfg >>. (Proxy :: Proxy '["bind_schema"])
     bh = cfg >>. (Proxy :: Proxy '["bind_host"])
     bp = cfg >>. (Proxy :: Proxy '["bind_port"])
 
 exposeUrl :: HttpConfig -> ST
-exposeUrl cfg = fromMaybe "http" bs <> "://" <> bh <> ":" <> cs (show bp) <> "/"
+exposeUrl cfg = _renderUrl bs bh bp
   where
     bs = cfg >>. (Proxy :: Proxy '["expose_schema"]) <|> cfg >>. (Proxy :: Proxy '["bind_schema"])
     bh = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_host"])) (cfg >>. (Proxy :: Proxy '["expose_host"]))
     bp = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_port"])) (cfg >>. (Proxy :: Proxy '["expose_port"]))
 
+_renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
+_renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"
+
 buildEmailAddress :: SmtpConfig -> Address
 buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
                                 (cfg >>. (Proxy :: Proxy '["sender_address"]))
-
-getRole :: ST -> Role
-getRole "RoleAdmin" = RoleAdmin
-getRole "RoleOwnsUsers" = RoleOwnsUsers
-getRole "RoleOwnsUnconfirmedUsers" = RoleOwnsUnconfirmedUsers
-getRole bad = error $ "Thentos.Config.getRole: unknown: " ++ show bad
 
 getUserData :: DefaultUserConfig -> UserFormData
 getUserData cfg = UserFormData
@@ -174,7 +187,7 @@ getUserData cfg = UserFormData
     (UserEmail (cfg >>. (Proxy :: Proxy '["email"])))
 
 getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
-getDefaultUser cfg = (getUserData cfg, getRole <$> (fromMaybe [] $ cfg >>. (Proxy :: Proxy '["roles"])))
+getDefaultUser cfg = (getUserData cfg, fromMaybe [] $ cfg >>. (Proxy :: Proxy '["roles"]))
 
 
 -- * logging

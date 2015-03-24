@@ -3,9 +3,8 @@
 module Test.Config
 where
 
-import Data.Acid
-import Data.Configifier
-import Data.String.Conversions
+import Data.Acid (AcidState)
+import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
 
 import Thentos.Types
 import Thentos.Config
@@ -83,4 +82,4 @@ createGod st = createDefaultUser st
           Id (fromUserName godName)
       :*> Id (fromUserPass godPass)
       :*> Id "postmaster@localhost"
-      :*> JustO (Id [cs $ show RoleAdmin]) :: Maybe DefaultUserConfig)
+      :*> JustO (Id [RoleAdmin]) :: Maybe DefaultUserConfig)
