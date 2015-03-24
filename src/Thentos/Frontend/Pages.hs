@@ -45,12 +45,11 @@ mainPage = do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
-            H.li . (H.a ! A.href "/login") $ "login"
+            H.li . (H.a ! A.href "/log_into_thentos") $ "login"
             H.li . (H.a ! A.href "/create_user") $ "create_user"
             H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
             H.li . (H.a ! A.href "/create_service") $ "create_service"
             H.li . (H.a ! A.href "/request_password_reset") $ "request_password_reset"
-            H.li . (H.a ! A.href "/log_into_thentos") $ "log_into_thentos"
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
