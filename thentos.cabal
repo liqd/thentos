@@ -60,7 +60,7 @@ library
     , blaze-html
     , bytestring
     , case-insensitive
-    , configifier
+    , configifier >= 0.0.3
     , containers
     , crypto-random
     , digestive-functors
@@ -178,6 +178,7 @@ test-suite tests
     , bytestring
     , case-insensitive
     , cereal
+    , configifier
     , containers
     , crypto-random
     , filepath
