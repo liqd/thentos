@@ -1,4 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE ViewPatterns        #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 module Thentos.Util
     ( makeUserFromFormData
@@ -9,16 +12,19 @@ module Thentos.Util
     , hashServiceKey
     , cshow
     , readsPrecEnumBoundedShow
+    , (<//>)
 ) where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.String.Conversions (ConvertibleStrings, ST, cs)
+import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
+
 import Thentos.Types
 
 import qualified Crypto.Scrypt as Scrypt
+import qualified Data.Text as ST
 
 -- | @[2 2 1]@ is fast, but does not provide adequate
 -- protection for passwords in production mode!
@@ -77,3 +83,13 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
         (s0, s1) -> if s0 == s' then [(x, s1)] else f xs
       where
         s' = show x
+
+
+-- | Path concatenization for avoiding double slashes in paths.  One
+-- optional '/' trailing left side / leading right side is removed,
+-- and one '/' is inserted.
+(<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
+(cs -> p) <//> (cs -> p') = cs $ q <> "/" <> q'
+  where
+    q  :: ST = if "/" `ST.isSuffixOf` p  then ST.init p  else p
+    q' :: ST = if "/" `ST.isPrefixOf` p' then ST.tail p' else p'

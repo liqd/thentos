@@ -5,6 +5,7 @@ module Thentos.FrontendSpec where
 
 import Control.Exception (assert)
 import Control.Lens ((^.))
+import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
 import Data.String.Conversions (ST, LBS, cs, (<>))
@@ -20,6 +21,7 @@ import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
 import Thentos.Types
+import Thentos.Util ((<//>))
 
 import Test.Arbitrary ()
 import Test.Util
@@ -74,9 +76,8 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage . (cs (exposeUrl feConfig) <>) . cs . activationLink $ tok
-                          WD.getSource >>= \ source ->
-                              assert (cs source =~# "Added a user!") $ return ()
+                          WD.openPage $ cs (exposeUrl feConfig) <//> cs (activationLink tok)
+                          WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
 
                       bad -> assert False . error $ "dbUnconfirmedUsers: " ++ show bad
 
