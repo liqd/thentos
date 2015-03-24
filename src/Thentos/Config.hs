@@ -44,7 +44,7 @@ type ThentosConfig' =
   :*> Maybe ("proxies"      :> [HttpProxyConfig'] :>: "HTTP server for tunneling requests to services.")
         -- FIXME: make proxies a map keyed by service ids
   :*>       ("smtp"         :> SmtpConfig')       :>: "Sending email."
-  :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if there the user table is empty.")
+  :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if the user table is empty.")
 
 defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
 defaultThentosConfig =
