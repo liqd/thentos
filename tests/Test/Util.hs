@@ -138,7 +138,10 @@ setupTestServerFull = do
             { WebDriver.wdHost = webdriverHost testConfig
             , WebDriver.wdPort = webdriverPort testConfig
             }
-        wd = WebDriver.runSession wdConfig . WebDriver.finallyClose . WebDriver.closeOnException
+        wd = WebDriver.runSession wdConfig . WebDriver.finallyClose
+             -- running `WebDriver.closeOnException` here is not
+             -- recommended, as it hides all hspec errors behind an
+             -- uninformative java exception.
 
     return (asg, (backend, beConfig), (frontend, feConfig), wd)
 

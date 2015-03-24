@@ -3,7 +3,6 @@
 
 module Thentos.FrontendSpec where
 
-import Control.Exception (assert)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
@@ -59,13 +58,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                     fill "create_user.email" myEmail
 
                     WD.findElem (WD.ById "create_user_submit") >>= WD.click
-                    WD.getSource >>= \ source ->
-                        -- we are thinking about getting hspec-webdriver
-                        -- to work here, but there are issues.  meanwhile,
-                        -- we can't use hspec infrastructure from within
-                        -- @wd@, but we can still crash if something goes
-                        -- wrong.
-                        assert (cs source =~# "Please check your email") $ return ()
+                    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
                 -- check that confirmation token is in DB.
                 Right (db1 :: DB) <- query' st $ SnapShot allowEverything
@@ -78,8 +71,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                       [(tok, _)] -> wd $ do
                           WD.openPage $ cs (exposeUrl feConfig) <//> cs (activationLink tok)
                           WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
-
-                      bad -> assert False . error $ "dbUnconfirmedUsers: " ++ show bad
+                      bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
                 -- check that user has arrived in DB.
                 Right (db2 :: DB) <- query' st $ SnapShot allowEverything
