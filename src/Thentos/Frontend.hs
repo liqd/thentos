@@ -224,9 +224,6 @@ I think this may require more fundamental changes to modules Thentos.Api.*, unle
                     commitSession
                     blaze "Logged in"
                 Right Nothing -> loginFail
-                -- FIXME: we don't really want to know about the distinction
-                    -- between (Right Nothing) and (Left NoSuchUser) here.
-                    -- Ideally, we'd handle the NoSuchUser case in checkPassword
                 Left NoSuchUser -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
         Nothing -> blaze $ logIntoThentosPage _view

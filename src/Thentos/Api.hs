@@ -207,10 +207,16 @@ resetPassword token password = do
 
 checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
 checkPassword username password = do
-    (uid, user) <- queryAction $ LookupUserByName username
-    return $ if verifyPass password user
-        then Just (uid, user)
-        else Nothing
+    catchAction checkPw $ \err ->
+        case err of
+            NoSuchUser -> return Nothing
+            e -> lift $ left e
+  where
+    checkPw = do
+        (uid, user) <- queryAction $ LookupUserByName username
+        return $ if verifyPass password user
+            then Just (uid, user)
+            else Nothing
 
 
 -- ** services
