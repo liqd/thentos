@@ -20,14 +20,6 @@ module Thentos.DB.Core
   , thentosLabeledDenied
   , (=%%)
   , TLMode(TLRead, TLReadWrite)
-  , makeThentosLabel
-  , restrictThentosLabel
-  , restrictThentosLabel'
-  , makeThentosLabel1
-  , makeThentosLabel2
-  , makeThentosLabel3
-  , makeThentosLabel4
-  , makeThentosLabel5
   , createCheckpointLoop
   ) where
 
@@ -41,7 +33,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.EitherR (throwT)
 import LIO (canFlowTo, glb)
-import LIO.DCLabel (DCLabel(DCLabel), ToCNF, (%%), (/\), (\/), toCNF)
+import LIO.DCLabel (ToCNF, (%%))
 
 import Thentos.Types
 
@@ -175,42 +167,6 @@ infix 6 =%%
 
 data TLMode = TLRead | TLReadWrite
   deriving (Eq, Ord, Show, Enum, Bounded)
-
--- | See also:
---
--- * 'makeClearance_' in "Thentos.DB.Protected" (not exported)
--- * test cases in @TestMain@.
-makeThentosLabel :: ToCNF a => TLMode -> [a] -> ThentosLabel
-makeThentosLabel _      [] = thentosDenied
-makeThentosLabel tlMode (x:xs) = case tlMode of
-      TLRead      -> s =%% True
-      TLReadWrite -> s =%% i
-  where
-    s = foldr (\/) (toCNF x) (map toCNF xs)
-    i = foldr (/\) (toCNF x) (map toCNF xs)
-
-restrictThentosLabel :: ToCNF a => TLMode -> a -> ThentosLabel -> ThentosLabel
-restrictThentosLabel TLRead      a (ThentosLabel (DCLabel s _)) = s \/ a =%% True
-restrictThentosLabel TLReadWrite a (ThentosLabel (DCLabel s i)) = s \/ a =%% i /\ a
-
-restrictThentosLabel' :: ToCNF a => TLMode -> Maybe a -> ThentosLabel -> ThentosLabel
-restrictThentosLabel' _      Nothing = id
-restrictThentosLabel' tlMode (Just a) = restrictThentosLabel tlMode a
-
-makeThentosLabel1 :: ToCNF a => TLMode -> a -> ThentosLabel
-makeThentosLabel1 tlMode a = makeThentosLabel tlMode [a]
-
-makeThentosLabel2 :: (ToCNF a, ToCNF b) => TLMode -> a -> b -> ThentosLabel
-makeThentosLabel2 tlMode a b = makeThentosLabel tlMode [toCNF a, toCNF b]
-
-makeThentosLabel3 :: (ToCNF a, ToCNF b, ToCNF c) => TLMode -> a -> b -> c -> ThentosLabel
-makeThentosLabel3 tlMode a b c = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c]
-
-makeThentosLabel4 :: (ToCNF a, ToCNF b, ToCNF c, ToCNF d) => TLMode -> a -> b -> c -> d -> ThentosLabel
-makeThentosLabel4 tlMode a b c d = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c, toCNF d]
-
-makeThentosLabel5 :: (ToCNF a, ToCNF b, ToCNF c, ToCNF d, ToCNF e) => TLMode -> a -> b -> c -> d -> e -> ThentosLabel
-makeThentosLabel5 tlMode a b c d e = makeThentosLabel tlMode [toCNF a, toCNF b, toCNF c, toCNF d, toCNF e]
 
 
 -- * convenience
