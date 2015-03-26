@@ -657,6 +657,7 @@ trans_snapShot = do
     let label = RoleAdmin =%% False
     ask >>= returnDb label
 
+
 -- * event types
 
 -- FIXME: this section should be entirely constructed by TemplateHaskell
