@@ -7,16 +7,22 @@ module Site
 
 import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
-import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
+import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
+import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS, RequestBodyBS))
+import Network.HTTP.Types (methodPost)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, gets, liftIO, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Blaze (blaze)
 import Snap.Util.FileServe (serveDirectory)
 import Text.Blaze.Html (Html)
 import Text.Show.Pretty (ppShow)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Configurator as Configurator
+import qualified Network.HTTP.Client.Conduit as HC
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 
@@ -29,8 +35,8 @@ data HWConfig =
       { thentosBackendUrl  :: ByteString
       , thentosFrontendUrl :: ByteString
       , helloWorldUrl      :: ByteString
-      , serviceId          :: ByteString
-      , serviceKey         :: ByteString
+      , serviceId          :: Text
+      , serviceKey         :: Text
       }
   deriving (Eq, Show)
 
@@ -100,7 +106,7 @@ helloWorldLogin :: Handler App App ()
 helloWorldLogin = do
     hwConfig <- gets aHWConfig
     redirect'
-        (thentosFrontendUrl hwConfig <> "/login?sid=" <> (urlEncode $ serviceId hwConfig) <> "&redirect="
+        (thentosFrontendUrl hwConfig <> "/log_into_service?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
             <> urlEncode (helloWorldUrl hwConfig <> "/app"))
         303
 
@@ -114,18 +120,37 @@ tokenOk :: Maybe ByteString -> Handler App App Bool
 tokenOk Nothing = return False
 tokenOk (Just token) = do
     hwConfig <- gets aHWConfig
-    let sid = serviceId hwConfig
-        key = serviceKey hwConfig
-        url = thentosBackendUrl hwConfig <> "/session/" <> urlEncode token <> "/login/" <> urlEncode sid
+    let sid = encodeUtf8 $ serviceId hwConfig
+        url = thentosBackendUrl hwConfig <> "/session"
+        json_tok = "{\"fromSessionToken\":\"" <> token <> "\"}"
+        reqBody = RequestBodyBS json_tok
     liftIO . withManager $ do
         initReq <- parseUrl $ BC.unpack url
         let req = initReq
-                    { requestHeaders = [ ("X-Thentos-Password", key)
-                                       , ("X-Thentos-Service", sid)
-                                       ]
+                    { requestHeaders = [ ("X-Thentos-Service", sid) ]
+                    , requestBody = reqBody
                     }
         response <- httpLbs req
         case responseBody response of
             "true"  -> return True
             "false" -> return False
             e       -> fail $ "Bad response: " ++ show e
+
+-- this is currently unused, but we should really have an example where
+-- the service has to authenticate with thentos
+getServiceSessionToken :: Handler App App ByteString
+getServiceSessionToken = do
+    hwConfig <- gets aHWConfig
+    let sid = serviceId hwConfig
+        key = serviceKey hwConfig
+        url = thentosBackendUrl hwConfig <> "/session"
+        json_sid = "{\"fromServiceId\":" <> Aeson.encode sid <> "}"
+        json_key = "{\"fromServiceKey\":" <> Aeson.encode key <> "}"
+        json = "[" <> json_sid <> ", " <> json_key <> "]"
+        reqBody = RequestBodyLBS $ json
+    initReq <- liftIO $ parseUrl (BC.unpack url)
+
+    liftIO . withManager $ do
+        let req = initReq { requestBody = reqBody, HC.method = methodPost }
+        response <- httpLbs req
+        return . toStrict $ responseBody response
