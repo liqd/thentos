@@ -126,7 +126,6 @@ tokenOk (Just tokBS) =
             hwConfig <- gets aHWConfig
             let sid = encodeUtf8 $ serviceId hwConfig
                 url = thentosBackendUrl hwConfig <> "/session"
-                -- json_tok = "{\"fromSessionToken\":\"" <> token <> "\"}"
                 token_obj = Aeson.object ["fromSessionToken" .= token]
                 reqBody = RequestBodyLBS $ Aeson.encode token_obj
             liftIO . withManager $ do
