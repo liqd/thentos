@@ -213,11 +213,10 @@ logIntoThentosHandler = do
     case result of
         Just (username, password) -> do
             emUser <- snapRunAction' allowEverything $ checkPassword username password
-{-
-checkPassword should not require allowEverything, because the context in which this is called is usually without any clearance. So allowEverything should be allowNothing, and checkPassword should be labelled thentosPublic.
-
-I think this may require more fundamental changes to modules Thentos.Api.*, unless you make checkPassword a transaction in Thentos.DB.Trans. Currently, transactions are not only the thing that carries atomicity, but also the thing that carries labels. Actions carry neither. Probably something we will need to fix eventually.
--}
+              -- FIXME: See 'runThentosUpdateWithLabel' in
+              -- "Thentos.DB.Core".  Use that to create transaction
+              -- 'CheckPasswordWithLabel', then call that with
+              -- 'allowNothing' and 'thentosPublic'.
             case emUser of
                 Right (Just (uid, _)) -> with sess $ do
                     setInSession "user" (cs $ Aeson.encode [uid])
@@ -225,6 +224,9 @@ I think this may require more fundamental changes to modules Thentos.Api.*, unle
                     blaze "Logged in"
                 Right Nothing -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
+                    -- FIXME: this should be handled.  we should
+                    -- always allow transactions / actions to throw
+                    -- errors.
         Nothing -> blaze $ logIntoThentosPage _view
   where
     loginFail :: Handler FrontendApp FrontendApp ()
