@@ -6,12 +6,13 @@ module Site
   ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
 import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8)
-import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS, RequestBodyBS))
+import Data.Text.Encoding (encodeUtf8, decodeUtf8')
+import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
 import Network.HTTP.Types (methodPost)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, gets, liftIO, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Blaze (blaze)
@@ -118,23 +119,27 @@ helloWorldLogout = redirect' "/app" 303
 
 tokenOk :: Maybe ByteString -> Handler App App Bool
 tokenOk Nothing = return False
-tokenOk (Just token) = do
-    hwConfig <- gets aHWConfig
-    let sid = encodeUtf8 $ serviceId hwConfig
-        url = thentosBackendUrl hwConfig <> "/session"
-        json_tok = "{\"fromSessionToken\":\"" <> token <> "\"}"
-        reqBody = RequestBodyBS json_tok
-    liftIO . withManager $ do
-        initReq <- parseUrl $ BC.unpack url
-        let req = initReq
-                    { requestHeaders = [ ("X-Thentos-Service", sid) ]
-                    , requestBody = reqBody
-                    }
-        response <- httpLbs req
-        case responseBody response of
-            "true"  -> return True
-            "false" -> return False
-            e       -> fail $ "Bad response: " ++ show e
+tokenOk (Just tokBS) =
+    case decodeUtf8' tokBS of
+        Left _ -> return False
+        Right token -> do
+            hwConfig <- gets aHWConfig
+            let sid = encodeUtf8 $ serviceId hwConfig
+                url = thentosBackendUrl hwConfig <> "/session"
+                -- json_tok = "{\"fromSessionToken\":\"" <> token <> "\"}"
+                token_obj = Aeson.object ["fromSessionToken" .= token]
+                reqBody = RequestBodyLBS $ Aeson.encode token_obj
+            liftIO . withManager $ do
+                initReq <- parseUrl $ BC.unpack url
+                let req = initReq
+                            { requestHeaders = [ ("X-Thentos-Service", sid) ]
+                            , requestBody = reqBody
+                            }
+                response <- httpLbs req
+                case responseBody response of
+                    "true"  -> return True
+                    "false" -> return False
+                    e       -> fail $ "Bad response: " ++ show e
 
 -- this is currently unused, but we should really have an example where
 -- the service has to authenticate with thentos
@@ -144,10 +149,9 @@ getServiceSessionToken = do
     let sid = serviceId hwConfig
         key = serviceKey hwConfig
         url = thentosBackendUrl hwConfig <> "/session"
-        json_sid = "{\"fromServiceId\":" <> Aeson.encode sid <> "}"
-        json_key = "{\"fromServiceKey\":" <> Aeson.encode key <> "}"
-        json = "[" <> json_sid <> ", " <> json_key <> "]"
-        reqBody = RequestBodyLBS $ json
+        json_sid = Aeson.object ["fromServiceId" .= sid]
+        json_key = Aeson.object ["fromServiceKey" .= key]
+        reqBody = RequestBodyLBS $ Aeson.encode [json_sid, json_key]
     initReq <- liftIO $ parseUrl (BC.unpack url)
 
     liftIO . withManager $ do
