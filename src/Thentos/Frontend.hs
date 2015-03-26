@@ -224,7 +224,6 @@ I think this may require more fundamental changes to modules Thentos.Api.*, unle
                     commitSession
                     blaze "Logged in"
                 Right Nothing -> loginFail
-                Left NoSuchUser -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
         Nothing -> blaze $ logIntoThentosPage _view
   where
