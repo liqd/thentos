@@ -25,7 +25,7 @@ import Control.Monad.State (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT, left)
 import Control.Monad.Trans.Reader (ReaderT(ReaderT), runReaderT, ask)
 import Data.CaseInsensitive (foldedCase)
-import Data.Configifier  -- FIXME: make imports explicit
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
