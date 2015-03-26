@@ -85,7 +85,7 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
         s' = show x
 
 
--- | Path concatenization for avoiding double slashes in paths.  One
+-- | Path concatenation for avoiding double slashes in paths.  One
 -- optional '/' trailing left side / leading right side is removed,
 -- and one '/' is inserted.
 (<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
