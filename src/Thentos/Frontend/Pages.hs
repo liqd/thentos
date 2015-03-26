@@ -10,8 +10,10 @@ module Thentos.Frontend.Pages
     , serviceAddedPage
     , loginPage
     , loginForm
+    , logIntoThentosPage
     , emailSentPage
     , errorPage
+    , notLoggedInPage
     , requestPasswordResetPage
     , requestPasswordResetForm
     , resetPasswordPage
@@ -44,7 +46,7 @@ mainPage = do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
-            H.li . (H.a ! A.href "/login") $ "login"
+            H.li . (H.a ! A.href "/log_into_thentos") $ "login"
             H.li . (H.a ! A.href "/create_user") $ "create_user"
             H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
             H.li . (H.a ! A.href "/create_service") $ "create_service"
@@ -134,6 +136,23 @@ loginForm = (,)
     <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
+logIntoThentosPage :: View Html -> Html
+logIntoThentosPage v = do
+    H.docTypeHtml $ do
+        H.head $
+            H.title "Log into thentos"
+        H.body $ do
+            form v "log_into_thentos" $ do
+                H.p $ do
+                    label "usernamme" v "User name:"
+                    inputText "name" v
+                H.p $ do
+                    label "password" v "Password:"
+                    inputPassword "password" v
+                inputSubmit "Log in"
+
+
+
 requestPasswordResetPage :: View Html -> Html
 requestPasswordResetPage v =
     H.docTypeHtml $ do
@@ -179,6 +198,15 @@ emailSentPage = H.string $ "Please check your email"
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
+
+notLoggedInPage :: String -> Html
+notLoggedInPage thentosHost = H.docTypeHtml $ do
+    H.head $ H.title "Not logged in"
+    H.body $ do
+        H.p "You're currently not logged into Thentos."
+        H.p $ "Please go to " <> loginLink <> " and try again."
+  where
+    loginLink = H.string $ "http://" ++ thentosHost ++ "/login"
 
 -- auxillary functions
 nonEmpty :: Text -> Bool

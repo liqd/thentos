@@ -8,12 +8,14 @@ module Thentos.Frontend (runFrontend) where
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view, (^.))
+import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
 import Data.Functor.Infix ((<$$>))
+import Data.Maybe (listToMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
@@ -22,11 +24,15 @@ import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, method, Method(GET, POST), ifTop, urlEncode, urlDecode)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
-import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update, query)
-import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import Snap.Snaplet.AcidState (Acid, acidInitManual, HasAcid(getAcidStore), getAcidState, update)
+import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
+import Snap.Snaplet.Session.SessionManager (SessionManager)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import Snap.Snaplet (Snaplet, SnapletInit, snapletValue, makeSnaplet, nestSnaplet, addRoutes, Handler, with)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Map as M
@@ -41,7 +47,6 @@ import Thentos.Frontend.Pages
 import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Smtp
 import Thentos.Types
-import Thentos.Util
 
 
 data FrontendApp =
@@ -49,6 +54,7 @@ data FrontendApp =
       { _db :: Snaplet (Acid DB)
       , _rng :: MVar SystemRNG
       , _cfg :: ThentosConfig
+      , _sess :: Snaplet SessionManager
       }
 
 makeLenses ''FrontendApp
@@ -65,17 +71,21 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
     FrontendApp <$>
         (nestSnaplet "acid" db $ acidInitManual st) <*>
         (return rn) <*>
-        (return _cfg)
+        (return _cfg) <*>
+        (nestSnaplet "sess" sess $
+           initCookieSessionManager "site_key.txt" "sess" (Just 3600))
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ mainPageHandler)
-         , ("login", loginHandler)
+         , ("log_into_service", logIntoServiceHandler)
          , ("create_user", userAddHandler)
          , ("signup_confirm", userAddConfirmHandler)
          , ("request_password_reset", requestPasswordResetHandler)
          , ("reset_password", resetPasswordHandler)
          , ("create_service", method GET addServiceHandler)
          , ("create_service", method POST serviceAddedHandler)
+         , ("log_into_thentos", logIntoThentosHandler)
+         , ("check_thentos_login", checkThentosLoginHandler)
          ]
 
 mainPageHandler :: Handler FrontendApp FrontendApp ()
@@ -160,27 +170,15 @@ serviceAddedHandler = do
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
-loginHandler :: Handler FrontendApp FrontendApp ()
-loginHandler = do
-    uri <- getsRequest rqURI
+logIntoServiceHandler :: Handler FrontendApp FrontendApp ()
+logIntoServiceHandler = do
+    mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
-    (_view, result) <- runForm (cs uri) loginForm
-    case (result, mSid) of
-        (_, Nothing)                      -> blaze "No service id"
-        (Nothing, Just sid)               -> blaze $ loginPage sid _view uri
-        (Just (name, password), Just sid) -> do
-            eUser <- query $ LookupUserByName name allowEverything
-            case eUser of
-                Right (uid, user) ->
-                    if verifyPass password user
-                        then loginSuccess uid sid
-                        else loginFail
-                Left NoSuchUser -> loginFail
-                Left e -> logger WARNING (show e) >> loginFail
+    case (mUid, mSid) of
+        (_, Nothing)         -> blaze "No service id"
+        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"
+        (Just uid, Just sid) -> loginSuccess uid sid
   where
-    loginFail :: Handler FrontendApp FrontendApp ()
-    loginFail = blaze "Bad username / password combination"
-
     loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
     loginSuccess uid sid = do
         mCallback <- getParam "redirect"
@@ -207,6 +205,49 @@ loginHandler = do
         let params = parseUrlEncoded $ B.drop 1 _query in
         let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
         base_url <> "?" <> printUrlEncoded params'
+
+
+logIntoThentosHandler :: Handler FrontendApp FrontendApp ()
+logIntoThentosHandler = do
+    (_view, result) <- runForm "log_into_thentos" loginForm
+    case result of
+        Just (username, password) -> do
+            emUser <- snapRunAction' allowEverything $ checkPassword username password
+              -- FIXME: See 'runThentosUpdateWithLabel' in
+              -- "Thentos.DB.Core".  Use that to create transaction
+              -- 'CheckPasswordWithLabel', then call that with
+              -- 'allowNothing' and 'thentosPublic'.
+            case emUser of
+                Right (Just (uid, _)) -> with sess $ do
+                    setInSession "user" (cs $ Aeson.encode [uid])
+                    commitSession
+                    blaze "Logged in"
+                Right Nothing -> loginFail
+                Left _ -> error "logIntoThentosHandler: branch should not be reachable"
+                    -- FIXME: this should be handled.  we should
+                    -- always allow transactions / actions to throw
+                    -- errors.
+        Nothing -> blaze $ logIntoThentosPage _view
+  where
+    loginFail :: Handler FrontendApp FrontendApp ()
+    loginFail = blaze "Bad username / password combination"
+
+checkThentosLoginHandler :: Handler FrontendApp FrontendApp ()
+checkThentosLoginHandler = do
+    mUid <- getLoggedInUserId
+    case mUid of
+        Nothing -> blaze "Not logged in"
+        Just uid -> do
+            blaze $ "Logged in as user: " <> H.string (show uid)
+
+getLoggedInUserId :: Handler FrontendApp FrontendApp (Maybe UserId)
+getLoggedInUserId = with sess $ do
+    mUserText <- getFromSession "user"
+    return $ case mUserText of
+        Nothing -> Nothing
+        Just userText ->
+            let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
+            join $ listToMaybe <$> mlUid
 
 requestPasswordResetHandler :: Handler FrontendApp FrontendApp ()
 requestPasswordResetHandler = do

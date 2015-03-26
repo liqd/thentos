@@ -6,17 +6,24 @@ module Site
   ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (toStrict)
 import Data.Monoid ((<>))
-import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, withManager)
+import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8, decodeUtf8')
+import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
+import Network.HTTP.Types (methodPost)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, gets, liftIO, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Blaze (blaze)
 import Snap.Util.FileServe (serveDirectory)
 import Text.Blaze.Html (Html)
 import Text.Show.Pretty (ppShow)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Configurator as Configurator
+import qualified Network.HTTP.Client.Conduit as HC
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 
@@ -29,8 +36,8 @@ data HWConfig =
       { thentosBackendUrl  :: ByteString
       , thentosFrontendUrl :: ByteString
       , helloWorldUrl      :: ByteString
-      , serviceId          :: ByteString
-      , serviceKey         :: ByteString
+      , serviceId          :: Text
+      , serviceKey         :: Text
       }
   deriving (Eq, Show)
 
@@ -100,7 +107,7 @@ helloWorldLogin :: Handler App App ()
 helloWorldLogin = do
     hwConfig <- gets aHWConfig
     redirect'
-        (thentosFrontendUrl hwConfig <> "/login?sid=" <> (urlEncode $ serviceId hwConfig) <> "&redirect="
+        (thentosFrontendUrl hwConfig <> "/log_into_service?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
             <> urlEncode (helloWorldUrl hwConfig <> "/app"))
         303
 
@@ -112,20 +119,41 @@ helloWorldLogout = redirect' "/app" 303
 
 tokenOk :: Maybe ByteString -> Handler App App Bool
 tokenOk Nothing = return False
-tokenOk (Just token) = do
+tokenOk (Just tokBS) =
+    case decodeUtf8' tokBS of
+        Left _ -> return False
+        Right token -> do
+            hwConfig <- gets aHWConfig
+            let sid = encodeUtf8 $ serviceId hwConfig
+                url = thentosBackendUrl hwConfig <> "/session"
+                token_obj = Aeson.object ["fromSessionToken" .= token]
+                reqBody = RequestBodyLBS $ Aeson.encode token_obj
+            liftIO . withManager $ do
+                initReq <- parseUrl $ BC.unpack url
+                let req = initReq
+                            { requestHeaders = [ ("X-Thentos-Service", sid) ]
+                            , requestBody = reqBody
+                            }
+                response <- httpLbs req
+                case responseBody response of
+                    "true"  -> return True
+                    "false" -> return False
+                    e       -> fail $ "Bad response: " ++ show e
+
+-- this is currently unused, but we should really have an example where
+-- the service has to authenticate with thentos
+getServiceSessionToken :: Handler App App ByteString
+getServiceSessionToken = do
     hwConfig <- gets aHWConfig
     let sid = serviceId hwConfig
         key = serviceKey hwConfig
-        url = thentosBackendUrl hwConfig <> "/session/" <> urlEncode token <> "/login/" <> urlEncode sid
+        url = thentosBackendUrl hwConfig <> "/session"
+        json_sid = Aeson.object ["fromServiceId" .= sid]
+        json_key = Aeson.object ["fromServiceKey" .= key]
+        reqBody = RequestBodyLBS $ Aeson.encode [json_sid, json_key]
+    initReq <- liftIO $ parseUrl (BC.unpack url)
+
     liftIO . withManager $ do
-        initReq <- parseUrl $ BC.unpack url
-        let req = initReq
-                    { requestHeaders = [ ("X-Thentos-Password", key)
-                                       , ("X-Thentos-Service", sid)
-                                       ]
-                    }
+        let req = initReq { requestBody = reqBody, HC.method = methodPost }
         response <- httpLbs req
-        case responseBody response of
-            "true"  -> return True
-            "false" -> return False
-            e       -> fail $ "Bad response: " ++ show e
+        return . toStrict $ responseBody response
