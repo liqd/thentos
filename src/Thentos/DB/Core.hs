@@ -33,6 +33,7 @@ module Thentos.DB.Core
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
+import Control.Monad (forever)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put)
@@ -215,21 +216,18 @@ makeThentosLabel5 tlMode a b c d e = makeThentosLabel tlMode [toCNF a, toCNF b, 
 -- * convenience
 
 -- | Create a new thread that calls `createCheckpoint` synchronously,
--- then waits for @timeThreshold@ miliseconds, then repeats.  If
--- @sizeThreshold@ is `Just` a size, create checkpoint only if size of
--- segment of current change log since last checkpoint is larger than
--- that.
+-- then waits for @timeThreshold@ miliseconds, then repeats.
 --
--- FIXME: check change log size.  (i think this is only possible
--- inside acid-state.)  https://github.com/acid-state/acid-state.
+-- FIXME: If @sizeThreshold@ is `Just` a size, create checkpoint only
+-- if the number of change log entries since the last checkpoint is
+-- larger than that size.  (I think this is only possible inside
+-- acid-state.)
 createCheckpointLoop :: AcidState st -> Int -> Maybe Int -> IO ThreadId
-createCheckpointLoop acidState timeThreshold _ = forkIO iter
-  where
-    iter = do
+createCheckpointLoop _ _ (Just _) = error "createCheckpointLoop: sizeThreshold not implemented."
+createCheckpointLoop acidState timeThreshold Nothing = forkIO . forever $ do
       threadDelay $ timeThreshold * 1000
 
       -- when (isJust sizeThreshold) . assert False $
       --   print "createCheckpointLoop: sizeThreshold handling not implemented."
 
       createCheckpoint acidState
-      iter
