@@ -65,7 +65,7 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 -- acid-state's own 'Update'.  Errors are returned as 'Left' values in
 -- an 'Either'.
 --
--- This makes it possible to implement transactions as 'ThenotsUpdate'
+-- This makes it possible to implement transactions as 'ThentosUpdate'
 -- rather than 'Update', which gives extra error handling and
 -- authorization labelling.  The actual acid-state transactions
 -- ('Update') are constructed in mechanically written transaction
