@@ -77,7 +77,7 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ mainPageHandler)
-         , ("login", logIntoServiceHandler)
+         , ("log_into_service", logIntoServiceHandler)
          , ("create_user", userAddHandler)
          , ("signup_confirm", userAddConfirmHandler)
          , ("request_password_reset", requestPasswordResetHandler)
@@ -172,26 +172,13 @@ serviceAddedHandler = do
 -- session token should be in a cookie, shouldn't it?
 logIntoServiceHandler :: Handler FrontendApp FrontendApp ()
 logIntoServiceHandler = do
-    uri <- getsRequest rqURI
+    mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
-    (_view, result) <- runForm (cs uri) loginForm
-    case (result, mSid) of
-        (_, Nothing)                      -> blaze "No service id"
-        (Nothing, Just sid)               -> blaze $ loginPage sid _view uri
-        (Just (name, password), Just sid) -> do
-            emUser <- snapRunAction' allowEverything $ checkPassword name password
-            case emUser of
-                Right (Just (uid, _)) -> loginSuccess uid sid
-                Right Nothing -> loginFail
-                -- FIXME: we don't really want to know about the distinction
-                    -- between (Right Nothing) and (Left NoSuchUser) here.
-                    -- Ideally, we'd handle the NoSuchUser case in checkPassword
-                Left NoSuchUser -> loginFail
-                Left e -> logger WARNING (show e) >> loginFail
+    case (mUid, mSid) of
+        (_, Nothing)         -> blaze "No service id"
+        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"
+        (Just uid, Just sid) -> loginSuccess uid sid
   where
-    loginFail :: Handler FrontendApp FrontendApp ()
-    loginFail = blaze "Bad username / password combination"
-
     loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
     loginSuccess uid sid = do
         mCallback <- getParam "redirect"
@@ -226,13 +213,20 @@ logIntoThentosHandler = do
     case result of
         Just (username, password) -> do
             emUser <- snapRunAction' allowEverything $ checkPassword username password
+{-
+checkPassword should not require allowEverything, because the context in which this is called is usually without any clearance. So allowEverything should be allowNothing, and checkPassword should be labelled thentosPublic.
+
+I think this may require more fundamental changes to modules Thentos.Api.*, unless you make checkPassword a transaction in Thentos.DB.Trans. Currently, transactions are not only the thing that carries atomicity, but also the thing that carries labels. Actions carry neither. Probably something we will need to fix eventually.
+-}
             case emUser of
                 Right (Just (uid, _)) -> with sess $ do
                     setInSession "user" (cs $ Aeson.encode [uid])
                     commitSession
                     blaze "Logged in"
                 Right Nothing -> loginFail
-                -- FIXME: see above
+                -- FIXME: we don't really want to know about the distinction
+                    -- between (Right Nothing) and (Left NoSuchUser) here.
+                    -- Ideally, we'd handle the NoSuchUser case in checkPassword
                 Left NoSuchUser -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
         Nothing -> blaze $ logIntoThentosPage _view
