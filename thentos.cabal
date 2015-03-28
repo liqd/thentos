@@ -22,6 +22,12 @@ Source-Repository head
 flag profiling
   default: False
 
+flag with-thentos-executable
+  default: True
+
+flag with-build-docs-executable
+  default: True
+
 library
   default-language:
       Haskell2010
@@ -106,6 +112,11 @@ library
     , MonadCatchIO-transformers
 
 executable thentos
+  if flag(with-thentos-executable)
+    Buildable: True
+  else
+    Buildable: False
+
   default-language:
       Haskell2010
   hs-source-dirs:
@@ -122,6 +133,11 @@ executable thentos
     , thentos
 
 executable build-docs
+  if flag(with-build-docs-executable)
+    Buildable: True
+  else
+    Buildable: False
+
   default-language:
       Haskell2010
   hs-source-dirs:
