@@ -332,7 +332,7 @@ trans_addService sid key = do
 
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
-    let label = RoleAdmin \/ ServiceA sid =%%RoleAdmin /\ ServiceA sid
+    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
     ThentosLabeled label' (_, service) <- liftThentosQuery $ trans_lookupService sid
     maybe (return ()) deleteSession (service ^. serviceSession)
     modify $ dbServices %~ Map.delete sid
@@ -417,22 +417,20 @@ lookupSessionWithMaybeService :: Maybe ServiceId -> Maybe (TimeStamp, Bool) -> S
       -> ThentosUpdate (SessionToken, Session)
 lookupSessionWithMaybeService mSid mNow tok = do
     let label = case mSid of
-          Just sid -> makeThentosLabel2 TLReadWrite RoleAdmin (ServiceA sid)
-          Nothing  -> makeThentosLabel1 TLReadWrite RoleAdmin
+          Just sid -> RoleAdmin \/ (ServiceA sid) =%% RoleAdmin /\ (ServiceA sid)
+          Nothing  -> RoleAdmin =%% RoleAdmin
     rSession <- (\ db -> pure_lookupSession db mNow tok) <$> get
 
     case rSession of
         LookupSessionUnchanged (_, session) -> do
-            let label' = restrictThentosLabel TLReadWrite (session ^. sessionAgent) label
-            returnDb label' (tok, session)
-        LookupSessionBumped    (_, session) -> do
-            let label' = restrictThentosLabel TLReadWrite (session ^. sessionAgent) label
+            let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
+            returnDb (lub label label') (tok, session)
+        LookupSessionBumped (_, session) -> do
+            let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
             () <- writeSession Nothing tok session
-            returnDb label' (tok, session)
-        LookupSessionInactive -> do
-            throwDb label NoSuchSession
-        LookupSessionNotThere -> do
-            throwDb label NoSuchSession
+            returnDb (lub label label') (tok, session)
+        LookupSessionInactive -> throwDb label NoSuchSession
+        LookupSessionNotThere -> throwDb label NoSuchSession
 
 
 -- | Start a new session for user with 'UserId' on service with
@@ -468,8 +466,8 @@ trans_endSession :: SessionToken -> ThentosUpdate ()
 trans_endSession tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
     let label = case mSession of
-            Just session -> makeThentosLabel2 TLReadWrite RoleAdmin (session ^. sessionAgent)
-            Nothing      -> makeThentosLabel1 TLReadWrite RoleAdmin
+            Just session -> RoleAdmin \/ (session ^. sessionAgent) =%% RoleAdmin /\ (session ^. sessionAgent)
+            Nothing      -> RoleAdmin =%% RoleAdmin
 
     () <- deleteSession tok
     returnDb label ()
@@ -507,7 +505,7 @@ trans_isActiveSessionAndBump now tok = do
 -- | Bump session if it is valid (even if not logged into service).
 trans_isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
 trans_isLoggedIntoService now tok sid = do
-    let label = makeThentosLabel2 TLReadWrite RoleAdmin (ServiceA sid)
+    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
     catchT
         (check >>= \ (ThentosLabeled _ v) -> returnDb label v)
         (const $ returnDb label False)
@@ -656,6 +654,7 @@ trans_snapShot :: ThentosQuery DB
 trans_snapShot = do
     let label = RoleAdmin =%% False
     ask >>= returnDb label
+
 
 -- * event types
 

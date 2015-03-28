@@ -24,6 +24,7 @@ Executable helloworld
 
   Build-depends:
       base                      >= 4.4
+    , aeson
     , blaze-html
     , blaze-markup              >= 0.6.3
     , bytestring                >= 0.9.1
@@ -32,6 +33,7 @@ Executable helloworld
     , heist                     >= 0.14
     , http-client               >= 0.4.7
     , http-conduit              >= 2.1.5
+    , http-types
     , lens                      >= 3.7.6
     , MonadCatchIO-transformers >= 0.2.1
     , mtl                       >= 2
