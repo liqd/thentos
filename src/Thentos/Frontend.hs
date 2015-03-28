@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
-module Thentos.Frontend (runFrontend) where
+module Thentos.Frontend where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)

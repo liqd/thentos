@@ -7,8 +7,7 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
-import Data.String.Conversions (ST, LBS, cs, (<>))
-import Snap.Core (urlEncode)
+import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
 import Text.Regex.Easy ((=~#))
 
@@ -19,8 +18,8 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
+import Thentos.Frontend (urlSignupConfirm)
 import Thentos.Types
-import Thentos.Util ((<//>))
 
 import Test.Arbitrary ()
 import Test.Util
@@ -69,7 +68,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage $ urlSignupConfirm feConfig tok
+                          WD.openPage . cs $ urlSignupConfirm feConfig tok
                           WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
                       bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
