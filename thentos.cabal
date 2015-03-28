@@ -156,7 +156,6 @@ executable build-docs
     , functor-infix
     , pandoc
     , process
-    , safe
     , servant
     , servant-docs
     , servant-pandoc
