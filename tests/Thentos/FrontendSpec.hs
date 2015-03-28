@@ -69,7 +69,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage $ cs (exposeUrl feConfig) <//> cs (activationLink tok)
+                          WD.openPage $ urlSignupConfirm feConfig tok
                           WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
                       bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
@@ -78,9 +78,3 @@ spec = describe "selenium (consult README.md if this test fails)"
                 Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
                 eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
                 eUser `shouldSatisfy` isRight
-
-
--- | FIXME: move this function to "Thentos.Frontend" and un-inline it
--- from 'userAddHandler'.
-activationLink :: ConfirmationToken -> LBS
-activationLink (ConfirmationToken tok) = "/signup_confirm?token=" <> (cs . urlEncode . cs $ tok)

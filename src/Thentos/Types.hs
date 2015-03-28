@@ -99,7 +99,7 @@ newtype Group = Group { fromGroup :: ST }
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-newtype PasswordResetToken = PasswordResetToken { fromPwResetToken :: ST }
+newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 -- | Information required to create a new User

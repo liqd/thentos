@@ -50,6 +50,7 @@ import Thentos.Frontend.Pages
 import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Smtp
 import Thentos.Types
+import Thentos.Util ((<//>))
 
 
 data FrontendApp =
@@ -112,29 +113,23 @@ userAddHandler = do
         Just user -> do
             result' <- snapRunAction' clearance $ addUnconfirmedUser user
             case result' of
-                Right (_, ConfirmationToken token) -> do
+                Right (_, token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     let Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
-
-                        -- FIXME: factor out @mkUrlSignupConfirm ::
-                        -- ConfirmationToken -> LBS@ that constructs
-                        -- @"/signup_confirm?..."@.  we may be able to
-                        -- find better names, too.  and there are
-                        -- probably other places in this module where
-                        -- functions can be factored out similarly.
-                        -- see also @activationLink@ in
-                        -- @FrontendSpec.hs@.
-
-                        url = cs (exposeUrl feConfig)
-                                <> "/signup_confirm?token="
-                                <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
-                    liftIO $ sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user url
+                    liftIO $ sendUserConfirmationMail
+                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
+                        (urlSignupConfirm feConfig token)
                     blaze emailSentPage
                 Left UserEmailAlreadyExists -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
                     blaze emailSentPage
                 Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+
+urlSignupConfirm :: HttpConfig -> ConfirmationToken -> L.Text
+urlSignupConfirm feConfig (ConfirmationToken token) =
+    cs (exposeUrl feConfig) <//> "/signup_confirm?token="
+        <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
@@ -179,7 +174,7 @@ logIntoServiceHandler = do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
         (_, Nothing)         -> blaze "No service id"
-        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"
+        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"  -- FIXME: use url from cfg.
         (Just uid, Just sid) -> loginSuccess uid sid
   where
     loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
@@ -266,12 +261,16 @@ requestPasswordResetHandler = do
             case eToken of
                 Left NoSuchUser -> blaze emailSentPage
                 Right (user, token) -> do
-                    let url = cs (exposeUrl feConfig)
-                                <> "/reset_password?token="
-                                <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ fromPwResetToken token)
-                    liftIO $ sendPasswordResetMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user url
+                    liftIO $ sendPasswordResetMail
+                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
+                        (urlResetPassword feConfig token)
                     blaze emailSentPage
                 Left _ -> error "requestPasswordResetHandler: branch should not be reachable"
+
+urlResetPassword :: HttpConfig -> PasswordResetToken -> L.Text
+urlResetPassword feConfig (PasswordResetToken token) =
+    cs (exposeUrl feConfig) <//> "/reset_password?token="
+        <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do
