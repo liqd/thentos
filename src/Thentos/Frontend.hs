@@ -86,23 +86,37 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ mainPageHandler)
-         , ("log_into_service", logIntoServiceHandler)
-         , ("create_user", userAddHandler)
-         , ("signup_confirm", userAddConfirmHandler)
-         , ("request_password_reset", requestPasswordResetHandler)
-         , ("reset_password", resetPasswordHandler)
-         , ("create_service", method GET addServiceHandler)
-         , ("create_service", method POST serviceAddedHandler)
+
          , ("log_into_thentos", logIntoThentosHandler)
+
+         -- FIXME: make "user/" a sub-routing-table.
+         , ("user_create", userAddHandler)
+         , ("user_create_confirm", userAddConfirmHandler)
+         , ("user_reset_password_request", requestPasswordResetHandler)
+         , ("user_reset_password", resetPasswordHandler)
+         , ("user_update", ?)
+
+         , ("service_create", method GET addServiceHandler)
+         , ("service_create", method POST addServiceHandler)
+
+         , ("log_into_service", logIntoServiceHandler)
          , ("check_thentos_login", checkThentosLoginHandler)
          ]
+
+-- FIXME: move all handlers to separate module; rename "blaHandler" to
+-- "bla".  import qualified as H.
 
 mainPageHandler :: Handler FrontendApp FrontendApp ()
 mainPageHandler = blaze mainPage
 
+-- FIXME: for all forms, make sure that on use error, the form is
+-- rendered again with response code 409 and a readable error message
+-- on top of the form.
+
 -- | FIXME (thanks to Sönke Hahn): this doesn't create a user on
 -- errors (e.g.  missing mail address), but does not show an error
--- message.  (Even worse: it returns a 200.)
+-- message.  (Even worse: it returns a 200.  It should response with
+-- 409.)
 userAddHandler :: Handler FrontendApp FrontendApp ()
 userAddHandler = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
@@ -164,7 +178,7 @@ serviceAddedHandler = do
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
 
--- | FIXME (thanks to Sönke Hahn): The session token seems to be
+-- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
@@ -211,7 +225,7 @@ logIntoThentosHandler = do
     case result of
         Just (username, password) -> do
             emUser <- snapRunAction' allowEverything $ checkPassword username password
-              -- FIXME: See 'runThentosUpdateWithLabel' in
+              -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
               -- "Thentos.DB.Core".  Use that to create transaction
               -- 'CheckPasswordWithLabel', then call that with
               -- 'allowNothing' and 'thentosPublic'.

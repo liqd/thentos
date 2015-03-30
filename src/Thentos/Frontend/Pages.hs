@@ -208,6 +208,8 @@ notLoggedInPage thentosHost = H.docTypeHtml $ do
   where
     loginLink = H.string $ "http://" ++ thentosHost ++ "/login"
 
--- auxillary functions
+
+-- * auxillary functions
+
 nonEmpty :: Text -> Bool
 nonEmpty = not . T.null
