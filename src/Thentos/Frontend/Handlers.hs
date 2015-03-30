@@ -4,15 +4,6 @@
 
 module Thentos.Frontend.Handlers where
 
-import Thentos.Api
-import Thentos.DB
-import Thentos.Frontend.Pages
-import Thentos.Frontend.Types
-import Thentos.Config
-import Thentos.Smtp
-import Thentos.Types
-import Thentos.Util
-
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
@@ -47,8 +38,18 @@ import qualified Data.Map as M
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 
-mainPageHandler :: Handler FrontendApp FrontendApp ()
-mainPageHandler = blaze mainPage
+import Thentos.Api
+import Thentos.DB
+import Thentos.Frontend.Pages
+import Thentos.Frontend.Types
+import Thentos.Config
+import Thentos.Smtp
+import Thentos.Types
+import Thentos.Util
+
+
+index :: Handler FrontendApp FrontendApp ()
+index = blaze mainPage
 
 -- FIXME: for all forms, make sure that on use error, the form is
 -- rendered again with response code 409 and a readable error message
@@ -58,11 +59,11 @@ mainPageHandler = blaze mainPage
 -- errors (e.g.  missing mail address), but does not show an error
 -- message.  (Even worse: it returns a 200.  It should response with
 -- 409.)
-userAddHandler :: Handler FrontendApp FrontendApp ()
-userAddHandler = do
+userAdd :: Handler FrontendApp FrontendApp ()
+userAdd = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
 
-    (view, result) <- runForm "create_user" userForm
+    (view, result) <- runForm "create" userForm
     case result of
         Nothing -> blaze $ addUserPage view
         Just user -> do
@@ -83,11 +84,11 @@ userAddHandler = do
 
 urlSignupConfirm :: HttpConfig -> ConfirmationToken -> L.Text
 urlSignupConfirm feConfig (ConfirmationToken token) =
-    cs (exposeUrl feConfig) <//> "/signup_confirm?token="
+    cs (exposeUrl feConfig) <//> "/user/create_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
-userAddConfirmHandler = do
+userAddConfirm :: Handler FrontendApp FrontendApp ()
+userAddConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
     mTokenBS <- getParam "token"
@@ -109,12 +110,12 @@ userAddConfirmHandler = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
-addServiceHandler :: Handler FrontendApp FrontendApp ()
-addServiceHandler = blaze addServicePage
+addService :: Handler FrontendApp FrontendApp ()
+addService = blaze addServicePage
 
-serviceAddedHandler :: Handler FrontendApp FrontendApp ()
-serviceAddedHandler = do
-    result <- snapRunAction' allowEverything addService
+serviceAdded :: Handler FrontendApp FrontendApp ()
+serviceAdded = do
+    result <- snapRunAction' allowEverything Thentos.Api.addService
     case result of
         Right (sid, key) -> blaze $ serviceAddedPage sid key
         Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
@@ -123,8 +124,8 @@ serviceAddedHandler = do
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
-logIntoServiceHandler :: Handler FrontendApp FrontendApp ()
-logIntoServiceHandler = do
+logIntoService :: Handler FrontendApp FrontendApp ()
+logIntoService = do
     mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
@@ -160,8 +161,8 @@ logIntoServiceHandler = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-logIntoThentosHandler :: Handler FrontendApp FrontendApp ()
-logIntoThentosHandler = do
+logIntoThentos :: Handler FrontendApp FrontendApp ()
+logIntoThentos = do
     (view, result) <- runForm "log_into_thentos" loginForm
     case result of
         Just (username, password) -> do
@@ -185,8 +186,8 @@ logIntoThentosHandler = do
     loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
 
-checkThentosLoginHandler :: Handler FrontendApp FrontendApp ()
-checkThentosLoginHandler = do
+checkThentosLogin :: Handler FrontendApp FrontendApp ()
+checkThentosLogin = do
     mUid <- getLoggedInUserId
     case mUid of
         Nothing -> blaze "Not logged in"
@@ -202,8 +203,8 @@ getLoggedInUserId = with sess $ do
             let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
             join $ listToMaybe <$> mlUid
 
-requestPasswordResetHandler :: Handler FrontendApp FrontendApp ()
-requestPasswordResetHandler = do
+requestPasswordReset :: Handler FrontendApp FrontendApp ()
+requestPasswordReset = do
     uri <- getsRequest rqURI
     (view, result) <- runForm (cs uri) requestPasswordResetForm
     case result of
@@ -224,11 +225,11 @@ requestPasswordResetHandler = do
 
 urlResetPassword :: HttpConfig -> PasswordResetToken -> L.Text
 urlResetPassword feConfig (PasswordResetToken token) =
-    cs (exposeUrl feConfig) <//> "/reset_password?token="
+    cs (exposeUrl feConfig) <//> "/user/reset_password?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-resetPasswordHandler :: Handler FrontendApp FrontendApp ()
-resetPasswordHandler = do
+resetPassword :: Handler FrontendApp FrontendApp ()
+resetPassword = do
     eUrl <- decodeUtf8' <$> getsRequest rqURI
     mToken <- (>>= urlDecode) <$> getParam "token"
     let meToken = PasswordResetToken <$$> decodeUtf8' <$> mToken
@@ -240,7 +241,7 @@ resetPasswordHandler = do
 
         -- process reset form input
         (Just password, Just (Right token), Right _) -> do
-            result <- snapRunAction' allowEverything $ resetPassword token password
+            result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
                 Left NoSuchResetToken -> blaze $ errorPage "No such reset token"

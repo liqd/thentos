@@ -47,10 +47,9 @@ mainPage = do
             "things you can do from here:"
         H.ul $ do
             H.li . (H.a ! A.href "/log_into_thentos") $ "login"
-            H.li . (H.a ! A.href "/create_user") $ "create_user"
-            H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
-            H.li . (H.a ! A.href "/create_service") $ "create_service"
-            H.li . (H.a ! A.href "/request_password_reset") $ "request_password_reset"
+            H.li . (H.a ! A.href "/user/create") $ "create user"
+            H.li . (H.a ! A.href "/create_service") $ "create service"
+            H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
 
 addUserPage :: View Html -> Html
 addUserPage v = H.docTypeHtml $ do
@@ -58,7 +57,7 @@ addUserPage v = H.docTypeHtml $ do
         H.title "Create user"
     H.body $ do
         -- FIXME: how do we avoid having to duplicate the URL here?
-        form v "create_user" $ do
+        form v "create" $ do
             H.p $ do
                 label "name" v "User name:"
                 inputText "name" v
@@ -151,14 +150,12 @@ logIntoThentosPage v = do
                     inputPassword "password" v
                 inputSubmit "Log in"
 
-
-
 requestPasswordResetPage :: View Html -> Html
 requestPasswordResetPage v =
     H.docTypeHtml $ do
         H.head $ H.title "Reset your password"
         H.body $ do
-            form v "request_password_reset" $ do
+            form v "reset_password_request" $ do
                 H.p $ do
                     label "email" v "Email address: "
                     inputText "email" v

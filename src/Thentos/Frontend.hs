@@ -23,9 +23,10 @@ import System.Log.Missing (logger)
 
 import Thentos.Api
 import Thentos.Config
-import Thentos.Frontend.Handlers as H
 import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Frontend.Types
+
+import qualified Thentos.Frontend.Handlers as H
 
 runFrontend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
 runFrontend config asg = do
@@ -46,20 +47,18 @@ frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user m
            initCookieSessionManager "site_key.txt" "sess" (Just 3600))
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
-routes = [ ("", ifTop $ mainPageHandler)
+routes = [ ("", ifTop $ H.index)
 
-         , ("log_into_thentos", logIntoThentosHandler)
+         , ("log_into_thentos", H.logIntoThentos)
+         , ("user/create", H.userAdd)
+         , ("user/create_confirm", H.userAddConfirm)
+         , ("user/reset_password_request", H.requestPasswordReset)
+         , ("user/reset_password", H.resetPassword)
+         -- , ("user/update", ?)
 
-         -- FIXME: make "user/" a sub-routing-table.
-         , ("user_create", userAddHandler)
-         , ("user_create_confirm", userAddConfirmHandler)
-         , ("user_reset_password_request", requestPasswordResetHandler)
-         , ("user_reset_password", resetPasswordHandler)
-         -- , ("user_update", ?)
+         , ("service_create", method GET H.addService)
+         , ("service_create", method POST H.addService)
 
-         , ("service_create", method GET addServiceHandler)
-         , ("service_create", method POST addServiceHandler)
-
-         , ("log_into_service", logIntoServiceHandler)
-         , ("check_thentos_login", checkThentosLoginHandler)
+         , ("log_into_service", H.logIntoService)
+         , ("check_thentos_login", H.checkThentosLogin)
          ]
