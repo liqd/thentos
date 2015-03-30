@@ -8,10 +8,11 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 import Text.Regex.Easy ((=~#))
 
 import qualified Data.Map as Map
+import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
@@ -20,6 +21,7 @@ import Thentos.DB.Protect
 import Thentos.DB.Trans
 import Thentos.Frontend (urlSignupConfirm)
 import Thentos.Types
+import Thentos.Util ((<//>))
 
 import Test.Arbitrary ()
 import Test.Util
@@ -31,7 +33,22 @@ tests = hspec spec
 spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)"
            . before setupTestServerFull . after teardownTestServerFull $ do
+    createUser
     resetPassword
+    updateSelf
+    logIntoThentos
+    logOutOfThentos
+    serviceCreate
+    serviceDelete
+    serviceUpdateMetadata
+    serviceGiveToOtherUser
+    logIntoService
+    logOutOfService
+    browseMyServices
+
+
+createUser :: SpecWith TestServerFull
+createUser = it "create user" $ \ _ -> pendingWith "no test implemented."
 
 
 resetPassword :: SpecWith TestServerFull
@@ -74,3 +91,88 @@ resetPassword = it "reset password" $ \ ((st, _, _), _, (_, feConfig), wd) -> do
     Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
     eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
     eUser `shouldSatisfy` isRight
+
+
+updateSelf :: SpecWith TestServerFull
+updateSelf = it "update self" $ \ _ -> pendingWith "no test implemented."
+
+
+logIntoThentos :: SpecWith TestServerFull
+logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You are logged in.")
+        -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
+
+    -- (out of curiousity: why do we need the type signature in the
+    -- lambda parameter?  shouldn't ghc infer (and be happy with the
+    -- fact) that the lambda is polymorphic in all places where it
+    -- takes '_'?)
+
+
+logOutOfThentos :: SpecWith TestServerFull
+logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You are logged out.")
+        -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
+
+
+serviceCreate :: SpecWith TestServerFull
+serviceCreate = it "service create" $ \ _ -> pendingWith "no test implemented."
+
+
+serviceDelete :: SpecWith TestServerFull
+serviceDelete = it "service delete" $ \ _ -> pendingWith "no test implemented."
+
+
+serviceUpdateMetadata :: SpecWith TestServerFull
+serviceUpdateMetadata = it "service delete" $ \ _ -> pendingWith "no test implemented."
+
+
+serviceGiveToOtherUser :: SpecWith TestServerFull
+serviceGiveToOtherUser = it "service delete" $ \ _ -> pendingWith "no test implemented."
+
+
+logIntoService :: SpecWith TestServerFull
+logIntoService = it "log into service" $ \ _ -> pendingWith "no test implemented."
+
+
+logOutOfService :: SpecWith TestServerFull
+logOutOfService = it "log out of service" $ \ _ -> pendingWith "no test implemented."
+
+
+browseMyServices :: SpecWith TestServerFull
+browseMyServices = it "browse my services" $ \ _ -> pendingWith "no test implemented."
+{-
+      \ ((st, _, _), _, (_, feConfig), wd) -> do
+    wd $ do
+        wdLogin "god" "god" >>= liftIO . (`shouldBe` 200)
+
+        -- FIXME:
+        -- go to "/user/dashboard"
+        -- check that there are services that i'm logged into
+        -- check that there are services that i'm logged outof
+-}
+
+
+-- * wd actions
+
+wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
+wdLogin feConfig (UserName uname) (UserPass upass) = do
+    WD.openPage (cs $ exposeUrl feConfig <//> "log_into_thentos")
+
+    let fill :: WD.WebDriver wd => ST -> ST -> wd ()
+        fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+    fill "name" uname
+    fill "password" upass
+
+    WD.findElem (WD.ById "login_submit") >>= WD.click
+    return $ C.Status 200 "Ok."  -- FIXME: we need a man in the middle
+                                 -- between browser and http server
+                                 -- that we can ask for things
+                                 -- happening between the two.
+                                 -- selenium doesn't allow that.
+
+wdLogout :: HttpConfig -> WD.WD C.Status
+wdLogout feConfig = do
+    WD.openPage (cs $ exposeUrl feConfig <//> "logout_thentos")
+    return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin
