@@ -49,7 +49,7 @@ import Thentos.Util
 
 
 index :: Handler FrontendApp FrontendApp ()
-index = blaze mainPage
+index = blaze indexPage
 
 -- FIXME: for all forms, make sure that on use error, the form is
 -- rendered again with response code 409 and a readable error message
@@ -59,13 +59,13 @@ index = blaze mainPage
 -- errors (e.g.  missing mail address), but does not show an error
 -- message.  (Even worse: it returns a 200.  It should response with
 -- 409.)
-userAdd :: Handler FrontendApp FrontendApp ()
-userAdd = do
+userCreate :: Handler FrontendApp FrontendApp ()
+userCreate = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
 
-    (view, result) <- runForm "create" userForm
+    (view, result) <- runForm "create" userCreateForm
     case result of
-        Nothing -> blaze $ addUserPage view
+        Nothing -> blaze $ userCreatePage view
         Just user -> do
             result' <- snapRunAction' clearance $ addUnconfirmedUser user
             case result' of
@@ -74,21 +74,21 @@ userAdd = do
                     feConfig <- gets (^. frontendCfg)
                     liftIO $ sendUserConfirmationMail
                         (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
-                        (urlSignupConfirm feConfig token)
-                    blaze emailSentPage
+                        (urlUserCreateConfirm feConfig token)
+                    blaze userCreateRequestedPage
                 Left UserEmailAlreadyExists -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
-                    blaze emailSentPage
+                    blaze userCreateRequestedPage
                 Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
 
-urlSignupConfirm :: HttpConfig -> ConfirmationToken -> L.Text
-urlSignupConfirm feConfig (ConfirmationToken token) =
+urlUserCreateConfirm :: HttpConfig -> ConfirmationToken -> L.Text
+urlUserCreateConfirm feConfig (ConfirmationToken token) =
     cs (exposeUrl feConfig) <//> "/user/create_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-userAddConfirm :: Handler FrontendApp FrontendApp ()
-userAddConfirm = do
+userCreateConfirm :: Handler FrontendApp FrontendApp ()
+userCreateConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
     mTokenBS <- getParam "token"
@@ -96,7 +96,7 @@ userAddConfirm = do
         Just (Right token) -> do
             eResult <- update $ FinishUserRegistration token clearance
             case eResult of
-                Right uid -> blaze $ userAddedPage uid
+                Right uid -> blaze $ userCreatedPage uid
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO (show e)
                     blaze (errorPage "finializing registration failed: unknown token.")
@@ -110,14 +110,14 @@ userAddConfirm = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
-addService :: Handler FrontendApp FrontendApp ()
-addService = blaze addServicePage
+serviceCreate :: Handler FrontendApp FrontendApp ()
+serviceCreate = blaze serviceCreatePage
 
-serviceAdded :: Handler FrontendApp FrontendApp ()
-serviceAdded = do
+serviceCreated :: Handler FrontendApp FrontendApp ()
+serviceCreated = do
     result <- snapRunAction' allowEverything Thentos.Api.addService
     case result of
-        Right (sid, key) -> blaze $ serviceAddedPage sid key
+        Right (sid, key) -> blaze $ serviceCreatedPage sid key
         Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
@@ -163,7 +163,7 @@ loginService = do
 
 loginThentos :: Handler FrontendApp FrontendApp ()
 loginThentos = do
-    (view, result) <- runForm "login_thentos" loginForm
+    (view, result) <- runForm "login_thentos" loginThentosForm
     case result of
         Just (username, password) -> do
             emUser <- snapRunAction' allowEverything $ checkPassword username password
@@ -181,7 +181,7 @@ loginThentos = do
                     -- FIXME: this should be handled.  we should
                     -- always allow transactions / actions to throw
                     -- errors.
-        Nothing -> blaze $ logIntoThentosPage view
+        Nothing -> blaze $ loginThentosPage view
   where
     loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
@@ -203,28 +203,28 @@ getLoggedInUserId = with sess $ do
             let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
             join $ listToMaybe <$> mlUid
 
-requestPasswordReset :: Handler FrontendApp FrontendApp ()
-requestPasswordReset = do
+resetPasswordRequest :: Handler FrontendApp FrontendApp ()
+resetPasswordRequest = do
     uri <- getsRequest rqURI
-    (view, result) <- runForm (cs uri) requestPasswordResetForm
+    (view, result) <- runForm (cs uri) resetPasswordRequestForm
     case result of
-        Nothing -> blaze $ requestPasswordResetPage view
+        Nothing -> blaze $ resetPasswordRequestPage view
         Just address -> do
             config :: ThentosConfig <- gets (^. cfg)
             feConfig <- gets (^. frontendCfg)
             eToken <-
                 snapRunAction' allowEverything $ addPasswordResetToken address
             case eToken of
-                Left NoSuchUser -> blaze emailSentPage
+                Left NoSuchUser -> blaze resetPasswordRequestedPage
                 Right (user, token) -> do
                     liftIO $ sendPasswordResetMail
                         (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
-                        (urlResetPassword feConfig token)
-                    blaze emailSentPage
+                        (urlPasswordReset feConfig token)
+                    blaze resetPasswordRequestedPage
                 Left _ -> error "requestPasswordResetHandler: branch should not be reachable"
 
-urlResetPassword :: HttpConfig -> PasswordResetToken -> L.Text
-urlResetPassword feConfig (PasswordResetToken token) =
+urlPasswordReset :: HttpConfig -> PasswordResetToken -> L.Text
+urlPasswordReset feConfig (PasswordResetToken token) =
     cs (exposeUrl feConfig) <//> "/user/reset_password?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 

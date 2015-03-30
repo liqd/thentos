@@ -52,14 +52,14 @@ routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ H.index)
 
          , ("login_thentos", H.loginThentos)
-         , ("user/create", H.userAdd)
-         , ("user/create_confirm", H.userAddConfirm)
-         , ("user/reset_password_request", H.requestPasswordReset)
+         , ("user/create", H.userCreate)
+         , ("user/create_confirm", H.userCreateConfirm)
+         , ("user/reset_password_request", H.resetPasswordRequest)
          , ("user/reset_password", H.resetPassword)
          -- , ("user/update", ?)
 
-         , ("service_create", method GET H.addService)
-         , ("service_create", method POST H.addService)
+         , ("service/create", method GET H.serviceCreate)
+         , ("service/create", method POST H.serviceCreate)
 
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?

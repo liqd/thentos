@@ -18,7 +18,7 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
-import Thentos.Frontend.Handlers (urlSignupConfirm)
+import Thentos.Frontend.Handlers (urlUserCreateConfirm)
 import Thentos.Types
 
 import Test.Arbitrary ()
@@ -68,7 +68,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage . cs $ urlSignupConfirm feConfig tok
+                          WD.openPage . cs $ urlUserCreateConfirm feConfig tok
                           WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
                       bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
