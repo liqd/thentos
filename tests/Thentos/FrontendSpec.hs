@@ -18,7 +18,7 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
-import Thentos.Frontend (urlSignupConfirm)
+import Thentos.Frontend.Handlers (urlSignupConfirm)
 import Thentos.Types
 
 import Test.Arbitrary ()

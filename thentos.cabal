@@ -47,8 +47,10 @@ library
     , Thentos.Backend.Api.Proxy
     , Thentos.Backend.Api.Adhocracy3
     , Thentos.Frontend
+    , Thentos.Frontend.Handlers
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Util
+    , Thentos.Frontend.Types
     , Thentos.Smtp
     , System.Log.Missing
   build-depends:
