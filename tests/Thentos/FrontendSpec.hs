@@ -42,12 +42,7 @@ resetPassword = it "reset password" $ \ ((st, _, _), _, (_, feConfig), wd) -> do
 
     -- create confirmation token
     wd $ do
-        WD.setImplicitWait 1000
-        WD.setScriptTimeout 1000
-        WD.setPageLoadTimeout 1000
-
         WD.openPage (cs $ exposeUrl feConfig)
-
         WD.findElem (WD.ByLinkText "create_user") >>= WD.click
 
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()

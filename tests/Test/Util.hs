@@ -45,7 +45,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
-import qualified Test.WebDriver as WebDriver
+import qualified Test.WebDriver as WD
 
 import Thentos.Api
 import Thentos.Backend.Api.Simple as Simple
@@ -119,7 +119,7 @@ type TestServerFull =
     ( ActionStateGlobal (MVar SystemRNG)
     , (Async (), HttpConfig)
     , (Async (), HttpConfig)
-    , WebDriver.WD () -> IO ()
+    , WD.WD () -> IO ()
     )
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
@@ -134,14 +134,18 @@ setupTestServerFull = do
     backend  <- async $ Simple.runBackend beConfig asg
     frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
 
-    let wdConfig = WebDriver.defaultConfig
-            { WebDriver.wdHost = webdriverHost testConfig
-            , WebDriver.wdPort = webdriverPort testConfig
+    let wdConfig = WD.defaultConfig
+            { WD.wdHost = webdriverHost testConfig
+            , WD.wdPort = webdriverPort testConfig
             }
-        wd = WebDriver.runSession wdConfig . WebDriver.finallyClose
-             -- running `WebDriver.closeOnException` here is not
+        wd action = WD.runSession wdConfig . WD.finallyClose $ do
+             -- running `WD.closeOnException` here is not
              -- recommended, as it hides all hspec errors behind an
              -- uninformative java exception.
+            WD.setImplicitWait 1000
+            WD.setScriptTimeout 1000
+            WD.setPageLoadTimeout 1000
+            action
 
     return (asg, (backend, beConfig), (frontend, feConfig), wd)
 
