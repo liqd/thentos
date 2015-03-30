@@ -71,7 +71,7 @@ userAdd = do
             case result' of
                 Right (_, token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
-                    let Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+                    feConfig <- gets (^. frontendCfg)
                     liftIO $ sendUserConfirmationMail
                         (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                         (urlSignupConfirm feConfig token)
@@ -211,7 +211,7 @@ requestPasswordReset = do
         Nothing -> blaze $ requestPasswordResetPage view
         Just address -> do
             config :: ThentosConfig <- gets (^. cfg)
-            let Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+            feConfig <- gets (^. frontendCfg)
             eToken <-
                 snapRunAction' allowEverything $ addPasswordResetToken address
             case eToken of

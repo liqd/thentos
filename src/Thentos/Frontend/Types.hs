@@ -19,6 +19,7 @@ data FrontendApp =
       , _rng :: MVar SystemRNG
       , _cfg :: ThentosConfig
       , _sess :: Snaplet SessionManager
+      , _frontendCfg :: HttpConfig
       }
 
 makeLenses ''FrontendApp

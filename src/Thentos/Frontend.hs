@@ -5,7 +5,7 @@
 
 module Thentos.Frontend where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative (pure, (<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
 import Crypto.Random (SystemRNG)
 import Data.ByteString (ByteString)
@@ -31,20 +31,22 @@ import qualified Thentos.Frontend.Handlers as H
 runFrontend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
 runFrontend config asg = do
     logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
-    serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg)
+    serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg config)
   where
     host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
     port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
 
-frontendApp :: ActionStateGlobal (MVar SystemRNG) -> SnapletInit FrontendApp FrontendApp
-frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
-    addRoutes routes
-    FrontendApp <$>
-        (nestSnaplet "acid" db $ acidInitManual st) <*>
-        (return rn) <*>
-        (return _cfg) <*>
-        (nestSnaplet "sess" sess $
-           initCookieSessionManager "site_key.txt" "sess" (Just 3600))
+frontendApp :: ActionStateGlobal (MVar SystemRNG) -> HttpConfig -> SnapletInit FrontendApp FrontendApp
+frontendApp (st, rn, _cfg) feConf =
+    makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
+        addRoutes routes
+        FrontendApp <$>
+            (nestSnaplet "acid" db $ acidInitManual st) <*>
+            (return rn) <*>
+            (return _cfg) <*>
+            (nestSnaplet "sess" sess $
+               initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
+            (pure feConf)
 
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ H.index)
