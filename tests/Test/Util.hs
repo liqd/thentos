@@ -52,7 +52,7 @@ import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Config
 import Thentos.DB
-import Thentos.Frontend
+import Thentos.Frontend (runFrontend)
 import Thentos.Types
 
 import Test.Config
