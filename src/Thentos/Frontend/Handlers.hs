@@ -130,7 +130,7 @@ logIntoService = do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
         (_, Nothing)         -> blaze "No service id"
-        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"  -- FIXME: use url from cfg.
+        (Nothing, _)         -> blaze $ notLoggedInPage
         (Just uid, Just sid) -> loginSuccess uid sid
   where
     loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()

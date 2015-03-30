@@ -196,14 +196,14 @@ emailSentPage = H.string $ "Please check your email"
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
 
-notLoggedInPage :: String -> Html
-notLoggedInPage thentosHost = H.docTypeHtml $ do
+notLoggedInPage :: Html
+notLoggedInPage = H.docTypeHtml $ do
     H.head $ H.title "Not logged in"
     H.body $ do
         H.p "You're currently not logged into Thentos."
         H.p $ "Please go to " <> loginLink <> " and try again."
   where
-    loginLink = H.string $ "http://" ++ thentosHost ++ "/login"
+    loginLink = H.a ! A.href "/log_into_thentos" $ "login"
 
 
 -- * auxillary functions
