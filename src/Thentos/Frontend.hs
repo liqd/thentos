@@ -51,7 +51,7 @@ frontendApp (st, rn, _cfg) feConf =
 routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
 routes = [ ("", ifTop $ H.index)
 
-         , ("log_into_thentos", H.logIntoThentos)
+         , ("login_thentos", H.loginThentos)
          , ("user/create", H.userAdd)
          , ("user/create_confirm", H.userAddConfirm)
          , ("user/reset_password_request", H.requestPasswordReset)
@@ -61,6 +61,6 @@ routes = [ ("", ifTop $ H.index)
          , ("service_create", method GET H.addService)
          , ("service_create", method POST H.addService)
 
-         , ("log_into_service", H.logIntoService)
-         , ("check_thentos_login", H.checkThentosLogin)
+         , ("login_service", H.loginService)
+         , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
          ]

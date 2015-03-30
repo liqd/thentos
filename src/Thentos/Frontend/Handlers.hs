@@ -124,8 +124,8 @@ serviceAdded = do
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
-logIntoService :: Handler FrontendApp FrontendApp ()
-logIntoService = do
+loginService :: Handler FrontendApp FrontendApp ()
+loginService = do
     mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
@@ -161,9 +161,9 @@ logIntoService = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-logIntoThentos :: Handler FrontendApp FrontendApp ()
-logIntoThentos = do
-    (view, result) <- runForm "log_into_thentos" loginForm
+loginThentos :: Handler FrontendApp FrontendApp ()
+loginThentos = do
+    (view, result) <- runForm "login_thentos" loginForm
     case result of
         Just (username, password) -> do
             emUser <- snapRunAction' allowEverything $ checkPassword username password

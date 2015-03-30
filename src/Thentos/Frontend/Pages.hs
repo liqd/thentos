@@ -46,7 +46,7 @@ mainPage = do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
-            H.li . (H.a ! A.href "/log_into_thentos") $ "login"
+            H.li . (H.a ! A.href "/login_thentos") $ "login"
             H.li . (H.a ! A.href "/user/create") $ "create user"
             H.li . (H.a ! A.href "/create_service") $ "create service"
             H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
@@ -141,7 +141,7 @@ logIntoThentosPage v = do
         H.head $
             H.title "Log into thentos"
         H.body $ do
-            form v "log_into_thentos" $ do
+            form v "login_thentos" $ do
                 H.p $ do
                     label "usernamme" v "User name:"
                     inputText "name" v
@@ -203,7 +203,7 @@ notLoggedInPage = H.docTypeHtml $ do
         H.p "You're currently not logged into Thentos."
         H.p $ "Please go to " <> loginLink <> " and try again."
   where
-    loginLink = H.a ! A.href "/log_into_thentos" $ "login"
+    loginLink = H.a ! A.href "/login_thentos" $ "login"
 
 
 -- * auxillary functions
