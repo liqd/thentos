@@ -8,7 +8,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
 import Text.Regex.Easy ((=~#))
 
 import qualified Data.Map as Map
@@ -31,49 +31,51 @@ tests = hspec spec
 spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)"
            . before setupTestServerFull . after teardownTestServerFull $ do
-        it "reset password" $
-                   \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+    resetPassword
 
-                let myUsername = "username"
-                    myPassword = "password"
-                    myEmail    = "email@example.com"
 
-                -- create confirmation token
-                wd $ do
-                    WD.setImplicitWait 1000
-                    WD.setScriptTimeout 1000
-                    WD.setPageLoadTimeout 1000
+resetPassword :: SpecWith TestServerFull
+resetPassword = it "reset password" $ \ ((st, _, _), _, (_, feConfig), wd) -> do
+    let myUsername = "username"
+        myPassword = "password"
+        myEmail    = "email@example.com"
 
-                    WD.openPage (cs $ exposeUrl feConfig)
+    -- create confirmation token
+    wd $ do
+        WD.setImplicitWait 1000
+        WD.setScriptTimeout 1000
+        WD.setPageLoadTimeout 1000
 
-                    WD.findElem (WD.ByLinkText "create_user") >>= WD.click
+        WD.openPage (cs $ exposeUrl feConfig)
 
-                    let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-                        fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+        WD.findElem (WD.ByLinkText "create_user") >>= WD.click
 
-                    fill "create_user.name" myUsername
-                    fill "create_user.password1" myPassword
-                    fill "create_user.password2" myPassword
-                    fill "create_user.email" myEmail
+        let fill :: WD.WebDriver wd => ST -> ST -> wd ()
+            fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-                    WD.findElem (WD.ById "create_user_submit") >>= WD.click
-                    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
+        fill "create_user.name" myUsername
+        fill "create_user.password1" myPassword
+        fill "create_user.password2" myPassword
+        fill "create_user.email" myEmail
 
-                -- check that confirmation token is in DB.
-                Right (db1 :: DB) <- query' st $ SnapShot allowEverything
-                Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
+        WD.findElem (WD.ById "create_user_submit") >>= WD.click
+        WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
-                -- click activation link.  (it would be nice if we
-                -- somehow had the email here to extract the link from
-                -- there, but we don't.)
-                case Map.toList $ db1 ^. dbUnconfirmedUsers of
-                      [(tok, _)] -> wd $ do
-                          WD.openPage . cs $ urlSignupConfirm feConfig tok
-                          WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
-                      bad -> error $ "dbUnconfirmedUsers: " ++ show bad
+    -- check that confirmation token is in DB.
+    Right (db1 :: DB) <- query' st $ SnapShot allowEverything
+    Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
 
-                -- check that user has arrived in DB.
-                Right (db2 :: DB) <- query' st $ SnapShot allowEverything
-                Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
-                eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
-                eUser `shouldSatisfy` isRight
+    -- click activation link.  (it would be nice if we
+    -- somehow had the email here to extract the link from
+    -- there, but we don't.)
+    case Map.toList $ db1 ^. dbUnconfirmedUsers of
+          [(tok, _)] -> wd $ do
+              WD.openPage . cs $ urlSignupConfirm feConfig tok
+              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
+          bad -> error $ "dbUnconfirmedUsers: " ++ show bad
+
+    -- check that user has arrived in DB.
+    Right (db2 :: DB) <- query' st $ SnapShot allowEverything
+    Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
+    eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
+    eUser `shouldSatisfy` isRight
