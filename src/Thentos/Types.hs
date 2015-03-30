@@ -15,7 +15,6 @@ module Thentos.Types where
 import Control.Lens (makeLenses)
 import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
-import Data.Configurator.Types(Configured(convert), Value(String))
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
@@ -100,7 +99,7 @@ newtype Group = Group { fromGroup :: ST }
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-newtype PasswordResetToken = PasswordResetToken { fromPwResetToken :: ST }
+newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 -- | Information required to create a new User
@@ -136,10 +135,6 @@ newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
 
 instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
-
-instance Configured ServiceId where
-    convert (String s) = Just $ ServiceId s
-    convert _          = Nothing
 
 
 -- * session, timestamp, timeout
@@ -232,6 +227,9 @@ data Role =
     -- ^ Can do anything to map 'dbUnConfirmedUsers'
 
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Role where toCNF = toCNF . show

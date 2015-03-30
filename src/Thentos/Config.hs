@@ -1,311 +1,198 @@
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeOperators        #-}
 
--- | FIXME: we need to find a less verbose way to combine command line
--- arguments with data from config file.  See also: #1673, #1694.
 module Thentos.Config
-    ( getCommand
-    , configLogger
-    , Command(..)
-    , ThentosConfig(..)
-    , FrontendConfig(..)
-    , BackendConfig(..)
-    , ProxyConfig(..)
-    , SmtpConfig(..)
-    , emptySmtpConfig
-    , emptyThentosConfig
-    ) where
+where
 
-import Control.Applicative (pure, (<$>), (<*>), (<|>), optional)
-import Control.Monad (join)
-import Data.Map (Map)
+import Control.Applicative ((<$>), (<|>))
+import Control.Exception (throwIO)
+import Data.Configifier ((:>), (:*>)((:*>)), (:>:), (>>.))
+import Data.Configifier (configify', renderConfigFile, docs)
+import Data.Configifier (NoDesc, ToConfigCode, ToConfig, Source(..), Tagged(Tagged), TaggedM(TaggedM), Result, MaybeO(..))
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Monoid(..), (<>))
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (ST, cs, (<>))
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
-import Options.Applicative (command, info, progDesc, long, short, auto, option, flag, help)
-import Options.Applicative (Parser, execParser, metavar, subparser)
-import Safe (readDef)
 import System.Directory (createDirectoryIfMissing)
+import System.Environment (getEnvironment, getArgs)
 import System.FilePath (takeDirectory)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
-import System.Log.Missing (loggerName)
+import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
+import System.Log.Missing (loggerName, logger)
+import Text.Show.Pretty (ppShow)
 
-import qualified Data.Configurator as Configurator
-import qualified Data.Configurator.Types as Configurator
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as SBS
 import qualified Data.Map as Map
+import qualified Data.Text.IO as ST
+import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Types
 
 
--- * the config type used by everyone else
+-- * config structure
 
-data ThentosConfig = ThentosConfig
-    { frontendConfig :: Maybe FrontendConfig
-    , backendConfig :: Maybe BackendConfig
-    , proxyConfig :: Maybe ProxyConfig
-    , smtpConfig :: SmtpConfig
-    , defaultUser :: Maybe (UserFormData, [Role])
-    }
-  deriving (Eq)
+type ThentosConfig         = Tagged ThentosConfigUntagged
+type ThentosConfigUntagged = NoDesc ThentosConfigDesc
+type ThentosConfigDesc     = ToConfigCode ThentosConfig'
 
-data BackendConfig = BackendConfig { backendPort :: Int }
-  deriving (Eq, Show)
+type ThentosConfig' =
+            ("command"      :> Command)           :>: "One of 'run', runA3, 'showDB'."
+  :*> Maybe ("frontend"     :> HttpConfig'        :>: "HTTP server for html forms.")
+  :*> Maybe ("backend"      :> HttpConfig'        :>: "HTTP server for rest api.")
+  :*> Maybe ("proxies"      :> [HttpProxyConfig'] :>: "HTTP server for tunneling requests to services.")
+        -- FIXME: make proxies a map keyed by service ids
+  :*>       ("smtp"         :> SmtpConfig')       :>: "Sending email."
+  :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if the user table is empty.")
 
-data FrontendConfig = FrontendConfig { frontendPort :: Int }
-  deriving (Eq, Show)
+defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
+defaultThentosConfig =
+      Just Run
+  :*> NothingO
+  :*> NothingO
+  :*> NothingO
+  :*> Just defaultSmtpConfig
+  :*> NothingO
 
-data ProxyConfig = ProxyConfig { proxyTargets :: Map ServiceId String }
-  deriving (Eq, Show)
+type HttpConfig = Tagged (NoDesc (ToConfigCode HttpConfig'))
+type HttpConfig' =
+      Maybe ("bind_schema"   :> HttpSchema)
+  :*>       ("bind_host"     :> ST)
+  :*>       ("bind_port"     :> Int)
+  :*> Maybe ("expose_schema" :> HttpSchema)
+  :*> Maybe ("expose_host"   :> ST)
+  :*> Maybe ("expose_port"   :> Int)
 
-data SmtpConfig = SmtpConfig
-    { smtpSender       :: Address
-    , smtpSendmailPath :: FilePath
-    , smtpSendmailArgs :: [String]
-    }
-  deriving (Eq, Show)
+type HttpProxyConfig = Tagged (NoDesc (ToConfigCode HttpProxyConfig'))
+type HttpProxyConfig' =
+            ("service_id" :> ST)
+  :*>       ("http"       :> HttpConfig')
+  :*> Maybe ("url_prefix" :> ST)
 
-emptySmtpConfig :: SmtpConfig
-emptySmtpConfig = case mempty of
-    SmtpConfigBuilder mSender mProg mArgs -> SmtpConfig
-        (fromMaybe (Address Nothing "") mSender)
-        (fromMaybe "/usr/sbin/sendmail" mProg)
-        (fromMaybe ["-t"] mArgs)
+type SmtpConfig = Tagged (NoDesc (ToConfigCode SmtpConfig'))
+type SmtpConfig' =
+      Maybe ("sender_name"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
+  :*>       ("sender_address" :> ST)
+  :*>       ("sendmail_path"  :> ST)
+  :*>       ("sendmail_args"  :> [ST])
 
-emptyThentosConfig :: ThentosConfig
-emptyThentosConfig = ThentosConfig Nothing Nothing Nothing emptySmtpConfig Nothing
+defaultSmtpConfig :: ToConfig (NoDesc (ToConfigCode SmtpConfig')) Maybe
+defaultSmtpConfig =
+      NothingO
+  :*> Nothing
+  :*> Just "/usr/sbin/sendmail"
+  :*> Just ["-t"]
+
+type DefaultUserConfig = Tagged (NoDesc (ToConfigCode DefaultUserConfig'))
+type DefaultUserConfig' =
+            ("name"     :> ST)  -- FIXME: use more specific type?
+  :*>       ("password" :> ST)  -- FIXME: use more specific type?
+  :*>       ("email"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
+  :*> Maybe ("roles"    :> [Role])
 
 
--- * combining (partial) configurations from multiple sources
+-- * leaf types
 
-data ThentosConfigBuilder = ThentosConfigBuilder
-    { bRunFrontend :: Maybe Bool
-    , bRunBackend :: Maybe Bool
-    , bBackendConfig :: BackendConfigBuilder
-    , bFrontendConfig :: FrontendConfigBuilder
-    , bProxyConfig :: ProxyConfigBuilder
-    , bSmtpConfig :: SmtpConfigBuilder
-    , bDefaultUser :: Maybe (UserFormData, [Role])
-    }
+data Command = Run | RunA3 | ShowDB
+  deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
 
-data BackendConfigBuilder = BackendConfigBuilder { bBackendPort :: Maybe Int }
-data FrontendConfigBuilder = FrontendConfigBuilder { bFrontendPort :: Maybe Int }
-data ProxyConfigBuilder = ProxyConfigBuilder
-    { bProxyTarget :: Maybe (Map ServiceId String) }
-data SmtpConfigBuilder = SmtpConfigBuilder (Maybe Address) (Maybe FilePath) (Maybe [String])
+instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON Command where parseJSON = Aeson.gparseJson
 
-instance Monoid BackendConfigBuilder where
-    mempty = BackendConfigBuilder Nothing
-    b1 `mappend` b2 =
-        BackendConfigBuilder
-            { bBackendPort = bBackendPort b1 <|> bBackendPort b2 }
+data HttpSchema = Http | Https
+  deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
 
-instance Monoid FrontendConfigBuilder where
-    mempty = FrontendConfigBuilder Nothing
-    b1 `mappend` b2 =
-        FrontendConfigBuilder
-            { bFrontendPort = bFrontendPort b1 <|> bFrontendPort b2 }
+instance Show HttpSchema where
+    show Http = "http"
+    show Https = "https"
 
-instance Monoid ProxyConfigBuilder where
-    mempty = ProxyConfigBuilder Nothing
-    b1 `mappend` b2 =
-        ProxyConfigBuilder
-            { bProxyTarget = bProxyTarget b1 <|> bProxyTarget b2 }
+instance Aeson.ToJSON HttpSchema where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON HttpSchema where parseJSON = Aeson.gparseJson
 
-instance Monoid SmtpConfigBuilder where
-    mempty = SmtpConfigBuilder Nothing Nothing Nothing
-    (SmtpConfigBuilder sender prog args) `mappend` (SmtpConfigBuilder sender' prog' args') =
-        SmtpConfigBuilder (sender <|> sender') (prog <|> prog') (args <|> args')
 
-instance Monoid ThentosConfigBuilder where
-    mempty = ThentosConfigBuilder Nothing Nothing mempty mempty mempty mempty Nothing
-    b1 `mappend` b2 =
-        ThentosConfigBuilder
-            (bRunFrontend b1 <|> bRunFrontend b2)
-            (bRunBackend b1 <|> bRunBackend b2)
-            (bBackendConfig b1 <> bBackendConfig b2)
-            (bFrontendConfig b1 <> bFrontendConfig b2)
-            (bProxyConfig b1 <> bProxyConfig b2)
-            (bSmtpConfig b1 <> bSmtpConfig b2)
-            (bDefaultUser b1 <|> bDefaultUser b2)
+-- * driver
 
-data ConfigError =
-    FrontendConfigMissing
-  | BackendConfigMissing
-  | UnknownRoleForDefaultUser String
-  | NoEmailSender
-  deriving (Eq, Show)
+printConfigUsage :: IO ()
+printConfigUsage = do
+    -- ST.putStrLn $ docs (Proxy :: Proxy ThentosConfigDesc)
+    ST.putStrLn $ docs (Proxy :: Proxy (ToConfigCode ThentosConfig'))
 
-finaliseConfig :: ThentosConfigBuilder -> Either ConfigError ThentosConfig
-finaliseConfig builder =
-    ThentosConfig
-        <$> frontendConf
-        <*> backendConf
-        <*> proxyConf
-        <*> smtpConf
-        <*> defaultUserConf
+
+getConfig :: FilePath -> IO ThentosConfig
+getConfig configFile = do
+    sources <- sequence
+        [ ConfigFileYaml <$> SBS.readFile configFile
+        , ShellEnv       <$> getEnvironment
+        , CommandLine    <$> getArgs
+        ]
+    logger DEBUG $ "config sources:\n" ++ ppShow sources
+
+    case configify' (TaggedM defaultThentosConfig) sources :: Result ThentosConfigUntagged of
+        Left e -> do
+            logger CRITICAL $ "error parsing config: " ++ show e
+            throwIO e
+        Right cfg -> do
+            logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
+            logger DEBUG $ "parsed config (raw):\n" ++ ppShow cfg
+            return cfg
+
+
+-- ** helpers
+
+-- this section contains code that works around missing features in
+-- the supported leaf types in the config structure.  we hope it'll
+-- get smaller over time.
+
+getProxyConfigMap :: ThentosConfig -> Maybe (Map.Map ServiceId HttpProxyConfig)
+getProxyConfigMap cfg = (Map.fromList . fmap (exposeKey . Tagged)) <$>
+      cfg >>. (Proxy :: Proxy '["proxies"])
   where
-    smtpConf = case bSmtpConfig builder of
-        SmtpConfigBuilder (Just sender) mProg mArgs ->
-            case emptySmtpConfig of
-                SmtpConfig _ defProg defArgs -> Right $
-                    SmtpConfig sender (fromMaybe defProg mProg) (fromMaybe defArgs mArgs)
-        SmtpConfigBuilder Nothing _ _ -> Left NoEmailSender
-    backendConf = case (bRunBackend builder, finaliseBackendConfig $ bBackendConfig builder) of
-        (Just True, Nothing) -> Left BackendConfigMissing
-        (Just True, bConf) -> Right bConf
-        _ -> Right Nothing
-    frontendConf = case (bRunFrontend builder, finaliseFrontendConfig $ bFrontendConfig builder) of
-        (Just True, Nothing) -> Left FrontendConfigMissing
-        (Just True, fConf) -> Right fConf
-        _ -> Right Nothing
-    proxyConf = Right . finaliseProxyConfig $ bProxyConfig builder
-    defaultUserConf = return $ bDefaultUser builder
+    exposeKey :: HttpProxyConfig -> (ServiceId, HttpProxyConfig)
+    exposeKey w = (ServiceId (w >>. (Proxy :: Proxy '["service_id"])), w)
 
-finaliseFrontendConfig :: FrontendConfigBuilder -> Maybe FrontendConfig
-finaliseFrontendConfig builder = FrontendConfig <$> bFrontendPort builder
-
-finaliseBackendConfig :: BackendConfigBuilder -> Maybe BackendConfig
-finaliseBackendConfig builder = BackendConfig <$> bBackendPort builder
-
-finaliseProxyConfig :: ProxyConfigBuilder -> Maybe ProxyConfig
-finaliseProxyConfig builder = ProxyConfig <$> bProxyTarget builder
-
-finaliseCommand :: FilePath -> CommandBuilder -> IO (Either ConfigError Command)
-finaliseCommand _ BShowDB = return $ Right ShowDB
-finaliseCommand filePath (BRun cmdLineConfigBuilder) = do
-    fileConfigBuilder <- parseConfigFile filePath
-    let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
-    return $ Run <$> finalConfig
-finaliseCommand filePath (BRunA3 cmdLineConfigBuilder) = do
-    fileConfigBuilder <- parseConfigFile filePath
-    let finalConfig = finaliseConfig $ cmdLineConfigBuilder <> fileConfigBuilder
-    return $ RunA3 <$> finalConfig
-
-getCommand :: FilePath -> IO (Either ConfigError Command)
-getCommand filePath = do
-    cmdLineBuilder <- parseCommandBuilder
-    finaliseCommand filePath cmdLineBuilder
-
-
--- * command line parsing
-
-parseCommandBuilder :: IO CommandBuilder
-parseCommandBuilder = execParser opts
+bindUrl :: HttpConfig -> ST
+bindUrl cfg = _renderUrl bs bh bp
   where
-    parser = subparser $ command "run" (info parseRun (progDesc "run")) <>
-                         command "runa3" (info parseRunA3 (progDesc "run with a3 backend")) <>
-                         command "showdb" (info (pure BShowDB) (progDesc "show"))
-    opts = info parser mempty
+    bs = cfg >>. (Proxy :: Proxy '["bind_schema"])
+    bh = cfg >>. (Proxy :: Proxy '["bind_host"])
+    bp = cfg >>. (Proxy :: Proxy '["bind_port"])
 
-data Command = Run ThentosConfig | RunA3 ThentosConfig | ShowDB
-  deriving (Eq)
-
-data CommandBuilder =
-    BRun ThentosConfigBuilder | BRunA3 ThentosConfigBuilder | BShowDB
-
-parseRun :: Parser CommandBuilder
-parseRun = BRun <$> parseThentosConfig
-
-parseRunA3 :: Parser CommandBuilder
-parseRunA3 = BRunA3 <$> parseThentosConfig
-
-parseThentosConfig :: Parser ThentosConfigBuilder
-parseThentosConfig =
-    ThentosConfigBuilder <$>
-        parseRunFrontend <*>
-        parseRunBackend <*>
-        parseBackendConfigBuilder <*>
-        parseFrontendConfigBuilder <*>
-        parseProxyConfigBuilder <*>
-        pure mempty <*>
-        pure Nothing
-
-parseBackendConfigBuilder :: Parser BackendConfigBuilder
-parseBackendConfigBuilder =
-    BackendConfigBuilder <$> optional parseBackendPort
+exposeUrl :: HttpConfig -> ST
+exposeUrl cfg = _renderUrl bs bh bp
   where
-    parseBackendPort = option auto
-        (long "backendport"
-        <> metavar "backendPort"
-        <> help "Port that the backend service listens on"
-        )
+    bs = cfg >>. (Proxy :: Proxy '["expose_schema"]) <|> cfg >>. (Proxy :: Proxy '["bind_schema"])
+    bh = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_host"])) (cfg >>. (Proxy :: Proxy '["expose_host"]))
+    bp = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_port"])) (cfg >>. (Proxy :: Proxy '["expose_port"]))
 
-parseFrontendConfigBuilder :: Parser FrontendConfigBuilder
-parseFrontendConfigBuilder =
-    FrontendConfigBuilder <$> optional parseFrontendPort
-  where
-    parseFrontendPort = option auto
-        (long "frontendport"
-        <> metavar "frontendPort"
-        <> help "Port that the frontend service listens on"
-        )
+_renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
+_renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"
 
-parseProxyConfigBuilder :: Parser ProxyConfigBuilder
-parseProxyConfigBuilder =
-    ProxyConfigBuilder <$> optional parseProxyTarget
-  where
-    parseProxyTarget = option auto
-        (long "proxytargets"
-        <> short 'f'
-        <> metavar "proxyTarget"
-        <> help "Where proxied requests will go"
-        )
+buildEmailAddress :: SmtpConfig -> Address
+buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
+                                (cfg >>. (Proxy :: Proxy '["sender_address"]))
 
-parseRunFrontend :: Parser (Maybe Bool)
-parseRunFrontend = flag Nothing (Just True)
-    (long "runfrontend"
-    <> help "Run the frontend service"
-    )
+getUserData :: DefaultUserConfig -> UserFormData
+getUserData cfg = UserFormData
+    (UserName  (cfg >>. (Proxy :: Proxy '["name"])))
+    (UserPass  (cfg >>. (Proxy :: Proxy '["password"])))
+    (UserEmail (cfg >>. (Proxy :: Proxy '["email"])))
 
-parseRunBackend :: Parser (Maybe Bool)
-parseRunBackend = flag Nothing (Just True)
-    (long "runbackend"
-    <> help "Run the backend service"
-    )
-
-
--- * config file parsing
-
-parseConfigFile :: FilePath -> IO ThentosConfigBuilder
-parseConfigFile filePath = do
-    config <- Configurator.load [Configurator.Required filePath]
-    argMap <- Configurator.getMap config
-
-    let get :: Configurator.Configured a => Configurator.Name -> Maybe a
-        get key = join $ Configurator.convert <$> HM.lookup key argMap
-
-        getUser :: Maybe (UserFormData, [Role])
-        getUser = do
-            u <- UserFormData <$>
-                (UserName <$> get "default_user.name") <*>
-                (UserPass <$> get "default_user.password") <*>
-                (UserEmail <$> get "default_user.email")
-            rs :: [String] <- get "default_user.roles"
-            let e r = error . show $ UnknownRoleForDefaultUser r  -- FIXME: error handling.
-            return (u, map (\ r -> readDef (e r) r) rs)
-
-        getEmail :: SmtpConfigBuilder
-        getEmail = SmtpConfigBuilder
-            (Address (get "smtp.sender_name") <$> get "smtp.sender_address")
-            (get "smtp.sendmail_path")
-            (get "smtp.sendmail_args")
-
-    return $ ThentosConfigBuilder
-                (get "run_frontend")
-                (get "run_backend")
-                (BackendConfigBuilder $ get "backend_port")
-                (FrontendConfigBuilder $ get "frontend_port")
-                (ProxyConfigBuilder $ Map.fromList <$> get "proxy_targets")
-                getEmail
-                getUser
+getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
+getDefaultUser cfg = (getUserData cfg, fromMaybe [] $ cfg >>. (Proxy :: Proxy '["roles"]))
 
 
 -- * logging
+
+-- FIXME: rewrite this, make properly configurable.
 
 configLogger :: IO ()
 configLogger = do

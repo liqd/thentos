@@ -26,6 +26,7 @@ import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
 
 import Thentos.Types
+import Thentos.Config (Command(Run))
 
 import Test.Util
 
@@ -35,7 +36,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
+    describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
                     \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do

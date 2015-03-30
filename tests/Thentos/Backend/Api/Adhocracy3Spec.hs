@@ -16,13 +16,10 @@
 module Thentos.Backend.Api.Adhocracy3Spec
 where
 
-import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Crypto.Random (SystemRNG)
 import Data.Acid.Advanced (query')
 import Data.String.Conversions (cs, (<>))
-import Network.Wai (Application)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
@@ -32,7 +29,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 
-import Thentos.Api
 import Thentos.Backend.Api.Adhocracy3
 import Thentos.Config
 import Thentos.DB
@@ -40,23 +36,6 @@ import Thentos.Types
 
 import Test.Arbitrary ()
 import Test.Util
-
-
-setupTestA3Server :: IO (ActionStateGlobal (MVar SystemRNG), Application)
-setupTestA3Server = do
-  (st, rng, _) <- setupDB emptyThentosConfig
-  let asg = (st, rng,) $ ThentosConfig
-        { frontendConfig = Just FrontendConfig { frontendPort = 7082 }
-        , backendConfig = Just BackendConfig { backendPort = 7081 }
-        , proxyConfig = Nothing
-        , smtpConfig = testSmtpConfig
-        , defaultUser = Nothing
-        }
-  return (asg, Thentos.Backend.Api.Adhocracy3.serveApi asg)
-
-teardownA3TestServer :: (ActionStateGlobal (MVar SystemRNG), Application) -> IO ()
-teardownA3TestServer (db, _) = do
-    teardownDB db
 
 
 tests :: IO ()
@@ -76,9 +55,9 @@ spec = do
             it "has invertible *JSON instances" . property $
                 \ (A3UserWithPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u == Right u
 
-        describe "create user" . before setupTestA3Server . after teardownA3TestServer $ do
+        describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
             it "works" $
-                \ ((st, _, _), testServer) -> debugRunSession False testServer $ do
+                \ ((st, _, _), testServer, _, _) -> debugRunSession False testServer $ do
 
                     -- Aeson.encode would strip the password, so we
                     -- need to do this one by hand.
@@ -119,11 +98,11 @@ spec = do
 
                     return ()
 
-        describe "send email" . before setupTestA3Server . after teardownA3TestServer $ do
+        describe "send email" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
             it "works" $
                 \ _ -> pendingWith "test missing."
 
-        describe "login" . before setupTestA3Server . after teardownA3TestServer $ do
+        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
             it "works" $
                 \ _ -> pendingWith "test missing."
 

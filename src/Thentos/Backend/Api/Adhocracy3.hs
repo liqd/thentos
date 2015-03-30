@@ -30,21 +30,21 @@ import Control.Monad.Trans.Reader (ask)
 import Control.Monad (when, unless, mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Wai (Application)
-import Network.Wai.Handler.Warp (run)
-import Safe (readMay, fromJustNote)
+import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve)
 import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
-import System.Log (Priority(DEBUG))
+import System.Log (Priority(DEBUG, INFO))
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
@@ -261,8 +261,10 @@ instance FromJSON RequestResult where
 
 -- * main
 
-runBackend :: Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
-runBackend port = run port . serveApi
+runBackend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runBackend cfg asg = do
+    logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
+    runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
 serveApi = serve (Proxy :: Proxy App) . app
@@ -299,10 +301,12 @@ addUser (A3UserWithPass user) = logActionError $ do
     logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
     ((_, _, config :: ThentosConfig), _) <- ask
     (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
-    let activationUrl = "http://localhost:" <> cs (show feport) <> "/signup_confirm/" <> cs enctok
-        feport :: Int = frontendPort . fromJustNote "addUser: frontend not configured!" . frontendConfig $ config
-        enctok :: SBS = urlEncode . cs . fromConfimationToken $ tok
-    liftIO $ sendUserConfirmationMail (smtpConfig config) user activationUrl
+    let activationUrl = cs (exposeUrl feHttp) <> "/signup_confirm/" <> cs enctok
+        feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
+              Nothing -> error "addUser: frontend not configured!"
+              Just v -> Tagged v
+        enctok = urlEncode . cs . fromConfimationToken $ tok
+    liftIO $ sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 

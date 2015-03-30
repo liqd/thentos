@@ -1,9 +1,10 @@
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TemplateHaskell                          #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
-module Thentos.Frontend (runFrontend) where
+module Thentos.Frontend where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
@@ -14,9 +15,11 @@ import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Maybe (listToMaybe)
 import Data.Monoid ((<>))
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
@@ -47,6 +50,7 @@ import Thentos.Frontend.Pages
 import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Smtp
 import Thentos.Types
+import Thentos.Util ((<//>))
 
 
 data FrontendApp =
@@ -62,8 +66,13 @@ makeLenses ''FrontendApp
 instance HasAcid FrontendApp DB where
     getAcidStore = view (db . snapletValue)
 
-runFrontend :: ByteString -> Int -> ActionStateGlobal (MVar SystemRNG) -> IO ()
-runFrontend host port asg = serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg)
+runFrontend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runFrontend config asg = do
+    logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
+    serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg)
+  where
+    host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
+    port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
 
 frontendApp :: ActionStateGlobal (MVar SystemRNG) -> SnapletInit FrontendApp FrontendApp
 frontendApp (st, rn, _cfg) = makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
@@ -104,34 +113,23 @@ userAddHandler = do
         Just user -> do
             result' <- snapRunAction' clearance $ addUnconfirmedUser user
             case result' of
-                Right (_, ConfirmationToken token) -> do
+                Right (_, token) -> do
                     config :: ThentosConfig <- gets (^. cfg)
-                    let Just (feConfig :: FrontendConfig) = frontendConfig config
-                        -- FIXME: use hostname from config instead of localhost
-
-                        -- FIXME: factor out two functions here: (1)
-                        -- @materializeUrl :: FrontendConfig -> LBS ->
-                        -- LBS that@ for turning config and local path
-                        -- into full url with schema, host, port; and
-                        -- (2) @mkUrlSignupConfirm ::
-                        -- ConfirmationToken -> LBS@ that constructs
-                        -- @"/signup_confirm?..."@.  we may be able to
-                        -- find better names, too.  and there are
-                        -- probably other places in this module where
-                        -- functions can be factored out similarly.
-                        -- see also @activationLink@ in
-                        -- @FrontendSpec.hs@.
-
-                        url = "http://localhost:" <> (cs . show . frontendPort $ feConfig)
-                                <> "/signup_confirm?token="
-                                <> (L.fromStrict . decodeUtf8 . urlEncode $ encodeUtf8 token)
-                    liftIO $ sendUserConfirmationMail (smtpConfig config) user url
+                    let Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+                    liftIO $ sendUserConfirmationMail
+                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
+                        (urlSignupConfirm feConfig token)
                     blaze emailSentPage
                 Left UserEmailAlreadyExists -> do
                     config :: ThentosConfig <- gets (^. cfg)
-                    liftIO $ sendUserExistsMail (smtpConfig config) (udEmail user)
+                    liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
                     blaze emailSentPage
                 Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+
+urlSignupConfirm :: HttpConfig -> ConfirmationToken -> L.Text
+urlSignupConfirm feConfig (ConfirmationToken token) =
+    cs (exposeUrl feConfig) <//> "/signup_confirm?token="
+        <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
 userAddConfirmHandler :: Handler FrontendApp FrontendApp ()
 userAddConfirmHandler = do
@@ -176,7 +174,7 @@ logIntoServiceHandler = do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
         (_, Nothing)         -> blaze "No service id"
-        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"
+        (Nothing, _)         -> blaze $ notLoggedInPage "localhost:7002"  -- FIXME: use url from cfg.
         (Just uid, Just sid) -> loginSuccess uid sid
   where
     loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
@@ -257,19 +255,22 @@ requestPasswordResetHandler = do
         Nothing -> blaze $ requestPasswordResetPage _view
         Just address -> do
             config :: ThentosConfig <- gets (^. cfg)
-            let Just (feConfig :: FrontendConfig) = frontendConfig config
+            let Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
             eToken <-
                 snapRunAction' allowEverything $ addPasswordResetToken address
             case eToken of
                 Left NoSuchUser -> blaze emailSentPage
                 Right (user, token) -> do
-                    let url = "http://localhost:"
-                                <> (cs . show . frontendPort $ feConfig)
-                                <> "/reset_password?token="
-                                <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ fromPwResetToken token)
-                    liftIO $ sendPasswordResetMail (smtpConfig config) user url
+                    liftIO $ sendPasswordResetMail
+                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
+                        (urlResetPassword feConfig token)
                     blaze emailSentPage
                 Left _ -> error "requestPasswordResetHandler: branch should not be reachable"
+
+urlResetPassword :: HttpConfig -> PasswordResetToken -> L.Text
+urlResetPassword feConfig (PasswordResetToken token) =
+    cs (exposeUrl feConfig) <//> "/reset_password?token="
+        <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
 resetPasswordHandler :: Handler FrontendApp FrontendApp ()
 resetPasswordHandler = do

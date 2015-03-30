@@ -1,4 +1,6 @@
-{-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Thentos.Smtp
     ( sendUserConfirmationMail
@@ -6,14 +8,17 @@ module Thentos.Smtp
     , sendPasswordResetMail
 ) where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
+import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
-import Data.String.Conversions (ST, LT)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (ST, LT, cs)
 import Network.Mail.Mime (Address(Address), renderSendMailCustom, simpleMail')
 import System.Log (Priority(DEBUG))
 
 import System.Log.Missing
-import Thentos.Config (SmtpConfig(SmtpConfig))
+import Thentos.Config
 import Thentos.Types
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> LT -> IO ()
@@ -49,6 +54,8 @@ sendMail :: SmtpConfig -> ST -> LT -> UserEmail -> IO ()
 sendMail config subject message address = do
     renderSendMailCustom sendmailPath sendmailArgs mail
   where
-    SmtpConfig sentFromAddress sendmailPath sendmailArgs = config
+    sentFromAddress = buildEmailAddress config
+    sendmailPath :: String = cs $ config >>. (Proxy :: Proxy '["sendmail_path"])
+    sendmailArgs :: [String] = cs <$> config >>. (Proxy :: Proxy '["sendmail_args"])
     mail = simpleMail' receiverAddress sentFromAddress subject message
     receiverAddress = Address Nothing (fromUserEmail $ address)

@@ -25,8 +25,11 @@ import Control.Monad.State (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT, left)
 import Control.Monad.Trans.Reader (ReaderT(ReaderT), runReaderT, ask)
 import Data.CaseInsensitive (foldedCase)
+import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
-import Data.String.Conversions (LBS, cs)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (ST, LBS, cs)
 import Servant.API (Raw)
 import Servant.Server.Internal (Server)
 import System.Log.Logger (Priority(DEBUG))
@@ -88,9 +91,10 @@ getRqMod :: S.Request -> Action r RqMod
 getRqMod req = do
     ((_, _, thentosConfig), _) <- ask
 
-    ProxyConfig prxCfg <- case proxyConfig thentosConfig of
-            Nothing     -> lift $ left ProxyNotAvailable
-            Just prxCfg -> return prxCfg
+    prxCfg :: Map.Map ServiceId HttpProxyConfig
+        <- case getProxyConfigMap thentosConfig of
+            Nothing -> lift $ left ProxyNotAvailable
+            Just v  -> return v
 
     hdrs <- do
         (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
@@ -109,9 +113,12 @@ getRqMod req = do
             Just s  -> return $ ServiceId s
             Nothing -> lift $ left MissingServiceHeader
 
-    target <- case Map.lookup sid prxCfg of
-        Just t  -> return t
-        Nothing -> lift . left $ ProxyNotConfiguredForService sid
+    target :: String
+        <- case Map.lookup sid prxCfg of
+            Just t  -> let http :: HttpConfig = Tagged $ t >>. (Proxy :: Proxy '["http"])
+                           prefix :: ST = fromMaybe "" $ t >>. (Proxy :: Proxy '["url_prefix"])
+                       in return . cs $ exposeUrl http <> prefix
+            Nothing -> lift . left $ ProxyNotConfiguredForService sid
 
     let rqMod = RqMod target hdrs
     logger DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod

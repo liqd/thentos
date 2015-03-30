@@ -28,12 +28,17 @@ import Control.Monad.Trans.Reader (runReaderT)
 import Crypto.Random (SystemRNG)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
+import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.String.Conversions (SBS, ST)
+import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
 import Data.Typeable (Typeable)
 import Network.HTTP.Types (Header)
+import Network.Wai (Application)
+import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
 import Servant.Server (HasServer, Server, route)
@@ -41,6 +46,7 @@ import Servant.Server (HasServer, Server, route)
 import qualified Data.ByteString.Char8 as SBS
 
 import Thentos.Api
+import Thentos.Config
 import Thentos.Types
 
 
@@ -140,3 +146,13 @@ instance ( HasServer sublayout ) => HasServer (ThentosAssertHeaders sublayout)
             []  -> route (Proxy :: Proxy sublayout) subserver request respond
             bad -> error $ "ThentosAssertHeaders: " ++ show bad
                   -- FIXME: wait for better error support in servant?
+
+
+-- * warp
+
+runWarpWithCfg :: HttpConfig -> Application -> IO ()
+runWarpWithCfg cfg = runSettings settings
+  where
+    settings = setPort (cfg >>. (Proxy :: Proxy '["bind_port"]))
+             . setHost (fromString . cs $ cfg >>. (Proxy :: Proxy '["bind_host"]))
+             $ defaultSettings
