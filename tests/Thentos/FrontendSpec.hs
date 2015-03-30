@@ -1,15 +1,18 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
+{-# OPTIONS -fno-warn-incomplete-patterns #-}
+
 module Thentos.FrontendSpec where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
-import Text.Regex.Easy ((=~#))
+import Text.Regex.Easy ((=~#), (=~-))
 
 import qualified Data.Map as Map
 import qualified Network.HTTP.Types.Status as C
@@ -48,11 +51,11 @@ spec = describe "selenium (consult README.md if this test fails)"
 
 
 createUser :: SpecWith TestServerFull
-createUser = it "create user" $ \ _ -> pendingWith "no test implemented."
+createUser = it "create user" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 resetPassword :: SpecWith TestServerFull
-resetPassword = it "reset password" $ \ ((st, _, _), _, (_, feConfig), wd) -> do
+resetPassword = it "reset password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
@@ -94,7 +97,7 @@ resetPassword = it "reset password" $ \ ((st, _, _), _, (_, feConfig), wd) -> do
 
 
 updateSelf :: SpecWith TestServerFull
-updateSelf = it "update self" $ \ _ -> pendingWith "no test implemented."
+updateSelf = it "update self" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 logIntoThentos :: SpecWith TestServerFull
@@ -117,31 +120,60 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
 
 
 serviceCreate :: SpecWith TestServerFull
-serviceCreate = it "service create" $ \ _ -> pendingWith "no test implemented."
+serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+    -- fe: fill out and submit create-service form
+    serviceId :: ServiceId <- wd $ do
+        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPage (cs $ exposeUrl feConfig <//> "/service_create")
+
+        let fill :: WD.WebDriver wd => ST -> ST -> wd ()
+            fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+
+            sname :: ST = "Evil Corp."
+            sdescr :: ST = "don't be evil."
+
+        fill "service_name" sname
+        fill "service_description" sdescr
+
+        WD.findElem (WD.ById "service_create_submit") >>= WD.click
+        (\ s -> case cs s =~- "Service id: (.+)" of [_, sid] -> ServiceId $ cs sid) <$> WD.getSource
+
+    -- db: check that
+    --   1. service has been created;
+    --   2. has right sname, sdescr;
+    --   3. has correct owner.
+    Right (db :: DB) <- query' st $ SnapShot allowEverything
+    case Map.lookup serviceId (db ^. dbServices) of
+        Nothing -> error "serviceId not found in db."
+        Just service -> do
+            service ^. serviceSession     `shouldBe` Nothing
+            -- service ^. serviceName        `shouldBe` sname
+            -- service ^. serviceDescription `shouldBe` sdescr
+            -- service ^. serviceOwner       `shouldBe` UserId 0
 
 
 serviceDelete :: SpecWith TestServerFull
-serviceDelete = it "service delete" $ \ _ -> pendingWith "no test implemented."
+serviceDelete = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 serviceUpdateMetadata :: SpecWith TestServerFull
-serviceUpdateMetadata = it "service delete" $ \ _ -> pendingWith "no test implemented."
+serviceUpdateMetadata = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 serviceGiveToOtherUser :: SpecWith TestServerFull
-serviceGiveToOtherUser = it "service delete" $ \ _ -> pendingWith "no test implemented."
+serviceGiveToOtherUser = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 logIntoService :: SpecWith TestServerFull
-logIntoService = it "log into service" $ \ _ -> pendingWith "no test implemented."
+logIntoService = it "log into service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 logOutOfService :: SpecWith TestServerFull
-logOutOfService = it "log out of service" $ \ _ -> pendingWith "no test implemented."
+logOutOfService = it "log out of service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 browseMyServices :: SpecWith TestServerFull
-browseMyServices = it "browse my services" $ \ _ -> pendingWith "no test implemented."
+browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 {-
       \ ((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do

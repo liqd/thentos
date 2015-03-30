@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE ImpredicativeTypes         #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -117,9 +118,9 @@ teardownTestBackend (db, testBackend, tok, godCredentials) = do
 
 type TestServerFull =
     ( ActionStateGlobal (MVar SystemRNG)
-    , (Async (), HttpConfig)
-    , (Async (), HttpConfig)
-    , WD.WD () -> IO ()
+    , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
+    , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
+    , forall a . WD.WD a -> IO a
     )
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
