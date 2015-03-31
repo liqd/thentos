@@ -46,15 +46,15 @@ spec = describe "selenium (consult README.md if this test fails)"
 
                     WD.openPage (cs $ exposeUrl feConfig)
 
-                    WD.findElem (WD.ByLinkText "create_user") >>= WD.click
+                    WD.findElem (WD.ByLinkText "create user") >>= WD.click
 
                     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
                         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-                    fill "create_user.name" myUsername
-                    fill "create_user.password1" myPassword
-                    fill "create_user.password2" myPassword
-                    fill "create_user.email" myEmail
+                    fill "create.name" myUsername
+                    fill "create.password1" myPassword
+                    fill "create.password2" myPassword
+                    fill "create.email" myEmail
 
                     WD.findElem (WD.ById "create_user_submit") >>= WD.click
                     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
