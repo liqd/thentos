@@ -5,6 +5,8 @@
 
 ## imports
 
+FIXME: single-letter module names are also allowed (as is tradition).
+
 qualified imports are given the name of the module (without path),
 not an abbreviation.  good:
 

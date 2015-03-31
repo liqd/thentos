@@ -2,23 +2,24 @@
 {-# LANGUAGE ViewPatterns      #-}
 
 module Thentos.Frontend.Pages
-    ( mainPage
-    , addUserPage
-    , userForm
-    , userAddedPage
-    , addServicePage
-    , serviceAddedPage
-    , loginPage
-    , loginForm
-    , logIntoThentosPage
-    , emailSentPage
-    , errorPage
-    , notLoggedInPage
-    , requestPasswordResetPage
-    , requestPasswordResetForm
+    ( indexPage
+    , userCreatePage
+    , userCreateRequestedPage
+    , userCreatedPage
+    , serviceCreatePage
+    , serviceCreatedPage
+    , userCreateForm
+    , loginServicePage
+    , loginThentosPage
+    , loginThentosForm
+    , resetPasswordRequestPage
+    , resetPasswordRequestForm
     , resetPasswordPage
     , resetPasswordForm
-) where
+    , resetPasswordRequestedPage
+    , errorPage
+    , notLoggedInPage
+    ) where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
@@ -38,27 +39,26 @@ import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Types
 
-mainPage :: Html
-mainPage = do
+indexPage :: Html
+indexPage = do
     H.head $ do
         H.title "Thentos main page"
     H.body $ do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
-            H.li . (H.a ! A.href "/log_into_thentos") $ "login"
-            H.li . (H.a ! A.href "/create_user") $ "create_user"
-            H.li . (H.a ! A.href "/signup_confirm") $ "signup_confirm"
-            H.li . (H.a ! A.href "/create_service") $ "create_service"
-            H.li . (H.a ! A.href "/request_password_reset") $ "request_password_reset"
+            H.li . (H.a ! A.href "/login_thentos") $ "login"
+            H.li . (H.a ! A.href "/user/create") $ "create user"
+            H.li . (H.a ! A.href "/service/create") $ "create service"
+            H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
 
-addUserPage :: View Html -> Html
-addUserPage v = H.docTypeHtml $ do
+userCreatePage :: View Html -> Html
+userCreatePage v = H.docTypeHtml $ do
     H.head $ do
         H.title "Create user"
     H.body $ do
         -- FIXME: how do we avoid having to duplicate the URL here?
-        form v "create_user" $ do
+        form v "create" $ do
             H.p $ do
                 label "name" v "User name:"
                 inputText "name" v
@@ -73,8 +73,11 @@ addUserPage v = H.docTypeHtml $ do
                 inputText "email" v
             inputSubmit "Create User" ! A.id "create_user_submit"
 
-userAddedPage :: UserId -> Html
-userAddedPage uid =
+userCreateRequestedPage :: Html
+userCreateRequestedPage = H.string $ "Please check your email"
+
+userCreatedPage :: UserId -> Html
+userCreatedPage uid =
     H.docTypeHtml $ do
         H.head $
             H.title "Success!"
@@ -82,16 +85,16 @@ userAddedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
-addServicePage :: Html
-addServicePage = H.docTypeHtml $ do
+serviceCreatePage :: Html
+serviceCreatePage = H.docTypeHtml $ do
     H.head $ do
         H.title "Create Service"
     H.body $ do
         H.form ! A.method "POST" ! A.action "create_service" $
             H.input ! A.type_ "submit" ! A.value "Create Service"
 
-serviceAddedPage :: ServiceId -> ServiceKey -> Html
-serviceAddedPage sid key = H.docTypeHtml $ do
+serviceCreatedPage :: ServiceId -> ServiceKey -> Html
+serviceCreatedPage sid key = H.docTypeHtml $ do
     H.head $ do
         H.title "Service created!"
     H.body $ do
@@ -100,8 +103,8 @@ serviceAddedPage sid key = H.docTypeHtml $ do
             H.p "Service id: " <> H.text (fromServiceId sid)
             H.p "Service key: " <> H.text (fromServiceKey key)
 
-userForm :: Monad m => Form Html m UserFormData
-userForm = (validate validateUserData) $ (,,,)
+userCreateForm :: Monad m => Form Html m UserFormData
+userCreateForm = (validate validateUserData) $ (,,,)
     <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
     <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
     <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
@@ -114,8 +117,8 @@ userForm = (validate validateUserData) $ (,,,)
         | pw1 == pw2 = Success $ UserFormData name pw1 email
         | otherwise  = Error "Passwords don't match"
 
-loginPage :: ServiceId -> View Html -> ByteString -> Html
-loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
+loginServicePage :: ServiceId -> View Html -> ByteString -> Html
+loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
     H.docTypeHtml $ do
         H.head $
             H.title "Log in"
@@ -131,18 +134,13 @@ loginPage (H.string . cs . fromServiceId -> serviceId) v reqURI =
                     inputPassword "password" v
                 inputSubmit "Log in"
 
-loginForm :: Monad m => Form Html m (UserName, UserPass)
-loginForm = (,)
-    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
-
-logIntoThentosPage :: View Html -> Html
-logIntoThentosPage v = do
+loginThentosPage :: View Html -> Html
+loginThentosPage v = do
     H.docTypeHtml $ do
         H.head $
             H.title "Log into thentos"
         H.body $ do
-            form v "log_into_thentos" $ do
+            form v "login_thentos" $ do
                 H.p $ do
                     label "usernamme" v "User name:"
                     inputText "name" v
@@ -151,21 +149,24 @@ logIntoThentosPage v = do
                     inputPassword "password" v
                 inputSubmit "Log in"
 
+loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
+loginThentosForm = (,)
+    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
-
-requestPasswordResetPage :: View Html -> Html
-requestPasswordResetPage v =
+resetPasswordRequestPage :: View Html -> Html
+resetPasswordRequestPage v =
     H.docTypeHtml $ do
         H.head $ H.title "Reset your password"
         H.body $ do
-            form v "request_password_reset" $ do
+            form v "reset_password_request" $ do
                 H.p $ do
                     label "email" v "Email address: "
                     inputText "email" v
                 inputSubmit "Reset your password"
 
-requestPasswordResetForm :: Monad m => Form Html m UserEmail
-requestPasswordResetForm =
+resetPasswordRequestForm :: Monad m => Form Html m UserEmail
+resetPasswordRequestForm =
     UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
 
 resetPasswordPage :: Text -> View Html -> Html
@@ -193,21 +194,23 @@ resetPasswordForm = (validate validatePass) $
                                 then Success p1
                                 else Error "passwords don't match"
 
-emailSentPage :: Html
-emailSentPage = H.string $ "Please check your email"
+resetPasswordRequestedPage :: Html
+resetPasswordRequestedPage = H.string $ "Please check your email"
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
 
-notLoggedInPage :: String -> Html
-notLoggedInPage thentosHost = H.docTypeHtml $ do
+notLoggedInPage :: Html
+notLoggedInPage = H.docTypeHtml $ do
     H.head $ H.title "Not logged in"
     H.body $ do
         H.p "You're currently not logged into Thentos."
         H.p $ "Please go to " <> loginLink <> " and try again."
   where
-    loginLink = H.string $ "http://" ++ thentosHost ++ "/login"
+    loginLink = H.a ! A.href "/login_thentos" $ "login"
 
--- auxillary functions
+
+-- * auxillary functions
+
 nonEmpty :: Text -> Bool
 nonEmpty = not . T.null
