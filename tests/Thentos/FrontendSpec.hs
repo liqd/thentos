@@ -51,11 +51,7 @@ spec = describe "selenium (consult README.md if this test fails)"
 
 
 createUser :: SpecWith TestServerFull
-createUser = it "create user" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
-
-
-resetPassword :: SpecWith TestServerFull
-resetPassword = it "reset password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
@@ -94,6 +90,10 @@ resetPassword = it "reset password" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
     Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
     eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
     eUser `shouldSatisfy` isRight
+
+
+resetPassword :: SpecWith TestServerFull
+resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
 updateSelf :: SpecWith TestServerFull
