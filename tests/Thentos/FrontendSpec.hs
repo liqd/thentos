@@ -18,7 +18,7 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
-import Thentos.Frontend (urlSignupConfirm)
+import Thentos.Frontend.Handlers (urlUserCreateConfirm)
 import Thentos.Types
 
 import Test.Arbitrary ()
@@ -46,15 +46,15 @@ spec = describe "selenium (consult README.md if this test fails)"
 
                     WD.openPage (cs $ exposeUrl feConfig)
 
-                    WD.findElem (WD.ByLinkText "create_user") >>= WD.click
+                    WD.findElem (WD.ByLinkText "create user") >>= WD.click
 
                     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
                         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-                    fill "create_user.name" myUsername
-                    fill "create_user.password1" myPassword
-                    fill "create_user.password2" myPassword
-                    fill "create_user.email" myEmail
+                    fill "create.name" myUsername
+                    fill "create.password1" myPassword
+                    fill "create.password2" myPassword
+                    fill "create.email" myEmail
 
                     WD.findElem (WD.ById "create_user_submit") >>= WD.click
                     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
@@ -68,7 +68,7 @@ spec = describe "selenium (consult README.md if this test fails)"
                 -- there, but we don't.)
                 case Map.toList $ db1 ^. dbUnconfirmedUsers of
                       [(tok, _)] -> wd $ do
-                          WD.openPage . cs $ urlSignupConfirm feConfig tok
+                          WD.openPage . cs $ urlUserCreateConfirm feConfig tok
                           WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
                       bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
