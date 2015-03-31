@@ -103,7 +103,7 @@ updateSelf = it "update self" $ \ (_ :: TestServerFull) -> pendingWith "no test 
 logIntoThentos :: SpecWith TestServerFull
 logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You are logged in.")
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged in")
         -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
 
     -- (out of curiousity: why do we need the type signature in the
@@ -197,8 +197,8 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
 
     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-    fill "name" uname
-    fill "password" upass
+    fill "login_thentos.name" uname
+    fill "login_thentos.password" upass
 
     WD.findElem (WD.ById "login_submit") >>= WD.click
     return $ C.Status 200 "Ok."  -- FIXME: we need a man in the middle

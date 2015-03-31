@@ -147,7 +147,7 @@ loginThentosPage v = do
                 H.p $ do
                     label "password" v "Password:"
                     inputPassword "password" v
-                inputSubmit "Log in"
+                inputSubmit "Log in" ! A.id "login_submit"
 
 loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
 loginThentosForm = (,)
