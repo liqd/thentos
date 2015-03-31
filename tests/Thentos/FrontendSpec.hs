@@ -151,6 +151,9 @@ serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
             -- service ^. serviceDescription `shouldBe` sdescr
             -- service ^. serviceOwner       `shouldBe` UserId 0
 
+    -- FIXME: test: without login, create user fails with "permission denied"
+    -- FIXME: test: if user is deleted, so are all their services.
+
 
 serviceDelete :: SpecWith TestServerFull
 serviceDelete = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
