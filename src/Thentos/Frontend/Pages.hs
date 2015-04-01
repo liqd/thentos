@@ -7,6 +7,7 @@ module Thentos.Frontend.Pages
     , userCreateRequestedPage
     , userCreatedPage
     , serviceCreatePage
+    , serviceCreateForm
     , serviceCreatedPage
     , userCreateForm
     , loginServicePage
@@ -85,13 +86,25 @@ userCreatedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
-serviceCreatePage :: Html
-serviceCreatePage = H.docTypeHtml $ do
+serviceCreatePage :: View Html -> Html
+serviceCreatePage v = H.docTypeHtml $ do
     H.head $ do
         H.title "Create Service"
     H.body $ do
-        H.form ! A.method "POST" ! A.action "create_service" $
-            H.input ! A.type_ "submit" ! A.value "Create Service"
+        form v "create" $ do
+            H.p $ do
+                label "name" v "Service name:"
+                inputText "name" v
+            H.p $ do
+                label "description" v "Service description:"
+                inputText "description" v
+            inputSubmit "Create Service" ! A.id "create_service_submit"
+
+serviceCreateForm :: Monad m => Form Html m (ServiceName, ServiceDescription)
+serviceCreateForm =
+    (,) <$>
+        (ServiceName <$> "name" .: check "name must not be empty" nonEmpty (text Nothing)) <*>
+        (ServiceDescription <$> "description" .: check "description must not be mpty" nonEmpty (text Nothing))
 
 serviceCreatedPage :: ServiceId -> ServiceKey -> Html
 serviceCreatedPage sid key = H.docTypeHtml $ do

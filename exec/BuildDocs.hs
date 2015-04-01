@@ -183,3 +183,6 @@ instance ToSample (ServiceId, ServiceKey) where
 
 instance ToSample (SessionToken, Session) where
     toSample = Nothing
+
+instance ToSample (ServiceName, ServiceDescription) where
+    toSample = Nothing

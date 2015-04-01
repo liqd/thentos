@@ -15,6 +15,7 @@ import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, should
 import Text.Regex.Easy ((=~#), (=~-))
 
 import qualified Data.Map as Map
+import qualified Data.ByteString.Lazy as LB
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
@@ -104,7 +105,6 @@ logIntoThentos :: SpecWith TestServerFull
 logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged in")
-        -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
 
     -- (out of curiousity: why do we need the type signature in the
     -- lambda parameter?  shouldn't ghc infer (and be happy with the
@@ -122,21 +122,21 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
 serviceCreate :: SpecWith TestServerFull
 serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     -- fe: fill out and submit create-service form
+    let sname :: ST = "Evil Corp."
+        sdescr :: ST = "don't be evil."
     serviceId :: ServiceId <- wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/service_create")
+        WD.openPage (cs $ exposeUrl feConfig <//> "/service/create")
 
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()
             fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-            sname :: ST = "Evil Corp."
-            sdescr :: ST = "don't be evil."
 
-        fill "service_name" sname
-        fill "service_description" sdescr
+        fill "create.name" sname
+        fill "create.description" sdescr
 
-        WD.findElem (WD.ById "service_create_submit") >>= WD.click
-        (\ s -> case cs s =~- "Service id: (.+)" of [_, sid] -> ServiceId $ cs sid) <$> WD.getSource
+        WD.findElem (WD.ById "create_service_submit") >>= WD.click
+        (\ s -> case cs s =~- "Service id: </p>(.+)<" of [_, sid] -> ServiceId $ cs (LB.take 24 sid)) <$> WD.getSource
 
     -- db: check that
     --   1. service has been created;
@@ -147,8 +147,8 @@ serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
         Nothing -> error "serviceId not found in db."
         Just service -> do
             service ^. serviceSession     `shouldBe` Nothing
-            -- service ^. serviceName        `shouldBe` sname
-            -- service ^. serviceDescription `shouldBe` sdescr
+            service ^. serviceName        `shouldBe` ServiceName sname
+            service ^. serviceDescription `shouldBe` ServiceDescription sdescr
             -- service ^. serviceOwner       `shouldBe` UserId 0
 
     -- FIXME: test: without login, create user fails with "permission denied"

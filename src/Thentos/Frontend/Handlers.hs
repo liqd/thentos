@@ -110,15 +110,28 @@ userCreateConfirm = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
-serviceCreate :: Handler FrontendApp FrontendApp ()
-serviceCreate = blaze serviceCreatePage
+runWithUserClearance ::
+    -- FIXME: make this work for handlers returning that don't return ()
+    (ThentosClearance -> Handler FrontendApp FrontendApp ()) ->
+    Handler FrontendApp FrontendApp ()
+runWithUserClearance handler = do
+    mUid <- getLoggedInUserId
+    case mUid of
+        Nothing -> blaze $ errorPage "Not logged in"
+        Just uid -> do
+            Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
+            handler clearance
 
-serviceCreated :: Handler FrontendApp FrontendApp ()
-serviceCreated = do
-    result <- snapRunAction' allowEverything Thentos.Api.addService
+serviceCreate :: ThentosClearance -> Handler FrontendApp FrontendApp ()
+serviceCreate clearance = do
+    (view, result) <- runForm "create" serviceCreateForm
     case result of
-        Right (sid, key) -> blaze $ serviceCreatedPage sid key
-        Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
+        Nothing -> blaze $ serviceCreatePage view
+        Just (name, description) -> do
+            result' <- snapRunAction' clearance $ addService name description
+            case result' of
+                Right (sid, key) -> blaze $ serviceCreatedPage sid key
+                Left e -> logger INFO (show e) >> blaze (errorPage "service creation failed.")
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address

@@ -13,7 +13,7 @@ import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
-import Snap.Core (method, Method(GET, POST), ifTop)
+import Snap.Core (ifTop)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
@@ -57,10 +57,7 @@ routes = [ ("", ifTop $ H.index)
          , ("user/reset_password_request", H.resetPasswordRequest)
          , ("user/reset_password", H.resetPassword)
          -- , ("user/update", ?)
-
-         , ("service/create", method GET H.serviceCreate)
-         , ("service/create", method POST H.serviceCreate)
-
+         , ("service/create", H.runWithUserClearance H.serviceCreate)
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
          ]
