@@ -222,7 +222,8 @@ checkPassword username password = do
 getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do
     roles <- queryAction $ LookupAgentRoles (UserA uid)
-    return $ makeClearance_ (UserA uid) roles
+    return $ makeClearance (UserA uid) roles
+
 
 -- ** services
 

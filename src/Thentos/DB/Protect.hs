@@ -12,7 +12,7 @@ module Thentos.DB.Protect
   , allowNothing
   , (*%%)
   , createDefaultUser
-  , makeClearance_
+  , makeClearance
   ) where
 
 import Control.Monad (when)
@@ -49,8 +49,8 @@ makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToke
 -- much more specific because there is only one use case so far.  The
 -- names of the two counterparts are not symmetrical because
 -- 'makeThentosClearance' was already taken.)
-makeClearance_ :: Agent -> [Role] -> ThentosClearance
-makeClearance_ agent roles = s *%% i
+makeClearance :: Agent -> [Role] -> ThentosClearance
+makeClearance agent roles = s *%% i
   where
     s = foldr (/\) (toCNF agent) roles
     i = foldr (\/) (toCNF agent) roles
@@ -60,7 +60,7 @@ authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
         _ -> Left NoSuchSession
-    Right $ makeClearance_ agent (pure_lookupAgentRoles db $ agent)
+    Right $ makeClearance agent (pure_lookupAgentRoles db $ agent)
 
 -- | Clearance for everything.
 allowEverything :: ThentosClearance
