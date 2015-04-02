@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE OverlappingInstances                     #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE LambdaCase                               #-}
@@ -114,7 +115,6 @@ instance ToSample Adhocracy3.RequestResult where
 instance ToSample Adhocracy3.ContentType where
     toSample = pure $ Adhocracy3.CTUser
 
-
 instance ToCapture (Capture "token" SessionToken) where
     toCapture _ = DocCapture "token" "Session Token"
 
@@ -163,6 +163,15 @@ instance ToSample [UserId] where
 instance ToSample ServiceId where
     toSample = Just "23t92ege0n"
 
+instance ToSample ServiceKey where
+    toSample = Just "yd090129rj"
+
+instance ToSample ServiceName where
+    toSample = Just "Evil Corp."
+
+instance ToSample ServiceDescription where
+    toSample = Just "don't be evil"
+
 instance ToSample [ServiceId] where
     toSample = Just ["23t92ege0n", "f4ghwgegin0"]
 
@@ -178,11 +187,9 @@ instance ToSample () where
 instance ToSample Bool where
     toSample = Just True
 
-instance ToSample (ServiceId, ServiceKey) where
-    toSample = Nothing
-
-instance ToSample (SessionToken, Session) where
-    toSample = Nothing
-
-instance ToSample (ServiceName, ServiceDescription) where
-    toSample = Nothing
+-- | cover for tuples whose components have already been given
+-- examples.  if you write an instance for a tuple for two concrete
+-- types, `-XOverlappingInstances` will disregard this instance as
+-- more general.
+instance (ToSample a, ToSample b) => ToSample (a, b) where
+    toSample = (,) <$> toSample <*> toSample
