@@ -111,13 +111,17 @@ userCreateConfirm = do
             blaze (errorPage "finializing registration failed: token is missing.")
 
 runWithUserClearance ::
-    -- FIXME: make this work for handlers returning that don't return ()
     (ThentosClearance -> Handler FrontendApp FrontendApp ()) ->
     Handler FrontendApp FrontendApp ()
-runWithUserClearance handler = do
+runWithUserClearance = runWithUserClearance' ()
+
+runWithUserClearance' ::
+    a -> (ThentosClearance -> Handler FrontendApp FrontendApp a) ->
+    Handler FrontendApp FrontendApp a
+runWithUserClearance' def handler = do
     mUid <- getLoggedInUserId
     case mUid of
-        Nothing -> blaze $ errorPage "Not logged in"
+        Nothing -> blaze (errorPage "Not logged in") >> return def
         Just uid -> do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
             handler clearance
