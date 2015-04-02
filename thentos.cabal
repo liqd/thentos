@@ -28,7 +28,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-      -O2 -Wall -threaded -rtsopts
+      -Wall
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -114,7 +114,7 @@ executable thentos
   main-is:
       Main.hs
   ghc-options:
-      -O2 -Wall -threaded -rtsopts
+      -Wall -threaded -rtsopts
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -130,7 +130,7 @@ executable build-docs
   main-is:
       BuildDocs.hs
   ghc-options:
-      -O2 -Wall -threaded -rtsopts
+      -Wall -threaded -rtsopts
   build-depends:
       base
     , thentos
@@ -166,7 +166,7 @@ test-suite tests
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
   ghc-options:
-      -O2 -Wall -threaded -rtsopts
+      -Wall -threaded -rtsopts
   cpp-options:
       -DGHC_GENERICS
   build-depends:
@@ -217,7 +217,7 @@ benchmark load-test
   main-is:
       Main.hs
   ghc-options:
-      -O2 -Wall -threaded
+      -Wall -threaded
   build-depends:
       base
     , thentos
