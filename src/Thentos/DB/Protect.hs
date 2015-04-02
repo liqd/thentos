@@ -50,7 +50,7 @@ authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
         _ -> Left NoSuchSession
-    Right $ makeClearance agent (pure_lookupAgentRoles db $ agent)
+    Right $ makeClearance agent (pure_lookupAgentRoles db agent)
 
 -- | The counter part to 'makeThentosLabel'.  (The argument types are
 -- much more specific because there is only one use case so far.  The

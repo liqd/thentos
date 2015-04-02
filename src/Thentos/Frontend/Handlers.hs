@@ -51,7 +51,7 @@ import Thentos.Util
 index :: Handler FrontendApp FrontendApp ()
 index = blaze indexPage
 
--- FIXME: for all forms, make sure that on use error, the form is
+-- FIXME: for all forms, make sure that on user error, the form is
 -- rendered again with response code 409 and a readable error message
 -- on top of the form.
 
