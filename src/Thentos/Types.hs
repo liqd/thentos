@@ -4,11 +4,13 @@
 {-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
+{-# LANGUAGE OverlappingInstances                     #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
+{-# LANGUAGE UndecidableInstances                     #-}
 
-{-# OPTIONS  #-}
+{-# OPTIONS -fno-warn-orphans #-}
 
 module Thentos.Types where
 
@@ -294,49 +296,193 @@ instance Label ThentosClearance where
 
 -- * errors
 
-data ThentosError =
-      NoSuchUser
-    | NoSuchPendingUserConfirmation
-    | MalformedConfirmationToken ST
-    | NoSuchService
-    | NoSuchSession
-    | OperationNotPossibleInServiceSession
-    | ServiceAlreadyExists
-    | UserEmailAlreadyExists
-    | UserNameAlreadyExists
-    | PermissionDenied String ThentosClearance ThentosLabel
-    | BadCredentials
-    | BadAuthenticationHeaders
-    | ProxyNotAvailable
-    | MissingServiceHeader
-    | ProxyNotConfiguredForService ServiceId
-    | NoSuchResetToken
-    deriving (Eq, Ord, Show, Read, Typeable)
+-- we used to have one long sum type with one constructor for each
+-- error anywhere in the system.  this approach lacks certain
+-- desirable properties:
+--
+--  - if we want to add errors, we have to change this type.  this may
+--    be hard for people who use thentos as a library to write
+--    someting else: they have to decide whether they want to leave
+--    the error type unchanged or stop using any functions from
+--    thentos that touch it.
+--
+--  - we can't say (in types): "this transaction / snap handler /
+--    servant handler / ... throws either 'NoSuchUser' or
+--    'BadCredentials', but no other exceptions".  (if we could, we
+--    could trigger type errors in cases where a handler calls an
+--    action that calls a transaction that calls another transaction,
+--    and somewhere down the call tree an exception is added that the
+--    handler has ruled out.)
+--
+-- the following is an experiment to overcome these deficiencies.
 
-instance SafeCopy ThentosError
+class (Eq e, Ord e, Show e, Read e, Typeable e) => ThentosError e
+
+data NoSuchUser = NoSuchUser
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError NoSuchUser
+
+data NoSuchPendingUserConfirmation = NoSuchPendingUserConfirmation
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError NoSuchPendingUserConfirmation
+
+data MalformedConfirmationToken = MalformedConfirmationToken ST
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError MalformedConfirmationToken
+
+data NoSuchService = NoSuchService
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError NoSuchService
+
+data NoSuchSession = NoSuchSession
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError NoSuchSession
+
+data OperationNotPossibleInServiceSession = OperationNotPossibleInServiceSession
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError OperationNotPossibleInServiceSession
+
+data ServiceAlreadyExists = ServiceAlreadyExists
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError ServiceAlreadyExists
+
+data UserEmailAlreadyExists = UserEmailAlreadyExists
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError UserEmailAlreadyExists
+
+data UserNameAlreadyExists = UserNameAlreadyExists
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError UserNameAlreadyExists
+
+data PermissionDenied = PermissionDenied String ThentosClearance ThentosLabel
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError PermissionDenied
+
+data BadCredentials = BadCredentials
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError BadCredentials
+
+data BadAuthenticationHeaders = BadAuthenticationHeaders
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError BadAuthenticationHeaders
+
+data ProxyNotAvailable = ProxyNotAvailable
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError ProxyNotAvailable
+
+data MissingServiceHeader = MissingServiceHeader
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError MissingServiceHeader
+
+data ProxyNotConfiguredForService = ProxyNotConfiguredForService ServiceId
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError ProxyNotConfiguredForService
+
+data NoSuchResetToken = NoSuchResetToken
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError NoSuchResetToken
+
+
+-- | this instance is undecidable, overlapping, and orphan.  hm...
+instance ThentosError e => SafeCopy e
   where
     putCopy = contain . safePut . show
     getCopy = contain $ safeGet >>= \ raw ->
       maybe (fail $ "instance SafeCopy ThentosError: no parse" ++ show raw) return . readMay $ raw
 
--- | the type of this will change when servant has a better error type.
-showThentosError :: MonadIO m => ThentosError -> m (Int, String)
-showThentosError NoSuchUser                           = return (404, "user not found")
-showThentosError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
-showThentosError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
-showThentosError NoSuchService                        = return (404, "service not found")
-showThentosError NoSuchSession                        = return (404, "session not found")
-showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
-showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
-showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
-showThentosError e@(PermissionDenied _ _ _)           = logger INFO (show e) >> return (401, "unauthorized")
-showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
-showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
-showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
-showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
-showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
+
+-- | Render errors for servant.  (The servant error type will
+-- hopefully change in the future.)
+class ThentosError e => ThentosErrorShowServant e where
+    showThentosError :: MonadIO m => e -> m (Int, String)
+
+instance ThentosErrorShowServant NoSuchUser where
+    showThentosError NoSuchUser = return (404, "user not found")
+
+instance ThentosErrorShowServant NoSuchPendingUserConfirmation where
+    showThentosError NoSuchPendingUserConfirmation = return (404, "unconfirmed user not found")
+
+instance ThentosErrorShowServant MalformedConfirmationToken where
+    showThentosError (MalformedConfirmationToken path) = return (400, "malformed confirmation token: " ++ show path)
+
+instance ThentosErrorShowServant NoSuchService where
+    showThentosError NoSuchService = return (404, "service not found")
+
+instance ThentosErrorShowServant NoSuchSession where
+    showThentosError NoSuchSession = return (404, "session not found")
+
+instance ThentosErrorShowServant OperationNotPossibleInServiceSession where
+    showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
+
+instance ThentosErrorShowServant ServiceAlreadyExists where
+    showThentosError ServiceAlreadyExists = return (403, "service already exists")
+
+instance ThentosErrorShowServant UserEmailAlreadyExists where
+    showThentosError UserEmailAlreadyExists = return (403, "email already in use")
+
+instance ThentosErrorShowServant UserNameAlreadyExists where
+    showThentosError UserNameAlreadyExists = return (403, "user name already in use")
+
+instance ThentosErrorShowServant PermissionDenied where
+    showThentosError e@(PermissionDenied _ _ _) = logger INFO (show e) >> return (401, "unauthorized")
+
+instance ThentosErrorShowServant BadCredentials where
+    showThentosError e@BadCredentials = logger INFO (show e) >> return (401, "unauthorized")
+
+instance ThentosErrorShowServant BadAuthenticationHeaders where
+    showThentosError BadAuthenticationHeaders = return (400, "bad authentication headers")
+
+instance ThentosErrorShowServant ProxyNotAvailable where
+    showThentosError ProxyNotAvailable = return (404, "proxying not activated")
+
+instance ThentosErrorShowServant MissingServiceHeader where
+    showThentosError MissingServiceHeader = return (404, "headers do not contain service id")
+
+instance ThentosErrorShowServant ProxyNotConfiguredForService where
+    showThentosError (ProxyNotConfiguredForService sid) = return (404, "proxy not configured for service " ++ show sid)
+
+instance ThentosErrorShowServant NoSuchResetToken where
+    showThentosError NoSuchResetToken = return (404, "no such password reset token")
+
+-- for snap and log file, we can now implement similar classes.
+
+-- now we can go anywhere and add error types, at the cost of a lot
+-- more verbosity (there may be ways to reduce boilerplate again).
+
+
+-- and we can restrict the error types that can be thrown by handlers
+-- / actions / transactions.  the following is pseudo-code:
+
+data LoginError =
+    LoginError1 NoSuchUser
+  | LoginError2 BadCredentials
+  deriving ...
+
+instance ThentosError LoginError
+
+...
+
+loginTrans :: UserName -> UserPass -> ThentosUpdate LoginError SessionToken
+
+-- but this ain't so great.  now we need to re-instantiate
+-- thentosErrorShowServant and all other classes for LoginError.  and
+-- writing 'loginTrans' get's more awkward.
 
 
 -- * boilerplate
