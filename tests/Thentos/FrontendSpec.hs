@@ -8,6 +8,7 @@ module Thentos.FrontendSpec where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
+import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
 import Data.String.Conversions (ST, cs)
@@ -25,7 +26,7 @@ import Thentos.DB.Protect
 import Thentos.DB.Trans
 import Thentos.Frontend.Handlers (urlUserCreateConfirm)
 import Thentos.Types
-import Thentos.Util ((<//>))
+import Thentos.Util ((<//>), verifyPass)
 
 import Test.Arbitrary ()
 import Test.Util
@@ -98,7 +99,92 @@ resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no
 
 
 updateSelf :: SpecWith TestServerFull
-updateSelf = it "update self" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+updateSelf = describe "update self" $ do
+    let _fill :: ST -> ST -> WD.WD ()
+        _fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+
+        _click :: ST -> WD.WD ()
+        _click label = WD.findElem (WD.ById label) >>= WD.click
+
+        _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
+        _check st f = liftIO $ query' st (SnapShot allowEverything) >>=
+                        maybe (error "no such user") f .
+                        either (error "could not take db snapshot") (Map.lookup (UserId selfId) . (^. dbUsers))
+
+        -- FIXME: test with ordinary user (not god).
+        selfId   :: Integer = 0
+        selfName :: ST      = "god"
+        selfPass :: ST      = "god"
+
+    it "username" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+        let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPage (cs $ exposeUrl feConfig <//> "/edit_user")
+        _fill "edit.name" newSelfName
+        _click "edit_user_submit"
+        _check st ((`shouldBe` UserName newSelfName) . (^. userName))
+
+    -- FIXME: test with new user name that is already in use.
+    -- FIXME: test with unauthenticated user.
+    -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
+
+    it "password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+        let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPage (cs $ exposeUrl feConfig <//> "/edit_user")
+        _fill "edit.password1" newSelfPass
+        _fill "edit.password2" newSelfPass
+        _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
+
+    -- FIXME: test failure cases.  same restrictions apply as in
+    -- "create_user" and "reset_password" (make sure the check is in
+    -- separate function, not inlined.)
+
+    it "email" $ \ (_ :: TestServerFull) ->
+        pendingWith "no test implemented."
+
+        {-
+
+        needs another confirmation email.  what to do while waiting for
+        re-confirmation?  options:
+
+        1. the user has status "confirmed", but old email is still valid.
+           changing email addresses several times without confirmation must work
+           as expected: a new attempt overrides the previous ones, and
+           invalidates the previous confirmation links.
+
+           good: if the adversary is the user, this is no loss of security (the
+           user can just choose not to change the email to the same effect).
+
+           bad: if the adversary is somebody who owns the old address and somehow
+           inhibits the confirmation, a potentially invalid/stolen email address
+           will remain valid.
+
+
+        2. the user falls back to status "unconfirmed".  all her existing data
+           will remain intact, but she will not be able to access it with her own
+           priviledges until the confirmation has succeeded.
+
+           good: suggested by frau zabel (datenschutzreferat).
+
+           bad: potentially annoying to the user.
+
+
+        3. the user has status "confirmed", but email address is replaced by
+           an "unconfirmed"-marker.  outgoing emails are queued.
+
+           good: as convenient as 1., (almost) as secure as 2.
+
+           bad: more implementation effort.
+
+        we pick (2) for now, and leave this discussion in the code for
+        reference.
+
+        -}
+
+
+-- manageRoles :: SpecWith TestServerFull
+-- manageRoles = describe "manage roles" $ do ...
 
 
 logIntoThentos :: SpecWith TestServerFull
