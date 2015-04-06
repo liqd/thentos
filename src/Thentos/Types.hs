@@ -12,7 +12,7 @@
 
 module Thentos.Types where
 
-import Control.Lens (makeLenses)
+import Control.Lens (makeLenses, Lens')
 import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable)
@@ -50,6 +50,13 @@ data DB =
       , _dbFreshUserId      :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
+
+
+class IsDB db where
+    asDB :: Lens' db DB
+
+instance IsDB DB where
+    asDB = id
 
 
 -- * user

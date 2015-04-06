@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ViewPatterns        #-}
@@ -43,8 +44,8 @@ import Thentos.Types
 type ThentosUpdate a = ThentosUpdate' (ThentosLabeled ThentosError) (ThentosLabeled a)
 type ThentosQuery  a = ThentosQuery'  (ThentosLabeled ThentosError) (ThentosLabeled a)
 
-type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
-type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
+type ThentosUpdate' e a = forall db . IsDB db => EitherT e (StateT  db Identity) a
+type ThentosQuery'  e a = forall db . IsDB db => EitherT e (ReaderT db Identity) a
 
 
 -- * plumbing
