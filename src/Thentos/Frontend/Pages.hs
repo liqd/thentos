@@ -10,6 +10,10 @@ module Thentos.Frontend.Pages
     , serviceCreateForm
     , serviceCreatedPage
     , userCreateForm
+    , userUpdatePage
+    , userUpdateForm
+    , passwordUpdateForm
+    , emailUpdateForm
     , loginServicePage
     , loginThentosPage
     , loginThentosForm
@@ -25,7 +29,7 @@ module Thentos.Frontend.Pages
 
 import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text (Text)
@@ -40,6 +44,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Types
+import Thentos.DB.Trans (UpdateUserFieldOp(..))
 
 indexPage :: Html
 indexPage = do
@@ -76,6 +81,17 @@ userCreatePage v = H.docTypeHtml $ do
                 inputText "email" v
             inputSubmit "Create User" ! A.id "create_user_submit"
 
+userCreateForm :: Monad m => Form Html m UserFormData
+userCreateForm = (validate validateUserData) $ (,,,)
+    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
+  where
+    validateUserData (name, pw1, pw2, email)
+        | pw1 == pw2 = Success $ UserFormData name pw1 email
+        | otherwise  = Error "Passwords don't match"
+
 userCreateRequestedPage :: Html
 userCreateRequestedPage = H.string $ "Please check your email"
 
@@ -87,6 +103,68 @@ userCreatedPage uid =
         H.body $ do
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
+
+userUpdatePage :: View Html -> View Html -> View Html -> Html
+userUpdatePage userView emailView pwView = H.docTypeHtml $ do
+    H.head $ H.title "Update user data"
+    H.body $ do
+        form userView "update" $ do
+            H.p $ do
+                label "name" userView "User name:"
+                inputText "name" userView
+            inputSubmit "Update User Data" ! A.id "update_user_submit"
+
+        form pwView "update_password" $ do
+            H.p $ do
+                label "old_password" pwView "Current Password: "
+                inputPassword "old_password" pwView
+            H.p $ do
+                label "new_password1" pwView "New password: "
+                inputPassword "new_password1" pwView
+            H.p $ do
+                label "new_password2" pwView "Repeat new password: "
+                inputPassword "new_password2" pwView
+            inputSubmit "Update Password" ! A.id "update_password_submit"
+
+        form emailView "update_email" $ do
+            H.p $ do
+                label "email" emailView "Email Address: "
+                inputText "email" emailView
+            inputSubmit "Update Email Address" ! A.id "update_email_submit"
+
+-- this is a bit overkill for now, but easily extensible for new user data fields
+userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
+userUpdateForm = (validate validateUserData) $
+    "name"      .: text Nothing
+  where
+    validateUserData :: Text -> Result Html [UpdateUserFieldOp]
+    validateUserData name  =
+        let updates = catMaybes [ validateName name
+                                ]
+        in if null updates
+            then Error "Nothing to update"
+            else Success updates
+
+    validateName :: Text -> Maybe UpdateUserFieldOp
+    validateName name = toMaybe (not $ T.null name)
+                                (UpdateUserFieldName $ UserName name)
+
+    toMaybe :: Bool -> a -> Maybe a
+    toMaybe b v = if b then Just v else Nothing
+
+passwordUpdateForm :: Monad m => Form Html m (UserPass, UserPass)
+passwordUpdateForm = (validate newPasswordsMatch) $ (,,)
+    <$> ("old_password"  .: check "password must not be empty" nonEmpty (text Nothing))
+    <*> ("new_password1" .: check "password must not be empty" nonEmpty (text Nothing))
+    <*> ("new_password2" .: check "password must not be empty" nonEmpty (text Nothing))
+  where
+    newPasswordsMatch (old, new1, new2)
+        | new1 == new2 = Success (UserPass old, UserPass new1)
+        | otherwise    = Error "passwords don't match"
+
+emailUpdateForm :: Monad m => Form Html m UserEmail
+emailUpdateForm =
+    UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing)
 
 serviceCreatePage :: View Html -> Html
 serviceCreatePage v = H.docTypeHtml $ do
@@ -117,20 +195,6 @@ serviceCreatedPage sid key = H.docTypeHtml $ do
             H.h1 "Added a service!"
             H.p "Service id: " <> H.text (fromServiceId sid)
             H.p "Service key: " <> H.text (fromServiceKey key)
-
-userCreateForm :: Monad m => Form Html m UserFormData
-userCreateForm = (validate validateUserData) $ (,,,)
-    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
-  where
-    checkEmail :: Text -> Bool
-    checkEmail = isJust . T.find (== '@')
-
-    validateUserData (name, pw1, pw2, email)
-        | pw1 == pw2 = Success $ UserFormData name pw1 email
-        | otherwise  = Error "Passwords don't match"
 
 loginServicePage :: ServiceId -> View Html -> ByteString -> Html
 loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
@@ -236,3 +300,6 @@ notLoggedInPage = H.docTypeHtml $ do
 
 nonEmpty :: Text -> Bool
 nonEmpty = not . T.null
+
+checkEmail :: Text -> Bool
+checkEmail = isJust . T.find (== '@')

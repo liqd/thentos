@@ -22,8 +22,11 @@ module Thentos.Api
   , addUnconfirmedUser
   , addPasswordResetToken
   , getUserClearance
+  , changePassword
   , resetPassword
   , checkPassword
+  , requestUserEmailChange
+  , confirmUserEmailChange
   , addService
   , startSessionUser
   , startSessionService
@@ -187,6 +190,7 @@ freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 -- ** users
 
+-- FIXME: unconfirmed users should expire after some time
 addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
@@ -206,6 +210,17 @@ resetPassword token password = do
     hashedPassword <- hashUserPass password
     updateAction $ ResetPassword now token hashedPassword
 
+changePassword :: UserId -> UserPass -> UserPass -> Action r ()
+changePassword uid old new = do
+    (_, user) <- queryAction $ LookupUser uid
+    if verifyPass old user
+        then do
+            hashedPw <- hashUserPass new
+            updateAction $
+                UpdateUserField uid (UpdateUserFieldPassword hashedPw)
+        else
+            lift $ left BadCredentials
+
 checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
 checkPassword username password = do
     catchAction checkPw $ \err ->
@@ -219,11 +234,21 @@ checkPassword username password = do
             then Just (uid, user)
             else Nothing
 
+-- FIXME: email change requests should expire
+requestUserEmailChange :: CPRG r => UserId -> UserEmail -> Action (MVar r) ConfirmationToken
+requestUserEmailChange uid newEmail = do
+    tok <- freshConfirmationToken
+    updateAction $ AddUserEmailChangeRequest uid newEmail tok
+    return tok
+
+confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
+confirmUserEmailChange token =
+    updateAction $ ConfirmUserEmailChange token
+
 getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do
     roles <- queryAction $ LookupAgentRoles (UserA uid)
     return $ makeClearance (UserA uid) roles
-
 
 -- ** services
 

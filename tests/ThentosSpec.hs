@@ -67,6 +67,7 @@ spec = do
         result <- update' st $ DeleteUser (UserId 1) (UserA (UserId 2) *%% UserA (UserId 2))
         result `shouldSatisfy` isLeft
 
+    -- FIXME: replace this by test for UpdateUserField
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ (st, _, _) -> do
         result <- update' st $ UpdateUser (UserId 1) user1 allowEverything
