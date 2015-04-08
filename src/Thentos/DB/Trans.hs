@@ -25,6 +25,7 @@ module Thentos.DB.Trans
   , AddUsers(..), trans_addUsers
   , UpdateUser(..), trans_updateUser
   , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
+  , UpdateUserFields(..)
   , DeleteUser(..), trans_deleteUser
   , AddPasswordResetToken(..), trans_addPasswordResetToken
   , ResetPassword(..), trans_resetPassword
@@ -69,7 +70,7 @@ import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>), (<$$>))
-import Data.List (find, (\\))
+import Data.List (find, (\\), foldl')
 import Data.Maybe (isJust, fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 import Data.Thyme.Time ()
@@ -262,20 +263,25 @@ trans_updateUser uid user = do
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
+  | UpdateUserFieldPassword UserPass
   | UpdateUserFieldAddService ServiceId
   | UpdateUserFieldDropService ServiceId
-  deriving (Eq, Show)
+  deriving (Eq)
 
 trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
-trans_updateUserField uid op = do
+trans_updateUserField uid op = trans_updateUserFields uid [op]
+
+trans_updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosUpdate ()
+trans_updateUserFields uid ops = do
     let runOp :: UpdateUserFieldOp -> User -> User
         runOp (UpdateUserFieldName n)          = userName .~ n
         runOp (UpdateUserFieldEmail e)         = userEmail .~ e
+        runOp (UpdateUserFieldPassword p)      = userPassword .~ p
         runOp (UpdateUserFieldAddService sid)  = userLogins %~ (sid:)
         runOp (UpdateUserFieldDropService sid) = userLogins %~ filter (/= sid)
 
     ThentosLabeled label  (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    ThentosLabeled label' ()        <- writeUser uid $ runOp op user
+    ThentosLabeled label' ()        <- writeUser uid $ foldl' (flip runOp) user ops
     returnDb (lub label label') ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
@@ -698,6 +704,9 @@ updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser ui
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
 
+updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosClearance -> Update DB (Either ThentosError ())
+updateUserFields uid ops clearance = runThentosUpdate clearance $ trans_updateUserFields uid ops
+
 deleteUser :: UserId -> ThentosClearance -> Update DB (Either ThentosError ())
 deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
 
@@ -766,6 +775,7 @@ $(makeAcidic ''DB
     , 'addUsers
     , 'updateUser
     , 'updateUserField
+    , 'updateUserFields
     , 'deleteUser
     , 'addPasswordResetToken
     , 'resetPassword

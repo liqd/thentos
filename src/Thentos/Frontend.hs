@@ -56,7 +56,7 @@ routes = [ ("", ifTop $ H.index)
          , ("user/create_confirm", H.userCreateConfirm)
          , ("user/reset_password_request", H.resetPasswordRequest)
          , ("user/reset_password", H.resetPassword)
-         -- , ("user/update", ?)
+         , ("user/update", H.userUpdate)
          , ("service/create", H.runWithUserClearance H.serviceCreate)
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?

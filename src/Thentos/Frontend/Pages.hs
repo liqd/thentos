@@ -22,9 +22,9 @@ module Thentos.Frontend.Pages
     , notLoggedInPage
     ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative (pure, (<$>), (<*>))
 import Data.ByteString (ByteString)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text (Text)
@@ -39,6 +39,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Types
+import Thentos.DB.Trans (UpdateUserFieldOp(..))
 
 indexPage :: Html
 indexPage = do
@@ -74,6 +75,17 @@ userCreatePage v = H.docTypeHtml $ do
                 inputText "email" v
             inputSubmit "Create User" ! A.id "create_user_submit"
 
+userCreateForm :: Monad m => Form Html m UserFormData
+userCreateForm = (validate validateUserData) $ (,,,)
+    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
+    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
+  where
+    validateUserData (name, pw1, pw2, email)
+        | pw1 == pw2 = Success $ UserFormData name pw1 email
+        | otherwise  = Error "Passwords don't match"
+
 userCreateRequestedPage :: Html
 userCreateRequestedPage = H.string $ "Please check your email"
 
@@ -85,6 +97,59 @@ userCreatedPage uid =
         H.body $ do
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
+
+userUpdatePage :: View Html -> Html
+userUpdatePage v = H.docTypeHtml $ do
+    H.head $ H.title "Update user data"
+    H.body $ do
+        -- FIXME: how do we avoid having to duplicate the URL here?
+        form v "update" $ do
+            H.p $ do
+                label "name" v "User name:"
+                inputText "name" v
+            H.p $ do
+                label "password1" v "Password:"
+                inputPassword "password1" v
+            H.p $ do
+                label "password2" v "Repeat Password:"
+                inputPassword "password2" v
+            H.p $ do
+                label "email" v "Email Address:"
+                inputText "email" v
+            inputSubmit "Update User Data" ! A.id "update_user_submit"
+
+userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
+userUpdateForm = (validate validateUserData) $ (,,,)
+    <$> "name"      .: text Nothing
+    <*> "password1" .: text Nothing
+    <*> "password2" .: text Nothing
+    <*> "email"     .: text Nothing
+  where
+    validateUserData :: (Text, Text, Text, Text) -> Result Html [UpdateUserFieldOp]
+    validateUserData (name, pw1, pw2, email) =
+        let updates = catMaybes [ validateName name
+                                -- , validatePassword pw1 pw2
+                                , validateEmail
+                                ]
+        in if null updates
+            then Error "Nothing to update"
+            else Success updates
+
+    -- FIXME: don't mix up checking if they exist and checking they're the same
+    validatePassword :: Text -> Text -> Maybe UpdateUserFieldOp
+    validatePassword pw1 pw2 = toMaybe (pw1 == pw2 && not (T.null pw1))
+                                       (UpdateUserFieldPassword $ UserPass pw1)
+        
+    validateName :: Text -> Maybe UpdateUserFieldOp
+    validateName name = toMaybe (not $ T.null name)
+                                (UpdateUserFieldName $ UserName name)
+
+    validateEmail :: Text -> Maybe UpdateUserFieldOp
+    validateEmail email = toMaybe (checkEmail email)
+                                  (UpdateUserFieldEmail $ UserEmail email)
+
+    toMaybe :: Bool -> a -> Maybe a
+    toMaybe b v = if b then Just v else Nothing
 
 serviceCreatePage :: View Html -> Html
 serviceCreatePage v = H.docTypeHtml $ do
@@ -115,20 +180,6 @@ serviceCreatedPage sid key = H.docTypeHtml $ do
             H.h1 "Added a service!"
             H.p "Service id: " <> H.text (fromServiceId sid)
             H.p "Service key: " <> H.text (fromServiceKey key)
-
-userCreateForm :: Monad m => Form Html m UserFormData
-userCreateForm = (validate validateUserData) $ (,,,)
-    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
-  where
-    checkEmail :: Text -> Bool
-    checkEmail = isJust . T.find (== '@')
-
-    validateUserData (name, pw1, pw2, email)
-        | pw1 == pw2 = Success $ UserFormData name pw1 email
-        | otherwise  = Error "Passwords don't match"
 
 loginServicePage :: ServiceId -> View Html -> ByteString -> Html
 loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
@@ -227,3 +278,6 @@ notLoggedInPage = H.docTypeHtml $ do
 
 nonEmpty :: Text -> Bool
 nonEmpty = not . T.null
+
+checkEmail :: Text -> Bool
+checkEmail = isJust . T.find (== '@')

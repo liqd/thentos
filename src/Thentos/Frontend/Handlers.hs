@@ -110,6 +110,30 @@ userCreateConfirm = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
+userUpdate :: Handler FrontendApp FrontendApp ()
+userUpdate = runWithUserClearance $ \ clerance -> do
+    (view, result) <- runForm "update" userUpdateForm
+    case result of
+        Nothing -> blaze $ userUpdatePage view
+        Just fieldUpdates -> do
+            --result' <- snapRunAction' clearance $ addUnconfirmedUser user
+            --result' <- snapRunAction' clearance $ updateUser userdata
+            result' <- update $ UpdateUserFields undefined fieldUpdates -- FIXME
+            case result' of
+                Right (_, token) -> do
+                    config :: ThentosConfig <- gets (^. cfg)
+                    feConfig <- gets (^. frontendCfg)
+                    liftIO $ sendUserConfirmationMail
+                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
+                        (urlUserCreateConfirm feConfig token)
+                    blaze userCreateRequestedPage
+                Left UserEmailAlreadyExists -> do
+                    config :: ThentosConfig <- gets (^. cfg)
+                    liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
+                    blaze userCreateRequestedPage
+                Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+
+
 runWithUserClearance ::
     (ThentosClearance -> Handler FrontendApp FrontendApp ()) ->
     Handler FrontendApp FrontendApp ()

@@ -119,7 +119,7 @@ updateSelf = describe "update self" $ do
     it "username" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/edit_user")
+        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
         _fill "edit.name" newSelfName
         _click "edit_user_submit"
         _check st ((`shouldBe` UserName newSelfName) . (^. userName))
@@ -131,7 +131,7 @@ updateSelf = describe "update self" $ do
     it "password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/edit_user")
+        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
         _fill "edit.password1" newSelfPass
         _fill "edit.password2" newSelfPass
         _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
@@ -163,7 +163,7 @@ updateSelf = describe "update self" $ do
 
         2. the user falls back to status "unconfirmed".  all her existing data
            will remain intact, but she will not be able to access it with her own
-           priviledges until the confirmation has succeeded.
+           privileges until the confirmation has succeeded.
 
            good: suggested by frau zabel (datenschutzreferat).
 
@@ -197,13 +197,11 @@ logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestSer
     -- fact) that the lambda is polymorphic in all places where it
     -- takes '_'?)
 
-
 logOutOfThentos :: SpecWith TestServerFull
 logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You are logged out.")
         -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
-
 
 serviceCreate :: SpecWith TestServerFull
 serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
