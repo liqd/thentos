@@ -21,7 +21,7 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
 import Snap.Snaplet.AcidState (getAcidState, update)
 import Snap.Blaze (blaze)
 import System.Log.Missing (logger)
@@ -202,6 +202,16 @@ loginThentos = do
   where
     loginFail :: Handler FrontendApp FrontendApp ()
     loginFail = blaze "Bad username / password combination"
+
+
+logoutThentos :: Handler FrontendApp FrontendApp ()
+logoutThentos = blaze logoutThentosPage
+
+loggedOutThentos :: Handler FrontendApp FrontendApp ()
+loggedOutThentos = with sess $ do
+    resetSession
+    commitSession
+    blaze "Logged out"
 
 checkThentosLogin :: Handler FrontendApp FrontendApp ()
 checkThentosLogin = do
