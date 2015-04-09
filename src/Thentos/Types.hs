@@ -88,7 +88,7 @@ newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass
 
 instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
-    getCopy = contain $ safeGet >>= return . HashedSecret . Scrypt.EncryptedPass
+    getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
