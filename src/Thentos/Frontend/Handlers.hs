@@ -21,13 +21,13 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
 import Snap.Snaplet.AcidState (getAcidState, update)
 import Snap.Blaze (blaze)
 import System.Log.Missing (logger)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Core (getResponse, finishWith, urlEncode, urlDecode)
-import Snap.Snaplet (Handler, with)
+import Snap.Snaplet (with)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
 
@@ -48,10 +48,10 @@ import Thentos.Types
 import Thentos.Util
 
 
-index :: Handler FrontendApp FrontendApp ()
+index :: FH ()
 index = blaze indexPage
 
--- FIXME: for all forms, make sure that on use error, the form is
+-- FIXME: for all forms, make sure that on user error, the form is
 -- rendered again with response code 409 and a readable error message
 -- on top of the form.
 
@@ -59,7 +59,7 @@ index = blaze indexPage
 -- errors (e.g.  missing mail address), but does not show an error
 -- message.  (Even worse: it returns a 200.  It should response with
 -- 409.)
-userCreate :: Handler FrontendApp FrontendApp ()
+userCreate :: FH ()
 userCreate = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
 
@@ -87,7 +87,7 @@ urlUserCreateConfirm feConfig (ConfirmationToken token) =
     cs (exposeUrl feConfig) <//> "/user/create_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-userCreateConfirm :: Handler FrontendApp FrontendApp ()
+userCreateConfirm :: FH ()
 userCreateConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
@@ -110,21 +110,34 @@ userCreateConfirm = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
-serviceCreate :: Handler FrontendApp FrontendApp ()
-serviceCreate = blaze serviceCreatePage
+runWithUserClearance :: (ThentosClearance -> FH ()) -> FH ()
+runWithUserClearance = runWithUserClearance' ()
 
-serviceCreated :: Handler FrontendApp FrontendApp ()
-serviceCreated = do
-    result <- snapRunAction' allowEverything Thentos.Api.addService
+runWithUserClearance' :: a -> (ThentosClearance -> FH a) -> FH a
+runWithUserClearance' def handler = do
+    mUid <- getLoggedInUserId
+    case mUid of
+        Nothing -> blaze (errorPage "Not logged in") >> return def
+        Just uid -> do
+            Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
+            handler clearance
+
+serviceCreate :: ThentosClearance -> FH ()
+serviceCreate clearance = do
+    (view, result) <- runForm "create" serviceCreateForm
     case result of
-        Right (sid, key) -> blaze $ serviceCreatedPage sid key
-        Left e -> logger INFO (show e) >> blaze (errorPage "could not add service.")
+        Nothing -> blaze $ serviceCreatePage view
+        Just (name, description) -> do
+            result' <- snapRunAction' clearance $ addService name description
+            case result' of
+                Right (sid, key) -> blaze $ serviceCreatedPage sid key
+                Left e -> logger INFO (show e) >> blaze (errorPage "service creation failed.")
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
-loginService :: Handler FrontendApp FrontendApp ()
+loginService :: FH ()
 loginService = do
     mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
@@ -133,7 +146,7 @@ loginService = do
         (Nothing, _)         -> blaze $ notLoggedInPage
         (Just uid, Just sid) -> loginSuccess uid sid
   where
-    loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
+    loginSuccess :: UserId -> ServiceId -> FH ()
     loginSuccess uid sid = do
         mCallback <- getParam "redirect"
         case mCallback of
@@ -161,7 +174,7 @@ loginService = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-loginThentos :: Handler FrontendApp FrontendApp ()
+loginThentos :: FH ()
 loginThentos = do
     (view, result) <- runForm "login_thentos" loginThentosForm
     case result of
@@ -183,10 +196,20 @@ loginThentos = do
                     -- errors.
         Nothing -> blaze $ loginThentosPage view
   where
-    loginFail :: Handler FrontendApp FrontendApp ()
+    loginFail :: FH ()
     loginFail = blaze "Bad username / password combination"
 
-checkThentosLogin :: Handler FrontendApp FrontendApp ()
+
+logoutThentos :: FH ()
+logoutThentos = blaze logoutThentosPage
+
+loggedOutThentos :: FH ()
+loggedOutThentos = with sess $ do
+    resetSession
+    commitSession
+    blaze "Logged out"
+
+checkThentosLogin :: FH ()
 checkThentosLogin = do
     mUid <- getLoggedInUserId
     case mUid of
@@ -194,7 +217,7 @@ checkThentosLogin = do
         Just uid -> do
             blaze $ "Logged in as user: " <> H.string (show uid)
 
-getLoggedInUserId :: Handler FrontendApp FrontendApp (Maybe UserId)
+getLoggedInUserId :: FH (Maybe UserId)
 getLoggedInUserId = with sess $ do
     mUserText <- getFromSession "user"
     return $ case mUserText of
@@ -203,7 +226,7 @@ getLoggedInUserId = with sess $ do
             let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
             join $ listToMaybe <$> mlUid
 
-resetPasswordRequest :: Handler FrontendApp FrontendApp ()
+resetPasswordRequest :: FH ()
 resetPasswordRequest = do
     uri <- getsRequest rqURI
     (view, result) <- runForm (cs uri) resetPasswordRequestForm
@@ -228,7 +251,7 @@ urlPasswordReset feConfig (PasswordResetToken token) =
     cs (exposeUrl feConfig) <//> "/user/reset_password?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-resetPassword :: Handler FrontendApp FrontendApp ()
+resetPassword :: FH ()
 resetPassword = do
     eUrl <- decodeUtf8' <$> getsRequest rqURI
     mToken <- (>>= urlDecode) <$> getParam "token"
@@ -266,7 +289,7 @@ resetPassword = do
 -- * Util
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either ThentosError a)
+      -> FH (Either ThentosError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
     st :: AcidState DB <- getAcidState
@@ -274,5 +297,5 @@ snapRunAction clearanceAbs action = do
     runAction ((st, rn, _cfg), clearanceAbs) action
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either ThentosError a)
+      -> FH (Either ThentosError a)
 snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)

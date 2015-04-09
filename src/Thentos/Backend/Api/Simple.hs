@@ -122,13 +122,13 @@ thentosUser =
 -- * service
 
 type ThentosService =
-       Post (ServiceId, ServiceKey)
+       ReqBody (ServiceName, ServiceDescription) :> Post (ServiceId, ServiceKey)
   :<|> Capture "sid" ServiceId :> Delete
   :<|> Get [ServiceId]
 
 thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
-         addService
+         uncurry addService
     :<|> updateAction . DeleteService
     :<|> queryAction AllServiceIds
 

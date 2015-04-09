@@ -13,11 +13,11 @@ import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
-import Snap.Core (method, Method(GET, POST), ifTop)
+import Snap.Core (ifTop, Method(GET, POST), method)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
 import System.Log (Priority(INFO))
 import System.Log.Missing (logger)
 
@@ -48,19 +48,18 @@ frontendApp (st, rn, _cfg) feConf =
                initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
             (pure feConf)
 
-routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
+routes :: [(ByteString, FH ())]
 routes = [ ("", ifTop $ H.index)
 
          , ("login_thentos", H.loginThentos)
+         , ("logout_thentos", method GET H.logoutThentos)
+         , ("logout_thentos", method POST H.loggedOutThentos)
          , ("user/create", H.userCreate)
          , ("user/create_confirm", H.userCreateConfirm)
          , ("user/reset_password_request", H.resetPasswordRequest)
          , ("user/reset_password", H.resetPassword)
          -- , ("user/update", ?)
-
-         , ("service/create", method GET H.serviceCreate)
-         , ("service/create", method POST H.serviceCreate)
-
+         , ("service/create", H.runWithUserClearance H.serviceCreate)
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
          ]

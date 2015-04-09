@@ -119,8 +119,10 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 data Service =
     Service
-      { _serviceKey     :: !(HashedSecret ServiceKey)
-      , _serviceSession :: !(Maybe SessionToken)
+      { _serviceKey         :: !(HashedSecret ServiceKey)
+      , _serviceSession     :: !(Maybe SessionToken)
+      , _serviceName        :: !ServiceName
+      , _serviceDescription :: !ServiceDescription
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -136,6 +138,17 @@ newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
 instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
 
+newtype ServiceName = ServiceName { fromServiceName :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance Aeson.FromJSON ServiceName where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceName where toJSON = Aeson.gtoJson
+
+newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
 -- * session, timestamp, timeout
 
@@ -339,6 +352,8 @@ $(deriveSafeCopy 0 'base ''Session)
 $(deriveSafeCopy 0 'base ''Service)
 $(deriveSafeCopy 0 'base ''ServiceId)
 $(deriveSafeCopy 0 'base ''ServiceKey)
+$(deriveSafeCopy 0 'base ''ServiceName)
+$(deriveSafeCopy 0 'base ''ServiceDescription)
 $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)

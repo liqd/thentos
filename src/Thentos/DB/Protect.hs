@@ -12,6 +12,7 @@ module Thentos.DB.Protect
   , allowNothing
   , (*%%)
   , createDefaultUser
+  , makeClearance
   ) where
 
 import Control.Monad (when)
@@ -44,26 +45,22 @@ makeThentosClearance :: Maybe ST -> DB -> TimeStamp -> Either ThentosError Thent
 makeThentosClearance Nothing    _  _   = Right allowNothing
 makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToken tok)
 
--- | The counter part to 'makeThentosLabel'.  (The argument types are
--- much more specific becaues there is only one use case so far.  The
--- names of the two counterparts are not symmetrical because
--- 'makeThentosClearance' was already taken.)
-makeClearance_ :: Agent -> [Role] -> ThentosClearance
-makeClearance_ agent roles = s *%% i
-  where
-    s = foldr (/\) (toCNF agent) roles
-    i = foldr (\/) (toCNF agent) roles
-
 authenticateSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError ThentosClearance
 authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
         _ -> Left NoSuchSession
+    Right $ makeClearance agent (pure_lookupAgentRoles db agent)
 
-    case agent of
-        UserA    uid -> Right $ makeClearance_ (UserA uid)    (pure_lookupAgentRoles db $ UserA    uid)
-        ServiceA sid -> Right $ makeClearance_ (ServiceA sid) (pure_lookupAgentRoles db $ ServiceA sid)
-
+-- | The counter part to 'makeThentosLabel'.  (The argument types are
+-- much more specific because there is only one use case so far.  The
+-- names of the two counterparts are not symmetrical because
+-- 'makeThentosClearance' was already taken.)
+makeClearance :: Agent -> [Role] -> ThentosClearance
+makeClearance agent roles = s *%% i
+  where
+    s = foldr (/\) (toCNF agent) roles
+    i = foldr (\/) (toCNF agent) roles
 
 -- | Clearance for everything.
 allowEverything :: ThentosClearance

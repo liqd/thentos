@@ -7,11 +7,13 @@ module Thentos.Frontend.Pages
     , userCreateRequestedPage
     , userCreatedPage
     , serviceCreatePage
+    , serviceCreateForm
     , serviceCreatedPage
     , userCreateForm
     , loginServicePage
     , loginThentosPage
     , loginThentosForm
+    , logoutThentosPage
     , resetPasswordRequestPage
     , resetPasswordRequestForm
     , resetPasswordPage
@@ -48,6 +50,7 @@ indexPage = do
             "things you can do from here:"
         H.ul $ do
             H.li . (H.a ! A.href "/login_thentos") $ "login"
+            H.li . (H.a ! A.href "/logout_thentos") $ "logout"
             H.li . (H.a ! A.href "/user/create") $ "create user"
             H.li . (H.a ! A.href "/service/create") $ "create service"
             H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
@@ -85,13 +88,25 @@ userCreatedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
-serviceCreatePage :: Html
-serviceCreatePage = H.docTypeHtml $ do
+serviceCreatePage :: View Html -> Html
+serviceCreatePage v = H.docTypeHtml $ do
     H.head $ do
         H.title "Create Service"
     H.body $ do
-        H.form ! A.method "POST" ! A.action "create_service" $
-            H.input ! A.type_ "submit" ! A.value "Create Service"
+        form v "create" $ do
+            H.p $ do
+                label "name" v "Service name:"
+                inputText "name" v
+            H.p $ do
+                label "description" v "Service description:"
+                inputText "description" v
+            inputSubmit "Create Service" ! A.id "create_service_submit"
+
+serviceCreateForm :: Monad m => Form Html m (ServiceName, ServiceDescription)
+serviceCreateForm =
+    (,) <$>
+        (ServiceName <$> "name" .: check "name must not be empty" nonEmpty (text Nothing)) <*>
+        (ServiceDescription <$> "description" .: check "description must not be mpty" nonEmpty (text Nothing))
 
 serviceCreatedPage :: ServiceId -> ServiceKey -> Html
 serviceCreatedPage sid key = H.docTypeHtml $ do
@@ -147,12 +162,19 @@ loginThentosPage v = do
                 H.p $ do
                     label "password" v "Password:"
                     inputPassword "password" v
-                inputSubmit "Log in"
+                inputSubmit "Log in" ! A.id "login_submit"
 
 loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
 loginThentosForm = (,)
     <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+logoutThentosPage :: Html
+logoutThentosPage = do
+    H.head $ H.title "Log out"
+    H.body $ do
+        H.form ! A.method "POST" ! A.action "logout_thentos" $
+            H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
 
 resetPasswordRequestPage :: View Html -> Html
 resetPasswordRequestPage v =

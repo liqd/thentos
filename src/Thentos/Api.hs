@@ -21,6 +21,7 @@ module Thentos.Api
   , queryAction
   , addUnconfirmedUser
   , addPasswordResetToken
+  , getUserClearance
   , resetPassword
   , checkPassword
   , addService
@@ -218,15 +219,20 @@ checkPassword username password = do
             then Just (uid, user)
             else Nothing
 
+getUserClearance :: UserId -> Action r ThentosClearance
+getUserClearance uid = do
+    roles <- queryAction $ LookupAgentRoles (UserA uid)
+    return $ makeClearance (UserA uid) roles
+
 
 -- ** services
 
-addService :: CPRG r => Action (MVar r) (ServiceId, ServiceKey)
-addService = do
+addService :: CPRG r => ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
+addService name desc = do
     sid <- freshServiceId
     key <- freshServiceKey
     hashedKey <- hashServiceKey key
-    updateAction $ AddService sid hashedKey
+    updateAction $ AddService sid hashedKey name desc
     return (sid, key)
 
 
