@@ -48,7 +48,7 @@ frontendApp (st, rn, _cfg) feConf =
                initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
             (pure feConf)
 
-routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
+routes :: [(ByteString, FH ())]
 routes = [ ("", ifTop $ H.index)
 
          , ("login_thentos", H.loginThentos)

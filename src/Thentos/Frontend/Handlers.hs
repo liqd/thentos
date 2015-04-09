@@ -27,7 +27,7 @@ import Snap.Blaze (blaze)
 import System.Log.Missing (logger)
 import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Core (getResponse, finishWith, urlEncode, urlDecode)
-import Snap.Snaplet (Handler, with)
+import Snap.Snaplet (with)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
 
@@ -48,7 +48,7 @@ import Thentos.Types
 import Thentos.Util
 
 
-index :: Handler FrontendApp FrontendApp ()
+index :: FH ()
 index = blaze indexPage
 
 -- FIXME: for all forms, make sure that on user error, the form is
@@ -59,7 +59,7 @@ index = blaze indexPage
 -- errors (e.g.  missing mail address), but does not show an error
 -- message.  (Even worse: it returns a 200.  It should response with
 -- 409.)
-userCreate :: Handler FrontendApp FrontendApp ()
+userCreate :: FH ()
 userCreate = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
 
@@ -87,7 +87,7 @@ urlUserCreateConfirm feConfig (ConfirmationToken token) =
     cs (exposeUrl feConfig) <//> "/user/create_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-userCreateConfirm :: Handler FrontendApp FrontendApp ()
+userCreateConfirm :: FH ()
 userCreateConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
@@ -110,14 +110,10 @@ userCreateConfirm = do
             logger DEBUG "no token"
             blaze (errorPage "finializing registration failed: token is missing.")
 
-runWithUserClearance ::
-    (ThentosClearance -> Handler FrontendApp FrontendApp ()) ->
-    Handler FrontendApp FrontendApp ()
+runWithUserClearance :: (ThentosClearance -> FH ()) -> FH ()
 runWithUserClearance = runWithUserClearance' ()
 
-runWithUserClearance' ::
-    a -> (ThentosClearance -> Handler FrontendApp FrontendApp a) ->
-    Handler FrontendApp FrontendApp a
+runWithUserClearance' :: a -> (ThentosClearance -> FH a) -> FH a
 runWithUserClearance' def handler = do
     mUid <- getLoggedInUserId
     case mUid of
@@ -126,7 +122,7 @@ runWithUserClearance' def handler = do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
             handler clearance
 
-serviceCreate :: ThentosClearance -> Handler FrontendApp FrontendApp ()
+serviceCreate :: ThentosClearance -> FH ()
 serviceCreate clearance = do
     (view, result) <- runForm "create" serviceCreateForm
     case result of
@@ -141,7 +137,7 @@ serviceCreate clearance = do
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
-loginService :: Handler FrontendApp FrontendApp ()
+loginService :: FH ()
 loginService = do
     mUid <- getLoggedInUserId
     mSid <- ServiceId . cs <$$> getParam "sid"
@@ -150,7 +146,7 @@ loginService = do
         (Nothing, _)         -> blaze $ notLoggedInPage
         (Just uid, Just sid) -> loginSuccess uid sid
   where
-    loginSuccess :: UserId -> ServiceId -> Handler FrontendApp FrontendApp ()
+    loginSuccess :: UserId -> ServiceId -> FH ()
     loginSuccess uid sid = do
         mCallback <- getParam "redirect"
         case mCallback of
@@ -178,7 +174,7 @@ loginService = do
         base_url <> "?" <> printUrlEncoded params'
 
 
-loginThentos :: Handler FrontendApp FrontendApp ()
+loginThentos :: FH ()
 loginThentos = do
     (view, result) <- runForm "login_thentos" loginThentosForm
     case result of
@@ -200,20 +196,20 @@ loginThentos = do
                     -- errors.
         Nothing -> blaze $ loginThentosPage view
   where
-    loginFail :: Handler FrontendApp FrontendApp ()
+    loginFail :: FH ()
     loginFail = blaze "Bad username / password combination"
 
 
-logoutThentos :: Handler FrontendApp FrontendApp ()
+logoutThentos :: FH ()
 logoutThentos = blaze logoutThentosPage
 
-loggedOutThentos :: Handler FrontendApp FrontendApp ()
+loggedOutThentos :: FH ()
 loggedOutThentos = with sess $ do
     resetSession
     commitSession
     blaze "Logged out"
 
-checkThentosLogin :: Handler FrontendApp FrontendApp ()
+checkThentosLogin :: FH ()
 checkThentosLogin = do
     mUid <- getLoggedInUserId
     case mUid of
@@ -221,7 +217,7 @@ checkThentosLogin = do
         Just uid -> do
             blaze $ "Logged in as user: " <> H.string (show uid)
 
-getLoggedInUserId :: Handler FrontendApp FrontendApp (Maybe UserId)
+getLoggedInUserId :: FH (Maybe UserId)
 getLoggedInUserId = with sess $ do
     mUserText <- getFromSession "user"
     return $ case mUserText of
@@ -230,7 +226,7 @@ getLoggedInUserId = with sess $ do
             let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
             join $ listToMaybe <$> mlUid
 
-resetPasswordRequest :: Handler FrontendApp FrontendApp ()
+resetPasswordRequest :: FH ()
 resetPasswordRequest = do
     uri <- getsRequest rqURI
     (view, result) <- runForm (cs uri) resetPasswordRequestForm
@@ -255,7 +251,7 @@ urlPasswordReset feConfig (PasswordResetToken token) =
     cs (exposeUrl feConfig) <//> "/user/reset_password?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-resetPassword :: Handler FrontendApp FrontendApp ()
+resetPassword :: FH ()
 resetPassword = do
     eUrl <- decodeUtf8' <$> getsRequest rqURI
     mToken <- (>>= urlDecode) <$> getParam "token"
@@ -293,7 +289,7 @@ resetPassword = do
 -- * Util
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either ThentosError a)
+      -> FH (Either ThentosError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
     st :: AcidState DB <- getAcidState
@@ -301,5 +297,5 @@ snapRunAction clearanceAbs action = do
     runAction ((st, rn, _cfg), clearanceAbs) action
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
-      -> Handler FrontendApp FrontendApp (Either ThentosError a)
+      -> FH (Either ThentosError a)
 snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
