@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ViewPatterns        #-}
 
@@ -25,6 +26,7 @@ module Thentos.DB.Core
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay, forkIO, ThreadId)
+import Control.Exception (Exception)
 import Control.Monad (forever)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
@@ -32,6 +34,8 @@ import Control.Monad.State (StateT(StateT), runStateT, get, put)
 import Control.Monad.Trans.Either (EitherT(EitherT), right, runEitherT)
 import Data.Acid (AcidState, Update, Query, createCheckpoint)
 import Data.EitherR (throwT)
+import Data.SafeCopy (deriveSafeCopy, base)
+import Data.Typeable (Typeable)
 import LIO (canFlowTo, glb)
 import LIO.DCLabel (ToCNF, (%%))
 
@@ -40,11 +44,18 @@ import Thentos.Types
 
 -- * types
 
-type ThentosUpdate a = ThentosUpdate' (ThentosLabeled ThentosError) (ThentosLabeled a)
-type ThentosQuery  a = ThentosQuery'  (ThentosLabeled ThentosError) (ThentosLabeled a)
+type ThentosUpdate e a = ThentosUpdate' (ThentosLabeled e) (ThentosLabeled a)
+type ThentosQuery  e a = ThentosQuery'  (ThentosLabeled e) (ThentosLabeled a)
 
 type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
 type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
+
+data PermissionDenied = PermissionDenied String ThentosClearance ThentosLabel
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance ThentosError PermissionDenied
+instance Exception PermissionDenied
+$(deriveSafeCopy 0 'base ''PermissionDenied)
 
 
 -- * plumbing
@@ -89,11 +100,13 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
 --
-runThentosUpdate :: forall a . Show a => ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdate :: forall e a . (ThentosError e, Show a)
+      => ThentosClearance -> ThentosUpdate e a -> Update DB (Either SomeThentosError a)
 runThentosUpdate = runThentosUpdateWithLabel thentosDenied
 
 -- | This is to 'Query' what 'runThentosUpdate' is to 'Update'.
-runThentosQuery :: forall a . Show a => ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQuery :: forall e a . (ThentosError e, Show a)
+      => ThentosClearance -> ThentosQuery e a -> Query DB (Either SomeThentosError a)
 runThentosQuery = runThentosQueryWithLabel thentosDenied
 
 -- | Like 'runThentosUpdate', but with override label.
@@ -115,37 +128,38 @@ runThentosQuery = runThentosQueryWithLabel thentosDenied
 -- Solution: This function takes an extra argument of type
 -- 'ThentosLabel' and check clearance against the 'glb' of that label
 -- and the one set by the transaction.
-runThentosUpdateWithLabel :: forall a . Show a
-      => ThentosLabel -> ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdateWithLabel :: forall e a . (ThentosError e, Show a)
+      => ThentosLabel -> ThentosClearance -> ThentosUpdate e a -> Update DB (Either SomeThentosError a)
 runThentosUpdateWithLabel overrideLabel clearance action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
-        (Left (ThentosLabeled label (err :: ThentosError)), _) ->
-            checkClearance (show err) clearance (glb overrideLabel label) (return $ Left err)
+        (Left (ThentosLabeled label (err :: e)), _) ->
+            checkClearance (show err) clearance (glb overrideLabel label) (return . Left . toThentosError $ err)
         (Right (ThentosLabeled label result), state') ->
             checkClearance (show result) clearance (glb overrideLabel label) (put state' >> return (Right result))
 
 -- | This is to 'Query' what 'runThentosUpdateWithLabel' is to 'Update'.
-runThentosQueryWithLabel :: forall a . Show a
-      => ThentosLabel -> ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQueryWithLabel :: forall e a . (ThentosError e, Show a)
+      => ThentosLabel -> ThentosClearance -> ThentosQuery e a -> Query DB (Either SomeThentosError a)
 runThentosQueryWithLabel overrideLabel clearance action = do
     state <- ask
     case runIdentity $ runReaderT (runEitherT action) state of
-        Left (ThentosLabeled label (err :: ThentosError)) ->
-            checkClearance (show err) clearance (glb overrideLabel label) (return $ Left err)
+        Left (ThentosLabeled label (err :: e)) ->
+            checkClearance (show err) clearance (glb overrideLabel label) (return . Left . toThentosError $ err)
         Right (ThentosLabeled label result) ->
             checkClearance (show result) clearance (glb overrideLabel label) (return $ Right result)
 
-checkClearance :: Monad m => String -> ThentosClearance -> ThentosLabel -> m (Either ThentosError a) -> m (Either ThentosError a)
+checkClearance :: Monad m => String -> ThentosClearance -> ThentosLabel
+        -> m (Either SomeThentosError a) -> m (Either SomeThentosError a)
 checkClearance msg clearance label result =
     if fromThentosLabel label `canFlowTo` fromThentosClearance clearance
         then result
-        else return . Left $ PermissionDenied msg clearance label
+        else return . Left . SomeThentosError $ PermissionDenied msg clearance label
 
 returnDb :: Monad m => ThentosLabel -> a -> EitherT (ThentosLabeled e) m (ThentosLabeled a)
 returnDb l a = right $ ThentosLabeled l a
 
-throwDb :: Monad m => ThentosLabel -> ThentosError -> EitherT (ThentosLabeled ThentosError) m (ThentosLabeled a)
+throwDb :: (ThentosError e, Monad m) => ThentosLabel -> e -> EitherT (ThentosLabeled e) m (ThentosLabeled a)
 throwDb l e = throwT $ ThentosLabeled l e
 
 

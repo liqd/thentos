@@ -41,11 +41,11 @@ import Thentos.Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-makeThentosClearance :: Maybe ST -> DB -> TimeStamp -> Either ThentosError ThentosClearance
+makeThentosClearance :: Maybe ST -> DB -> TimeStamp -> Either NoSuchSession ThentosClearance
 makeThentosClearance Nothing    _  _   = Right allowNothing
 makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToken tok)
 
-authenticateSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError ThentosClearance
+authenticateSession :: DB -> TimeStamp -> SessionToken -> Either NoSuchSession ThentosClearance
 authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
@@ -94,9 +94,9 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
         logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
         eu <- update' st (AddUser user allowEverything)
 
-        if eu == Right (UserId 0)
-            then logger DEBUG $ "[ok]"
-            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
+        case eu of
+          Right (UserId 0) -> logger DEBUG $ "[ok]"
+          _                -> logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles

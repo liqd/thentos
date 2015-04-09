@@ -50,11 +50,73 @@ import Thentos.Config
 import Thentos.Types
 
 
+-- * types
+
 type RestAction      = Action (MVar SystemRNG)
 type RestActionState = ActionState (MVar SystemRNG)
 type RestActionRaw   = EitherT RestError IO
 type RestError       = (Int, String)
 
+
+-- * error rendering
+
+-- | Render errors for servant.  (The servant error type will
+-- hopefully change in the future.)
+class ThentosError e => ThentosErrorShowServant e where
+    showThentosError :: MonadIO m => e -> m (Int, String)
+
+{-
+instance ThentosErrorShowServant NoSuchUser where
+    showThentosError NoSuchUser = return (404, "user not found")
+
+instance ThentosErrorShowServant NoSuchPendingUserConfirmation where
+    showThentosError NoSuchPendingUserConfirmation = return (404, "unconfirmed user not found")
+
+instance ThentosErrorShowServant MalformedConfirmationToken where
+    showThentosError (MalformedConfirmationToken path) = return (400, "malformed confirmation token: " ++ show path)
+
+instance ThentosErrorShowServant NoSuchService where
+    showThentosError NoSuchService = return (404, "service not found")
+
+instance ThentosErrorShowServant NoSuchSession where
+    showThentosError NoSuchSession = return (404, "session not found")
+
+instance ThentosErrorShowServant OperationNotPossibleInServiceSession where
+    showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
+
+instance ThentosErrorShowServant ServiceAlreadyExists where
+    showThentosError ServiceAlreadyExists = return (403, "service already exists")
+
+instance ThentosErrorShowServant UserEmailAlreadyExists where
+    showThentosError UserEmailAlreadyExists = return (403, "email already in use")
+
+instance ThentosErrorShowServant UserNameAlreadyExists where
+    showThentosError UserNameAlreadyExists = return (403, "user name already in use")
+
+instance ThentosErrorShowServant PermissionDenied where
+    showThentosError e@(PermissionDenied _ _ _) = logger INFO (show e) >> return (401, "unauthorized")
+
+instance ThentosErrorShowServant BadCredentials where
+    showThentosError e@BadCredentials = logger INFO (show e) >> return (401, "unauthorized")
+
+instance ThentosErrorShowServant BadAuthenticationHeaders where
+    showThentosError BadAuthenticationHeaders = return (400, "bad authentication headers")
+
+instance ThentosErrorShowServant ProxyNotAvailable where
+    showThentosError ProxyNotAvailable = return (404, "proxying not activated")
+
+instance ThentosErrorShowServant MissingServiceHeader where
+    showThentosError MissingServiceHeader = return (404, "headers do not contain service id")
+
+instance ThentosErrorShowServant ProxyNotConfiguredForService where
+    showThentosError (ProxyNotConfiguredForService sid) = return (404, "proxy not configured for service " ++ show sid)
+
+instance ThentosErrorShowServant NoSuchResetToken where
+    showThentosError NoSuchResetToken = return (404, "no such password reset token")
+-}
+
+
+-- * turning the handler monad into 'Action'
 
 -- | This is a work-around: The 'Server' type family terminates in
 -- 'RestActionRaw' on all methods.  'PushActionC' instances transform

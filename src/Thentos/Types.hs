@@ -2,20 +2,21 @@
 {-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE DeriveFunctor                            #-}
 {-# LANGUAGE DeriveGeneric                            #-}
+{-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE StandaloneDeriving                       #-}
 {-# LANGUAGE TemplateHaskell                          #-}
-
-{-# OPTIONS  #-}
 
 module Thentos.Types where
 
+import Control.Exception (Exception)
 import Control.Lens (makeLenses)
-import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable, Proxy(Proxy), typeOf)
+import Data.Dynamic (cast)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
@@ -28,14 +29,11 @@ import LIO.Label (Label, canFlowTo, glb, lub)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
-import System.Log.Logger (Priority(INFO))
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
-
-import System.Log.Missing (logger)
 
 
 -- * aux
@@ -297,49 +295,28 @@ instance Label ThentosClearance where
 
 -- * errors
 
-data ThentosError =
-      NoSuchUser
-    | NoSuchPendingUserConfirmation
-    | MalformedConfirmationToken ST
-    | NoSuchService
-    | NoSuchSession
-    | OperationNotPossibleInServiceSession
-    | ServiceAlreadyExists
-    | UserEmailAlreadyExists
-    | UserNameAlreadyExists
-    | PermissionDenied String ThentosClearance ThentosLabel
-    | BadCredentials
-    | BadAuthenticationHeaders
-    | ProxyNotAvailable
-    | MissingServiceHeader
-    | ProxyNotConfiguredForService ServiceId
-    | NoSuchResetToken
-    deriving (Eq, Ord, Show, Read, Typeable)
+class (Exception e, Typeable e, SafeCopy e, Show e) => ThentosError e where
+    toThentosError :: e -> SomeThentosError
+    toThentosError e = SomeThentosError e
 
-instance SafeCopy ThentosError
+    fromThentosError :: SomeThentosError -> Maybe e
+    fromThentosError (SomeThentosError e) = cast e
+
+data SomeThentosError = forall e . ThentosError e => SomeThentosError e
+  deriving (Typeable)
+
+instance SafeCopy SomeThentosError
   where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy ThentosError: no parse" ++ show raw) return . readMay $ raw
+    putCopy (SomeThentosError e) = contain $ safePut e
+    getCopy = contain $ _  -- SomeThentosError <$> safeGet
 
--- | the type of this will change when servant has a better error type.
-showThentosError :: MonadIO m => ThentosError -> m (Int, String)
-showThentosError NoSuchUser                           = return (404, "user not found")
-showThentosError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
-showThentosError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
-showThentosError NoSuchService                        = return (404, "service not found")
-showThentosError NoSuchSession                        = return (404, "session not found")
-showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
-showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
-showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
-showThentosError e@(PermissionDenied _ _ _)           = logger INFO (show e) >> return (401, "unauthorized")
-showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
-showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
-showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
-showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
-showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
+instance Show SomeThentosError where
+    showsPrec p (SomeThentosError e) = showsPrec p e
+
+instance Exception SomeThentosError
+
+instance ThentosError SomeThentosError where
+    toThentosError = id
 
 
 -- * boilerplate
