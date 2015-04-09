@@ -17,7 +17,7 @@ import Snap.Core (ifTop, Method(GET, POST), method)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
 import System.Log (Priority(INFO))
 import System.Log.Missing (logger)
 
