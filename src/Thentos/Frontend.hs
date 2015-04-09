@@ -13,11 +13,11 @@ import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
-import Snap.Core (ifTop)
+import Snap.Core (ifTop, Method(GET, POST), method)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, Handler)
+import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
 import System.Log (Priority(INFO))
 import System.Log.Missing (logger)
 
@@ -48,10 +48,12 @@ frontendApp (st, rn, _cfg) feConf =
                initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
             (pure feConf)
 
-routes :: [(ByteString, Handler FrontendApp FrontendApp ())]
+routes :: [(ByteString, FH ())]
 routes = [ ("", ifTop $ H.index)
 
          , ("login_thentos", H.loginThentos)
+         , ("logout_thentos", method GET H.logoutThentos)
+         , ("logout_thentos", method POST H.loggedOutThentos)
          , ("user/create", H.userCreate)
          , ("user/create_confirm", H.userCreateConfirm)
          , ("user/reset_password_request", H.resetPasswordRequest)
