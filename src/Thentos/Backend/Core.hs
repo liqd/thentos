@@ -20,10 +20,10 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative (Alternative, (<$>))
+import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (Exception, assert, fromException, toException, throw, catch)
-import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Exception (Exception, assert, fromException, toException)
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Crypto.Random (SystemRNG)
@@ -66,7 +66,7 @@ type RestError       = (Int, String)
 
 -- | Render errors for servant.  (The servant error type will
 -- hopefully change in the future.)
-class ThentosError e => ThentosErrorServant e where
+class ThentosErrorServant e where
     renderErrorServant :: e -> (Int, String)
 
 data SomeThentosErrorServant = forall e . (ThentosErrorServant e, ThentosError e) => SomeThentosErrorServant e
@@ -79,19 +79,34 @@ instance Exception SomeThentosErrorServant where
     toException = thentosErrorToException
     fromException = thentosErrorFromException
 
-renderError :: (MonadIO m, Alternative m, ThentosError e) => e -> m (Int, String)
-renderError e = liftIO $ throw e `catch` catchServant `catch` catchInternal
+instance ThentosErrorServant SomeThentosErrorServant where
+    renderErrorServant (SomeThentosErrorServant e) = renderErrorServant e
 
-catchServant :: (MonadIO m) => SomeThentosErrorServant -> m (Int, String)
-catchServant (SomeThentosErrorServant e) = return $ renderErrorServant e
 
--- | (It would be nice to have a guarantee from the type checker that
+-- | Handle all errors in 'SomeThentosErrorServant' with the
+-- resp. rendering, and handle all other errors in 'SomeThentosError'
+-- with 500 responses.
+--
+-- (It would be nice to have a guarantee from the type checker that
 -- this will never happen, but the DB transactions all return
 -- 'SomeThentosError' at the point of writing this.)
-catchInternal :: (MonadIO m) => SomeThentosError -> m (Int, String)
-catchInternal (SomeThentosError e) = do
-    logger CRITICAL $ "uncaught exception in servant: " ++ show e
-    return (500, "internal error.")
+renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
+renderError e = case fromException $ toException e of
+        Just (e' :: SomeThentosErrorServant)-> return $ renderErrorServant e'
+
+@@
+
+-- FIXME: this is still broken (remove syntax error in line above this
+-- comment and run the test suite!)  i can't hope that where it is
+-- possible due to class constraints, 'SomeThentosErrorServant' will
+-- somehow magically wrap itself around the error formerly wrapped in
+-- 'SomeThentosError' (even if the latter wrap somehow magically
+-- disappears).  need another solution!
+
+
+        Nothing -> do
+            logger CRITICAL $ "uncaught exception in servant: " ++ show e
+            return (500, "internal error.")
 
 
 instance ThentosErrorServant NoSuchUser where
