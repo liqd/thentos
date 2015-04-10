@@ -12,7 +12,7 @@
 
 module Thentos.Types where
 
-import Control.Exception (Exception)
+import Control.Exception (Exception, SomeException, toException, fromException)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable, Proxy(Proxy), typeOf)
@@ -295,6 +295,9 @@ instance Label ThentosClearance where
 
 -- * errors
 
+-- | Class of all thentos errors, so we can do bound polymorphic
+-- functions to it, which is more specific than bounding with
+-- 'Exception'.
 class (Exception e, Typeable e, Show e, SafeCopy e) => ThentosError e where
     toThentosError :: e -> SomeThentosError
     toThentosError = SomeThentosError
@@ -303,10 +306,19 @@ class (Exception e, Typeable e, Show e, SafeCopy e) => ThentosError e where
     fromThentosError (SomeThentosError e) = cast e
 
 
-data SomeThentosError = forall e . ThentosError e => SomeThentosError e
+data SomeThentosError = forall e . Exception e => SomeThentosError e
   deriving (Typeable)
 
 instance Exception SomeThentosError
+
+thentosErrorToException :: Exception e => e -> SomeException
+thentosErrorToException = toException . SomeThentosError
+
+thentosErrorFromException :: Exception e => SomeException -> Maybe e
+thentosErrorFromException x = do
+    SomeThentosError a <- fromException x
+    cast a
+
 
 instance ThentosError SomeThentosError where
     toThentosError = id

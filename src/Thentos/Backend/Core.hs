@@ -20,9 +20,9 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative ((<$>), (<|>))
+import Control.Applicative (Alternative, (<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (Exception, assert)
+import Control.Exception (Exception, assert, fromException, toException, throw, catch)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
@@ -43,9 +43,11 @@ import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
 import Servant.Server (HasServer, Server, route)
+import System.Log.Logger (Priority(CRITICAL))
 
 import qualified Data.ByteString.Char8 as SBS
 
+import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Config
 import Thentos.Types
@@ -64,80 +66,31 @@ type RestError       = (Int, String)
 -- | Render errors for servant.  (The servant error type will
 -- hopefully change in the future.)
 class ThentosError e => ThentosErrorServant e where
+    renderErrorServant :: e -> (Int, String)
 
-data SomeThentosErrorServant =
-    forall e . ThentosErrorServant e => SomeThentosErrorServant e
+data SomeThentosErrorServant = forall e . (ThentosErrorServant e, ThentosError e) => SomeThentosErrorServant e
   deriving Typeable
 
 instance Show SomeThentosErrorServant where
     showsPrec p (SomeThentosErrorServant e) = showsPrec p e
 
-instance Exception SomeThentosErrorServant
-instance ThentosError SomeThentosErrorServant
-instance ThentosErrorServant SomeThentosErrorServant
+instance Exception SomeThentosErrorServant where
+    toException = thentosErrorToException
+    fromException = thentosErrorFromException
 
-renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
-renderError = catchServant <|> catchInternal
+renderError :: (MonadIO m, Alternative m, ThentosError e) => e -> m (Int, String)
+renderError e = liftIO $ throw e `catch` catchServant `catch` catchInternal
 
-catchServant :: (MonadIO m) => e -> m (Int, String)
-catchServant = _
+catchServant :: (MonadIO m) => SomeThentosErrorServant -> m (Int, String)
+catchServant (SomeThentosErrorServant e) = return $ renderErrorServant e
 
-catchInternal :: (MonadIO m) => e -> m (Int, String)
-catchInternal = _
-
-
---     thentosErrorServantShow :: MonadIO m => e -> m (Int, String)
-
-
-{-
-instance ThentosErrorShowServant NoSuchUser where
-    showThentosError NoSuchUser = return (404, "user not found")
-
-instance ThentosErrorShowServant NoSuchPendingUserConfirmation where
-    showThentosError NoSuchPendingUserConfirmation = return (404, "unconfirmed user not found")
-
-instance ThentosErrorShowServant MalformedConfirmationToken where
-    showThentosError (MalformedConfirmationToken path) = return (400, "malformed confirmation token: " ++ show path)
-
-instance ThentosErrorShowServant NoSuchService where
-    showThentosError NoSuchService = return (404, "service not found")
-
-instance ThentosErrorShowServant NoSuchSession where
-    showThentosError NoSuchSession = return (404, "session not found")
-
-instance ThentosErrorShowServant OperationNotPossibleInServiceSession where
-    showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-
-instance ThentosErrorShowServant ServiceAlreadyExists where
-    showThentosError ServiceAlreadyExists = return (403, "service already exists")
-
-instance ThentosErrorShowServant UserEmailAlreadyExists where
-    showThentosError UserEmailAlreadyExists = return (403, "email already in use")
-
-instance ThentosErrorShowServant UserNameAlreadyExists where
-    showThentosError UserNameAlreadyExists = return (403, "user name already in use")
-
-instance ThentosErrorShowServant PermissionDenied where
-    showThentosError e@(PermissionDenied _ _ _) = logger INFO (show e) >> return (401, "unauthorized")
-
-instance ThentosErrorShowServant BadCredentials where
-    showThentosError e@BadCredentials = logger INFO (show e) >> return (401, "unauthorized")
-
-instance ThentosErrorShowServant BadAuthenticationHeaders where
-    showThentosError BadAuthenticationHeaders = return (400, "bad authentication headers")
-
-instance ThentosErrorShowServant ProxyNotAvailable where
-    showThentosError ProxyNotAvailable = return (404, "proxying not activated")
-
-instance ThentosErrorShowServant MissingServiceHeader where
-    showThentosError MissingServiceHeader = return (404, "headers do not contain service id")
-
-instance ThentosErrorShowServant ProxyNotConfiguredForService where
-    showThentosError (ProxyNotConfiguredForService sid) = return (404, "proxy not configured for service " ++ show sid)
-
-instance ThentosErrorShowServant NoSuchResetToken where
-    showThentosError NoSuchResetToken = return (404, "no such password reset token")
--}
+-- | (It would be nice to have a guarantee from the type checker that
+-- this will never happen, but the DB transactions all return
+-- 'SomeThentosError' at the point of writing this.)
+catchInternal :: (MonadIO m) => SomeThentosError -> m (Int, String)
+catchInternal (SomeThentosError e) = do
+    logger CRITICAL $ "uncaught exception in servant: " ++ show e
+    return (500, "internal error.")
 
 
 -- * turning the handler monad into 'Action'
