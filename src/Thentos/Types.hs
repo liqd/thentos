@@ -306,6 +306,13 @@ class (Exception e, Typeable e, SafeCopy e, Show e) => ThentosError e where
 data SomeThentosError = forall e . ThentosError e => SomeThentosError e
   deriving (Typeable)
 
+-- | This instance is provided just to make acid-state happy.  It
+-- always writes an 'UnknownThentosError' to disk, and reads back
+-- nothing else, with the (acceptable) consequence that change log
+-- re-runs give you less error information than the initial
+-- transactions.  (For an alternative solution that actually does
+-- store all existentially quantified information, see:
+-- http://stackoverflow.com/questions/8101067/binary-instance-for-an-existential)
 instance SafeCopy SomeThentosError
   where
     putCopy (SomeThentosError _) = contain $ safePut UnknownThentosError
