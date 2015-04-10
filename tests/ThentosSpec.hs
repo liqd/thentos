@@ -67,16 +67,19 @@ spec = do
         result <- update' st $ DeleteUser (UserId 1) (UserA (UserId 2) *%% UserA (UserId 2))
         result `shouldSatisfy` isLeft
 
-    -- FIXME: replace this by test for UpdateUserField
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ (st, _, _) -> do
-        result <- update' st $ UpdateUser (UserId 1) user1 allowEverything
+        result <- update' st $ UpdateUserField (UserId 1)
+                                               (UpdateUserFieldName "fka_user1")
+                                               allowEverything
         result `shouldBe` Right ()
         result2 <- query' st $ LookupUser (UserId 1) allowEverything
-        result2 `shouldBe` (Right (UserId 1, user1))
+        result2 `shouldBe` (Right (UserId 1, user1 {_userName = "fka_user1"}))
 
       it "throws an error if user does not exist" $ \ (st, _, _) -> do
-        result <- update' st $ UpdateUser (UserId 391) user3 allowEverything
+        result <- update' st $ UpdateUserField (UserId 391)
+                                               (UpdateUserFieldName "moo")
+                                               allowEverything
         result `shouldBe` Left NoSuchUser
 
     describe "AddUsers" $ do
