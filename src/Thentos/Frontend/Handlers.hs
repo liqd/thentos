@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Thentos.Frontend.Handlers where
 
@@ -111,36 +112,82 @@ userCreateConfirm = do
             blaze (errorPage "finializing registration failed: token is missing.")
 
 userUpdate :: Handler FrontendApp FrontendApp ()
-userUpdate = runWithUserClearance $ \ clerance -> do
-    (view, result) <- runForm "update" userUpdateForm
+userUpdate = runWithUserClearance $ \ clearance uid -> do
+    (userView, result) <- runForm "update" userUpdateForm
+    (emailView, _) <- runForm "update_email" emailUpdateForm
+    (pwView, _) <- runForm "update_password" passwordUpdateForm
     case result of
-        Nothing -> blaze $ userUpdatePage view
+        Nothing -> blaze $ userUpdatePage userView emailView pwView
         Just fieldUpdates -> do
-            --result' <- snapRunAction' clearance $ addUnconfirmedUser user
-            --result' <- snapRunAction' clearance $ updateUser userdata
-            result' <- update $ UpdateUserFields undefined fieldUpdates -- FIXME
+            result' <- update $ UpdateUserFields uid fieldUpdates clearance
             case result' of
-                Right (_, token) -> do
+                Right () -> blaze "User data updated!"
+                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+
+passwordUpdate :: Handler FrontendApp FrontendApp ()
+passwordUpdate = runWithUserClearance $ \ clearance uid -> do
+    (passwordView, result) <- runForm "update_password" passwordUpdateForm
+    (userView, _) <- runForm "update" userUpdateForm
+    (emailView, _) <- runForm "update_email" emailUpdateForm
+    case result of
+        Nothing -> blaze $ userUpdatePage userView emailView passwordView
+        Just (oldPw, newPw) -> do
+            result' <- snapRunAction' clearance $ changePassword uid oldPw newPw
+            case result' of
+                Right () -> blaze "Password Changed!"
+                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+
+emailUpdate :: Handler FrontendApp FrontendApp ()
+emailUpdate = runWithUserClearance $ \ clearance uid -> do
+    (passwordView, _) <- runForm "update_password" passwordUpdateForm
+    (userView, _) <- runForm "update" userUpdateForm
+    (emailView, result) <- runForm "update_email" emailUpdateForm
+    case result of
+        Nothing -> blaze $ userUpdatePage userView emailView passwordView
+        Just newEmail -> do
+            result' <- snapRunAction' clearance $ requestUserEmailChange uid newEmail
+            case result' of
+                Right token -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     feConfig <- gets (^. frontendCfg)
-                    liftIO $ sendUserConfirmationMail
-                        (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
-                        (urlUserCreateConfirm feConfig token)
-                    blaze userCreateRequestedPage
-                Left UserEmailAlreadyExists -> do
-                    config :: ThentosConfig <- gets (^. cfg)
-                    liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
-                    blaze userCreateRequestedPage
-                Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+                    liftIO $ sendEmailChangeConfirmMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
+                                newEmail
+                                (urlEmailChangeConfirm feConfig token)
+                    blaze emailSentPage
+                Left UserEmailAlreadyExists -> blaze emailSentPage
+                Left e -> logger INFO (show e) >> blaze (errorPage "email update failed.")
+  where
+    emailSentPage = "Please confirm your new email address through the email we just sent you"
 
+urlEmailChangeConfirm :: HttpConfig -> ConfirmationToken -> L.Text
+urlEmailChangeConfirm feConfig (ConfirmationToken token) =
+    cs (exposeUrl feConfig) <//> "/user/email_confirm?token="
+        <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
+
+
+emailUpdateConfirm :: Handler FrontendApp FrontendApp ()
+emailUpdateConfirm = do
+    mToken <- (>>= urlDecode) <$> getParam "token"
+    let meToken = ConfirmationToken <$$> decodeUtf8' <$> mToken
+    case meToken of
+        Nothing -> blaze $ errorPage "Missing token"
+        Just (Left _unicodeError) -> blaze $ errorPage "Bad token"
+        Just (Right token) -> do
+            result <- snapRunAction' allowEverything $ confirmUserEmailChange token
+            case result of
+                Right () -> blaze $ "Email address changed"
+                Left NoSuchToken -> blaze $ errorPage "No such token"
+                Left e -> do
+                    logger WARNING (show e)
+                    blaze $ errorPage "Error when trying to change email address"
 
 runWithUserClearance ::
-    (ThentosClearance -> Handler FrontendApp FrontendApp ()) ->
+    (ThentosClearance -> UserId -> Handler FrontendApp FrontendApp ()) ->
     Handler FrontendApp FrontendApp ()
 runWithUserClearance = runWithUserClearance' ()
 
 runWithUserClearance' ::
-    a -> (ThentosClearance -> Handler FrontendApp FrontendApp a) ->
+    a -> (ThentosClearance -> UserId -> Handler FrontendApp FrontendApp a) ->
     Handler FrontendApp FrontendApp a
 runWithUserClearance' def handler = do
     mUid <- getLoggedInUserId
@@ -148,10 +195,10 @@ runWithUserClearance' def handler = do
         Nothing -> blaze (errorPage "Not logged in") >> return def
         Just uid -> do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
-            handler clearance
+            handler clearance uid
 
-serviceCreate :: ThentosClearance -> Handler FrontendApp FrontendApp ()
-serviceCreate clearance = do
+serviceCreate :: ThentosClearance -> UserId -> Handler FrontendApp FrontendApp ()
+serviceCreate clearance _uid = do
     (view, result) <- runForm "create" serviceCreateForm
     case result of
         Nothing -> blaze $ serviceCreatePage view
@@ -285,7 +332,7 @@ resetPassword = do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
-                Left NoSuchResetToken -> blaze $ errorPage "No such reset token"
+                Left NoSuchToken -> blaze $ errorPage "No such reset token"
                 Left e -> do
                     logger WARNING (show e)
                     blaze $ errorPage "Error when trying to change password"

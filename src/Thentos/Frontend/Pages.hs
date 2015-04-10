@@ -10,6 +10,10 @@ module Thentos.Frontend.Pages
     , serviceCreateForm
     , serviceCreatedPage
     , userCreateForm
+    , userUpdatePage
+    , userUpdateForm
+    , passwordUpdateForm
+    , emailUpdateForm
     , loginServicePage
     , loginThentosPage
     , loginThentosForm
@@ -22,7 +26,7 @@ module Thentos.Frontend.Pages
     , notLoggedInPage
     ) where
 
-import Control.Applicative (pure, (<$>), (<*>))
+import Control.Applicative ((<$>), (<*>))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
@@ -98,58 +102,67 @@ userCreatedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
-userUpdatePage :: View Html -> Html
-userUpdatePage v = H.docTypeHtml $ do
+userUpdatePage :: View Html -> View Html -> View Html -> Html
+userUpdatePage userView emailView pwView = H.docTypeHtml $ do
     H.head $ H.title "Update user data"
     H.body $ do
-        -- FIXME: how do we avoid having to duplicate the URL here?
-        form v "update" $ do
+        form userView "update" $ do
             H.p $ do
-                label "name" v "User name:"
-                inputText "name" v
-            H.p $ do
-                label "password1" v "Password:"
-                inputPassword "password1" v
-            H.p $ do
-                label "password2" v "Repeat Password:"
-                inputPassword "password2" v
-            H.p $ do
-                label "email" v "Email Address:"
-                inputText "email" v
+                label "name" userView "User name:"
+                inputText "name" userView
             inputSubmit "Update User Data" ! A.id "update_user_submit"
 
+        form pwView "update_password" $ do
+            H.p $ do
+                label "old_password" pwView "Current Password: "
+                inputPassword "old_password" pwView
+            H.p $ do
+                label "new_password1" pwView "New password: "
+                inputPassword "new_password1" pwView
+            H.p $ do
+                label "new_password2" pwView "Repeat new password: "
+                inputPassword "new_password2" pwView
+            inputSubmit "Update Password" ! A.id "update_password_submit"
+
+        form emailView "update_email" $ do
+            H.p $ do
+                label "email" emailView "Email Address: "
+                inputText "email" emailView
+            inputSubmit "Update Email Address" ! A.id "update_email_submit"
+
+-- this is a bit overkill for now, but easily extensible for new user data fields
 userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
-userUpdateForm = (validate validateUserData) $ (,,,)
-    <$> "name"      .: text Nothing
-    <*> "password1" .: text Nothing
-    <*> "password2" .: text Nothing
-    <*> "email"     .: text Nothing
+userUpdateForm = (validate validateUserData) $
+    "name"      .: text Nothing
   where
-    validateUserData :: (Text, Text, Text, Text) -> Result Html [UpdateUserFieldOp]
-    validateUserData (name, pw1, pw2, email) =
+    validateUserData :: Text -> Result Html [UpdateUserFieldOp]
+    validateUserData name  =
         let updates = catMaybes [ validateName name
-                                -- , validatePassword pw1 pw2
-                                , validateEmail
                                 ]
         in if null updates
             then Error "Nothing to update"
             else Success updates
 
-    -- FIXME: don't mix up checking if they exist and checking they're the same
-    validatePassword :: Text -> Text -> Maybe UpdateUserFieldOp
-    validatePassword pw1 pw2 = toMaybe (pw1 == pw2 && not (T.null pw1))
-                                       (UpdateUserFieldPassword $ UserPass pw1)
-        
     validateName :: Text -> Maybe UpdateUserFieldOp
     validateName name = toMaybe (not $ T.null name)
                                 (UpdateUserFieldName $ UserName name)
 
-    validateEmail :: Text -> Maybe UpdateUserFieldOp
-    validateEmail email = toMaybe (checkEmail email)
-                                  (UpdateUserFieldEmail $ UserEmail email)
-
     toMaybe :: Bool -> a -> Maybe a
     toMaybe b v = if b then Just v else Nothing
+
+passwordUpdateForm :: Monad m => Form Html m (UserPass, UserPass)
+passwordUpdateForm = (validate newPasswordsMatch) $ (,,)
+    <$> ("old_password"  .: check "password must not be empty" nonEmpty (text Nothing))
+    <*> ("new_password1" .: check "password must not be empty" nonEmpty (text Nothing))
+    <*> ("new_password2" .: check "password must not be empty" nonEmpty (text Nothing))
+  where
+    newPasswordsMatch (old, new1, new2)
+        | new1 == new2 = Success (UserPass old, UserPass new1)
+        | otherwise    = Error "passwords don't match"
+
+emailUpdateForm :: Monad m => Form Html m UserEmail
+emailUpdateForm =
+    UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing)
 
 serviceCreatePage :: View Html -> Html
 serviceCreatePage v = H.docTypeHtml $ do

@@ -23,10 +23,11 @@ module Thentos.DB.Trans
   , AddUnconfirmedUser(..), trans_addUnconfirmedUser
   , FinishUserRegistration(..), trans_finishUserRegistration
   , AddUsers(..), trans_addUsers
-  , UpdateUser(..), trans_updateUser
   , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
   , UpdateUserFields(..)
   , DeleteUser(..), trans_deleteUser
+  , AddUserEmailChangeRequest(..), trans_addUserEmailChangeRequest
+  , ConfirmUserEmailChange(..), trans_confirmUserEmailChange
   , AddPasswordResetToken(..), trans_addPasswordResetToken
   , ResetPassword(..), trans_resetPassword
 
@@ -116,7 +117,7 @@ dbInvUserAspectUnique errorMsg uid user toAspect db =
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
 
 
 -- ** smart accessors
@@ -226,6 +227,24 @@ trans_addPasswordResetToken timestamp email token = do
             modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
             returnDb label user
 
+trans_addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
+trans_addUserEmailChangeRequest uid email token = do
+    let label = UserA uid =%% UserA uid
+    modify $ dbEmailChangeTokens %~ Map.insert token (uid, email)
+    returnDb label ()
+
+trans_confirmUserEmailChange :: ConfirmationToken -> ThentosUpdate ()
+trans_confirmUserEmailChange token = do
+    emailChangeTokens <- gets (^. dbEmailChangeTokens)
+    case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
+        -- FIXME: what should the label for the error case be?
+        (Nothing, _) -> throwDb thentosPublic NoSuchToken
+        (Just (uid, email), remainingRequests) -> do
+            modify $ dbEmailChangeTokens .~ remainingRequests
+            trans_updateUserField uid (UpdateUserFieldEmail email)
+
+
+
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
 trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
@@ -233,11 +252,11 @@ trans_resetPassword now token newPass = do
     let label = thentosPublic
     resetTokens <- gets (^. dbPwResetTokens)
     case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
-        (Nothing, _) -> throwDb label NoSuchResetToken
+        (Nothing, _) -> throwDb label NoSuchToken
         (Just (timestamp, uid), newResetTokens) -> do
             modify $ dbPwResetTokens .~ newResetTokens
             if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb label NoSuchResetToken
+                then throwDb label NoSuchToken
                 else do
                     mUser <- gets $ Map.lookup uid . (^. dbUsers)
                     case mUser of
@@ -245,29 +264,22 @@ trans_resetPassword now token newPass = do
                             let user' = userPassword .~ newPass $ user
                             _ <- writeUser uid user'
                             returnDb label ()
-                        Nothing ->
-                            throwDb label NoSuchResetToken
+                        Nothing -> throwDb label NoSuchToken
 
 resetTokenExpiryPeriod :: Timeout
 resetTokenExpiryPeriod = Timeout 3600
 
--- | Update existing user in DB.  Throw an error if user id does not
--- exist, or if email address in updated user is already in use by
--- another user.
-trans_updateUser :: UserId -> User -> ThentosUpdate ()
-trans_updateUser uid user = do
-    ThentosLabeled label  _  <- liftThentosQuery $ trans_lookupUser uid
-    ThentosLabeled label' () <- writeUser uid user
-    returnDb (lub label label') ()
-
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
-  | UpdateUserFieldPassword UserPass
   | UpdateUserFieldAddService ServiceId
   | UpdateUserFieldDropService ServiceId
+  | UpdateUserFieldPassword (HashedSecret UserPass)
   deriving (Eq)
 
+-- | Update existing user in DB.  Throw an error if user id does not
+-- exist, or if email address in updated user is already in use by
+-- another user.
 trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
 trans_updateUserField uid op = trans_updateUserFields uid [op]
 
@@ -276,9 +288,9 @@ trans_updateUserFields uid ops = do
     let runOp :: UpdateUserFieldOp -> User -> User
         runOp (UpdateUserFieldName n)          = userName .~ n
         runOp (UpdateUserFieldEmail e)         = userEmail .~ e
-        runOp (UpdateUserFieldPassword p)      = userPassword .~ p
         runOp (UpdateUserFieldAddService sid)  = userLogins %~ (sid:)
         runOp (UpdateUserFieldDropService sid) = userLogins %~ filter (/= sid)
+        runOp (UpdateUserFieldPassword p)      = userPassword .~ p
 
     ThentosLabeled label  (_, user) <- liftThentosQuery $ trans_lookupUser uid
     ThentosLabeled label' ()        <- writeUser uid $ foldl' (flip runOp) user ops
@@ -692,14 +704,17 @@ addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
 addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 
+addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
+addUserEmailChangeRequest uid email token clearance = runThentosUpdate clearance $ trans_addUserEmailChangeRequest uid email token
+
+confirmUserEmailChange :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
+confirmUserEmailChange token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange token
+
 addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosClearance -> Update DB (Either ThentosError User)
 addPasswordResetToken timestamp email token clearance = runThentosUpdate clearance $ trans_addPasswordResetToken timestamp email token
 
 resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
 resetPassword timestamp token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp token newPass
-
-updateUser :: UserId -> User -> ThentosClearance -> Update DB (Either ThentosError ())
-updateUser uid user clearance = runThentosUpdate clearance $ trans_updateUser uid user
 
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
@@ -773,10 +788,11 @@ $(makeAcidic ''DB
     , 'addUnconfirmedUser
     , 'finishUserRegistration
     , 'addUsers
-    , 'updateUser
     , 'updateUserField
     , 'updateUserFields
     , 'deleteUser
+    , 'addUserEmailChangeRequest
+    , 'confirmUserEmailChange
     , 'addPasswordResetToken
     , 'resetPassword
 
