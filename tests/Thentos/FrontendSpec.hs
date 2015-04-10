@@ -200,8 +200,7 @@ logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestSer
 logOutOfThentos :: SpecWith TestServerFull
 logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You are logged out.")
-        -- FIXME: bad regexp.  just anything that is not trivially true will suffice.
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged out")
 
 serviceCreate :: SpecWith TestServerFull
 serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
@@ -294,4 +293,5 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
 wdLogout :: HttpConfig -> WD.WD C.Status
 wdLogout feConfig = do
     WD.openPage (cs $ exposeUrl feConfig <//> "logout_thentos")
+    WD.findElem (WD.ById "logout_submit") >>= WD.click
     return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin

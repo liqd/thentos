@@ -17,6 +17,7 @@ module Thentos.Frontend.Pages
     , loginServicePage
     , loginThentosPage
     , loginThentosForm
+    , logoutThentosPage
     , resetPasswordRequestPage
     , resetPasswordRequestForm
     , resetPasswordPage
@@ -54,6 +55,7 @@ indexPage = do
             "things you can do from here:"
         H.ul $ do
             H.li . (H.a ! A.href "/login_thentos") $ "login"
+            H.li . (H.a ! A.href "/logout_thentos") $ "logout"
             H.li . (H.a ! A.href "/user/create") $ "create user"
             H.li . (H.a ! A.href "/service/create") $ "create service"
             H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
@@ -230,6 +232,13 @@ loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
 loginThentosForm = (,)
     <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+logoutThentosPage :: Html
+logoutThentosPage = do
+    H.head $ H.title "Log out"
+    H.body $ do
+        H.form ! A.method "POST" ! A.action "logout_thentos" $
+            H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
 
 resetPasswordRequestPage :: View Html -> Html
 resetPasswordRequestPage v =
