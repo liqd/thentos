@@ -244,16 +244,10 @@ pure_lookupUserByEmail db email =
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate SomeThentosError (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
     let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
-    ThentosLabeled label' () <- liftThentosQuery $ assertUser label user
+    ThentosLabeled label' () <- liftThentosQuery $ assertUser label Nothing user
     uid <- freshUserId
     modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
     returnDb (lub label label') (uid, token)
-
-assertUser :: ThentosLabel -> User -> ThentosQuery SomeThentosError ()
-assertUser label user = ask >>= \ db ->
-    if | userNameExists     (user ^. userName)  db -> throwDb label $ toThentosError UserNameAlreadyExists
-       | emailAddressExists (user ^. userEmail) db -> throwDb label $ toThentosError UserEmailAlreadyExists
-       | True -> returnDb label ()
 
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
@@ -275,7 +269,7 @@ trans_addUser :: User -> ThentosUpdate SomeThentosError UserId
 trans_addUser user = do
     let label = RoleOwnsUsers =%% RoleOwnsUsers
     uid <- freshUserId
-    ThentosLabeled label' () <- liftThentosQuery (assertUser label user) >> writeUser uid user
+    ThentosLabeled label' () <- liftThentosQuery (assertUser label Nothing user) >> writeUser uid user
     returnDb (lub label label') uid
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
@@ -332,7 +326,7 @@ resetTokenExpiryPeriod = Timeout 3600
 trans_updateUser :: UserId -> User -> ThentosUpdate SomeThentosError ()
 trans_updateUser uid user = do
     ThentosLabeled label  _  <- liftThentosQuery $ fmapLT (toThentosError <$>) (trans_lookupUser uid)
-    ThentosLabeled label' () <- liftThentosQuery (assertUser label user) >> writeUser uid user
+    ThentosLabeled label' () <- liftThentosQuery (assertUser label (Just uid) user) >> writeUser uid user
     returnDb (lub label label') ()
 
 data UpdateUserFieldOp =
@@ -374,15 +368,15 @@ writeUser uid user = do
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
 
-userNameExists :: UserName -> DB -> Bool
-userNameExists name db =
-    let userNames = map (^. userName) . Map.elems $ db ^. dbUsers in
-    name `elem` userNames
+assertUser :: ThentosLabel -> Maybe UserId -> User -> ThentosQuery SomeThentosError ()
+assertUser label mUid user = ask >>= \ db ->
+    if | userFacetExists (^. userName)  mUid user db -> throwDb label $ toThentosError UserNameAlreadyExists
+       | userFacetExists (^. userEmail) mUid user db -> throwDb label $ toThentosError UserEmailAlreadyExists
+       | True -> returnDb label ()
 
-emailAddressExists :: UserEmail -> DB -> Bool
-emailAddressExists address db =
-    let userEmails = map (^. userEmail) . Map.elems $ db ^. dbUsers in
-    address `elem` userEmails
+userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
+userFacetExists facet ((/=) -> notOwnUid) user db =
+    (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
 
 
 -- ** services

@@ -11,10 +11,9 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS  #-}
-
 module ThentosSpec where
 
+import Control.Lens ((.~))
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
@@ -41,7 +40,7 @@ spec = do
 
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ (st, _, _) -> do
         uids <- query' st $ AllUserIds allowEverything
-        uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
+        uids `shouldSatisfy` \ (Right [UserId 0, UserId 1, UserId 2]) -> True  -- (no (UserId 2))
 
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ (st, _, _) -> do
@@ -51,17 +50,21 @@ spec = do
         uid' `shouldBe` uid
         void . update' st $ DeleteUser uid allowEverything
         u <- query' st $ LookupUser uid allowEverything
-        u `shouldBe` Left NoSuchUser
+        u `shouldSatisfy` \ (Left (fromThentosError -> Just NoSuchUser)) -> True
 
-      it "guarantee that email addresses are unique" $ \ (st, _, _) -> do
-        result <- update' st $ AddUser user1 allowEverything
-        result `shouldBe` Left UserEmailAlreadyExists
+      it "guarantee that user names are unique" $ \ (st, _, _) -> do
+        result <- update' st $ AddUser (userEmail .~ (UserEmail "new@one.com") $ user1) allowEverything
+        result `shouldSatisfy` \ (Left (fromThentosError -> Just UserNameAlreadyExists)) -> True
+
+      it "guarantee that user email addresses are unique" $ \ (st, _, _) -> do
+        result <- update' st $ AddUser (userName .~ (UserName "newone") $ user1) allowEverything
+        result `shouldSatisfy` \ (Left (fromThentosError -> Just UserEmailAlreadyExists)) -> True
 
     describe "DeleteUser" $ do
       it "user can delete herself, even if not admin" $ \ (st, _, _) -> do
         let uid = UserId 1
         result <- update' st $ DeleteUser uid (UserA uid *%% UserA uid)
-        result `shouldBe` Right ()
+        result `shouldSatisfy` isRight
 
       it "nobody else but the deleted user and admin can do this" $ \ (st, _, _) -> do
         result <- update' st $ DeleteUser (UserId 1) (UserA (UserId 2) *%% UserA (UserId 2))
@@ -70,23 +73,24 @@ spec = do
     describe "UpdateUser" $ do
       it "changes user if it exists" $ \ (st, _, _) -> do
         result <- update' st $ UpdateUser (UserId 1) user1 allowEverything
-        result `shouldBe` Right ()
+        result `shouldSatisfy` isRight
         result2 <- query' st $ LookupUser (UserId 1) allowEverything
-        result2 `shouldBe` (Right (UserId 1, user1))
+        result2 `shouldSatisfy` \ (Right (UserId 1, _)) -> True
 
       it "throws an error if user does not exist" $ \ (st, _, _) -> do
         result <- update' st $ UpdateUser (UserId 391) user3 allowEverything
-        result `shouldBe` Left NoSuchUser
+        result `shouldSatisfy` \ (Left (fromThentosError -> Just NoSuchUser)) -> True
 
     describe "AddUsers" $ do
       it "works" $ \ (st, _, _) -> do
         result <- update' st $ AddUsers [user3, user4, user5] allowEverything
-        result `shouldBe` Right (map UserId [3, 4, 5])
+        result `shouldSatisfy` \ (Right [UserId 3, UserId 4, UserId 5]) -> True
 
       it "rolls back in case of error (adds all or nothing)" $ \ (st, _, _) -> do
-        Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] allowEverything
+        result0 <- update' st $ AddUsers [user4, user3, user3] allowEverything
+        result0 `shouldSatisfy` \ (Left (fromThentosError -> Just UserEmailAlreadyExists)) -> True
         result <- query' st $ AllUserIds allowEverything
-        result `shouldBe` Right (map UserId [0, 1, 2])
+        result `shouldSatisfy` \ (Right [UserId 0, UserId 1, UserId 2]) -> True
 
     describe "AddService, LookupService, DeleteService" $ do
       it "works" $ \ asg@(st, _, _) -> do
@@ -97,7 +101,8 @@ spec = do
         service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
         service1 `shouldSatisfy` (/= service2) -- should have different keys
         void . update' st $ DeleteService service1_id allowEverything
-        Left NoSuchService <- query' st $ LookupService service1_id allowEverything
+        result <- query' st $ LookupService service1_id allowEverything
+        result `shouldSatisfy` \ (Left (fromThentosError -> Just NoSuchService)) -> True
         return ()
 
     describe "StartSession" $ do
@@ -121,7 +126,7 @@ spec = do
       describe "lookup" $ do
         it "can be called by admins" $ \ (st, _, _) -> do
           let targetAgent = UserA $ UserId 1
-          result :: Either ThentosError [Role] <- query' st $ LookupAgentRoles targetAgent (RoleAdmin *%% RoleAdmin)
+          result :: Either SomeThentosError [Role] <- query' st $ LookupAgentRoles targetAgent (RoleAdmin *%% RoleAdmin)
           result `shouldSatisfy` isRight
 
         it "can be called by user for her own roles" $ \ (st, _, _) -> do
