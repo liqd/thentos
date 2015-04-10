@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE ViewPatterns           #-}
 
 module Thentos.Frontend.Handlers where
 
@@ -76,7 +77,7 @@ userCreate = do
                         (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                         (urlUserCreateConfirm feConfig token)
                     blaze userCreateRequestedPage
-                Left UserEmailAlreadyExists -> do
+                Left (fromThentosError -> Just UserEmailAlreadyExists) -> do
                     config :: ThentosConfig <- gets (^. cfg)
                     liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
                     blaze userCreateRequestedPage
@@ -94,10 +95,10 @@ userCreateConfirm = do
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
-            eResult <- update $ FinishUserRegistration token clearance
+            eResult :: Either SomeThentosError UserId <- update $ FinishUserRegistration token clearance
             case eResult of
                 Right uid -> blaze $ userCreatedPage uid
-                Left e@NoSuchPendingUserConfirmation -> do
+                Left (fromThentosError -> Just e@NoSuchPendingUserConfirmation) -> do
                     logger INFO (show e)
                     blaze (errorPage "finializing registration failed: unknown token.")
                 Left e -> do
@@ -156,7 +157,7 @@ loginService = do
                 r <- getResponse
                 finishWith r
             Just callback -> do
-                eSessionToken :: Either ThentosError SessionToken
+                eSessionToken :: Either SomeThentosError SessionToken
                     <- snapRunAction' allowEverything $ do
                         tok <- startSessionNoPass (UserA uid)
                         addServiceLogin tok sid
@@ -238,7 +239,7 @@ resetPasswordRequest = do
             eToken <-
                 snapRunAction' allowEverything $ addPasswordResetToken address
             case eToken of
-                Left NoSuchUser -> blaze resetPasswordRequestedPage
+                Left (fromThentosError -> Just NoSuchUser) -> blaze resetPasswordRequestedPage
                 Right (user, token) -> do
                     liftIO $ sendPasswordResetMail
                         (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
@@ -267,7 +268,7 @@ resetPassword = do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
-                Left NoSuchResetToken -> blaze $ errorPage "No such reset token"
+                Left (fromThentosError -> Just NoSuchResetToken) -> blaze $ errorPage "No such reset token"
                 Left e -> do
                     logger WARNING (show e)
                     blaze $ errorPage "Error when trying to change password"
@@ -288,8 +289,8 @@ resetPassword = do
 
 -- * Util
 
-snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
-      -> FH (Either ThentosError a)
+snapRunAction :: (DB -> TimeStamp -> Either SomeThentosError ThentosClearance) -> Action (MVar SystemRNG) a
+      -> FH (Either SomeThentosError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)
     st :: AcidState DB <- getAcidState
@@ -297,5 +298,5 @@ snapRunAction clearanceAbs action = do
     runAction ((st, rn, _cfg), clearanceAbs) action
 
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
-      -> FH (Either ThentosError a)
+      -> FH (Either SomeThentosError a)
 snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
