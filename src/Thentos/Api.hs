@@ -101,13 +101,15 @@ runAction' :: (MonadIO m, CPRG r, e ~ SomeThentosError) =>
        (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either e a)
 runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
 
-catchAction :: Action r a -> (SomeThentosError -> Action r a) -> Action r a
+catchAction :: forall e r a . ThentosError e => Action r a -> (e -> Action r a) -> Action r a
 catchAction action handler =
     ReaderT $ \ state -> do
         EitherT $ do
             outcome <- runEitherT $ action `runReaderT` state
             case outcome of
-                Left e -> runEitherT $ (handler e) `runReaderT` state
+                Left me -> case fromThentosError me :: Maybe e of
+                    Just e -> runEitherT $ (handler e) `runReaderT` state
+                    Nothing -> return $ Left me
                 Right v -> return $ Right v
 
 logActionError :: Action r a -> Action r a
@@ -232,7 +234,7 @@ resetPassword token password = do
 
 checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
 checkPassword username password = do
-    catchAction checkPw $ \ (err :: NoSuchUser) -> return Nothing  -- FIXME: something is still wrong with our adoption of Control.Exception.
+    catchAction checkPw $ \ (_ :: NoSuchUser) -> return Nothing
   where
     checkPw = do
         (uid, user) <- queryAction $ LookupUserByName username
@@ -265,7 +267,7 @@ startSessionUser (uid, pass) = do
     (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
     if verifyPass pass user
         then startSessionNoPass (UserA uid)
-        else lift $ left BadCredentials
+        else lift . left . toThentosError $ BadCredentials
 
 -- | Check service credentials and create a session for service.
 startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
@@ -273,7 +275,7 @@ startSessionService (sid, key) = do
     (_, service) <- accessAction (Just allowEverything) query' $ LookupService sid
     if verifyKey key service
         then startSessionNoPass (ServiceA sid)
-        else lift $ left BadCredentials
+        else lift . left . toThentosError $ BadCredentials
 
 -- | Do NOT check credentials, and just open a session for any agent.
 -- Only call this in the context of a successful authentication check!
@@ -316,7 +318,7 @@ _sessionAndUserIdFromToken tok = do
     (_, session) <- bumpSession tok
     case session ^. sessionAgent of
         UserA uid -> return (session, uid)
-        ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
+        ServiceA _ -> lift . left . toThentosError $ OperationNotPossibleInServiceSession
 
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do

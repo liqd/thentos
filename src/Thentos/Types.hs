@@ -295,9 +295,9 @@ instance Label ThentosClearance where
 
 -- * errors
 
-class (Exception e, Typeable e, SafeCopy e, Show e) => ThentosError e where
+class (Exception e, Typeable e, Show e, SafeCopy e) => ThentosError e where
     toThentosError :: e -> SomeThentosError
-    toThentosError e = SomeThentosError e
+    toThentosError = SomeThentosError
 
     fromThentosError :: SomeThentosError -> Maybe e
     fromThentosError (SomeThentosError e) = cast e
@@ -305,6 +305,15 @@ class (Exception e, Typeable e, SafeCopy e, Show e) => ThentosError e where
 
 data SomeThentosError = forall e . ThentosError e => SomeThentosError e
   deriving (Typeable)
+
+instance Exception SomeThentosError
+
+instance ThentosError SomeThentosError where
+    toThentosError = id
+    fromThentosError = Just
+
+instance Show SomeThentosError where
+    showsPrec p (SomeThentosError e) = showsPrec p e
 
 -- | This instance is provided just to make acid-state happy.  It
 -- always writes an 'UnknownThentosError' to disk, and reads back
@@ -317,14 +326,6 @@ instance SafeCopy SomeThentosError
   where
     putCopy (SomeThentosError _) = contain $ safePut UnknownThentosError
     getCopy = contain $ SomeThentosError <$> (safeGet :: Cereal.Get UnknownThentosError)
-
-instance Show SomeThentosError where
-    showsPrec p (SomeThentosError e) = showsPrec p e
-
-instance Exception SomeThentosError
-
-instance ThentosError SomeThentosError where
-    toThentosError = id
 
 
 -- | We use this for making 'SomeThentosError' serializable.

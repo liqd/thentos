@@ -20,9 +20,10 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<|>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (assert)
+import Control.Exception (Exception, assert)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Crypto.Random (SystemRNG)
@@ -62,8 +63,31 @@ type RestError       = (Int, String)
 
 -- | Render errors for servant.  (The servant error type will
 -- hopefully change in the future.)
-class ThentosError e => ThentosErrorShowServant e where
-    showThentosError :: MonadIO m => e -> m (Int, String)
+class ThentosError e => ThentosErrorServant e where
+
+data SomeThentosErrorServant =
+    forall e . ThentosErrorServant e => SomeThentosErrorServant e
+  deriving Typeable
+
+instance Show SomeThentosErrorServant where
+    showsPrec p (SomeThentosErrorServant e) = showsPrec p e
+
+instance Exception SomeThentosErrorServant
+instance ThentosError SomeThentosErrorServant
+instance ThentosErrorServant SomeThentosErrorServant
+
+renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
+renderError = catchServant <|> catchInternal
+
+catchServant :: (MonadIO m) => e -> m (Int, String)
+catchServant = _
+
+catchInternal :: (MonadIO m) => e -> m (Int, String)
+catchInternal = _
+
+
+--     thentosErrorServantShow :: MonadIO m => e -> m (Int, String)
+
 
 {-
 instance ThentosErrorShowServant NoSuchUser where
@@ -138,7 +162,7 @@ instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
 
 instance PushActionC (RestActionRaw a) where
     type PushActionSubRoute (RestActionRaw a) = RestAction a
-    pushAction restState restAction = fmapLTM showThentosError $ runReaderT restAction restState
+    pushAction restState restAction = fmapLTM renderError $ runReaderT restAction restState
 
 -- | For handling 'Raw'.  (The 'Application' type has been stripped of
 -- its arguments by the time the compiler will find this instance.)
