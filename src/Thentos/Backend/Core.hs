@@ -94,6 +94,7 @@ renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
 renderError e = case fromException $ toException e of
         Just (e' :: SomeThentosErrorServant)-> return $ renderErrorServant e'
 
+
 @@
 
 -- FIXME: this is still broken (remove syntax error in line above this
@@ -102,6 +103,11 @@ renderError e = case fromException $ toException e of
 -- somehow magically wrap itself around the error formerly wrapped in
 -- 'SomeThentosError' (even if the latter wrap somehow magically
 -- disappears).  need another solution!
+--
+-- i think one aspect in which base has it easier is that we have to
+-- keep track of the exception type in the co-variant 'Either' values,
+-- so can't use (bounded) polymorphism as easily.  not sure if that
+-- breaks the entire idea?
 
 
         Nothing -> do
