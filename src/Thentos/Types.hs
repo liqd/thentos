@@ -302,13 +302,14 @@ class (Exception e, Typeable e, SafeCopy e, Show e) => ThentosError e where
     fromThentosError :: SomeThentosError -> Maybe e
     fromThentosError (SomeThentosError e) = cast e
 
+
 data SomeThentosError = forall e . ThentosError e => SomeThentosError e
   deriving (Typeable)
 
 instance SafeCopy SomeThentosError
   where
-    putCopy (SomeThentosError e) = contain $ safePut e
-    getCopy = contain $ _  -- SomeThentosError <$> safeGet
+    putCopy (SomeThentosError _) = contain $ safePut UnknownThentosError
+    getCopy = contain $ SomeThentosError <$> (safeGet :: Cereal.Get UnknownThentosError)
 
 instance Show SomeThentosError where
     showsPrec p (SomeThentosError e) = showsPrec p e
@@ -317,6 +318,15 @@ instance Exception SomeThentosError
 
 instance ThentosError SomeThentosError where
     toThentosError = id
+
+
+-- | We use this for making 'SomeThentosError' serializable.
+data UnknownThentosError = UnknownThentosError
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+instance Exception UnknownThentosError
+instance ThentosError UnknownThentosError
+$(deriveSafeCopy 0 'base ''UnknownThentosError)
 
 
 -- * boilerplate
