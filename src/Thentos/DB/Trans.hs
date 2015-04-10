@@ -329,9 +329,9 @@ resetTokenExpiryPeriod = Timeout 3600
 -- | Update existing user in DB.  Throw an error if user id does not
 -- exist, or if email address in updated user is already in use by
 -- another user.
-trans_updateUser :: UserId -> User -> ThentosUpdate NoSuchUser ()
+trans_updateUser :: UserId -> User -> ThentosUpdate SomeThentosError ()
 trans_updateUser uid user = do
-    ThentosLabeled label  _  <- liftThentosQuery $ trans_lookupUser uid
+    ThentosLabeled label  _  <- liftThentosQuery $ fmapLT (toThentosError <$>) (trans_lookupUser uid)
     ThentosLabeled label' () <- liftThentosQuery (assertUser label user) >> writeUser uid user
     returnDb (lub label label') ()
 

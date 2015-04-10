@@ -70,8 +70,8 @@ import Thentos.Util
 -- * types
 
 type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
-type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either NoSuchSession ThentosClearance)
-type Action e r = ReaderT (ActionState r) (EitherT e IO)
+type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either SomeThentosError ThentosClearance)
+type Action r = ReaderT (ActionState r) (EitherT SomeThentosError IO)
 
 
 data BadCredentials = BadCredentials
@@ -92,16 +92,16 @@ $(deriveSafeCopy 0 'base ''OperationNotPossibleInServiceSession)
 
 -- * running actions
 
-runAction :: (MonadIO m, CPRG r) =>
-       ActionState (MVar r) -> Action e (MVar r) a -> m (Either e a)
+runAction :: (MonadIO m, CPRG r, e ~ SomeThentosError) =>
+       ActionState (MVar r) -> Action (MVar r) a -> m (Either e a)
 runAction actionState action =
     liftIO . eitherT (return . Left) (return . Right) $ action `runReaderT` actionState
 
-runAction' :: (MonadIO m, CPRG r) =>
-       (ActionStateGlobal (MVar r), ThentosClearance) -> Action e (MVar r) a -> m (Either e a)
+runAction' :: (MonadIO m, CPRG r, e ~ SomeThentosError) =>
+       (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either e a)
 runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
 
-catchAction :: Action e r a -> (e -> Action e' r a) -> Action e' r a
+catchAction :: Action r a -> (SomeThentosError -> Action r a) -> Action r a
 catchAction action handler =
     ReaderT $ \ state -> do
         EitherT $ do
@@ -110,8 +110,8 @@ catchAction action handler =
                 Left e -> runEitherT $ (handler e) `runReaderT` state
                 Right v -> return $ Right v
 
-logActionError :: ThentosError e => Action e r a -> Action e r a
-logActionError action = action `catchAction` \ e -> do
+logActionError :: Action r a -> Action r a
+logActionError action = action `catchAction` \ (e :: SomeThentosError) -> do
     logger DEBUG $ "error: " ++ show e
     lift $ left e
 
@@ -123,7 +123,7 @@ updateAction :: forall event e a r .
                  , UpdateEvent event
                  , EventState event ~ DB
                  , EventResult event ~ Either e a
-                 ) => (ThentosClearance -> event) -> Action e r a
+                 ) => (ThentosClearance -> event) -> Action r a
 updateAction = accessAction Nothing update'
 
 queryAction :: forall event e a r .
@@ -131,7 +131,7 @@ queryAction :: forall event e a r .
                  , QueryEvent event
                  , EventState event ~ DB
                  , EventResult event ~ Either e a
-                 ) => (ThentosClearance -> event) -> Action e r a
+                 ) => (ThentosClearance -> event) -> Action r a
 queryAction = accessAction Nothing query'
 
 -- | Pull a snapshot from the database, pass it to the clearance
@@ -158,16 +158,16 @@ accessAction :: forall event e a r .
                  , EventState event ~ DB
                  , EventResult event ~ Either e a
                  ) => Maybe ThentosClearance
-                   -> (AcidState (EventState event) -> event -> Action e r (EventResult event))
-                   -> (ThentosClearance -> event) -> Action e r a
+                   -> (AcidState (EventState event) -> event -> Action r (EventResult event))
+                   -> (ThentosClearance -> event) -> Action r a
 accessAction overrideClearance access unclearedEvent = do
     ((st, _, _), clearanceAbs) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
-    clearanceE :: Either NoSuchSession ThentosClearance
+    clearanceE :: Either SomeThentosError ThentosClearance
         <- (>>= (`clearanceAbs` now)) <$> query' st (SnapShot allowEverything)
 
     case clearanceE of
-        Left NoSuchSession -> lift . left . toThentosError $ NoSuchSession
+        Left err -> lift $ left err
         Right clearance -> do
             result <- access st (unclearedEvent $ fromMaybe clearance overrideClearance)
             case result of
@@ -179,7 +179,7 @@ accessAction overrideClearance access unclearedEvent = do
 
 -- | A relative of 'cprgGenerate' from crypto-random who lives in
 -- 'Action'.
-genRandomBytes :: CPRG r => Int -> Action e (MVar r) SBS
+genRandomBytes :: CPRG r => Int -> Action (MVar r) SBS
 genRandomBytes i = do
     ((_, mr, _), _) <- ask
     liftIO . modifyMVar mr $ \ r -> do
@@ -189,53 +189,50 @@ genRandomBytes i = do
 
 -- | Return a base64 encoded random string of length 24 (18 bytes of
 -- entropy).
-freshRandomName :: CPRG r => Action e (MVar r) ST
+freshRandomName :: CPRG r => Action (MVar r) ST
 freshRandomName = cs . Base64.encode <$> genRandomBytes 18
 
 
-freshServiceId :: CPRG r => Action e (MVar r) ServiceId
+freshServiceId :: CPRG r => Action (MVar r) ServiceId
 freshServiceId = ServiceId <$> freshRandomName
 
-freshServiceKey :: CPRG r => Action e (MVar r) ServiceKey
+freshServiceKey :: CPRG r => Action (MVar r) ServiceKey
 freshServiceKey = ServiceKey <$> freshRandomName
 
-freshSessionToken :: CPRG r => Action e (MVar r) SessionToken
+freshSessionToken :: CPRG r => Action (MVar r) SessionToken
 freshSessionToken = SessionToken <$> freshRandomName
 
-freshConfirmationToken :: CPRG r => Action e (MVar r) ConfirmationToken
+freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
-freshPasswordResetToken :: CPRG r => Action e (MVar r) PasswordResetToken
+freshPasswordResetToken :: CPRG r => Action (MVar r) PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 
 -- ** users
 
-addUnconfirmedUser :: CPRG r => UserFormData -> Action e (MVar r) (UserId, ConfirmationToken)
+addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
     user <- makeUserFromFormData userData
     updateAction $ AddUnconfirmedUser tok user
 
-addPasswordResetToken :: CPRG r => UserEmail -> Action e (MVar r) (User, PasswordResetToken)
+addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
 addPasswordResetToken email = do
     now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshPasswordResetToken
     user <- updateAction $ AddPasswordResetToken now email tok
     return (user, tok)
 
-resetPassword :: PasswordResetToken -> UserPass -> Action e r ()
+resetPassword :: PasswordResetToken -> UserPass -> Action r ()
 resetPassword token password = do
     now <- TimeStamp <$> liftIO getCurrentTime
     hashedPassword <- hashUserPass password
     updateAction $ ResetPassword now token hashedPassword
 
-checkPassword :: UserName -> UserPass -> Action e r (Maybe (UserId, User))
+checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
 checkPassword username password = do
-    catchAction checkPw $ \err ->
-        case err of
-            NoSuchUser -> return Nothing
-            e -> lift $ left e
+    catchAction checkPw $ \ (err :: NoSuchUser) -> return Nothing  -- FIXME: something is still wrong with our adoption of Control.Exception.
   where
     checkPw = do
         (uid, user) <- queryAction $ LookupUserByName username
@@ -243,7 +240,7 @@ checkPassword username password = do
             then Just (uid, user)
             else Nothing
 
-getUserClearance :: UserId -> Action e r ThentosClearance
+getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do
     roles <- queryAction $ LookupAgentRoles (UserA uid)
     return $ makeClearance (UserA uid) roles
@@ -251,7 +248,7 @@ getUserClearance uid = do
 
 -- ** services
 
-addService :: CPRG r => ServiceName -> ServiceDescription -> Action e (MVar r) (ServiceId, ServiceKey)
+addService :: CPRG r => ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
 addService name desc = do
     sid <- freshServiceId
     key <- freshServiceKey
@@ -263,7 +260,7 @@ addService name desc = do
 -- ** sessions
 
 -- | Check user credentials and create a session for user.
-startSessionUser :: CPRG r => (UserId, UserPass) -> Action e (MVar r) SessionToken
+startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
 startSessionUser (uid, pass) = do
     (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
     if verifyPass pass user
@@ -271,7 +268,7 @@ startSessionUser (uid, pass) = do
         else lift $ left BadCredentials
 
 -- | Check service credentials and create a session for service.
-startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action e (MVar r) SessionToken
+startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
 startSessionService (sid, key) = do
     (_, service) <- accessAction (Just allowEverything) query' $ LookupService sid
     if verifyKey key service
@@ -280,7 +277,7 @@ startSessionService (sid, key) = do
 
 -- | Do NOT check credentials, and just open a session for any agent.
 -- Only call this in the context of a successful authentication check!
-startSessionNoPass :: CPRG r => Agent -> Action e (MVar r) SessionToken
+startSessionNoPass :: CPRG r => Agent -> Action (MVar r) SessionToken
 startSessionNoPass agent = do
     now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshSessionToken
@@ -290,12 +287,12 @@ startSessionNoPass agent = do
 defaultSessionTimeout :: Timeout
 defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
-bumpSession :: SessionToken -> Action e r (SessionToken, Session)
+bumpSession :: SessionToken -> Action r (SessionToken, Session)
 bumpSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ LookupSession (Just (now, True)) tok
 
-isActiveSession :: SessionToken -> Action e r Bool
+isActiveSession :: SessionToken -> Action r Bool
 isActiveSession tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     queryAction $ IsActiveSession now tok
@@ -304,29 +301,29 @@ isActiveSession tok = do
 -- aged beyond a certain threshold, do not bump.  (also, we should
 -- just bump the session in 'makeThentosClearance' and then be done
 -- with it.  much simpler!)
-isActiveSessionAndBump :: SessionToken -> Action e r Bool
+isActiveSessionAndBump :: SessionToken -> Action r Bool
 isActiveSessionAndBump tok = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ IsActiveSessionAndBump now tok
 
-isLoggedIntoService :: SessionToken -> ServiceId -> Action e r Bool
+isLoggedIntoService :: SessionToken -> ServiceId -> Action r Bool
 isLoggedIntoService tok sid = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ IsLoggedIntoService now tok sid
 
-_sessionAndUserIdFromToken :: SessionToken -> Action e r (Session, UserId)
+_sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
 _sessionAndUserIdFromToken tok = do
     (_, session) <- bumpSession tok
     case session ^. sessionAgent of
         UserA uid -> return (session, uid)
         ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
 
-addServiceLogin :: SessionToken -> ServiceId -> Action e r ()
+addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid)
 
-dropServiceLogin :: SessionToken -> ServiceId -> Action e r ()
+dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
 dropServiceLogin tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
