@@ -14,8 +14,6 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
-{-# OPTIONS  #-}
-
 module Thentos.Backend.Api.Simple (App, ThentosAuth, runBackend, serveApi) where
 
 import Control.Applicative ((<$>))
@@ -23,6 +21,7 @@ import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Crypto.Random (SystemRNG)
+import Data.EitherR (fmapL)
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
@@ -92,7 +91,9 @@ instance ( PushActionC (Server sublayout)
       where
         routingState :: RestActionState
         routingState = ( asg
-                       , makeThentosClearance $ lookupRequestHeader request ThentosHeaderSession
+                       , \ db timestamp -> fmapL toThentosError $ makeThentosClearance
+                               (lookupRequestHeader request ThentosHeaderSession)
+                               db timestamp
                        )
 
 

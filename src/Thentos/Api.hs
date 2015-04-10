@@ -17,6 +17,11 @@ module Thentos.Api
     ActionStateGlobal
   , ActionState
   , Action
+
+  , BadCredentials(..)
+  , OperationNotPossibleInServiceSession(..)
+  , MalformedConfirmationToken(..)
+
   , runAction', runAction
   , catchAction, logActionError
   , updateAction
@@ -80,6 +85,8 @@ data BadCredentials = BadCredentials
 data OperationNotPossibleInServiceSession = OperationNotPossibleInServiceSession
   deriving (Eq, Ord, Show, Read, Typeable)
 
+data MalformedConfirmationToken = MalformedConfirmationToken ST
+  deriving (Eq, Ord, Show, Read, Typeable)
 
 instance ThentosError BadCredentials
 instance Exception BadCredentials
@@ -88,6 +95,10 @@ $(deriveSafeCopy 0 'base ''BadCredentials)
 instance ThentosError OperationNotPossibleInServiceSession
 instance Exception OperationNotPossibleInServiceSession
 $(deriveSafeCopy 0 'base ''OperationNotPossibleInServiceSession)
+
+instance ThentosError MalformedConfirmationToken
+instance Exception MalformedConfirmationToken
+$(deriveSafeCopy 0 'base ''MalformedConfirmationToken)
 
 
 -- * running actions

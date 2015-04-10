@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                                #-}
+{-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
@@ -8,17 +9,17 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
-{-# OPTIONS  #-}
-
 module Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy) where
 
 import Control.Applicative ((<$>))
+import Control.Exception (Exception)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State (lift)
@@ -29,7 +30,9 @@ import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
+import Data.SafeCopy (deriveSafeCopy, base)
 import Data.String.Conversions (ST, LBS, cs)
+import Data.Typeable (Typeable)
 import Servant.API (Raw)
 import Servant.Server.Internal (Server)
 import System.Log.Logger (Priority(DEBUG))
@@ -49,7 +52,41 @@ import Thentos.Config
 import System.Log.Missing (logger)
 
 
+-- * types
+
 type ServiceProxy = Raw
+
+
+data ProxyNotAvailable = ProxyNotAvailable
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+data ProxyNotConfiguredForService = ProxyNotConfiguredForService ServiceId
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+data MissingServiceHeader = MissingServiceHeader
+  deriving (Eq, Ord, Show, Read, Typeable)
+
+
+instance ThentosError ProxyNotAvailable
+instance Exception ProxyNotAvailable
+$(deriveSafeCopy 0 'base ''ProxyNotAvailable)
+instance ThentosErrorServant ProxyNotAvailable where
+    renderErrorServant ProxyNotAvailable = (404, "proxying not activated")
+
+instance ThentosError ProxyNotConfiguredForService
+instance Exception ProxyNotConfiguredForService
+$(deriveSafeCopy 0 'base ''ProxyNotConfiguredForService)
+instance ThentosErrorServant ProxyNotConfiguredForService where
+    renderErrorServant (ProxyNotConfiguredForService sid) = (404, "proxy not configured for service " ++ show sid)
+
+instance ThentosError MissingServiceHeader
+instance Exception MissingServiceHeader
+$(deriveSafeCopy 0 'base ''MissingServiceHeader)
+instance ThentosErrorServant MissingServiceHeader where
+    renderErrorServant MissingServiceHeader = (404, "headers do not contain service id")
+
+
+-- * handlers
 
 serviceProxy :: PushActionSubRoute (Server ServiceProxy)
 serviceProxy req cont = catchProxy cont $ do
@@ -93,15 +130,15 @@ getRqMod req = do
 
     prxCfg :: Map.Map ServiceId HttpProxyConfig
         <- case getProxyConfigMap thentosConfig of
-            Nothing -> lift $ left ProxyNotAvailable
+            Nothing -> lift . left . toThentosError $ ProxyNotAvailable
             Just v  -> return v
 
     hdrs <- do
-        (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
+        (_, session) <- maybe (lift . left . toThentosError $ NoSuchSession) (bumpSession . SessionToken) $
             lookupRequestHeader req ThentosHeaderSession
         (_, user) <- case session ^. sessionAgent of
             UserA uid  -> queryAction $ LookupUser uid
-            ServiceA _ -> lift $ left NoSuchUser
+            ServiceA _ -> lift . left . toThentosError $ NoSuchUser
 
         let newHdrs =
                 ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
@@ -111,14 +148,14 @@ getRqMod req = do
 
     sid <- case lookupRequestHeader req ThentosHeaderService of
             Just s  -> return $ ServiceId s
-            Nothing -> lift $ left MissingServiceHeader
+            Nothing -> lift . left . toThentosError $ MissingServiceHeader
 
     target :: String
         <- case Map.lookup sid prxCfg of
             Just t  -> let http :: HttpConfig = Tagged $ t >>. (Proxy :: Proxy '["http"])
                            prefix :: ST = fromMaybe "" $ t >>. (Proxy :: Proxy '["url_prefix"])
                        in return . cs $ exposeUrl http <> prefix
-            Nothing -> lift . left $ ProxyNotConfiguredForService sid
+            Nothing -> lift . left . toThentosError $ ProxyNotConfiguredForService sid
 
     let rqMod = RqMod target hdrs
     logger DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
@@ -139,6 +176,6 @@ catchProxy cont action =
         EitherT $ do
             outcome <- runEitherT $ action `runReaderT` state
             case outcome of
-                Left e -> showThentosError e >>= \ (status, msg) -> Right <$>
+                Left e -> renderError e >>= \ (status, msg) -> Right <$>
                               cont (S.responseLBS (T.Status status (cs msg)) [] (cs msg))
                 Right r -> return $ Right r

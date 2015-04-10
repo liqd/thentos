@@ -48,6 +48,7 @@ import System.Log.Logger (Priority(CRITICAL))
 import qualified Data.ByteString.Char8 as SBS
 
 import System.Log.Missing (logger)
+import Thentos.DB
 import Thentos.Api
 import Thentos.Config
 import Thentos.Types
@@ -91,6 +92,40 @@ catchInternal :: (MonadIO m) => SomeThentosError -> m (Int, String)
 catchInternal (SomeThentosError e) = do
     logger CRITICAL $ "uncaught exception in servant: " ++ show e
     return (500, "internal error.")
+
+
+instance ThentosErrorServant NoSuchUser where
+    renderErrorServant NoSuchUser = (404, "user not found")
+
+instance ThentosErrorServant NoSuchPendingUserConfirmation where
+    renderErrorServant NoSuchPendingUserConfirmation = (404, "unconfirmed user not found")
+
+instance ThentosErrorServant NoSuchService where
+    renderErrorServant NoSuchService = (404, "service not found")
+
+instance ThentosErrorServant NoSuchSession where
+    renderErrorServant NoSuchSession = (404, "session not found")
+
+instance ThentosErrorServant OperationNotPossibleInServiceSession where
+    renderErrorServant OperationNotPossibleInServiceSession = (404, "operation not possible in service session")
+
+instance ThentosErrorServant UserEmailAlreadyExists where
+    renderErrorServant UserEmailAlreadyExists = (403, "email already in use")
+
+instance ThentosErrorServant UserNameAlreadyExists where
+    renderErrorServant UserNameAlreadyExists = (403, "user name already in use")
+
+instance ThentosErrorServant PermissionDenied where
+    renderErrorServant (PermissionDenied _ _ _) = (401, "unauthorized")
+
+instance ThentosErrorServant BadCredentials where
+    renderErrorServant BadCredentials = (401, "unauthorized")
+
+instance ThentosErrorServant NoSuchResetToken where
+    renderErrorServant NoSuchResetToken = (404, "no such password reset token")
+
+instance ThentosErrorServant MalformedConfirmationToken where
+    renderErrorServant (MalformedConfirmationToken path) = (400, "malformed confirmation token: " ++ show path)
 
 
 -- * turning the handler monad into 'Action'

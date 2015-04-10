@@ -336,7 +336,7 @@ userIdToPath :: UserId -> Path
 userIdToPath (UserId i) = Path . cs $ (printf "/princicpals/users/%7.7i" i :: String)
 
 userIdFromPath :: Path -> RestAction UserId
-userIdFromPath (Path s) = maybe (lift . left $ NoSuchUser) return $
+userIdFromPath (Path s) = maybe (lift . left . toThentosError $ NoSuchUser) return $
     case ST.splitAt (ST.length prefix) s of
         (prefix', s') | prefix' == prefix -> fmap UserId . readMay . cs $ s'
         _ -> Nothing
@@ -346,6 +346,6 @@ userIdFromPath (Path s) = maybe (lift . left $ NoSuchUser) return $
 confirmationTokenFromPath :: Path -> RestAction ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
     (s, s') | s == prefix -> return $ ConfirmationToken s'
-    _ -> lift . left $ MalformedConfirmationToken p
+    _ -> lift . left . toThentosError $ MalformedConfirmationToken p
   where
     prefix = "/activate/"

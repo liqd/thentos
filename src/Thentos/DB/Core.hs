@@ -7,9 +7,10 @@
 module Thentos.DB.Core
   ( ThentosClearance(..)
   , ThentosUpdate, ThentosUpdate'
+  , ThentosQuery, ThentosQuery'
+  , PermissionDenied(..)
   , runThentosUpdate
   , runThentosUpdateWithLabel
-  , ThentosQuery, ThentosQuery'
   , runThentosQuery
   , runThentosQueryWithLabel
   , liftThentosQuery
