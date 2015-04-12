@@ -1,21 +1,20 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE UndecidableInstances                     #-}
-
-{-# OPTIONS  #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE InstanceSigs              #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE UndecidableInstances      #-}
 
 module Thentos.Backend.Core
 where
@@ -31,12 +30,13 @@ import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
+import Data.SafeCopy (SafeCopy, contain, safePut, safeGet, putCopy, getCopy)
 import Data.String.Conversions (cs)
 import Data.String.Conversions (SBS, ST)
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
-import Data.Typeable (Typeable)
+import Data.Typeable (Typeable, cast)
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -46,6 +46,7 @@ import Servant.Server (HasServer, Server, route)
 import System.Log.Logger (Priority(CRITICAL))
 
 import qualified Data.ByteString.Char8 as SBS
+import qualified Data.Serialize as Cereal
 
 import System.Log.Missing (logger)
 import Thentos.DB
@@ -82,34 +83,29 @@ instance Exception SomeThentosErrorServant where
 instance ThentosErrorServant SomeThentosErrorServant where
     renderErrorServant (SomeThentosErrorServant e) = renderErrorServant e
 
+instance SafeCopy SomeThentosErrorServant
+  where
+    putCopy (SomeThentosErrorServant _) = contain $ safePut UnknownThentosError
+    getCopy = contain $ SomeThentosErrorServant <$> (safeGet :: Cereal.Get UnknownThentosError)
+
+instance ThentosErrorServant UnknownThentosError where
+    renderErrorServant _ = assert False $ error "instance ThentosErrorServant UnknownThentosError: internal error."
+
+instance ThentosError SomeThentosErrorServant where
+    fromThentosError (SomeThentosError e) = cast e
+
 
 -- | Handle all errors in 'SomeThentosErrorServant' with the
 -- resp. rendering, and handle all other errors in 'SomeThentosError'
 -- with 500 responses.
 --
 -- (It would be nice to have a guarantee from the type checker that
--- this will never happen, but the DB transactions all return
--- 'SomeThentosError' at the point of writing this.)
+-- all exceptions are always 'ThentosErrorServant', but the DB
+-- transactions all return 'SomeThentosError' at the point of writing
+-- this.)
 renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
-renderError e = case fromException $ toException e of
+renderError e = case fromException (toException e) >>= fromThentosError of
         Just (e' :: SomeThentosErrorServant)-> return $ renderErrorServant e'
-
-
-@@
-
--- FIXME: this is still broken (remove syntax error in line above this
--- comment and run the test suite!)  i can't hope that where it is
--- possible due to class constraints, 'SomeThentosErrorServant' will
--- somehow magically wrap itself around the error formerly wrapped in
--- 'SomeThentosError' (even if the latter wrap somehow magically
--- disappears).  need another solution!
---
--- i think one aspect in which base has it easier is that we have to
--- keep track of the exception type in the co-variant 'Either' values,
--- so can't use (bounded) polymorphism as easily.  not sure if that
--- breaks the entire idea?
-
-
         Nothing -> do
             logger CRITICAL $ "uncaught exception in servant: " ++ show e
             return (500, "internal error.")
