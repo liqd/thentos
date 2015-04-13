@@ -41,13 +41,14 @@ import System.Log.Missing (logger)
 
 data DB =
     DB
-      { _dbUsers            :: Map UserId User
-      , _dbUnconfirmedUsers :: Map ConfirmationToken (UserId, User)
-      , _dbServices         :: Map ServiceId Service
-      , _dbSessions         :: Map SessionToken Session
-      , _dbRoles            :: Map Agent [Role]
-      , _dbPwResetTokens    :: Map PasswordResetToken (TimeStamp, UserId)
-      , _dbFreshUserId      :: !UserId
+      { _dbUsers             :: Map UserId User
+      , _dbUnconfirmedUsers  :: Map ConfirmationToken (UserId, User)
+      , _dbServices          :: Map ServiceId Service
+      , _dbSessions          :: Map SessionToken Session
+      , _dbRoles             :: Map Agent [Role]
+      , _dbPwResetTokens     :: Map PasswordResetToken (TimeStamp, UserId)
+      , _dbEmailChangeTokens :: Map ConfirmationToken (UserId, UserEmail)
+      , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -310,7 +311,7 @@ data ThentosError =
     | ProxyNotAvailable
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
-    | NoSuchResetToken
+    | NoSuchToken
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -336,7 +337,7 @@ showThentosError BadAuthenticationHeaders             = return (400, "bad authen
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-showThentosError (NoSuchResetToken)                   = return (404, "no such password reset token")
+showThentosError (NoSuchToken)                        = return (404, "no such token")
 
 
 -- * boilerplate

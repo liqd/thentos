@@ -42,7 +42,7 @@ import Thentos.Types
 -- * config structure
 
 type ThentosConfig         = Tagged ThentosConfigUntagged
-type ThentosConfigUntagged = NoDesc ThentosConfigDesc
+type ThentosConfigUntagged = NoDesc ThentosConfigDesc  -- ('NoDesc' will be deprecated in configifier-0.0.4)
 type ThentosConfigDesc     = ToConfigCode ThentosConfig'
 
 type ThentosConfig' =

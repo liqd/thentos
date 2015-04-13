@@ -22,8 +22,11 @@ module Thentos.Api
   , addUnconfirmedUser
   , addPasswordResetToken
   , getUserClearance
+  , changePassword
   , resetPassword
   , checkPassword
+  , requestUserEmailChange
+  , confirmUserEmailChange
   , addService
   , startSessionUser
   , startSessionService
@@ -48,7 +51,7 @@ import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.Maybe (fromMaybe)
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (SBS, ST, cs, LT)
 import Data.Thyme.Time ()
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
@@ -58,6 +61,7 @@ import qualified Codec.Binary.Base64 as Base64
 import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.DB
+import Thentos.Smtp (sendEmailChangeConfirmationMail)
 import Thentos.Types
 import Thentos.Util
 
@@ -187,6 +191,7 @@ freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 -- ** users
 
+-- FIXME: unconfirmed users should expire after some time
 addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     tok <- freshConfirmationToken
@@ -206,6 +211,17 @@ resetPassword token password = do
     hashedPassword <- hashUserPass password
     updateAction $ ResetPassword now token hashedPassword
 
+changePassword :: UserId -> UserPass -> UserPass -> Action r ()
+changePassword uid old new = do
+    (_, user) <- queryAction $ LookupUser uid
+    if verifyPass old user
+        then do
+            hashedPw <- hashUserPass new
+            updateAction $
+                UpdateUserField uid (UpdateUserFieldPassword hashedPw)
+        else
+            lift $ left BadCredentials
+
 checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
 checkPassword username password = do
     catchAction checkPw $ \err ->
@@ -218,6 +234,20 @@ checkPassword username password = do
         return $ if verifyPass password user
             then Just (uid, user)
             else Nothing
+
+-- FIXME: email change requests should expire
+requestUserEmailChange :: CPRG r =>
+    UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
+requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
+    tok <- freshConfirmationToken
+    updateAction $ AddUserEmailChangeRequest uid newEmail tok
+    let callbackUrl = callbackUrlBuilder tok
+    liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
+    return ()
+
+confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
+confirmUserEmailChange token =
+    updateAction $ ConfirmUserEmailChange token
 
 getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do
