@@ -12,7 +12,7 @@
 
 module Thentos.Types where
 
-import Control.Exception (Exception, SomeException, toException, fromException)
+import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable, Proxy(Proxy), typeOf)
@@ -298,7 +298,7 @@ instance Label ThentosClearance where
 -- | Class of all thentos errors, so we can do bound polymorphic
 -- functions to it, which is more specific than bounding with
 -- 'Exception'.
-class (Exception e, Typeable e, Show e, SafeCopy e) => ThentosError e where
+class (Typeable e, Show e, SafeCopy e) => ThentosError e where
     toThentosError :: e -> SomeThentosError
     toThentosError = SomeThentosError
 
@@ -306,19 +306,33 @@ class (Exception e, Typeable e, Show e, SafeCopy e) => ThentosError e where
     fromThentosError (SomeThentosError e) = cast e
 
 
-data SomeThentosError = forall e . Exception e => SomeThentosError e
+-- in Backend:
+
+class ThentosErrorServant e where
+    displayThentosErrorServant :: (MonadIO m, ThentosError e') => Proxy e -> e' -> m (Int, String)
+    displayThentosErrorServant Proxy (fromThentosError -> ...) = _
+
+instance ThentosErrorServant SomeThentosError where
+    displayThentosErrorServant Proxy (SomeThentosError e) = _
+
+
+@@ -- not sure if 'displayThentosErrorServant' for 'SomeThentosError'
+   -- is possible: i think it requires SomeThentosErrorServant that we
+   -- can cast to, but i'm not sure if casting from one category
+   -- ('Some'-type) in the hierarchy into another is possible.  or
+   -- how.
+
+
+-- in Frontend:
+
+class ThentosErrorSnap e where
+    displayThentosErrorSnap :: (MonadIO m, ThentosError e') => Proxy e -> e' -> m ()
+    displayThentosErrorSnap = _
+
+
+
+data SomeThentosError = forall e . ThentosError e => SomeThentosError e
   deriving (Typeable)
-
-instance Exception SomeThentosError
-
-thentosErrorToException :: Exception e => e -> SomeException
-thentosErrorToException = toException . SomeThentosError
-
-thentosErrorFromException :: Exception e => SomeException -> Maybe e
-thentosErrorFromException x = do
-    SomeThentosError a <- fromException x
-    cast a
-
 
 instance ThentosError SomeThentosError where
     toThentosError = id

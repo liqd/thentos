@@ -15,13 +15,14 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 module Thentos.Backend.Core
 where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (Exception, assert, fromException, toException)
+import Control.Exception (assert)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
@@ -30,13 +31,12 @@ import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
-import Data.SafeCopy (SafeCopy, contain, safePut, safeGet, putCopy, getCopy)
 import Data.String.Conversions (cs)
 import Data.String.Conversions (SBS, ST)
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time ()
-import Data.Typeable (Typeable, cast)
+import Data.Typeable (Typeable)
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -46,7 +46,6 @@ import Servant.Server (HasServer, Server, route)
 import System.Log.Logger (Priority(CRITICAL))
 
 import qualified Data.ByteString.Char8 as SBS
-import qualified Data.Serialize as Cereal
 
 import System.Log.Missing (logger)
 import Thentos.DB
@@ -65,84 +64,45 @@ type RestError       = (Int, String)
 
 -- * error rendering
 
+uncaughtThentosErrorServant :: (MonadIO m, ThentosError e) => e -> m (Int, String)
+uncaughtThentosErrorServant e = do
+    logThentosErrorServant CRITICAL "uncaught exception" e
+    return (500, "internal error.")
+
+logThentosErrorServant :: (MonadIO m, ThentosError e) => Priority -> String -> e -> m ()
+logThentosErrorServant prio msg e = logger prio $ msg ++ " in servant: " ++ show e
+
 -- | Render errors for servant.  (The servant error type will
 -- hopefully change in the future.)
-class ThentosErrorServant e where
-    renderErrorServant :: e -> (Int, String)
-
-data SomeThentosErrorServant = forall e . (ThentosErrorServant e, ThentosError e) => SomeThentosErrorServant e
-  deriving Typeable
-
-instance Show SomeThentosErrorServant where
-    showsPrec p (SomeThentosErrorServant e) = showsPrec p e
-
-instance Exception SomeThentosErrorServant where
-    toException = thentosErrorToException
-    fromException = thentosErrorFromException
-
-instance ThentosErrorServant SomeThentosErrorServant where
-    renderErrorServant (SomeThentosErrorServant e) = renderErrorServant e
-
-instance SafeCopy SomeThentosErrorServant
-  where
-    putCopy (SomeThentosErrorServant _) = contain $ safePut UnknownThentosError
-    getCopy = contain $ SomeThentosErrorServant <$> (safeGet :: Cereal.Get UnknownThentosError)
-
-instance ThentosErrorServant UnknownThentosError where
-    renderErrorServant _ = assert False $ error "instance ThentosErrorServant UnknownThentosError: internal error."
-
-instance ThentosError SomeThentosErrorServant where
-    fromThentosError (SomeThentosError e) = cast e
-
-
--- | Handle all errors in 'SomeThentosErrorServant' with the
--- resp. rendering, and handle all other errors in 'SomeThentosError'
--- with 500 responses.
 --
--- (It would be nice to have a guarantee from the type checker that
--- all exceptions are always 'ThentosErrorServant', but the DB
--- transactions all return 'SomeThentosError' at the point of writing
--- this.)
-renderError :: (MonadIO m, ThentosError e) => e -> m (Int, String)
-renderError e = case fromException (toException e) >>= fromThentosError of
-        Just (e' :: SomeThentosErrorServant)-> return $ renderErrorServant e'
-        Nothing -> do
-            logger CRITICAL $ "uncaught exception in servant: " ++ show e
-            return (500, "internal error.")
+
+@@ -- no: this creates a closed/unextensible set of types that can be
+   -- handled by servant backend.  see also '@@'-tagged remarks in
+   -- "Thentos.Types".
 
 
-instance ThentosErrorServant NoSuchUser where
-    renderErrorServant NoSuchUser = (404, "user not found")
+renderThentosErrorServant :: (MonadIO m, ThentosError e) => e -> m (Int, String)
+renderThentosErrorServant = f . toThentosError
+  where
+    q :: ThentosError e => SomeThentosError -> Maybe e
+    q = fromThentosError
 
-instance ThentosErrorServant NoSuchPendingUserConfirmation where
-    renderErrorServant NoSuchPendingUserConfirmation = (404, "unconfirmed user not found")
+    r :: MonadIO m => Int -> String -> m (Int, String)
+    r status msg = return (status, msg)
 
-instance ThentosErrorServant NoSuchService where
-    renderErrorServant NoSuchService = (404, "service not found")
-
-instance ThentosErrorServant NoSuchSession where
-    renderErrorServant NoSuchSession = (404, "session not found")
-
-instance ThentosErrorServant OperationNotPossibleInServiceSession where
-    renderErrorServant OperationNotPossibleInServiceSession = (404, "operation not possible in service session")
-
-instance ThentosErrorServant UserEmailAlreadyExists where
-    renderErrorServant UserEmailAlreadyExists = (403, "email already in use")
-
-instance ThentosErrorServant UserNameAlreadyExists where
-    renderErrorServant UserNameAlreadyExists = (403, "user name already in use")
-
-instance ThentosErrorServant PermissionDenied where
-    renderErrorServant (PermissionDenied _ _ _) = (401, "unauthorized")
-
-instance ThentosErrorServant BadCredentials where
-    renderErrorServant BadCredentials = (401, "unauthorized")
-
-instance ThentosErrorServant NoSuchResetToken where
-    renderErrorServant NoSuchResetToken = (404, "no such password reset token")
-
-instance ThentosErrorServant MalformedConfirmationToken where
-    renderErrorServant (MalformedConfirmationToken path) = (400, "malformed confirmation token: " ++ show path)
+    f :: MonadIO m => SomeThentosError -> m (Int, String)
+    f (q -> Just NoSuchUser)                           = r 404 "user not found"
+    f (q -> Just NoSuchPendingUserConfirmation)        = r 404 "unconfirmed user not found"
+    f (q -> Just NoSuchService)                        = r 404 "service not found"
+    f (q -> Just NoSuchSession)                        = r 404 "session not found"
+    f (q -> Just OperationNotPossibleInServiceSession) = r 404 "operation not possible in service session"
+    f (q -> Just UserEmailAlreadyExists)               = r 403 "email already in use"
+    f (q -> Just UserNameAlreadyExists)                = r 403 "user name already in use"
+    f (q -> Just (PermissionDenied _ _ _))             = r 401 "unauthorized"
+    f (q -> Just BadCredentials)                       = r 401 "bad credentials"
+    f (q -> Just NoSuchResetToken)                     = r 404 "no such password reset token"
+    f (q -> Just (MalformedConfirmationToken path))    = r 400 ("malformed confirmation token: " ++ show path)
+    f e                                                = uncaughtThentosErrorServant e
 
 
 -- * turning the handler monad into 'Action'
@@ -167,7 +127,7 @@ instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
 
 instance PushActionC (RestActionRaw a) where
     type PushActionSubRoute (RestActionRaw a) = RestAction a
-    pushAction restState restAction = fmapLTM renderError $ runReaderT restAction restState
+    pushAction restState restAction = fmapLTM renderThentosErrorServant $ runReaderT restAction restState
 
 -- | For handling 'Raw'.  (The 'Application' type has been stripped of
 -- its arguments by the time the compiler will find this instance.)
@@ -187,7 +147,7 @@ instance PushActionC (IO ResponseReceived) where
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the
 -- left value constructed in an impure action.
-fmapLTM :: (Monad m, Functor m) => (a -> m a') -> EitherT a m b -> EitherT a' m b
+fmapLTM :: (MonadIO m, Monad m, Functor m) => (a -> m a') -> EitherT a m b -> EitherT a' m b
 fmapLTM trans e = EitherT $ do
     result <- runEitherT e
     case result of
