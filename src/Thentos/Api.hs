@@ -254,6 +254,7 @@ getUserClearance uid = do
     roles <- queryAction $ LookupAgentRoles (UserA uid)
     return $ makeClearance (UserA uid) roles
 
+
 -- ** services
 
 addService :: CPRG r => ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)

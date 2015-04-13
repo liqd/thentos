@@ -164,7 +164,6 @@ urlEmailChangeConfirm feConfig (ConfirmationToken token) =
     cs (exposeUrl feConfig) <//> "/user/update_email_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
-
 emailUpdateConfirm :: FH ()
 emailUpdateConfirm = do
     mToken <- (>>= urlDecode) <$> getParam "token"
