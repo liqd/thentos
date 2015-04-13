@@ -240,14 +240,16 @@ requestUserEmailChange :: CPRG r =>
     UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
 requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
     tok <- freshConfirmationToken
-    updateAction $ AddUserEmailChangeRequest uid newEmail tok
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ AddUserEmailChangeRequest now uid newEmail tok
     let callbackUrl = callbackUrlBuilder tok
     liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
     return ()
 
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
-confirmUserEmailChange token =
-    updateAction $ ConfirmUserEmailChange token
+confirmUserEmailChange token = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ ConfirmUserEmailChange now token
 
 getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do

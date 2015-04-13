@@ -195,21 +195,24 @@ trans_addPasswordResetToken timestamp email token = do
             modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
             returnDb label user
 
-trans_addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
-trans_addUserEmailChangeRequest uid email token = do
+trans_addUserEmailChangeRequest ::
+    TimeStamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
+trans_addUserEmailChangeRequest timestamp uid email token = do
     let label = UserA uid =%% UserA uid
-    modify $ dbEmailChangeTokens %~ Map.insert token (uid, email)
+    modify $ dbEmailChangeTokens %~ Map.insert token (timestamp, uid, email)
     returnDb label ()
 
-trans_confirmUserEmailChange :: ConfirmationToken -> ThentosUpdate ()
-trans_confirmUserEmailChange token = do
+trans_confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosUpdate ()
+trans_confirmUserEmailChange now token = do
     emailChangeTokens <- gets (^. dbEmailChangeTokens)
     case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
         -- FIXME: what should the label for the error case be?
         (Nothing, _) -> throwDb thentosPublic NoSuchToken
-        (Just (uid, email), remainingRequests) -> do
+        (Just (timestamp, uid, email), remainingRequests) -> do
             modify $ dbEmailChangeTokens .~ remainingRequests
-            trans_updateUserField uid (UpdateUserFieldEmail email)
+            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
+                then throwDb thentosPublic NoSuchToken
+                else trans_updateUserField uid (UpdateUserFieldEmail email)
 
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
@@ -679,11 +682,11 @@ addUser user clearance = runThentosUpdate clearance $ trans_addUser user
 addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
 addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 
-addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
-addUserEmailChangeRequest uid email token clearance = runThentosUpdate clearance $ trans_addUserEmailChangeRequest uid email token
+addUserEmailChangeRequest :: TimeStamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
+addUserEmailChangeRequest now uid email token clearance = runThentosUpdate clearance $ trans_addUserEmailChangeRequest now uid email token
 
-confirmUserEmailChange :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
-confirmUserEmailChange token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange token
+confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
+confirmUserEmailChange now token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange now token
 
 addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosClearance -> Update DB (Either ThentosError User)
 addPasswordResetToken timestamp email token clearance = runThentosUpdate clearance $ trans_addPasswordResetToken timestamp email token

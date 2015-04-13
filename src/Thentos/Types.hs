@@ -60,7 +60,7 @@ data DB =
       , _dbSessions          :: Map SessionToken Session
       , _dbRoles             :: Map Agent [Role]
       , _dbPwResetTokens     :: Map PasswordResetToken (TimeStamp, UserId)
-      , _dbEmailChangeTokens :: Map ConfirmationToken (UserId, UserEmail)
+      , _dbEmailChangeTokens :: Map ConfirmationToken (TimeStamp, UserId, UserEmail)
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
