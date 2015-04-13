@@ -13,20 +13,25 @@ import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
+import Snap.Blaze (blaze)
 import Snap.Core (ifTop, Method(GET, POST), method)
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
 import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
-import System.Log (Priority(INFO))
 import System.Log.Missing (logger)
+import System.Log (Priority(INFO))
 
 import Thentos.Api
 import Thentos.Config
-import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Frontend.Types
+import Thentos.Frontend.Util (serveSnaplet)
+import Thentos.Types (Role(..))
 
+import qualified Text.Blaze.Html5 as Blaze
 import qualified Thentos.Frontend.Handlers as H
+import qualified Thentos.Frontend.Pages as P
+
 
 runFrontend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
 runFrontend config asg = do
@@ -65,4 +70,9 @@ routes = [ ("", ifTop $ H.index)
          , ("service/create", H.runWithUserClearance H.serviceCreate)
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
+
+         , ("test", blaze $ P.dashboardPagelet
+                 [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin]
+                 P.DashboardTabDetails
+                 (Blaze.text "body"))
          ]
