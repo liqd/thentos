@@ -45,6 +45,9 @@ import Data.Text.Lazy as LT
 
 ## naming
 
+Acronyms in names are camelized.  For instance: `ThreadId`, not
+`ThreadID`; `Thentos.Db` and `Thentos.Smtp`, not `DB` or `SMTP`.
+
 Names for `Either` values start with an `e` (example: `eSession`).
 Analogously, `Maybe` value names start with an `m`.
 
