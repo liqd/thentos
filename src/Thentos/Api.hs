@@ -51,7 +51,7 @@ import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
 import Data.Maybe (fromMaybe)
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (SBS, ST, cs, LT)
 import Data.Thyme.Time ()
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
@@ -61,6 +61,7 @@ import qualified Codec.Binary.Base64 as Base64
 import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.DB
+import Thentos.Smtp (sendEmailChangeConfirmationMail)
 import Thentos.Types
 import Thentos.Util
 
@@ -235,11 +236,14 @@ checkPassword username password = do
             else Nothing
 
 -- FIXME: email change requests should expire
-requestUserEmailChange :: CPRG r => UserId -> UserEmail -> Action (MVar r) ConfirmationToken
-requestUserEmailChange uid newEmail = do
+requestUserEmailChange :: CPRG r =>
+    UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
+requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
     tok <- freshConfirmationToken
     updateAction $ AddUserEmailChangeRequest uid newEmail tok
-    return tok
+    let callbackUrl = callbackUrlBuilder tok
+    liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
+    return ()
 
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
 confirmUserEmailChange token =

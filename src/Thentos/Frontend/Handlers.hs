@@ -145,15 +145,15 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
     case result of
         Nothing -> blaze $ userUpdatePage userView emailView passwordView
         Just newEmail -> do
-            result' <- snapRunAction' clearance $ requestUserEmailChange uid newEmail
+            config :: ThentosConfig <- gets (^. cfg)
+            feConfig <- gets (^. frontendCfg)
+            let smtpConf = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
+            result' <- snapRunAction' clearance $
+                requestUserEmailChange uid newEmail
+                                       (urlEmailChangeConfirm feConfig)
+                                       smtpConf
             case result' of
-                Right token -> do
-                    config :: ThentosConfig <- gets (^. cfg)
-                    feConfig <- gets (^. frontendCfg)
-                    liftIO $ sendEmailChangeConfirmMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
-                                newEmail
-                                (urlEmailChangeConfirm feConfig token)
-                    blaze emailSentPage
+                Right () -> blaze emailSentPage
                 Left UserEmailAlreadyExists -> blaze emailSentPage
                 Left e -> logger INFO (show e) >> blaze (errorPage "email update failed.")
   where
@@ -161,7 +161,7 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
 
 urlEmailChangeConfirm :: HttpConfig -> ConfirmationToken -> L.Text
 urlEmailChangeConfirm feConfig (ConfirmationToken token) =
-    cs (exposeUrl feConfig) <//> "/user/email_confirm?token="
+    cs (exposeUrl feConfig) <//> "/user/update_email_confirm?token="
         <> (L.fromStrict . decodeUtf8 . urlEncode . encodeUtf8 $ token)
 
 
@@ -181,6 +181,8 @@ emailUpdateConfirm = do
                     logger WARNING (show e)
                     blaze $ errorPage "Error when trying to change email address"
 
+-- | Runs a given handler with the credentials and the id of the currently
+-- logged-in user
 runWithUserClearance :: (ThentosClearance -> UserId -> FH ()) -> FH ()
 runWithUserClearance = runWithUserClearance' ()
 
