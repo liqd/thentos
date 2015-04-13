@@ -164,6 +164,7 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
+
 -- * session, timestamp, timeout
 
 data Session =
