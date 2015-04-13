@@ -24,11 +24,12 @@ import Thentos.Types
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> LT -> IO ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
-    logger DEBUG $ "sending user-create-confirm mail: " ++ show (udEmail user) -- ++ " " ++ cs callbackUrl
+    logger DEBUG $ "sending user-create-confirm mail: " ++ show (udEmail user)
     sendMail smtpConfig subject message (udEmail user)
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
+
 
 sendUserExistsMail :: SmtpConfig -> UserEmail -> IO ()
 sendUserExistsMail smtpConfig address = do
@@ -60,6 +61,7 @@ sendEmailChangeConfirmationMail smtpConfig address callbackUrl = do
     message = "Please go to " <> callbackUrl <>
                 " to confirm your change of email address."
     subject = "Thentos email address change"
+
 
 sendMail :: SmtpConfig -> ST -> LT -> UserEmail -> IO ()
 sendMail config subject message address = do

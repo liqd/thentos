@@ -202,6 +202,7 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged out")
 
+
 serviceCreate :: SpecWith TestServerFull
 serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     -- fe: fill out and submit create-service form
