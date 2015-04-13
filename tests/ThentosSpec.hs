@@ -18,6 +18,7 @@ module ThentosSpec where
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
+import Control.Lens ((.~))
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
 import Thentos.Api
@@ -74,8 +75,7 @@ spec = do
                                                allowEverything
         result `shouldBe` Right ()
         result2 <- query' st $ LookupUser (UserId 1) allowEverything
-        result2 `shouldBe` (Right (UserId 1, user1 {_userName = "fka_user1"}))
-
+        result2 `shouldBe` (Right (UserId 1, userName .~ "fka_user1" $ user1))
       it "throws an error if user does not exist" $ \ (st, _, _) -> do
         result <- update' st $ UpdateUserField (UserId 391)
                                                (UpdateUserFieldName "moo")

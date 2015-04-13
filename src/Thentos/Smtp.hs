@@ -6,7 +6,7 @@ module Thentos.Smtp
     ( sendUserConfirmationMail
     , sendUserExistsMail
     , sendPasswordResetMail
-    , sendEmailChangeConfirmMail
+    , sendEmailChangeConfirmationMail
 ) where
 
 import Control.Applicative ((<$>))
@@ -52,8 +52,8 @@ sendPasswordResetMail smtpConfig user callbackUrl = do
     subject = "Thentos Password Reset"
 
 
-sendEmailChangeConfirmMail :: SmtpConfig -> UserEmail -> LT -> IO ()
-sendEmailChangeConfirmMail smtpConfig address callbackUrl = do
+sendEmailChangeConfirmationMail :: SmtpConfig -> UserEmail -> LT -> IO ()
+sendEmailChangeConfirmationMail smtpConfig address callbackUrl = do
     logger DEBUG $ "sending email change confirmation email: " ++ show address
     sendMail smtpConfig subject message address
   where
