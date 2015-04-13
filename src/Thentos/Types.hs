@@ -164,6 +164,7 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
+
 -- * session, timestamp, timeout
 
 data Session =
@@ -245,13 +246,25 @@ instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 data Role =
     RoleAdmin
     -- ^ Can do anything.  (FIXME: do we even need a role for this, or
-    -- could we just use 'True'?)
+    -- could we just use 'True'?  Update to FIXME: yes, I think so.
+    -- also, the name is misleadingly ambiguous, as there are now
+    -- other admin roles that have considerably less power.  so we
+    -- should get rid of this.)
 
   | RoleOwnsUsers
     -- ^ Can do anything to map 'dbUsers'
 
   | RoleOwnsUnconfirmedUsers
     -- ^ Can do anything to map 'dbUnConfirmedUsers'
+
+  | RoleUser
+    -- ^ Can sign up with services
+
+  | RoleUserAdmin
+    -- ^ Can create (and manage her own) users
+
+  | RoleServiceAdmin
+    -- ^ Can create (and manage her own) services
 
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 

@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE ViewPatterns       #-}
 
 module Thentos.Frontend.Pages
     ( indexPage
@@ -25,6 +26,9 @@ module Thentos.Frontend.Pages
     , resetPasswordRequestedPage
     , errorPage
     , notLoggedInPage
+
+    , DashboardTab(..)
+    , dashboardPagelet
     ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -33,6 +37,7 @@ import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text (Text)
+import Data.Typeable (Typeable)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
 import Text.Digestive.Form (Form, check, validate, text, (.:))
@@ -294,6 +299,67 @@ notLoggedInPage = H.docTypeHtml $ do
         H.p $ "Please go to " <> loginLink <> " and try again."
   where
     loginLink = H.a ! A.href "/login_thentos" $ "login"
+
+
+-- * dashboard frame
+
+data DashboardTab =
+    DashboardTabDetails
+  | DashboardTabServices
+  | DashboardTabOwnServices
+  | DashboardTabUsers
+  | DashboardTabLogout
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
+
+-- | It is the caller's responsibility to make sure that active
+-- dashboard and body correspond.
+dashboardPagelet :: [Role] -> DashboardTab -> Html -> Html
+dashboardPagelet availableRoles ((==) -> isActive) body =
+    H.docTypeHtml $ do
+        H.head $ do
+            H.title $ H.text title
+        H.body $ do
+            H.h2 $ H.text title
+            H.div . H.table . H.tr . mapM_ (uncurry tabLink) $
+                [ (DashboardTabDetails, [])
+                , (DashboardTabServices, [RoleUser])
+                , (DashboardTabOwnServices, [RoleServiceAdmin])
+                , (DashboardTabUsers, [RoleUserAdmin])
+                , (DashboardTabLogout, [])
+                ]
+            body
+  where
+    title :: Text
+    title = "Thentos Dashboard"
+
+    linkText :: DashboardTab -> Text
+    linkText DashboardTabDetails     = "details"
+    linkText DashboardTabServices    = "services"
+    linkText DashboardTabOwnServices = "own services"
+    linkText DashboardTabUsers       = "users"
+    linkText DashboardTabLogout      = "logout"
+
+    linkUrl  :: DashboardTab -> Text
+    linkUrl DashboardTabDetails     = "/details"       -- FIXME: not implemented
+    linkUrl DashboardTabServices    = "/services"      -- FIXME: not implemented
+    linkUrl DashboardTabOwnServices = "/ownservices"   -- FIXME: not implemented
+    linkUrl DashboardTabUsers       = "/users"         -- FIXME: not implemented
+    linkUrl DashboardTabLogout      = "/logout_thentos"
+
+    tabLink :: DashboardTab -> [Role] -> Html
+    tabLink tab needsRoles
+        | not available = return ()
+        | isActive tab  = H.td $ H.b linkt
+        | True          = H.td $ H.a ! A.href urlt $ linkt
+      where
+        available :: Bool
+        available = all (`elem` availableRoles) needsRoles
+
+        linkt :: Html
+        linkt = H.text . linkText $ tab
+
+        urlt :: H.AttributeValue
+        urlt = H.textValue $ linkUrl tab
 
 
 -- * auxillary functions
