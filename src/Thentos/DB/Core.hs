@@ -40,16 +40,16 @@ import Thentos.Types
 
 -- * types
 
-type ThentosUpdate a = ThentosUpdate' (ThentosLabeled ThentosError) (ThentosLabeled a)
-type ThentosQuery  a = ThentosQuery'  (ThentosLabeled ThentosError) (ThentosLabeled a)
+type ThentosUpdate db a = ThentosUpdate' db (ThentosLabeled ThentosError) (ThentosLabeled a)
+type ThentosQuery  db a = ThentosQuery'  db (ThentosLabeled ThentosError) (ThentosLabeled a)
 
-type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
-type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
+type ThentosUpdate' db e a = EitherT e (StateT  db Identity) a
+type ThentosQuery'  db e a = EitherT e (ReaderT db Identity) a
 
 
 -- * plumbing
 
-liftThentosQuery :: forall e a . ThentosQuery' e a -> ThentosUpdate' e a
+liftThentosQuery :: forall db e a . (AsDb db) => ThentosQuery' db e a -> ThentosUpdate' db e a
 liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
     (, state) <$> runEitherT thentosQuery `runReaderT` state
 
@@ -89,11 +89,13 @@ liftThentosQuery thentosQuery = EitherT $ StateT $ \ state ->
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
 --
-runThentosUpdate :: forall a . Show a => ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdate :: forall db a . (AsDb db, Show a)
+      => ThentosClearance -> ThentosUpdate db a -> Update db (Either ThentosError a)
 runThentosUpdate = runThentosUpdateWithLabel thentosDenied
 
 -- | This is to 'Query' what 'runThentosUpdate' is to 'Update'.
-runThentosQuery :: forall a . Show a => ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQuery :: forall db a . (AsDb db, Show a)
+    => ThentosClearance -> ThentosQuery db a -> Query db (Either ThentosError a)
 runThentosQuery = runThentosQueryWithLabel thentosDenied
 
 -- | Like 'runThentosUpdate', but with override label.
@@ -115,8 +117,8 @@ runThentosQuery = runThentosQueryWithLabel thentosDenied
 -- Solution: This function takes an extra argument of type
 -- 'ThentosLabel' and check clearance against the 'glb' of that label
 -- and the one set by the transaction.
-runThentosUpdateWithLabel :: forall a . Show a
-      => ThentosLabel -> ThentosClearance -> ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdateWithLabel :: forall db a . (AsDb db, Show a)
+      => ThentosLabel -> ThentosClearance -> ThentosUpdate db a -> Update db (Either ThentosError a)
 runThentosUpdateWithLabel overrideLabel clearance action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
@@ -126,8 +128,8 @@ runThentosUpdateWithLabel overrideLabel clearance action = do
             checkClearance (show result) clearance (glb overrideLabel label) (put state' >> return (Right result))
 
 -- | This is to 'Query' what 'runThentosUpdateWithLabel' is to 'Update'.
-runThentosQueryWithLabel :: forall a . Show a
-      => ThentosLabel -> ThentosClearance -> ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQueryWithLabel :: forall db a . (AsDb db, Show a)
+      => ThentosLabel -> ThentosClearance -> ThentosQuery db a -> Query db (Either ThentosError a)
 runThentosQueryWithLabel overrideLabel clearance action = do
     state <- ask
     case runIdentity $ runReaderT (runEitherT action) state of
