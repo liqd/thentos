@@ -206,7 +206,6 @@ trans_confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosUpdate 
 trans_confirmUserEmailChange now token = do
     emailChangeTokens <- gets (^. dbEmailChangeTokens)
     case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
-        -- FIXME: what should the label for the error case be?
         (Nothing, _) -> throwDb thentosPublic NoSuchToken
         (Just (timestamp, uid, email), remainingRequests) -> do
             modify $ dbEmailChangeTokens .~ remainingRequests
