@@ -183,6 +183,14 @@ trans_addUsers (u:us) = do
     ThentosLabeled l' uids <- trans_addUsers us
     returnDb (lub l l') (uid:uids)
 
+
+withExpiration :: TimeStamp -> ThentosUpdate (a, TimeStamp) -> ThentosUpdate a
+withExpiration now action = do
+    ThentosLabeled l (result, tokenCreationTime) <- action
+    if fromTimeStamp tokenCreationTime .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
+        then throwDb l NoSuchToken
+        else returnDb l result
+
 -- | Add a password reset token to the DB. Return the user whose password this
 -- token can change.
 trans_addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User
@@ -195,6 +203,7 @@ trans_addPasswordResetToken timestamp email token = do
             modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
             returnDb label user
 
+-- FIXME: don't intersperse password and email update functions
 trans_addUserEmailChangeRequest ::
     TimeStamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
 trans_addUserEmailChangeRequest timestamp uid email token = do
@@ -203,36 +212,33 @@ trans_addUserEmailChangeRequest timestamp uid email token = do
     returnDb label ()
 
 trans_confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosUpdate ()
-trans_confirmUserEmailChange now token = do
+trans_confirmUserEmailChange now token = withExpiration now $ do
     emailChangeTokens <- gets (^. dbEmailChangeTokens)
     case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
         (Nothing, _) -> throwDb thentosPublic NoSuchToken
         (Just (timestamp, uid, email), remainingRequests) -> do
             modify $ dbEmailChangeTokens .~ remainingRequests
-            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb thentosPublic NoSuchToken
-                else trans_updateUserField uid (UpdateUserFieldEmail email)
+            ThentosLabeled l () <- trans_updateUserField uid (UpdateUserFieldEmail email)
+            returnDb l ((), timestamp)
+--FIXME: let configifier set the expiration period
 
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
 trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
-trans_resetPassword now token newPass = do
+trans_resetPassword now token newPass = withExpiration now $ do
     let label = thentosPublic
     resetTokens <- gets (^. dbPwResetTokens)
     case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
         (Nothing, _) -> throwDb label NoSuchToken
         (Just (timestamp, uid), newResetTokens) -> do
             modify $ dbPwResetTokens .~ newResetTokens
-            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb label NoSuchToken
-                else do
-                    mUser <- gets $ Map.lookup uid . (^. dbUsers)
-                    case mUser of
-                        Just user -> do
-                            let user' = userPassword .~ newPass $ user
-                            ThentosLabeled label' () <- writeUser uid user'
-                            returnDb (lub label label')  ()
-                        Nothing -> throwDb label NoSuchToken
+            mUser <- gets $ Map.lookup uid . (^. dbUsers)
+            case mUser of
+                Just user -> do
+                    let user' = userPassword .~ newPass $ user
+                    ThentosLabeled label' () <- writeUser uid user'
+                    returnDb (lub label label')  ((), timestamp)
+                Nothing -> throwDb label NoSuchToken
 
 resetTokenExpiryPeriod :: Timeout
 resetTokenExpiryPeriod = Timeout 3600
