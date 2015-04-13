@@ -33,14 +33,13 @@ import Test.Util
 
 
 tests :: IO ()
-tests = hspec spec
+tests = hspec spec >> hspec updateSpec
 
 spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)"
            . before setupTestServerFull . after teardownTestServerFull $ do
     createUser
     resetPassword
-    updateSelf
     logIntoThentos
     logOutOfThentos
     serviceCreate
@@ -50,6 +49,12 @@ spec = describe "selenium (consult README.md if this test fails)"
     logIntoService
     logOutOfService
     browseMyServices
+
+updateSpec :: Spec
+updateSpec =
+    describe "selenium (consult README.md if this test fails)"
+    . before setupTestServerFull . after teardownTestServerFull $
+        updateSelf
 
 
 createUser :: SpecWith TestServerFull
@@ -120,8 +125,8 @@ updateSelf = describe "update self" $ do
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
-        _fill "edit.name" newSelfName
-        _click "edit_user_submit"
+        _fill "update.name" newSelfName
+        _click "update_user_submit"
         _check st ((`shouldBe` UserName newSelfName) . (^. userName))
 
     -- FIXME: test with new user name that is already in use.
@@ -132,8 +137,9 @@ updateSelf = describe "update self" $ do
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
-        _fill "edit.password1" newSelfPass
-        _fill "edit.password2" newSelfPass
+        _fill "update_password.old_password" selfPass
+        _fill "update_password.new_password1" newSelfPass
+        _fill "update_password.new_password2" newSelfPass
         _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
 
     -- FIXME: test failure cases.  same restrictions apply as in
