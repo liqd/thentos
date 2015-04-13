@@ -18,10 +18,11 @@ import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
-import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
+import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
+import Data.Typeable (Proxy(Proxy), typeOf)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
 import LIO.Label (Label, canFlowTo, glb, lub)
@@ -32,9 +33,21 @@ import System.Log.Logger (Priority(INFO))
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
 import System.Log.Missing (logger)
+
+
+-- * aux
+
+putCopyViaShowRead :: (Show a) => a -> Contained Cereal.Put
+putCopyViaShowRead = contain . safePut . show
+
+getCopyViaShowRead :: forall a . (Typeable a, Read a) => Contained (Cereal.Get a)
+getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . readMay $ raw
+  where
+    _fail raw = fail $ "getCopyViaShowRead: no parse for " ++ show (raw, typeOf (Proxy :: Proxy a))
 
 
 -- * db
@@ -89,7 +102,7 @@ newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass
 
 instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
-    getCopy = contain $ safeGet >>= return . HashedSecret . Scrypt.EncryptedPass
+    getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
@@ -257,21 +270,15 @@ data ThentosLabeled t =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Functor)
 
-instance (SafeCopy t, Show t, Read t) => SafeCopy (ThentosLabeled t)
-  where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy ThentosLabeled: no parse" ++ show raw) return . readMay $ raw
+instance (SafeCopy t, Show t, Read t, Typeable t) => SafeCopy (ThentosLabeled t)
+  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
 
 -- | Wrapper for lio's 'DCLabel' to avoid orphan instances.
 newtype ThentosLabel = ThentosLabel { fromThentosLabel :: DCLabel }
   deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosLabel
-  where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy ThentosLabel: no parse" ++ show raw) return . readMay $ raw
+  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
 
 instance Label ThentosLabel where
     lub (ThentosLabel l) (ThentosLabel l') = ThentosLabel $ lub l l'
@@ -282,10 +289,7 @@ newtype ThentosClearance = ThentosClearance { fromThentosClearance :: DCLabel }
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosClearance
-  where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy DbError: no parse" ++ show raw) return . readMay $ raw
+  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
 
 instance Label ThentosClearance where
     lub (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ lub l l'

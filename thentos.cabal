@@ -68,6 +68,7 @@ library
     , blaze-html
     , bytestring
     , case-insensitive
+    , cereal
     , configifier >= 0.0.3
     , containers
     , crypto-random

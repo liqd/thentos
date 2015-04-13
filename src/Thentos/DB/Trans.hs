@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE DeriveDataTypeable                       #-}
+{-# LANGUAGE MultiWayIf                               #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TemplateHaskell                          #-}
@@ -72,46 +73,16 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (find, (\\), foldl')
-import Data.Maybe (isJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 import Data.Thyme.Time ()
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Thentos.DB.Core
 import Thentos.Types
-
-
--- * DB invariants
-
-checkAllDbInvs :: ThentosLabel -> UserId -> User -> ThentosQuery ()
-checkAllDbInvs label uid user = checkDbInvs label $
-    dbInvUserAspectUnique UserEmailAlreadyExists uid user (^. userEmail) :
-    dbInvUserAspectUnique UserNameAlreadyExists uid user (^. userName) :
-    []
-
-checkDbInvs :: ThentosLabel -> [DB -> Either ThentosError ()] -> ThentosQuery ()
-checkDbInvs label invs = do
-    let decide []           = returnDb label ()
-        decide (Left e:_)   = throwDb label e
-        decide (Right _:es) = decide es
-
-    db <- ask
-    decide $ fmap ($ db) invs
-
--- | This function builds a set of the aspects of all users on the
--- fly.  This may or may not be bad for performance.
-dbInvUserAspectUnique :: (Ord aspect) => ThentosError -> UserId -> User -> (User -> aspect) -> DB -> Either ThentosError ()
-dbInvUserAspectUnique errorMsg uid user toAspect db =
-    if length vs == length vs'
-        then Right ()
-        else Left errorMsg
-  where
-    vs = map toAspect . Map.elems . Map.insert uid user $ db ^. dbUsers
-    vs' = Set.toList . Set.fromList $ vs
 
 
 -- * event functions
@@ -174,13 +145,10 @@ pure_lookupUserByEmail db email =
 trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
 trans_addUnconfirmedUser token user = do
     let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
-    db <- get
-    if (emailAddressExists (user ^. userEmail) db)
-        then throwDb label UserEmailAlreadyExists
-        else do
-            uid <- freshUserId
-            modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
-            returnDb label (uid, token)
+    ThentosLabeled label' () <- liftThentosQuery $ assertUser label Nothing user
+    uid <- freshUserId
+    modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
+    returnDb (lub label label') (uid, token)
 
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
@@ -201,7 +169,7 @@ trans_finishUserRegistration token = do
 trans_addUser :: User -> ThentosUpdate UserId
 trans_addUser user = do
     uid <- freshUserId
-    ThentosLabeled label () <- writeUser uid user
+    ThentosLabeled label () <- liftThentosQuery (assertUser thentosPublic Nothing user) >> writeUser uid user
     returnDb label uid
 
 -- | Write a list of new users to DB.  Return list of fresh user ids.
@@ -260,8 +228,8 @@ trans_resetPassword now token newPass = do
                     case mUser of
                         Just user -> do
                             let user' = userPassword .~ newPass $ user
-                            _ <- writeUser uid user'
-                            returnDb label ()
+                            ThentosLabeled label' () <- writeUser uid user'
+                            returnDb (lub label label')  ()
                         Nothing -> throwDb label NoSuchToken
 
 resetTokenExpiryPeriod :: Timeout
@@ -282,16 +250,23 @@ trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
 trans_updateUserField uid op = trans_updateUserFields uid [op]
 
 trans_updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosUpdate ()
-trans_updateUserFields uid ops = do
-    let runOp :: UpdateUserFieldOp -> User -> User
-        runOp (UpdateUserFieldName n)          = userName .~ n
-        runOp (UpdateUserFieldEmail e)         = userEmail .~ e
-        runOp (UpdateUserFieldAddService sid)  = userLogins %~ (sid:)
-        runOp (UpdateUserFieldDropService sid) = userLogins %~ filter (/= sid)
-        runOp (UpdateUserFieldPassword p)      = userPassword .~ p
+trans_updateUserFields uid freeOps = do
+    let runOp :: UpdateUserFieldOp -> (User -> User, Bool)
+        runOp (UpdateUserFieldName n)          = (userName .~ n, True)
+        runOp (UpdateUserFieldEmail e)         = (userEmail .~ e, True)
+        runOp (UpdateUserFieldAddService sid)  = (userLogins %~ (sid:), False)
+        runOp (UpdateUserFieldDropService sid) = (userLogins %~ filter (/= sid), False)
+        runOp (UpdateUserFieldPassword p)      = (userPassword .~ p, False)
 
-    ThentosLabeled label  (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    ThentosLabeled label' ()        <- writeUser uid $ foldl' (flip runOp) user ops
+        ops :: [(User -> User, Bool)]
+        ops = runOp <$> freeOps
+
+    ThentosLabeled label (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    let user' = foldl' (flip fst) user ops
+    _ <- if or $ snd <$> ops
+            then liftThentosQuery $ assertUser thentosPublic (Just uid) user'
+            else returnDb thentosPublic ()
+    ThentosLabeled label' () <- writeUser uid user'
     returnDb (lub label label') ()
 
 -- | Delete user with given user id.  If user does not exist, throw an
@@ -311,14 +286,18 @@ trans_deleteUser uid = do
 writeUser :: UserId -> User -> ThentosUpdate ()
 writeUser uid user = do
     let label = RoleAdmin \/ RoleOwnsUsers \/ UserA uid =%% RoleAdmin /\ RoleOwnsUsers /\ UserA uid
-    ThentosLabeled _ () <- liftThentosQuery $ checkAllDbInvs label uid user
     modify $ dbUsers %~ Map.insert uid user
     returnDb label ()
 
-emailAddressExists :: UserEmail -> DB -> Bool
-emailAddressExists address db =
-    let userEmails = map (^. userEmail) . Map.elems $ db ^. dbUsers in
-    address `elem` userEmails
+assertUser :: ThentosLabel -> Maybe UserId -> User -> ThentosQuery ()
+assertUser label mUid user = ask >>= \ db ->
+    if | userFacetExists (^. userName)  mUid user db -> throwDb label UserNameAlreadyExists
+       | userFacetExists (^. userEmail) mUid user db -> throwDb label UserEmailAlreadyExists
+       | True -> returnDb label ()
+
+userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
+userFacetExists facet ((/=) -> notOwnUid) user db =
+    (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
 
 
 -- ** services
@@ -426,8 +405,8 @@ trans_lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosUpdate 
 trans_lookupSession mNow tok = lookupSessionWithMaybeService Nothing mNow tok
 
 
--- | Like 'trans_lookupSession', but accepts an extra list of
--- clearance items.  This is required for service login checks by the
+-- | Like 'trans_lookupSession', but accepts an extra 'ServiceId' as
+-- first argument.  This is required for service login checks by the
 -- service.
 lookupSessionWithMaybeService :: Maybe ServiceId -> Maybe (TimeStamp, Bool) -> SessionToken
       -> ThentosUpdate (SessionToken, Session)
@@ -649,19 +628,17 @@ pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
 -- accumulate and intersect labels on the way through complex
 -- transactions.)
 assertAgent :: Agent -> ThentosQuery ()
-assertAgent agent = do
-    let label = thentosDenied
+assertAgent = f
+  where
+    label = thentosDenied
 
-        f :: Agent -> ThentosQuery ()
-        f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
-        f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
+    f :: Agent -> ThentosQuery ()
+    f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
+    f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
 
-        g :: Maybe a -> ThentosQuery ()
-        g mb = if isJust mb
-            then returnDb label ()
-            else throwDb label NoSuchUser
-
-    f agent
+    g :: Maybe a -> ThentosQuery ()
+    g (Just _) = returnDb label ()
+    g Nothing  = throwDb label NoSuchUser
 
 
 -- ** misc

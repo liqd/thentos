@@ -15,10 +15,10 @@
 
 module ThentosSpec where
 
+import Control.Lens ((.~))
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
-import Control.Lens ((.~))
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
 import Thentos.Api
@@ -54,8 +54,12 @@ spec = do
         u <- query' st $ LookupUser uid allowEverything
         u `shouldBe` Left NoSuchUser
 
-      it "guarantee that email addresses are unique" $ \ (st, _, _) -> do
-        result <- update' st $ AddUser user1 allowEverything
+      it "guarantee that user names are unique" $ \ (st, _, _) -> do
+        result <- update' st $ AddUser (userEmail .~ (UserEmail "new@one.com") $ user1) allowEverything
+        result `shouldBe` Left UserNameAlreadyExists
+
+      it "guarantee that user email addresses are unique" $ \ (st, _, _) -> do
+        result <- update' st $ AddUser (userName .~ (UserName "newone") $ user1) allowEverything
         result `shouldBe` Left UserEmailAlreadyExists
 
     describe "DeleteUser" $ do
@@ -88,7 +92,7 @@ spec = do
         result `shouldBe` Right (map UserId [3, 4, 5])
 
       it "rolls back in case of error (adds all or nothing)" $ \ (st, _, _) -> do
-        Left UserEmailAlreadyExists <- update' st $ AddUsers [user4, user3, user3] allowEverything
+        Left UserNameAlreadyExists <- update' st $ AddUsers [user4, user3, user3] allowEverything
         result <- query' st $ AllUserIds allowEverything
         result `shouldBe` Right (map UserId [0, 1, 2])
 
