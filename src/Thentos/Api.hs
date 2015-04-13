@@ -235,7 +235,6 @@ checkPassword username password = do
             then Just (uid, user)
             else Nothing
 
--- FIXME: email change requests should expire
 requestUserEmailChange :: CPRG r =>
     UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
 requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
@@ -246,10 +245,18 @@ requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
     liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
     return ()
 
+-- | Look up the given confirmation token and updates the user's email address
+-- iff 1) the token exists and 2) the token belongs to the user and 3) the token
+-- has not expired. If any of these conditions don't apply, throw
+-- 'NoSuchToken' to avoid leaking information.
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
 confirmUserEmailChange token = do
     now <- TimeStamp <$> liftIO getCurrentTime
-    updateAction $ ConfirmUserEmailChange now token
+    catchAction
+        (updateAction $ ConfirmUserEmailChange now token)
+        $ \err -> case err of
+            PermissionDenied _ _ _ -> lift (left NoSuchToken)
+            e                      -> lift (left e)
 
 getUserClearance :: UserId -> Action r ThentosClearance
 getUserClearance uid = do
