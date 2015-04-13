@@ -212,7 +212,7 @@ trans_confirmUserEmailChange now token = do
             modify $ dbEmailChangeTokens .~ remainingRequests
             if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
                 then throwDb thentosPublic NoSuchToken
-                else  trans_updateUserField uid (UpdateUserFieldEmail email)
+                else trans_updateUserField uid (UpdateUserFieldEmail email)
 
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
