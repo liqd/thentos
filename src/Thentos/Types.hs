@@ -337,7 +337,7 @@ showThentosError BadAuthenticationHeaders             = return (400, "bad authen
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-showThentosError (NoSuchToken)                   = return (404, "no such token")
+showThentosError (NoSuchToken)                        = return (404, "no such token")
 
 
 -- * boilerplate

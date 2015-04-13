@@ -243,8 +243,6 @@ trans_confirmUserEmailChange token = do
             modify $ dbEmailChangeTokens .~ remainingRequests
             trans_updateUserField uid (UpdateUserFieldEmail email)
 
-
-
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
 trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
