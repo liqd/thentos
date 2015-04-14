@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns           #-}
 
 module Thentos.Frontend.Handlers where
 
@@ -145,13 +145,10 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
     case result of
         Nothing -> blaze $ userUpdatePage userView emailView passwordView
         Just newEmail -> do
-            config :: ThentosConfig <- gets (^. cfg)
             feConfig <- gets (^. frontendCfg)
-            let smtpConf = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
             result' <- snapRunAction' clearance $
                 requestUserEmailChange uid newEmail
                                        (urlEmailChangeConfirm feConfig)
-                                       smtpConf
             case result' of
                 Right () -> blaze emailSentPage
                 Left UserEmailAlreadyExists -> blaze emailSentPage

@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs                                    #-}
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -51,9 +52,10 @@ import Control.Monad.Trans.Reader (ReaderT(ReaderT), ask, runReaderT)
 import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromMaybe)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, LT)
-import Data.Thyme.Time ()
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
@@ -201,8 +203,10 @@ addUnconfirmedUser userData = do
 
 confirmNewUser :: ConfirmationToken -> Action (MVar r) UserId
 confirmNewUser token = do
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["user_reg_expiration"])
     now <- TimeStamp <$> liftIO getCurrentTime
-    updateAction $ FinishUserRegistration now token
+    updateAction $ FinishUserRegistration now expiryPeriod token
 
 addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
 addPasswordResetToken email = do
@@ -214,8 +218,10 @@ addPasswordResetToken email = do
 resetPassword :: PasswordResetToken -> UserPass -> Action r ()
 resetPassword token password = do
     now <- TimeStamp <$> liftIO getCurrentTime
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
     hashedPassword <- hashUserPass password
-    updateAction $ ResetPassword now token hashedPassword
+    updateAction $ ResetPassword now expiryPeriod token hashedPassword
 
 changePassword :: UserId -> UserPass -> UserPass -> Action r ()
 changePassword uid old new = do
@@ -242,12 +248,14 @@ checkPassword username password = do
             else Nothing
 
 requestUserEmailChange :: CPRG r =>
-    UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
-requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
+    UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
+requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
+    ((_, _, config), _) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ AddUserEmailChangeRequest now uid newEmail tok
     let callbackUrl = callbackUrlBuilder tok
+        smtpConfig = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
     liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
     return ()
 
@@ -258,8 +266,10 @@ requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
 confirmUserEmailChange token = do
     now <- TimeStamp <$> liftIO getCurrentTime
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["email_change_expiration"])
     catchAction
-        (updateAction $ ConfirmUserEmailChange now token)
+        (updateAction $ ConfirmUserEmailChange now expiryPeriod token)
         $ \err -> case err of
             PermissionDenied _ _ _ -> lift (left NoSuchToken)
             e                      -> lift (left e)
