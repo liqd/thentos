@@ -20,6 +20,7 @@ module Thentos.Api
   , updateAction
   , queryAction
   , addUnconfirmedUser
+  , confirmNewUser
   , addPasswordResetToken
   , getUserClearance
   , changePassword
@@ -191,12 +192,17 @@ freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 -- ** users
 
--- FIXME: unconfirmed users should expire after some time
 addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
+    now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshConfirmationToken
     user <- makeUserFromFormData userData
-    updateAction $ AddUnconfirmedUser tok user
+    updateAction $ AddUnconfirmedUser now tok user
+
+confirmNewUser :: ConfirmationToken -> Action (MVar r) UserId
+confirmNewUser token = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ FinishUserRegistration now token
 
 addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
 addPasswordResetToken email = do

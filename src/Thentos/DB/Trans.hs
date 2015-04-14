@@ -142,28 +142,28 @@ pure_lookupUserByEmail db email =
 -- | Write a new unconfirmed user (i.e. one whose email address we haven't
 -- confirmed yet) to DB. Unlike addUser, this operation does not ensure
 -- uniqueness of email adresses.
-trans_addUnconfirmedUser :: ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
-trans_addUnconfirmedUser token user = do
+trans_addUnconfirmedUser :: TimeStamp -> ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
+trans_addUnconfirmedUser now token user = do
     let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     ThentosLabeled label' () <- liftThentosQuery $ assertUser label Nothing user
     uid <- freshUserId
-    modify $ dbUnconfirmedUsers %~ Map.insert token (uid, user)
+    modify $ dbUnconfirmedUsers %~ Map.insert token (now, uid, user)
     returnDb (lub label label') (uid, token)
 
 -- | Note on the label for this transaction: If somebody has the
 -- confirmation token, we assume that she is authenticated.  Since
 -- 'makeThentosClearance' does not check for confirmation tokens, this
 -- transaction is publicly accessible.
-trans_finishUserRegistration :: ConfirmationToken -> ThentosUpdate UserId
-trans_finishUserRegistration token = do
+trans_finishUserRegistration :: TimeStamp -> ConfirmationToken -> ThentosUpdate UserId
+trans_finishUserRegistration now token = withExpiration now $ do
     let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
         Nothing -> throwDb label NoSuchPendingUserConfirmation
-        Just (uid, user) -> do
+        Just (timestamp, uid, user) -> do
             modify $ dbUnconfirmedUsers %~ Map.delete token
             ThentosLabeled label' () <- writeUser uid user
-            returnDb (lub label label') uid
+            returnDb (lub label label') (uid, timestamp)
 
 -- | Write new user to DB.  Return the fresh user id.
 trans_addUser :: User -> ThentosUpdate UserId
@@ -195,6 +195,24 @@ trans_addPasswordResetToken timestamp email token = do
             modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
             returnDb label user
 
+-- | Change a password with a given password reset token. Throws an error if
+-- the token does not exist, has already been used or has expired
+trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+trans_resetPassword now token newPass = withExpiration now $ do
+    let label = thentosPublic
+    resetTokens <- gets (^. dbPwResetTokens)
+    case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
+        (Nothing, _) -> throwDb label NoSuchToken
+        (Just (timestamp, uid), newResetTokens) -> do
+            modify $ dbPwResetTokens .~ newResetTokens
+            mUser <- gets $ Map.lookup uid . (^. dbUsers)
+            case mUser of
+                Just user -> do
+                    let user' = userPassword .~ newPass $ user
+                    ThentosLabeled label' () <- writeUser uid user'
+                    returnDb (lub label label')  ((), timestamp)
+                Nothing -> throwDb label NoSuchToken
+
 trans_addUserEmailChangeRequest ::
     TimeStamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
 trans_addUserEmailChangeRequest timestamp uid email token = do
@@ -203,36 +221,15 @@ trans_addUserEmailChangeRequest timestamp uid email token = do
     returnDb label ()
 
 trans_confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosUpdate ()
-trans_confirmUserEmailChange now token = do
+trans_confirmUserEmailChange now token = withExpiration now $ do
     emailChangeTokens <- gets (^. dbEmailChangeTokens)
     case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
         (Nothing, _) -> throwDb thentosPublic NoSuchToken
         (Just (timestamp, uid, email), remainingRequests) -> do
             modify $ dbEmailChangeTokens .~ remainingRequests
-            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb thentosPublic NoSuchToken
-                else trans_updateUserField uid (UpdateUserFieldEmail email)
-
--- | Change a password with a given password reset token. Throws an error if
--- the token does not exist, has already been used or has expired
-trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
-trans_resetPassword now token newPass = do
-    let label = thentosPublic
-    resetTokens <- gets (^. dbPwResetTokens)
-    case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
-        (Nothing, _) -> throwDb label NoSuchToken
-        (Just (timestamp, uid), newResetTokens) -> do
-            modify $ dbPwResetTokens .~ newResetTokens
-            if fromTimeStamp timestamp .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
-                then throwDb label NoSuchToken
-                else do
-                    mUser <- gets $ Map.lookup uid . (^. dbUsers)
-                    case mUser of
-                        Just user -> do
-                            let user' = userPassword .~ newPass $ user
-                            ThentosLabeled label' () <- writeUser uid user'
-                            returnDb (lub label label')  ()
-                        Nothing -> throwDb label NoSuchToken
+            ThentosLabeled l () <- trans_updateUserField uid (UpdateUserFieldEmail email)
+            returnDb l ((), timestamp)
+--FIXME: let configifier set the expiration period
 
 resetTokenExpiryPeriod :: Timeout
 resetTokenExpiryPeriod = Timeout 3600
@@ -650,6 +647,14 @@ trans_snapShot = do
     let label = RoleAdmin =%% False
     ask >>= returnDb label
 
+-- | Token expiration handling
+withExpiration :: TimeStamp -> ThentosUpdate (a, TimeStamp) -> ThentosUpdate a
+withExpiration now action = do
+    ThentosLabeled l (result, tokenCreationTime) <- action
+    if fromTimeStamp tokenCreationTime .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
+        then throwDb l NoSuchToken
+        else returnDb l result
+
 
 -- * event types
 
@@ -667,13 +672,13 @@ lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserBy
 lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
 lookupUserByEmail email clearance = runThentosQuery clearance $ trans_lookupUserByEmail email
 
-addUnconfirmedUser :: ConfirmationToken -> User -> ThentosClearance -> Update DB (Either ThentosError (UserId, ConfirmationToken))
-addUnconfirmedUser token user clearance =
-    runThentosUpdate clearance $ trans_addUnconfirmedUser token user
+addUnconfirmedUser :: TimeStamp -> ConfirmationToken -> User -> ThentosClearance -> Update DB (Either ThentosError (UserId, ConfirmationToken))
+addUnconfirmedUser now token user clearance =
+    runThentosUpdate clearance $ trans_addUnconfirmedUser now token user
 
-finishUserRegistration :: ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
-finishUserRegistration token clearance =
-    runThentosUpdate clearance $ trans_finishUserRegistration token
+finishUserRegistration :: TimeStamp -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
+finishUserRegistration now token clearance =
+    runThentosUpdate clearance $ trans_finishUserRegistration now token
 
 addUser :: User -> ThentosClearance -> Update DB (Either ThentosError UserId)
 addUser user clearance = runThentosUpdate clearance $ trans_addUser user
