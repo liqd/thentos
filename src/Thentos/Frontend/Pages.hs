@@ -320,17 +320,33 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
             H.title $ H.text title
         H.body $ do
             H.h2 $ H.text title
-            H.div . H.table . H.tr . mapM_ (uncurry tabLink) $
-                [ (DashboardTabDetails, [])
-                , (DashboardTabServices, [RoleUser])
-                , (DashboardTabOwnServices, [RoleServiceAdmin])
-                , (DashboardTabUsers, [RoleUserAdmin])
-                , (DashboardTabLogout, [])
-                ]
+            H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
             body
   where
     title :: Text
     title = "Thentos Dashboard"
+
+    tabLink :: DashboardTab -> Html
+    tabLink tab
+        | not available = return ()
+        | isActive tab  = H.td $ H.b linkt
+        | True          = H.td $ H.a ! A.href urlt $ linkt
+      where
+        available :: Bool
+        available = all (`elem` availableRoles) (needsRoles tab)
+
+        linkt :: Html
+        linkt = H.text . linkText $ tab
+
+        urlt :: H.AttributeValue
+        urlt = H.textValue $ linkUrl tab
+
+    needsRoles :: DashboardTab -> [Role]
+    needsRoles DashboardTabDetails = []
+    needsRoles DashboardTabServices = [RoleUser]
+    needsRoles DashboardTabOwnServices = [RoleServiceAdmin]
+    needsRoles DashboardTabUsers = [RoleUserAdmin]
+    needsRoles DashboardTabLogout = []
 
     linkText :: DashboardTab -> Text
     linkText DashboardTabDetails     = "details"
@@ -345,21 +361,6 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
     linkUrl DashboardTabOwnServices = "/ownservices"   -- FIXME: not implemented
     linkUrl DashboardTabUsers       = "/users"         -- FIXME: not implemented
     linkUrl DashboardTabLogout      = "/logout_thentos"
-
-    tabLink :: DashboardTab -> [Role] -> Html
-    tabLink tab needsRoles
-        | not available = return ()
-        | isActive tab  = H.td $ H.b linkt
-        | True          = H.td $ H.a ! A.href urlt $ linkt
-      where
-        available :: Bool
-        available = all (`elem` availableRoles) needsRoles
-
-        linkt :: Html
-        linkt = H.text . linkText $ tab
-
-        urlt :: H.AttributeValue
-        urlt = H.textValue $ linkUrl tab
 
 
 -- * auxillary functions
