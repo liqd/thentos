@@ -95,7 +95,7 @@ userCreateConfirm = do
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
-            eResult <- update $ FinishUserRegistration token clearance
+            eResult <- snapRunAction' clearance $ confirmNewUser token
             case eResult of
                 Right uid -> blaze $ userCreatedPage uid
                 Left e@NoSuchPendingUserConfirmation -> do

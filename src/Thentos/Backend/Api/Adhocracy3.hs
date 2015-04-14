@@ -314,7 +314,7 @@ activate :: ActivationRequest -> RestAction RequestResult
 activate (ActivationRequest p) = logActionError $ do
     logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     ctok :: ConfirmationToken <- confirmationTokenFromPath p
-    uid  :: UserId            <- updateAction $ FinishUserRegistration ctok
+    uid  :: UserId            <- confirmNewUser ctok
     stok :: SessionToken      <- startSessionNoPass (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
