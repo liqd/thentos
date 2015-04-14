@@ -363,6 +363,11 @@ _sessionAndUserIdFromToken tok = do
         UserA uid -> return (session, uid)
         ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
 
+-- | FIXME: 'addServiceLogin' and 'dropServiceLogin' still have the
+-- old 'is logged in'-semantics.  we need to switch to the new
+-- semantics where the transactions used here register users with
+-- services, and there need to be separate transactions for login,
+-- logout.
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
