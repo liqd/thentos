@@ -53,3 +53,12 @@ watch:
 	@echo "\n\npress ^D to shut down selenium.\n\n\n"
 	cat > /dev/null
 	make kill
+
+# (on debian: apt-get install xvfb)
+# after you run this, set DISPLAY=:1 and restart selenium.
+xvfb:
+        killall Xvfb || true
+        sleep 0.3
+        killall -9 Xvfb || true
+        sleep 0.2
+        nohup Xvfb :1 > log/Xvfb 2>&1 &
