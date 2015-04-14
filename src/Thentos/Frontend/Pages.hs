@@ -65,6 +65,9 @@ indexPage = do
             H.li . (H.a ! A.href "/service/create") $ "create service"
             H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
 
+
+-- * register
+
 userCreatePage :: View Html -> Html
 userCreatePage v = H.docTypeHtml $ do
     H.head $ do
@@ -109,6 +112,9 @@ userCreatedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
+
+-- * update user
+
 userUpdatePage :: View Html -> View Html -> View Html -> Html
 userUpdatePage userView emailView pwView = H.docTypeHtml $ do
     H.head $ H.title "Update user data"
@@ -137,7 +143,7 @@ userUpdatePage userView emailView pwView = H.docTypeHtml $ do
                 inputText "email" emailView
             inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
--- this is a bit overkill for now, but easily extensible for new user data fields
+-- | This is a bit overkill for now, but easily extensible for new user data fields.
 userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
 userUpdateForm = (validate validateUserData) $
     "name"      .: text Nothing
@@ -170,6 +176,9 @@ passwordUpdateForm = (validate newPasswordsMatch) $ (,,)
 emailUpdateForm :: Monad m => Form Html m UserEmail
 emailUpdateForm =
     UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing)
+
+
+-- * services
 
 serviceCreatePage :: View Html -> Html
 serviceCreatePage v = H.docTypeHtml $ do
@@ -218,6 +227,9 @@ loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
                     inputPassword "password" v
                 inputSubmit "Log in"
 
+
+-- * login (thentos)
+
 loginThentosPage :: View Html -> Html
 loginThentosPage v = do
     H.docTypeHtml $ do
@@ -238,12 +250,18 @@ loginThentosForm = (,)
     <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
     <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
 
+
+-- * logout
+
 logoutThentosPage :: Html
 logoutThentosPage = do
     H.head $ H.title "Log out"
     H.body $ do
         H.form ! A.method "POST" ! A.action "logout_thentos" $
             H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
+
+
+-- * forgot password
 
 resetPasswordRequestPage :: View Html -> Html
 resetPasswordRequestPage v =
@@ -287,6 +305,9 @@ resetPasswordForm = (validate validatePass) $
 
 resetPasswordRequestedPage :: Html
 resetPasswordRequestedPage = H.string $ "Please check your email"
+
+
+-- * misc
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
