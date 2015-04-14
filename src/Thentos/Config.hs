@@ -53,6 +53,9 @@ type ThentosConfig' =
         -- FIXME: make proxies a map keyed by service ids
   :*>       ("smtp"         :> SmtpConfig')       :>: "Sending email."
   :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if the user table is empty.")
+  :*>       ("user_reg_expiration" :> Timeout     :>: "User registration expiration period")
+  :*>       ("pw_reset_expiration" :> Timeout     :>: "Password registration token expiration period")
+  :*>       ("email_change_expiration" :> Timeout :>: "Email-change-token expiration period")
 
 defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
 defaultThentosConfig =
@@ -62,6 +65,9 @@ defaultThentosConfig =
   :*> NothingO
   :*> Just defaultSmtpConfig
   :*> NothingO
+  :*> Just (Timeout 3600)
+  :*> Just (Timeout 3600)
+  :*> Just (Timeout 3600)
 
 type HttpConfig = Tagged (NoDesc (ToConfigCode HttpConfig'))
 type HttpConfig' =

@@ -185,6 +185,7 @@ newtype SessionToken = SessionToken { fromSessionToken :: ST }
 instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 
+-- FIXME: timestamp is one word, does not need camel case. status quo is inconsisten with Timeout
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 

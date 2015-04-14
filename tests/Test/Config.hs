@@ -41,6 +41,9 @@ testThentosConfig = Tagged $
   :*> NothingO
   :*> Id (fromTagged testSmtpConfig)
   :*> NothingO
+  :*> Id (Timeout 3600)
+  :*> Id (Timeout 3600)
+  :*> Id (Timeout 3600)
 
 testFeConfig :: HttpConfig
 testFeConfig = Tagged $

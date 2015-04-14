@@ -154,8 +154,8 @@ trans_addUnconfirmedUser now token user = do
 -- confirmation token, we assume that she is authenticated.  Since
 -- 'makeThentosClearance' does not check for confirmation tokens, this
 -- transaction is publicly accessible.
-trans_finishUserRegistration :: TimeStamp -> ConfirmationToken -> ThentosUpdate UserId
-trans_finishUserRegistration now token = withExpiration now $ do
+trans_finishUserRegistration :: TimeStamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
+trans_finishUserRegistration now expiry token = withExpiration now expiry $ do
     let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
     users <- gets (^. dbUnconfirmedUsers)
     case Map.lookup token users of
@@ -197,8 +197,8 @@ trans_addPasswordResetToken timestamp email token = do
 
 -- | Change a password with a given password reset token. Throws an error if
 -- the token does not exist, has already been used or has expired
-trans_resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
-trans_resetPassword now token newPass = withExpiration now $ do
+trans_resetPassword :: TimeStamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+trans_resetPassword now expiry token newPass = withExpiration now expiry $ do
     let label = thentosPublic
     resetTokens <- gets (^. dbPwResetTokens)
     case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
@@ -220,8 +220,8 @@ trans_addUserEmailChangeRequest timestamp uid email token = do
     modify $ dbEmailChangeTokens %~ Map.insert token (timestamp, uid, email)
     returnDb label ()
 
-trans_confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosUpdate ()
-trans_confirmUserEmailChange now token = withExpiration now $ do
+trans_confirmUserEmailChange :: TimeStamp -> Timeout -> ConfirmationToken -> ThentosUpdate ()
+trans_confirmUserEmailChange now expiry token = withExpiration now expiry $ do
     emailChangeTokens <- gets (^. dbEmailChangeTokens)
     case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
         (Nothing, _) -> throwDb thentosPublic NoSuchToken
@@ -229,10 +229,6 @@ trans_confirmUserEmailChange now token = withExpiration now $ do
             modify $ dbEmailChangeTokens .~ remainingRequests
             ThentosLabeled l () <- trans_updateUserField uid (UpdateUserFieldEmail email)
             returnDb l ((), timestamp)
---FIXME: let configifier set the expiration period
-
-resetTokenExpiryPeriod :: Timeout
-resetTokenExpiryPeriod = Timeout 3600
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -648,10 +644,10 @@ trans_snapShot = do
     ask >>= returnDb label
 
 -- | Token expiration handling
-withExpiration :: TimeStamp -> ThentosUpdate (a, TimeStamp) -> ThentosUpdate a
-withExpiration now action = do
+withExpiration :: TimeStamp -> Timeout -> ThentosUpdate (a, TimeStamp) -> ThentosUpdate a
+withExpiration now expiryPeriod action = do
     ThentosLabeled l (result, tokenCreationTime) <- action
-    if fromTimeStamp tokenCreationTime .+^ fromTimeout resetTokenExpiryPeriod < fromTimeStamp now
+    if fromTimeStamp tokenCreationTime .+^ fromTimeout expiryPeriod < fromTimeStamp now
         then throwDb l NoSuchToken
         else returnDb l result
 
@@ -676,9 +672,9 @@ addUnconfirmedUser :: TimeStamp -> ConfirmationToken -> User -> ThentosClearance
 addUnconfirmedUser now token user clearance =
     runThentosUpdate clearance $ trans_addUnconfirmedUser now token user
 
-finishUserRegistration :: TimeStamp -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
-finishUserRegistration now token clearance =
-    runThentosUpdate clearance $ trans_finishUserRegistration now token
+finishUserRegistration :: TimeStamp -> Timeout -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
+finishUserRegistration now expiry token clearance =
+    runThentosUpdate clearance $ trans_finishUserRegistration now expiry token
 
 addUser :: User -> ThentosClearance -> Update DB (Either ThentosError UserId)
 addUser user clearance = runThentosUpdate clearance $ trans_addUser user
@@ -689,14 +685,14 @@ addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
 addUserEmailChangeRequest :: TimeStamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
 addUserEmailChangeRequest now uid email token clearance = runThentosUpdate clearance $ trans_addUserEmailChangeRequest now uid email token
 
-confirmUserEmailChange :: TimeStamp -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
-confirmUserEmailChange now token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange now token
+confirmUserEmailChange :: TimeStamp -> Timeout -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
+confirmUserEmailChange now expiry token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange now expiry token
 
 addPasswordResetToken :: TimeStamp -> UserEmail -> PasswordResetToken -> ThentosClearance -> Update DB (Either ThentosError User)
 addPasswordResetToken timestamp email token clearance = runThentosUpdate clearance $ trans_addPasswordResetToken timestamp email token
 
-resetPassword :: TimeStamp -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
-resetPassword timestamp token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp token newPass
+resetPassword :: TimeStamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
+resetPassword timestamp expiry token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp expiry token newPass
 
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either ThentosError ())
 updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
