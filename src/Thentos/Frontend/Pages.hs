@@ -61,6 +61,7 @@ indexPage = do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
+            H.li . (H.a ! A.href "/dashboard") $ "dashboard"
             H.li . (H.a ! A.href "/login_thentos") $ "login"
             H.li . (H.a ! A.href "/logout_thentos") $ "logout"
             H.li . (H.a ! A.href "/user/create") $ "create user"

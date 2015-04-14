@@ -14,7 +14,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Snap.Blaze (blaze)
-import Snap.Core (ifTop, Method(GET, POST), method)
+import Snap.Core (ifTop, Method(GET, POST), method, redirect')
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
@@ -74,6 +74,7 @@ routes = [ ("", ifTop $ H.index)
          -- (dashboard should probably be a snaplet.  if only for the
          -- routing table and the call to the dashboardPagelet.)
 
+         , ("/dashboard", redirect' "/dashboard/details" 303)
          , ("/dashboard/details", H.dashboardDetails)
 
          , ("test", blaze $ P.dashboardPagelet
