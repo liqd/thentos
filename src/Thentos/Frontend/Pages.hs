@@ -239,10 +239,10 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
     linkText DashboardTabLogout      = "logout"
 
     linkUrl  :: DashboardTab -> Text
-    linkUrl DashboardTabDetails     = "/details"       -- FIXME: not implemented
-    linkUrl DashboardTabServices    = "/services"      -- FIXME: not implemented
-    linkUrl DashboardTabOwnServices = "/ownservices"   -- FIXME: not implemented
-    linkUrl DashboardTabUsers       = "/users"         -- FIXME: not implemented
+    linkUrl DashboardTabDetails     = "/dashboard/details"       -- FIXME: not implemented
+    linkUrl DashboardTabServices    = "/dashboard/services"      -- FIXME: not implemented
+    linkUrl DashboardTabOwnServices = "/dashboard/ownservices"   -- FIXME: not implemented
+    linkUrl DashboardTabUsers       = "/dashboard/users"         -- FIXME: not implemented
     linkUrl DashboardTabLogout      = "/logout_thentos"
 
 

@@ -71,6 +71,11 @@ routes = [ ("", ifTop $ H.index)
          , ("login_service", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
 
+         -- (dashboard should probably be a snaplet.  if only for the
+         -- routing table and the call to the dashboardPagelet.)
+
+         , ("/dashboard/details", H.dashboardDetails)
+
          , ("test", blaze $ P.dashboardPagelet
                  [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin]
                  P.DashboardTabDetails
