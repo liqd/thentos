@@ -4,34 +4,36 @@
 
 module Thentos.Frontend.Pages
     ( indexPage
+
+    , dashboardPagelet
+    , DashboardTab(..)
+    , displayUserPagelet
+    , emailUpdateForm
+    , errorPage
+    , loginServicePage
+    , loginThentosForm
+    , loginThentosPage
+    , logoutThentosPage
+    , notLoggedInPage
+    , passwordUpdateForm
+    , resetPasswordForm
+    , resetPasswordPage
+    , resetPasswordRequestedPage
+    , resetPasswordRequestForm
+    , resetPasswordRequestPage
+    , serviceCreatedPage
+    , serviceCreateForm
+    , serviceCreatePage
+    , userCreatedPage
+    , userCreateForm
     , userCreatePage
     , userCreateRequestedPage
-    , userCreatedPage
-    , serviceCreatePage
-    , serviceCreateForm
-    , serviceCreatedPage
-    , userCreateForm
-    , userUpdatePage
     , userUpdateForm
-    , passwordUpdateForm
-    , emailUpdateForm
-    , loginServicePage
-    , loginThentosPage
-    , loginThentosForm
-    , logoutThentosPage
-    , resetPasswordRequestPage
-    , resetPasswordRequestForm
-    , resetPasswordPage
-    , resetPasswordForm
-    , resetPasswordRequestedPage
-    , errorPage
-    , notLoggedInPage
-
-    , DashboardTab(..)
-    , dashboardPagelet
+    , userUpdatePage
     ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Lens ((^.))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
@@ -59,11 +61,15 @@ indexPage = do
         H.h3 $ do
             "things you can do from here:"
         H.ul $ do
+            H.li . (H.a ! A.href "/dashboard") $ "dashboard"
             H.li . (H.a ! A.href "/login_thentos") $ "login"
             H.li . (H.a ! A.href "/logout_thentos") $ "logout"
             H.li . (H.a ! A.href "/user/create") $ "create user"
             H.li . (H.a ! A.href "/service/create") $ "create service"
             H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
+
+
+-- * register
 
 userCreatePage :: View Html -> Html
 userCreatePage v = H.docTypeHtml $ do
@@ -109,6 +115,166 @@ userCreatedPage uid =
             H.h1 "Added a user!"
             H.pre . H.string $ show uid
 
+
+-- * login (thentos)
+
+loginThentosPage :: View Html -> Html
+loginThentosPage v = do
+    H.docTypeHtml $ do
+        H.head $
+            H.title "Log into thentos"
+        H.body $ do
+            form v "login_thentos" $ do
+                H.p $ do
+                    label "usernamme" v "User name:"
+                    inputText "name" v
+                H.p $ do
+                    label "password" v "Password:"
+                    inputPassword "password" v
+                inputSubmit "Log in" ! A.id "login_submit"
+
+loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
+loginThentosForm = (,)
+    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
+    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+
+
+-- * forgot password
+
+resetPasswordRequestPage :: View Html -> Html
+resetPasswordRequestPage v =
+    H.docTypeHtml $ do
+        H.head $ H.title "Reset your password"
+        H.body $ do
+            form v "reset_password_request" $ do
+                H.p $ do
+                    label "email" v "Email address: "
+                    inputText "email" v
+                inputSubmit "Reset your password"
+
+resetPasswordRequestForm :: Monad m => Form Html m UserEmail
+resetPasswordRequestForm =
+    UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
+
+resetPasswordPage :: Text -> View Html -> Html
+resetPasswordPage reqUrl v =
+    H.docTypeHtml $ do
+        H.head $ H.title "Enter a new password"
+        H.body $ do
+            form v reqUrl $ do
+                H.p $ do
+                    label "password1" v "New password: "
+                    inputPassword "password1" v
+                H.p $ do
+                    label "password2" v "repeat password: "
+                    inputPassword "password2" v
+                inputSubmit "Set your new password"
+
+resetPasswordForm :: Monad m => Form Html m UserPass
+resetPasswordForm = (validate validatePass) $
+    (,)
+      <$> (UserPass <$> "password1" .: check "password must not be empty" nonEmpty (text Nothing))
+      <*> (UserPass <$> "password2" .: check "password must not be empty" nonEmpty (text Nothing))
+  where
+    validatePass :: (UserPass, UserPass) -> Result Html UserPass
+    validatePass (p1, p2) = if p1 == p2
+                                then Success p1
+                                else Error "passwords don't match"
+
+resetPasswordRequestedPage :: Html
+resetPasswordRequestedPage = H.string $ "Please check your email"
+
+
+-- * dashboard frame
+
+data DashboardTab =
+    DashboardTabDetails
+  | DashboardTabServices
+  | DashboardTabOwnServices
+  | DashboardTabUsers
+  | DashboardTabLogout
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
+
+-- | It is the caller's responsibility to make sure that active
+-- dashboard and body correspond.
+dashboardPagelet :: [Role] -> DashboardTab -> Html -> Html
+dashboardPagelet availableRoles ((==) -> isActive) body =
+    H.docTypeHtml $ do
+        H.head $ do
+            H.title $ H.text title
+        H.body $ do
+            H.h2 $ H.text title
+            H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
+            body
+  where
+    title :: Text
+    title = "Thentos Dashboard"
+
+    tabLink :: DashboardTab -> Html
+    tabLink tab
+        | not available = return ()
+        | isActive tab  = H.td $ H.b linkt
+        | True          = H.td $ H.a ! A.href urlt $ linkt
+      where
+        available :: Bool
+        available = all (`elem` availableRoles) (needsRoles tab)
+
+        linkt :: Html
+        linkt = H.text . linkText $ tab
+
+        urlt :: H.AttributeValue
+        urlt = H.textValue $ linkUrl tab
+
+    needsRoles :: DashboardTab -> [Role]
+    needsRoles DashboardTabDetails = []
+    needsRoles DashboardTabServices = [RoleUser]
+    needsRoles DashboardTabOwnServices = [RoleServiceAdmin]
+    needsRoles DashboardTabUsers = [RoleUserAdmin]
+    needsRoles DashboardTabLogout = []
+
+    linkText :: DashboardTab -> Text
+    linkText DashboardTabDetails     = "details"
+    linkText DashboardTabServices    = "services"
+    linkText DashboardTabOwnServices = "own services"
+    linkText DashboardTabUsers       = "users"
+    linkText DashboardTabLogout      = "logout"
+
+    linkUrl  :: DashboardTab -> Text
+    linkUrl DashboardTabDetails     = "/dashboard/details"       -- FIXME: not implemented
+    linkUrl DashboardTabServices    = "/dashboard/services"      -- FIXME: not implemented
+    linkUrl DashboardTabOwnServices = "/dashboard/ownservices"   -- FIXME: not implemented
+    linkUrl DashboardTabUsers       = "/dashboard/users"         -- FIXME: not implemented
+    linkUrl DashboardTabLogout      = "/logout_thentos"
+
+
+-- * update user
+
+displayUserPagelet :: User -> Html
+displayUserPagelet user = do
+    H.table $ do
+        H.tr $ do
+            H.td . H.text $ "name"
+            H.td . H.text $ fromUserName (user ^. userName)
+        H.tr $ do
+            H.td . H.text $ "email"
+            H.td . H.text $ fromUserEmail (user ^. userEmail)
+        H.tr $ do
+            H.td . H.text $ "street"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "postal code"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "city"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "country"
+            H.td . H.text $ "(not implemented)"
+
+    H.p $ H.text "(button: edit)"
+    H.p $ H.text "(button: delete user)"
+    H.p $ H.text "(button: new user)"
+
 userUpdatePage :: View Html -> View Html -> View Html -> Html
 userUpdatePage userView emailView pwView = H.docTypeHtml $ do
     H.head $ H.title "Update user data"
@@ -137,7 +303,7 @@ userUpdatePage userView emailView pwView = H.docTypeHtml $ do
                 inputText "email" emailView
             inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
--- this is a bit overkill for now, but easily extensible for new user data fields
+-- | This is a bit overkill for now, but easily extensible for new user data fields.
 userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
 userUpdateForm = (validate validateUserData) $
     "name"      .: text Nothing
@@ -170,6 +336,9 @@ passwordUpdateForm = (validate newPasswordsMatch) $ (,,)
 emailUpdateForm :: Monad m => Form Html m UserEmail
 emailUpdateForm =
     UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing)
+
+
+-- * services
 
 serviceCreatePage :: View Html -> Html
 serviceCreatePage v = H.docTypeHtml $ do
@@ -218,25 +387,8 @@ loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
                     inputPassword "password" v
                 inputSubmit "Log in"
 
-loginThentosPage :: View Html -> Html
-loginThentosPage v = do
-    H.docTypeHtml $ do
-        H.head $
-            H.title "Log into thentos"
-        H.body $ do
-            form v "login_thentos" $ do
-                H.p $ do
-                    label "usernamme" v "User name:"
-                    inputText "name" v
-                H.p $ do
-                    label "password" v "Password:"
-                    inputPassword "password" v
-                inputSubmit "Log in" ! A.id "login_submit"
 
-loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
-loginThentosForm = (,)
-    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
+-- * logout
 
 logoutThentosPage :: Html
 logoutThentosPage = do
@@ -245,48 +397,8 @@ logoutThentosPage = do
         H.form ! A.method "POST" ! A.action "logout_thentos" $
             H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
 
-resetPasswordRequestPage :: View Html -> Html
-resetPasswordRequestPage v =
-    H.docTypeHtml $ do
-        H.head $ H.title "Reset your password"
-        H.body $ do
-            form v "reset_password_request" $ do
-                H.p $ do
-                    label "email" v "Email address: "
-                    inputText "email" v
-                inputSubmit "Reset your password"
 
-resetPasswordRequestForm :: Monad m => Form Html m UserEmail
-resetPasswordRequestForm =
-    UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
-
-resetPasswordPage :: Text -> View Html -> Html
-resetPasswordPage reqUrl v =
-    H.docTypeHtml $ do
-        H.head $ H.title "Enter a new password"
-        H.body $ do
-            form v reqUrl $ do
-                H.p $ do
-                    label "password1" v "New password: "
-                    inputPassword "password1" v
-                H.p $ do
-                    label "password2" v "repeat password: "
-                    inputPassword "password2" v
-                inputSubmit "Set your new password"
-
-resetPasswordForm :: Monad m => Form Html m UserPass
-resetPasswordForm = (validate validatePass) $
-    (,)
-      <$> (UserPass <$> "password1" .: check "password must not be empty" nonEmpty (text Nothing))
-      <*> (UserPass <$> "password2" .: check "password must not be empty" nonEmpty (text Nothing))
-  where
-    validatePass :: (UserPass, UserPass) -> Result Html UserPass
-    validatePass (p1, p2) = if p1 == p2
-                                then Success p1
-                                else Error "passwords don't match"
-
-resetPasswordRequestedPage :: Html
-resetPasswordRequestedPage = H.string $ "Please check your email"
+-- * misc
 
 errorPage :: String -> Html
 errorPage errorString = H.string $ "Encountered error: " ++ show errorString
@@ -299,67 +411,6 @@ notLoggedInPage = H.docTypeHtml $ do
         H.p $ "Please go to " <> loginLink <> " and try again."
   where
     loginLink = H.a ! A.href "/login_thentos" $ "login"
-
-
--- * dashboard frame
-
-data DashboardTab =
-    DashboardTabDetails
-  | DashboardTabServices
-  | DashboardTabOwnServices
-  | DashboardTabUsers
-  | DashboardTabLogout
-  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
-
--- | It is the caller's responsibility to make sure that active
--- dashboard and body correspond.
-dashboardPagelet :: [Role] -> DashboardTab -> Html -> Html
-dashboardPagelet availableRoles ((==) -> isActive) body =
-    H.docTypeHtml $ do
-        H.head $ do
-            H.title $ H.text title
-        H.body $ do
-            H.h2 $ H.text title
-            H.div . H.table . H.tr . mapM_ (uncurry tabLink) $
-                [ (DashboardTabDetails, [])
-                , (DashboardTabServices, [RoleUser])
-                , (DashboardTabOwnServices, [RoleServiceAdmin])
-                , (DashboardTabUsers, [RoleUserAdmin])
-                , (DashboardTabLogout, [])
-                ]
-            body
-  where
-    title :: Text
-    title = "Thentos Dashboard"
-
-    linkText :: DashboardTab -> Text
-    linkText DashboardTabDetails     = "details"
-    linkText DashboardTabServices    = "services"
-    linkText DashboardTabOwnServices = "own services"
-    linkText DashboardTabUsers       = "users"
-    linkText DashboardTabLogout      = "logout"
-
-    linkUrl  :: DashboardTab -> Text
-    linkUrl DashboardTabDetails     = "/details"       -- FIXME: not implemented
-    linkUrl DashboardTabServices    = "/services"      -- FIXME: not implemented
-    linkUrl DashboardTabOwnServices = "/ownservices"   -- FIXME: not implemented
-    linkUrl DashboardTabUsers       = "/users"         -- FIXME: not implemented
-    linkUrl DashboardTabLogout      = "/logout_thentos"
-
-    tabLink :: DashboardTab -> [Role] -> Html
-    tabLink tab needsRoles
-        | not available = return ()
-        | isActive tab  = H.td $ H.b linkt
-        | True          = H.td $ H.a ! A.href urlt $ linkt
-      where
-        available :: Bool
-        available = all (`elem` availableRoles) needsRoles
-
-        linkt :: Html
-        linkt = H.text . linkText $ tab
-
-        urlt :: H.AttributeValue
-        urlt = H.textValue $ linkUrl tab
 
 
 -- * auxillary functions

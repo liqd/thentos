@@ -371,3 +371,22 @@ snapRunAction clearanceAbs action = do
 snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
       -> FH (Either ThentosError a)
 snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
+
+
+-- * Dashboard
+
+dashboardDetails :: FH ()
+dashboardDetails = do
+    mUid <- getLoggedInUserId
+    case mUid of
+        Nothing -> redirect' "/login_thentos" 303
+        Just uid -> do
+            eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
+            eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
+            case (eUser, eRoles) of
+                (Right (_, user), Right roles) -> do
+                    blaze
+                        $ dashboardPagelet roles DashboardTabDetails
+                        $ displayUserPagelet user
+                _ -> error "unreachable"
+                     -- FIXME: error handling.  (we need a better approach for this in general!)
