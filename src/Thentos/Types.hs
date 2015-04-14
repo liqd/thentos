@@ -77,9 +77,29 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userGroups   :: [(ServiceId, [Group])]
-      , _userSession  :: !(Maybe SessionToken)
-      , _userLogins   :: [ServiceId]
+      , _userSession  :: !(Maybe SessionToken)  -- ^ thentos session
+      , _userServices :: Map ServiceId ServiceAccount  -- ^ services (with session info)
+      }
+  deriving (Eq, Show, Typeable, Generic)
+
+-- | the data a user maintains about a service they are signed up
+-- with.
+data ServiceAccount =
+    ServiceAccount
+      { _serviceSessionTimeout :: Maybe Timeout
+        -- ^ Nothing when not logged into service.
+      , _serviceAnonymous :: Bool
+        -- ^ Do not give out any information about user beyond session token validity bit.  (not implemented.)
+
+        -- FUTURE WORK: what we actually would want here is
+        -- "something" (type?  function?  something more creative?)
+        -- that can be used as a filter on 'User' and will hide things
+        -- from the service as appropriate.  we also want 'Service' to
+        -- contain a counterpart "something".  and a matcher that
+        -- takes a service "something" and a user "something" and
+        -- computes a compromise (or 'Nothing' if there is a
+        -- conflict).
+
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -106,9 +126,6 @@ instance SafeCopy (HashedSecret a) where
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
-
-newtype Group = Group { fromGroup :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -137,6 +154,7 @@ data Service =
       , _serviceSession     :: !(Maybe SessionToken)
       , _serviceName        :: !ServiceName
       , _serviceDescription :: !ServiceDescription
+      , _serviceGroups      :: Map GroupNode [Group]
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -163,6 +181,20 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
+
+newtype Group = Group { fromGroup :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
+
+data GroupNode =
+        GroupG { fromGroupG :: Group }
+      | GroupU { fromGroupU :: UserId }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
 
 -- * session, timestamp, timeout
@@ -361,11 +393,13 @@ showThentosError (NoSuchToken)                        = return (404, "no such to
 
 makeLenses ''DB
 makeLenses ''User
+makeLenses ''ServiceAccount
 makeLenses ''Session
 makeLenses ''Service
 
 $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''User)
+$(deriveSafeCopy 0 'base ''ServiceAccount)
 $(deriveSafeCopy 0 'base ''Session)
 $(deriveSafeCopy 0 'base ''Service)
 $(deriveSafeCopy 0 'base ''ServiceId)
@@ -378,6 +412,7 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''PasswordResetToken)
 $(deriveSafeCopy 0 'base ''Group)
+$(deriveSafeCopy 0 'base ''GroupNode)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
