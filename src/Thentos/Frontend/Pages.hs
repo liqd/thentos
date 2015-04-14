@@ -4,34 +4,36 @@
 
 module Thentos.Frontend.Pages
     ( indexPage
+
+    , dashboardPagelet
+    , DashboardTab(..)
+    , displayUserPagelet
+    , emailUpdateForm
+    , errorPage
+    , loginServicePage
+    , loginThentosForm
+    , loginThentosPage
+    , logoutThentosPage
+    , notLoggedInPage
+    , passwordUpdateForm
+    , resetPasswordForm
+    , resetPasswordPage
+    , resetPasswordRequestedPage
+    , resetPasswordRequestForm
+    , resetPasswordRequestPage
+    , serviceCreatedPage
+    , serviceCreateForm
+    , serviceCreatePage
+    , userCreatedPage
+    , userCreateForm
     , userCreatePage
     , userCreateRequestedPage
-    , userCreatedPage
-    , serviceCreatePage
-    , serviceCreateForm
-    , serviceCreatedPage
-    , userCreateForm
-    , userUpdatePage
     , userUpdateForm
-    , passwordUpdateForm
-    , emailUpdateForm
-    , loginServicePage
-    , loginThentosPage
-    , loginThentosForm
-    , logoutThentosPage
-    , resetPasswordRequestPage
-    , resetPasswordRequestForm
-    , resetPasswordPage
-    , resetPasswordForm
-    , resetPasswordRequestedPage
-    , errorPage
-    , notLoggedInPage
-
-    , DashboardTab(..)
-    , dashboardPagelet
+    , userUpdatePage
     ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Lens ((^.))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust, catMaybes)
 import Data.Monoid ((<>))
@@ -245,6 +247,32 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
 
 
 -- * update user
+
+displayUserPagelet :: User -> Html
+displayUserPagelet user = do
+    H.table $ do
+        H.tr $ do
+            H.td . H.text $ "name"
+            H.td . H.text $ fromUserName (user ^. userName)
+        H.tr $ do
+            H.td . H.text $ "email"
+            H.td . H.text $ fromUserEmail (user ^. userEmail)
+        H.tr $ do
+            H.td . H.text $ "street"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "postal code"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "city"
+            H.td . H.text $ "(not implemented)"
+        H.tr $ do
+            H.td . H.text $ "country"
+            H.td . H.text $ "(not implemented)"
+
+    H.p $ H.text "(button: edit)"
+    H.p $ H.text "(button: delete user)"
+    H.p $ H.text "(button: new user)"
 
 userUpdatePage :: View Html -> View Html -> View Html -> Html
 userUpdatePage userView emailView pwView = H.docTypeHtml $ do
