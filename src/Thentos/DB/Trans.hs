@@ -73,7 +73,8 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (find, (\\), foldl')
-import Data.Maybe (fromMaybe)
+import Data.Map (Map)
+import Data.Maybe (fromMaybe, isJust)
 import Data.SafeCopy (deriveSafeCopy, base)
 import Data.Thyme.Time ()
 import LIO.DCLabel ((\/), (/\))
@@ -253,9 +254,12 @@ trans_updateUserFields uid freeOps = do
     let runOp :: UpdateUserFieldOp -> (User -> User, Bool)
         runOp (UpdateUserFieldName n)          = (userName .~ n, True)
         runOp (UpdateUserFieldEmail e)         = (userEmail .~ e, True)
-        runOp (UpdateUserFieldAddService sid)  = (userLogins %~ (sid:), False)
-        runOp (UpdateUserFieldDropService sid) = (userLogins %~ filter (/= sid), False)
+        runOp (UpdateUserFieldAddService sid)  = (userServices %~ Map.insert sid emptyServiceAccount, False)
+        runOp (UpdateUserFieldDropService sid) = (userServices %~ Map.filterWithKey (const . (/= sid)), False)
         runOp (UpdateUserFieldPassword p)      = (userPassword .~ p, False)
+
+        emptyServiceAccount :: ServiceAccount
+        emptyServiceAccount = ServiceAccount Nothing False
 
         ops :: [(User -> User, Bool)]
         ops = runOp <$> freeOps
@@ -320,7 +324,7 @@ pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 trans_addService :: ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate ()
 trans_addService sid key name desc = do
     let label = thentosPublic
-        service = Service key Nothing name desc
+        service = Service key Nothing name desc Map.empty
     modify $ dbServices %~ Map.insert sid service
     returnDb label ()
 
@@ -448,7 +452,7 @@ trans_startSession freshSessionToken agent start lifetime = do
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
 
     ThentosLabeled label' tok <- fromMaybe freshSessionToken <$$> liftThentosQuery (getSessionFromAgent agent)
-    () <- writeSession (Just $ const []) tok session
+    () <- writeSession (Just $ const Map.empty) tok session
     returnDb (lub label label') tok
 
 
@@ -516,7 +520,7 @@ trans_isLoggedIntoService now tok sid = do
         case session ^. sessionAgent of
             UserA uid -> do
                 ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
-                if sid `elem` user ^. userLogins
+                if isJust . Map.lookupIndex sid $ user ^. userServices
                     then returnDb thentosDenied True
                     else returnDb thentosDenied False
             ServiceA _ -> returnDb thentosDenied False
@@ -542,8 +546,9 @@ getSessionFromAgent (ServiceA sid) = ((^. serviceSession) . snd) <$$> trans_look
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is a user, update
 -- service login list of this user, too.
-writeSession :: Maybe ([ServiceId] -> [ServiceId]) -> SessionToken -> Session -> ThentosUpdate' e ()
-writeSession (fromMaybe id -> updateLogins) tok session = do
+writeSession :: Maybe (Map ServiceId ServiceAccount -> Map ServiceId ServiceAccount)
+    -> SessionToken -> Session -> ThentosUpdate' e ()
+writeSession (fromMaybe id -> updateUserServices) tok session = do
     modify $ dbSessions %~ Map.insert tok session
     modify $ case session ^. sessionAgent of
         UserA    uid -> dbUsers    %~ Map.adjust _updateUser uid
@@ -551,7 +556,7 @@ writeSession (fromMaybe id -> updateLogins) tok session = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSession .~ Just tok) . (userLogins %~ updateLogins)
+    _updateUser = (userSession .~ Just tok) . (userServices %~ updateUserServices)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
@@ -571,7 +576,7 @@ deleteSession tok = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSession .~ Nothing) . (userLogins .~ [])
+    _updateUser = (userSession .~ Nothing) . (userServices .~ Map.empty)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Nothing

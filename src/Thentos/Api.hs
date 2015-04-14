@@ -29,6 +29,7 @@ module Thentos.Api
   , requestUserEmailChange
   , confirmUserEmailChange
   , addService
+  , userGroups
   , startSessionUser
   , startSessionService
   , startSessionNoPass
@@ -58,6 +59,7 @@ import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
+import qualified Data.Map as Map
 
 import System.Log.Missing (logger)
 import Thentos.Config
@@ -279,6 +281,25 @@ addService name desc = do
     hashedKey <- hashServiceKey key
     updateAction $ AddService sid hashedKey name desc
     return (sid, key)
+
+-- | List all group leafs a user is member in on some service.
+userGroups :: UserId -> ServiceId -> Action r [Group]
+userGroups uid sid = do
+    (_, service) <- queryAction $ LookupService sid
+
+    let groupMap :: Map.Map GroupNode [Group]
+        groupMap = service ^. serviceGroups
+
+        r :: GroupNode -> [Group]
+        r g = concat $ (f . GroupG) <$> memberships
+          where
+            memberships :: [Group] = fromMaybe [] $ Map.lookup g groupMap
+
+        f :: GroupNode -> [Group]
+        f g@(GroupU _) =     r g
+        f g@(GroupG n) = n : r g
+
+    return $ f (GroupU uid)
 
 
 -- ** sessions
