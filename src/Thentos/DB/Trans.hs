@@ -75,7 +75,6 @@ import Data.Functor.Infix ((<$>), (<$$>))
 import Data.List (find, (\\), foldl')
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
-import Data.Thyme.Time ()
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 

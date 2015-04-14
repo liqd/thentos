@@ -22,6 +22,7 @@ import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCop
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
+import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Typeable (Proxy(Proxy), typeOf)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
