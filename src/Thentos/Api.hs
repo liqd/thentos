@@ -52,11 +52,10 @@ import Control.Monad.Trans.Reader (ReaderT(ReaderT), ask, runReaderT)
 import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
-import Data.Configifier ((>>.))
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, LT)
-import Data.Thyme.Time ()
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
@@ -248,14 +247,15 @@ checkPassword username password = do
             then Just (uid, user)
             else Nothing
 
--- FIXME: we don't need to pass SmtpConfig here, we can get it ourselves
 requestUserEmailChange :: CPRG r =>
-    UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
-requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
+    UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
+requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
+    ((_, _, config), _) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ AddUserEmailChangeRequest now uid newEmail tok
     let callbackUrl = callbackUrlBuilder tok
+        smtpConfig = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
     liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
     return ()
 
