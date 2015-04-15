@@ -105,6 +105,9 @@ data ServiceAccount =
       }
   deriving (Eq, Show, Typeable, Generic)
 
+newServiceAccount :: ServiceAccount
+newServiceAccount = ServiceAccount Nothing False
+
 newtype UserId = UserId { fromUserId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
 
@@ -156,7 +159,7 @@ data Service =
       , _serviceSession     :: !(Maybe SessionToken)
       , _serviceName        :: !ServiceName
       , _serviceDescription :: !ServiceDescription
-      , _serviceGroups      :: Map GroupNode [Group]
+      , _serviceGroups      :: Map GroupNode (Set Group)
       }
   deriving (Eq, Show, Typeable, Generic)
 
