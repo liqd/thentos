@@ -420,7 +420,7 @@ lookupSessionWithMaybeService mSid mNow tok = do
             returnDb (lub label label') (tok, session)
         LookupSessionBumped (_, session) -> do
             let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
-            () <- writeSession Nothing tok session
+            writeSession Nothing tok session
             returnDb (lub label label') (tok, session)
         LookupSessionInactive -> throwDb label NoSuchSession
         LookupSessionNotThere -> throwDb label NoSuchSession
@@ -447,7 +447,7 @@ trans_startSession freshSessionToken agent start lifetime = do
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
 
     ThentosLabeled label' tok <- fromMaybe freshSessionToken <$$> liftThentosQuery (getSessionFromAgent agent)
-    () <- writeSession (Just $ const Map.empty) tok session
+    writeSession (Just $ const Map.empty) tok session
     returnDb (lub label label') tok
 
 
@@ -462,7 +462,7 @@ trans_endSession tok = do
             Just session -> RoleAdmin \/ (session ^. sessionAgent) =%% RoleAdmin /\ (session ^. sessionAgent)
             Nothing      -> RoleAdmin =%% RoleAdmin
 
-    () <- deleteSession tok
+    deleteSession tok
     returnDb label ()
 
 
@@ -587,8 +587,7 @@ trans_assignRole :: Agent -> Role -> ThentosUpdate ()
 trans_assignRole agent role = do
     let label = RoleAdmin =%% RoleAdmin
     ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    let inject Nothing      = Just [role]
-        inject (Just roles) = Just $ role:roles
+    let inject = Just . (role:) . fromMaybe []
     modify $ dbRoles %~ Map.alter inject agent
     returnDb label ()
 
@@ -600,8 +599,7 @@ trans_unassignRole :: Agent -> Role -> ThentosUpdate ()
 trans_unassignRole agent role = do
     let label = RoleAdmin =%% RoleAdmin
     ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    let exject Nothing      = Nothing
-        exject (Just roles) = Just $ roles \\ [role]
+    let exject = fmap (\\ [role])
     modify $ dbRoles %~ Map.alter exject agent
     returnDb label ()
 

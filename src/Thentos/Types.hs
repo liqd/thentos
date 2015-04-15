@@ -279,17 +279,15 @@ instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
 data Role =
     RoleAdmin
-    -- ^ Can do anything.  (FIXME: do we even need a role for this, or
-    -- could we just use 'True'?  Update to FIXME: yes, I think so.
-    -- also, the name is misleadingly ambiguous, as there are now
-    -- other admin roles that have considerably less power.  so we
-    -- should get rid of this.)
+    -- ^ Can do anything.  (There may be no difference in behaviour
+    -- from 'allowEverything' resp. 'thentosPublic', but if we ever
+    -- want to restrict priviledges, it's easier if it is a 'Role'.)
 
   | RoleOwnsUsers
-    -- ^ Can do anything to map 'dbUsers'
+    -- ^ Can do anything to map 'dbUsers' in 'DB'
 
   | RoleOwnsUnconfirmedUsers
-    -- ^ Can do anything to map 'dbUnConfirmedUsers'
+    -- ^ Can do anything to map 'dbUnConfirmedUsers' in 'DB'
 
   | RoleUser
     -- ^ Can sign up with services
