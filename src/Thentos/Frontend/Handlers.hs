@@ -274,12 +274,19 @@ loginThentos = do
 
 logoutThentos :: FH ()
 logoutThentos = blaze logoutThentosPage
+    -- TODO: list all services that the user is logged into
+
 
 loggedOutThentos :: FH ()
-loggedOutThentos = with sess $ do
-    resetSession
-    commitSession
-    blaze "Logged out"
+loggedOutThentos = runWithUserClearance $ \clearance uid -> with sess $ do
+        resetSession
+        commitSession
+        result <- update $ LogOutUser uid clearance
+        case result of
+            Right () -> blaze "Logged out"
+            Left NoSuchUser -> blaze $ errorPage "User does not exist"
+            Left NotLoggedIn -> blaze $ errorPage "user is not logged in"
+            _ -> error "unreachable"
 
 checkThentosLogin :: FH ()
 checkThentosLogin = do

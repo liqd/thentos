@@ -27,6 +27,7 @@ module Thentos.DB.Trans
   , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
   , UpdateUserFields(..)
   , DeleteUser(..), trans_deleteUser
+  , LogOutUser(..), trans_logOutUser
   , AddUserEmailChangeRequest(..), trans_addUserEmailChangeRequest
   , ConfirmUserEmailChange(..), trans_confirmUserEmailChange
   , AddPasswordResetToken(..), trans_addPasswordResetToken
@@ -277,6 +278,26 @@ trans_deleteUser uid = do
     maybe (return ()) deleteSession (user ^. userSession)
     modify $ dbUsers %~ Map.delete uid
     returnDb (lub label label') ()
+
+-- | Delete a user's session token as well as all his service sessions
+trans_logOutUser :: UserId -> ThentosUpdate ()
+trans_logOutUser uid = do
+    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
+    -- FIXME: it's unfortunate that we have to look up the user twice, but
+    -- i can't see a way to avoid this. We would need something like
+    -- Map.adjust that also returns the old value, but that doesn't seem to exist
+    users <- gets (^. dbUsers)
+    case Map.lookup uid users of
+        Nothing -> throwDb label NoSuchUser
+        Just User{_userSession = Nothing} -> throwDb label NotLoggedIn
+        Just User{_userSession = Just token} -> do
+            let newUsers = Map.adjust closeSessions uid users
+            modify $ dbUsers .~ newUsers
+            modify $ dbSessions %~ Map.delete token
+            returnDb label ()
+  where
+    closeSessions :: User -> User
+    closeSessions = (userLogins .~ []) . (userSession .~ Nothing)
 
 
 -- *** helpers
@@ -556,6 +577,7 @@ writeSession (fromMaybe id -> updateLogins) tok session = do
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
 
+-- FIXME: this seems to be a bad c&p job:
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is 'User', write
 -- update service login list, too.
@@ -707,6 +729,9 @@ updateUserFields uid ops clearance = runThentosUpdate clearance $ trans_updateUs
 deleteUser :: UserId -> ThentosClearance -> Update DB (Either ThentosError ())
 deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
 
+logOutUser :: UserId -> ThentosClearance -> Update DB (Either ThentosError ())
+logOutUser uid clearance = runThentosUpdate clearance $ trans_logOutUser uid
+
 allServiceIds :: ThentosClearance -> Query DB (Either ThentosError [ServiceId])
 allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 
@@ -773,6 +798,7 @@ $(makeAcidic ''DB
     , 'updateUserField
     , 'updateUserFields
     , 'deleteUser
+    , 'logOutUser
     , 'addUserEmailChangeRequest
     , 'confirmUserEmailChange
     , 'addPasswordResetToken

@@ -314,6 +314,7 @@ instance Label ThentosClearance where
 
 data ThentosError =
       NoSuchUser
+    -- FIXME: we should probably just use NoSuchToken for this
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
     | NoSuchService
@@ -329,6 +330,7 @@ data ThentosError =
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
+    | NotLoggedIn
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -355,6 +357,7 @@ showThentosError ProxyNotAvailable                    = return (404, "proxying n
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 showThentosError (NoSuchToken)                        = return (404, "no such token")
+showThentosError (NotLoggedIn)                         = return (400, "user not logged in")
 
 
 -- * boilerplate
