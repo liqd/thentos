@@ -24,6 +24,7 @@ import Data.Text.Encoding (encodeUtf8)
 import Thentos.Types
 
 import qualified Crypto.Scrypt as Scrypt
+import qualified Data.Map as Map
 import qualified Data.Text as ST
 
 -- | @[2 2 1]@ is fast, but does not provide adequate
@@ -49,9 +50,8 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
-                  []
                   Nothing
-                  []
+                  Map.empty
 
 secretMatches :: ST -> HashedSecret a -> Bool
 secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
