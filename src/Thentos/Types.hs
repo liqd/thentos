@@ -298,6 +298,9 @@ data Role =
   | RoleServiceAdmin
     -- ^ Can create (and manage her own) services
 
+  | Roles [Role]
+    -- ^ (Super-roles)
+
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
