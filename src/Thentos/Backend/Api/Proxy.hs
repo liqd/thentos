@@ -47,7 +47,6 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.DB
 import Thentos.Types
-import Thentos.Util
 
 
 type ServiceProxy = Raw

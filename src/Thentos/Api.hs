@@ -131,7 +131,7 @@ queryAction = accessAction Nothing query'
 --
 -- NOTE: Authentication check and transaction do *not* form an atomic
 -- transaction.  In order to get an upper bound on how long changes in
--- access priviledges need to become effective, the following may work
+-- access privileges need to become effective, the following may work
 -- (but is not implemented): 'SnapShot' returns 'DB' together with a
 -- timestamp.  When the actual transaction is executed, 'mkAuth' will
 -- be passed another timestamp (of the time of the execution of the

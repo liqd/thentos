@@ -281,7 +281,7 @@ data Role =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour
     -- from 'allowEverything' resp. 'thentosPublic', but if we ever
-    -- want to restrict priviledges, it's easier if it is a 'Role'.)
+    -- want to restrict privileges, it's easier if it is a 'Role'.)
 
   | RoleOwnsUsers
     -- ^ Can do anything to map 'dbUsers' in 'DB'
