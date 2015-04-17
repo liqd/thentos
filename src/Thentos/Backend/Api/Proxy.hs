@@ -41,12 +41,12 @@ import qualified Network.HTTP.Types.Status as T
 import qualified Network.HTTP.Types.Header as T
 import qualified Network.Wai as S
 
+import System.Log.Missing (logger)
 import Thentos.Api
 import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.DB
 import Thentos.Types
-import Thentos.Config
-import System.Log.Missing (logger)
 
 
 type ServiceProxy = Raw
@@ -96,22 +96,26 @@ getRqMod req = do
             Nothing -> lift $ left ProxyNotAvailable
             Just v  -> return v
 
-    hdrs <- do
-        (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
-            lookupRequestHeader req ThentosHeaderSession
-        (_, user) <- case session ^. sessionAgent of
-            UserA uid  -> queryAction $ LookupUser uid
-            ServiceA _ -> lift $ left NoSuchUser
+    (uid, user) :: (UserId, User)
+        <- do
+            (_, session) <- maybe (lift $ left NoSuchSession) (bumpSession . SessionToken) $
+                lookupRequestHeader req ThentosHeaderSession
+            case session ^. sessionAgent of
+                UserA uid  -> queryAction $ LookupUser uid
+                ServiceA _ -> lift $ left NoSuchUser
 
-        let newHdrs =
-                ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
-                ("X-Thentos-Groups", cs . show $ user ^. userGroups) :
-                []
-        return newHdrs
+    sid :: ServiceId
+        <- case lookupRequestHeader req ThentosHeaderService of
+               Just s  -> return $ ServiceId s
+               Nothing -> lift $ left MissingServiceHeader
 
-    sid <- case lookupRequestHeader req ThentosHeaderService of
-            Just s  -> return $ ServiceId s
-            Nothing -> lift $ left MissingServiceHeader
+    groups :: [Group]
+        <- userGroups uid sid
+
+    let hdrs =
+            ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
+            ("X-Thentos-Groups", cs $ show groups) :
+            []
 
     target :: String
         <- case Map.lookup sid prxCfg of

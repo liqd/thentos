@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs                                    #-}
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
@@ -29,6 +30,7 @@ module Thentos.Api
   , requestUserEmailChange
   , confirmUserEmailChange
   , addService
+  , userGroups
   , startSessionUser
   , startSessionService
   , startSessionNoPass
@@ -51,13 +53,15 @@ import Control.Monad.Trans.Reader (ReaderT(ReaderT), ask, runReaderT)
 import Crypto.Random (CPRG, cprgGenerate)
 import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
 import Data.Acid.Advanced (update', query')
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromMaybe)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, LT)
-import Data.Thyme.Time ()
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
+import qualified Data.Map as Map
 
 import System.Log.Missing (logger)
 import Thentos.Config
@@ -127,7 +131,7 @@ queryAction = accessAction Nothing query'
 --
 -- NOTE: Authentication check and transaction do *not* form an atomic
 -- transaction.  In order to get an upper bound on how long changes in
--- access priviledges need to become effective, the following may work
+-- access privileges need to become effective, the following may work
 -- (but is not implemented): 'SnapShot' returns 'DB' together with a
 -- timestamp.  When the actual transaction is executed, 'mkAuth' will
 -- be passed another timestamp (of the time of the execution of the
@@ -201,8 +205,10 @@ addUnconfirmedUser userData = do
 
 confirmNewUser :: ConfirmationToken -> Action (MVar r) UserId
 confirmNewUser token = do
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["user_reg_expiration"])
     now <- TimeStamp <$> liftIO getCurrentTime
-    updateAction $ FinishUserRegistration now token
+    updateAction $ FinishUserRegistration now expiryPeriod token
 
 addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
 addPasswordResetToken email = do
@@ -214,8 +220,10 @@ addPasswordResetToken email = do
 resetPassword :: PasswordResetToken -> UserPass -> Action r ()
 resetPassword token password = do
     now <- TimeStamp <$> liftIO getCurrentTime
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
     hashedPassword <- hashUserPass password
-    updateAction $ ResetPassword now token hashedPassword
+    updateAction $ ResetPassword now expiryPeriod token hashedPassword
 
 changePassword :: UserId -> UserPass -> UserPass -> Action r ()
 changePassword uid old new = do
@@ -242,12 +250,14 @@ checkPassword username password = do
             else Nothing
 
 requestUserEmailChange :: CPRG r =>
-    UserId -> UserEmail -> (ConfirmationToken -> LT) -> SmtpConfig -> Action (MVar r) ()
-requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
+    UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
+requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
+    ((_, _, config), _) <- ask
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ AddUserEmailChangeRequest now uid newEmail tok
     let callbackUrl = callbackUrlBuilder tok
+        smtpConfig = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
     liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
     return ()
 
@@ -258,8 +268,10 @@ requestUserEmailChange uid newEmail callbackUrlBuilder smtpConfig = do
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
 confirmUserEmailChange token = do
     now <- TimeStamp <$> liftIO getCurrentTime
+    ((_, _, config), _) <- ask
+    let expiryPeriod = config >>. (Proxy :: Proxy '["email_change_expiration"])
     catchAction
-        (updateAction $ ConfirmUserEmailChange now token)
+        (updateAction $ ConfirmUserEmailChange now expiryPeriod token)
         $ \err -> case err of
             PermissionDenied _ _ _ -> lift (left NoSuchToken)
             e                      -> lift (left e)
@@ -279,6 +291,25 @@ addService name desc = do
     hashedKey <- hashServiceKey key
     updateAction $ AddService sid hashedKey name desc
     return (sid, key)
+
+-- | List all group leafs a user is member in on some service.
+userGroups :: UserId -> ServiceId -> Action r [Group]
+userGroups uid sid = do
+    (_, service) <- queryAction $ LookupService sid
+
+    let groupMap :: Map.Map GroupNode [Group]
+        groupMap = service ^. serviceGroups
+
+        r :: GroupNode -> [Group]
+        r g = concat $ (f . GroupG) <$> memberships
+          where
+            memberships :: [Group] = fromMaybe [] $ Map.lookup g groupMap
+
+        f :: GroupNode -> [Group]
+        f g@(GroupU _) =     r g
+        f g@(GroupG n) = n : r g
+
+    return $ f (GroupU uid)
 
 
 -- ** sessions
@@ -342,6 +373,11 @@ _sessionAndUserIdFromToken tok = do
         UserA uid -> return (session, uid)
         ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
 
+-- | FIXME: 'addServiceLogin' and 'dropServiceLogin' still have the
+-- old 'is logged in'-semantics.  we need to switch to the new
+-- semantics where the transactions used here register users with
+-- services, and there need to be separate transactions for login,
+-- logout.
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok

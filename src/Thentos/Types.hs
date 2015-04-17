@@ -22,6 +22,7 @@ import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCop
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
+import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Typeable (Proxy(Proxy), typeOf)
 import GHC.Generics (Generic)
 import LIO.DCLabel (DCLabel, ToCNF, toCNF)
@@ -77,9 +78,29 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userGroups   :: [(ServiceId, [Group])]
-      , _userSession  :: !(Maybe SessionToken)
-      , _userLogins   :: [ServiceId]
+      , _userSession  :: !(Maybe SessionToken)  -- ^ thentos session
+      , _userServices :: Map ServiceId ServiceAccount  -- ^ services (with session info)
+      }
+  deriving (Eq, Show, Typeable, Generic)
+
+-- | the data a user maintains about a service they are signed up
+-- with.
+data ServiceAccount =
+    ServiceAccount
+      { _serviceSessionTimeout :: Maybe Timeout
+        -- ^ Nothing when not logged into service.
+      , _serviceAnonymous :: Bool
+        -- ^ Do not give out any information about user beyond session token validity bit.  (not implemented.)
+
+        -- FUTURE WORK: what we actually would want here is
+        -- "something" (type?  function?  something more creative?)
+        -- that can be used as a filter on 'User' and will hide things
+        -- from the service as appropriate.  we also want 'Service' to
+        -- contain a counterpart "something".  and a matcher that
+        -- takes a service "something" and a user "something" and
+        -- computes a compromise (or 'Nothing' if there is a
+        -- conflict).
+
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -106,9 +127,6 @@ instance SafeCopy (HashedSecret a) where
 
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
-
-newtype Group = Group { fromGroup :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -137,6 +155,7 @@ data Service =
       , _serviceSession     :: !(Maybe SessionToken)
       , _serviceName        :: !ServiceName
       , _serviceDescription :: !ServiceDescription
+      , _serviceGroups      :: Map GroupNode [Group]
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -164,6 +183,20 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
+newtype Group = Group { fromGroup :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
+
+data GroupNode =
+        GroupG { fromGroupG :: Group }
+      | GroupU { fromGroupU :: UserId }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
+
 
 -- * session, timestamp, timeout
 
@@ -185,6 +218,7 @@ newtype SessionToken = SessionToken { fromSessionToken :: ST }
 instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 
+-- FIXME: timestamp is one word, does not need camel case. status quo is inconsisten with Timeout
 newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -245,17 +279,15 @@ instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
 data Role =
     RoleAdmin
-    -- ^ Can do anything.  (FIXME: do we even need a role for this, or
-    -- could we just use 'True'?  Update to FIXME: yes, I think so.
-    -- also, the name is misleadingly ambiguous, as there are now
-    -- other admin roles that have considerably less power.  so we
-    -- should get rid of this.)
+    -- ^ Can do anything.  (There may be no difference in behaviour
+    -- from 'allowEverything' resp. 'thentosPublic', but if we ever
+    -- want to restrict privileges, it's easier if it is a 'Role'.)
 
   | RoleOwnsUsers
-    -- ^ Can do anything to map 'dbUsers'
+    -- ^ Can do anything to map 'dbUsers' in 'DB'
 
   | RoleOwnsUnconfirmedUsers
-    -- ^ Can do anything to map 'dbUnConfirmedUsers'
+    -- ^ Can do anything to map 'dbUnConfirmedUsers' in 'DB'
 
   | RoleUser
     -- ^ Can sign up with services
@@ -265,6 +297,9 @@ data Role =
 
   | RoleServiceAdmin
     -- ^ Can create (and manage her own) services
+
+  | Roles [Role]
+    -- ^ (Super-roles)
 
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -364,11 +399,13 @@ showThentosError (NotLoggedIn)                         = return (400, "user not 
 
 makeLenses ''DB
 makeLenses ''User
+makeLenses ''ServiceAccount
 makeLenses ''Session
 makeLenses ''Service
 
 $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''User)
+$(deriveSafeCopy 0 'base ''ServiceAccount)
 $(deriveSafeCopy 0 'base ''Session)
 $(deriveSafeCopy 0 'base ''Service)
 $(deriveSafeCopy 0 'base ''ServiceId)
@@ -381,6 +418,7 @@ $(deriveSafeCopy 0 'base ''UserName)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''PasswordResetToken)
 $(deriveSafeCopy 0 'base ''Group)
+$(deriveSafeCopy 0 'base ''GroupNode)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''Role)
