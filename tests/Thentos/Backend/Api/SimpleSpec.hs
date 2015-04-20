@@ -54,6 +54,7 @@ spec = do
                     response1 <- srequest $ makeSRequest "GET" "/user" godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
                     liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
+
                 it "is not accessible for users without 'Admin' role" $
                         \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" [] ""
