@@ -192,12 +192,12 @@ runWithUserClearance' def handler = do
             handler clearance uid
 
 serviceCreate :: ThentosClearance -> UserId -> FH ()
-serviceCreate clearance _uid = do
+serviceCreate clearance uid = do
     (view, result) <- runForm "create" serviceCreateForm
     case result of
         Nothing -> blaze $ serviceCreatePage view
         Just (name, description) -> do
-            result' <- snapRunAction' clearance $ addService name description
+            result' <- snapRunAction' clearance $ addService (UserA uid) name description
             case result' of
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
                 Left e -> logger INFO (show e) >> blaze (errorPage "service creation failed.")

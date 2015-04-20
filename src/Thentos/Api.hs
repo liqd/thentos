@@ -294,12 +294,12 @@ getUserClearance uid = do
 
 -- ** services
 
-addService :: CPRG r => ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
-addService name desc = do
+addService :: CPRG r => Agent -> ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
+addService owner name desc = do
     sid <- freshServiceId
     key <- freshServiceKey
     hashedKey <- hashServiceKey key
-    updateAction $ AddService sid hashedKey name desc
+    updateAction $ AddService owner sid hashedKey name desc
     return (sid, key)
 
 -- | List all group leafs a user is member in on some service.

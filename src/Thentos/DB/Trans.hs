@@ -319,10 +319,10 @@ pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
 pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
 -- | Write new service to DB.  Service key is generated automatically.
-trans_addService :: ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate ()
-trans_addService sid key name desc = do
-    let label = thentosPublic
-        service = Service key Nothing name desc Map.empty
+trans_addService :: Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate ()
+trans_addService owner sid key name desc = do
+    let label = RoleAdmin \/ owner =%% RoleAdmin /\ owner
+        service = Service key owner Nothing name desc Map.empty
     modify $ dbServices %~ Map.insert sid service
     returnDb label ()
 
@@ -713,8 +713,9 @@ allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
 lookupService :: ServiceId -> ThentosClearance -> Query DB (Either ThentosError (ServiceId, Service))
 lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
 
-addService :: ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosClearance -> Update DB (Either ThentosError ())
-addService sid key name desc clearance = runThentosUpdate clearance $ trans_addService sid key name desc
+addService :: Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription
+    -> ThentosClearance -> Update DB (Either ThentosError ())
+addService owner sid key name desc clearance = runThentosUpdate clearance $ trans_addService owner sid key name desc
 
 deleteService :: ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
 deleteService sid clearance = runThentosUpdate clearance $ trans_deleteService sid

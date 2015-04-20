@@ -122,13 +122,18 @@ thentosUser =
 -- * service
 
 type ThentosService =
-       ReqBody (ServiceName, ServiceDescription) :> Post (ServiceId, ServiceKey)
+       ReqBody (UserId, ServiceName, ServiceDescription) :> Post (ServiceId, ServiceKey)
+           -- FIXME: it would be much nicer to infer the owner from
+           -- the session token, but that requires changes to the
+           -- various action monads we are kicking around all over the
+           -- place.  coming up soon!
+
   :<|> Capture "sid" ServiceId :> Delete
   :<|> Get [ServiceId]
 
 thentosService :: PushActionSubRoute (Server ThentosService)
 thentosService =
-         uncurry addService
+         (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
     :<|> updateAction . DeleteService
     :<|> queryAction AllServiceIds
 

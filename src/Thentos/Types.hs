@@ -156,7 +156,8 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 data Service =
     Service
       { _serviceKey         :: !(HashedSecret ServiceKey)
-      , _serviceSession     :: !(Maybe SessionToken)
+      , _serviceOwner       :: !Agent  -- ^ (Services can be created by their parents in the service hierarchy.)
+      , _serviceSession     :: !(Maybe SessionToken)  -- ^ Like 'userSessions', used by services to authenticate against thentos.
       , _serviceName        :: !ServiceName
       , _serviceDescription :: !ServiceDescription
       , _serviceGroups      :: Map GroupNode (Set Group)
