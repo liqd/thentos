@@ -428,20 +428,10 @@ lookupSessionWithMaybeService mSid mNow tok = do
         LookupSessionNotThere -> throwDb label NoSuchSession
 
 
--- | Start a new session for user with 'UserId' on service with
--- 'ServiceId'.  Start and end time have to be passed explicitly.
--- Throw error if user or service do not exist.  Otherwise, return
--- session token.  If there is already an active session for this
--- user, return the existing token again, and store new session under
--- it.  If agent is a user, remove all her logins (even if session
--- already exists).
---
--- FUTURE WORK: Alternatives (not sure which it is we really want):
--- (1) do not allow to login twice, and respond with an error if
--- somebody tries (probably too disruptive); (2) allow for multiple
--- logins, but create a new session token for each (one difference is
--- that this does not bump logins on all devices a user may log in
--- from); (3) ... (probably).
+-- | Start a new thentos session for the given agent. Start and end time have
+-- to be passed explicitly. Throw an error if the agent does not exist.
+-- If the agent is a user, this new session is added to their existing sessions.
+-- If the agent is a service with an existing session, its session is replaced.
 trans_startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosUpdate ()
 trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
