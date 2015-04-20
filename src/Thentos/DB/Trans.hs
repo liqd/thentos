@@ -437,7 +437,7 @@ trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
         session = Session agent start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
-    assertAgent agent
+    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
     writeSession (Just $ const Map.empty) freshSessionToken session
     returnDb label ()
 
