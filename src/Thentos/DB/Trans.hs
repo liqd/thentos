@@ -66,12 +66,13 @@ where
 
 import Control.Exception (assert)
 import Control.Lens ((^.), (.~), (%~))
+import Control.Monad (forM_)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, gets, get)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
-import Data.Functor.Infix ((<$>), (<$$>))
+import Data.Functor.Infix ((<$>))
 import Data.List (find, (\\), foldl')
 import Data.Map (Map)
 import Data.Maybe (fromMaybe, isJust)
@@ -80,6 +81,7 @@ import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Thentos.DB.Core
 import Thentos.Types
@@ -273,7 +275,7 @@ trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
     ThentosLabeled label' (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    maybe (return ()) deleteSession (user ^. userSession)
+    forM_ (Set.toList $ user ^. userSessions) deleteSession
     modify $ dbUsers %~ Map.delete uid
     returnDb (lub label label') ()
 
@@ -426,29 +428,18 @@ lookupSessionWithMaybeService mSid mNow tok = do
         LookupSessionNotThere -> throwDb label NoSuchSession
 
 
--- | Start a new session for user with 'UserId' on service with
--- 'ServiceId'.  Start and end time have to be passed explicitly.
--- Throw error if user or service do not exist.  Otherwise, return
--- session token.  If there is already an active session for this
--- user, return the existing token again, and store new session under
--- it.  If agent is a user, remove all her logins (even if session
--- already exists).
---
--- FUTURE WORK: Alternatives (not sure which it is we really want):
--- (1) do not allow to login twice, and respond with an error if
--- somebody tries (probably too disruptive); (2) allow for multiple
--- logins, but create a new session token for each (one difference is
--- that this does not bump logins on all devices a user may log in
--- from); (3) ... (probably).
-trans_startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosUpdate SessionToken
+-- | Start a new thentos session for the given agent. Start and end time have
+-- to be passed explicitly. Throw an error if the agent does not exist.
+-- If the agent is a user, this new session is added to their existing sessions.
+-- If the agent is a service with an existing session, its session is replaced.
+trans_startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosUpdate ()
 trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
         session = Session agent start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
-
-    ThentosLabeled label' tok <- fromMaybe freshSessionToken <$$> liftThentosQuery (getSessionFromAgent agent)
-    writeSession (Just $ const Map.empty) tok session
-    returnDb (lub label label') tok
+    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
+    writeSession (Just $ const Map.empty) freshSessionToken session
+    returnDb label ()
 
 
 -- | End session.  Call can be caused by logout request from user
@@ -533,10 +524,6 @@ trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSession
 sessionNowActive :: TimeStamp -> Session -> Bool
 sessionNowActive now session = (session ^. sessionStart) < now && now < (session ^. sessionEnd)
 
--- | Throw error if user or service do not exist.
-getSessionFromAgent :: Agent -> ThentosQuery (Maybe SessionToken)
-getSessionFromAgent (UserA uid)    = ((^. userSession)    . snd) <$$> trans_lookupUser    uid
-getSessionFromAgent (ServiceA sid) = ((^. serviceSession) . snd) <$$> trans_lookupService sid
 
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is a user, update
@@ -551,7 +538,7 @@ writeSession (fromMaybe id -> updateUserServices) tok session = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSession .~ Just tok) . (userServices %~ updateUserServices)
+    _updateUser = (userSessions %~ Set.insert tok) . (userServices %~ updateUserServices)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
@@ -571,7 +558,7 @@ deleteSession tok = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSession .~ Nothing) . (userServices .~ Map.empty)
+    _updateUser = (userSessions %~ Set.delete tok) . (userServices .~ Map.empty)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Nothing
@@ -616,7 +603,7 @@ pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
 
 -- *** helpers
 
--- | 'assertAgent' is only used by to build transactions, and is not a
+-- | 'assertAgent' is only used to build transactions, and is not a
 -- transaction itself.  Even though it has return type 'ThentosQuery',
 -- it does not restrict the label in any way.
 --
@@ -726,7 +713,7 @@ lookupSessionQ mNow tok clearance = runThentosQuery clearance $ trans_lookupSess
 lookupSession :: Maybe (TimeStamp, Bool) -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError (SessionToken, Session))
 lookupSession mNow tok clearance = runThentosUpdate clearance $ trans_lookupSession mNow tok
 
-startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either ThentosError SessionToken)
+startSession :: SessionToken -> Agent -> TimeStamp -> Timeout -> ThentosClearance -> Update DB (Either ThentosError ())
 startSession tok agent start lifetime clearance = runThentosUpdate clearance $ trans_startSession tok agent start lifetime
 
 endSession :: SessionToken -> ThentosClearance -> Update DB (Either ThentosError ())

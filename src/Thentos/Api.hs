@@ -26,7 +26,8 @@ module Thentos.Api
   , getUserClearance
   , changePassword
   , resetPassword
-  , checkPassword
+  , checkPasswordByUserName
+  , checkPasswordByUserId
   , requestUserEmailChange
   , confirmUserEmailChange
   , addService
@@ -227,27 +228,32 @@ resetPassword token password = do
 
 changePassword :: UserId -> UserPass -> UserPass -> Action r ()
 changePassword uid old new = do
-    (_, user) <- queryAction $ LookupUser uid
-    if verifyPass old user
-        then do
-            hashedPw <- hashUserPass new
-            updateAction $
-                UpdateUserField uid (UpdateUserFieldPassword hashedPw)
-        else
-            lift $ left BadCredentials
+    _ <- checkPasswordByUserId uid old
+    hashedPw <- hashUserPass new
+    updateAction $ UpdateUserField uid (UpdateUserFieldPassword hashedPw)
 
-checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
-checkPassword username password = do
-    catchAction checkPw $ \err ->
-        case err of
-            NoSuchUser -> return Nothing
-            e -> lift $ left e
+checkPasswordByUserName :: UserName -> UserPass -> Action r (UserId, User)
+checkPasswordByUserName username password =
+    checkPassword (LookupUserByName username) password
+
+checkPasswordByUserId :: UserId -> UserPass -> Action r (UserId, User)
+checkPasswordByUserId uid password = checkPassword (LookupUser uid) password
+
+checkPassword :: (QueryEvent event,
+                  EventResult event
+                    ~ Either ThentosError (UserId, User),
+                  EventState event ~ DB) =>
+     (ThentosClearance -> event) -> UserPass -> Action r (UserId, User)
+checkPassword action password = catchAction checkPw $ \err ->
+    case err of
+        NoSuchUser -> lift $ left BadCredentials
+        e -> lift $ left e
   where
     checkPw = do
-        (uid, user) <- queryAction $ LookupUserByName username
-        return $ if verifyPass password user
-            then Just (uid, user)
-            else Nothing
+        (uid, user) <- accessAction (Just allowEverything) query' action  -- FIXME: label action, don't override clearance.
+        if verifyPass password user
+            then return (uid, user)
+            else lift $ left BadCredentials
 
 requestUserEmailChange :: CPRG r =>
     UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
@@ -317,10 +323,8 @@ userGroups uid sid = do
 -- | Check user credentials and create a session for user.
 startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
 startSessionUser (uid, pass) = do
-    (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
-    if verifyPass pass user
-        then startSessionNoPass (UserA uid)
-        else lift $ left BadCredentials
+    _ <- checkPasswordByUserId uid pass
+    startSessionNoPass (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
@@ -337,6 +341,7 @@ startSessionNoPass agent = do
     now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshSessionToken
     accessAction (Just allowEverything) update' $ StartSession tok agent now defaultSessionTimeout
+    return tok
 
 -- | Sessions have a fixed duration of 2 weeks.
 defaultSessionTimeout :: Timeout

@@ -17,6 +17,8 @@ module ThentosSpec where
 
 import Control.Lens ((.~))
 import Control.Monad (void)
+import Control.Concurrent (MVar)
+import Crypto.Random (SystemRNG)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
@@ -43,6 +45,13 @@ spec = do
       it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ (st, _, _) -> do
         uids <- query' st $ AllUserIds allowEverything
         uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
+
+    describe "checkPassword" $ do
+      it "..." $ \ (asg :: ActionStateGlobal (MVar SystemRNG)) -> do
+        byId <- runAction' (asg, allowEverything) $ checkPasswordByUserId (UserId 0) (UserPass "god")
+        byId `shouldSatisfy` isRight
+        byName <- runAction' (asg, allowEverything) $ checkPasswordByUserName (UserName "god") (UserPass "god")
+        byName `shouldSatisfy` isRight
 
     describe "AddUser, LookupUser, DeleteUser" $ do
       it "works" $ \ (st, _, _) -> do
