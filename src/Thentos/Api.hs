@@ -229,14 +229,9 @@ resetPassword token password = do
 
 changePassword :: UserId -> UserPass -> UserPass -> Action r ()
 changePassword uid old new = do
-    (_, user) <- queryAction $ LookupUser uid
-    if verifyPass old user
-        then do
-            hashedPw <- hashUserPass new
-            updateAction $
-                UpdateUserField uid (UpdateUserFieldPassword hashedPw)
-        else
-            lift $ left BadCredentials
+    _ <- checkPasswordByUserId uid old
+    hashedPw <- hashUserPass new
+    updateAction $ UpdateUserField uid (UpdateUserFieldPassword hashedPw)
 
 checkPasswordByUserName :: UserName -> UserPass -> Action r (UserId, User)
 checkPasswordByUserName username password =
