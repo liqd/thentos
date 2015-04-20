@@ -227,9 +227,9 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
 
     needsRoles :: DashboardTab -> [Role]
     needsRoles DashboardTabDetails = []
-    needsRoles DashboardTabServices = [RoleUser]
-    needsRoles DashboardTabOwnServices = [RoleServiceAdmin]
-    needsRoles DashboardTabUsers = [RoleUserAdmin]
+    needsRoles DashboardTabServices = [RoleBasic RoleUser]
+    needsRoles DashboardTabOwnServices = [RoleBasic RoleServiceAdmin]
+    needsRoles DashboardTabUsers = [RoleBasic RoleUserAdmin]
     needsRoles DashboardTabLogout = []
 
     linkText :: DashboardTab -> Text

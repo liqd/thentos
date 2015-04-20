@@ -103,7 +103,7 @@ type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
-  :*> Maybe ("roles"    :> [Role])
+  :*> Maybe ("roles"    :> [RoleBasic])
 
 
 -- * leaf types
@@ -193,7 +193,7 @@ getUserData cfg = UserFormData
     (UserEmail (cfg >>. (Proxy :: Proxy '["email"])))
 
 getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
-getDefaultUser cfg = (getUserData cfg, fromMaybe [] $ cfg >>. (Proxy :: Proxy '["roles"]))
+getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))
 
 
 -- * logging

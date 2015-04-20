@@ -26,7 +26,7 @@ import Thentos.Api
 import Thentos.Config
 import Thentos.Frontend.Types
 import Thentos.Frontend.Util (serveSnaplet)
-import Thentos.Types (Role(..))
+import Thentos.Types (Role(..), RoleBasic(..))
 
 import qualified Text.Blaze.Html5 as Blaze
 import qualified Thentos.Frontend.Handlers as H
@@ -78,7 +78,7 @@ routes = [ ("", ifTop $ H.index)
          , ("/dashboard/details", H.dashboardDetails)
 
          , ("test", blaze $ P.dashboardPagelet
-                 [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin]
+                 (RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin])
                  P.DashboardTabDetails
                  (Blaze.text "body"))
          ]
