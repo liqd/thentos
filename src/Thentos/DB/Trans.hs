@@ -612,7 +612,7 @@ pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
 
 -- *** helpers
 
--- | 'assertAgent' is only used by to build transactions, and is not a
+-- | 'assertAgent' is only used to build transactions, and is not a
 -- transaction itself.  Even though it has return type 'ThentosQuery',
 -- it does not restrict the label in any way.
 --
