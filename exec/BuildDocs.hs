@@ -193,3 +193,6 @@ instance ToSample Bool where
 -- more general.
 instance (ToSample a, ToSample b) => ToSample (a, b) where
     toSample = (,) <$> toSample <*> toSample
+
+instance (ToSample a, ToSample b, ToSample c) => ToSample (a, b, c) where
+    toSample = (,,) <$> toSample <*> toSample <*> toSample
