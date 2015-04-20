@@ -19,6 +19,7 @@ import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
+import Data.Set (Set)
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -78,8 +79,8 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userSession  :: !(Maybe SessionToken)  -- ^ thentos session
-      , _userServices :: Map ServiceId ServiceAccount  -- ^ services (with session info)
+      , _userSessions :: !(Set SessionToken)  -- ^ thentos sessions
+      , _userServices :: !(Map ServiceId ServiceAccount)  -- ^ services (with session info)
       }
   deriving (Eq, Show, Typeable, Generic)
 

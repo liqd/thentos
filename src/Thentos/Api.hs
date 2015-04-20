@@ -318,6 +318,7 @@ userGroups uid sid = do
 startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
 startSessionUser (uid, pass) = do
     (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
+    -- FIXME: use checkPassword action instead of verifyPass?
     if verifyPass pass user
         then startSessionNoPass (UserA uid)
         else lift $ left BadCredentials
@@ -337,6 +338,7 @@ startSessionNoPass agent = do
     now <- TimeStamp <$> liftIO getCurrentTime
     tok <- freshSessionToken
     accessAction (Just allowEverything) update' $ StartSession tok agent now defaultSessionTimeout
+    return tok
 
 -- | Sessions have a fixed duration of 2 weeks.
 defaultSessionTimeout :: Timeout
