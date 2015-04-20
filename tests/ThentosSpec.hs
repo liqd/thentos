@@ -126,12 +126,12 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
         describe "assign" $ do
             it "can be called by admins" $ \ (st, _, _) -> do
                 let targetAgent = UserA $ UserId 1
-                result <- update' st $ AssignRole targetAgent RoleAdmin (RoleAdmin *%% RoleAdmin)
+                result <- update' st $ AssignRole targetAgent (RoleBasic RoleAdmin) (RoleAdmin *%% RoleAdmin)
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \ (st, _, _) -> do
                 let targetAgent = UserA $ UserId 1
-                result <- update' st $ AssignRole targetAgent RoleAdmin (targetAgent *%% targetAgent)
+                result <- update' st $ AssignRole targetAgent (RoleBasic RoleAdmin) (targetAgent *%% targetAgent)
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
