@@ -248,17 +248,17 @@ loginThentos = do
     (view, result) <- runForm "login_thentos" loginThentosForm
     case result of
         Just (username, password) -> do
-            emUser <- snapRunAction' allowEverything $ checkPassword username password
+            eUser <- snapRunAction' allowEverything $ checkPasswordByUserName username password
               -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
               -- "Thentos.DB.Core".  Use that to create transaction
               -- 'CheckPasswordWithLabel', then call that with
               -- 'allowNothing' and 'thentosPublic'.
-            case emUser of
-                Right (Just (uid, _)) -> with sess $ do
+            case eUser of
+                Right (uid, _) -> with sess $ do
                     setInSession "user" (cs $ Aeson.encode [uid])
                     commitSession
                     blaze "Logged in"
-                Right Nothing -> loginFail
+                Left BadCredentials -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
                     -- FIXME: this should be handled.  we should
                     -- always allow transactions / actions to throw

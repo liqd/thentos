@@ -26,7 +26,8 @@ module Thentos.Api
   , getUserClearance
   , changePassword
   , resetPassword
-  , checkPassword
+  , checkPasswordByUserName
+  , checkPasswordByUserId
   , requestUserEmailChange
   , confirmUserEmailChange
   , addService
@@ -61,6 +62,7 @@ import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
+import qualified Data.Acid.Advanced
 import qualified Data.Map as Map
 
 import System.Log.Missing (logger)
@@ -236,18 +238,28 @@ changePassword uid old new = do
         else
             lift $ left BadCredentials
 
-checkPassword :: UserName -> UserPass -> Action r (Maybe (UserId, User))
-checkPassword username password = do
-    catchAction checkPw $ \err ->
-        case err of
-            NoSuchUser -> return Nothing
-            e -> lift $ left e
+checkPasswordByUserName :: UserName -> UserPass -> Action r (UserId, User)
+checkPasswordByUserName username password =
+    checkPassword (LookupUserByName username) password
+
+checkPasswordByUserId :: UserId -> UserPass -> Action r (UserId, User)
+checkPasswordByUserId uid password = checkPassword (LookupUser uid) password
+
+checkPassword :: (QueryEvent event,
+                  Data.Acid.Advanced.MethodResult event
+                    ~ Either ThentosError (UserId, User),
+                  Data.Acid.Advanced.MethodState event ~ DB) =>
+     (ThentosClearance -> event) -> UserPass -> Action r (UserId, User)
+checkPassword action password = catchAction checkPw $ \err ->
+    case err of
+        NoSuchUser -> lift $ left BadCredentials
+        e -> lift $ left e
   where
     checkPw = do
-        (uid, user) <- queryAction $ LookupUserByName username
-        return $ if verifyPass password user
-            then Just (uid, user)
-            else Nothing
+        (uid, user) <- queryAction action
+        if verifyPass password user
+            then return (uid, user)
+            else lift $ left BadCredentials
 
 requestUserEmailChange :: CPRG r =>
     UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
@@ -317,11 +329,8 @@ userGroups uid sid = do
 -- | Check user credentials and create a session for user.
 startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
 startSessionUser (uid, pass) = do
-    (_, user) <- accessAction (Just allowEverything) query' $ LookupUser uid
-    -- FIXME: use checkPassword action instead of verifyPass?
-    if verifyPass pass user
-        then startSessionNoPass (UserA uid)
-        else lift $ left BadCredentials
+    _ <- checkPasswordByUserId uid pass
+    startSessionNoPass (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
