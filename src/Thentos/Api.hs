@@ -250,7 +250,7 @@ checkPassword action password = catchAction checkPw $ \err ->
         e -> lift $ left e
   where
     checkPw = do
-        (uid, user) <- queryAction action
+        (uid, user) <- accessAction (Just allowEverything) query' action  -- FIXME: label action, don't override clearance.
         if verifyPass password user
             then return (uid, user)
             else lift $ left BadCredentials

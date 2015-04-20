@@ -226,7 +226,7 @@ loginService = do
                 finishWith r
             Just callback -> do
                 eSessionToken :: Either ThentosError SessionToken
-                    <- snapRunAction' allowEverything $ do
+                    <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
                         tok <- startSessionNoPass (UserA uid)
                         addServiceLogin tok sid
                         return tok
