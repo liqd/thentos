@@ -312,7 +312,7 @@ instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
-instance ToCNF RoleBasic where toCNF = toCNF . show
+instance ToCNF RoleBasic where toCNF = toCNF . RoleBasic
 instance ToCNF Role where toCNF = toCNF . show
 
 -- | Wrapper for lio's 'Labeled' to avoid orphan instances.  (Also,
