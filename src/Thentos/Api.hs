@@ -62,7 +62,6 @@ import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
-import qualified Data.Acid.Advanced
 import qualified Data.Map as Map
 
 import System.Log.Missing (logger)
@@ -241,9 +240,9 @@ checkPasswordByUserId :: UserId -> UserPass -> Action r (UserId, User)
 checkPasswordByUserId uid password = checkPassword (LookupUser uid) password
 
 checkPassword :: (QueryEvent event,
-                  Data.Acid.Advanced.MethodResult event
+                  EventResult event
                     ~ Either ThentosError (UserId, User),
-                  Data.Acid.Advanced.MethodState event ~ DB) =>
+                  EventState event ~ DB) =>
      (ThentosClearance -> event) -> UserPass -> Action r (UserId, User)
 checkPassword action password = catchAction checkPw $ \err ->
     case err of
