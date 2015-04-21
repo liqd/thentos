@@ -365,6 +365,7 @@ data ThentosError =
     | NoSuchSession
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
+    | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
     | PermissionDenied String ThentosClearance ThentosLabel
@@ -391,6 +392,7 @@ showThentosError NoSuchService                        = return (404, "service no
 showThentosError NoSuchSession                        = return (404, "session not found")
 showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
 showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
+showThentosError NotRegisteredWithService             = return (403, "not registered with service")
 showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
 showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
 showThentosError e@(PermissionDenied _ _ _)           = logger INFO (show e) >> return (401, "unauthorized")

@@ -403,21 +403,21 @@ dropServiceRegistration tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
 
--- | Registers user implicitly if not registered yet.
+-- | If user is not registered, throw an error.
 updateServiceRegistration :: (ServiceAccount -> ServiceAccount)
         -> SessionToken -> ServiceId -> Action r ()
 updateServiceRegistration f tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
     (_, user) <- queryAction (LookupUser uid)
-    let account = fromMaybe newServiceAccount . Map.lookup sid $ user ^. userServices
-    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid (f account))
+    case Map.lookup sid $ user ^. userServices of
+        Nothing      -> lift $ left NotRegisteredWithService
+        Just account -> updateAction . UpdateUserField uid . UpdateUserFieldAddService sid $ f account
 
--- | Registers user implicitly if not registered yet.
+-- | If user is not registered, throw an error.
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Just defaultSessionTimeout
 
--- | If user is not registered with service, do nothing.  Registers
--- user implicitly if not registered yet.
+-- | If user is not registered, throw an error.
 dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
 dropServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Nothing
 
