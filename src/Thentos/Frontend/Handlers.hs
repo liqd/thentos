@@ -274,9 +274,14 @@ logoutThentos = blaze logoutThentosPage
 
 loggedOutThentos :: FH ()
 loggedOutThentos = with sess $ do
-    resetSession
-    commitSession
-    blaze "Logged out"
+    mSessionData <- getFromSession "sessionData"
+    case fsdToken <$> mSessionData of
+        Nothing -> blaze "You're not logged in"
+        Just tok -> do
+            snapRunAction' allowEverything . queryAction $ EndSession tok
+            resetSession
+            commitSession
+            blaze "Logged out"
 
 checkThentosLogin :: FH ()
 checkThentosLogin = do
