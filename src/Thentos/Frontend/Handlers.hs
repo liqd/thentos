@@ -1,18 +1,20 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE BangPatterns           #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE LambdaCase             #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 
 module Thentos.Frontend.Handlers where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Lens ((^.))
+import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
-import Data.ByteString.Builder (toLazyByteString)
+import Data.ByteString.Builder (Builder, toLazyByteString)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
@@ -29,7 +31,16 @@ import Snap.Snaplet (with)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
-import URI.ByteString (URI(..), Query(Query), parseURI, laxURIParserOptions, getQuery, serializeURI)
+import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions)
+import URI.ByteString (parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef)
+import URI.ByteString (rrPathL, uriQueryL, queryPairsL)
+
+-- We are using an experimental version of URI.ByteString:
+--
+-- @
+--     git clone https://github.com/Soostone/uri-bytestring
+--     cabal sandbox add-source ./uri-bytestring
+-- @
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Lazy as L
@@ -193,6 +204,54 @@ serviceCreate clearance uid = do
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
                 Left e -> logger INFO (show e) >> crash 400 "service creation failed."
 
+
+-- | construct the state from context, writes it to snap session, and
+-- return it.
+serviceRegisterWriteState :: FH ServiceRegisterState
+serviceRegisterWriteState = do
+    mSid :: Maybe ServiceId <- ServiceId . cs <$$> getParam "sid"
+    state :: ServiceRegisterState <- do
+        uriBS :: SBS <- getsRequest rqURI
+        case (parseRelativeRef laxURIParserOptions uriBS, mSid) of
+            (Right rr, Just sid) -> return $ ServiceRegisterState (rrPathL .~ "/service/login" $ rr, sid)
+            bad -> crash 500 $ "bad request uri: " <> cs (show bad)
+    updateSessionData (\ fsd -> fsd { fsdServiceRegisterState = Just state })
+    return state
+
+-- | recover state from snap session.
+serviceRegisterReadState :: FH ServiceRegisterState
+serviceRegisterReadState = do
+    mState <- fsdServiceRegisterState <$$> getSessionData
+    case mState of
+        Just (Just state) -> return state
+        Just Nothing      -> crash 500 "service registration: no session state."
+        Nothing           -> crash 500 "service registration: no info in session state."
+
+serviceRegister :: ThentosClearance -> UserId -> FH ()
+serviceRegister clearance uid = do
+    (view, result) <- runForm "register" serviceRegisterForm
+    case result of
+        Nothing -> do
+            ServiceRegisterState (_, sid) <- serviceRegisterWriteState
+            Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser uid
+            Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
+            -- FIXME: service needs to prove its ok with user looking it up here.
+            -- FIXME: handle 'Left's
+            blaze $ serviceRegisterPage view sid service user
+
+        Just () -> do
+            ServiceRegisterState (rr, sid) <- serviceRegisterReadState
+            mToken <- fsdToken <$$> getSessionData
+            case mToken of
+                Just token -> do
+                    Right _ <- snapRunAction' allowEverything $ addServiceRegistration token sid
+                    -- FIXME: lio stuff
+                    -- FIXME: Left case
+                    redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
+                Nothing -> do
+                    crash 400 "register service: could not find thentos session."
+
+
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
@@ -208,9 +267,9 @@ loginService = do
   where
     loginSuccess :: UserId -> ServiceId -> FH ()
     loginSuccess uid sid = do
-        meCallback <- parseURI laxURIParserOptions <$$> getParam "redirect"
-        case meCallback of
-            Just (Right callback) -> do
+        mCallback <- getParam "redirect"
+        case mCallback of
+            Just callback -> do
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
                         tok <- startSessionNoPass (UserA uid)
@@ -218,16 +277,42 @@ loginService = do
                         return tok
                 case eSessionToken of
                     Right sessionToken -> do
-                        let callback' = callback
-                              { uriQuery = Query $
-                                    ("token", cs $ fromSessionToken sessionToken) : (getQuery $ uriQuery callback) }
-                        redirect' (cs . toLazyByteString . serializeURI $ callback') 303
+                        let f = uriQueryL . queryPairsL %~ (("token", cs $ fromSessionToken sessionToken) :)
+                        tweakURI f callback >>= (`redirect'` 303)
 
                     Left NotRegisteredWithService -> do
-                        error "NotRegisteredWithService"
+                        let f = rrPathL .~ "/service/register"
+                        tweakRelativeRqRef f >>= (`redirect'` 303)
+
                     Left e -> do
-                        logger INFO (show e) >> crash 400 "could not initiate session."
+                        logger INFO $ show e
+                        crash 400 "could not initiate session."
+
             bad -> crash' 400 bad "bad request."
+
+
+tweakRelativeRqRef :: (RelativeRef -> RelativeRef) -> FH SBS
+tweakRelativeRqRef tweak = getsRequest rqURI >>= tweakRelativeRef tweak
+
+tweakRelativeRef :: (RelativeRef -> RelativeRef) -> SBS -> FH SBS
+tweakRelativeRef = _tweakURI parseRelativeRef serializeRelativeRef
+
+tweakURI :: (URI -> URI) -> SBS -> FH SBS
+tweakURI = _tweakURI parseURI serializeURI
+
+_tweakURI :: forall e t t' . (Show e) =>
+                   (URIParserOptions -> SBS -> Either e t)
+                -> (t' -> Builder)
+                -> (t -> t')
+                -> SBS
+                -> FH SBS
+_tweakURI parse serialize tweak uriBS = do
+    let ok uri = do
+            return (cs . toLazyByteString . serialize . tweak $ uri)
+        er err = do
+            logger CRITICAL $ show (err, uriBS)
+            crash 500 ("bad request uri: " <> cs (show uriBS))
+    either er ok $ parse laxURIParserOptions uriBS
 
 
 loginThentos :: FH ()
@@ -243,7 +328,7 @@ loginThentos = do
               -- 'allowNothing' and 'thentosPublic'.
             case result of
                 Right (uid, sessionToken) -> with sess $ do
-                    let sessionData = FrontendSessionData sessionToken uid
+                    let sessionData = FrontendSessionData sessionToken uid Nothing
                     setInSession "sessionData" (cs $ Aeson.encode sessionData)
                     commitSession
                     blaze "Logged in"  -- FIXME: redirect to dashboard; show logged-in status in dashboard.
@@ -287,6 +372,16 @@ getSessionData = with sess $ do
     return $ case mSessionDataBS of
         Nothing -> Nothing
         Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
+
+-- | This is probably not race-condition-free.
+updateSessionData :: (FrontendSessionData -> FrontendSessionData) -> FH ()
+updateSessionData op = with sess $ do
+    mSessionData <- (>>= Aeson.decode . cs) <$> getFromSession "sessionData"
+    case mSessionData of
+        Just sessionData -> do
+            setInSession "sessionData" . cs . Aeson.encode . op $ sessionData
+            commitSession
+        Nothing -> return ()
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
