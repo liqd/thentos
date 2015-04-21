@@ -558,9 +558,8 @@ writeSession (fromMaybe id -> updateUserServices) tok session = do
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
 
--- | Write session to database (both in 'dbSessions' and in the
--- 'Agent').  If first arg is given and 'Agent' is 'User', write
--- update service login list, too.
+-- | Remove session from the database (both from 'dbSessions' and the agent's
+-- sessions)
 deleteSession :: SessionToken -> ThentosUpdate' e ()
 deleteSession tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
