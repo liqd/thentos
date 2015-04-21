@@ -43,6 +43,7 @@ Executable helloworld
     , snap-loader-static        >= 0.9
     , snap-server               >= 0.9
     , string-conversions
+    , transformers
     , text                      >= 0.11
     , time                      >= 1.1
     , unordered-containers
