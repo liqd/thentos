@@ -220,8 +220,7 @@ loginService = do
             Nothing -> do
                 modifyResponse $ setResponseStatus 400 "Bad Request"
                 blaze "400 Bad Request"
-                r <- getResponse
-                finishWith r
+                getResponse >>= finishWith
             Just callback -> do
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
