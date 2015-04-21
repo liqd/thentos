@@ -8,7 +8,6 @@ module Thentos.Frontend.Handlers where
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
-import Control.Monad (join)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
@@ -16,7 +15,6 @@ import Data.Acid (AcidState)
 import Data.ByteString (ByteString)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (listToMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
@@ -184,7 +182,7 @@ runWithUserClearance = runWithUserClearance' ()
 
 runWithUserClearance' :: a -> (ThentosClearance -> UserId -> FH a) -> FH a
 runWithUserClearance' def handler = do
-    mUid <- getLoggedInUserId
+    mUid <- fsdUser <$$> getSessionData
     case mUid of
         Nothing -> blaze (errorPage "Not logged in") >> return def
         Just uid -> do
@@ -208,7 +206,7 @@ serviceCreate clearance uid = do
 -- session token should be in a cookie, shouldn't it?
 loginService :: FH ()
 loginService = do
-    mUid <- getLoggedInUserId
+    mUid <- fsdUser <$$> getSessionData
     mSid <- ServiceId . cs <$$> getParam "sid"
     case (mUid, mSid) of
         (_, Nothing)         -> blaze "No service id"
@@ -245,17 +243,19 @@ loginService = do
 
 loginThentos :: FH ()
 loginThentos = do
-    (view, result) <- runForm "login_thentos" loginThentosForm
-    case result of
+    (view, formResult) <- runForm "login_thentos" loginThentosForm
+    case formResult of
         Just (username, password) -> do
-            eUser <- snapRunAction' allowEverything $ checkPasswordByUserName username password
+            result <- snapRunAction' allowEverything $
+                startThentosSessionByUserName username password
               -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
               -- "Thentos.DB.Core".  Use that to create transaction
               -- 'CheckPasswordWithLabel', then call that with
               -- 'allowNothing' and 'thentosPublic'.
-            case eUser of
-                Right (uid, _) -> with sess $ do
-                    setInSession "user" (cs $ Aeson.encode [uid])
+            case result of
+                Right (uid, sessionToken) -> with sess $ do
+                    let sessionData = FrontendSessionData sessionToken uid
+                    setInSession "sessionData" (cs $ Aeson.encode sessionData)
                     commitSession
                     blaze "Logged in"
                 Left BadCredentials -> loginFail
@@ -280,20 +280,18 @@ loggedOutThentos = with sess $ do
 
 checkThentosLogin :: FH ()
 checkThentosLogin = do
-    mUid <- getLoggedInUserId
+    mUid <- fsdUser <$$> getSessionData
     case mUid of
         Nothing -> blaze "Not logged in"
         Just uid -> do
             blaze $ "Logged in as user: " <> H.string (show uid)
 
-getLoggedInUserId :: FH (Maybe UserId)
-getLoggedInUserId = with sess $ do
-    mUserText <- getFromSession "user"
-    return $ case mUserText of
-        Nothing -> Nothing
-        Just userText ->
-            let mlUid = Aeson.decode . cs $ userText :: Maybe [UserId] in
-            join $ listToMaybe <$> mlUid
+getSessionData :: FH (Maybe FrontendSessionData)
+getSessionData = with sess $ do
+        mSessionDataBS <- getFromSession "sessionData"
+        return $ case mSessionDataBS of
+            Nothing -> Nothing
+            Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
@@ -374,7 +372,7 @@ snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
 
 dashboardDetails :: FH ()
 dashboardDetails = do
-    mUid <- getLoggedInUserId
+    mUid <- fsdUser <$$> getSessionData
     case mUid of
         Nothing -> redirect' "/login_thentos" 303
         Just uid -> do

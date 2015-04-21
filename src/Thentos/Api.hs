@@ -33,6 +33,7 @@ module Thentos.Api
   , addService
   , userGroups
   , startThentosSessionUser
+  , startThentosSessionByUserName
   , startSessionService
   , startSessionNoPass
   , bumpSession
@@ -329,14 +330,21 @@ userGroups uid sid = do
 -- ** sessions
 
 -- | Check user credentials and create a session for user.
-startThentosSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
-startThentosSessionUser (uid, pass) = do
+startThentosSessionUser :: CPRG r => UserId -> UserPass -> Action (MVar r) SessionToken
+startThentosSessionUser uid pass = do
     _ <- checkPasswordByUserId uid pass
     startSessionNoPass (UserA uid)
 
+startThentosSessionByUserName :: CPRG r => UserName-> UserPass -> Action (MVar r) (UserId, SessionToken)
+startThentosSessionByUserName name pass = do
+    (uid, _) <- checkPasswordByUserName name pass
+    token <- startSessionNoPass (UserA uid)
+    return (uid, token)
+
+
 -- | Check service credentials and create a session for service.
-startSessionService :: CPRG r => (ServiceId, ServiceKey) -> Action (MVar r) SessionToken
-startSessionService (sid, key) = do
+startSessionService :: CPRG r => ServiceId -> ServiceKey -> Action (MVar r) SessionToken
+startSessionService sid key = do
     (_, service) <- accessAction (Just allowEverything) query' $ LookupService sid
     if verifyKey key service
         then startSessionNoPass (ServiceA sid)
