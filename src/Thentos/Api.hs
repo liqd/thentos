@@ -32,7 +32,7 @@ module Thentos.Api
   , confirmUserEmailChange
   , addService
   , userGroups
-  , startSessionUser
+  , startThentosSessionUser
   , startSessionService
   , startSessionNoPass
   , bumpSession
@@ -329,8 +329,8 @@ userGroups uid sid = do
 -- ** sessions
 
 -- | Check user credentials and create a session for user.
-startSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
-startSessionUser (uid, pass) = do
+startThentosSessionUser :: CPRG r => (UserId, UserPass) -> Action (MVar r) SessionToken
+startThentosSessionUser (uid, pass) = do
     _ <- checkPasswordByUserId uid pass
     startSessionNoPass (UserA uid)
 
