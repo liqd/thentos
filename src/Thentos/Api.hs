@@ -39,6 +39,8 @@ module Thentos.Api
   , isActiveSession
   , isActiveSessionAndBump
   , isLoggedIntoService
+  , addServiceRegistration
+  , dropServiceRegistration
   , addServiceLogin
   , dropServiceLogin
   )
@@ -46,7 +48,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar, modifyMVar)
-import Control.Lens ((^.))
+import Control.Lens ((^.), (.~))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT), left, eitherT, runEitherT)
@@ -57,12 +59,14 @@ import Data.Acid.Advanced (update', query')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
+import Data.Set (Set)
 import Data.String.Conversions (SBS, ST, cs, LT)
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import System.Log.Missing (logger)
 import Thentos.Config
@@ -290,12 +294,12 @@ getUserClearance uid = do
 
 -- ** services
 
-addService :: CPRG r => ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
-addService name desc = do
+addService :: CPRG r => Agent -> ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
+addService owner name desc = do
     sid <- freshServiceId
     key <- freshServiceKey
     hashedKey <- hashServiceKey key
-    updateAction $ AddService sid hashedKey name desc
+    updateAction $ AddService owner sid hashedKey name desc
     return (sid, key)
 
 -- | List all group leafs a user is member in on some service.
@@ -303,19 +307,23 @@ userGroups :: UserId -> ServiceId -> Action r [Group]
 userGroups uid sid = do
     (_, service) <- queryAction $ LookupService sid
 
-    let groupMap :: Map.Map GroupNode [Group]
+    let groupMap :: Map.Map GroupNode (Set Group)
         groupMap = service ^. serviceGroups
 
-        r :: GroupNode -> [Group]
-        r g = concat $ (f . GroupG) <$> memberships
-          where
-            memberships :: [Group] = fromMaybe [] $ Map.lookup g groupMap
+        memberships :: GroupNode -> Set Group
+        memberships g = Map.findWithDefault Set.empty g groupMap
 
-        f :: GroupNode -> [Group]
-        f g@(GroupU _) =     r g
-        f g@(GroupG n) = n : r g
+        unionz :: Set (Set Group) -> Set Group
+        unionz = Set.fold Set.union Set.empty
 
-    return $ f (GroupU uid)
+        f :: GroupNode -> Set Group
+        f g@(GroupU _) =                r g
+        f g@(GroupG n) = n `Set.insert` r g
+
+        r :: GroupNode -> Set Group
+        r g = unionz $ Set.map (f . GroupG) (memberships g)
+
+    return . Set.toList . f . GroupU $ uid
 
 
 -- ** sessions
@@ -344,6 +352,13 @@ startSessionNoPass agent = do
     return tok
 
 -- | Sessions have a fixed duration of 2 weeks.
+--
+-- FIXME: this is used for both service sessions and thentos sessions.
+-- delete this name, and make two new names that disentangle that.
+--
+-- FIXME: make configurable.  (eventually, this will need to be
+-- run-time configurable.  but there will probably still be global
+-- defaults handled by configifier.)
 defaultSessionTimeout :: Timeout
 defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
@@ -378,20 +393,33 @@ _sessionAndUserIdFromToken tok = do
         UserA uid -> return (session, uid)
         ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
 
--- | FIXME: 'addServiceLogin' and 'dropServiceLogin' still have the
--- old 'is logged in'-semantics.  we need to switch to the new
--- semantics where the transactions used here register users with
--- services, and there need to be separate transactions for login,
--- logout.
-addServiceLogin :: SessionToken -> ServiceId -> Action r ()
-addServiceLogin tok sid = do
+addServiceRegistration :: SessionToken -> ServiceId -> Action r ()
+addServiceRegistration tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
-    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid)
+    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid newServiceAccount)
 
-dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
-dropServiceLogin tok sid = do
+dropServiceRegistration :: SessionToken -> ServiceId -> Action r ()
+dropServiceRegistration tok sid = do
     (_, uid) <- _sessionAndUserIdFromToken tok
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
+
+-- | Registers user implicitly if not registered yet.
+updateServiceRegistration :: (ServiceAccount -> ServiceAccount)
+        -> SessionToken -> ServiceId -> Action r ()
+updateServiceRegistration f tok sid = do
+    (_, uid) <- _sessionAndUserIdFromToken tok
+    (_, user) <- queryAction (LookupUser uid)
+    let account = fromMaybe newServiceAccount . Map.lookup sid $ user ^. userServices
+    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid (f account))
+
+-- | Registers user implicitly if not registered yet.
+addServiceLogin :: SessionToken -> ServiceId -> Action r ()
+addServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Just defaultSessionTimeout
+
+-- | If user is not registered with service, do nothing.  Registers
+-- user implicitly if not registered yet.
+dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
+dropServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Nothing
 
 
 -- $overview

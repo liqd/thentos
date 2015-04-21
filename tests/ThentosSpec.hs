@@ -106,8 +106,9 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
 
     describe "AddService, LookupService, DeleteService" $ do
         it "works" $ \ asg@(st, _, _) -> do
-            Right (service1_id, _s1_key) <- runAction' (asg, allowEverything) $ addService "fake name" "fake description"
-            Right (service2_id, _s2_key) <- runAction' (asg, allowEverything) $ addService "different name" "different description"
+            let addsvc name desc = runAction' (asg, allowEverything) $ addService (UserA (UserId 0)) name desc
+            Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
+            Right (service2_id, _s2_key) <- addsvc "different name" "different description"
             Right service1 <- query' st $ LookupService service1_id allowEverything
             Right service2 <- query' st $ LookupService service2_id allowEverything
             service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
