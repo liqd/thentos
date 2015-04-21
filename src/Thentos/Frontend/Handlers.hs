@@ -12,7 +12,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
-import Data.ByteString (ByteString)
+import Data.ByteString.Builder (toLazyByteString)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
@@ -20,28 +20,26 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
-import Snap.Snaplet.AcidState (getAcidState, update)
 import Snap.Blaze (blaze)
-import System.Log.Missing (logger)
-import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Core (getResponse, finishWith, urlEncode, urlDecode)
+import Snap.Core (rqURI, getParam, getsRequest, redirect', modifyResponse, setResponseStatus)
+import Snap.Snaplet.AcidState (getAcidState, update)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
 import Snap.Snaplet (with)
+import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
+import URI.ByteString (URI(..), Query(Query), parseURI, laxURIParserOptions, getQuery, serializeURI)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.Map as M
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Api
+import Thentos.Config
 import Thentos.DB
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
-import Thentos.Config
 import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
@@ -215,13 +213,9 @@ loginService = do
   where
     loginSuccess :: UserId -> ServiceId -> FH ()
     loginSuccess uid sid = do
-        mCallback <- getParam "redirect"
-        case mCallback of
-            Nothing -> do
-                modifyResponse $ setResponseStatus 400 "Bad Request"
-                blaze "400 Bad Request"
-                getResponse >>= finishWith
-            Just callback -> do
+        meCallback <- parseURI laxURIParserOptions <$$> getParam "redirect"
+        case meCallback of
+            Just (Right callback) -> do
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
                         tok <- startSessionNoPass (UserA uid)
@@ -229,19 +223,20 @@ loginService = do
                         return tok
                 case eSessionToken of
                     Right sessionToken -> do
-                        let (base_url, _query) = BC.break (== '?') callback
-                            params             = parseUrlEncoded $ B.drop 1 _query
-                            params'            = M.insert "token" [cs $ fromSessionToken sessionToken] params
-                            url                = base_url <> "?" <> printUrlEncoded params'
-                        redirect' url 303
-
-                            -- FIXME: use Tibell's network-uri package.  (will
-                            -- this help in other existing places, too?)
+                        let callback' = callback
+                              { uriQuery = Query $
+                                    ("token", cs $ fromSessionToken sessionToken) : (getQuery $ uriQuery callback) }
+                        redirect' (cs . toLazyByteString . serializeURI $ callback') 303
 
                     Left NotRegisteredWithService -> do
                         error "NotRegisteredWithService"
                     Left e -> do
                         logger INFO (show e) >> blaze (errorPage "could not initiate session.")
+            bad -> do
+                logger DEBUG (show bad)
+                modifyResponse $ setResponseStatus 400 "Bad Request"
+                blaze "400 Bad Request"
+                getResponse >>= finishWith
 
 
 loginThentos :: FH ()
