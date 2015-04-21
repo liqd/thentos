@@ -229,16 +229,20 @@ loginService = do
                         addServiceLogin tok sid
                         return tok
                 case eSessionToken of
-                    Left e -> logger INFO (show e) >> blaze (errorPage "could not initiate session.")
-                    Right sessionToken ->
-                        redirect' (redirectUrl callback sessionToken) 303
+                    Right sessionToken -> do
+                        let (base_url, _query) = BC.break (== '?') callback
+                            params             = parseUrlEncoded $ B.drop 1 _query
+                            params'            = M.insert "token" [cs $ fromSessionToken sessionToken] params
+                            url                = base_url <> "?" <> printUrlEncoded params'
+                        redirect' url 303
 
-    redirectUrl :: ByteString -> SessionToken -> ByteString
-    redirectUrl serviceProvidedUrl sessionToken =
-        let (base_url, _query) = BC.break (== '?') serviceProvidedUrl in
-        let params = parseUrlEncoded $ B.drop 1 _query in
-        let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
-        base_url <> "?" <> printUrlEncoded params'
+                            -- FIXME: use Tibell's network-uri package.  (will
+                            -- this help in other existing places, too?)
+
+                    Left NotRegisteredWithService -> do
+                        error "NotRegisteredWithService"
+                    Left e -> do
+                        logger INFO (show e) >> blaze (errorPage "could not initiate session.")
 
 
 loginThentos :: FH ()
