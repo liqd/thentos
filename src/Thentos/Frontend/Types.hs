@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell        #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE DeriveGeneric          #-}
+
 module Thentos.Frontend.Types where
 
 import Control.Lens (makeLenses, view)

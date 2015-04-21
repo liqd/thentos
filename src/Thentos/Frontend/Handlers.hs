@@ -288,10 +288,10 @@ checkThentosLogin = do
 
 getSessionData :: FH (Maybe FrontendSessionData)
 getSessionData = with sess $ do
-        mSessionDataBS <- getFromSession "sessionData"
-        return $ case mSessionDataBS of
-            Nothing -> Nothing
-            Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
+    mSessionDataBS <- getFromSession "sessionData"
+    return $ case mSessionDataBS of
+        Nothing -> Nothing
+        Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do

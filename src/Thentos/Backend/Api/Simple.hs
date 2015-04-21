@@ -151,7 +151,7 @@ type ThentosSession =
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
-       uncurry startThentosSessionUser
+       uncurry startThentosSessionByUserId
   :<|> uncurry startSessionService
   :<|> isActiveSession
   :<|> updateAction . EndSession
