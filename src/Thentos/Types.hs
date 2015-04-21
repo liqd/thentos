@@ -160,7 +160,7 @@ data Service =
       , _serviceSession     :: !(Maybe SessionToken)  -- ^ Like 'userSessions', used by services to authenticate against thentos.
       , _serviceName        :: !ServiceName
       , _serviceDescription :: !ServiceDescription
-      , _serviceGroups      :: Map GroupNode (Set Group)
+      , _serviceGroups      :: !(Map GroupNode (Set Group))
       }
   deriving (Eq, Show, Typeable, Generic)
 
