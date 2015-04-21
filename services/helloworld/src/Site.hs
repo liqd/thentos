@@ -6,6 +6,8 @@ module Site
   ) where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad.State.Class (gets)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy (toStrict)
@@ -14,7 +16,7 @@ import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
 import Network.HTTP.Types (methodPost)
-import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, gets, liftIO, getParam, method, Method(GET), ifTop, addRoutes)
+import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Blaze (blaze)
 import Snap.Util.FileServe (serveDirectory)
 import Text.Blaze.Html (Html)
