@@ -362,6 +362,7 @@ resetPassword = do
             modifyResponse $ setResponseStatus 400 (cs msg)
             blaze (H.text msg)
 
+
 -- * Util
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
