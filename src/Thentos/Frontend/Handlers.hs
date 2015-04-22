@@ -96,7 +96,7 @@ userCreateConfirm = do
                 Right uid -> blaze $ userCreatedPage uid
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO (show e)
-                    crash 400 "finializing registration failed: unknown token."
+                    crash 400 "finalizing registration failed: unknown token."
                 Left e -> do
                     logger CRITICAL ("unreachable: " ++ show e)
                     crash 400 "finializing registration failed."
