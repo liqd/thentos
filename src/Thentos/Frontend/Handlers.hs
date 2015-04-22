@@ -17,7 +17,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (SBS, cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
 import Snap.Blaze (blaze)
@@ -77,7 +77,7 @@ userCreate = do
                     config :: ThentosConfig <- gets (^. cfg)
                     liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
                     blaze userCreateRequestedPage
-                Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+                Left e -> logger INFO (show e) >> crash 400 "registration failed."
 
 urlUserCreateConfirm :: HttpConfig -> ConfirmationToken -> L.Text
 urlUserCreateConfirm feConfig (ConfirmationToken token) =
@@ -96,16 +96,14 @@ userCreateConfirm = do
                 Right uid -> blaze $ userCreatedPage uid
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO (show e)
-                    blaze (errorPage "finializing registration failed: unknown token.")
+                    crash 400 "finializing registration failed: unknown token."
                 Left e -> do
                     logger CRITICAL ("unreachable: " ++ show e)
-                    blaze (errorPage "finializing registration failed.")
+                    crash 400 "finializing registration failed."
         Just (Left unicodeError) -> do
-            logger DEBUG (show unicodeError)
-            blaze (errorPage $ show unicodeError)
+            crash' 400 unicodeError "bad user confirmation link."
         Nothing -> do
-            logger DEBUG "no token"
-            blaze (errorPage "finializing registration failed: token is missing.")
+            crash 400 "no user confirmation token."
 
 userUpdate :: FH ()
 userUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -118,7 +116,7 @@ userUpdate = runWithUserClearance $ \ clearance uid -> do
             result' <- update $ UpdateUserFields uid fieldUpdates clearance
             case result' of
                 Right () -> blaze "User data updated!"
-                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 passwordUpdate :: FH ()
 passwordUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -131,7 +129,7 @@ passwordUpdate = runWithUserClearance $ \ clearance uid -> do
             result' <- snapRunAction' clearance $ changePassword uid oldPw newPw
             case result' of
                 Right () -> blaze "Password Changed!"
-                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 emailUpdate :: FH ()
 emailUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -148,7 +146,7 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
             case result' of
                 Right () -> blaze emailSentPage
                 Left UserEmailAlreadyExists -> blaze emailSentPage
-                Left e -> logger INFO (show e) >> blaze (errorPage "email update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "email update failed."
   where
     emailSentPage = "Please confirm your new email address through the email we just sent you"
 
@@ -162,27 +160,24 @@ emailUpdateConfirm = do
     mToken <- (>>= urlDecode) <$> getParam "token"
     let meToken = ConfirmationToken <$$> decodeUtf8' <$> mToken
     case meToken of
-        Nothing -> blaze $ errorPage "Missing token"
-        Just (Left _unicodeError) -> blaze $ errorPage "Bad token"
+        Nothing -> crash 400 "change email: missing token."
+        Just (Left _unicodeError) -> crash 400 "change email: bad token."
         Just (Right token) -> do
             result <- snapRunAction' allowEverything $ confirmUserEmailChange token
             case result of
-                Right () -> blaze $ "Email address changed"
-                Left NoSuchToken -> blaze $ errorPage "No such token"
+                Right () -> blaze $ "change email: success!"
+                Left NoSuchToken -> crash 400 "change email: no such token."
                 Left e -> do
                     logger WARNING (show e)
-                    blaze $ errorPage "Error when trying to change email address"
+                    crash 400 "change email: error."
 
 -- | Runs a given handler with the credentials and the id of the currently
 -- logged-in user
-runWithUserClearance :: (ThentosClearance -> UserId -> FH ()) -> FH ()
-runWithUserClearance = runWithUserClearance' ()
-
-runWithUserClearance' :: a -> (ThentosClearance -> UserId -> FH a) -> FH a
-runWithUserClearance' def handler = do
+runWithUserClearance :: (ThentosClearance -> UserId -> FH a) -> FH a
+runWithUserClearance handler = do
     mUid <- fsdUser <$$> getSessionData
     case mUid of
-        Nothing -> blaze (errorPage "Not logged in") >> return def
+        Nothing -> crash 400 "not logged in."
         Just uid -> do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
             handler clearance uid
@@ -196,7 +191,7 @@ serviceCreate clearance uid = do
             result' <- snapRunAction' clearance $ addService (UserA uid) name description
             case result' of
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
-                Left e -> logger INFO (show e) >> blaze (errorPage "service creation failed.")
+                Left e -> logger INFO (show e) >> crash 400 "service creation failed."
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
@@ -231,12 +226,8 @@ loginService = do
                     Left NotRegisteredWithService -> do
                         error "NotRegisteredWithService"
                     Left e -> do
-                        logger INFO (show e) >> blaze (errorPage "could not initiate session.")
-            bad -> do
-                logger DEBUG (show bad)
-                modifyResponse $ setResponseStatus 400 "Bad Request"
-                blaze "400 Bad Request"
-                getResponse >>= finishWith
+                        logger INFO (show e) >> crash 400 "could not initiate session."
+            bad -> crash' 400 bad "bad request."
 
 
 loginThentos :: FH ()
@@ -338,10 +329,10 @@ resetPassword = do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
-                Left NoSuchToken -> blaze $ errorPage "No such reset token"
+                Left NoSuchToken -> crash 400 "no such reset token."
                 Left e -> do
                     logger WARNING (show e)
-                    blaze $ errorPage "Error when trying to change password"
+                    crash 400 "chnage password: error"
 
         -- error cases
         (_, _, Left _) -> do
@@ -359,6 +350,16 @@ resetPassword = do
 
 
 -- * Util
+
+crash' :: (Show a) => Int -> a -> SBS -> FH b
+crash' status logMsg usrMsg = do
+    logger DEBUG $ show (status, logMsg, usrMsg)
+    modifyResponse $ setResponseStatus status usrMsg
+    blaze . errorPage . cs $ usrMsg
+    getResponse >>= finishWith
+
+crash :: Int -> SBS -> FH b
+crash status usrMsg = crash' status () usrMsg
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
       -> FH (Either ThentosError a)
