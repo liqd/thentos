@@ -255,7 +255,7 @@ loginThentos = do
                     let sessionData = FrontendSessionData sessionToken uid
                     setInSession "sessionData" (cs $ Aeson.encode sessionData)
                     commitSession
-                    blaze "Logged in"
+                    blaze "Logged in"  -- FIXME: redirect to dashboard; show logged-in status in dashboard.
                 Left BadCredentials -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
                     -- FIXME: this should be handled.  we should

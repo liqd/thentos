@@ -365,10 +365,9 @@ serviceCreatedPage sid key = H.docTypeHtml $ do
     H.head $ do
         H.title "Service created!"
     H.body $ do
-        H.body $ do
-            H.h1 "Added a service!"
-            H.p "Service id: " <> H.text (fromServiceId sid)
-            H.p "Service key: " <> H.text (fromServiceKey key)
+        H.h1 "Added a service!"
+        H.p $ "Service id: " <> H.text (fromServiceId sid)
+        H.p $ "Service key: " <> H.text (fromServiceKey key)
 
 loginServicePage :: ServiceId -> View Html -> ByteString -> Html
 loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
