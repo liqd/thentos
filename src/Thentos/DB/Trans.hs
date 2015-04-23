@@ -46,6 +46,8 @@ module Thentos.DB.Trans
   , IsActiveSessionAndBump(..), trans_isActiveSessionAndBump
   , IsLoggedIntoService(..), trans_isLoggedIntoService
   , IsRegisteredWithService(..), trans_isRegisteredWithService
+  , AddServiceLogin(..), trans_addServiceLogin
+  , DropServiceLogin(..), trans_dropServiceLogin
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
   , AssignRole(..), trans_assignRole
@@ -82,7 +84,6 @@ import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
 
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 import Thentos.DB.Core
 import Thentos.Types
@@ -276,7 +277,7 @@ trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
     let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
     ThentosLabeled label' (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    forM_ (Set.toList $ user ^. userSessions) deleteSession
+    forM_ (Map.keys $ user ^. userSessions) deleteSession
     modify $ dbUsers %~ Map.delete uid
     returnDb (lub label label') ()
 
@@ -523,9 +524,46 @@ trans_getServiceStatus now tok sid = do
                 ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
                 case Map.lookup sid $ user ^. userServices of
                     Nothing -> returnDb label Nothing
-                    Just acc -> returnDb label (Just . isJust $ acc ^. serviceSessionTimeout)
+                    Just _ ->
+                        case Map.lookup tok (user ^. userSessions) of
+                            Just sess -> returnDb label $ Just (Map.member sid $ sess)
+                            Nothing -> returnDb label Nothing
             ServiceA _ -> returnDb label Nothing
 
+-- | Add a service login to a user session. Throws an error when the session
+-- doesn't exist / has expired or is a service session.
+trans_addServiceLogin :: TimeStamp -> Timeout -> SessionToken -> ServiceId -> ThentosUpdate ()
+trans_addServiceLogin now timeout tok sid = do
+    let loginExpires = TimeStamp $ fromTimeStamp now .+^ fromTimeout timeout
+    ThentosLabeled l1 (_, session) <- trans_lookupSession (Just (now, True)) tok
+    case session ^. sessionAgent of
+        ServiceA _ -> throwDb l1 ServiceSessionInsteadOfUserSession
+        UserA uid -> do
+            ThentosLabeled l2 (_, user) <- liftThentosQuery $ trans_lookupUser uid
+            let label = lub l1 l2
+            case Map.lookup sid (user ^. userServices) of
+                Nothing -> throwDb label NotRegisteredWithService
+                Just _ -> do
+                    let user' = userSessions %~ Map.adjust (Map.insert sid loginExpires) tok $ user
+                    modify $ dbUsers %~ Map.insert uid user'
+                    returnDb label ()
+
+-- | Delete a service login from a user session. Does nothing if the session
+-- does not exist. Thorws an error if the session is a service session.
+trans_dropServiceLogin :: SessionToken -> ServiceId -> ThentosUpdate ()
+trans_dropServiceLogin tok sid = do
+    mSession <- Map.lookup tok <$> gets (^. dbSessions)
+    case fmap (^. sessionAgent) mSession of
+        -- FIXME / question to the reviewer: what label should be used here?
+        Nothing -> returnDb thentosPublic ()
+        Just s@(ServiceA _) ->
+            throwDb (RoleAdmin \/ s =%% RoleAdmin /\ s)
+                    ServiceSessionInsteadOfUserSession
+        Just ua@(UserA uid) -> do
+            let userTrans = userSessions %~ Map.adjust (Map.delete sid) tok
+            modify $ dbUsers %~ Map.adjust userTrans uid
+            let label = RoleAdmin \/ ua =%% RoleAdmin /\ ua
+            returnDb label ()
 
 -- | Go through 'dbSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
@@ -553,10 +591,12 @@ writeSession (fromMaybe id -> updateUserServices) tok session = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSessions %~ Set.insert tok) . (userServices %~ updateUserServices)
+    _updateUser = (userSessions %~ Map.alter (Just . fromMaybe Map.empty) tok)
+                . (userServices %~ updateUserServices)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
+
 
 -- | Remove session from the database (both from 'dbSessions' and the agent's
 -- sessions)
@@ -572,7 +612,7 @@ deleteSession tok = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSessions %~ Set.delete tok) . (userServices .~ Map.empty)
+    _updateUser = (userSessions %~ Map.delete tok) . (userServices .~ Map.empty)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Nothing
@@ -746,6 +786,12 @@ isLoggedIntoService now tok sid clearance = runThentosUpdate clearance $ trans_i
 isRegisteredWithService :: TimeStamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError Bool)
 isRegisteredWithService now tok sid clearance = runThentosUpdate clearance $ trans_isRegisteredWithService now tok sid
 
+addServiceLogin :: TimeStamp -> Timeout -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
+addServiceLogin now timeout tok sid clearance = runThentosUpdate clearance $ trans_addServiceLogin now timeout tok sid
+
+dropServiceLogin :: SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
+dropServiceLogin tok sid clearance = runThentosUpdate clearance $ trans_dropServiceLogin tok sid
+
 garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
@@ -795,6 +841,8 @@ $(makeAcidic ''DB
     , 'isActiveSessionAndBump
     , 'isLoggedIntoService
     , 'isRegisteredWithService
+    , 'addServiceLogin
+    , 'dropServiceLogin
     , 'garbageCollectSessions
 
     , 'assignRole

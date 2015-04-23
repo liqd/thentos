@@ -79,7 +79,7 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userSessions :: !(Set SessionToken)  -- ^ thentos sessions
+      , _userSessions :: !(Map SessionToken (Map ServiceId TimeStamp)) -- ^ thentos sessions
       , _userServices :: !(Map ServiceId ServiceAccount)  -- ^ services (with session info)
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -88,9 +88,7 @@ data User =
 -- with.
 data ServiceAccount =
     ServiceAccount
-      { _serviceSessionTimeout :: Maybe Timeout
-        -- ^ Nothing when not logged into service.
-      , _serviceAnonymous :: Bool
+      { _serviceAnonymous :: !Bool
         -- ^ Do not give out any information about user beyond session token validity bit.  (not implemented.)
 
         -- FUTURE WORK: what we actually would want here is
@@ -106,7 +104,7 @@ data ServiceAccount =
   deriving (Eq, Show, Typeable, Generic)
 
 newServiceAccount :: ServiceAccount
-newServiceAccount = ServiceAccount Nothing False
+newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
@@ -375,6 +373,7 @@ data ThentosError =
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
+    | ServiceSessionInsteadOfUserSession
     deriving (Eq, Ord, Show, Read, Typeable)
 
 instance SafeCopy ThentosError
@@ -402,6 +401,7 @@ showThentosError ProxyNotAvailable                    = return (404, "proxying n
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 showThentosError (NoSuchToken)                        = return (404, "no such token")
+showThentosError (ServiceSessionInsteadOfUserSession) = return (404, "no such token")
 
 
 -- * boilerplate
