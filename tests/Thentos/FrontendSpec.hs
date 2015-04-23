@@ -222,12 +222,12 @@ serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()
             fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-
         fill "create.name" sname
         fill "create.description" sdescr
 
         WD.findElem (WD.ById "create_service_submit") >>= WD.click
-        (\ s -> case cs s =~- "Service id: </p>(.+)<" of [_, sid] -> ServiceId $ cs (LB.take 24 sid)) <$> WD.getSource
+
+        (\ s -> case cs s =~- "Service id: (.+)<" of [_, sid] -> ServiceId $ cs (LB.take 24 sid)) <$> WD.getSource
 
     -- db: check that
     --   1. service has been created;
