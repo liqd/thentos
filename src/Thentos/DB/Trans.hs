@@ -77,7 +77,6 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, (\\), foldl')
-import Data.Map (Map)
 import Data.Maybe (fromMaybe, isJust)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel ((\/), (/\))
@@ -371,7 +370,6 @@ pure_lookupSession db mNow tok =
         (Just session, Nothing) -> LookupSessionUnchanged (tok, session)
         (Nothing, _) -> LookupSessionNotThere
 
-
 -- | See 'trans_lookupSession'.  The difference is that you cannot
 -- bump the session, so there cannot be any changes to the database,
 -- so the result monad can be 'ThentosQuery'.
@@ -426,7 +424,7 @@ lookupSessionAsService mSid mNow tok = do
             returnDb (lub label label') (tok, session)
         LookupSessionBumped (_, session) -> do
             let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
-            writeSession Nothing tok session
+            writeSession tok session
             returnDb (lub label label') (tok, session)
         LookupSessionInactive -> throwDb label NoSuchSession
         LookupSessionNotThere -> throwDb label NoSuchSession
@@ -442,7 +440,7 @@ trans_startSession freshSessionToken agent start lifetime = do
         session = Session agent start end lifetime
         end = TimeStamp $ fromTimeStamp start .+^ fromTimeout lifetime
     ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    writeSession (Just $ const Map.empty) freshSessionToken session
+    writeSession freshSessionToken session
     returnDb label ()
 
 
@@ -526,12 +524,17 @@ trans_getServiceStatus now tok sid = do
                     Nothing -> returnDb label Nothing
                     Just _ ->
                         case Map.lookup tok (user ^. userSessions) of
-                            Just sess -> returnDb label $ Just (Map.member sid $ sess)
                             Nothing -> returnDb label Nothing
+                            Just sessions ->
+                                returnDb label . Just $
+                                    case Map.lookup sid sessions of
+                                        Just endOfSession -> endOfSession > now
+                                        Nothing -> False
             ServiceA _ -> returnDb label Nothing
 
--- | Add a service login to a user session. Throws an error when the session
--- doesn't exist / has expired or is a service session.
+-- | Add a service login to a user session. Throws an error if the session
+-- doesn't exist / has expired or is a service session. If a service session
+-- already exists, it is overwritten.
 trans_addServiceLogin :: TimeStamp -> Timeout -> SessionToken -> ServiceId -> ThentosUpdate ()
 trans_addServiceLogin now timeout tok sid = do
     let loginExpires = TimeStamp $ fromTimeStamp now .+^ fromTimeout timeout
@@ -548,14 +551,15 @@ trans_addServiceLogin now timeout tok sid = do
                     modify $ dbUsers %~ Map.insert uid user'
                     returnDb label ()
 
--- | Delete a service login from a user session. Does nothing if the session
--- does not exist. Thorws an error if the session is a service session.
+-- | Delete a service session. Does nothing if the session does not exist.
+-- Throws an error if the session is owned by a service.
 trans_dropServiceLogin :: SessionToken -> ServiceId -> ThentosUpdate ()
 trans_dropServiceLogin tok sid = do
     mSession <- Map.lookup tok <$> gets (^. dbSessions)
-    case fmap (^. sessionAgent) mSession of
+    case (^. sessionAgent) <$> mSession of
         -- FIXME / question to the reviewer: what label should be used here?
-        Nothing -> returnDb thentosPublic ()
+        Nothing -> throwDb (RoleAdmin =%% RoleAdmin)
+                           ServiceSessionInsteadOfUserSession
         Just s@(ServiceA _) ->
             throwDb (RoleAdmin \/ s =%% RoleAdmin /\ s)
                     ServiceSessionInsteadOfUserSession
@@ -581,9 +585,8 @@ sessionNowActive now session = (session ^. sessionStart) < now && now < (session
 -- | Write session to database (both in 'dbSessions' and in the
 -- 'Agent').  If first arg is given and 'Agent' is a user, update
 -- service login list of this user, too.
-writeSession :: Maybe (Map ServiceId ServiceAccount -> Map ServiceId ServiceAccount)
-    -> SessionToken -> Session -> ThentosUpdate' e ()
-writeSession (fromMaybe id -> updateUserServices) tok session = do
+writeSession :: SessionToken -> Session -> ThentosUpdate' e ()
+writeSession tok session = do
     modify $ dbSessions %~ Map.insert tok session
     modify $ case session ^. sessionAgent of
         UserA    uid -> dbUsers    %~ Map.adjust _updateUser uid
@@ -592,11 +595,9 @@ writeSession (fromMaybe id -> updateUserServices) tok session = do
   where
     _updateUser :: User -> User
     _updateUser = (userSessions %~ Map.alter (Just . fromMaybe Map.empty) tok)
-                . (userServices %~ updateUserServices)
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Just tok
-
 
 -- | Remove session from the database (both from 'dbSessions' and the agent's
 -- sessions)
