@@ -490,21 +490,21 @@ trans_isActiveSessionAndBump now tok = do
 -- | Call 'GetServiceStatus' and return login bit.
 trans_isLoggedIntoService :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
 trans_isLoggedIntoService now tok sid = do
-    ThentosLabeled l v <- trans_getServiceStatus now tok sid
+    ThentosLabeled l v <- getServiceStatus now tok sid
     returnDb l $ fromMaybe False v
 
 -- | Call 'GetServiceStatus' and return registration bit.
 trans_isRegisteredWithService :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
 trans_isRegisteredWithService now tok sid = do
-    ThentosLabeled l v <- trans_getServiceStatus now tok sid
+    ThentosLabeled l v <- getServiceStatus now tok sid
     returnDb l $ isJust v
 
 -- | Return 'Nothing' if session owner is not registered with service,
 -- or a boolean indicating her login status if she is.  Bump session
 -- if it is valid (even if user is not logged into service, but just
 -- into thentos).
-trans_getServiceStatus :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate (Maybe Bool)
-trans_getServiceStatus now tok sid = do
+getServiceStatus :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate (Maybe Bool)
+getServiceStatus now tok sid = do
     let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
     catchT
         (check >>= \ (ThentosLabeled _ v) -> returnDb label v)
@@ -523,7 +523,7 @@ trans_getServiceStatus now tok sid = do
                 case Map.lookup sid $ user ^. userServices of
                     Nothing -> returnDb label Nothing
                     Just _ ->
-                        case Map.lookup tok (user ^. userSessions) of
+                        case Map.lookup tok $ user ^. userSessions of
                             Nothing -> returnDb label Nothing
                             Just sessions ->
                                 returnDb label . Just $
