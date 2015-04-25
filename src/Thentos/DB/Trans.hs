@@ -15,6 +15,17 @@
 -- Core parametric in DB.  but that has its own obvious
 -- disadvantages.)
 
+-- | This module provides a basic collection of acid-state
+-- transactions on 'AsDB' types.
+--
+-- For each transaction, we export the acid-state constructor
+-- @FooBloo@ to be passed to 'query' or 'update' and a function
+-- 'trans_fooBloo' to be used as building blocks for writing new, more
+-- complex transactions.
+--
+-- Lookup functions usually return the lookup key together with the
+-- value.  The key can be discared easy enough using pattern matching,
+-- but in some cases it is useful to have it.
 module Thentos.DB.Trans
   ( AllUserIds(..), trans_allUserIds
   , LookupUser(..), trans_lookupUser
