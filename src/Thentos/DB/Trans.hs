@@ -555,19 +555,21 @@ trans_addServiceLogin now timeout tok sid = do
 -- Throws an error if the session is owned by a service.
 trans_dropServiceLogin :: SessionToken -> ServiceId -> ThentosUpdate ()
 trans_dropServiceLogin tok sid = do
+    let label' = RoleAdmin =%% RoleAdmin
+
+        label :: Maybe Agent -> ThentosLabel
+        label (Just agent) = label' `lub` agent =%% agent
+        label Nothing      = label'
+
     mSession <- Map.lookup tok <$> gets (^. dbSessions)
     case (^. sessionAgent) <$> mSession of
-        -- FIXME / question to the reviewer: what label should be used here?
-        Nothing -> throwDb (RoleAdmin =%% RoleAdmin)
-                           ServiceSessionInsteadOfUserSession
-        Just s@(ServiceA _) ->
-            throwDb (RoleAdmin \/ s =%% RoleAdmin /\ s)
-                    ServiceSessionInsteadOfUserSession
+        Nothing -> throwDb (label Nothing) NoSuchSession
+        Just sa@(ServiceA _) ->
+            throwDb (label $ Just sa) ServiceSessionInsteadOfUserSession
         Just ua@(UserA uid) -> do
             let userTrans = userSessions %~ Map.adjust (Map.delete sid) tok
             modify $ dbUsers %~ Map.adjust userTrans uid
-            let label = RoleAdmin \/ ua =%% RoleAdmin /\ ua
-            returnDb label ()
+            returnDb (label $ Just ua) ()
 
 -- | Go through 'dbSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
