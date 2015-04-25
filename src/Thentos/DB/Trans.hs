@@ -500,7 +500,7 @@ trans_isRegisteredWithService now tok sid = do
     returnDb l $ isJust v
 
 -- | Return 'Nothing' if session owner is not registered with service,
--- or a boolean indicating her login status if she is.  Bump session
+-- or 'Just' a boolean indicating her login status if she is.  Bump session
 -- if it is valid (even if user is not logged into service, but just
 -- into thentos).
 getServiceStatus :: TimeStamp -> SessionToken -> ServiceId -> ThentosUpdate (Maybe Bool)
@@ -524,7 +524,7 @@ getServiceStatus now tok sid = do
                     Nothing -> returnDb label Nothing
                     Just _ ->
                         case Map.lookup tok $ user ^. userSessions of
-                            Nothing -> returnDb label Nothing
+                            Nothing -> returnDb label $ Just False
                             Just sessions ->
                                 returnDb label . Just $
                                     case Map.lookup sid sessions of
