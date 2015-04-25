@@ -45,6 +45,9 @@ import URI.ByteString (rrPathL, uriQueryL, queryPairsL)
 --     cabal sandbox add-source ./uri-bytestring
 -- @
 
+import Text.Show.Pretty (ppShow)
+
+
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
@@ -235,16 +238,22 @@ serviceRegister clearance uid = do
     (view, result) <- runForm "register" serviceRegisterForm
     case result of
         Nothing -> do
-            ServiceRegisterState (_, sid) <- serviceRegisterWriteState
+            ServiceRegisterState (rr, sid) <- serviceRegisterWriteState
             Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser uid
             Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
             -- FIXME: service needs to prove its ok with user looking it up here.
             -- FIXME: handle 'Left's
+
+            logger DEBUG (ppShow (rr, sid, user, service))
+
             blaze $ serviceRegisterPage view sid service user
 
         Just () -> do
             ServiceRegisterState (rr, sid) <- serviceRegisterReadState
             mToken <- fsdToken <$$> getSessionData
+
+            logger DEBUG (ppShow (rr, sid, mToken))
+
             case mToken of
                 Just token -> do
                     Right _ <- snapRunAction' allowEverything $ addServiceRegistration token sid
