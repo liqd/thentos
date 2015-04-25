@@ -206,8 +206,14 @@ logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestSer
 
 logOutOfThentos :: SpecWith TestServerFull
 logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    -- logout when logged in
+    wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged out")
+
+    -- logout when already logged out
+    wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You're not logged in")
 
 
 serviceCreate :: SpecWith TestServerFull
