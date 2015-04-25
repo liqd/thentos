@@ -47,7 +47,6 @@ import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
 import Thentos.Api
@@ -62,11 +61,11 @@ import Test.Config
 
 
 user1, user2, user3, user4, user5 :: User
-user1 = User "name1" (encryptTestSecret "passwd") "em@il" Set.empty Map.empty
-user2 = User "name2" (encryptTestSecret "passwd") "em38@il" Set.empty Map.empty
-user3 = User "name3" (encryptTestSecret "3") "3" Set.empty Map.empty
-user4 = User "name4" (encryptTestSecret "4") "4" Set.empty Map.empty
-user5 = User "name5" (encryptTestSecret "5") "5" Set.empty Map.empty
+user1 = User "name1" (encryptTestSecret "passwd") "em@il" Map.empty Map.empty
+user2 = User "name2" (encryptTestSecret "passwd") "em38@il" Map.empty Map.empty
+user3 = User "name3" (encryptTestSecret "3") "3" Map.empty Map.empty
+user4 = User "name4" (encryptTestSecret "4") "4" Map.empty Map.empty
+user5 = User "name5" (encryptTestSecret "5") "5" Map.empty Map.empty
 
 
 encryptTestSecret :: ByteString -> HashedSecret a

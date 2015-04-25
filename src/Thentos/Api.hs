@@ -49,7 +49,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar, modifyMVar)
-import Control.Lens ((^.), (.~))
+import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT), left, eitherT, runEitherT)
@@ -411,22 +411,14 @@ dropServiceRegistration tok sid = do
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
 
 -- | If user is not registered, throw an error.
-updateServiceRegistration :: (ServiceAccount -> ServiceAccount)
-        -> SessionToken -> ServiceId -> Action r ()
-updateServiceRegistration f tok sid = do
-    (_, uid) <- _sessionAndUserIdFromToken tok
-    (_, user) <- queryAction (LookupUser uid)
-    case Map.lookup sid $ user ^. userServices of
-        Nothing      -> lift $ left NotRegisteredWithService
-        Just account -> updateAction . UpdateUserField uid . UpdateUserFieldAddService sid $ f account
-
--- | If user is not registered, throw an error.
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
-addServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Just defaultSessionTimeout
+addServiceLogin tok sid = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    updateAction $ AddServiceLogin now defaultSessionTimeout tok sid
 
 -- | If user is not registered, throw an error.
 dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
-dropServiceLogin = updateServiceRegistration $ serviceSessionTimeout .~ Nothing
+dropServiceLogin tok sid = updateAction $ DropServiceLogin tok sid
 
 
 -- $overview
