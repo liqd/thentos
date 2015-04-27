@@ -16,7 +16,7 @@
 -- disadvantages.)
 
 -- | This module provides a basic collection of acid-state
--- transactions on 'AsDB' types.
+-- transactions on the state type 'DB'.
 --
 -- For each transaction, we export the acid-state constructor
 -- @FooBloo@ to be passed to 'query' or 'update' and a function
