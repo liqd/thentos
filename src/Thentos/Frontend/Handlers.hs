@@ -1,47 +1,56 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE BangPatterns           #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE LambdaCase             #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 
 module Thentos.Frontend.Handlers where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Lens ((^.))
+import Control.Lens ((^.), (.~), (%~))
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
-import Data.ByteString (ByteString)
+import Data.ByteString.Builder (Builder, toLazyByteString)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (SBS, cs)
 import Data.Text.Encoding (decodeUtf8, decodeUtf8', encodeUtf8)
 import LIO.DCLabel ((/\), (\/))
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
-import Snap.Snaplet.AcidState (getAcidState, update)
 import Snap.Blaze (blaze)
-import System.Log.Missing (logger)
-import Snap.Core (rqURI, getParam, getsRequest, redirect', parseUrlEncoded, printUrlEncoded, modifyResponse, setResponseStatus)
 import Snap.Core (getResponse, finishWith, urlEncode, urlDecode)
+import Snap.Core (rqURI, getParam, getsRequest, redirect', modifyResponse, setResponseStatus)
+import Snap.Snaplet.AcidState (getAcidState, update)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, resetSession)
 import Snap.Snaplet (with)
+import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.Snap (runForm)
+import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions)
+import URI.ByteString (parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef)
+import URI.ByteString (rrPathL, uriQueryL, queryPairsL)
+
+-- We are using an experimental version of URI.ByteString:
+--
+-- @
+--     git clone https://github.com/Soostone/uri-bytestring
+--     cabal sandbox add-source ./uri-bytestring
+-- @
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.Map as M
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Api
+import Thentos.Config
 import Thentos.DB
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
-import Thentos.Config
 import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
@@ -79,7 +88,7 @@ userCreate = do
                     config :: ThentosConfig <- gets (^. cfg)
                     liftIO $ sendUserExistsMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) (udEmail user)
                     blaze userCreateRequestedPage
-                Left e -> logger INFO (show e) >> blaze (errorPage "registration failed.")
+                Left e -> logger INFO (show e) >> crash 400 "registration failed."
 
 urlUserCreateConfirm :: HttpConfig -> ConfirmationToken -> L.Text
 urlUserCreateConfirm feConfig (ConfirmationToken token) =
@@ -98,16 +107,14 @@ userCreateConfirm = do
                 Right uid -> blaze $ userCreatedPage uid
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO (show e)
-                    blaze (errorPage "finializing registration failed: unknown token.")
+                    crash 400 "finalizing registration failed: unknown token."
                 Left e -> do
                     logger CRITICAL ("unreachable: " ++ show e)
-                    blaze (errorPage "finializing registration failed.")
+                    crash 400 "finializing registration failed."
         Just (Left unicodeError) -> do
-            logger DEBUG (show unicodeError)
-            blaze (errorPage $ show unicodeError)
+            crash' 400 unicodeError "bad user confirmation link."
         Nothing -> do
-            logger DEBUG "no token"
-            blaze (errorPage "finializing registration failed: token is missing.")
+            crash 400 "no user confirmation token."
 
 userUpdate :: FH ()
 userUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -120,7 +127,7 @@ userUpdate = runWithUserClearance $ \ clearance uid -> do
             result' <- update $ UpdateUserFields uid fieldUpdates clearance
             case result' of
                 Right () -> blaze "User data updated!"
-                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 passwordUpdate :: FH ()
 passwordUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -133,7 +140,7 @@ passwordUpdate = runWithUserClearance $ \ clearance uid -> do
             result' <- snapRunAction' clearance $ changePassword uid oldPw newPw
             case result' of
                 Right () -> blaze "Password Changed!"
-                Left e -> logger INFO (show e) >> blaze (errorPage "user update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 emailUpdate :: FH ()
 emailUpdate = runWithUserClearance $ \ clearance uid -> do
@@ -150,7 +157,7 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
             case result' of
                 Right () -> blaze emailSentPage
                 Left UserEmailAlreadyExists -> blaze emailSentPage
-                Left e -> logger INFO (show e) >> blaze (errorPage "email update failed.")
+                Left e -> logger INFO (show e) >> crash 400 "email update failed."
   where
     emailSentPage = "Please confirm your new email address through the email we just sent you"
 
@@ -164,27 +171,24 @@ emailUpdateConfirm = do
     mToken <- (>>= urlDecode) <$> getParam "token"
     let meToken = ConfirmationToken <$$> decodeUtf8' <$> mToken
     case meToken of
-        Nothing -> blaze $ errorPage "Missing token"
-        Just (Left _unicodeError) -> blaze $ errorPage "Bad token"
+        Nothing -> crash 400 "change email: missing token."
+        Just (Left _unicodeError) -> crash 400 "change email: bad token."
         Just (Right token) -> do
             result <- snapRunAction' allowEverything $ confirmUserEmailChange token
             case result of
-                Right () -> blaze $ "Email address changed"
-                Left NoSuchToken -> blaze $ errorPage "No such token"
+                Right () -> blaze $ "change email: success!"
+                Left NoSuchToken -> crash 400 "change email: no such token."
                 Left e -> do
                     logger WARNING (show e)
-                    blaze $ errorPage "Error when trying to change email address"
+                    crash 400 "change email: error."
 
 -- | Runs a given handler with the credentials and the id of the currently
 -- logged-in user
-runWithUserClearance :: (ThentosClearance -> UserId -> FH ()) -> FH ()
-runWithUserClearance = runWithUserClearance' ()
-
-runWithUserClearance' :: a -> (ThentosClearance -> UserId -> FH a) -> FH a
-runWithUserClearance' def handler = do
+runWithUserClearance :: (ThentosClearance -> UserId -> FH a) -> FH a
+runWithUserClearance handler = do
     mUid <- fsdUser <$$> getSessionData
     case mUid of
-        Nothing -> blaze (errorPage "Not logged in") >> return def
+        Nothing -> crash 400 "not logged in."
         Just uid -> do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
             handler clearance uid
@@ -198,7 +202,55 @@ serviceCreate clearance uid = do
             result' <- snapRunAction' clearance $ addService (UserA uid) name description
             case result' of
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
-                Left e -> logger INFO (show e) >> blaze (errorPage "service creation failed.")
+                Left e -> logger INFO (show e) >> crash 400 "service creation failed."
+
+
+-- | construct the state from context, writes it to snap session, and
+-- return it.
+serviceRegisterWriteState :: FH ServiceRegisterState
+serviceRegisterWriteState = do
+    mSid :: Maybe ServiceId <- ServiceId . cs <$$> getParam "sid"
+    state :: ServiceRegisterState <- do
+        uriBS :: SBS <- getsRequest rqURI
+        case (parseRelativeRef laxURIParserOptions uriBS, mSid) of
+            (Right rr, Just sid) -> return $ ServiceRegisterState (rrPathL .~ "/service/login" $ rr, sid)
+            bad -> crash 500 $ "bad request uri: " <> cs (show bad)
+    updateSessionData (\ fsd -> fsd { fsdServiceRegisterState = Just state })
+    return state
+
+-- | recover state from snap session.
+serviceRegisterReadState :: FH ServiceRegisterState
+serviceRegisterReadState = do
+    mState <- fsdServiceRegisterState <$$> getSessionData
+    case mState of
+        Just (Just state) -> return state
+        Just Nothing      -> crash 500 "service registration: no session state."
+        Nothing           -> crash 500 "service registration: no info in session state."
+
+serviceRegister :: ThentosClearance -> UserId -> FH ()
+serviceRegister clearance uid = do
+    (view, result) <- runForm "register" serviceRegisterForm
+    case result of
+        Nothing -> do
+            ServiceRegisterState (_, sid) <- serviceRegisterWriteState
+            Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser uid
+            Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
+            -- FIXME: service needs to prove its ok with user looking it up here.
+            -- FIXME: handle 'Left's
+            blaze $ serviceRegisterPage view sid service user
+
+        Just () -> do
+            ServiceRegisterState (rr, sid) <- serviceRegisterReadState
+            mToken <- fsdToken <$$> getSessionData
+            case mToken of
+                Just token -> do
+                    Right _ <- snapRunAction' allowEverything $ addServiceRegistration token sid
+                    -- FIXME: lio stuff
+                    -- FIXME: Left case
+                    redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
+                Nothing -> do
+                    crash 400 "register service: could not find thentos session."
+
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
@@ -217,11 +269,6 @@ loginService = do
     loginSuccess uid sid = do
         mCallback <- getParam "redirect"
         case mCallback of
-            Nothing -> do
-                modifyResponse $ setResponseStatus 400 "Bad Request"
-                blaze "400 Bad Request"
-                r <- getResponse
-                finishWith r
             Just callback -> do
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
@@ -229,16 +276,43 @@ loginService = do
                         addServiceLogin tok sid
                         return tok
                 case eSessionToken of
-                    Left e -> logger INFO (show e) >> blaze (errorPage "could not initiate session.")
-                    Right sessionToken ->
-                        redirect' (redirectUrl callback sessionToken) 303
+                    Right sessionToken -> do
+                        let f = uriQueryL . queryPairsL %~ (("token", cs $ fromSessionToken sessionToken) :)
+                        tweakURI f callback >>= (`redirect'` 303)
 
-    redirectUrl :: ByteString -> SessionToken -> ByteString
-    redirectUrl serviceProvidedUrl sessionToken =
-        let (base_url, _query) = BC.break (== '?') serviceProvidedUrl in
-        let params = parseUrlEncoded $ B.drop 1 _query in
-        let params' = M.insert "token" [cs $ fromSessionToken sessionToken] params in
-        base_url <> "?" <> printUrlEncoded params'
+                    Left NotRegisteredWithService -> do
+                        let f = rrPathL .~ "/service/register"
+                        tweakRelativeRqRef f >>= (`redirect'` 303)
+
+                    Left e -> do
+                        logger INFO $ show e
+                        crash 400 "could not initiate session."
+
+            bad -> crash' 400 bad "bad request."
+
+
+tweakRelativeRqRef :: (RelativeRef -> RelativeRef) -> FH SBS
+tweakRelativeRqRef tweak = getsRequest rqURI >>= tweakRelativeRef tweak
+
+tweakRelativeRef :: (RelativeRef -> RelativeRef) -> SBS -> FH SBS
+tweakRelativeRef = _tweakURI parseRelativeRef serializeRelativeRef
+
+tweakURI :: (URI -> URI) -> SBS -> FH SBS
+tweakURI = _tweakURI parseURI serializeURI
+
+_tweakURI :: forall e t t' . (Show e) =>
+                   (URIParserOptions -> SBS -> Either e t)
+                -> (t' -> Builder)
+                -> (t -> t')
+                -> SBS
+                -> FH SBS
+_tweakURI parse serialize tweak uriBS = do
+    let ok uri = do
+            return (cs . toLazyByteString . serialize . tweak $ uri)
+        er err = do
+            logger CRITICAL $ show (err, uriBS)
+            crash 500 ("bad request uri: " <> cs (show uriBS))
+    either er ok $ parse laxURIParserOptions uriBS
 
 
 loginThentos :: FH ()
@@ -254,10 +328,10 @@ loginThentos = do
               -- 'allowNothing' and 'thentosPublic'.
             case result of
                 Right (uid, sessionToken) -> with sess $ do
-                    let sessionData = FrontendSessionData sessionToken uid
+                    let sessionData = FrontendSessionData sessionToken uid Nothing
                     setInSession "sessionData" (cs $ Aeson.encode sessionData)
                     commitSession
-                    blaze "Logged in"
+                    blaze "Logged in"  -- FIXME: redirect to dashboard; show logged-in status in dashboard.
                 Left BadCredentials -> loginFail
                 Left _ -> error "logIntoThentosHandler: branch should not be reachable"
                     -- FIXME: this should be handled.  we should
@@ -298,6 +372,16 @@ getSessionData = with sess $ do
     return $ case mSessionDataBS of
         Nothing -> Nothing
         Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
+
+-- | This is probably not race-condition-free.
+updateSessionData :: (FrontendSessionData -> FrontendSessionData) -> FH ()
+updateSessionData op = with sess $ do
+    mSessionData <- (>>= Aeson.decode . cs) <$> getFromSession "sessionData"
+    case mSessionData of
+        Just sessionData -> do
+            setInSession "sessionData" . cs . Aeson.encode . op $ sessionData
+            commitSession
+        Nothing -> return ()
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
@@ -340,10 +424,10 @@ resetPassword = do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
                 Right () -> blaze $ "Password succesfully changed"
-                Left NoSuchToken -> blaze $ errorPage "No such reset token"
+                Left NoSuchToken -> crash 400 "no such reset token."
                 Left e -> do
                     logger WARNING (show e)
-                    blaze $ errorPage "Error when trying to change password"
+                    crash 400 "chnage password: error"
 
         -- error cases
         (_, _, Left _) -> do
@@ -359,7 +443,18 @@ resetPassword = do
             modifyResponse $ setResponseStatus 400 (cs msg)
             blaze (H.text msg)
 
+
 -- * Util
+
+crash' :: (Show a) => Int -> a -> SBS -> FH b
+crash' status logMsg usrMsg = do
+    logger DEBUG $ show (status, logMsg, usrMsg)
+    modifyResponse $ setResponseStatus status usrMsg
+    blaze . errorPage . cs $ usrMsg
+    getResponse >>= finishWith
+
+crash :: Int -> SBS -> FH b
+crash status usrMsg = crash' status () usrMsg
 
 snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
       -> FH (Either ThentosError a)

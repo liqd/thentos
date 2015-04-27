@@ -24,6 +24,8 @@ module Thentos.Frontend.Pages
     , serviceCreatedPage
     , serviceCreateForm
     , serviceCreatePage
+    , serviceRegisterPage
+    , serviceRegisterForm
     , userCreatedPage
     , userCreateForm
     , userCreatePage
@@ -32,7 +34,7 @@ module Thentos.Frontend.Pages
     , userUpdatePage
     ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), pure)
 import Control.Lens ((^.))
 import Data.ByteString (ByteString)
 import Data.Maybe (isJust, catMaybes)
@@ -365,10 +367,31 @@ serviceCreatedPage sid key = H.docTypeHtml $ do
     H.head $ do
         H.title "Service created!"
     H.body $ do
-        H.body $ do
-            H.h1 "Added a service!"
-            H.p "Service id: " <> H.text (fromServiceId sid)
-            H.p "Service key: " <> H.text (fromServiceKey key)
+        H.h1 "Added a service!"
+        H.p $ "Service id: " <> H.text (fromServiceId sid)
+        H.p $ "Service key: " <> H.text (fromServiceKey key)
+
+-- FIXME: this is an empty form for now, but in the future, the user
+-- will want to decide what data to pass on to the service here.
+serviceRegisterPage :: View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage v sid service user = H.docTypeHtml $ do
+    H.head $ do
+        H.title "Register with Service"
+    H.body $ do
+        form v "register" $ do  -- FIXME: what is that string?  the route?
+            H.h1 "You are about to register to a service"
+            H.hr
+            H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
+            H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
+            H.hr
+            H.p $ "Service id: " <> H.text (fromServiceId sid)
+            H.p $ "Service name: " <> H.text (fromServiceName $ service ^. serviceName)
+            H.p $ "Service description: " <> H.text (fromServiceDescription $ service ^. serviceDescription)
+            H.hr
+            inputSubmit "Register!"
+
+serviceRegisterForm :: Monad m => Form Html m ()
+serviceRegisterForm = pure ()
 
 loginServicePage :: ServiceId -> View Html -> ByteString -> Html
 loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =

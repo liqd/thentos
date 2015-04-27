@@ -68,7 +68,8 @@ routes = [ ("", ifTop $ H.index)
          , ("user/update_email_confirm", H.emailUpdateConfirm)
          , ("user/update_password", H.passwordUpdate)
          , ("service/create", H.runWithUserClearance H.serviceCreate)
-         , ("login_service", H.loginService)
+         , ("service/register", H.runWithUserClearance H.serviceRegister)
+         , ("service/login", H.loginService)
          , ("check_thentos_login", H.checkThentosLogin)  -- FIXME: what is this used for?  drop it?
 
          -- (dashboard should probably be a snaplet.  if only for the

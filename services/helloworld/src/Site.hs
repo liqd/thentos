@@ -109,7 +109,7 @@ helloWorldLogin :: Handler App App ()
 helloWorldLogin = do
     hwConfig <- gets aHWConfig
     redirect'
-        (thentosFrontendUrl hwConfig <> "/log_into_service?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
+        (thentosFrontendUrl hwConfig <> "/service/login?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
             <> urlEncode (helloWorldUrl hwConfig <> "/app"))
         303
 

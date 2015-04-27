@@ -105,6 +105,7 @@ library
     , thyme
     , transformers
     , unordered-containers
+    , uri-bytestring
     , vector-space
     , wai
     , warp
