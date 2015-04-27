@@ -24,7 +24,7 @@
 -- complex transactions.
 --
 -- Lookup functions usually return the lookup key together with the
--- value.  The key can be discared easy enough using pattern matching,
+-- value.  The key can be discarded easy enough using pattern matching,
 -- but in some cases it is useful to have it.
 module Thentos.DB.Trans
   ( AllUserIds(..), trans_allUserIds
