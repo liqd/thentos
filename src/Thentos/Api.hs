@@ -40,6 +40,7 @@ module Thentos.Api
   , isActiveSession
   , isActiveSessionAndBump
   , isLoggedIntoService
+  , getSessionServiceNames
   , addServiceRegistration
   , dropServiceRegistration
   , addServiceLogin
@@ -392,6 +393,11 @@ isLoggedIntoService :: SessionToken -> ServiceId -> Action r Bool
 isLoggedIntoService tok sid = do
     now <- TimeStamp <$> liftIO getCurrentTime
     updateAction $ IsLoggedIntoService now tok sid
+
+getSessionServiceNames :: SessionToken -> UserId -> Action r [ServiceName]
+getSessionServiceNames sid uid = do
+    now <- TimeStamp <$> liftIO getCurrentTime
+    queryAction $ GetSessionServiceNames now sid uid
 
 _sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
 _sessionAndUserIdFromToken tok = do

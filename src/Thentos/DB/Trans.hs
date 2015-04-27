@@ -59,6 +59,7 @@ module Thentos.DB.Trans
   , IsRegisteredWithService(..), trans_isRegisteredWithService
   , AddServiceLogin(..), trans_addServiceLogin
   , DropServiceLogin(..), trans_dropServiceLogin
+  , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
   , AssignRole(..), trans_assignRole
@@ -88,7 +89,7 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, (\\), foldl')
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, isJust, fromJust)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
@@ -582,6 +583,23 @@ trans_dropServiceLogin tok sid = do
             modify $ dbUsers %~ Map.adjust userTrans uid
             returnDb (label $ Just ua) ()
 
+trans_getSessionServiceNames :: TimeStamp -> SessionToken -> UserId -> ThentosQuery [ServiceName]
+trans_getSessionServiceNames now tok uid = do
+    ThentosLabeled label (_, user) <- trans_lookupUser uid
+    serviceMap <- (^. dbServices) <$> ask
+    case Map.lookup tok (user ^. userSessions) of
+        Just session -> do
+            let serviceIds = map fst $ filter (\(_, expiry) -> expiry >= now)
+                                              (Map.toList session)
+            -- NOTE: i think the fromJust is defensible, since all the user's
+                -- service ids should be in the serviceMap
+                -- (or our data is inconsistent)
+                getServiceName sid = (^. serviceName) . fromJust $ Map.lookup sid serviceMap
+                serviceNames = map getServiceName serviceIds
+            returnDb label serviceNames
+        Nothing -> throwDb label NoSuchSession
+
+
 -- | Go through 'dbSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
 -- and then @EndSession@ on all service ids individually.)
@@ -806,6 +824,9 @@ addServiceLogin now timeout tok sid clearance = runThentosUpdate clearance $ tra
 dropServiceLogin :: SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
 dropServiceLogin tok sid clearance = runThentosUpdate clearance $ trans_dropServiceLogin tok sid
 
+getSessionServiceNames :: TimeStamp -> SessionToken -> UserId -> ThentosClearance -> Query DB (Either ThentosError [ServiceName])
+getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans_getSessionServiceNames now tok uid
+
 garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
@@ -857,6 +878,7 @@ $(makeAcidic ''DB
     , 'isRegisteredWithService
     , 'addServiceLogin
     , 'dropServiceLogin
+    , 'getSessionServiceNames
     , 'garbageCollectSessions
 
     , 'assignRole
