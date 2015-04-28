@@ -57,12 +57,12 @@ getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . r
 data DB =
     DB
       { _dbUsers             :: Map UserId User
-      , _dbUnconfirmedUsers  :: Map ConfirmationToken (TimeStamp, UserId, User)
+      , _dbUnconfirmedUsers  :: Map ConfirmationToken (Timestamp, UserId, User)
       , _dbServices          :: Map ServiceId Service
       , _dbSessions          :: Map SessionToken Session
       , _dbRoles             :: Map Agent [Role]
-      , _dbPwResetTokens     :: Map PasswordResetToken (TimeStamp, UserId)
-      , _dbEmailChangeTokens :: Map ConfirmationToken (TimeStamp, UserId, UserEmail)
+      , _dbPwResetTokens     :: Map PasswordResetToken (Timestamp, UserId)
+      , _dbEmailChangeTokens :: Map ConfirmationToken (Timestamp, UserId, UserEmail)
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -79,7 +79,7 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userSessions :: !(Map SessionToken (Map ServiceId TimeStamp)) -- ^ thentos sessions
+      , _userSessions :: !(Map SessionToken (Map ServiceId Timestamp)) -- ^ thentos sessions
       , _userServices :: !(Map ServiceId ServiceAccount)  -- ^ services (with session info)
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -206,8 +206,8 @@ instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 data Session =
     Session
       { _sessionAgent   :: !Agent
-      , _sessionStart   :: !TimeStamp
-      , _sessionEnd     :: !TimeStamp
+      , _sessionStart   :: !Timestamp
+      , _sessionEnd     :: !Timestamp
       , _sessionTimeout :: !Timeout
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -221,30 +221,29 @@ newtype SessionToken = SessionToken { fromSessionToken :: ST }
 instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 
--- FIXME: timestamp is one word, does not need camel case. status quo is inconsisten with Timeout
-newtype TimeStamp = TimeStamp { fromTimeStamp :: UTCTime }
+newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-timeStampToString :: TimeStamp -> String
-timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimeStamp
+timeStampToString :: Timestamp -> String
+timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
 
-timeStampFromString :: Monad m => String -> m TimeStamp
-timeStampFromString raw = maybe (fail $ "TimeStamp: no parse: " ++ show raw) return $
-  TimeStamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
+timeStampFromString :: Monad m => String -> m Timestamp
+timeStampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
+  Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
 
-instance SafeCopy TimeStamp
+instance SafeCopy Timestamp
   where
     putCopy = contain . safePut . timeStampToString
     getCopy = contain $ safeGet >>= timeStampFromString
 
-instance Aeson.FromJSON TimeStamp
+instance Aeson.FromJSON Timestamp
   where
     parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
 
-instance Aeson.ToJSON TimeStamp
+instance Aeson.ToJSON Timestamp
   where
     toJSON = Aeson.toJSON . timeStampToString
 

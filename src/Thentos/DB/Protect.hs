@@ -41,11 +41,11 @@ import Thentos.Util
 -- Note: Both 'Role's and 'Agent's can be used in authorization
 -- policies.  ('User' can be used, but it must be wrapped into an
 -- 'UserA'.)
-makeThentosClearance :: Maybe ST -> DB -> TimeStamp -> Either ThentosError ThentosClearance
+makeThentosClearance :: Maybe ST -> DB -> Timestamp -> Either ThentosError ThentosClearance
 makeThentosClearance Nothing    _  _   = Right allowNothing
 makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToken tok)
 
-authenticateSession :: DB -> TimeStamp -> SessionToken -> Either ThentosError ThentosClearance
+authenticateSession :: DB -> Timestamp -> SessionToken -> Either ThentosError ThentosClearance
 authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
         LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
