@@ -89,10 +89,11 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, (\\), foldl')
-import Data.Maybe (fromMaybe, isJust, fromJust)
+import Data.Maybe (fromMaybe, isJust)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
+import Safe (fromJustNote)
 
 import qualified Data.Map as Map
 
@@ -591,10 +592,12 @@ trans_getSessionServiceNames now tok uid = do
         Just session -> do
             let serviceIds = map fst $ filter (\(_, expiry) -> expiry >= now)
                                               (Map.toList session)
-            -- NOTE: i think the fromJust is defensible, since all the user's
-                -- service ids should be in the serviceMap
+                -- NOTE: i think the fromJust is defensible, since all the
+                -- user's service ids should be in the serviceMap
                 -- (or our data is inconsistent)
-                getServiceName sid = (^. serviceName) . fromJust $ Map.lookup sid serviceMap
+                getServiceName sid = (^. serviceName)
+                                     . fromJustNote "inconsistent db state: user has sid that is not in dbServices"
+                                     $ Map.lookup sid serviceMap
                 serviceNames = map getServiceName serviceIds
             returnDb label serviceNames
         Nothing -> throwDb label NoSuchSession
