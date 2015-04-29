@@ -188,7 +188,7 @@ runAsUser :: (ThentosClearance -> FrontendSessionData -> FH a) -> FH a
 runAsUser handler = do
     mSessionData <- getSessionData
     case mSessionData of
-        Nothing -> crash 400 "not logged in."
+        Nothing -> redirect' "/login_thentos" 303
         Just sessionData -> do
             Right clearance <- snapRunAction' allowEverything $ getUserClearance (fsdUser sessionData)
             handler clearance sessionData
@@ -230,7 +230,7 @@ serviceRegisterReadState :: FrontendSessionData -> FH ServiceRegisterState
 serviceRegisterReadState session = do
     case fsdServiceRegisterState session of
         Just state -> return state
-        Nothing           -> crash 500 "service registration: no info in session state."
+        Nothing    -> crash 500 "service registration: no info in session state."
 
 serviceRegister :: FH ()
 serviceRegister = runAsUser $ \ clearance session -> do
