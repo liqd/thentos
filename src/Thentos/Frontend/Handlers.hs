@@ -117,33 +117,33 @@ userCreateConfirm = do
             crash 400 "no user confirmation token."
 
 userUpdate :: FH ()
-userUpdate = runWithUserClearance $ \ clearance uid -> do
+userUpdate = runWithUserClearance $ \ clearance session -> do
     (userView, result) <- runForm "update" userUpdateForm
     (emailView, _) <- runForm "update_email" emailUpdateForm
     (pwView, _) <- runForm "update_password" passwordUpdateForm
     case result of
         Nothing -> blaze $ userUpdatePage userView emailView pwView
         Just fieldUpdates -> do
-            result' <- update $ UpdateUserFields uid fieldUpdates clearance
+            result' <- update $ UpdateUserFields (fsdUser session) fieldUpdates clearance
             case result' of
                 Right () -> blaze "User data updated!"
                 Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 passwordUpdate :: FH ()
-passwordUpdate = runWithUserClearance $ \ clearance uid -> do
+passwordUpdate = runWithUserClearance $ \ clearance session -> do
     (passwordView, result) <- runForm "update_password" passwordUpdateForm
     (userView, _) <- runForm "update" userUpdateForm
     (emailView, _) <- runForm "update_email" emailUpdateForm
     case result of
         Nothing -> blaze $ userUpdatePage userView emailView passwordView
         Just (oldPw, newPw) -> do
-            result' <- snapRunAction' clearance $ changePassword uid oldPw newPw
+            result' <- snapRunAction' clearance $ changePassword (fsdUser session) oldPw newPw
             case result' of
                 Right () -> blaze "Password Changed!"
                 Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 emailUpdate :: FH ()
-emailUpdate = runWithUserClearance $ \ clearance uid -> do
+emailUpdate = runWithUserClearance $ \ clearance session -> do
     (passwordView, _) <- runForm "update_password" passwordUpdateForm
     (userView, _) <- runForm "update" userUpdateForm
     (emailView, result) <- runForm "update_email" emailUpdateForm
@@ -152,7 +152,7 @@ emailUpdate = runWithUserClearance $ \ clearance uid -> do
         Just newEmail -> do
             feConfig <- gets (^. frontendCfg)
             result' <- snapRunAction' clearance $
-                requestUserEmailChange uid newEmail
+                requestUserEmailChange (fsdUser session) newEmail
                                        (urlEmailChangeConfirm feConfig)
             case result' of
                 Right () -> blaze emailSentPage
@@ -182,24 +182,31 @@ emailUpdateConfirm = do
                     logger WARNING (show e)
                     crash 400 "change email: error."
 
--- | Runs a given handler with the credentials and the id of the currently
--- logged-in user
-runWithUserClearance :: (ThentosClearance -> UserId -> FH a) -> FH a
+-- | Runs a given handler with the credentials and the session data of the
+-- currently logged-in user
+runWithUserClearance :: (ThentosClearance -> FrontendSessionData -> FH a) -> FH a
 runWithUserClearance handler = do
-    mUid <- fsdUser <$$> getSessionData
-    case mUid of
+    mSessionData <- getSessionData
+    case mSessionData of
         Nothing -> crash 400 "not logged in."
-        Just uid -> do
-            Right clearance <- snapRunAction' allowEverything $ getUserClearance uid
-            handler clearance uid
+        Just sessionData -> do
+            Right clearance <- snapRunAction' allowEverything $ getUserClearance (fsdUser sessionData)
+            handler clearance sessionData
+ where
+    getSessionData :: FH (Maybe FrontendSessionData)
+    getSessionData = with sess $ do
+        mSessionDataBS <- getFromSession "sessionData"
+        return $ case mSessionDataBS of
+            Nothing -> Nothing
+            Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
 
-serviceCreate :: ThentosClearance -> UserId -> FH ()
-serviceCreate clearance uid = do
+serviceCreate :: FH ()
+serviceCreate = runWithUserClearance $ \clearance session -> do
     (view, result) <- runForm "create" serviceCreateForm
     case result of
         Nothing -> blaze $ serviceCreatePage view
         Just (name, description) -> do
-            result' <- snapRunAction' clearance $ addService (UserA uid) name description
+            result' <- snapRunAction' clearance $ addService (UserA $ fsdUser session) name description
             case result' of
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
                 Left e -> logger INFO (show e) >> crash 400 "service creation failed."
@@ -219,21 +226,19 @@ serviceRegisterWriteState = do
     return state
 
 -- | recover state from snap session.
-serviceRegisterReadState :: FH ServiceRegisterState
-serviceRegisterReadState = do
-    mState <- fsdServiceRegisterState <$$> getSessionData
-    case mState of
-        Just (Just state) -> return state
-        Just Nothing      -> crash 500 "service registration: no session state."
+serviceRegisterReadState :: FrontendSessionData -> FH ServiceRegisterState
+serviceRegisterReadState session = do
+    case fsdServiceRegisterState session of
+        Just state -> return state
         Nothing           -> crash 500 "service registration: no info in session state."
 
-serviceRegister :: ThentosClearance -> UserId -> FH ()
-serviceRegister clearance uid = do
+serviceRegister :: FH ()
+serviceRegister = runWithUserClearance $ \ clearance session -> do
     (view, result) <- runForm "register" serviceRegisterForm
     case result of
         Nothing -> do
             ServiceRegisterState (_, sid) <- serviceRegisterWriteState
-            Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser uid
+            Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser (fsdUser session)
             Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
             -- FIXME: service needs to prove its ok with user looking it up here.
             -- FIXME: handle 'Left's
@@ -241,16 +246,9 @@ serviceRegister clearance uid = do
             blaze $ serviceRegisterPage view sid service user
 
         Just () -> do
-            ServiceRegisterState (rr, sid) <- serviceRegisterReadState
-            mToken <- fsdToken <$$> getSessionData
-            case mToken of
-                Just token -> do
-                    Right _ <- snapRunAction' allowEverything $ addServiceRegistration token sid
-                    -- FIXME: lio stuff
-                    -- FIXME: Left case
-                    redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
-                Nothing -> do
-                    crash 400 "register service: could not find thentos session."
+            ServiceRegisterState (rr, sid) <- serviceRegisterReadState session
+            Right _ <- snapRunAction' allowEverything $ addServiceRegistration (fsdToken session) sid
+            redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
 
 
 -- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
@@ -258,18 +256,18 @@ serviceRegister clearance uid = do
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
 loginService :: FH ()
-loginService = runWithUserClearance $ \_ _uid -> do
+loginService = runWithUserClearance $ \_ session -> do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case mSid of
         Nothing  -> crash 400 "No service id"
-        Just sid -> loginSuccess sid
+        Just sid -> loginSuccess session sid
   where
-    loginSuccess :: ServiceId -> FH ()
-    loginSuccess sid = do
+    loginSuccess :: FrontendSessionData -> ServiceId -> FH ()
+    loginSuccess session sid = do
         mCallback <- getParam "redirect"
         case mCallback of
             Just callback -> do
-                Just tok <- fsdToken <$$> getSessionData -- this is ok
+                let tok = fsdToken session
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
                         addServiceLogin tok sid
@@ -343,44 +341,21 @@ loginThentos = do
 
 
 logoutThentos :: FH ()
-logoutThentos = do
-    mSessionData <- getSessionData
-    case mSessionData of
-        Just sessionData -> do
-            eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
-            case eServiceNames of
-                Right serviceNames -> blaze $ logoutThentosPage serviceNames
-                Left NoSuchUser -> crash 400 "User does not exist"
-                Left NoSuchSession -> crash 400 "Session does not exist"
-                Left _ -> error "unreachable" -- FIXME
-        Nothing -> crash 400 "You're not logged in"
+logoutThentos = runWithUserClearance $ \_ sessionData -> do
+    eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
+    case eServiceNames of
+        Right serviceNames -> blaze $ logoutThentosPage serviceNames
+        Left NoSuchUser -> crash 400 "User does not exist"
+        Left NoSuchSession -> crash 400 "Session does not exist"
+        Left _ -> error "unreachable" -- FIXME
 
 loggedOutThentos :: FH ()
-loggedOutThentos = do
-    mSessionData <- getSessionData
-    case fsdToken <$> mSessionData of
-        Nothing -> blaze "You're not logged in"
-        Just tok -> do
-            _ <- snapRunAction' allowEverything . updateAction $ EndSession tok
-            with sess $ do
-                resetSession
-                commitSession
-                blaze "Logged out"
-
-checkThentosLogin :: FH ()
-checkThentosLogin = do
-    mUid <- fsdUser <$$> getSessionData
-    case mUid of
-        Nothing -> blaze "Not logged in"
-        Just uid -> do
-            blaze $ "Logged in as user: " <> H.string (show uid)
-
-getSessionData :: FH (Maybe FrontendSessionData)
-getSessionData = with sess $ do
-    mSessionDataBS <- getFromSession "sessionData"
-    return $ case mSessionDataBS of
-        Nothing -> Nothing
-        Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
+loggedOutThentos = runWithUserClearance $ \_ session -> do
+    _ <- snapRunAction' allowEverything . updateAction $ EndSession (fsdToken session)
+    with sess $ do
+        resetSession
+        commitSession
+        blaze "Logged out"
 
 -- | This is probably not race-condition-free.
 updateSessionData :: (FrontendSessionData -> FrontendSessionData) -> FH ()
@@ -481,17 +456,14 @@ snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
 -- * Dashboard
 
 dashboardDetails :: FH ()
-dashboardDetails = do
-    mUid <- fsdUser <$$> getSessionData
-    case mUid of
-        Nothing -> redirect' "/login_thentos" 303
-        Just uid -> do
-            eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
-            eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
-            case (eUser, eRoles) of
-                (Right (_, user), Right roles) -> do
-                    blaze
-                        $ dashboardPagelet roles DashboardTabDetails
-                        $ displayUserPagelet user
-                _ -> error "unreachable"
-                     -- FIXME: error handling.  (we need a better approach for this in general!)
+dashboardDetails = runWithUserClearance $ \_ session -> do
+    let uid = fsdUser session
+    eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
+    eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
+    case (eUser, eRoles) of
+        (Right (_, user), Right roles) -> do
+            blaze
+                $ dashboardPagelet roles DashboardTabDetails
+                $ displayUserPagelet user
+        _ -> error "unreachable"
+                 -- FIXME: error handling.  (we need a better approach for this in general!)
