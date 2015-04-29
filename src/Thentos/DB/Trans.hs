@@ -647,7 +647,7 @@ deleteSession tok = do
     return ()
   where
     _updateUser :: User -> User
-    _updateUser = (userSessions %~ Map.delete tok) . (userServices .~ Map.empty)
+    _updateUser = userSessions %~ Map.delete tok
 
     _updateService :: Service -> Service
     _updateService = serviceSession .~ Nothing
