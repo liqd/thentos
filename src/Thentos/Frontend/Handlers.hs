@@ -117,7 +117,7 @@ userCreateConfirm = do
             crash 400 "no user confirmation token."
 
 userUpdate :: FH ()
-userUpdate = runWithUserClearance $ \ clearance session -> do
+userUpdate = runAsUser $ \ clearance session -> do
     (userView, result) <- runForm "update" userUpdateForm
     (emailView, _) <- runForm "update_email" emailUpdateForm
     (pwView, _) <- runForm "update_password" passwordUpdateForm
@@ -130,7 +130,7 @@ userUpdate = runWithUserClearance $ \ clearance session -> do
                 Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 passwordUpdate :: FH ()
-passwordUpdate = runWithUserClearance $ \ clearance session -> do
+passwordUpdate = runAsUser $ \ clearance session -> do
     (passwordView, result) <- runForm "update_password" passwordUpdateForm
     (userView, _) <- runForm "update" userUpdateForm
     (emailView, _) <- runForm "update_email" emailUpdateForm
@@ -143,7 +143,7 @@ passwordUpdate = runWithUserClearance $ \ clearance session -> do
                 Left e -> logger INFO (show e) >> crash 400 "user update failed."
 
 emailUpdate :: FH ()
-emailUpdate = runWithUserClearance $ \ clearance session -> do
+emailUpdate = runAsUser $ \ clearance session -> do
     (passwordView, _) <- runForm "update_password" passwordUpdateForm
     (userView, _) <- runForm "update" userUpdateForm
     (emailView, result) <- runForm "update_email" emailUpdateForm
@@ -184,8 +184,8 @@ emailUpdateConfirm = do
 
 -- | Runs a given handler with the credentials and the session data of the
 -- currently logged-in user
-runWithUserClearance :: (ThentosClearance -> FrontendSessionData -> FH a) -> FH a
-runWithUserClearance handler = do
+runAsUser :: (ThentosClearance -> FrontendSessionData -> FH a) -> FH a
+runAsUser handler = do
     mSessionData <- getSessionData
     case mSessionData of
         Nothing -> crash 400 "not logged in."
@@ -201,7 +201,7 @@ runWithUserClearance handler = do
             Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
 
 serviceCreate :: FH ()
-serviceCreate = runWithUserClearance $ \clearance session -> do
+serviceCreate = runAsUser $ \clearance session -> do
     (view, result) <- runForm "create" serviceCreateForm
     case result of
         Nothing -> blaze $ serviceCreatePage view
@@ -233,7 +233,7 @@ serviceRegisterReadState session = do
         Nothing           -> crash 500 "service registration: no info in session state."
 
 serviceRegister :: FH ()
-serviceRegister = runWithUserClearance $ \ clearance session -> do
+serviceRegister = runAsUser $ \ clearance session -> do
     (view, result) <- runForm "register" serviceRegisterForm
     case result of
         Nothing -> do
@@ -256,7 +256,7 @@ serviceRegister = runWithUserClearance $ \ clearance session -> do
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
 loginService :: FH ()
-loginService = runWithUserClearance $ \_ session -> do
+loginService = runAsUser $ \_ session -> do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case mSid of
         Nothing  -> crash 400 "No service id"
@@ -341,7 +341,7 @@ loginThentos = do
 
 
 logoutThentos :: FH ()
-logoutThentos = runWithUserClearance $ \_ sessionData -> do
+logoutThentos = runAsUser $ \_ sessionData -> do
     eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
     case eServiceNames of
         Right serviceNames -> blaze $ logoutThentosPage serviceNames
@@ -350,7 +350,7 @@ logoutThentos = runWithUserClearance $ \_ sessionData -> do
         Left _ -> error "unreachable" -- FIXME
 
 loggedOutThentos :: FH ()
-loggedOutThentos = runWithUserClearance $ \_ session -> do
+loggedOutThentos = runAsUser $ \_ session -> do
     _ <- snapRunAction' allowEverything . updateAction $ EndSession (fsdToken session)
     with sess $ do
         resetSession
@@ -456,7 +456,7 @@ snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
 -- * Dashboard
 
 dashboardDetails :: FH ()
-dashboardDetails = runWithUserClearance $ \_ session -> do
+dashboardDetails = runAsUser $ \_ session -> do
     let uid = fsdUser session
     eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
     eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
