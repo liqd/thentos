@@ -260,7 +260,7 @@ loginService :: FH ()
 loginService = runWithUserClearance $ \_ _uid -> do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case mSid of
-        Nothing  -> blaze "No service id"
+        Nothing  -> crash 400 "No service id"
         Just sid -> loginSuccess sid
   where
     loginSuccess :: ServiceId -> FH ()
