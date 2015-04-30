@@ -73,3 +73,5 @@ synonyms match the module names that they are from.
 maximum line length is 140 chars.
 
 preceed haddock section headings with two empty lines.
+
+spacing in lambda: `\ x -> ...`; NOT: `\x -> ...`.
