@@ -44,13 +44,21 @@ data FrontendSessionData =
     FrontendSessionData
         { fsdToken                :: SessionToken
         , fsdUser                 :: UserId
-        , fsdServiceRegisterState :: Maybe ServiceRegisterState
+        , fsdServiceRegisterState :: Maybe ServiceRegisterState  -- ^ (see 'ServiceRegisterState')
         }
     deriving (Show, Eq, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 
+-- | If a user comes from a service login and is sent to the "register
+-- with a new service" page because no valid account exists with
+-- thentos, an extra round of in direction is required (the user is
+-- confronted with the service details and must say "yes, i want to
+-- register", "share this-and-that data", etc.).  This type is used to
+-- store the information from the registration request in
+-- 'FrontendSessionData' between the form rendering and the form
+-- processing requests.
 newtype ServiceRegisterState = ServiceRegisterState (RelativeRef, ServiceId)
   deriving (Show, Eq, Generic)
 
