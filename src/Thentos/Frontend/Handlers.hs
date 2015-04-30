@@ -254,7 +254,7 @@ serviceRegister = runAsUser $ \ clearance session -> do
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
 loginService :: FH ()
-loginService = runAsUser $ \_ session -> do
+loginService = runAsUser $ \ _ session -> do
     mSid <- ServiceId . cs <$$> getParam "sid"
     case mSid of
         Nothing  -> crash 400 "No service id"
@@ -339,7 +339,7 @@ loginThentos = do
 
 
 logoutThentos :: FH ()
-logoutThentos = runAsUser $ \_ sessionData -> do
+logoutThentos = runAsUser $ \ _ sessionData -> do
     eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
     case eServiceNames of
         Right serviceNames -> blaze $ logoutThentosPage serviceNames
@@ -348,7 +348,7 @@ logoutThentos = runAsUser $ \_ sessionData -> do
         Left _ -> error "unreachable" -- FIXME
 
 loggedOutThentos :: FH ()
-loggedOutThentos = runAsUser $ \_ session -> do
+loggedOutThentos = runAsUser $ \ _ session -> do
     _ <- snapRunAction' allowEverything . updateAction $ EndSession (fsdToken session)
     with sess $ do
         resetSession
@@ -454,7 +454,7 @@ snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
 -- * Dashboard
 
 dashboardDetails :: FH ()
-dashboardDetails = runAsUser $ \_ session -> do
+dashboardDetails = runAsUser $ \ _ session -> do
     let uid = fsdUser session
     eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
     eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
