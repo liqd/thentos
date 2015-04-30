@@ -257,22 +257,20 @@ serviceRegister clearance uid = do
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?
 loginService :: FH ()
-loginService = do
-    mUid <- fsdUser <$$> getSessionData
+loginService = runWithUserClearance $ \_ _uid -> do
     mSid <- ServiceId . cs <$$> getParam "sid"
-    case (mUid, mSid) of
-        (_, Nothing)         -> blaze "No service id"
-        (Nothing, _)         -> blaze $ notLoggedInPage
-        (Just uid, Just sid) -> loginSuccess uid sid
+    case mSid of
+        Nothing  -> crash 400 "No service id"
+        Just sid -> loginSuccess sid
   where
-    loginSuccess :: UserId -> ServiceId -> FH ()
-    loginSuccess uid sid = do
+    loginSuccess :: ServiceId -> FH ()
+    loginSuccess sid = do
         mCallback <- getParam "redirect"
         case mCallback of
             Just callback -> do
+                Just tok <- fsdToken <$$> getSessionData -- this is ok
                 eSessionToken :: Either ThentosError SessionToken
                     <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
-                        tok <- startSessionNoPass (UserA uid)
                         addServiceLogin tok sid
                         return tok
                 case eSessionToken of
