@@ -237,6 +237,7 @@ serviceRegister clearance uid = do
             Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
             -- FIXME: service needs to prove its ok with user looking it up here.
             -- FIXME: handle 'Left's
+                -- specifically, service might not exist
             blaze $ serviceRegisterPage view sid service user
 
         Just () -> do
@@ -342,7 +343,17 @@ loginThentos = do
 
 
 logoutThentos :: FH ()
-logoutThentos = blaze logoutThentosPage
+logoutThentos = do
+    mSessionData <- getSessionData
+    case mSessionData of
+        Just sessionData -> do
+            eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
+            case eServiceNames of
+                Right serviceNames -> blaze $ logoutThentosPage serviceNames
+                Left NoSuchUser -> crash 400 "User does not exist"
+                Left NoSuchSession -> crash 400 "Session does not exist"
+                Left _ -> error "unreachable" -- FIXME
+        Nothing -> crash 400 "You're not logged in"
 
 loggedOutThentos :: FH ()
 loggedOutThentos = do
