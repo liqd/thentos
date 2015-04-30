@@ -34,7 +34,7 @@ import Test.Util
 
 
 tests :: IO ()
-tests = hspec spec >> hspec updateSpec
+tests = hspec $ spec >> updateSpec
 
 spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)"
