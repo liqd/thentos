@@ -35,13 +35,6 @@ import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions)
 import URI.ByteString (parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef)
 import URI.ByteString (rrPathL, uriQueryL, queryPairsL)
 
--- We are using an experimental version of URI.ByteString:
---
--- @
---     git clone https://github.com/Soostone/uri-bytestring
---     cabal sandbox add-source ./uri-bytestring
--- @
-
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Lazy as L
 import qualified Text.Blaze.Html5 as H
