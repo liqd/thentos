@@ -465,7 +465,7 @@ crash' status logMsg usrMsg = do
 crash :: Int -> SBS -> FH b
 crash status usrMsg = crash' status () usrMsg
 
-snapRunAction :: (DB -> TimeStamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
+snapRunAction :: (DB -> Timestamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
       -> FH (Either ThentosError a)
 snapRunAction clearanceAbs action = do
     rn :: MVar SystemRNG <- gets (^. rng)

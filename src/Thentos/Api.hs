@@ -81,7 +81,7 @@ import Thentos.Util
 -- * types
 
 type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
-type ActionState r = (ActionStateGlobal r, DB -> TimeStamp -> Either ThentosError ThentosClearance)
+type ActionState r = (ActionStateGlobal r, DB -> Timestamp -> Either ThentosError ThentosClearance)
 type Action r = ReaderT (ActionState r) (EitherT ThentosError IO)
 
 
@@ -154,7 +154,7 @@ accessAction :: forall event a r .
                    -> (ThentosClearance -> event) -> Action r a
 accessAction overrideClearance access unclearedEvent = do
     ((st, _, _), clearanceAbs) <- ask
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     clearanceE :: Either ThentosError ThentosClearance
         <- (>>= (`clearanceAbs` now)) <$> query' st (SnapShot allowEverything)
 
@@ -205,7 +205,7 @@ freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
 addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     tok <- freshConfirmationToken
     user <- makeUserFromFormData userData
     updateAction $ AddUnconfirmedUser now tok user
@@ -214,19 +214,19 @@ confirmNewUser :: ConfirmationToken -> Action (MVar r) UserId
 confirmNewUser token = do
     ((_, _, config), _) <- ask
     let expiryPeriod = config >>. (Proxy :: Proxy '["user_reg_expiration"])
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ FinishUserRegistration now expiryPeriod token
 
 addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
 addPasswordResetToken email = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     tok <- freshPasswordResetToken
     user <- updateAction $ AddPasswordResetToken now email tok
     return (user, tok)
 
 resetPassword :: PasswordResetToken -> UserPass -> Action r ()
 resetPassword token password = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     ((_, _, config), _) <- ask
     let expiryPeriod = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
     hashedPassword <- hashUserPass password
@@ -266,7 +266,7 @@ requestUserEmailChange :: CPRG r =>
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
     ((_, _, config), _) <- ask
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ AddUserEmailChangeRequest now uid newEmail tok
     let callbackUrl = callbackUrlBuilder tok
         smtpConfig = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
@@ -279,7 +279,7 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- 'NoSuchToken' to avoid leaking information.
 confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
 confirmUserEmailChange token = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     ((_, _, config), _) <- ask
     let expiryPeriod = config >>. (Proxy :: Proxy '["email_change_expiration"])
     catchAction
@@ -354,7 +354,7 @@ startSessionService sid key = do
 -- Only call this in the context of a successful authentication check!
 startSessionNoPass :: CPRG r => Agent -> Action (MVar r) SessionToken
 startSessionNoPass agent = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     tok <- freshSessionToken
     accessAction (Just allowEverything) update' $ StartSession tok agent now defaultSessionTimeout
     return tok
@@ -372,12 +372,12 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
 bumpSession :: SessionToken -> Action r (SessionToken, Session)
 bumpSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ LookupSession (Just (now, True)) tok
 
 isActiveSession :: SessionToken -> Action r Bool
 isActiveSession tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     queryAction $ IsActiveSession now tok
 
 -- | FUTURE WORK [performance]: do a query first; if session has not
@@ -386,17 +386,17 @@ isActiveSession tok = do
 -- with it.  much simpler!)
 isActiveSessionAndBump :: SessionToken -> Action r Bool
 isActiveSessionAndBump tok = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ IsActiveSessionAndBump now tok
 
 isLoggedIntoService :: SessionToken -> ServiceId -> Action r Bool
 isLoggedIntoService tok sid = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ IsLoggedIntoService now tok sid
 
 getSessionServiceNames :: SessionToken -> UserId -> Action r [ServiceName]
 getSessionServiceNames sid uid = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     queryAction $ GetSessionServiceNames now sid uid
 
 _sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
@@ -419,7 +419,7 @@ dropServiceRegistration tok sid = do
 -- | If user is not registered, throw an error.
 addServiceLogin :: SessionToken -> ServiceId -> Action r ()
 addServiceLogin tok sid = do
-    now <- TimeStamp <$> liftIO getCurrentTime
+    now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ AddServiceLogin now defaultSessionTimeout tok sid
 
 -- | If user is not registered, throw an error.
