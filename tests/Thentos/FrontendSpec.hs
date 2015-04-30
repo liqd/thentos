@@ -11,6 +11,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
 import Data.Either (isRight)
+import Data.Maybe (listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 import Text.Regex.Easy ((=~#), (=~-))
@@ -212,8 +213,7 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged out")
 
     -- logout when already logged out
-    wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You're not logged in")
+    wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
 serviceCreate :: SpecWith TestServerFull
@@ -307,5 +307,10 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
 wdLogout :: HttpConfig -> WD.WD C.Status
 wdLogout feConfig = do
     WD.openPage (cs $ exposeUrl feConfig <//> "logout_thentos")
-    WD.findElem (WD.ById "logout_submit") >>= WD.click
-    return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin
+    WD.findElems (WD.ById "logout_submit") >>= maybe noButton buttonIsThere . listToMaybe
+  where
+    noButton = do
+        return $ C.Status 400 "Perhaps we are already logged out?"
+    buttonIsThere el = do
+        WD.click el
+        return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin
