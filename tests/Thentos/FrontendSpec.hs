@@ -142,6 +142,7 @@ updateSelf = describe "update self" $ do
         _fill "update_password.old_password" selfPass
         _fill "update_password.new_password1" newSelfPass
         _fill "update_password.new_password2" newSelfPass
+        _click "update_password_submit"
         _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
 
     -- FIXME: test failure cases.  same restrictions apply as in
