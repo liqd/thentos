@@ -196,9 +196,7 @@ runAsUser handler = do
     getSessionData :: FH (Maybe FrontendSessionData)
     getSessionData = with sess $ do
         mSessionDataBS <- getFromSession "sessionData"
-        return $ case mSessionDataBS of
-            Nothing -> Nothing
-            Just sessionDataBS -> Aeson.decode $ cs sessionDataBS
+        return $ mSessionDataBS >>= Aeson.decode . cs
 
 serviceCreate :: FH ()
 serviceCreate = runAsUser $ \clearance session -> do
