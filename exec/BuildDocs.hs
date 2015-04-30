@@ -130,8 +130,8 @@ instance ToSample Agent where
 instance ToSample Session where
     toSample =
         Session <$> toSample
-                <*> pure (TimeStamp $ read "1986-20-09 00:00:00 UTC")
-                <*> pure (TimeStamp $ read "1986-27-09 00:00:00 UTC")
+                <*> pure (Timestamp $ read "1986-20-09 00:00:00 UTC")
+                <*> pure (Timestamp $ read "1986-27-09 00:00:00 UTC")
                 <*> pure (Timeout 600)
 
 instance ToSample SessionToken where

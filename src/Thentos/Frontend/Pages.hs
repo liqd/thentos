@@ -417,8 +417,12 @@ logoutThentosPage :: [ServiceName] -> Html
 logoutThentosPage serviceNames = do
     H.head $ H.title "Log out"
     H.body $ do
-        H.p "You're currently logged into the following services: "
-        H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
+        case serviceNames of
+            [] -> do
+                H.p "You're currently not logged into any services."
+            (_:_) -> do
+                H.p "You're currently logged into the following services: "
+                H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
         H.form ! A.method "POST" ! A.action "logout_thentos" $
             H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
 
