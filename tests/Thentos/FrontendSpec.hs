@@ -34,11 +34,11 @@ import Test.Util
 
 
 tests :: IO ()
-tests = hspec $ spec >> updateSpec
+tests = hspec spec
 
 spec :: Spec
-spec = describe "selenium (consult README.md if this test fails)"
-        . before setupTestServerFull . after teardownTestServerFull $ do
+spec = describe "selenium (consult README.md if this test fails)" $ do
+  describe "many tests" . before setupTestServerFull . after teardownTestServerFull $ do
     createUser
     resetPassword
     logIntoThentos
@@ -51,11 +51,9 @@ spec = describe "selenium (consult README.md if this test fails)"
     logOutOfService
     browseMyServices
 
--- | (this is a separate top-level test case because it changes the DB
--- state which that get the other tests confused.)
-updateSpec :: Spec
-updateSpec = describe "selenium (consult README.md if this test fails)"
-        . before setupTestServerFull . after teardownTestServerFull $
+  -- (this is a separate top-level test case because it changes the DB
+  -- state and gets the other tests confused.)
+  describe "update user" . before setupTestServerFull . after teardownTestServerFull $ do
     updateSelf
 
 
@@ -142,6 +140,7 @@ updateSelf = describe "update self" $ do
         _fill "update_password.old_password" selfPass
         _fill "update_password.new_password1" newSelfPass
         _fill "update_password.new_password2" newSelfPass
+        _click "update_password_submit"
         _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
 
     -- FIXME: test failure cases.  same restrictions apply as in
