@@ -16,7 +16,6 @@ rm -rf ~/.cabal ~/.ghc
 cabal update
 time cabal install \
     --dependencies-only --enable-tests --disable-documentation \
-    -f-with-thentos-executable -f-with-build-docs-executable \
   || exit 1
 
 cd ~
