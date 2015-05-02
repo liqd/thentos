@@ -305,7 +305,7 @@ addUser (A3UserWithPass user) = logActionError $ do
         feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
               Just v -> Tagged v
-        enctok = urlEncode . cs . fromConfimationToken $ tok
+        enctok = urlEncode . cs . fromConfirmationToken $ tok
     liftIO $ sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 

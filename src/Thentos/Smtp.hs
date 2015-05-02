@@ -14,7 +14,7 @@ import Control.Lens ((^.))
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LT, cs)
+import Data.String.Conversions (ST, cs)
 import Network.Mail.Mime (Address(Address), renderSendMailCustom, simpleMail')
 import System.Log (Priority(DEBUG))
 
@@ -22,7 +22,7 @@ import System.Log.Missing
 import Thentos.Config
 import Thentos.Types
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> LT -> IO ()
+sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> IO ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
     logger DEBUG $ "sending user-create-confirm mail: " ++ show (udEmail user)
     sendMail smtpConfig subject message (udEmail user)
@@ -44,7 +44,7 @@ sendUserExistsMail smtpConfig address = do
     subject = "Attempted Thentos Signup"
 
 
-sendPasswordResetMail :: SmtpConfig -> User -> LT -> IO ()
+sendPasswordResetMail :: SmtpConfig -> User -> ST -> IO ()
 sendPasswordResetMail smtpConfig user callbackUrl = do
     logger DEBUG $ "sending password-reset email: " ++ show (user ^. userEmail)
     sendMail smtpConfig subject message (user ^. userEmail)
@@ -53,7 +53,7 @@ sendPasswordResetMail smtpConfig user callbackUrl = do
     subject = "Thentos Password Reset"
 
 
-sendEmailChangeConfirmationMail :: SmtpConfig -> UserEmail -> LT -> IO ()
+sendEmailChangeConfirmationMail :: SmtpConfig -> UserEmail -> ST -> IO ()
 sendEmailChangeConfirmationMail smtpConfig address callbackUrl = do
     logger DEBUG $ "sending email change confirmation email: " ++ show address
     sendMail smtpConfig subject message address
@@ -63,12 +63,12 @@ sendEmailChangeConfirmationMail smtpConfig address callbackUrl = do
     subject = "Thentos email address change"
 
 
-sendMail :: SmtpConfig -> ST -> LT -> UserEmail -> IO ()
+sendMail :: SmtpConfig -> ST -> ST -> UserEmail -> IO ()
 sendMail config subject message address = do
     renderSendMailCustom sendmailPath sendmailArgs mail
   where
     sentFromAddress = buildEmailAddress config
     sendmailPath :: String = cs $ config >>. (Proxy :: Proxy '["sendmail_path"])
     sendmailArgs :: [String] = cs <$> config >>. (Proxy :: Proxy '["sendmail_args"])
-    mail = simpleMail' receiverAddress sentFromAddress subject message
+    mail = simpleMail' receiverAddress sentFromAddress subject (cs message)
     receiverAddress = Address Nothing (fromUserEmail $ address)

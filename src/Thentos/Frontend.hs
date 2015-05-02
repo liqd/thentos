@@ -13,8 +13,7 @@ import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
-import Snap.Blaze (blaze)
-import Snap.Core (ifTop, Method(GET, POST), method, redirect')
+import Snap.Core (ifTop, redirect')
 import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
@@ -27,9 +26,7 @@ import Thentos.Api
 import Thentos.Config
 import Thentos.Frontend.Types
 import Thentos.Frontend.Util (serveSnaplet)
-import Thentos.Types (Role(..), RoleBasic(..))
 
-import qualified Text.Blaze.Html5 as Blaze
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
 
@@ -55,33 +52,36 @@ frontendApp (st, rn, _cfg) feConf =
             (pure feConf)
 
 routes :: [(ByteString, FH ())]
-routes = [ ("", ifTop $ H.index)
+routes = [ -- default entry point
+           ("", ifTop $ redirect' "/dashboard" 303)
 
-         , ("login_thentos", H.loginThentos)
-         , ("logout_thentos", method GET H.logoutThentos)
-         , ("logout_thentos", method POST H.loggedOutThentos)
-         , ("user/create", H.userCreate)
-         , ("user/create_confirm", H.userCreateConfirm)
+           -- if not logged in
+         , ("user/register", H.userRegister)
+         , ("user/register_confirm", H.userRegisterConfirm)
+         , ("user/login", H.userLogin)
          , ("user/reset_password_request", H.resetPasswordRequest)
          , ("user/reset_password", H.resetPassword)
+
+           -- if logged in
+         , ("user/logout", H.userLogout)
          , ("user/update", H.userUpdate)
          , ("user/update_email", H.emailUpdate)
          , ("user/update_email_confirm", H.emailUpdateConfirm)
          , ("user/update_password", H.passwordUpdate)
          , ("service/create", H.serviceCreate)
          , ("service/register", H.serviceRegister)
-         , ("service/login", H.loginService)
-
-         -- (dashboard should probably be a snaplet.  if only for the
-         -- routing table and the call to the dashboardPagelet.)
+         , ("service/login", H.serviceLogin)
 
          , ("/dashboard", redirect' "/dashboard/details" 303)
-         , ("/dashboard/details", H.dashboardDetails)
+             -- (this could also look up the last page the user was
+             -- on, and navigate there.)
 
-         , ("test", blaze $ P.dashboardPagelet
-                 (RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin])
-                 P.DashboardTabDetails
-                 (Blaze.text "body"))
+             -- (dashboard should probably be a snaplet.  if only for
+             -- the routing table and the call to the
+             -- dashboardPagelet.)
 
+         , ("/dashboard/details", H.dashboardPage P.DashboardTabDetails P.displayUserPagelet)
+
+         -- static files
          , ("", serveDirectory "snap/static")
          ]

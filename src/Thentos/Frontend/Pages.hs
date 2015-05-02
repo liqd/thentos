@@ -3,44 +3,51 @@
 {-# LANGUAGE ViewPatterns       #-}
 
 module Thentos.Frontend.Pages
-    ( indexPage
-
-    , dashboardPagelet
+    ( dashboardPagelet
     , DashboardTab(..)
-    , displayUserPagelet
-    , emailUpdateForm
-    , errorPage
-    , loginServicePage
-    , loginThentosForm
-    , loginThentosPage
-    , logoutThentosPage
-    , notLoggedInPage
-    , passwordUpdateForm
+
+    , userRegisterForm
+    , userRegisterPage
+    , userRegisterRequestedPage
+
+    , userLoginForm
+    , userLoginPage
+
     , resetPasswordForm
     , resetPasswordPage
     , resetPasswordRequestedPage
     , resetPasswordRequestForm
     , resetPasswordRequestPage
-    , serviceCreatedPage
+
+    , userLogoutConfirmPage
+    , userLogoutDonePage
+
+    , displayUserPagelet
+
+    , userUpdatePage
+    , userUpdateForm
+    , emailUpdatePage
+    , emailUpdateForm
+    , passwordUpdatePage
+    , passwordUpdateForm
+
     , serviceCreateForm
     , serviceCreatePage
+    , serviceCreatedPage
     , serviceRegisterPage
     , serviceRegisterForm
-    , userCreatedPage
-    , userCreateForm
-    , userCreatePage
-    , userCreateRequestedPage
-    , userUpdateForm
-    , userUpdatePage
+    , serviceLoginPage
+
+    , errorPage
+    , confirmationMailSentPage
     ) where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Lens ((^.))
-import Data.ByteString (ByteString)
-import Data.Maybe (isJust, catMaybes)
-import Data.Monoid ((<>))
-import Data.String.Conversions (cs)
-import Data.Text (Text)
+import Data.Maybe (isJust, catMaybes, fromMaybe)
+import Data.Monoid (Monoid, (<>))
+import Data.String.Conversions (ST, cs)
+import Data.String (IsString)
 import Data.Typeable (Typeable)
 import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
@@ -48,171 +55,45 @@ import Text.Digestive.Form (Form, check, validate, text, (.:))
 import Text.Digestive.Types (Result(Success, Error))
 import Text.Digestive.View (View)
 
-import qualified Data.Text as T
+import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Types
 import Thentos.DB.Trans (UpdateUserFieldOp(..))
 
-indexPage :: Html
-indexPage = do
+
+-- * base
+
+-- | Call 'basePagelet'' without optional headings.
+basePagelet :: ST -> Html -> Html
+basePagelet title = basePagelet' title Nothing
+
+-- | Create an html document with default headings from title,
+-- optional headings, and body.
+basePagelet' :: ST -> Maybe Html -> Html -> Html
+basePagelet' title mHeadings body = H.docTypeHtml $ do
     H.head $ do
-        H.title "Thentos main page"
+        H.title $ H.text title
+        H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
+        fromMaybe (return ()) mHeadings
     H.body $ do
-        H.h3 $ do
-            "things you can do from here:"
-        H.ul $ do
-            H.li . (H.a ! A.href "/dashboard") $ "dashboard"
-            H.li . (H.a ! A.href "/login_thentos") $ "login"
-            H.li . (H.a ! A.href "/logout_thentos") $ "logout"
-            H.li . (H.a ! A.href "/user/create") $ "create user"
-            H.li . (H.a ! A.href "/service/create") $ "create service"
-            H.li . (H.a ! A.href "/user/reset_password_request") $ "request password reset"
+        H.h1 $ H.text title
+        body
 
 
--- * register
+-- * dashboard
 
-userCreatePage :: View Html -> Html
-userCreatePage v = H.docTypeHtml $ do
-    H.head $ do
-        H.title "Create user"
-    H.body $ do
-        -- FIXME: how do we avoid having to duplicate the URL here?
-        form v "create" $ do
-            H.p $ do
-                label "name" v "User name:"
-                inputText "name" v
-            H.p $ do
-                label "password1" v "Password:"
-                inputPassword "password1" v
-            H.p $ do
-                label "password2" v "Repeat Password:"
-                inputPassword "password2" v
-            H.p $ do
-                label "email" v "Email Address:"
-                inputText "email" v
-            inputSubmit "Create User" ! A.id "create_user_submit"
-
-userCreateForm :: Monad m => Form Html m UserFormData
-userCreateForm = (validate validateUserData) $ (,,,)
-    <$> (UserName  <$> "name"      .: check "name must not be empty"        nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password1"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password2"  .: check "password must not be empty"    nonEmpty   (text Nothing))
-    <*> (UserEmail <$> "email"     .: check "must be a valid email address" checkEmail (text Nothing))
-  where
-    validateUserData (name, pw1, pw2, email)
-        | pw1 == pw2 = Success $ UserFormData name pw1 email
-        | otherwise  = Error "Passwords don't match"
-
-userCreateRequestedPage :: Html
-userCreateRequestedPage = H.string $ "Please check your email"
-
-userCreatedPage :: UserId -> Html
-userCreatedPage uid =
-    H.docTypeHtml $ do
-        H.head $
-            H.title "Success!"
-        H.body $ do
-            H.h1 "Added a user!"
-            H.pre . H.string $ show uid
-
-
--- * login (thentos)
-
-loginThentosPage :: View Html -> Html
-loginThentosPage v = do
-    H.docTypeHtml $ do
-        H.head $
-            H.title "Log into thentos"
-        H.body $ do
-            form v "login_thentos" $ do
-                H.p $ do
-                    label "usernamme" v "User name:"
-                    inputText "name" v
-                H.p $ do
-                    label "password" v "Password:"
-                    inputPassword "password" v
-                inputSubmit "Log in" ! A.id "login_submit"
-
-loginThentosForm :: Monad m => Form Html m (UserName, UserPass)
-loginThentosForm = (,)
-    <$> (UserName  <$> "name"    .: check "name must not be empty"     nonEmpty   (text Nothing))
-    <*> (UserPass <$> "password" .: check "password must not be empty" nonEmpty   (text Nothing))
-
-
--- * forgot password
-
-resetPasswordRequestPage :: View Html -> Html
-resetPasswordRequestPage v =
-    H.docTypeHtml $ do
-        H.head $ H.title "Reset your password"
-        H.body $ do
-            form v "reset_password_request" $ do
-                H.p $ do
-                    label "email" v "Email address: "
-                    inputText "email" v
-                inputSubmit "Reset your password"
-
-resetPasswordRequestForm :: Monad m => Form Html m UserEmail
-resetPasswordRequestForm =
-    UserEmail <$> "email" .: check "email address must not be empty" nonEmpty (text Nothing)
-
-resetPasswordPage :: Text -> View Html -> Html
-resetPasswordPage reqUrl v =
-    H.docTypeHtml $ do
-        H.head $ H.title "Enter a new password"
-        H.body $ do
-            form v reqUrl $ do
-                H.p $ do
-                    label "password1" v "New password: "
-                    inputPassword "password1" v
-                H.p $ do
-                    label "password2" v "repeat password: "
-                    inputPassword "password2" v
-                inputSubmit "Set your new password"
-
-resetPasswordForm :: Monad m => Form Html m UserPass
-resetPasswordForm = (validate validatePass) $
-    (,)
-      <$> (UserPass <$> "password1" .: check "password must not be empty" nonEmpty (text Nothing))
-      <*> (UserPass <$> "password2" .: check "password must not be empty" nonEmpty (text Nothing))
-  where
-    validatePass :: (UserPass, UserPass) -> Result Html UserPass
-    validatePass (p1, p2) = if p1 == p2
-                                then Success p1
-                                else Error "passwords don't match"
-
-resetPasswordRequestedPage :: Html
-resetPasswordRequestedPage = H.string $ "Please check your email"
-
-
--- * dashboard frame
-
-data DashboardTab =
-    DashboardTabDetails
-  | DashboardTabServices
-  | DashboardTabOwnServices
-  | DashboardTabUsers
-  | DashboardTabLogout
-  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
-
--- | It is the caller's responsibility to make sure that active
--- dashboard and body correspond.
+-- | The dashboard is the frame of what the user always sees when
+-- logged in.  The dashboard body shows further specifics.  It is the
+-- caller's responsibility to make sure that dashboard state and body
+-- correspond.
 dashboardPagelet :: [Role] -> DashboardTab -> Html -> Html
 dashboardPagelet availableRoles ((==) -> isActive) body =
-    H.docTypeHtml $ do
-        H.head $ do
-            H.title $ H.text title
-            H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
-        H.body $ do
-            H.h1 $ H.text title
-            H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
-            body
+    basePagelet "Thentos Dashboard" $ do
+        H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
+        H.div H.! A.class_ "dashboard_body" $ body
   where
-    title :: Text
-    title = "Thentos Dashboard"
-
     tabLink :: DashboardTab -> Html
     tabLink tab
         | not available = return ()
@@ -235,25 +116,152 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
     needsRoles DashboardTabUsers = [RoleBasic RoleUserAdmin]
     needsRoles DashboardTabLogout = []
 
-    linkText :: DashboardTab -> Text
+    linkText :: DashboardTab -> ST
     linkText DashboardTabDetails     = "details"
     linkText DashboardTabServices    = "services"
     linkText DashboardTabOwnServices = "own services"
     linkText DashboardTabUsers       = "users"
     linkText DashboardTabLogout      = "logout"
 
-    linkUrl  :: DashboardTab -> Text
+    linkUrl  :: DashboardTab -> ST
     linkUrl DashboardTabDetails     = "/dashboard/details"       -- FIXME: not implemented
     linkUrl DashboardTabServices    = "/dashboard/services"      -- FIXME: not implemented
     linkUrl DashboardTabOwnServices = "/dashboard/ownservices"   -- FIXME: not implemented
     linkUrl DashboardTabUsers       = "/dashboard/users"         -- FIXME: not implemented
-    linkUrl DashboardTabLogout      = "/logout_thentos"
+    linkUrl DashboardTabLogout      = "/user/logout"
+
+data DashboardTab =
+    DashboardTabDetails
+  | DashboardTabServices
+  | DashboardTabOwnServices
+  | DashboardTabUsers
+  | DashboardTabLogout
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
+
+
+-- * register (thentos)
+
+userRegisterPage :: ST -> View Html -> Html
+userRegisterPage formAction v =  basePagelet "Create User" $ do
+    form v formAction $ do
+        H.p $ do
+            label "name" v "User name:"
+            inputText "name" v
+        H.p $ do
+            label "password1" v "Password:"
+            inputPassword "password1" v
+        H.p $ do
+            label "password2" v "Repeat Password:"
+            inputPassword "password2" v
+        H.p $ do
+            label "email" v "Email Address:"
+            inputText "email" v
+        inputSubmit "Create User" ! A.id "create_user_submit"
+
+userRegisterForm :: Monad m => Form Html m UserFormData
+userRegisterForm = validate validateUserData $ (,,,)
+    <$> (UserName  <$> "name"      .: validateNonEmpty "name"     (text Nothing))
+    <*> (UserPass  <$> "password1" .: validateNonEmpty "password" (text Nothing))
+    <*> (UserPass  <$> "password2" .: validateNonEmpty "password" (text Nothing))
+    <*> (UserEmail <$> "email"     .: validateEmail               (text Nothing))
+  where
+    validateUserData (name, pw1, pw2, email)
+        | pw1 == pw2 = Success $ UserFormData name pw1 email
+        | otherwise  = Error "Passwords don't match"
+
+userRegisterRequestedPage :: Html
+userRegisterRequestedPage = confirmationMailSentPage "Create User"
+    "Thank you for your registration." "your registration"
+
+
+-- * login (thentos)
+
+userLoginPage :: ST -> View Html -> Html
+userLoginPage formAction v = basePagelet "Thentos Login" $ do
+    form v formAction $ do
+        H.table $ do
+            H.tr $ do
+                H.td $ label "usernamme" v "Username"
+                H.td $ inputText "name" v
+            H.tr $ do
+                H.td $ label "password" v "Password"
+                H.td $ inputPassword "password" v
+            H.tr $ do
+                H.td $ pure ()
+                H.td $ inputSubmit "Log in" ! A.id "login_submit"
+            H.tr $ do
+                H.td $ pure ()
+                H.td $ H.a ! A.href "/user/register" ! A.id "login_create_new" $ "Register new user"
+            H.tr $ do
+                H.td $ pure ()
+                H.td $ H.a ! A.href "/user/reset_password" ! A.id "login_forgot_password" $ "forgot password?"
+
+userLoginForm :: Monad m => Form Html m (UserName, UserPass)
+userLoginForm = (,)
+    <$> (UserName <$> "name"     .: validateNonEmpty "name"     (text Nothing))
+    <*> (UserPass <$> "password" .: validateNonEmpty "password" (text Nothing))
+
+
+-- * forgot password
+
+resetPasswordRequestPage :: ST -> View Html -> Html
+resetPasswordRequestPage formAction v = basePagelet "Reset Password" $ do
+    form v formAction $ do
+        H.p $ do
+            H.text "You can send yourself an email with a link to the password reset page."
+        H.p $ do
+            label "email" v "Email address: "
+            inputText "email" v
+        inputSubmit "Send"
+
+resetPasswordRequestForm :: Monad m => Form Html m UserEmail
+resetPasswordRequestForm =
+    UserEmail <$> "email" .: validateEmail (text Nothing)
+
+resetPasswordPage :: ST -> View Html -> Html
+resetPasswordPage formAction v = basePagelet "Reset Password" $
+    form v formAction $ do
+        H.p $ do
+            label "password1" v "New password: "
+            inputPassword "password1" v
+        H.p $ do
+            label "password2" v "Repeat password: "
+            inputPassword "password2" v
+        inputSubmit "Set your new password"
+
+resetPasswordForm :: Monad m => Form Html m UserPass
+resetPasswordForm = validate validatePass $ (,)
+    <$> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
+    <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
+
+resetPasswordRequestedPage :: Html
+resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
+    "Thank you for your password reset request." "the process"
+
+
+-- * logout (thentos)
+
+userLogoutConfirmPage :: ST -> [ServiceName] -> Html
+userLogoutConfirmPage formAction serviceNames = basePagelet "Thentos Logout" $ do
+    H.p . H.text . ST.unlines $
+        "You are about to logout from thentos." :
+        "This will log you out from the following services/sites:" :
+        []
+    case serviceNames of
+        []    -> H.p "(none)"
+        (_:_) -> H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
+    H.form ! A.method "POST" ! A.action (H.textValue formAction) $
+        H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
+
+userLogoutDonePage :: Html
+userLogoutDonePage = basePagelet "Thentos Logout" $
+    H.p "You have been logged out of Thentos."
 
 
 -- * update user
 
-displayUserPagelet :: User -> Html
-displayUserPagelet user = do
+displayUserPagelet :: User -> [Role] -> Html
+displayUserPagelet user _ = do
     H.table $ do
         H.tr $ do
             H.td . H.text $ "name"
@@ -263,55 +271,44 @@ displayUserPagelet user = do
             H.td . H.text $ fromUserEmail (user ^. userEmail)
         H.tr $ do
             H.td . H.text $ "street"
-            H.td . H.text $ "(not implemented)"
+            H.td . H.text $ "n/a"
         H.tr $ do
             H.td . H.text $ "postal code"
-            H.td . H.text $ "(not implemented)"
+            H.td . H.text $ "n/a"
         H.tr $ do
             H.td . H.text $ "city"
-            H.td . H.text $ "(not implemented)"
+            H.td . H.text $ "n/a"
         H.tr $ do
             H.td . H.text $ "country"
-            H.td . H.text $ "(not implemented)"
+            H.td . H.text $ "n/a"
+        H.tr $ do
+            H.td $ pure ()
+            H.td $ H.a ! A.href "/user/update" $ "edit"
+        H.tr $ do
+            H.td $ pure ()
+            H.td $ H.a ! A.href "/user/update_password" $ "change password"
+        H.tr $ do
+            H.td $ pure ()
+            H.td $ H.a ! A.href "/user/update_email" $ "change email"
+        H.tr $ do
+            H.td $ pure ()
+            H.td $ H.a ! A.href "/n/a" $ "delete"
 
-    H.p $ H.text "(button: edit)"
-    H.p $ H.text "(button: delete user)"
-    H.p $ H.text "(button: new user)"
 
-userUpdatePage :: View Html -> View Html -> View Html -> Html
-userUpdatePage userView emailView pwView = H.docTypeHtml $ do
-    H.head $ H.title "Update user data"
-    H.body $ do
-        form userView "update" $ do
+userUpdatePage :: ST -> View Html -> Html
+userUpdatePage formAction v =
+    basePagelet "Update User" $ do  -- FIXME: do this inside the dashboard.
+        form v formAction $ do
             H.p $ do
-                label "name" userView "User name:"
-                inputText "name" userView
+                label "name" v "User name: "
+                inputText "name" v
             inputSubmit "Update User Data" ! A.id "update_user_submit"
-
-        form pwView "update_password" $ do
-            H.p $ do
-                label "old_password" pwView "Current Password: "
-                inputPassword "old_password" pwView
-            H.p $ do
-                label "new_password1" pwView "New password: "
-                inputPassword "new_password1" pwView
-            H.p $ do
-                label "new_password2" pwView "Repeat new password: "
-                inputPassword "new_password2" pwView
-            inputSubmit "Update Password" ! A.id "update_password_submit"
-
-        form emailView "update_email" $ do
-            H.p $ do
-                label "email" emailView "Email Address: "
-                inputText "email" emailView
-            inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
 -- | This is a bit overkill for now, but easily extensible for new user data fields.
 userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
-userUpdateForm = (validate validateUserData) $
-    "name"      .: text Nothing
+userUpdateForm = validate validateUserData $ "name" .: text Nothing
   where
-    validateUserData :: Text -> Result Html [UpdateUserFieldOp]
+    validateUserData :: ST -> Result Html [UpdateUserFieldOp]
     validateUserData name  =
         let updates = catMaybes [ validateName name
                                 ]
@@ -319,36 +316,58 @@ userUpdateForm = (validate validateUserData) $
             then Error "Nothing to update"
             else Success updates
 
-    validateName :: Text -> Maybe UpdateUserFieldOp
-    validateName name = toMaybe (not $ T.null name)
+    validateName :: ST -> Maybe UpdateUserFieldOp
+    validateName name = toMaybe (not $ ST.null name)
                                 (UpdateUserFieldName $ UserName name)
 
     toMaybe :: Bool -> a -> Maybe a
-    toMaybe b v = if b then Just v else Nothing
+    toMaybe True  v = Just v
+    toMaybe False _ = Nothing
+
+passwordUpdatePage :: ST -> View Html -> Html
+passwordUpdatePage formAction v =
+    basePagelet "Update Password" $ do
+        form v formAction $ do
+            H.p $ do
+                label "old_password" v "Current Password: "
+                inputPassword "old_password" v
+            H.p $ do
+                label "new_password1" v "New password: "
+                inputPassword "new_password1" v
+            H.p $ do
+                label "new_password2" v "Repeat new password: "
+                inputPassword "new_password2" v
+            inputSubmit "Update Password" ! A.id "update_password_submit"
 
 passwordUpdateForm :: Monad m => Form Html m (UserPass, UserPass)
-passwordUpdateForm = (validate newPasswordsMatch) $ (,,)
-    <$> ("old_password"  .: check "password must not be empty" nonEmpty (text Nothing))
-    <*> ("new_password1" .: check "password must not be empty" nonEmpty (text Nothing))
-    <*> ("new_password2" .: check "password must not be empty" nonEmpty (text Nothing))
-  where
-    newPasswordsMatch (old, new1, new2)
-        | new1 == new2 = Success (UserPass old, UserPass new1)
-        | otherwise    = Error "passwords don't match"
+passwordUpdateForm = validate validatePassChange $ (,,)
+    <$> (UserPass <$> "old_password"  .:                              text Nothing)
+    <*> (UserPass <$> "new_password1" .: validateNonEmpty "password" (text Nothing))
+    <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
+
+
+emailUpdatePage :: ST -> View Html -> Html
+emailUpdatePage formAction v =
+    basePagelet "Change Email" $ do  -- FIXME: do this inside the dashboard.
+        form v formAction $ do
+            H.p $ do
+                label "email" v "Email Address: "
+                inputText "email" v
+            inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
 emailUpdateForm :: Monad m => Form Html m UserEmail
 emailUpdateForm =
-    UserEmail <$> "email" .: check "must be a valid email address" checkEmail (text Nothing)
+    UserEmail <$> "email" .: validateEmail (text Nothing)
 
 
 -- * services
 
-serviceCreatePage :: View Html -> Html
-serviceCreatePage v = H.docTypeHtml $ do
+serviceCreatePage :: ST -> View Html -> Html
+serviceCreatePage formAction v = H.docTypeHtml $ do
     H.head $ do
         H.title "Create Service"
     H.body $ do
-        form v "create" $ do
+        form v formAction $ do
             H.p $ do
                 label "name" v "Service name:"
                 inputText "name" v
@@ -360,8 +379,8 @@ serviceCreatePage v = H.docTypeHtml $ do
 serviceCreateForm :: Monad m => Form Html m (ServiceName, ServiceDescription)
 serviceCreateForm =
     (,) <$>
-        (ServiceName <$> "name" .: check "name must not be empty" nonEmpty (text Nothing)) <*>
-        (ServiceDescription <$> "description" .: check "description must not be mpty" nonEmpty (text Nothing))
+        (ServiceName        <$> "name"        .: validateNonEmpty "name" (text Nothing)) <*>
+        (ServiceDescription <$> "description" .:                          text Nothing)
 
 serviceCreatedPage :: ServiceId -> ServiceKey -> Html
 serviceCreatedPage sid key = H.docTypeHtml $ do
@@ -372,14 +391,14 @@ serviceCreatedPage sid key = H.docTypeHtml $ do
         H.p $ "Service id: " <> H.text (fromServiceId sid)
         H.p $ "Service key: " <> H.text (fromServiceKey key)
 
--- FIXME: this is an empty form for now, but in the future, the user
--- will want to decide what data to pass on to the service here.
-serviceRegisterPage :: View Html -> ServiceId -> Service -> User -> Html
-serviceRegisterPage v sid service user = H.docTypeHtml $ do
+-- (this is an empty form for now, but in the future, the user will
+-- want to decide what data to pass on to the service here.)
+serviceRegisterPage :: ST -> View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage formAction v sid service user = H.docTypeHtml $ do
     H.head $ do
         H.title "Register with Service"
     H.body $ do
-        form v "register" $ do  -- FIXME: what is that string?  the route?
+        form v formAction $ do
             H.h1 "You are about to register to a service"
             H.hr
             H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
@@ -394,15 +413,15 @@ serviceRegisterPage v sid service user = H.docTypeHtml $ do
 serviceRegisterForm :: Monad m => Form Html m ()
 serviceRegisterForm = pure ()
 
-loginServicePage :: ServiceId -> View Html -> ByteString -> Html
-loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
+serviceLoginPage :: ServiceId -> View Html -> ST -> Html
+serviceLoginPage (H.string . cs . fromServiceId -> serviceId) v formAction =
     H.docTypeHtml $ do
         H.head $
             H.title "Log in"
         H.body $ do
             H.p $ do
                 "service id: " <> serviceId
-            form v (cs reqURI) $ do
+            form v formAction $ do
                 H.p $ do
                     label "usernamme" v "User name:"
                     inputText "name" v
@@ -412,41 +431,35 @@ loginServicePage (H.string . cs . fromServiceId -> serviceId) v reqURI =
                 inputSubmit "Log in"
 
 
--- * logout
+-- * util
 
-logoutThentosPage :: [ServiceName] -> Html
-logoutThentosPage serviceNames = do
-    H.head $ H.title "Log out"
-    H.body $ do
-        case serviceNames of
-            [] -> do
-                H.p "You're currently not logged into any services."
-            (_:_) -> do
-                H.p "You're currently logged into the following services: "
-                H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
-        H.form ! A.method "POST" ! A.action "logout_thentos" $
-            H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
-
-
--- * misc
+-- ** error / status reports to the user
 
 errorPage :: String -> Html
-errorPage errorString = H.string $ "Encountered error: " ++ show errorString
+errorPage errorString = basePagelet "Error" . H.string $ "Encountered error: " ++ show errorString
 
-notLoggedInPage :: Html
-notLoggedInPage = H.docTypeHtml $ do
-    H.head $ H.title "Not logged in"
-    H.body $ do
-        H.p "You're currently not logged into Thentos."
-        H.p $ "Please go to " <> loginLink <> " and try again."
-  where
-    loginLink = H.a ! A.href "/login_thentos" $ "login"
+confirmationMailSentPage :: ST -> ST -> ST -> Html
+confirmationMailSentPage title msg1 msg2 = basePagelet title . H.p . H.text . ST.unlines $
+    msg1 :
+    "Please check your email (don't forget the spam folder)" :
+    "and complete " <> msg2 <> " by following the link we sent you." :
+    []
 
 
--- * auxillary functions
+-- ** form field tests
 
-nonEmpty :: Text -> Bool
-nonEmpty = not . T.null
+validateNonEmpty :: (Monoid v, IsString v, Monad m) => v -> Form v m ST -> Form v m ST
+validateNonEmpty fieldName = check (fieldName <> " must not be empty") (not . ST.null)
 
-checkEmail :: Text -> Bool
-checkEmail = isJust . T.find (== '@')
+validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m ST
+validateEmail = check "must be a valid email address" (isJust . ST.find (== '@'))
+
+validatePass :: (UserPass, UserPass) -> Result Html UserPass
+validatePass (p1, p2) = if p1 == p2
+    then Success p1
+    else Error "passwords don't match"
+
+validatePassChange :: (UserPass, UserPass, UserPass) -> Result Html (UserPass, UserPass)
+validatePassChange (old, new1, new2) = if new1 == new2
+    then Success (old, new1)
+    else Error "passwords don't match"
