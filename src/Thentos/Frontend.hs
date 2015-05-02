@@ -19,6 +19,7 @@ import Snap.Http.Server (defaultConfig, setBind, setPort)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
 import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
+import Snap.Util.FileServe (serveDirectory)
 import System.Log.Missing (logger)
 import System.Log (Priority(INFO))
 
@@ -81,4 +82,6 @@ routes = [ ("", ifTop $ H.index)
                  (RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin, RoleAdmin])
                  P.DashboardTabDetails
                  (Blaze.text "body"))
+
+         , ("", serveDirectory "snap/static")
          ]

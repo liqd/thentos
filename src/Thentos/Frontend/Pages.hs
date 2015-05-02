@@ -204,8 +204,9 @@ dashboardPagelet availableRoles ((==) -> isActive) body =
     H.docTypeHtml $ do
         H.head $ do
             H.title $ H.text title
+            H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
         H.body $ do
-            H.h2 $ H.text title
+            H.h1 $ H.text title
             H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
             body
   where
