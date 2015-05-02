@@ -176,9 +176,12 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 -- * login (thentos)
 
-userLoginPage :: ST -> View Html -> Html
-userLoginPage formAction v = basePagelet "Thentos Login" $ do
+userLoginPage :: Maybe ST -> ST -> View Html -> Html
+userLoginPage mMsg formAction v = basePagelet "Thentos Login" $ do
     form v formAction $ do
+        case mMsg of
+            Just msg -> H.p $ H.text msg
+            Nothing  -> return ()
         H.table $ do
             H.tr $ do
                 H.td $ label "usernamme" v "Username"

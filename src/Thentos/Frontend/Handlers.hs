@@ -115,9 +115,11 @@ userRegisterConfirm = do
 -- * login (thentos)
 
 userLogin :: FH ()
-userLogin = formDriver userLoginForm userLoginPage $ \ (username, password) -> do
-    userLoginCallAction $ startThentosSessionByUserName username password
-    redirect' "/dashboard" 303
+userLogin = do
+    mMsg :: Maybe ST <- cs <$$> getParam "error_msg"
+    formDriver userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
+        userLoginCallAction $ startThentosSessionByUserName username password
+        redirect' "/dashboard" 303
 
 
 -- | If user name and password match, login.  Otherwise, redirect to
@@ -135,7 +137,8 @@ userLoginCallAction action = do
             setInSession "sessionData" (cs $ Aeson.encode sessionData)
             commitSession
             redirect' "/dashboard" 303
-        Left BadCredentials -> crash 400 "Bad username or password."
+        Left BadCredentials -> redirectRR
+            (RelativeRef Nothing "/user/login" (Query [("error_msg", "Bad username or password.")]) Nothing)
         Left _ -> error "logIntoThentosHandler: branch should not be reachable"
             -- FIXME: this should be handled.  we should
             -- always allow transactions / actions to throw
@@ -410,6 +413,14 @@ urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
     ref   = RelativeRef Nothing (cs path) (Query query) Nothing
     query = [("token", urlEncode . encodeUtf8 $ token)]
     toST  = cs . toLazyByteString . serializeRelativeRef
+
+
+redirectURI :: URI -> FH ()
+redirectURI ref = redirect' (cs . toLazyByteString . serializeURI $ ref) 303
+
+redirectRR :: RelativeRef -> FH ()
+redirectRR ref = redirect' (cs . toLazyByteString . serializeRelativeRef $ ref) 303
+
 
 tweakRelativeRqRef :: (RelativeRef -> RelativeRef) -> FH SBS
 tweakRelativeRqRef tweak = getsRequest rqURI >>= tweakRelativeRef tweak
