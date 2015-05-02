@@ -33,6 +33,15 @@ import qualified Text.Blaze.Html5.Attributes as HA
 data App = App { aHWConfig :: HWConfig }
 type AppHandler = Handler App App
 
+configFilePath :: FilePath
+configFilePath = "devel.config"
+
+-- | The snap web server is configured via "Snap.Http.Server.Config".
+-- The field 'helloWorldUrl' in this app-config type contains the
+-- exposed url (e.g. for sending out links to the browser).  Since we
+-- have no control over the network topology here (proxy setup and
+-- all), it needs to be checked during system configuration that the
+-- two work together.
 data HWConfig =
     HWConfig
       { thentosBackendUrl  :: ByteString
@@ -82,7 +91,7 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
   where
     loadConfig :: IO (Maybe HWConfig)
     loadConfig = do
-        config <- Configurator.load [Configurator.Required "devel.config"]
+        config <- Configurator.load [Configurator.Required configFilePath]
           -- (config file is hard-coded, but that's ok.  this is just
           -- trying to be a helloworld app to test and demonstrate
           -- some thentos concepts, not production code.)
