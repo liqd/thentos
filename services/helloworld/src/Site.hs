@@ -56,22 +56,39 @@ data HWConfig =
 handleApp :: AppHandler ()
 handleApp = do
     token <- getParam "token"
-    tokenIsOk <- tokenOk token
-    method GET $ blaze (appPage token () tokenIsOk)
+    tokenIsOk <- verifyToken token
+    method GET . blaze $ appPage token tokenIsOk ()
 
-appPage :: Show sessionMetaData => Maybe ByteString -> sessionMetaData -> Bool -> Html
-appPage token sessionMetaData isTokenOk =
+appPage :: Show sessionMetaData => Maybe ByteString -> Bool -> sessionMetaData -> Html
+appPage token isTokenOk sessionMetaData =
     H.docTypeHtml $ do
-        H.head $
-            H.title "Welcome to the thentos test service!"
+        H.head $ do
+            H.title "Greetotron2000"
+            H.link H.! HA.rel "stylesheet" H.! HA.href "screen.css"
         H.body $ do
-            H.p $ "your session token: " <> H.string (show token)
-            H.p $ "Token ok (checked with thentos): " <> H.string (show isTokenOk)
-            H.p $ "data sent to us from thentos (session meta data): " <> H.string (show sessionMetaData)
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ do
-                H.text "login"
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ do
-                H.text "logout"
+            H.h1 "Greetotron2000"
+
+            case token of
+                (Just _) -> H.div H.! HA.class_ "logged_in" $ do
+                    H.p "you are logged in.  hello, somebody!"
+                    H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ H.text "logout"
+                Nothing -> H.div H.! HA.class_ "logged_out" $ do
+                    H.p "hello, nobody!"
+                    H.p "please log in if you want to be greeted properly."
+                    H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ H.text "login via thentos"
+
+            H.hr
+            H.table $ do
+                H.tr $ do
+                    H.td "session token"
+                    H.td . H.pre . H.string . ppShow $ token
+                H.tr $ do
+                    H.td "verified"
+                    H.td . H.pre . H.string . ppShow $ isTokenOk
+                H.tr $ do
+                    H.td "session meta data"
+                    H.td . H.pre . H.string . ppShow $ sessionMetaData
+
 
 routes :: [(ByteString, Handler App App ())]
 routes =
@@ -128,9 +145,9 @@ helloWorldLogin = do
 helloWorldLogout :: Handler App App ()
 helloWorldLogout = redirect' "/app" 303
 
-tokenOk :: Maybe ByteString -> Handler App App Bool
-tokenOk Nothing = return False
-tokenOk (Just tokBS) =
+verifyToken :: Maybe ByteString -> Handler App App Bool
+verifyToken Nothing = return False
+verifyToken (Just tokBS) =
     case decodeUtf8' tokBS of
         Left _ -> return False
         Right token -> do

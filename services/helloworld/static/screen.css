@@ -1,26 +1,28 @@
 html {
-   padding: 0;
-   margin: 0;
-   background-color: #ffffff;
+   background-color: #c0c0ff;
    font-family: Verdana, Helvetica, sans-serif;
 }
+
 body {
-   padding: 0;
-   margin: 0;
 }
+
 a {
    text-decoration: underline;
 }
+
 a :hover {
    cursor: pointer;
    text-decoration: underline;
 }
+
 img {
    border: none;
 }
-#content {
-   padding-left: 1em;
+
+.logged_in {
+   background-color: #c0ffc0;
 }
-#info {
-   font-size: 60%;
+
+.logged_out {
+   background-color: #ffc0c0;
 }
