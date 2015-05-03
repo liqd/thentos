@@ -2,33 +2,34 @@
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TupleSections          #-}
 
 module Thentos.Frontend.Util where
 
-import Snap (Snap, Config, getOther, SnapletInit, runSnaplet, when, liftIO, combineConfig, getVerbose)
-import Snap.Http.Server (simpleHttpServe)
-import Snap.Snaplet.Config (AppConfig(appEnvironment))
-import Control.Monad.CatchIO (try)
-import qualified Data.Text as T
-import System.IO (stderr, hPutStrLn)
-import System.Directory (createDirectoryIfMissing)
-import Control.Exception (SomeException)
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Lens ((^.))
+import Control.Exception (SomeException)
+import Control.Lens ((^.), (%~), (.~))
+import Control.Monad.CatchIO (try)
 import Control.Monad.State.Class (gets)
 import Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString.Builder (Builder, toLazyByteString)
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Snap.Blaze (blaze)
-import Snap.Core (getResponse, finishWith, urlEncode)
+import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
+import Snap.Http.Server (simpleHttpServe)
+import Snap (Snap, Config, getOther, SnapletInit, runSnaplet, when, liftIO, combineConfig, getVerbose)
 import Snap.Snaplet.AcidState (getAcidState)
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import Snap.Snaplet.Config (AppConfig(appEnvironment))
 import Snap.Snaplet (Handler, with)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import System.Directory (createDirectoryIfMissing)
+import System.IO (stderr, hPutStrLn)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, CRITICAL))
 import Text.Digestive.Form (Form)
@@ -38,6 +39,7 @@ import URI.ByteString (parseURI, parseRelativeRef, laxURIParserOptions, serializ
 import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions, Query(..))
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Api
@@ -70,9 +72,9 @@ buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
 -- pagelet.
 buildDashboard' :: DashboardTab -> (User -> [Role] -> FH H.Html) -> FH H.Html
 buildDashboard' tab pageletBuilder = do
-    runAsUser $ \ clearance session -> do
+    runAsUser $ \ clearance _ sessionLoginData -> do
         msgs <- popAllFrontendMsgs
-        let uid = fsdUser session
+        let uid = sessionLoginData ^. fslUserId
         eUser  <- snapRunAction' clearance . queryAction $ LookupUser uid
         eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
         case (eUser, eRoles) of
@@ -121,57 +123,117 @@ runPageForm' :: forall v a .
     -> (ST -> View v -> FH H.Html)
     -> (a -> FH ())
     -> FH ()
-runPageForm' f buildPage a = do
+runPageForm' f buildPage a = runHandlerForm f handler a
+  where
+    handler :: ST -> View v -> FH ()
+    handler formAction view = buildPage formAction view >>= blaze
+
+-- | Version of of 'runPageletForm'' that takes a handler rather than
+-- a pagelet, and calls that in order to render the empty form.  (For
+-- symmetry, the function name should be primed, but there is no
+-- non-monadic way to call a handler, so there is only one version of
+-- @runHandlerForm@.)
+runHandlerForm :: forall v a b .
+       Form v FH a
+    -> (ST -> View v -> FH b)
+    -> (a -> FH b)
+    -> FH b
+runHandlerForm f handler a = do
     formAction <- cs <$> getsRequest rqURI
     (view, mResult) <- logger DEBUG "[formDriver: runForm]" >> runForm formAction f
     case mResult of
-        Nothing -> buildPage formAction view >>= blaze
+        Nothing -> handler formAction view
         Just result -> logger DEBUG "[formDriver: action]" >> a result
 
 
 -- * authentication
 
--- | Runs a given handler with the credentials and the session data of the
--- currently logged-in user
-runAsUser :: (ThentosClearance -> FrontendSessionData -> FH a) -> FH a
-runAsUser handler = do
-    mSessionData <- getSessionData
-    case mSessionData of
-        Nothing -> redirect' "/user/login" 303
-        Just sessionData -> do
-            Right clearance <- snapRunAction' allowEverything $ getUserClearance (fsdUser sessionData)
-            handler clearance sessionData
- where
-    getSessionData :: FH (Maybe FrontendSessionData)
-    getSessionData = with sess $ do
-        mSessionDataBS <- getFromSession "sessionData"
-        return $ mSessionDataBS >>= Aeson.decode . cs
+-- | Call 'runAsUserOrNot', and redirect to login page if not logged
+-- in.
+runAsUser :: (ThentosClearance -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
+runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
+
+-- | Runs a given handler with the credentials and the session data of
+-- the currently logged-in user.  If not logged in, call a default
+-- handler that runs without any special clearance.
+--
+-- FIXME: this currently does not check the session token against the
+-- database.  it is trivial to construct a session cookie that gives
+-- you user privileges for any user with a known uid, without knowing
+-- any further credentials.
+runAsUserOrNot :: (ThentosClearance -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
+runAsUserOrNot loggedInHandler loggedOutHandler = do
+    sessionData :: FrontendSessionData <- getSessionData
+    case sessionData ^. fsdLogin of
+        Just sessionLoginData -> do
+            Right clearance <- snapRunAction' allowEverything $ getUserClearance (sessionLoginData ^. fslUserId)
+            loggedInHandler clearance sessionData sessionLoginData
+        Nothing -> loggedOutHandler
 
 
 -- * session management
 
+-- | Extract 'FrontendSessionData' object from cookie.  If n/a, return
+-- an empty one.  If a value is stored, but cannot be decoded, crash.
+getSessionData :: FH FrontendSessionData
+getSessionData = fromMaybe emptyFrontendSessionData
+               . (>>= Aeson.decode . cs)
+             <$> with sess (getFromSession "ThentosSessionData")
+
 -- | This is not race-condition-free, but the session only lives in
 -- the single thread that handles the single request, so thread-safety
 -- is not required.  (FIXME: think about this some more.)
-updateSessionData :: (FrontendSessionData -> (FrontendSessionData, a)) -> FH a
-updateSessionData op = with sess $ do
-    mSessionData <- (>>= Aeson.decode . cs) <$> getFromSession "sessionData"
-    case mSessionData of
-        Just sessionData -> do
-            let (sessionData', val) = op sessionData
-            setInSession "sessionData" . cs . Aeson.encode $ sessionData'
-            commitSession
-            return val
-        Nothing -> crash 500 "No session data."
+modifySessionData :: (FrontendSessionData -> (FrontendSessionData, a)) -> FH a
+modifySessionData op = do
+    sessionData <- getSessionData
+    with sess $ do
+        let (sessionData', val) = op sessionData
+        setInSession "ThentosSessionData" . cs . Aeson.encode $ sessionData'
+        commitSession
+        return val
+
+-- | A version of 'modifySessionData' without return value.
+modifySessionData' :: (FrontendSessionData -> FrontendSessionData) -> FH ()
+modifySessionData' f = modifySessionData $ (, ()) . f
+
+-- | Construct the service login state (extract service id from
+-- params, callback is passed as argument; crash if argument is
+-- Nothing).  Write it to the snap session and return it.
+setServiceLoginState :: FH ServiceLoginState
+setServiceLoginState = do
+    sid <- getParam "sid" >>= maybe
+             (crash 400 "Service login: missing Service ID.")
+             (return . ServiceId . cs)
+    uri <- getsRequest rqURI >>= \ callbackST -> either
+             (\ msg -> crash 400 $ "Service login: malformed redirect URI: " <> cs (show (msg, callbackST)))
+             (return)
+             (parseURI laxURIParserOptions $ cs callbackST)
+
+    let val = ServiceLoginState sid uri
+    modifySessionData' $ fsdServiceLoginState .~ Just val
+    logger DEBUG ("setServiceLoginState: set to " <> show val)
+    return val
+
+-- | Recover the service login state from snap session, remove it
+-- there, and return it.  If no service login state is stored, return
+-- 'Nothing'.
+popServiceLoginState :: FH (Maybe ServiceLoginState)
+popServiceLoginState = modifySessionData $
+    \ fsd -> (fsdServiceLoginState .~ Nothing $ fsd, fsd ^. fsdServiceLoginState)
+
+-- | Recover the service login state from snap session like
+-- 'popServiceLoginState', but do not remove it.
+getServiceLoginState :: FH (Maybe ServiceLoginState)
+getServiceLoginState = modifySessionData $ \ fsd -> (fsd, fsd ^. fsdServiceLoginState)
 
 sendFrontendMsgs :: [FrontendMsg] -> FH ()
-sendFrontendMsgs msgs = updateSessionData $ \ fsd -> (fsd { fsdMessages = fsdMessages fsd ++ msgs }, ())
+sendFrontendMsgs msgs = modifySessionData' $ fsdMessages %~ (++ msgs)
 
 sendFrontendMsg :: FrontendMsg -> FH ()
 sendFrontendMsg = sendFrontendMsgs . (:[])
 
 popAllFrontendMsgs :: FH [FrontendMsg]
-popAllFrontendMsgs = updateSessionData $ \ fsd -> (fsd { fsdMessages = [] }, fsdMessages fsd)
+popAllFrontendMsgs = modifySessionData $ \ fsd -> (fsdMessages .~ [] $ fsd, fsd ^. fsdMessages)
 
 
 -- * error handling
@@ -186,6 +248,13 @@ crash' status logMsg usrMsg = do
 crash :: Int -> SBS -> Handler b v x
 crash status usrMsg = crash' status () usrMsg
 
+-- | Use this for internal errors.  Ideally, we shouldn't have to even
+-- write those, but structure the code in a way that makes places
+-- where this is called syntactially unreachable.  Oh well.
+crash500 :: (Show a) => a -> Handler b v x
+crash500 a = do
+    logger CRITICAL $ show ("*** internal error: " <> show a)
+    crash 500 "internal error.  we are very sorry."
 
 urlConfirm :: HttpConfig -> ST -> ST -> ST
 urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
@@ -264,7 +333,7 @@ serveSnaplet config initializer = do
     createDirectoryIfMissing False "log"
     let serve = simpleHttpServe conf
 
-    when (loggingEnabled conf) . liftIO . hPutStrLn stderr $ T.unpack msgs
+    when (loggingEnabled conf) . liftIO . hPutStrLn stderr $ ST.unpack msgs
     _ <- try (serve site)
          :: IO (Either SomeException ())
     doCleanup

@@ -16,7 +16,7 @@ import GHC.Generics (Generic)
 import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
 import Snap.Snaplet (Snaplet, Handler, snapletValue)
-import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
+import URI.ByteString (URI, serializeURI, parseURI, laxURIParserOptions)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
@@ -42,15 +42,27 @@ type FH = Handler FrontendApp FrontendApp
 
 data FrontendSessionData =
     FrontendSessionData
-        { fsdToken                :: SessionToken
-        , fsdUser                 :: UserId
-        , fsdServiceLoginCallback :: Maybe ServiceLoginCallback  -- ^ (see 'ServiceLoginCallback')
-        , fsdMessages             :: [FrontendMsg]
+        { _fsdLogin             :: Maybe FrontendSessionLoginData
+        , _fsdServiceLoginState :: Maybe ServiceLoginState  -- ^ (see 'ServiceLoginState')
+        , _fsdMessages          :: [FrontendMsg]
+        }
+  deriving (Show, Eq, Generic)
+
+emptyFrontendSessionData :: FrontendSessionData
+emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
+
+data FrontendSessionLoginData =
+    FrontendSessionLoginData
+        { _fslToken  :: SessionToken
+        , _fslUserId :: UserId
         }
   deriving (Show, Eq, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
+
+instance FromJSON FrontendSessionLoginData where parseJSON = Aeson.gparseJson
+instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
 
 -- | If a user comes from a service login and is sent to the "register
 -- with a new service" page because no valid 'ServiceAccount' exists
@@ -61,19 +73,23 @@ instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 -- This type is used to store the information from the service login
 -- request in 'FrontendSessionData' until all these steps have been
 -- taken.
-newtype ServiceLoginCallback = ServiceLoginCallback (ServiceId, RelativeRef)
+data ServiceLoginState =
+    ServiceLoginState
+        { _fslServiceId :: ServiceId
+        , _fslURI       :: URI  -- ^ e.g. @https://thentos.net/service/login?...@
+        }
   deriving (Show, Eq, Generic)
 
-instance ToJSON ServiceLoginCallback where
-    toJSON (ServiceLoginCallback (mSid, rr)) = Aeson.toJSON (mSid, rr')
-      where rr' = Aeson.String . cs . toLazyByteString . serializeRelativeRef $ rr
+instance ToJSON ServiceLoginState where
+    toJSON (ServiceLoginState mSid rr) = Aeson.toJSON (mSid, rr')
+      where rr' = Aeson.String . cs . toLazyByteString . serializeURI $ rr
 
-instance FromJSON ServiceLoginCallback where
+instance FromJSON ServiceLoginState where
     parseJSON v = do
         (mSid, rr' :: Aeson.Value) <- Aeson.parseJSON v
         case rr' of
-            Aeson.String rr'' -> case parseRelativeRef laxURIParserOptions $ cs rr'' of
-                (Right rr) -> return $ ServiceLoginCallback (mSid, rr)
+            Aeson.String rr'' -> case parseURI laxURIParserOptions $ cs rr'' of
+                (Right rr) -> return $ ServiceLoginState mSid rr
                 _ -> mzero
             _ -> mzero
 
@@ -87,3 +103,8 @@ data FrontendMsg =
 
 instance FromJSON FrontendMsg where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendMsg where toJSON = Aeson.gtoJson
+
+
+makeLenses ''FrontendSessionData
+makeLenses ''FrontendSessionLoginData
+makeLenses ''ServiceLoginState
