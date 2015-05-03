@@ -218,7 +218,11 @@ userLogoutDone = runAsUser $ \ _ session -> do
 
 userUpdate :: FH ()
 userUpdate = runAsUser $ \ clearance session -> do
-    formDriver userUpdateForm userUpdatePage $ \ fieldUpdates -> do
+    Right (_, user) <- snapRunAction' clearance . queryAction $ LookupUser (fsdUser session)
+        -- FIXME: handle left
+    formDriver (userUpdateForm
+                   (user ^. userName))
+            userUpdatePage $ \ fieldUpdates -> do
         result' <- update $ UpdateUserFields (fsdUser session) fieldUpdates clearance
         case result' of
             Right () -> blaze "User data updated!"

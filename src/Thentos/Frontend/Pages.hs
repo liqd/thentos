@@ -312,8 +312,10 @@ userUpdatePage formAction v =
             inputSubmit "Update User Data" ! A.id "update_user_submit"
 
 -- | This is a bit overkill for now, but easily extensible for new user data fields.
-userUpdateForm :: Monad m => Form Html m [UpdateUserFieldOp]
-userUpdateForm = validate validateUserData $ "name" .: text Nothing
+userUpdateForm :: Monad m => UserName -> Form Html m [UpdateUserFieldOp]
+userUpdateForm uname =
+    validate validateUserData $
+        "name" .: text (Just (fromUserName uname))
   where
     validateUserData :: ST -> Result Html [UpdateUserFieldOp]
     validateUserData name  =
