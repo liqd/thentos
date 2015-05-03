@@ -43,3 +43,11 @@ img {
 ul.digestive-functors-error-list {
     color: red;
 }
+
+.active_tab_header {
+    background-color: #83ff89;
+    font-weight: bold;
+}
+
+.inactive_tab_header {
+}
