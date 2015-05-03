@@ -92,7 +92,7 @@ userRegisterConfirm = do
                                   -- FIXME: clearance level is too high, right?
                     logger DEBUG $ "registered new user: added default roles."
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
-                    redirect' "/dashboard" 303
+                    redirectToDashboardOrService
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO $ show e
                     crash 400 "Finalizing registration failed: unknown token."
@@ -111,9 +111,8 @@ userLogin :: FH ()
 userLogin = do
     mMsg :: Maybe ST <- cs <$$> getParam "error_msg"
     runPageForm userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
-        userLoginCallAction $ startThentosSessionByUserName username password
         sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
-        redirect' "/dashboard" 303
+        userLoginCallAction $ startThentosSessionByUserName username password
 
 
 -- | If user name and password match, login.  Otherwise, redirect to
@@ -126,13 +125,20 @@ userLoginCallAction action = do
       -- 'CheckPasswordWithLabel', then call that with
       -- 'allowNothing' and 'thentosPublic'.
     case result of
-        Right (uid, sessionToken) -> with sess $ do
-            let sessionData = FrontendSessionData sessionToken uid Nothing []
-            setInSession "sessionData" (cs $ Aeson.encode sessionData)
-            commitSession
-            redirect' "/dashboard" 303
+        Right (uid, sessionToken) -> do
+            with sess $ do
+                let sessionData = FrontendSessionData sessionToken uid Nothing []
+                setInSession "sessionData" (cs $ Aeson.encode sessionData)
+                commitSession
+            redirectToDashboardOrService
         Left BadCredentials -> redirectRR
             (RelativeRef Nothing "/user/login" (Query [("error_msg", "Bad username or password.")]) Nothing)
+                  -- FIXME: this error passing method has been
+                  -- deprecated by the 'FrontendMsg' queue in the snap
+                  -- state.  almost, that is: currently, messages are
+                  -- only displayed inside the dashboard, but this
+                  -- here is before login.  anyway, there should be
+                  -- one way of doing this, not two.
         Left _ -> error "logIntoThentosHandler: branch should not be reachable"
             -- FIXME: this should be handled.  we should
             -- always allow transactions / actions to throw
@@ -295,32 +301,32 @@ serviceCreate = runAsUser $ \ clearance session -> do
             Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
 
 
--- | construct the state from context, writes it to snap session, and
--- return it.
-serviceRegisterWriteState :: FH ServiceRegisterState
-serviceRegisterWriteState = do
+-- | Construct the service login state from context, writes it to the
+-- snap session, and return it.
+serviceRegisterWriteCallback :: FH ServiceLoginCallback
+serviceRegisterWriteCallback = do
     mSid :: Maybe ServiceId <- ServiceId . cs <$$> getParam "sid"
-    state :: ServiceRegisterState <- do
+    state :: ServiceLoginCallback <- do
         uriBS :: SBS <- getsRequest rqURI
-        case (parseRelativeRef laxURIParserOptions uriBS, mSid) of
-            (Right rr, Just sid) -> return $ ServiceRegisterState (rrPathL .~ "/service/login" $ rr, sid)
+        case (mSid, parseRelativeRef laxURIParserOptions uriBS) of
+            (Just sid, Right rr) -> return $ ServiceLoginCallback (sid, rrPathL .~ "/service/login" $ rr)
             bad -> crash 500 $ "bad request uri: " <> cs (show bad)
-    updateSessionData (\ fsd -> (fsd { fsdServiceRegisterState = Just state }, ()))
+    updateSessionData (\ fsd -> (fsd { fsdServiceLoginCallback = Just state }, ()))
     return state
 
--- | recover state from snap session.
-serviceRegisterReadState :: FrontendSessionData -> FH ServiceRegisterState
-serviceRegisterReadState session = do
-    case fsdServiceRegisterState session of
-        Just state -> return state
-        Nothing    -> crash 500 "service registration: no info in session state."
+-- | Recover the service login state from snap session, remove it
+-- there, and return it.  If no service login state is stored, return
+-- 'Nothing'.
+serviceRegisterPopCallback :: FH (Maybe ServiceLoginCallback)
+serviceRegisterPopCallback = updateSessionData $
+    \ fsd -> (fsd { fsdServiceLoginCallback = Nothing }, fsdServiceLoginCallback fsd)
 
 serviceRegister :: FH ()
 serviceRegister = runAsUser $ \ clearance session -> do
     (view, result) <- runForm "register" serviceRegisterForm
     case result of
         Nothing -> do
-            ServiceRegisterState (_, sid) <- serviceRegisterWriteState
+            ServiceLoginCallback (sid, _) <- serviceRegisterWriteCallback
             Right (_, user)    <- snapRunAction' clearance . queryAction $ LookupUser (fsdUser session)
             Right (_, service) <- snapRunAction' allowEverything . queryAction $ LookupService sid
             -- FIXME: service needs to prove its ok with user looking it up here.
@@ -329,15 +335,29 @@ serviceRegister = runAsUser $ \ clearance session -> do
             blaze $ serviceRegisterPage "register" view sid service user
 
         Just () -> do
-            ServiceRegisterState (rr, sid) <- serviceRegisterReadState session
-            Right _ <- snapRunAction' allowEverything $ addServiceRegistration (fsdToken session) sid
-            redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
+            mCallback <- serviceRegisterPopCallback
+            case mCallback of
+                Just (ServiceLoginCallback (sid, rr)) -> do
+                    Right _ <- snapRunAction' allowEverything $ addServiceRegistration (fsdToken session) sid
+                    redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
+                        -- FIXME: what happens if the user says "no"?
 
+                Nothing -> crash 400 "Service registration: no service login callback stored in session state."
+
+-- | If a service login state exists, consume it, jump back to the
+-- service, and log in.  If not, jump to `/dashboard`.
+redirectToDashboardOrService :: FH ()
+redirectToDashboardOrService = do
+    mCallback <- serviceRegisterPopCallback
+    let path = case mCallback of
+            Just (ServiceLoginCallback (_, rr)) -> cs . toLazyByteString . serializeRelativeRef $ rr
+            Nothing                             -> "/dashboard"
+    redirect' path 303
 
 -- | Coming from a service site, handle the authentication and
 -- redirect to service with valid session token.  This may happen in a
 -- series of redirects through the thenots frontend; the state of this
--- series is stored in `fsdServiceRegisterState`.
+-- series is stored in `fsdServiceLoginCallback`.
 --
 -- FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address

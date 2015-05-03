@@ -44,7 +44,7 @@ data FrontendSessionData =
     FrontendSessionData
         { fsdToken                :: SessionToken
         , fsdUser                 :: UserId
-        , fsdServiceRegisterState :: Maybe ServiceRegisterState  -- ^ (see 'ServiceRegisterState')
+        , fsdServiceLoginCallback :: Maybe ServiceLoginCallback  -- ^ (see 'ServiceLoginCallback')
         , fsdMessages             :: [FrontendMsg]
         }
   deriving (Show, Eq, Generic)
@@ -53,26 +53,27 @@ instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 
 -- | If a user comes from a service login and is sent to the "register
--- with a new service" page because no valid account exists with
--- thentos, an extra round of in direction is required (the user is
+-- with a new service" page because no valid 'ServiceAccount' exists
+-- in thentos, an extra round of indirection is required (the user is
 -- confronted with the service details and must say "yes, i want to
--- register", "share this-and-that data", etc.).  This type is used to
--- store the information from the registration request in
--- 'FrontendSessionData' between the form rendering and the form
--- processing requests.
-newtype ServiceRegisterState = ServiceRegisterState (RelativeRef, ServiceId)
+-- register", "share this-and-that data", etc.).  There may be further
+-- extra rounds for logging in to thentos or registering with thentos.
+-- This type is used to store the information from the service login
+-- request in 'FrontendSessionData' until all these steps have been
+-- taken.
+newtype ServiceLoginCallback = ServiceLoginCallback (ServiceId, RelativeRef)
   deriving (Show, Eq, Generic)
 
-instance ToJSON ServiceRegisterState where
-    toJSON (ServiceRegisterState (rr, mSid)) = Aeson.toJSON (rr', mSid)
+instance ToJSON ServiceLoginCallback where
+    toJSON (ServiceLoginCallback (mSid, rr)) = Aeson.toJSON (mSid, rr')
       where rr' = Aeson.String . cs . toLazyByteString . serializeRelativeRef $ rr
 
-instance FromJSON ServiceRegisterState where
+instance FromJSON ServiceLoginCallback where
     parseJSON v = do
-        (rr' :: Aeson.Value, mSid) <- Aeson.parseJSON v
+        (mSid, rr' :: Aeson.Value) <- Aeson.parseJSON v
         case rr' of
             Aeson.String rr'' -> case parseRelativeRef laxURIParserOptions $ cs rr'' of
-                (Right rr) -> return $ ServiceRegisterState (rr, mSid)
+                (Right rr) -> return $ ServiceLoginCallback (mSid, rr)
                 _ -> mzero
             _ -> mzero
 
