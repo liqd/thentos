@@ -420,7 +420,7 @@ serviceLoginPage :: ServiceId -> View Html -> ST -> Html
 serviceLoginPage (H.string . cs . fromServiceId -> serviceId) v formAction =
     H.docTypeHtml $ do
         H.head $
-            H.title "Log in"
+            H.title "Log In"
         H.body $ do
             H.p $ do
                 "service id: " <> serviceId
@@ -431,7 +431,7 @@ serviceLoginPage (H.string . cs . fromServiceId -> serviceId) v formAction =
                 H.p $ do
                     label "password" v "Password:"
                     inputPassword "password" v
-                inputSubmit "Log in"
+                inputSubmit "Log In"
 
 
 -- * util
