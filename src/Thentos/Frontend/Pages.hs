@@ -50,7 +50,7 @@ import Data.String.Conversions (ST, cs)
 import Data.String (IsString)
 import Data.Typeable (Typeable)
 import Text.Blaze.Html (Html, (!))
-import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit)
+import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit, childErrorList)
 import Text.Digestive.Form (Form, check, validate, text, (.:))
 import Text.Digestive.Types (Result(Success, Error))
 import Text.Digestive.View (View)
@@ -143,6 +143,7 @@ data DashboardTab =
 
 userRegisterPage :: ST -> View Html -> Html
 userRegisterPage formAction v =  basePagelet "Create User" $ do
+    childErrorList "" v
     form v formAction $ do
         H.p $ do
             label "name" v "User name:"
@@ -178,6 +179,7 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 userLoginPage :: Maybe ST -> ST -> View Html -> Html
 userLoginPage mMsg formAction v = basePagelet "Thentos Login" $ do
+    childErrorList "" v
     form v formAction $ do
         case mMsg of
             Just msg -> H.p $ H.text msg
@@ -209,6 +211,7 @@ userLoginForm = (,)
 
 resetPasswordRequestPage :: ST -> View Html -> Html
 resetPasswordRequestPage formAction v = basePagelet "Reset Password" $ do
+    childErrorList "" v
     form v formAction $ do
         H.p $ do
             H.text "You can send yourself an email with a link to the password reset page."
@@ -222,7 +225,8 @@ resetPasswordRequestForm =
     UserEmail <$> "email" .: validateEmail (text Nothing)
 
 resetPasswordPage :: ST -> View Html -> Html
-resetPasswordPage formAction v = basePagelet "Reset Password" $
+resetPasswordPage formAction v = basePagelet "Reset Password" $ do
+    childErrorList "" v
     form v formAction $ do
         H.p $ do
             label "password1" v "New password: "
@@ -303,13 +307,13 @@ displayUserPagelet user _ = do
 
 
 userUpdatePage :: ST -> View Html -> Html
-userUpdatePage formAction v =
-    basePagelet "Update User" $ do  -- FIXME: do this inside the dashboard.
-        form v formAction $ do
-            H.p $ do
-                label "name" v "User name: "
-                inputText "name" v
-            inputSubmit "Update User Data" ! A.id "update_user_submit"
+userUpdatePage formAction v = basePagelet "Update User" $ do  -- FIXME: do this inside the dashboard.
+    childErrorList "" v
+    form v formAction $ do
+        H.p $ do
+            label "name" v "User name: "
+            inputText "name" v
+        inputSubmit "Update User Data" ! A.id "update_user_submit"
 
 -- | This is a bit overkill for now, but easily extensible for new user data fields.
 userUpdateForm :: Monad m => UserName -> Form Html m [UpdateUserFieldOp]
@@ -334,19 +338,19 @@ userUpdateForm uname =
     toMaybe False _ = Nothing
 
 passwordUpdatePage :: ST -> View Html -> Html
-passwordUpdatePage formAction v =
-    basePagelet "Update Password" $ do
-        form v formAction $ do
-            H.p $ do
-                label "old_password" v "Current Password: "
-                inputPassword "old_password" v
-            H.p $ do
-                label "new_password1" v "New password: "
-                inputPassword "new_password1" v
-            H.p $ do
-                label "new_password2" v "Repeat new password: "
-                inputPassword "new_password2" v
-            inputSubmit "Update Password" ! A.id "update_password_submit"
+passwordUpdatePage formAction v = basePagelet "Update Password" $ do
+    childErrorList "" v
+    form v formAction $ do
+        H.p $ do
+            label "old_password" v "Current Password: "
+            inputPassword "old_password" v
+        H.p $ do
+            label "new_password1" v "New password: "
+            inputPassword "new_password1" v
+        H.p $ do
+            label "new_password2" v "Repeat new password: "
+            inputPassword "new_password2" v
+        inputSubmit "Update Password" ! A.id "update_password_submit"
 
 passwordUpdateForm :: Monad m => Form Html m (UserPass, UserPass)
 passwordUpdateForm = validate validatePassChange $ (,,)
@@ -356,13 +360,13 @@ passwordUpdateForm = validate validatePassChange $ (,,)
 
 
 emailUpdatePage :: ST -> View Html -> Html
-emailUpdatePage formAction v =
-    basePagelet "Change Email" $ do  -- FIXME: do this inside the dashboard.
-        form v formAction $ do
-            H.p $ do
-                label "email" v "Email Address: "
-                inputText "email" v
-            inputSubmit "Update Email Address" ! A.id "update_email_submit"
+emailUpdatePage formAction v = basePagelet "Change Email" $ do  -- FIXME: do this inside the dashboard.
+    childErrorList "" v
+    form v formAction $ do
+        H.p $ do
+            label "email" v "Email Address: "
+            inputText "email" v
+        inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
 emailUpdateForm :: Monad m => Form Html m UserEmail
 emailUpdateForm =
@@ -376,6 +380,7 @@ serviceCreatePage formAction v = H.docTypeHtml $ do
     H.head $ do
         H.title "Create Service"
     H.body $ do
+        childErrorList "" v
         form v formAction $ do
             H.p $ do
                 label "name" v "Service name:"
@@ -407,6 +412,7 @@ serviceRegisterPage formAction v sid service user = H.docTypeHtml $ do
     H.head $ do
         H.title "Register with Service"
     H.body $ do
+        childErrorList "" v
         form v formAction $ do
             H.h1 "You are about to register to a service"
             H.hr
@@ -430,6 +436,7 @@ serviceLoginPage (H.string . cs . fromServiceId -> serviceId) v formAction =
         H.body $ do
             H.p $ do
                 "service id: " <> serviceId
+            childErrorList "" v
             form v formAction $ do
                 H.p $ do
                     label "usernamme" v "User name:"
