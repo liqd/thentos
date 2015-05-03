@@ -300,8 +300,7 @@ serviceCreate = runAsUser $ \ clearance session -> do
                 redirect' "/dashboard" 303
             Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
 
-
--- | Construct the service login state from context, writes it to the
+-- | Construct the service login state from context, write it to the
 -- snap session, and return it.
 serviceRegisterWriteCallback :: FH ServiceLoginCallback
 serviceRegisterWriteCallback = do
@@ -356,7 +355,7 @@ redirectToDashboardOrService = do
 
 -- | Coming from a service site, handle the authentication and
 -- redirect to service with valid session token.  This may happen in a
--- series of redirects through the thenots frontend; the state of this
+-- series of redirects through the thentos frontend; the state of this
 -- series is stored in `fsdServiceLoginCallback`.
 --
 -- FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
