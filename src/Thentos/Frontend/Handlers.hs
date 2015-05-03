@@ -263,6 +263,8 @@ passwordUpdate = runAsUser $ \ clearance session -> do
         result' <- snapRunAction' clearance $ changePassword (fsdUser session) oldPw newPw
         case result' of
             Right () -> sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard" 303
+            Left BadCredentials
+                     -> sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password" 303
             Left e   -> logger INFO (show e) >> crash 500 "Change password: error."
 
 

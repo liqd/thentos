@@ -269,8 +269,9 @@ userLogoutConfirmPagelet formAction serviceNames _ _ = do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
 userLogoutDonePage :: Html
-userLogoutDonePage = basePagelet "Thentos Logout" $
+userLogoutDonePage = basePagelet "Thentos Logout" $ do
     H.p "You have been logged out of Thentos."
+    H.p $ H.a ! A.href "/user/login" $ "Log back in"
 
 
 -- * update user
