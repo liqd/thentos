@@ -80,8 +80,10 @@ routes = [ -- default entry point
              -- the routing table and the call to the
              -- dashboardPagelet.)
 
-         , ("/dashboard/details", renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
+         , ("/dashboard/details",     renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
+         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ \ _ _ -> "nothing here yet!")
          , ("/dashboard/ownservices", H.serviceCreate)
+         , ("/dashboard/users",       renderDashboard P.DashboardTabUsers $ \ _ _ -> "nothing here yet!")
 
          -- static files
          , ("", serveDirectory "snap/static")
