@@ -68,7 +68,7 @@ routes = [ -- default entry point
          , ("user/update_email", H.emailUpdate)
          , ("user/update_email_confirm", H.emailUpdateConfirm)
          , ("user/update_password", H.passwordUpdate)
-         , ("service/create", H.serviceCreate)
+
          , ("service/register", H.serviceRegister)
          , ("service/login", H.serviceLogin)
 
@@ -81,6 +81,7 @@ routes = [ -- default entry point
              -- dashboardPagelet.)
 
          , ("/dashboard/details", renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
+         , ("/dashboard/ownservices", H.serviceCreate)
 
          -- static files
          , ("", serveDirectory "snap/static")

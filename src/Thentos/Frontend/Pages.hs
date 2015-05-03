@@ -30,9 +30,8 @@ module Thentos.Frontend.Pages
     , passwordUpdatePagelet
     , passwordUpdateForm
 
-    , serviceCreatePage
+    , serviceCreatePagelet
     , serviceCreateForm
-    , serviceCreatedPage
     , serviceRegisterPage
     , serviceRegisterForm
     , serviceLoginPage
@@ -380,8 +379,8 @@ emailUpdateForm =
 
 -- * services
 
-serviceCreatePage :: ST -> View Html -> Html
-serviceCreatePage formAction v = basePagelet "Create Service" $ do
+serviceCreatePagelet :: ST -> View Html -> u -> rs -> Html
+serviceCreatePagelet formAction v _ _ = basePagelet "Create Service" $ do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -397,12 +396,6 @@ serviceCreateForm =
     (,) <$>
         (ServiceName        <$> "name"        .: validateNonEmpty "name" (text Nothing)) <*>
         (ServiceDescription <$> "description" .:                          text Nothing)
-
-serviceCreatedPage :: ServiceId -> ServiceKey -> Html
-serviceCreatedPage sid key = basePagelet "Create Service" $ do
-    H.h1 "Added a service!"
-    H.p $ "Service id: " <> H.text (fromServiceId sid)
-    H.p $ "Service key: " <> H.text (fromServiceKey key)
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)

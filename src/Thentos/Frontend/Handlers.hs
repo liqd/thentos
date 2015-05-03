@@ -270,14 +270,19 @@ passwordUpdate = runAsUser $ \ clearance session -> do
 
 serviceCreate :: FH ()
 serviceCreate = runAsUser $ \ clearance session -> do
-    (view, result) <- runForm "create" serviceCreateForm
-    case result of
-        Nothing -> blaze $ serviceCreatePage "create" view
-        Just (name, description) -> do
-            result' <- snapRunAction' clearance $ addService (UserA $ fsdUser session) name description
-            case result' of
-                Right (sid, key) -> blaze $ serviceCreatedPage sid key
-                Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
+    runPageletForm serviceCreateForm
+                   serviceCreatePagelet DashboardTabOwnServices
+                   $ \ (name, description) -> do
+        result' <- snapRunAction' clearance $ addService (UserA $ fsdUser session) name description
+        case result' of
+            Right (sid, key) -> do
+                sendFrontendMsgs
+                    [ FrontendMsgSuccess "Added a service!"
+                    , FrontendMsgSuccess . cs $ "Service id: " <> show (fromServiceId sid)
+                    , FrontendMsgSuccess . cs $ "Service key: " <> show (fromServiceKey key)
+                    ]
+                redirect' "/dashboard" 303
+            Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
 
 
 -- | construct the state from context, writes it to snap session, and
