@@ -133,20 +133,18 @@ userLoginCallAction action = do
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
-    runPageletForm resetPasswordRequestForm
-                   resetPasswordRequestPagelet DashboardTabDetails
-                   $ \ address -> do
+    runPageForm resetPasswordRequestForm resetPasswordRequestPage $ \ address -> do
         config :: ThentosConfig <- gets (^. cfg)
         feConfig <- gets (^. frontendCfg)
         eToken <-
             snapRunAction' allowEverything $ addPasswordResetToken address
         case eToken of
-            Left NoSuchUser -> renderDashboard DashboardTabDetails resetPasswordRequestedPagelet
+            Left NoSuchUser -> blaze resetPasswordRequestedPage
             Right (user, token) -> do
                 liftIO $ sendPasswordResetMail
                     (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                     (urlConfirm feConfig "/user/reset_password" (fromPasswordResetToken token))
-                renderDashboard DashboardTabDetails resetPasswordRequestedPagelet
+                blaze resetPasswordRequestedPage
             Left _ -> error "requestPasswordResetHandler: unreached"
 
 resetPassword :: FH ()
@@ -154,9 +152,7 @@ resetPassword = do
     mToken <- (>>= urlDecode) <$> getParam "token"
     let meToken = PasswordResetToken <$$> decodeUtf8' <$> mToken
 
-    runPageletForm resetPasswordForm
-                   resetPasswordPagelet DashboardTabDetails
-                   $ \ password -> case meToken of
+    runPageForm resetPasswordForm resetPasswordPage $ \ password -> case meToken of
         -- process reset form input
         (Just (Right token)) -> do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password

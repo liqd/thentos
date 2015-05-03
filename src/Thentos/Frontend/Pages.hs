@@ -13,11 +13,11 @@ module Thentos.Frontend.Pages
     , userLoginPage
     , userLoginForm
 
-    , resetPasswordPagelet
-    , resetPasswordForm
-    , resetPasswordRequestPagelet
+    , resetPasswordRequestPage
     , resetPasswordRequestForm
-    , resetPasswordRequestedPagelet
+    , resetPasswordRequestedPage
+    , resetPasswordPage
+    , resetPasswordForm
 
     , userLogoutConfirmPagelet
     , userLogoutDonePage
@@ -202,7 +202,7 @@ userLoginPage mMsg formAction v = basePagelet "Thentos Login" $ do
                 H.td $ H.a ! A.href "/user/register" ! A.id "login_create_new" $ "Register new user"
             H.tr $ do
                 H.td $ pure ()
-                H.td $ H.a ! A.href "/user/reset_password" ! A.id "login_forgot_password" $ "forgot password?"
+                H.td $ H.a ! A.href "/user/reset_password_request" ! A.id "login_forgot_password" $ "forgot password?"
 
 userLoginForm :: Monad m => Form Html m (UserName, UserPass)
 userLoginForm = (,)
@@ -212,8 +212,8 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordRequestPagelet :: ST -> View Html -> u -> rs -> Html
-resetPasswordRequestPagelet formAction v _ _ = do
+resetPasswordRequestPage :: ST -> View Html -> Html
+resetPasswordRequestPage formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -227,8 +227,8 @@ resetPasswordRequestForm :: Monad m => Form Html m UserEmail
 resetPasswordRequestForm =
     UserEmail <$> "email" .: validateEmail (text Nothing)
 
-resetPasswordPagelet :: ST -> View Html -> u -> rs -> Html
-resetPasswordPagelet formAction v _ _ = do
+resetPasswordPage :: ST -> View Html -> Html
+resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -244,8 +244,8 @@ resetPasswordForm = validate validatePass $ (,)
     <$> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
     <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
 
-resetPasswordRequestedPagelet :: u -> rs -> Html
-resetPasswordRequestedPagelet = confirmationMailSentPagelet
+resetPasswordRequestedPage :: Html
+resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
     "Thank you for your password reset request." "the process"
 
 
