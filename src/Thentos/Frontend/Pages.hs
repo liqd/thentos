@@ -253,8 +253,12 @@ userLogoutConfirmPage formAction serviceNames = basePagelet "Thentos Logout" $ d
     case serviceNames of
         []    -> H.p "(none)"
         (_:_) -> H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
-    H.form ! A.method "POST" ! A.action (H.textValue formAction) $
-        H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
+    H.table . H.tr $ do
+        H.td $ do
+            H.form ! A.method "POST" ! A.action (H.textValue formAction) $
+                H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
+        H.td $ do
+            H.a ! A.href "/dashboard" $ "Back to dashboard"
 
 userLogoutDonePage :: Html
 userLogoutDonePage = basePagelet "Thentos Logout" $
