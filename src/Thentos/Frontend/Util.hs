@@ -28,7 +28,7 @@ import Snap.Core (getResponse, finishWith, urlEncode)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
 import Snap.Snaplet.AcidState (getAcidState)
 import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
-import Snap.Snaplet (with)
+import Snap.Snaplet (Handler, with)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, CRITICAL))
 import Text.Digestive.Form (Form)
@@ -148,27 +148,40 @@ runAsUser handler = do
 
 -- * session management
 
--- | This is probably not race-condition-free.
-updateSessionData :: (FrontendSessionData -> FrontendSessionData) -> FH ()
+-- | This is not race-condition-free, but the session only lives in
+-- the single thread that handles the single request, so thread-safety
+-- is not required.  (FIXME: think about this some more.)
+updateSessionData :: (FrontendSessionData -> (FrontendSessionData, a)) -> FH a
 updateSessionData op = with sess $ do
     mSessionData <- (>>= Aeson.decode . cs) <$> getFromSession "sessionData"
     case mSessionData of
         Just sessionData -> do
-            setInSession "sessionData" . cs . Aeson.encode . op $ sessionData
+            let (sessionData', val) = op sessionData
+            setInSession "sessionData" . cs . Aeson.encode $ sessionData'
             commitSession
-        Nothing -> return ()
+            return val
+        Nothing -> crash 500 "No session data."
+
+sendFrontendMsgs :: [FrontendMsg] -> FH ()
+sendFrontendMsgs msgs = updateSessionData $ \ fsd -> (fsd { fsdMessages = fsdMessages fsd ++ msgs }, ())
+
+sendFrontendMsg :: FrontendMsg -> FH ()
+sendFrontendMsg = sendFrontendMsgs . (:[])
+
+popAllFrontendMsgs :: FH [FrontendMsg]
+popAllFrontendMsgs = updateSessionData $ \ fsd -> (fsd { fsdMessages = [] }, fsdMessages fsd)
 
 
 -- * error handling
 
-crash' :: (Show a) => Int -> a -> SBS -> FH b
+crash' :: (Show a) => Int -> a -> SBS -> Handler b v x
 crash' status logMsg usrMsg = do
     logger DEBUG $ show (status, logMsg, usrMsg)
     modifyResponse $ setResponseStatus status usrMsg
     blaze . errorPage . cs $ usrMsg
     getResponse >>= finishWith
 
-crash :: Int -> SBS -> FH b
+crash :: Int -> SBS -> Handler b v x
 crash status usrMsg = crash' status () usrMsg
 
 

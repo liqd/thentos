@@ -11,7 +11,7 @@ import Control.Monad (mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.String.Conversions (cs)
+import Data.String.Conversions (ST, cs)
 import GHC.Generics (Generic)
 import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
@@ -45,8 +45,9 @@ data FrontendSessionData =
         { fsdToken                :: SessionToken
         , fsdUser                 :: UserId
         , fsdServiceRegisterState :: Maybe ServiceRegisterState  -- ^ (see 'ServiceRegisterState')
+        , fsdMessages             :: [FrontendMsg]
         }
-    deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
@@ -74,3 +75,14 @@ instance FromJSON ServiceRegisterState where
                 (Right rr) -> return $ ServiceRegisterState (rr, mSid)
                 _ -> mzero
             _ -> mzero
+
+-- | If we want to communicate information from the last request to
+-- the user in the next one, we need to stash it in the state.  This
+-- is the type for that.
+data FrontendMsg =
+    FrontendMsgError ST
+  | FrontendMsgSuccess ST
+  deriving (Show, Eq, Generic)
+
+instance FromJSON FrontendMsg where parseJSON = Aeson.gparseJson
+instance ToJSON FrontendMsg where toJSON = Aeson.gtoJson

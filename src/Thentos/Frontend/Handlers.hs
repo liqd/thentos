@@ -117,7 +117,7 @@ userLoginCallAction action = do
       -- 'allowNothing' and 'thentosPublic'.
     case result of
         Right (uid, sessionToken) -> with sess $ do
-            let sessionData = FrontendSessionData sessionToken uid Nothing
+            let sessionData = FrontendSessionData sessionToken uid Nothing []
             setInSession "sessionData" (cs $ Aeson.encode sessionData)
             commitSession
             redirect' "/dashboard" 303
@@ -285,7 +285,7 @@ serviceRegisterWriteState = do
         case (parseRelativeRef laxURIParserOptions uriBS, mSid) of
             (Right rr, Just sid) -> return $ ServiceRegisterState (rrPathL .~ "/service/login" $ rr, sid)
             bad -> crash 500 $ "bad request uri: " <> cs (show bad)
-    updateSessionData (\ fsd -> fsd { fsdServiceRegisterState = Just state })
+    updateSessionData (\ fsd -> (fsd { fsdServiceRegisterState = Just state }, ()))
     return state
 
 -- | recover state from snap session.
