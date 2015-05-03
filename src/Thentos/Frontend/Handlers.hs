@@ -71,6 +71,9 @@ userRegister = do
                 blaze userRegisterRequestedPage
             Left e -> logger INFO (show e) >> crash 400 "Registration failed."
 
+defaultUserRoles :: [Role]
+defaultUserRoles = RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin]
+
 userRegisterConfirm :: FH ()
 userRegisterConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
@@ -81,8 +84,13 @@ userRegisterConfirm = do
             eResult <- snapRunAction' clearance $ confirmNewUser token
             case eResult of
                 Right uid -> do
-                    logger DEBUG $ "new user registration: " ++ show uid
+                    logger DEBUG $ "registered new user: " ++ show uid
                     userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+                    logger DEBUG $ "registered new user: session started."
+                    mapM_ (\ r -> snapRunAction' allowEverything . updateAction
+                                    $ AssignRole (UserA uid) r) defaultUserRoles
+                                  -- FIXME: clearance level is too high, right?
+                    logger DEBUG $ "registered new user: added default roles."
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
                     redirect' "/dashboard" 303
                 Left e@NoSuchPendingUserConfirmation -> do
