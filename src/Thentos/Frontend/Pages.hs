@@ -61,6 +61,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Types
+import Thentos.Frontend.Types
 import Thentos.DB.Trans (UpdateUserFieldOp(..))
 
 
@@ -89,9 +90,10 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
 -- logged in.  The dashboard body shows further specifics.  It is the
 -- caller's responsibility to make sure that dashboard state and body
 -- correspond.
-dashboardPagelet :: [Role] -> DashboardTab -> Html -> Html
-dashboardPagelet availableRoles ((==) -> isActive) body =
+dashboardPagelet :: [FrontendMsg] -> [Role] -> DashboardTab -> Html -> Html
+dashboardPagelet msgs availableRoles ((==) -> isActive) body =
     basePagelet "Thentos Dashboard" $ do
+        H.div . H.ul . mapM_ (H.li . H.string . show) $ msgs
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
         H.div H.! A.class_ "dashboard_body" $ body
   where

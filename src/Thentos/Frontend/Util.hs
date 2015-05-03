@@ -69,13 +69,15 @@ buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
 -- | Like 'buildDashboard', but take a pagelet builder instead of a
 -- pagelet.
 buildDashboard' :: DashboardTab -> (User -> [Role] -> FH H.Html) -> FH H.Html
-buildDashboard' tab pageletBuilder = runAsUser $ \ clearance session -> do
-    let uid = fsdUser session
-    eUser  <- snapRunAction' clearance . queryAction $ LookupUser uid
-    eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
-    case (eUser, eRoles) of
-        (Right (_, user), Right roles) -> dashboardPagelet roles tab <$> pageletBuilder user roles
-        _ -> error "unreachable"
+buildDashboard' tab pageletBuilder = do
+    runAsUser $ \ clearance session -> do
+        msgs <- popAllFrontendMsgs
+        let uid = fsdUser session
+        eUser  <- snapRunAction' clearance . queryAction $ LookupUser uid
+        eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
+        case (eUser, eRoles) of
+            (Right (_, user), Right roles) -> dashboardPagelet msgs roles tab <$> pageletBuilder user roles
+            _ -> error "unreachable"
                  -- FIXME: error handling.  (we need a better approach for this in general!)
 
 
