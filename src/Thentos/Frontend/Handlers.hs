@@ -83,6 +83,7 @@ userRegisterConfirm = do
                 Right uid -> do
                     logger DEBUG $ "new user registration: " ++ show uid
                     userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+                    sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
                     redirect' "/dashboard" 303
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO $ show e
@@ -103,6 +104,7 @@ userLogin = do
     mMsg :: Maybe ST <- cs <$$> getParam "error_msg"
     runPageForm userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
         userLoginCallAction $ startThentosSessionByUserName username password
+        sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
         redirect' "/dashboard" 303
 
 
@@ -185,8 +187,8 @@ userLogoutConfirm = runAsUser $ \ _ sessionData -> do
     eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
     case eServiceNames of
         Right serviceNames -> renderDashboard DashboardTabDetails (userLogoutConfirmPagelet "/user/logout" serviceNames)
-        Left NoSuchUser -> crash 400 "User does not exist."
-        Left NoSuchSession -> crash 400 "Session does not exist."
+        Left NoSuchUser -> crash 500 "User does not exist."
+        Left NoSuchSession -> crash 500 "Session does not exist."
         Left _ -> error "unreachable" -- FIXME
 
 userLogoutDone :: FH ()
@@ -211,8 +213,12 @@ userUpdate = runAsUser $ \ clearance session -> do
                $ \ fieldUpdates -> do
         result' <- update $ UpdateUserFields (fsdUser session) fieldUpdates clearance
         case result' of
-            Right () -> blaze "User data updated!"
-            Left e -> logger INFO (show e) >> crash 400 "User update failed."
+            Right () -> do
+                sendFrontendMsg $ FrontendMsgSuccess "User data changed."
+                redirect' "/dashboard" 303
+            Left e -> do
+                logger INFO (show e)
+                crash 500 "User update failed."
 
 emailUpdate :: FH ()
 emailUpdate = runAsUser $ \ clearance session -> do
@@ -226,11 +232,14 @@ emailUpdate = runAsUser $ \ clearance session -> do
         case result' of
             Right ()                    -> emailSent
             Left UserEmailAlreadyExists -> emailSent
-            Left e                      -> logger INFO (show e) >> crash 400 "Change email: error."
+            Left e                      -> logger INFO (show e) >> crash 500 "Change email: error."
   where
-    emailSent = renderDashboard DashboardTabDetails $ confirmationMailSentPagelet
-        "Your new email address has been stored, but must be activated."
-        "the process"
+    emailSent = do
+        sendFrontendMsgs $
+            FrontendMsgSuccess "Your new email address has been stored." :
+            FrontendMsgSuccess "It will be activated once you process the confirmation email." :
+            []
+        redirect' "/dashboard" 303
 
 emailUpdateConfirm :: FH ()
 emailUpdateConfirm = do
@@ -240,9 +249,9 @@ emailUpdateConfirm = do
         Just (Right token) -> do
             result <- snapRunAction' allowEverything $ confirmUserEmailChange token
             case result of
-                Right ()          -> blaze $ "Change email: success!"  -- FIXME: redirect!
+                Right ()          -> sendFrontendMsg (FrontendMsgSuccess "Change email: success!") >> redirect' "/dashboard" 303
                 Left NoSuchToken  ->                         crash 400 "Change email: no such token."
-                Left e            -> logger INFO (show e) >> crash 400 "Change email: error."
+                Left e            -> logger INFO (show e) >> crash 500 "Change email: error."
         Just (Left _unicodeError) ->                         crash 400 "Change email: bad token."
         Nothing                   ->                         crash 400 "Change email: missing token."
 
@@ -253,8 +262,8 @@ passwordUpdate = runAsUser $ \ clearance session -> do
                    $ \ (oldPw, newPw) -> do
         result' <- snapRunAction' clearance $ changePassword (fsdUser session) oldPw newPw
         case result' of
-            Right () -> blaze "Password Changed!"  -- FIXME: redirect!
-            Left e   -> logger INFO (show e) >> crash 400 "Change password: error."
+            Right () -> sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard" 303
+            Left e   -> logger INFO (show e) >> crash 500 "Change password: error."
 
 
 -- * services
@@ -268,7 +277,7 @@ serviceCreate = runAsUser $ \ clearance session -> do
             result' <- snapRunAction' clearance $ addService (UserA $ fsdUser session) name description
             case result' of
                 Right (sid, key) -> blaze $ serviceCreatedPage sid key
-                Left e -> logger INFO (show e) >> crash 400 "service creation failed."
+                Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
 
 
 -- | construct the state from context, writes it to snap session, and
