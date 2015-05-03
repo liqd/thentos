@@ -186,7 +186,7 @@ userLogoutConfirm :: FH ()
 userLogoutConfirm = runAsUser $ \ _ sessionData -> do
     eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
     case eServiceNames of
-        Right serviceNames -> renderDashboard DashboardTabDetails (userLogoutConfirmPagelet "/user/logout" serviceNames)
+        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames)
         Left NoSuchUser -> crash 500 "User does not exist."
         Left NoSuchSession -> crash 500 "Session does not exist."
         Left _ -> error "unreachable" -- FIXME
