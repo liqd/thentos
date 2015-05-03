@@ -52,25 +52,12 @@ import Thentos.Types
 import Thentos.Util
 
 
--- * dashboard
-
-dashboardPage :: DashboardTab -> (User -> [Role] -> H.Html) -> FH ()
-dashboardPage tab pagelet = runAsUser $ \ _ session -> do
-    let uid = fsdUser session
-    eUser  <- snapRunAction' allowEverything . queryAction $ LookupUser uid
-    eRoles <- snapRunAction' allowEverything . queryAction $ LookupAgentRoles (UserA uid)
-    case (eUser, eRoles) of
-        (Right (_, user), Right roles) -> blaze $ dashboardPagelet roles tab (pagelet user roles)
-        _ -> error "unreachable"
-                 -- FIXME: error handling.  (we need a better approach for this in general!)
-
-
 -- * register (thentos)
 
 userRegister :: FH ()
 userRegister = do
     let clearance = RoleOwnsUnconfirmedUsers *%% RoleOwnsUnconfirmedUsers
-    formDriver userRegisterForm userRegisterPage $
+    runPageForm userRegisterForm userRegisterPage $
             \ (userFormData :: UserFormData) -> do
         result' <- snapRunAction' clearance $ addUnconfirmedUser userFormData
         case result' of
@@ -117,7 +104,7 @@ userRegisterConfirm = do
 userLogin :: FH ()
 userLogin = do
     mMsg :: Maybe ST <- cs <$$> getParam "error_msg"
-    formDriver userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
+    runPageForm userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
         userLoginCallAction $ startThentosSessionByUserName username password
         redirect' "/dashboard" 303
 
@@ -149,18 +136,20 @@ userLoginCallAction action = do
 
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
-    formDriver resetPasswordRequestForm resetPasswordRequestPage $ \ address -> do
+    runPageletForm resetPasswordRequestForm
+                   resetPasswordRequestPagelet DashboardTabDetails
+                   $ \ address -> do
         config :: ThentosConfig <- gets (^. cfg)
         feConfig <- gets (^. frontendCfg)
         eToken <-
             snapRunAction' allowEverything $ addPasswordResetToken address
         case eToken of
-            Left NoSuchUser -> blaze resetPasswordRequestedPage
+            Left NoSuchUser -> renderDashboard DashboardTabDetails resetPasswordRequestedPagelet
             Right (user, token) -> do
                 liftIO $ sendPasswordResetMail
                     (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                     (urlConfirm feConfig "/user/reset_password" (fromPasswordResetToken token))
-                blaze resetPasswordRequestedPage
+                renderDashboard DashboardTabDetails resetPasswordRequestedPagelet
             Left _ -> error "requestPasswordResetHandler: unreached"
 
 resetPassword :: FH ()
@@ -168,7 +157,9 @@ resetPassword = do
     mToken <- (>>= urlDecode) <$> getParam "token"
     let meToken = PasswordResetToken <$$> decodeUtf8' <$> mToken
 
-    formDriver resetPasswordForm resetPasswordPage $ \ password -> case meToken of
+    runPageletForm resetPasswordForm
+                   resetPasswordPagelet DashboardTabDetails
+                   $ \ password -> case meToken of
         -- process reset form input
         (Just (Right token)) -> do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
@@ -200,7 +191,7 @@ userLogoutConfirm :: FH ()
 userLogoutConfirm = runAsUser $ \ _ sessionData -> do
     eServiceNames <- snapRunAction' allowEverything $ getSessionServiceNames (fsdToken sessionData) (fsdUser sessionData)
     case eServiceNames of
-        Right serviceNames -> blaze $ userLogoutConfirmPage "/user/logout" serviceNames
+        Right serviceNames -> renderDashboard DashboardTabDetails (userLogoutConfirmPagelet "/user/logout" serviceNames)
         Left NoSuchUser -> crash 400 "User does not exist."
         Left NoSuchSession -> crash 400 "Session does not exist."
         Left _ -> error "unreachable" -- FIXME
@@ -220,9 +211,11 @@ userUpdate :: FH ()
 userUpdate = runAsUser $ \ clearance session -> do
     Right (_, user) <- snapRunAction' clearance . queryAction $ LookupUser (fsdUser session)
         -- FIXME: handle left
-    formDriver (userUpdateForm
+    runPageletForm
+               (userUpdateForm
                    (user ^. userName))
-            userUpdatePage $ \ fieldUpdates -> do
+               userUpdatePagelet DashboardTabDetails
+               $ \ fieldUpdates -> do
         result' <- update $ UpdateUserFields (fsdUser session) fieldUpdates clearance
         case result' of
             Right () -> blaze "User data updated!"
@@ -230,17 +223,19 @@ userUpdate = runAsUser $ \ clearance session -> do
 
 emailUpdate :: FH ()
 emailUpdate = runAsUser $ \ clearance session -> do
-    formDriver emailUpdateForm emailUpdatePage $ \ newEmail -> do
+    runPageletForm emailUpdateForm
+                   emailUpdatePagelet DashboardTabDetails
+                   $ \ newEmail -> do
         feConfig <- gets (^. frontendCfg)
         result' <- snapRunAction' clearance $
             requestUserEmailChange (fsdUser session) newEmail
                 (urlConfirm feConfig "/user/update_email_confirm" . fromConfirmationToken)
         case result' of
-            Right ()                    -> blaze emailSentPage
-            Left UserEmailAlreadyExists -> blaze emailSentPage
+            Right ()                    -> emailSent
+            Left UserEmailAlreadyExists -> emailSent
             Left e                      -> logger INFO (show e) >> crash 400 "Change email: error."
   where
-    emailSentPage = confirmationMailSentPage "Update email Address"
+    emailSent = renderDashboard DashboardTabDetails $ confirmationMailSentPagelet
         "Your new email address has been stored, but must be activated."
         "the process"
 
@@ -260,7 +255,9 @@ emailUpdateConfirm = do
 
 passwordUpdate :: FH ()
 passwordUpdate = runAsUser $ \ clearance session -> do
-    formDriver passwordUpdateForm passwordUpdatePage $ \ (oldPw, newPw) -> do
+    runPageletForm passwordUpdateForm
+                   passwordUpdatePagelet DashboardTabDetails
+                   $ \ (oldPw, newPw) -> do
         result' <- snapRunAction' clearance $ changePassword (fsdUser session) oldPw newPw
         case result' of
             Right () -> blaze "Password Changed!"  -- FIXME: redirect!
@@ -359,18 +356,85 @@ serviceLogin = runAsUser $ \ _ session -> do
 
 -- * util
 
--- | Take a form action string, a form, a page matching the form, and
--- an action to be performed on a submitted form.  Depending on the
--- 'runForm' result, either render the form or process it.  The
--- formAction is the URI of the current request.
-formDriver :: Form v FH a -> (ST -> View v -> H.Html) -> (a -> FH ()) -> FH ()
-formDriver f p a = do
+-- ** dashboard construction
+
+-- | Call 'buildDashboard' to consruct a dashboard page and render it
+-- into the application monad.
+renderDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FH ()
+renderDashboard tab pagelet = buildDashboard tab pagelet >>= blaze
+
+-- | Like 'renderDashboard', but take a pagelet builder instead of a
+-- pagelet.
+renderDashboard' :: DashboardTab -> (User -> [Role] -> H.Html) -> FH ()
+renderDashboard' tab pagelet = buildDashboard tab pagelet >>= blaze
+
+-- | Take a dashboard tab and a pagelet, and consruct the dashboard
+-- page.
+buildDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FH H.Html
+buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
+
+-- | Like 'buildDashboard', but take a pagelet builder instead of a
+-- pagelet.
+buildDashboard' :: DashboardTab -> (User -> [Role] -> FH H.Html) -> FH H.Html
+buildDashboard' tab pageletBuilder = runAsUser $ \ clearance session -> do
+    let uid = fsdUser session
+    eUser  <- snapRunAction' clearance . queryAction $ LookupUser uid
+    eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
+    case (eUser, eRoles) of
+        (Right (_, user), Right roles) -> dashboardPagelet roles tab <$> pageletBuilder user roles
+        _ -> error "unreachable"
+                 -- FIXME: error handling.  (we need a better approach for this in general!)
+
+
+-- ** form rendering and processing
+
+-- | Take a form action string, a form, a pagelet matching the form
+-- and a dashboard tab to render it in, and an action to be performed
+-- on the form data once submitted.  Depending on the 'runForm'
+-- result, either render the form or process it.  The formAction
+-- passed to 'runForm' is the URI of the current request.
+runPageletForm :: forall v a .
+       Form v FH a
+    -> (ST -> View v -> User -> [Role] -> H.Html) -> DashboardTab
+    -> (a -> FH ())
+    -> FH ()
+runPageletForm f pagelet = runPageletForm' f (\ formAction v u -> return . pagelet formAction v u)
+
+-- | Like 'runPageletForm', but takes a page builder instead of a
+-- page (this is more for internal use).
+runPageletForm' :: forall v a .
+       Form v FH a
+    -> (ST -> View v -> User -> [Role] -> FH H.Html) -> DashboardTab
+    -> (a -> FH ())
+    -> FH ()
+runPageletForm' f buildPagelet tab = runPageForm' f buildPage
+  where
+    buildPage :: ST -> View v -> FH H.Html
+    buildPage formAction = buildDashboard' tab . buildPagelet formAction
+
+-- | Full-page version of 'runPageletForm'.
+runPageForm :: forall v a .
+       Form v FH a
+    -> (ST -> View v -> H.Html)
+    -> (a -> FH ())
+    -> FH ()
+runPageForm f page = runPageForm' f (\ formAction -> return . page formAction)
+
+-- | Full-page version of 'runPageletForm''.
+runPageForm' :: forall v a .
+       Form v FH a
+    -> (ST -> View v -> FH H.Html)
+    -> (a -> FH ())
+    -> FH ()
+runPageForm' f buildPage a = do
     formAction <- cs <$> getsRequest rqURI
     (view, mResult) <- logger DEBUG "[formDriver: runForm]" >> runForm formAction f
     case mResult of
-        Nothing -> blaze $ p formAction view
+        Nothing -> buildPage formAction view >>= blaze
         Just result -> logger DEBUG "[formDriver: action]" >> a result
 
+
+-- ** authentication
 
 -- | Runs a given handler with the credentials and the session data of the
 -- currently logged-in user
@@ -389,6 +453,8 @@ runAsUser handler = do
         return $ mSessionDataBS >>= Aeson.decode . cs
 
 
+-- ** session management
+
 -- | This is probably not race-condition-free.
 updateSessionData :: (FrontendSessionData -> FrontendSessionData) -> FH ()
 updateSessionData op = with sess $ do
@@ -399,6 +465,8 @@ updateSessionData op = with sess $ do
             commitSession
         Nothing -> return ()
 
+
+-- ** error handling
 
 crash' :: (Show a) => Int -> a -> SBS -> FH b
 crash' status logMsg usrMsg = do
@@ -418,6 +486,8 @@ urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
     query = [("token", urlEncode . encodeUtf8 $ token)]
     toST  = cs . toLazyByteString . serializeRelativeRef
 
+
+-- ** uri manipulation
 
 redirectURI :: URI -> FH ()
 redirectURI ref = redirect' (cs . toLazyByteString . serializeURI $ ref) 303

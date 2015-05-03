@@ -6,40 +6,41 @@ module Thentos.Frontend.Pages
     ( dashboardPagelet
     , DashboardTab(..)
 
-    , userRegisterForm
     , userRegisterPage
+    , userRegisterForm
     , userRegisterRequestedPage
 
-    , userLoginForm
     , userLoginPage
+    , userLoginForm
 
+    , resetPasswordPagelet
     , resetPasswordForm
-    , resetPasswordPage
-    , resetPasswordRequestedPage
+    , resetPasswordRequestPagelet
     , resetPasswordRequestForm
-    , resetPasswordRequestPage
+    , resetPasswordRequestedPagelet
 
-    , userLogoutConfirmPage
+    , userLogoutConfirmPagelet
     , userLogoutDonePage
 
-    , displayUserPagelet
-
-    , userUpdatePage
+    , userDisplayPagelet
+    , userUpdatePagelet
     , userUpdateForm
-    , emailUpdatePage
+    , emailUpdatePagelet
     , emailUpdateForm
-    , passwordUpdatePage
+    , passwordUpdatePagelet
     , passwordUpdateForm
 
-    , serviceCreateForm
     , serviceCreatePage
+    , serviceCreateForm
     , serviceCreatedPage
     , serviceRegisterPage
     , serviceRegisterForm
     , serviceLoginPage
 
     , errorPage
+    , errorPagelet
     , confirmationMailSentPage
+    , confirmationMailSentPagelet
     ) where
 
 import Control.Applicative ((<$>), (<*>), pure)
@@ -209,8 +210,8 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordRequestPage :: ST -> View Html -> Html
-resetPasswordRequestPage formAction v = basePagelet "Reset Password" $ do
+resetPasswordRequestPagelet :: ST -> View Html -> u -> rs -> Html
+resetPasswordRequestPagelet formAction v _ _ = do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -224,8 +225,8 @@ resetPasswordRequestForm :: Monad m => Form Html m UserEmail
 resetPasswordRequestForm =
     UserEmail <$> "email" .: validateEmail (text Nothing)
 
-resetPasswordPage :: ST -> View Html -> Html
-resetPasswordPage formAction v = basePagelet "Reset Password" $ do
+resetPasswordPagelet :: ST -> View Html -> u -> rs -> Html
+resetPasswordPagelet formAction v _ _ = do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -241,15 +242,15 @@ resetPasswordForm = validate validatePass $ (,)
     <$> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
     <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
 
-resetPasswordRequestedPage :: Html
-resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
+resetPasswordRequestedPagelet :: u -> rs -> Html
+resetPasswordRequestedPagelet = confirmationMailSentPagelet
     "Thank you for your password reset request." "the process"
 
 
 -- * logout (thentos)
 
-userLogoutConfirmPage :: ST -> [ServiceName] -> Html
-userLogoutConfirmPage formAction serviceNames = basePagelet "Thentos Logout" $ do
+userLogoutConfirmPagelet :: ST -> [ServiceName] -> u -> rs -> Html
+userLogoutConfirmPagelet formAction serviceNames _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -271,8 +272,8 @@ userLogoutDonePage = basePagelet "Thentos Logout" $
 
 -- * update user
 
-displayUserPagelet :: User -> [Role] -> Html
-displayUserPagelet user _ = do
+userDisplayPagelet :: User -> rs -> Html
+userDisplayPagelet user _ = do
     H.table $ do
         H.tr $ do
             H.td . H.text $ "name"
@@ -306,8 +307,8 @@ displayUserPagelet user _ = do
             H.td $ H.a ! A.href "/n/a" $ "delete"
 
 
-userUpdatePage :: ST -> View Html -> Html
-userUpdatePage formAction v = basePagelet "Update User" $ do  -- FIXME: do this inside the dashboard.
+userUpdatePagelet :: ST -> View Html -> u -> rs -> Html
+userUpdatePagelet formAction v _ _ = do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -337,8 +338,8 @@ userUpdateForm uname =
     toMaybe True  v = Just v
     toMaybe False _ = Nothing
 
-passwordUpdatePage :: ST -> View Html -> Html
-passwordUpdatePage formAction v = basePagelet "Update Password" $ do
+passwordUpdatePagelet :: ST -> View Html -> u -> rs -> Html
+passwordUpdatePagelet formAction v _ _ = do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -359,8 +360,8 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdatePage :: ST -> View Html -> Html
-emailUpdatePage formAction v = basePagelet "Change Email" $ do  -- FIXME: do this inside the dashboard.
+emailUpdatePagelet :: ST -> View Html -> u -> rs -> Html
+emailUpdatePagelet formAction v _ _ = do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -439,10 +440,19 @@ serviceLoginPage formAction (H.string . cs . fromServiceId -> serviceId) v = bas
 -- ** error / status reports to the user
 
 errorPage :: String -> Html
-errorPage errorString = basePagelet "Error" . H.string $ "Encountered error: " ++ show errorString
+errorPage errorString = basePagelet "Error" . H.string $ "*** error: " ++ show errorString
+
+errorPagelet :: u -> rs -> String -> Html
+errorPagelet _ _ errorString = H.string $ "*** error: " ++ show errorString
 
 confirmationMailSentPage :: ST -> ST -> ST -> Html
-confirmationMailSentPage title msg1 msg2 = basePagelet title . H.p . H.text . ST.unlines $
+confirmationMailSentPage title msg1 msg2 = basePagelet title $ confirmationMailSentBody msg1 msg2
+
+confirmationMailSentPagelet :: ST -> ST -> u -> rs -> Html
+confirmationMailSentPagelet msg1 msg2 _ _ = confirmationMailSentBody msg1 msg2
+
+confirmationMailSentBody :: ST -> ST -> Html
+confirmationMailSentBody msg1 msg2 = H.p . H.text . ST.unlines $
     msg1 :
     "Please check your email (don't forget the spam folder)" :
     "and complete " <> msg2 <> " by following the link we sent you." :

@@ -80,7 +80,7 @@ routes = [ -- default entry point
              -- the routing table and the call to the
              -- dashboardPagelet.)
 
-         , ("/dashboard/details", H.dashboardPage P.DashboardTabDetails P.displayUserPagelet)
+         , ("/dashboard/details", H.renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
 
          -- static files
          , ("", serveDirectory "snap/static")
