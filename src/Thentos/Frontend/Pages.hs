@@ -376,19 +376,16 @@ emailUpdateForm =
 -- * services
 
 serviceCreatePage :: ST -> View Html -> Html
-serviceCreatePage formAction v = H.docTypeHtml $ do
-    H.head $ do
-        H.title "Create Service"
-    H.body $ do
-        childErrorList "" v
-        form v formAction $ do
-            H.p $ do
-                label "name" v "Service name:"
-                inputText "name" v
-            H.p $ do
-                label "description" v "Service description:"
-                inputText "description" v
-            inputSubmit "Create Service" ! A.id "create_service_submit"
+serviceCreatePage formAction v = basePagelet "Create Service" $ do
+    childErrorList "" v
+    form v formAction $ do
+        H.p $ do
+            label "name" v "Service name:"
+            inputText "name" v
+        H.p $ do
+            label "description" v "Service description:"
+            inputText "description" v
+        inputSubmit "Create Service" ! A.id "create_service_submit"
 
 serviceCreateForm :: Monad m => Form Html m (ServiceName, ServiceDescription)
 serviceCreateForm =
@@ -397,54 +394,44 @@ serviceCreateForm =
         (ServiceDescription <$> "description" .:                          text Nothing)
 
 serviceCreatedPage :: ServiceId -> ServiceKey -> Html
-serviceCreatedPage sid key = H.docTypeHtml $ do
-    H.head $ do
-        H.title "Service created!"
-    H.body $ do
-        H.h1 "Added a service!"
-        H.p $ "Service id: " <> H.text (fromServiceId sid)
-        H.p $ "Service key: " <> H.text (fromServiceKey key)
+serviceCreatedPage sid key = basePagelet "Create Service" $ do
+    H.h1 "Added a service!"
+    H.p $ "Service id: " <> H.text (fromServiceId sid)
+    H.p $ "Service key: " <> H.text (fromServiceKey key)
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
 serviceRegisterPage :: ST -> View Html -> ServiceId -> Service -> User -> Html
-serviceRegisterPage formAction v sid service user = H.docTypeHtml $ do
-    H.head $ do
-        H.title "Register with Service"
-    H.body $ do
-        childErrorList "" v
-        form v formAction $ do
-            H.h1 "You are about to register to a service"
-            H.hr
-            H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
-            H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
-            H.hr
-            H.p $ "Service id: " <> H.text (fromServiceId sid)
-            H.p $ "Service name: " <> H.text (fromServiceName $ service ^. serviceName)
-            H.p $ "Service description: " <> H.text (fromServiceDescription $ service ^. serviceDescription)
-            H.hr
-            inputSubmit "Register!"
+serviceRegisterPage formAction v sid service user = basePagelet "Register with Service" $ do
+    childErrorList "" v
+    form v formAction $ do
+        H.h1 "You are about to register to a service"
+        H.hr
+        H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
+        H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
+        H.hr
+        H.p $ "Service id: " <> H.text (fromServiceId sid)
+        H.p $ "Service name: " <> H.text (fromServiceName $ service ^. serviceName)
+        H.p $ "Service description: " <> H.text (fromServiceDescription $ service ^. serviceDescription)
+        H.hr
+        inputSubmit "Register!"
 
 serviceRegisterForm :: Monad m => Form Html m ()
 serviceRegisterForm = pure ()
 
-serviceLoginPage :: ServiceId -> View Html -> ST -> Html
-serviceLoginPage (H.string . cs . fromServiceId -> serviceId) v formAction =
-    H.docTypeHtml $ do
-        H.head $
-            H.title "Log In"
-        H.body $ do
-            H.p $ do
-                "service id: " <> serviceId
-            childErrorList "" v
-            form v formAction $ do
-                H.p $ do
-                    label "usernamme" v "User name:"
-                    inputText "name" v
-                H.p $ do
-                    label "password" v "Password:"
-                    inputPassword "password" v
-                inputSubmit "Log In"
+serviceLoginPage :: ST -> ServiceId -> View Html -> Html
+serviceLoginPage formAction (H.string . cs . fromServiceId -> serviceId) v = basePagelet "Log In (Service)" $ do
+    H.p $ do
+        "service id: " <> serviceId
+    childErrorList "" v
+    form v formAction $ do
+        H.p $ do
+            label "usernamme" v "User name:"
+            inputText "name" v
+        H.p $ do
+            label "password" v "Password:"
+            inputPassword "password" v
+        inputSubmit "Log In"
 
 
 -- * util
