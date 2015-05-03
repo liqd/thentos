@@ -25,7 +25,7 @@ import System.Log (Priority(INFO))
 import Thentos.Api
 import Thentos.Config
 import Thentos.Frontend.Types
-import Thentos.Frontend.Util (serveSnaplet)
+import Thentos.Frontend.Util
 
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
@@ -80,7 +80,7 @@ routes = [ -- default entry point
              -- the routing table and the call to the
              -- dashboardPagelet.)
 
-         , ("/dashboard/details", H.renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
+         , ("/dashboard/details", renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
 
          -- static files
          , ("", serveDirectory "snap/static")
