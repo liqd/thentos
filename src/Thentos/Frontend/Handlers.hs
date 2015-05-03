@@ -326,7 +326,12 @@ serviceRegister = runAsUser $ \ clearance session -> do
             redirect' (cs . toLazyByteString . serializeRelativeRef $ rr) 303
 
 
--- | FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
+-- | Coming from a service site, handle the authentication and
+-- redirect to service with valid session token.  This may happen in a
+-- series of redirects through the thenots frontend; the state of this
+-- series is stored in `fsdServiceRegisterState`.
+--
+-- FIXME[mf] (thanks to Sönke Hahn): The session token seems to be
 -- contained in the url. So if people copy the url from the address
 -- bar and send it to someone, they will get the same session.  The
 -- session token should be in a cookie, shouldn't it?

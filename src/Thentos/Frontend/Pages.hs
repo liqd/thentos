@@ -34,7 +34,6 @@ module Thentos.Frontend.Pages
     , serviceCreateForm
     , serviceRegisterPage
     , serviceRegisterForm
-    , serviceLoginPage
 
     , errorPage
     , errorPagelet
@@ -46,7 +45,7 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Control.Lens ((^.))
 import Data.Maybe (isJust, catMaybes, fromMaybe)
 import Data.Monoid (Monoid, (<>))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Typeable (Typeable)
 import Text.Blaze.Html (Html, (!))
@@ -404,7 +403,6 @@ serviceRegisterPage :: ST -> View Html -> ServiceId -> Service -> User -> Html
 serviceRegisterPage formAction v sid service user = basePagelet "Register with Service" $ do
     childErrorList "" v
     form v formAction $ do
-        H.h1 "You are about to register to a service"
         H.hr
         H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
         H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
@@ -417,20 +415,6 @@ serviceRegisterPage formAction v sid service user = basePagelet "Register with S
 
 serviceRegisterForm :: Monad m => Form Html m ()
 serviceRegisterForm = pure ()
-
-serviceLoginPage :: ST -> ServiceId -> View Html -> Html
-serviceLoginPage formAction (H.string . cs . fromServiceId -> serviceId) v = basePagelet "Log In (Service)" $ do
-    H.p $ do
-        "service id: " <> serviceId
-    childErrorList "" v
-    form v formAction $ do
-        H.p $ do
-            label "usernamme" v "User name:"
-            inputText "name" v
-        H.p $ do
-            label "password" v "Password:"
-            inputPassword "password" v
-        inputSubmit "Log In"
 
 
 -- * util
