@@ -22,9 +22,7 @@ import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
 import LIO.DCLabel ((/\), (\/))
 import Snap.Blaze (blaze)
-import Snap.Core (Method(GET, POST), method)
-import Snap.Core (getParam, redirect', modifyResponse, setResponseStatus)
-import Snap.Core (urlDecode)
+import Snap.Core (Method(GET, POST), method, getParam, redirect', urlDecode)
 import Snap.Snaplet.AcidState (update)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
@@ -139,6 +137,50 @@ userLoginCallAction action = do
 
 -- * forgot password
 
+-- FIXME: 'resetPassword' => 'resetPasswordConfirm',
+-- 'resetPasswordRequest' => 'resetPassword' (like with user
+-- registration).  also here:
+--
+-- $ git grep resetPassword
+-- src/Thentos/Api.hs:  , resetPassword
+-- src/Thentos/Api.hs:resetPassword :: PasswordResetToken -> UserPass -> Action r ()
+-- src/Thentos/Api.hs:resetPassword token password = do
+-- src/Thentos/DB/Trans.hs:  , ResetPassword(..), trans_resetPassword
+-- src/Thentos/DB/Trans.hs:trans_resetPassword :: Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+-- src/Thentos/DB/Trans.hs:trans_resetPassword now expiry token newPass = withExpiration now expiry $ do
+-- src/Thentos/DB/Trans.hs:resetPassword :: Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
+-- src/Thentos/DB/Trans.hs:resetPassword timestamp expiry token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp expiry token newPass
+-- src/Thentos/DB/Trans.hs:    , 'resetPassword
+-- src/Thentos/Frontend.hs:         , ("user/reset_password_request", H.resetPasswordRequest)
+-- src/Thentos/Frontend.hs:         , ("user/reset_password", H.resetPassword)
+-- src/Thentos/Frontend/Handlers.hs:resetPassword :: FH ()
+-- src/Thentos/Frontend/Handlers.hs:resetPassword = do
+-- src/Thentos/Frontend/Handlers.hs:    runPageForm resetPasswordRequestForm resetPasswordRequestPage $ \ address -> do
+-- src/Thentos/Frontend/Handlers.hs:                blaze resetPasswordRequestedPage
+-- src/Thentos/Frontend/Handlers.hs:            Left NoSuchUser -> blaze resetPasswordRequestedPage
+-- src/Thentos/Frontend/Handlers.hs:resetPasswordConfirm :: FH ()
+-- src/Thentos/Frontend/Handlers.hs:resetPasswordConfirm = do
+-- src/Thentos/Frontend/Handlers.hs:    runPageForm resetPasswordForm resetPasswordPage $ \ password -> case meToken of
+-- src/Thentos/Frontend/Handlers.hs:            result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
+-- src/Thentos/Frontend/Pages.hs:    , resetPasswordRequestPage
+-- src/Thentos/Frontend/Pages.hs:    , resetPasswordRequestForm
+-- src/Thentos/Frontend/Pages.hs:    , resetPasswordRequestedPage
+-- src/Thentos/Frontend/Pages.hs:    , resetPasswordPage
+-- src/Thentos/Frontend/Pages.hs:    , resetPasswordForm
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestPage :: ST -> View Html -> Html
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestPage formAction v = basePagelet "Thentos Login" $ do
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestForm :: Monad m => Form Html m UserEmail
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestForm =
+-- src/Thentos/Frontend/Pages.hs:resetPasswordPage :: ST -> View Html -> Html
+-- src/Thentos/Frontend/Pages.hs:resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
+-- src/Thentos/Frontend/Pages.hs:resetPasswordForm :: Monad m => Form Html m UserPass
+-- src/Thentos/Frontend/Pages.hs:resetPasswordForm = validate validatePass $ (,)
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestedPage :: Html
+-- src/Thentos/Frontend/Pages.hs:resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
+-- tests/Thentos/FrontendSpec.hs:    resetPassword
+-- tests/Thentos/FrontendSpec.hs:resetPassword :: SpecWith TestServerFull
+-- tests/Thentos/FrontendSpec.hs:resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+
 resetPasswordRequest :: FH ()
 resetPasswordRequest = do
     runPageForm resetPasswordRequestForm resetPasswordRequestPage $ \ address -> do
@@ -147,12 +189,12 @@ resetPasswordRequest = do
         eToken <-
             snapRunAction' allowEverything $ addPasswordResetToken address
         case eToken of
-            Left NoSuchUser -> blaze resetPasswordRequestedPage
             Right (user, token) -> do
                 liftIO $ sendPasswordResetMail
                     (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                     (urlConfirm feConfig "/user/reset_password" (fromPasswordResetToken token))
                 blaze resetPasswordRequestedPage
+            Left NoSuchUser -> blaze resetPasswordRequestedPage
             Left _ -> error "requestPasswordResetHandler: unreached"
 
 resetPassword :: FH ()
@@ -172,14 +214,8 @@ resetPassword = do
                     crash 400 "Change password: error."
 
         -- error cases
-        (Just (Left _)) -> do
-            let msg = "Bad request: bad reset token."
-            modifyResponse $ setResponseStatus 400 (cs msg)
-            blaze (H.text msg)
-        (Nothing) -> do
-            let msg = "Bad request: reset password, but no token."
-            modifyResponse $ setResponseStatus 400 (cs msg)
-            blaze (H.text msg)
+        (Just (Left _)) -> crash 400 "Bad request: bad reset token."
+        Nothing         -> crash 200 "Bad request: reset password, but no token."
 
 
 -- * logout (thentos)
