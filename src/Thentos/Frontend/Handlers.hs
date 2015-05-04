@@ -71,7 +71,7 @@ userRegisterConfirm :: FH ()
 userRegisterConfirm = do
     let clearance = RoleOwnsUnconfirmedUsers /\ RoleOwnsUsers *%% RoleOwnsUnconfirmedUsers \/ RoleOwnsUsers
 
-    mTokenBS <- getParam "token"
+    mTokenBS <- (>>= urlDecode) <$> getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
             eResult <- snapRunAction' clearance $ confirmNewUser token
