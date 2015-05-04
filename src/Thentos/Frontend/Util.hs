@@ -156,11 +156,9 @@ runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 -- | Runs a given handler with the credentials and the session data of
 -- the currently logged-in user.  If not logged in, call a default
 -- handler that runs without any special clearance.
---
--- FIXME: this currently does not check the session token against the
--- database.  it is trivial to construct a session cookie that gives
--- you user privileges for any user with a known uid, without knowing
--- any further credentials.
+-- We don't have to verify that the user matches the session, since both are
+-- stored in encrypted in the session cookie, so they cannot be manipulated
+-- by the user.
 runAsUserOrNot :: (ThentosClearance -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
 runAsUserOrNot loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- getSessionData
@@ -180,9 +178,9 @@ getSessionData = fromMaybe emptyFrontendSessionData
                . (>>= Aeson.decode . cs)
              <$> with sess (getFromSession "ThentosSessionData")
 
--- | This is not race-condition-free, but the session only lives in
--- the single thread that handles the single request, so thread-safety
--- is not required.  (FIXME: think about this some more.)
+-- FIXME: We should only store data that doesn't change within a session
+-- (e.g. the session token, user id) in the session cookie to avoid
+-- race conditions that might lose changes between requests.
 modifySessionData :: (FrontendSessionData -> (FrontendSessionData, a)) -> FH a
 modifySessionData op = do
     sessionData <- getSessionData
