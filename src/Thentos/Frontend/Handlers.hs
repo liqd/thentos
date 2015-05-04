@@ -294,7 +294,7 @@ serviceCreate = runAsUser $ \ clearance _ fsl -> do
 -- session state.)
 serviceRegister :: FH ()
 serviceRegister = runAsUser $ \ clearance _ fsl -> do
-    ServiceLoginState sid uri <- getServiceLoginState >>= maybe (crash 400 "Service login: no state.") return
+    ServiceLoginState sid rr <- getServiceLoginState >>= maybe (crash 400 "Service login: no state.") return
 
     let present :: ST -> View H.Html -> FH ()
         present formAction view = do
@@ -315,7 +315,7 @@ serviceRegister = runAsUser $ \ clearance _ fsl -> do
         process () = do
             result <- snapRunAction' allowEverything $ addServiceRegistration (fsl ^. fslToken) sid
             case result of
-                Right () -> redirectURI uri
+                Right () -> redirectRR rr
                 -- (We match the '()' explicitly here just
                 -- because we can, and because nobody has to
                 -- wonder what's hidden in the '_'.  No
@@ -393,5 +393,5 @@ redirectToDashboardOrService :: FH ()
 redirectToDashboardOrService = do
     mCallback <- popServiceLoginState
     case mCallback of
-        Just (ServiceLoginState _ uri) -> redirectURI uri
-        Nothing                        -> redirect' "/dashboard" 303
+        Just (ServiceLoginState _ rr) -> redirectRR rr
+        Nothing                       -> redirect' "/dashboard" 303

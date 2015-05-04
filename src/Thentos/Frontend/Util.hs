@@ -204,12 +204,12 @@ setServiceLoginState = do
     sid <- getParam "sid" >>= maybe
              (crash 400 "Service login: missing Service ID.")
              (return . ServiceId . cs)
-    uri <- getsRequest rqURI >>= \ callbackST -> either
-             (\ msg -> crash 400 $ "Service login: malformed redirect URI: " <> cs (show (msg, callbackST)))
+    rrf <- getsRequest rqURI >>= \ callbackSBS -> either
+             (\ msg -> crash 400 $ "Service login: malformed redirect URI: " <> cs (show (msg, callbackSBS)))
              (return)
-             (parseURI laxURIParserOptions $ cs callbackST)
+             (parseRelativeRef laxURIParserOptions callbackSBS)
 
-    let val = ServiceLoginState sid uri
+    let val = ServiceLoginState sid rrf
     modifySessionData' $ fsdServiceLoginState .~ Just val
     logger DEBUG ("setServiceLoginState: set to " <> show val)
     return val

@@ -16,7 +16,7 @@ import GHC.Generics (Generic)
 import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
 import Snap.Snaplet (Snaplet, Handler, snapletValue)
-import URI.ByteString (URI, serializeURI, parseURI, laxURIParserOptions)
+import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
@@ -76,19 +76,19 @@ instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
 data ServiceLoginState =
     ServiceLoginState
         { _fslServiceId :: ServiceId
-        , _fslURI       :: URI  -- ^ e.g. @https://thentos.net/service/login?...@
+        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@
         }
   deriving (Show, Eq, Generic)
 
 instance ToJSON ServiceLoginState where
     toJSON (ServiceLoginState mSid rr) = Aeson.toJSON (mSid, rr')
-      where rr' = Aeson.String . cs . toLazyByteString . serializeURI $ rr
+      where rr' = Aeson.String . cs . toLazyByteString . serializeRelativeRef $ rr
 
 instance FromJSON ServiceLoginState where
     parseJSON v = do
         (mSid, rr' :: Aeson.Value) <- Aeson.parseJSON v
         case rr' of
-            Aeson.String rr'' -> case parseURI laxURIParserOptions $ cs rr'' of
+            Aeson.String rr'' -> case parseRelativeRef laxURIParserOptions $ cs rr'' of
                 (Right rr) -> return $ ServiceLoginState mSid rr
                 _ -> mzero
             _ -> mzero
