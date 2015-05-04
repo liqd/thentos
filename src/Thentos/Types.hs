@@ -130,7 +130,7 @@ instance SafeCopy (HashedSecret a) where
 newtype UserEmail = UserEmail { fromUserEmail :: ST }
     deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
 
-newtype ConfirmationToken = ConfirmationToken { fromConfimationToken :: ST }
+newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }

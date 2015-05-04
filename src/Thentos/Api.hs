@@ -62,7 +62,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
-import Data.String.Conversions (SBS, ST, cs, LT)
+import Data.String.Conversions (SBS, ST, cs)
 import Data.Thyme (getCurrentTime)
 import System.Log (Priority(DEBUG))
 
@@ -262,7 +262,7 @@ checkPassword action password = catchAction checkPw $ \err ->
             else lift $ left BadCredentials
 
 requestUserEmailChange :: CPRG r =>
-    UserId -> UserEmail -> (ConfirmationToken -> LT) -> Action (MVar r) ()
+    UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action (MVar r) ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
     ((_, _, config), _) <- ask

@@ -33,6 +33,15 @@ import qualified Text.Blaze.Html5.Attributes as HA
 data App = App { aHWConfig :: HWConfig }
 type AppHandler = Handler App App
 
+configFilePath :: FilePath
+configFilePath = "devel.config"
+
+-- | The snap web server is configured via "Snap.Http.Server.Config".
+-- The field 'helloWorldUrl' in this app-config type contains the
+-- exposed url (e.g. for sending out links to the browser).  Since we
+-- have no control over the network topology here (proxy setup and
+-- all), it needs to be checked during system configuration that the
+-- two work together.
 data HWConfig =
     HWConfig
       { thentosBackendUrl  :: ByteString
@@ -47,22 +56,39 @@ data HWConfig =
 handleApp :: AppHandler ()
 handleApp = do
     token <- getParam "token"
-    tokenIsOk <- tokenOk token
-    method GET $ blaze (appPage token () tokenIsOk)
+    tokenIsOk <- verifyToken token
+    method GET . blaze $ appPage token tokenIsOk ()
 
-appPage :: Show sessionMetaData => Maybe ByteString -> sessionMetaData -> Bool -> Html
-appPage token sessionMetaData isTokenOk =
+appPage :: Show sessionMetaData => Maybe ByteString -> Bool -> sessionMetaData -> Html
+appPage token isTokenOk sessionMetaData =
     H.docTypeHtml $ do
-        H.head $
-            H.title "Welcome to the thentos test service!"
+        H.head $ do
+            H.title "Greetotron2000"
+            H.link H.! HA.rel "stylesheet" H.! HA.href "screen.css"
         H.body $ do
-            H.p $ "your session token: " <> H.string (show token)
-            H.p $ "Token ok (checked with thentos): " <> H.string (show isTokenOk)
-            H.p $ "data sent to us from thentos (session meta data): " <> H.string (show sessionMetaData)
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ do
-                H.text "login"
-            H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ do
-                H.text "logout"
+            H.h1 "Greetotron2000"
+
+            case token of
+                (Just _) -> H.div H.! HA.class_ "logged_in" $ do
+                    H.p "you are logged in.  hello, somebody!"
+                    H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ H.text "logout"
+                Nothing -> H.div H.! HA.class_ "logged_out" $ do
+                    H.p "hello, nobody!"
+                    H.p "please log in if you want to be greeted properly."
+                    H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/login") $ H.text "login via thentos"
+
+            H.hr
+            H.table $ do
+                H.tr $ do
+                    H.td "session token"
+                    H.td . H.pre . H.string . ppShow $ token
+                H.tr $ do
+                    H.td "verified"
+                    H.td . H.pre . H.string . ppShow $ isTokenOk
+                H.tr $ do
+                    H.td "session meta data"
+                    H.td . H.pre . H.string . ppShow $ sessionMetaData
+
 
 routes :: [(ByteString, Handler App App ())]
 routes =
@@ -82,7 +108,7 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
   where
     loadConfig :: IO (Maybe HWConfig)
     loadConfig = do
-        config <- Configurator.load [Configurator.Required "devel.config"]
+        config <- Configurator.load [Configurator.Required configFilePath]
           -- (config file is hard-coded, but that's ok.  this is just
           -- trying to be a helloworld app to test and demonstrate
           -- some thentos concepts, not production code.)
@@ -119,9 +145,9 @@ helloWorldLogin = do
 helloWorldLogout :: Handler App App ()
 helloWorldLogout = redirect' "/app" 303
 
-tokenOk :: Maybe ByteString -> Handler App App Bool
-tokenOk Nothing = return False
-tokenOk (Just tokBS) =
+verifyToken :: Maybe ByteString -> Handler App App Bool
+verifyToken Nothing = return False
+verifyToken (Just tokBS) =
     case decodeUtf8' tokBS of
         Left _ -> return False
         Right token -> do

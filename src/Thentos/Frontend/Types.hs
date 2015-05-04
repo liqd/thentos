@@ -11,7 +11,7 @@ import Control.Monad (mzero)
 import Crypto.Random (SystemRNG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.String.Conversions (cs)
+import Data.String.Conversions (ST, cs)
 import GHC.Generics (Generic)
 import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
@@ -42,35 +42,69 @@ type FH = Handler FrontendApp FrontendApp
 
 data FrontendSessionData =
     FrontendSessionData
-        { fsdToken                :: SessionToken
-        , fsdUser                 :: UserId
-        , fsdServiceRegisterState :: Maybe ServiceRegisterState  -- ^ (see 'ServiceRegisterState')
+        { _fsdLogin             :: Maybe FrontendSessionLoginData
+        , _fsdServiceLoginState :: Maybe ServiceLoginState  -- ^ (see 'ServiceLoginState')
+        , _fsdMessages          :: [FrontendMsg]
         }
-    deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Generic)
+
+emptyFrontendSessionData :: FrontendSessionData
+emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
+
+data FrontendSessionLoginData =
+    FrontendSessionLoginData
+        { _fslToken  :: SessionToken
+        , _fslUserId :: UserId
+        }
+  deriving (Show, Eq, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 
+instance FromJSON FrontendSessionLoginData where parseJSON = Aeson.gparseJson
+instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
+
 -- | If a user comes from a service login and is sent to the "register
--- with a new service" page because no valid account exists with
--- thentos, an extra round of in direction is required (the user is
+-- with a new service" page because no valid 'ServiceAccount' exists
+-- in thentos, an extra round of indirection is required (the user is
 -- confronted with the service details and must say "yes, i want to
--- register", "share this-and-that data", etc.).  This type is used to
--- store the information from the registration request in
--- 'FrontendSessionData' between the form rendering and the form
--- processing requests.
-newtype ServiceRegisterState = ServiceRegisterState (RelativeRef, ServiceId)
+-- register", "share this-and-that data", etc.).  There may be further
+-- extra rounds for logging in to thentos or registering with thentos.
+-- This type is used to store the information from the service login
+-- request in 'FrontendSessionData' until all these steps have been
+-- taken.
+data ServiceLoginState =
+    ServiceLoginState
+        { _fslServiceId :: ServiceId
+        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@
+        }
   deriving (Show, Eq, Generic)
 
-instance ToJSON ServiceRegisterState where
-    toJSON (ServiceRegisterState (rr, mSid)) = Aeson.toJSON (rr', mSid)
+instance ToJSON ServiceLoginState where
+    toJSON (ServiceLoginState mSid rr) = Aeson.toJSON (mSid, rr')
       where rr' = Aeson.String . cs . toLazyByteString . serializeRelativeRef $ rr
 
-instance FromJSON ServiceRegisterState where
+instance FromJSON ServiceLoginState where
     parseJSON v = do
-        (rr' :: Aeson.Value, mSid) <- Aeson.parseJSON v
+        (mSid, rr' :: Aeson.Value) <- Aeson.parseJSON v
         case rr' of
             Aeson.String rr'' -> case parseRelativeRef laxURIParserOptions $ cs rr'' of
-                (Right rr) -> return $ ServiceRegisterState (rr, mSid)
+                (Right rr) -> return $ ServiceLoginState mSid rr
                 _ -> mzero
             _ -> mzero
+
+-- | If we want to communicate information from the last request to
+-- the user in the next one, we need to stash it in the state.  This
+-- is the type for that.
+data FrontendMsg =
+    FrontendMsgError ST
+  | FrontendMsgSuccess ST
+  deriving (Show, Eq, Generic)
+
+instance FromJSON FrontendMsg where parseJSON = Aeson.gparseJson
+instance ToJSON FrontendMsg where toJSON = Aeson.gtoJson
+
+
+makeLenses ''FrontendSessionData
+makeLenses ''FrontendSessionLoginData
+makeLenses ''ServiceLoginState

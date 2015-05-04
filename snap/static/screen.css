@@ -1,0 +1,53 @@
+html {
+    background-color: #ffffa0;
+    font-family: Verdana, Helvetica, sans-serif;
+}
+
+body {
+}
+
+table {
+}
+
+td {
+    border: solid black;
+    padding: 5px;
+}
+
+a {
+    text-decoration: underline;
+}
+
+a :hover {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+img {
+    border: none;
+}
+
+.logged_in {
+    background-color: #c0ffc0;
+}
+
+.logged_out {
+    background-color: #ffc0c0;
+}
+
+.dashboard_body {
+    background-color: #ffffc3;
+    border: dashed orange;
+}
+
+ul.digestive-functors-error-list {
+    color: red;
+}
+
+.active_tab_header {
+    background-color: #83ff89;
+    font-weight: bold;
+}
+
+.inactive_tab_header {
+}

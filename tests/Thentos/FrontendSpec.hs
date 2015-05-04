@@ -289,12 +289,12 @@ browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingW
 
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
 wdLogin feConfig (UserName uname) (UserPass upass) = do
-    WD.openPage (cs $ exposeUrl feConfig <//> "login_thentos")
+    WD.openPage (cs $ exposeUrl feConfig <//> "/user/login")
 
     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-    fill "login_thentos.name" uname
-    fill "login_thentos.password" upass
+    fill "/user/login.name" uname
+    fill "/user/login.password" upass
 
     WD.findElem (WD.ById "login_submit") >>= WD.click
     return $ C.Status 200 "Ok."  -- FIXME: we need a man in the middle
@@ -305,7 +305,7 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
 
 wdLogout :: HttpConfig -> WD.WD C.Status
 wdLogout feConfig = do
-    WD.openPage (cs $ exposeUrl feConfig <//> "logout_thentos")
+    WD.openPage (cs $ exposeUrl feConfig <//> "/user/logout")
     WD.findElems (WD.ById "logout_submit") >>= maybe noButton buttonIsThere . listToMaybe
   where
     noButton = do
