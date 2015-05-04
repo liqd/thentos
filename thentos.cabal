@@ -67,6 +67,7 @@ library
     , Thentos.Backend.Api.Adhocracy3
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
+    , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Util
     , Thentos.Frontend.Types

@@ -24,8 +24,9 @@ import System.Log (Priority(INFO))
 
 import Thentos.Api
 import Thentos.Config
+import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Types
-import Thentos.Frontend.Util
+import Thentos.Frontend.Util (serveSnaplet)
 
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P

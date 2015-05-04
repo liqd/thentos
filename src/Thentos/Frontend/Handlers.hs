@@ -37,7 +37,7 @@ import Thentos.Config
 import Thentos.DB
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
-import Thentos.Frontend.Util
+import Thentos.Frontend.Handlers.Combinators
 import Thentos.Smtp
 import Thentos.Types
 
