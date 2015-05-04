@@ -288,13 +288,10 @@ _tweakURI :: forall e t t' . (Show e) =>
                 -> (t -> t')
                 -> SBS
                 -> FH SBS
-_tweakURI parse serialize tweak uriBS = do
-    let ok uri = do
-            return (cs . toLazyByteString . serialize . tweak $ uri)
-        er err = do
-            logger CRITICAL $ show (err, uriBS)
-            crash 500 ("bad request uri: " <> cs (show uriBS))
-    either er ok $ parse laxURIParserOptions uriBS
+_tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions uriBS
+  where
+    ok = return . cs . toLazyByteString . serialize . tweak
+    er = crash500 . ("_tweakURI" :: ST, uriBS,)
 
 
 snapRunAction :: (DB -> Timestamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
