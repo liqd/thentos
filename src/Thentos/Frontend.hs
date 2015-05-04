@@ -60,8 +60,8 @@ routes = [ -- default entry point
          , ("user/register", H.userRegister)
          , ("user/register_confirm", H.userRegisterConfirm)
          , ("user/login", H.userLogin)
-         , ("user/reset_password_request", H.resetPasswordRequest)
-         , ("user/reset_password", H.resetPassword)
+         , ("user/reset_password_request", H.resetPassword)
+         , ("user/reset_password", H.resetPasswordConfirm)
 
            -- if logged in
          , ("user/logout", H.userLogout)

@@ -13,11 +13,11 @@ module Thentos.Frontend.Pages
     , userLoginPage
     , userLoginForm
 
-    , resetPasswordRequestPage
-    , resetPasswordRequestForm
-    , resetPasswordRequestedPage
     , resetPasswordPage
     , resetPasswordForm
+    , resetPasswordRequestedPage
+    , resetPasswordConfirmPage
+    , resetPasswordConfirmForm
 
     , userLogoutConfirmPagelet
     , userLogoutDonePage
@@ -213,8 +213,8 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordRequestPage :: ST -> View Html -> Html
-resetPasswordRequestPage formAction v = basePagelet "Thentos Login" $ do
+resetPasswordPage :: ST -> View Html -> Html
+resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -224,12 +224,12 @@ resetPasswordRequestPage formAction v = basePagelet "Thentos Login" $ do
             inputText "email" v
         inputSubmit "Send"
 
-resetPasswordRequestForm :: Monad m => Form Html m UserEmail
-resetPasswordRequestForm =
+resetPasswordForm :: Monad m => Form Html m UserEmail
+resetPasswordForm =
     UserEmail <$> "email" .: validateEmail (text Nothing)
 
-resetPasswordPage :: ST -> View Html -> Html
-resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
+resetPasswordConfirmPage :: ST -> View Html -> Html
+resetPasswordConfirmPage formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
     form v formAction $ do
         H.p $ do
@@ -240,8 +240,8 @@ resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
             inputPassword "password2" v
         inputSubmit "Set your new password"
 
-resetPasswordForm :: Monad m => Form Html m UserPass
-resetPasswordForm = validate validatePass $ (,)
+resetPasswordConfirmForm :: Monad m => Form Html m UserPass
+resetPasswordConfirmForm = validate validatePass $ (,)
     <$> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
     <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
 
