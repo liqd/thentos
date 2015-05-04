@@ -79,7 +79,7 @@ buildDashboard' tab pageletBuilder = do
         eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
         case (eUser, eRoles) of
             (Right (_, user), Right roles) -> dashboardPagelet msgs roles tab <$> pageletBuilder user roles
-            _ -> error "unreachable"
+            e -> logger CRITICAL ("buildDashboard': unreachable: " <> show e) >> crash500 ()
                  -- FIXME: error handling.  (we need a better approach for this in general!)
 
 

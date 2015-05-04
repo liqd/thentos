@@ -196,7 +196,7 @@ userLogoutConfirm = runAsUser $ \ _ _ fsl -> do
         Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames)
         Left e@NoSuchUser -> crash500 e
         Left e@NoSuchSession -> crash500 e
-        Left _ -> error "unreachable" -- FIXME
+        Left _ -> logger CRITICAL "unreachable: userLogoutConfirm" >> crash500 () -- FIXME
 
 userLogoutDone :: FH ()
 userLogoutDone = runAsUser $ \ _ _ fsl -> do
