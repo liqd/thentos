@@ -78,14 +78,11 @@ userRegisterConfirm = do
             case eResult of
                 Right uid -> do
                     logger DEBUG $ "registered new user: " ++ show uid
-                    userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
-                    logger DEBUG $ "registered new user: session started."
-                    mapM_ (\ r -> snapRunAction' allowEverything . updateAction
-                                    $ AssignRole (UserA uid) r) defaultUserRoles
+                    mapM_ (snapRunAction' allowEverything . updateAction . AssignRole (UserA uid))
                                   -- FIXME: clearance level is too high, right?
-                    logger DEBUG $ "registered new user: added default roles."
+                        defaultUserRoles
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
-                    redirectToDashboardOrService
+                    userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
                 Left e@NoSuchPendingUserConfirmation -> do
                     logger INFO $ show e
                     crash 400 "Finalizing registration failed: unknown token."
