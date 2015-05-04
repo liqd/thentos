@@ -62,6 +62,8 @@ module Thentos.DB.Trans
   , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
+  , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
+
   , AssignRole(..), trans_assignRole
   , UnassignRole(..), trans_unassignRole
   , LookupAgentRoles(..), trans_lookupAgentRoles
@@ -608,6 +610,13 @@ trans_getSessionServiceNames now tok uid = do
 -- and then @EndSession@ on all service ids individually.)
 trans_garbageCollectSessions :: ThentosQuery [SessionToken]
 trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSessions: not implemented"  -- FIXME
+
+
+-- | FIXME: implement this to the point where it is visible as
+-- metadata in helloworld.  (don't worry too much about authorization
+-- / authentication for now.)
+trans_getServiceSessionMetaData :: SessionToken -> ThentosQuery ServiceSession
+trans_getServiceSessionMetaData = error "trans_getServiceSessionMetaData"
 
 
 -- *** helpers

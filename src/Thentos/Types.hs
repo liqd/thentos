@@ -79,7 +79,7 @@ data User =
       { _userName     :: !UserName
       , _userPassword :: !(HashedSecret UserPass)
       , _userEmail    :: !UserEmail
-      , _userSessions :: !(Map SessionToken (Map ServiceId Timestamp)) -- ^ thentos sessions
+      , _userSessions :: !(Set SessionToken) -- ^ thentos sessions (service sessions are stored in @DB ^. dbSessions@)
       , _userServices :: !(Map ServiceId ServiceAccount)  -- ^ services (with session info)
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -209,6 +209,14 @@ data Session =
       , _sessionStart   :: !Timestamp
       , _sessionEnd     :: !Timestamp
       , _sessionTimeout :: !Timeout
+      , _sessionServiceSessions :: !(Map ServiceId ServiceSession)
+      }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+data ServiceSession =
+    ServiceSession
+      { _serviceSessionExpiry   :: Timestamp
+      , _serviceSessionMetadata :: UserName
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
