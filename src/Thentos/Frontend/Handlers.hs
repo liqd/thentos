@@ -76,8 +76,7 @@ userRegisterConfirm = do
     mTokenBS <- getParam "token"
     case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
         Just (Right token) -> do
-            eResult <- snapRunAction' allowEverything $ confirmNewUser token
-                                     -- FIXME: authorization
+            eResult <- snapRunAction' clearance $ confirmNewUser token
             case eResult of
                 Right uid -> do
                     logger DEBUG $ "registered new user: " ++ show uid
