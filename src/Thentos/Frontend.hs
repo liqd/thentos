@@ -81,7 +81,7 @@ routes = [ -- default entry point
              -- dashboardPagelet.)
 
          , ("/dashboard/details",     renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
-         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ \ _ _ -> "nothing here yet!")
+         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ P.userServicesDisplayPagelet)
          , ("/dashboard/ownservices", H.serviceCreate)
          , ("/dashboard/users",       renderDashboard P.DashboardTabUsers $ \ _ _ -> "nothing here yet!")
 

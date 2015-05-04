@@ -23,6 +23,7 @@ module Thentos.Frontend.Pages
     , userLogoutDonePage
 
     , userDisplayPagelet
+    , userServicesDisplayPagelet
     , userUpdatePagelet
     , userUpdateForm
     , emailUpdatePagelet
@@ -308,6 +309,19 @@ userDisplayPagelet user _ = do
         H.tr $ do
             H.td $ pure ()
             H.td $ H.a ! A.href "/n/a" $ "delete"
+
+
+-- | (this is just a dummy.)
+userServicesDisplayPagelet :: u -> rs -> Html
+userServicesDisplayPagelet _ _ = do
+    H.table $ do
+        H.tr $ do
+            H.td . H.ol $ mapM_ H.li ["Evil Corp.", "Facebook", H.b "Faceboot", "mein.berlin.de"]
+            H.td . H.table $ do
+                H.tr $ H.td "Service ID" >> H.td "Faceboot"
+                H.tr $ H.td "Description" >> H.td "Something about boats?"
+                H.tr $ H.td "Logged in: " >> H.td "Yes"
+                H.tr $ H.td "Session expires: " >> H.td "in a month"
 
 
 userUpdatePagelet :: ST -> View Html -> u -> rs -> Html
