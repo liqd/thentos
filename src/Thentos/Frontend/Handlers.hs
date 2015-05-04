@@ -207,7 +207,19 @@ resetPassword = do
         (Just (Right token)) -> do
             result <- snapRunAction' allowEverything $ Thentos.Api.resetPassword token password
             case result of
-                Right () -> blaze $ "Password succesfully changed."
+                Right () -> do
+                    sendFrontendMsg $ FrontendMsgSuccess "Password changed succesfully.  Welcome back to Thentos!"
+
+                    -- FIXME: what we would like to do here is login
+                    -- the user right away:
+                    --
+                    -- >>> userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+                    --
+                    -- But we need the uid for that, and we need to
+                    -- find it under the confirmation token in the DB
+                    -- (taking it from the request would be insecure!)
+
+                    redirect' "/dashboard" 303
                 Left NoSuchToken -> crash 400 "No such reset token."
                 Left e -> do
                     logger WARNING (show e)
