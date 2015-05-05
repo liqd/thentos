@@ -25,7 +25,7 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Config
 import Thentos.DB.Protect
 import Thentos.DB.Trans
-import Thentos.Frontend.Handlers (urlUserCreateConfirm)
+import Thentos.Frontend.Handlers.Combinators (urlConfirm)
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
@@ -66,15 +66,15 @@ createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestSer
     -- create confirmation token
     wd $ do
         WD.openPage (cs $ exposeUrl feConfig)
-        WD.findElem (WD.ByLinkText "create user") >>= WD.click
+        WD.findElem (WD.ByLinkText "Register new user") >>= WD.click
 
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()
             fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-        fill "create.name" myUsername
-        fill "create.password1" myPassword
-        fill "create.password2" myPassword
-        fill "create.email" myEmail
+        fill "/user/register.name" myUsername
+        fill "/user/register.password1" myPassword
+        fill "/user/register.password2" myPassword
+        fill "/user/register.email" myEmail
 
         WD.findElem (WD.ById "create_user_submit") >>= WD.click
         WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
@@ -88,8 +88,8 @@ createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestSer
     -- there, but we don't.)
     case Map.toList $ db1 ^. dbUnconfirmedUsers of
           [(tok, _)] -> wd $ do
-              WD.openPage . cs $ urlUserCreateConfirm feConfig tok
-              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Added a user!")
+              WD.openPage . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
+              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
           bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
     -- check that user has arrived in DB.
@@ -106,7 +106,7 @@ resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no
 updateSelf :: SpecWith TestServerFull
 updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
-        _fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+        _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
 
         _click :: ST -> WD.WD ()
         _click label = WD.findElem (WD.ById label) >>= WD.click
@@ -125,7 +125,7 @@ updateSelf = describe "update self" $ do
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
-        _fill "update.name" newSelfName
+        _fill "/user/update.name" newSelfName
         _click "update_user_submit"
         _check st ((`shouldBe` UserName newSelfName) . (^. userName))
 
@@ -136,10 +136,10 @@ updateSelf = describe "update self" $ do
     it "password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
-        _fill "update_password.old_password" selfPass
-        _fill "update_password.new_password1" newSelfPass
-        _fill "update_password.new_password2" newSelfPass
+        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update_password")
+        _fill "/user/update_password.old_password" selfPass
+        _fill "/user/update_password.new_password1" newSelfPass
+        _fill "/user/update_password.new_password2" newSelfPass
         _click "update_password_submit"
         _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
 
@@ -197,7 +197,7 @@ updateSelf = describe "update self" $ do
 logIntoThentos :: SpecWith TestServerFull
 logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged in")
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Login successful")
 
     -- (out of curiousity: why do we need the type signature in the
     -- lambda parameter?  shouldn't ghc infer (and be happy with the
@@ -209,7 +209,7 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Logged out")
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You have been logged out")
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
@@ -222,13 +222,13 @@ serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
         sdescr :: ST = "don't be evil."
     serviceId :: ServiceId <- wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/service/create")
+        WD.openPage (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()
             fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-        fill "create.name" sname
-        fill "create.description" sdescr
+        fill "/dashboard/ownservices.name" sname
+        fill "/dashboard/ownservices.description" sdescr
 
         WD.findElem (WD.ById "create_service_submit") >>= WD.click
 
@@ -289,6 +289,7 @@ browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingW
 
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
 wdLogin feConfig (UserName uname) (UserPass upass) = do
+    WD.setImplicitWait 200
     WD.openPage (cs $ exposeUrl feConfig <//> "/user/login")
 
     let fill :: WD.WebDriver wd => ST -> ST -> wd ()

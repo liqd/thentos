@@ -30,6 +30,7 @@ import Text.Digestive.View (View)
 import URI.ByteString (parseURI, laxURIParserOptions, uriQueryL, queryPairsL)
 import URI.ByteString (RelativeRef(..), Query(..))
 
+import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Api
@@ -284,8 +285,8 @@ serviceCreate = runAsUser $ \ clearance _ fsl -> do
             Right (sid, key) -> do
                 sendFrontendMsgs
                     [ FrontendMsgSuccess "Added a service!"
-                    , FrontendMsgSuccess . cs $ "Service id: " <> show (fromServiceId sid)
-                    , FrontendMsgSuccess . cs $ "Service key: " <> show (fromServiceKey key)
+                    , FrontendMsgSuccess . cs $ "Service id: " <> ST.unpack (fromServiceId sid)
+                    , FrontendMsgSuccess . cs $ "Service key: " <> ST.unpack (fromServiceKey key)
                     ]
                 redirect' "/dashboard" 303
             Left e -> logger INFO (show e) >> crash 400 "Create service: failed."
