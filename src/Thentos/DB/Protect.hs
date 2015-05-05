@@ -48,7 +48,7 @@ makeThentosClearance (Just tok) db now = authenticateSession db now (SessionToke
 authenticateSession :: DB -> Timestamp -> SessionToken -> Either ThentosError ThentosClearance
 authenticateSession db now tok = do
     agent <- case pure_lookupSession db (Just (now, False)) tok of
-        LookupSessionUnchanged (_, Session agent _ _ _) -> Right agent
+        LookupSessionUnchanged (_, Session agent _ _ _ _) -> Right agent
         _ -> Left NoSuchSession
     Right $ makeClearance agent (pure_lookupAgentRoles db agent)
 

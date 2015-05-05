@@ -205,23 +205,26 @@ instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
 data Session =
     Session
-      { _sessionAgent   :: !Agent
-      , _sessionStart   :: !Timestamp
-      , _sessionEnd     :: !Timestamp
-      , _sessionTimeout :: !Timeout
+      { _sessionAgent           :: !Agent
+      , _sessionStart           :: !Timestamp
+      , _sessionEnd             :: !Timestamp
+      , _sessionTimeout         :: !Timeout
       , _sessionServiceSessions :: !(Map ServiceId ServiceSession)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+--instance Aeson.FromJSON Session where parseJSON = Aeson.gparseJson
+--instance Aeson.ToJSON Session where toJSON = Aeson.gtoJson
+
 data ServiceSession =
     ServiceSession
-      { _serviceSessionExpiry   :: Timestamp
-      , _serviceSessionMetadata :: UserName
+      { _serviceSessionExpiry   :: !Timestamp
+      , _serviceSessionMetadata :: !UserName
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-instance Aeson.FromJSON Session where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Session where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
 newtype SessionToken = SessionToken { fromSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
@@ -417,6 +420,7 @@ makeLenses ''DB
 makeLenses ''User
 makeLenses ''ServiceAccount
 makeLenses ''Session
+makeLenses ''ServiceSession
 makeLenses ''Service
 
 $(deriveSafeCopy 0 'base ''DB)
@@ -428,6 +432,7 @@ $(deriveSafeCopy 0 'base ''ServiceId)
 $(deriveSafeCopy 0 'base ''ServiceKey)
 $(deriveSafeCopy 0 'base ''ServiceName)
 $(deriveSafeCopy 0 'base ''ServiceDescription)
+$(deriveSafeCopy 0 'base ''ServiceSession)
 $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)
