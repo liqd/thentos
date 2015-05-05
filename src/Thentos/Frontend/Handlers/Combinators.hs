@@ -170,9 +170,12 @@ getSessionData = fromMaybe emptyFrontendSessionData
                . (>>= Aeson.decode . cs)
              <$> with sess (getFromSession "ThentosSessionData")
 
--- FIXME: We should only store data that doesn't change within a session
+-- | Only store data that doesn't change within a session
 -- (e.g. the session token, user id) in the session cookie to avoid
 -- race conditions that might lose changes between requests.
+--
+-- FIXME: move service login state, msg queue from FrontendSessionData
+-- to DB.
 modifySessionData :: (FrontendSessionData -> (FrontendSessionData, a)) -> FH a
 modifySessionData op = do
     sessionData <- getSessionData
