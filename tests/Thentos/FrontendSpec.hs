@@ -89,7 +89,7 @@ createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestSer
     case Map.toList $ db1 ^. dbUnconfirmedUsers of
           [(tok, _)] -> wd $ do
               WD.openPage . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
-              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
           bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
     -- check that user has arrived in DB.
