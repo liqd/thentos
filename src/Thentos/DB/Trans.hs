@@ -55,14 +55,13 @@ module Thentos.DB.Trans
   , EndSession(..), trans_endSession
   , IsActiveSession(..), trans_isActiveSession
   , IsActiveSessionAndBump(..), trans_isActiveSessionAndBump
-  , IsLoggedIntoService(..), trans_isLoggedIntoService
-  , IsRegisteredWithService(..), trans_isRegisteredWithService
+  , IsActiveServiceSession(..), trans_isActiveServiceSession
   , AddServiceLogin(..), trans_addServiceLogin
   , DropServiceLogin(..), trans_dropServiceLogin
   , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
-  --, GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
+  -- , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
 
   , AssignRole(..), trans_assignRole
   , UnassignRole(..), trans_unassignRole
@@ -91,7 +90,7 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, (\\), foldl')
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.SafeCopy (deriveSafeCopy, base)
 import LIO.DCLabel ((\/), (/\))
 import LIO.Label (lub)
@@ -107,7 +106,7 @@ import Thentos.Types
 -- * event functions
 
 emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
+emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
 
 
 -- ** smart accessors
@@ -453,7 +452,7 @@ lookupSessionAsService mSid mNow tok = do
 trans_startSession :: SessionToken -> Agent -> Timestamp -> Timeout -> ThentosUpdate ()
 trans_startSession freshSessionToken agent start lifetime = do
     let label = agent =%% agent
-        session = Session agent start end lifetime Map.empty
+        session = Session agent start end lifetime Set.empty
         end = Timestamp $ fromTimestamp start .+^ fromTimeout lifetime
     ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
     writeSession freshSessionToken session
@@ -493,7 +492,6 @@ trans_isActiveSession now tok = do
         (trans_lookupSessionQ (Just now) tok >> returnDb label True)
         (const $ returnDb label False)
 
-
 -- | Is session token currently active?  Bump if it is.  (See
 -- 'trans_isActiveSession'.)
 trans_isActiveSessionAndBump :: Timestamp -> SessionToken -> ThentosUpdate Bool
@@ -503,54 +501,22 @@ trans_isActiveSessionAndBump now tok = do
         (trans_lookupSession (Just (now, True)) tok >> returnDb label True)
         (const $ returnDb label False)
 
--- | Call 'GetServiceStatus' and return login bit.
-trans_isLoggedIntoService :: Timestamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
-trans_isLoggedIntoService now tok sid = do
-    ThentosLabeled l v <- getServiceStatus now tok sid
-    returnDb l $ fromMaybe False v
+-- | Checks whether a given service sessions is still active
+-- FIXME: expiry should be bumped (service session as well as thentos session)
+trans_isActiveServiceSession :: Timestamp -> ServiceSessionToken -> ThentosUpdate Bool
+trans_isActiveServiceSession now tok = do
+    serviceSessions <- gets (^. dbServiceSessions)
+    --FIXME: label
+    returnDb thentosPublic $ case Map.lookup tok serviceSessions of
+        Nothing -> False
+        Just session -> session ^. servSessExpiry >= now
 
--- | Call 'GetServiceStatus' and return registration bit.
-trans_isRegisteredWithService :: Timestamp -> SessionToken -> ServiceId -> ThentosUpdate Bool
-trans_isRegisteredWithService now tok sid = do
-    ThentosLabeled l v <- getServiceStatus now tok sid
-    returnDb l $ isJust v
-
--- | Return 'Nothing' if session owner is not registered with service,
--- or 'Just' a boolean indicating her login status if she is.  Bump session
--- if it is valid (even if user is not logged into service, but just
--- into thentos).
-getServiceStatus :: Timestamp -> SessionToken -> ServiceId -> ThentosUpdate (Maybe Bool)
-getServiceStatus now tok sid = do
-    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
-    catchT
-        (check >>= \ (ThentosLabeled _ v) -> returnDb label v)
-        (const                             $ returnDb label Nothing)
-  where
-    -- Label is 'thentosDenied' so that the caller is forced to
-    -- discard the label and set up a new one from scratch.
-    check :: ThentosUpdate (Maybe Bool)
-    check = do
-        let label = thentosDenied
-        ThentosLabeled _ (_, session)
-            <- lookupSessionAsService (Just sid) (Just (now, True)) tok
-        case session ^. sessionAgent of
-            UserA uid -> do
-                ThentosLabeled _ (_, user) <- liftThentosQuery $ trans_lookupUser uid
-                case Map.lookup sid $ user ^. userServices of
-                    Nothing -> returnDb label Nothing
-                    Just _ -> returnDb label . Just $
-                        let serviceSessions = session ^. sessionServiceSessions
-                        in case Map.lookup sid serviceSessions of
-                            Just serviceSess ->
-                                (serviceSess ^. serviceSessionExpiry) > now
-                            Nothing -> False
-            ServiceA _ -> returnDb label Nothing
 
 -- | Add a service login to a user session. Throws an error if the session
 -- doesn't exist / has expired or is a service session. If a service session
 -- already exists, it is overwritten.
-trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ThentosUpdate ()
-trans_addServiceLogin now timeout tok sid = do
+trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosUpdate ()
+trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
     let loginExpires = Timestamp $ fromTimestamp now .+^ fromTimeout timeout
     ThentosLabeled l1 (_, session) <- trans_lookupSession (Just (now, True)) tok
     case session ^. sessionAgent of
@@ -561,41 +527,48 @@ trans_addServiceLogin now timeout tok sid = do
             case Map.lookup sid (user ^. userServices) of
                 Nothing -> throwDb label NotRegisteredWithService
                 Just _ -> do
-                    let serviceSess = ServiceSession loginExpires (user ^. userName)
-                        adjustSession = sessionServiceSessions %~ Map.insert sid serviceSess
+                    let serviceSess = ServiceSession loginExpires
+                                                     (user ^. userName)
+                                                     sid
+                                                     tok
+                        adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
+                    modify $ dbServiceSessions %~ Map.insert newServiceSessionToken serviceSess
                     modify $ dbSessions %~ Map.adjust adjustSession tok
                     returnDb label ()
 
 -- | Delete a service session. Does nothing if the session does not exist.
 -- Throws an error if the session is owned by a service.
-trans_dropServiceLogin :: SessionToken -> ServiceId -> ThentosUpdate ()
-trans_dropServiceLogin tok sid = do
+trans_dropServiceLogin :: ServiceSessionToken -> ThentosUpdate ()
+trans_dropServiceLogin tok = do
     let label' = RoleAdmin =%% RoleAdmin
 
         label :: Maybe Agent -> ThentosLabel
         label (Just agent) = label' `lub` agent =%% agent
         label Nothing      = label'
 
-    mSession <- Map.lookup tok <$> gets (^. dbSessions)
-    case (^. sessionAgent) <$> mSession of
+    mServiceSession <- Map.lookup tok <$> gets (^. dbServiceSessions)
+    case mServiceSession of
         Nothing -> throwDb (label Nothing) NoSuchSession
-        Just sa@(ServiceA _) ->
-            throwDb (label $ Just sa) ServiceSessionInsteadOfUserSession
-        Just ua@(UserA _) -> do
-            let adjustSession = sessionServiceSessions %~ Map.delete sid
-            modify $ dbSessions %~ Map.adjust adjustSession tok
-            returnDb (label $ Just ua) ()
+        Just session -> do
+            let thentosSessionToken = session ^. servSessThentosSession
+                adjustSession = sessionServiceSessions %~ Set.delete tok
+            modify $ dbSessions %~ Map.adjust adjustSession thentosSessionToken
+            modify $ dbServiceSessions %~ Map.delete tok
+            returnDb thentosPublic ()
 
 trans_getSessionServiceNames :: Timestamp -> SessionToken -> UserId -> ThentosQuery [ServiceName]
 trans_getSessionServiceNames now tok uid = do
     ThentosLabeled label _ <- trans_lookupUser uid
     serviceMap <- (^. dbServices) <$> ask
     thentosSessions <- (^. dbSessions) <$> ask
+    serviceSessionMap <- (^. dbServiceSessions) <$> ask
     case Map.lookup tok thentosSessions of
-        Just session -> do
-            let serviceIds = map fst
-                            . filter (\ (_, s) -> (s ^. serviceSessionExpiry) >= now ) $
-                            Map.assocs (session ^. sessionServiceSessions)
+        Just (session :: Session) -> do
+            let serviceSessionTokens = Set.elems $ session ^. sessionServiceSessions
+                serviceSessions = catMaybes $ map (\ t -> Map.lookup t serviceSessionMap) serviceSessionTokens
+                serviceIds = map (^. servSessService)
+                            . filter (\ s -> (s ^. servSessExpiry) >= now ) $
+                            serviceSessions
                 getServiceName sid = (^. serviceName)
                                      . fromJustNote "inconsistent db state: user has sid that is not in dbServices"
                                      $ Map.lookup sid serviceMap
@@ -823,17 +796,14 @@ isActiveSession now tok clearance = runThentosQuery clearance $ trans_isActiveSe
 isActiveSessionAndBump :: Timestamp -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
 isActiveSessionAndBump now tok clearance = runThentosUpdate clearance $ trans_isActiveSessionAndBump now tok
 
-isLoggedIntoService :: Timestamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError Bool)
-isLoggedIntoService now tok sid clearance = runThentosUpdate clearance $ trans_isLoggedIntoService now tok sid
+isActiveServiceSession :: Timestamp -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
+isActiveServiceSession now tok clearance = runThentosUpdate clearance $ trans_isActiveServiceSession now tok
 
-isRegisteredWithService :: Timestamp -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError Bool)
-isRegisteredWithService now tok sid clearance = runThentosUpdate clearance $ trans_isRegisteredWithService now tok sid
+addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
+addServiceLogin now timeout tok sid newServiceSessionToken clearance = runThentosUpdate clearance $ trans_addServiceLogin now timeout tok sid newServiceSessionToken
 
-addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
-addServiceLogin now timeout tok sid clearance = runThentosUpdate clearance $ trans_addServiceLogin now timeout tok sid
-
-dropServiceLogin :: SessionToken -> ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
-dropServiceLogin tok sid clearance = runThentosUpdate clearance $ trans_dropServiceLogin tok sid
+dropServiceLogin :: ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
+dropServiceLogin tok clearance = runThentosUpdate clearance $ trans_dropServiceLogin tok
 
 getSessionServiceNames :: Timestamp -> SessionToken -> UserId -> ThentosClearance -> Query DB (Either ThentosError [ServiceName])
 getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans_getSessionServiceNames now tok uid
@@ -885,8 +855,7 @@ $(makeAcidic ''DB
     , 'endSession
     , 'isActiveSession
     , 'isActiveSessionAndBump
-    , 'isLoggedIntoService
-    , 'isRegisteredWithService
+    , 'isActiveServiceSession
     , 'addServiceLogin
     , 'dropServiceLogin
     , 'getSessionServiceNames

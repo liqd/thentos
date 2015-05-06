@@ -60,6 +60,7 @@ data DB =
       , _dbUnconfirmedUsers  :: Map ConfirmationToken (Timestamp, UserId, User)
       , _dbServices          :: Map ServiceId Service
       , _dbSessions          :: Map SessionToken Session
+      , _dbServiceSessions   :: Map ServiceSessionToken ServiceSession
       , _dbRoles             :: Map Agent [Role]
       , _dbPwResetTokens     :: Map PasswordResetToken (Timestamp, UserId)
       , _dbEmailChangeTokens :: Map ConfirmationToken (Timestamp, UserId, UserEmail)
@@ -209,28 +210,30 @@ data Session =
       , _sessionStart           :: !Timestamp
       , _sessionEnd             :: !Timestamp
       , _sessionTimeout         :: !Timeout
-      , _sessionServiceSessions :: !(Map ServiceId ServiceSession)
+      , _sessionServiceSessions :: !(Set ServiceSessionToken)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
---instance Aeson.FromJSON Session where parseJSON = Aeson.gparseJson
---instance Aeson.ToJSON Session where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 
 data ServiceSession =
     ServiceSession
-      { _serviceSessionExpiry   :: !Timestamp
-      , _serviceSessionMetadata :: !UserName
+      { _servSessExpiry         :: !Timestamp
+      , _servSessMetadata       :: !UserName
+      , _servSessService        :: !ServiceId
+      , _servSessThentosSession :: !SessionToken
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
-newtype SessionToken = SessionToken { fromSessionToken :: ST }
+newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
 
-instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
+newtype SessionToken = SessionToken { fromSessionToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
 
 newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -433,6 +436,7 @@ $(deriveSafeCopy 0 'base ''ServiceKey)
 $(deriveSafeCopy 0 'base ''ServiceName)
 $(deriveSafeCopy 0 'base ''ServiceDescription)
 $(deriveSafeCopy 0 'base ''ServiceSession)
+$(deriveSafeCopy 0 'base ''ServiceSessionToken)
 $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserName)

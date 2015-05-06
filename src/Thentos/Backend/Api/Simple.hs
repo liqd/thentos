@@ -62,6 +62,7 @@ type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
   :<|> "session" :> ThentosSession
+  :<|> "servicesession" :> ThentosServiceSession
   :<|> "proxy-test" :> ServiceProxy
 
 thentosBasic :: PushActionSubRoute (Server ThentosBasic)
@@ -69,6 +70,7 @@ thentosBasic =
        thentosUser
   :<|> thentosService
   :<|> thentosSession
+  :<|> thentosServiceSession
   :<|> serviceProxy
 
 
@@ -145,9 +147,6 @@ type ThentosSession =
   :<|> ReqBody (ServiceId, ServiceKey) :> Post SessionToken
   :<|> ReqBody SessionToken            :> Get Bool
   :<|> ReqBody SessionToken            :> Delete
-  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Post ()
-  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Get Bool
-  :<|> ReqBody SessionToken            :> Capture "sid" ServiceId :> Delete
 
 thentosSession :: PushActionSubRoute (Server ThentosSession)
 thentosSession =
@@ -155,6 +154,14 @@ thentosSession =
   :<|> uncurry startSessionService
   :<|> isActiveSession
   :<|> updateAction . EndSession
-  :<|> addServiceLogin
-  :<|> isLoggedIntoService
+
+
+-- * service session
+type ThentosServiceSession =
+       Capture "tok" ServiceSessionToken :> Get Bool
+  :<|> Capture "tok" ServiceSessionToken :> Delete
+
+thentosServiceSession :: PushActionSubRoute (Server ThentosServiceSession)
+thentosServiceSession =
+       isActiveServiceSession
   :<|> dropServiceLogin
