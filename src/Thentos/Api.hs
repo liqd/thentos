@@ -39,7 +39,7 @@ module Thentos.Api
   , bumpSession
   , isActiveSession
   , isActiveSessionAndBump
-  , isLoggedIntoService
+  , isActiveServiceSession
   , getSessionServiceNames
   , addServiceRegistration
   , dropServiceRegistration
@@ -199,6 +199,9 @@ freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 freshPasswordResetToken :: CPRG r => Action (MVar r) PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
+
+freshServiceSessionToken :: CPRG r => Action (MVar r) ServiceSessionToken
+freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 
 -- ** users
@@ -389,10 +392,10 @@ isActiveSessionAndBump tok = do
     now <- Timestamp <$> liftIO getCurrentTime
     updateAction $ IsActiveSessionAndBump now tok
 
-isLoggedIntoService :: SessionToken -> ServiceId -> Action r Bool
-isLoggedIntoService tok sid = do
+isActiveServiceSession :: ServiceSessionToken -> Action r Bool
+isActiveServiceSession tok = do
     now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ IsLoggedIntoService now tok sid
+    updateAction $ IsActiveServiceSession now tok
 
 getSessionServiceNames :: SessionToken -> UserId -> Action r [ServiceName]
 getSessionServiceNames sid uid = do
@@ -417,14 +420,15 @@ dropServiceRegistration tok sid = do
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
 
 -- | If user is not registered, throw an error.
-addServiceLogin :: SessionToken -> ServiceId -> Action r ()
+addServiceLogin :: CPRG r => SessionToken -> ServiceId -> Action (MVar r) ServiceSessionToken
 addServiceLogin tok sid = do
     now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ AddServiceLogin now defaultSessionTimeout tok sid
+    serviceSessionToken <- freshServiceSessionToken
+    updateAction $ AddServiceLogin now defaultSessionTimeout tok sid serviceSessionToken
 
 -- | If user is not registered, throw an error.
-dropServiceLogin :: SessionToken -> ServiceId -> Action r ()
-dropServiceLogin tok sid = updateAction $ DropServiceLogin tok sid
+dropServiceLogin :: ServiceSessionToken -> Action r ()
+dropServiceLogin tok = updateAction $ DropServiceLogin tok
 
 
 -- $overview

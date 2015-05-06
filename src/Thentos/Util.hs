@@ -25,6 +25,7 @@ import Thentos.Types
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as ST
 
 -- | @[2 2 1]@ is fast, but does not provide adequate
@@ -50,7 +51,7 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
-                  Map.empty
+                  Set.empty
                   Map.empty
 
 secretMatches :: ST -> HashedSecret a -> Bool

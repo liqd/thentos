@@ -351,10 +351,10 @@ serviceLogin = do
         loggedIn :: FrontendSessionLoginData -> FH ()
         loggedIn fsl = do
             let tok = fsl ^. fslToken
-            eSessionToken :: Either ThentosError SessionToken
+            eSessionToken :: Either ThentosError ServiceSessionToken
                 <- snapRunAction' allowEverything $ do  -- FIXME: use allowNothing, fix action to have correct label.
-                    addServiceLogin tok sid
-                    return tok
+                    serviceSessionToken <- addServiceLogin tok sid
+                    return serviceSessionToken
 
             case eSessionToken of
                 -- case B: user is logged into thentos and registered
@@ -362,7 +362,7 @@ serviceLogin = do
                 -- stash in thentos session state, extract the
                 -- callback URI from the request parameters, inject
                 -- the session token we just created, and redirect.
-                Right (SessionToken sessionToken) -> do
+                Right (ServiceSessionToken sessionToken) -> do
                     _ <- popServiceLoginState
                     let f = uriQueryL . queryPairsL %~ (("token", cs sessionToken) :)
                     meCallback <- parseURI laxURIParserOptions <$$> getParam "redirect"

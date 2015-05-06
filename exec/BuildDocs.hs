@@ -118,6 +118,9 @@ instance ToSample Adhocracy3.ContentType where
 instance ToCapture (Capture "token" SessionToken) where
     toCapture _ = DocCapture "token" "Session Token"
 
+instance ToCapture (Capture "token" ServiceSessionToken) where
+    toCapture _ = DocCapture "token" "Service Session Token"
+
 instance ToCapture (Capture "sid" ServiceId) where
     toCapture _ = DocCapture "sid" "Service ID"
 
@@ -126,13 +129,6 @@ instance ToCapture (Capture "uid" UserId) where
 
 instance ToSample Agent where
     toSample = Just . UserA . UserId $ 0
-
-instance ToSample Session where
-    toSample =
-        Session <$> toSample
-                <*> pure (Timestamp $ read "1986-20-09 00:00:00 UTC")
-                <*> pure (Timestamp $ read "1986-27-09 00:00:00 UTC")
-                <*> pure (Timeout 600)
 
 instance ToSample SessionToken where
     toSample = Just "abde1234llkjh"
