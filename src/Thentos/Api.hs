@@ -420,7 +420,7 @@ dropServiceRegistration tok sid = do
     updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
 
 -- | If user is not registered, throw an error.
-addServiceLogin :: CPRG r => SessionToken -> ServiceId -> Action (MVar r) ()
+addServiceLogin :: CPRG r => SessionToken -> ServiceId -> Action (MVar r) ServiceSessionToken
 addServiceLogin tok sid = do
     now <- Timestamp <$> liftIO getCurrentTime
     serviceSessionToken <- freshServiceSessionToken

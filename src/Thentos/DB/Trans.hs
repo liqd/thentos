@@ -514,11 +514,23 @@ trans_isActiveServiceSession now tok = do
 
 -- | Add a service login to a user session. Throws an error if the session
 -- doesn't exist / has expired or is a service session. If a service session
--- already exists, it is overwritten.
-trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosUpdate ()
+-- already exists for the given service, return its token.
+trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosUpdate ServiceSessionToken
 trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
     let loginExpires = Timestamp $ fromTimestamp now .+^ fromTimeout timeout
     ThentosLabeled l1 (_, session) <- trans_lookupSession (Just (now, True)) tok
+    serviceSessionMap <- gets (^. dbServiceSessions)
+
+    let makeNewServiceSession user label = do
+            let serviceSess = ServiceSession loginExpires
+                                             (user ^. userName)
+                                             sid
+                                             tok
+                adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
+            modify $ dbServiceSessions %~ Map.insert newServiceSessionToken serviceSess
+            modify $ dbSessions %~ Map.adjust adjustSession tok
+            returnDb label newServiceSessionToken
+
     case session ^. sessionAgent of
         ServiceA _ -> throwDb l1 ServiceSessionInsteadOfUserSession
         UserA uid -> do
@@ -527,14 +539,13 @@ trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
             case Map.lookup sid (user ^. userServices) of
                 Nothing -> throwDb label NotRegisteredWithService
                 Just _ -> do
-                    let serviceSess = ServiceSession loginExpires
-                                                     (user ^. userName)
-                                                     sid
-                                                     tok
-                        adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
-                    modify $ dbServiceSessions %~ Map.insert newServiceSessionToken serviceSess
-                    modify $ dbSessions %~ Map.adjust adjustSession tok
-                    returnDb label ()
+                    let serviceSessionTokens = Set.elems $ session ^. sessionServiceSessions
+                        serviceSessions = catMaybes $ map (\ t -> (t,) <$> Map.lookup t serviceSessionMap) serviceSessionTokens
+                    case filter (\ (_, s) -> s ^. servSessService == sid) serviceSessions of
+                        [] -> makeNewServiceSession user label
+                        [(t, _)] -> returnDb label t
+                        _ -> error "bad database state: multiple service sessions for same service under one session"
+
 
 -- | Delete a service session. Does nothing if the session does not exist.
 -- Throws an error if the session is owned by a service.
@@ -799,7 +810,7 @@ isActiveSessionAndBump now tok clearance = runThentosUpdate clearance $ trans_is
 isActiveServiceSession :: Timestamp -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
 isActiveServiceSession now tok clearance = runThentosUpdate clearance $ trans_isActiveServiceSession now tok
 
-addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
+addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ServiceSessionToken)
 addServiceLogin now timeout tok sid newServiceSessionToken clearance = runThentosUpdate clearance $ trans_addServiceLogin now timeout tok sid newServiceSessionToken
 
 dropServiceLogin :: ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
