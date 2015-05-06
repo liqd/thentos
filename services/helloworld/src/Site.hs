@@ -153,14 +153,11 @@ verifyToken (Just tokBS) =
         Right token -> do
             hwConfig <- gets aHWConfig
             let sid = encodeUtf8 $ serviceId hwConfig
-                url = thentosBackendUrl hwConfig <> "/session"
-                token_obj = Aeson.object ["fromSessionToken" .= token]
-                reqBody = RequestBodyLBS $ Aeson.encode token_obj
+                url = thentosBackendUrl hwConfig <> "/servicesession/" <> urlEncode (encodeUtf8 token)
             liftIO . withManager $ do
                 initReq <- parseUrl $ BC.unpack url
                 let req = initReq
                             { requestHeaders = [ ("X-Thentos-Service", sid) ]
-                            , requestBody = reqBody
                             }
                 response <- httpLbs req
                 case responseBody response of
