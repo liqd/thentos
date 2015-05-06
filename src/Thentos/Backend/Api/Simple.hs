@@ -160,8 +160,10 @@ thentosSession =
 type ThentosServiceSession =
        Capture "token" ServiceSessionToken :> Get Bool
   :<|> Capture "token" ServiceSessionToken :> Delete
+  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get UserName
 
 thentosServiceSession :: PushActionSubRoute (Server ThentosServiceSession)
 thentosServiceSession =
        isActiveServiceSession
   :<|> dropServiceLogin
+  :<|> queryAction . GetServiceSessionMetaData

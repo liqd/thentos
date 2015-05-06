@@ -61,7 +61,7 @@ module Thentos.DB.Trans
   , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
-  -- , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
+  , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
 
   , AssignRole(..), trans_assignRole
   , UnassignRole(..), trans_unassignRole
@@ -598,8 +598,13 @@ trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSession
 -- | FIXME: implement this to the point where it is visible as
 -- metadata in helloworld.  (don't worry too much about authorization
 -- / authentication for now.)
-trans_getServiceSessionMetaData :: SessionToken -> ThentosQuery ServiceSession
-trans_getServiceSessionMetaData = error "trans_getServiceSessionMetaData"
+trans_getServiceSessionMetaData :: ServiceSessionToken -> ThentosQuery UserName
+trans_getServiceSessionMetaData tok = do
+    mServiceSession <- Map.lookup tok . (^. dbServiceSessions) <$> ask
+    case mServiceSession of
+        -- FIXME: labels
+        Just serviceSess -> returnDb thentosPublic $ serviceSess ^. servSessMetadata
+        Nothing -> throwDb thentosPublic NoSuchToken
 
 
 -- *** helpers
@@ -822,6 +827,9 @@ getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans
 garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
+getServiceSessionMetaData :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError UserName)
+getServiceSessionMetaData tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetaData tok
+
 assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
 assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
 
@@ -871,6 +879,7 @@ $(makeAcidic ''DB
     , 'dropServiceLogin
     , 'getSessionServiceNames
     , 'garbageCollectSessions
+    , 'getServiceSessionMetaData
 
     , 'assignRole
     , 'unassignRole
