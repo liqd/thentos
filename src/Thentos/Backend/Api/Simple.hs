@@ -158,8 +158,8 @@ thentosSession =
 
 -- * service session
 type ThentosServiceSession =
-       Capture "tok" ServiceSessionToken :> Get Bool
-  :<|> Capture "tok" ServiceSessionToken :> Delete
+       Capture "token" ServiceSessionToken :> Get Bool
+  :<|> Capture "token" ServiceSessionToken :> Delete
 
 thentosServiceSession :: PushActionSubRoute (Server ThentosServiceSession)
 thentosServiceSession =
