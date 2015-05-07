@@ -1,23 +1,30 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Site
   ( app
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative (pure, (<$>), (<*>))
+import Control.Lens (makeLenses, (^.))
+import Control.Monad (when)
 import Control.Monad.State.Class (gets)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy (toStrict, fromStrict)
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
-import Network.HTTP.Types (methodPost)
+import Network.HTTP.Types (methodPost, methodDelete)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, getParam, method, Method(GET), ifTop, addRoutes)
+import Snap.Snaplet (Snaplet, with, nestSnaplet)
+import Snap.Snaplet.Session (getFromSession, setInSession, commitSession, resetSession)
+import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
+import Snap.Snaplet.Session.SessionManager (SessionManager)
 import Snap.Blaze (blaze)
 import Snap.Util.FileServe (serveDirectory)
 import Text.Blaze.Html (Html)
@@ -32,7 +39,9 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
 
 
-data App = App { aHWConfig :: HWConfig }
+data App = App { _aHWConfig :: HWConfig
+               , _sess      :: Snaplet SessionManager
+               }
 type AppHandler = Handler App App
 
 configFilePath :: FilePath
@@ -54,19 +63,21 @@ data HWConfig =
       }
   deriving (Eq, Show)
 
+makeLenses ''App
 
 handleApp :: AppHandler ()
 handleApp = do
-    token <- getParam "token"
-    tokenIsOk <- verifyToken token
-    metadata <- if tokenIsOk then getMetadata (fromJust token) else return ""
-    let json_obj = Aeson.decode $ fromStrict metadata
+    mToken <- with sess $ getFromSession "sessiontoken"
+    tokenIsOk <- verifyToken mToken
+    meta <- fromMaybe (return "")
+                      (if tokenIsOk then getMetadata <$> mToken else Nothing)
+    let json_obj = Aeson.decode $ fromStrict meta
         mUsername = json_obj >>= HashMap.lookup ("servSessMDUser" :: Text)
         username = fromMaybe "ERROR: couldn't parse username" mUsername
-    method GET . blaze $ appPage token tokenIsOk metadata username
+    method GET . blaze $ appPage mToken tokenIsOk meta username
 
-appPage :: Show sessionMetaData => Maybe ByteString -> Bool -> sessionMetaData -> String -> Html
-appPage token isTokenOk sessionMetaData user =
+appPage :: Show sessionMetadata => Maybe Text -> Bool -> sessionMetadata -> String -> Html
+appPage token isTokenOk sessionMetadata user =
     H.docTypeHtml $ do
         H.head $ do
             H.title "Greetotron2000"
@@ -93,16 +104,17 @@ appPage token isTokenOk sessionMetaData user =
                     H.td . H.pre . H.string . ppShow $ isTokenOk
                 H.tr $ do
                     H.td "session meta data"
-                    H.td . H.pre . H.string . ppShow $ sessionMetaData
+                    H.td . H.pre . H.string . ppShow $ sessionMetadata
 
 
 routes :: [(ByteString, Handler App App ())]
 routes =
-      [ ("",        ifTop $ redirect "/app")
-      , ("/app",    handleApp)
-      , ("/login",  helloWorldLogin)
-      , ("/logout", helloWorldLogout)
-      , ("",        serveDirectory "static")  -- for css and what not.
+      [ ("",                ifTop $ redirect "/app")
+      , ("/app",            handleApp)
+      , ("/login",          helloWorldLogin)
+      , ("/logout",         helloWorldLogout)
+      , ("/login_callback", helloWorldLoginCallback)
+      , ("",                serveDirectory "static")  -- for css and what not.
       ]
 
 app :: SnapletInit App App
@@ -110,7 +122,10 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
     Just hwConfig <- liftIO $ loadConfig
     liftIO . putStrLn $ ppShow hwConfig
     addRoutes routes
-    return $ App hwConfig
+    App
+       <$> pure hwConfig
+       <*> (nestSnaplet "hwsess" sess $
+               initCookieSessionManager "site_key.txt" "hwsess" Nothing)
   where
     loadConfig :: IO (Maybe HWConfig)
     loadConfig = do
@@ -139,41 +154,56 @@ app = makeSnaplet "app" "A hello-world service for testing thentos." Nothing $ d
 
 helloWorldLogin :: Handler App App ()
 helloWorldLogin = do
-    hwConfig <- gets aHWConfig
+    hwConfig <- gets (^. aHWConfig)
     redirect'
         (thentosFrontendUrl hwConfig <> "/service/login?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
-            <> urlEncode (helloWorldUrl hwConfig <> "/app"))
+            <> urlEncode (helloWorldUrl hwConfig <> "/login_callback"))
         303
 
--- | FIXME: notify thentos that user is logged out of service.  this
--- can happen either directly between service and thentos, or via
--- redirect through the browser.
+helloWorldLoginCallback :: AppHandler ()
+helloWorldLoginCallback = do
+    mTokenBS <- getParam "token"
+    case decodeUtf8' <$> mTokenBS of
+        Just (Right token) -> do
+            tokenIsOk <- verifyToken (Just token)
+            when tokenIsOk $ with sess $ do
+                setInSession "sessiontoken" token
+                commitSession
+        _ -> return ()
+    redirect "/app"
+
 helloWorldLogout :: Handler App App ()
-helloWorldLogout = redirect' "/app" 303
+helloWorldLogout = do
+    mToken <- with sess $ getFromSession "sessiontoken"
+    case mToken of
+        Just token -> do
+            initReq <- makeRequest ("/servicesession/" <> urlEncode (encodeUtf8 token))
+            let req = initReq { HC.method = methodDelete }
+            liftIO . withManager $ httpLbs req
+            with sess (resetSession >> commitSession)
+        Nothing -> return ()
+    redirect' "/app" 303
 
-verifyToken :: Maybe ByteString -> Handler App App Bool
+verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
-verifyToken (Just tokBS) =
-    case decodeUtf8' tokBS of
-        Left _ -> return False
-        Right token -> do
-            hwConfig <- gets aHWConfig
-            let sid = encodeUtf8 $ serviceId hwConfig
-                url = thentosBackendUrl hwConfig <> "/servicesession/" <> urlEncode (encodeUtf8 token)
-            liftIO . withManager $ do
-                initReq <- parseUrl $ BC.unpack url
-                let req = initReq
-                            { requestHeaders = [ ("X-Thentos-Service", sid) ]
-                            }
-                response <- httpLbs req
-                case responseBody response of
-                    "true"  -> return True
-                    "false" -> return False
-                    e       -> fail $ "Bad response: " ++ show e
+verifyToken (Just token) = do
+    hwConfig <- gets (^. aHWConfig)
+    let sid = encodeUtf8 $ serviceId hwConfig
+        url = thentosBackendUrl hwConfig <> "/servicesession/" <> urlEncode (encodeUtf8 token)
+    liftIO . withManager $ do
+        initReq <- parseUrl $ BC.unpack url
+        let req = initReq
+                    { requestHeaders = [ ("X-Thentos-Service", sid) ]
+                    }
+        response <- httpLbs req
+        case responseBody response of
+            "true"  -> return True
+            "false" -> return False
+            e       -> fail $ "Bad response: " ++ show e
 
-getMetadata :: ByteString -> Handler App App ByteString
+getMetadata :: Text -> Handler App App ByteString
 getMetadata token = do
-    let path = "/servicesession/" <> urlEncode token <> "/meta"
+    let path = "/servicesession/" <> urlEncode (encodeUtf8 token) <> "/meta"
     req <- makeRequest path
     liftIO . withManager $ do
         response <- httpLbs req
@@ -181,7 +211,7 @@ getMetadata token = do
 
 makeRequest :: ByteString -> Handler App App HC.Request
 makeRequest path = do
-    hwConfig <- gets aHWConfig
+    hwConfig <- gets (^. aHWConfig)
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
     let sid = encodeUtf8 $ serviceId hwConfig
@@ -191,7 +221,7 @@ makeRequest path = do
 -- the service has to authenticate with thentos
 getServiceSessionToken :: Handler App App ByteString
 getServiceSessionToken = do
-    hwConfig <- gets aHWConfig
+    hwConfig <- gets (^. aHWConfig)
     let sid = serviceId hwConfig
         key = serviceKey hwConfig
         url = thentosBackendUrl hwConfig <> "/session"
