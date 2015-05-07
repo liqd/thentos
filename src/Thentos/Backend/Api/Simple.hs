@@ -158,10 +158,12 @@ thentosSession =
 
 -- * service session
 type ThentosServiceSession =
-       Capture "token" ServiceSessionToken :> Get Bool
-  :<|> Capture "token" ServiceSessionToken :> Delete
+       Capture "token" ServiceSessionToken :> Delete
+  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get ServiceSessionMetaData
+  :<|> Capture "token" ServiceSessionToken :> Get Bool
 
 thentosServiceSession :: PushActionSubRoute (Server ThentosServiceSession)
 thentosServiceSession =
-       isActiveServiceSession
-  :<|> dropServiceLogin
+       dropServiceLogin
+  :<|> queryAction . GetServiceSessionMetaData
+  :<|> isActiveServiceSession

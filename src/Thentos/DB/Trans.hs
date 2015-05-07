@@ -61,7 +61,7 @@ module Thentos.DB.Trans
   , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
-  -- , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
+  , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
 
   , AssignRole(..), trans_assignRole
   , UnassignRole(..), trans_unassignRole
@@ -514,7 +514,8 @@ trans_isActiveServiceSession now tok = do
 
 -- | Add a service login to a user session. Throws an error if the session
 -- doesn't exist / has expired or is a service session. If a service session
--- already exists for the given service, return its token.
+-- already exists for the given service, return its token. Do not bump the
+-- the existing session.
 trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosUpdate ServiceSessionToken
 trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
     let loginExpires = Timestamp $ fromTimestamp now .+^ fromTimeout timeout
@@ -523,7 +524,7 @@ trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
 
     let makeNewServiceSession user label = do
             let serviceSess = ServiceSession loginExpires
-                                             (user ^. userName)
+                                             (ServiceSessionMetaData $ user ^. userName)
                                              sid
                                              tok
                 adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
@@ -595,11 +596,13 @@ trans_garbageCollectSessions :: ThentosQuery [SessionToken]
 trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSessions: not implemented"  -- FIXME
 
 
--- | FIXME: implement this to the point where it is visible as
--- metadata in helloworld.  (don't worry too much about authorization
--- / authentication for now.)
-trans_getServiceSessionMetaData :: SessionToken -> ThentosQuery ServiceSession
-trans_getServiceSessionMetaData = error "trans_getServiceSessionMetaData"
+trans_getServiceSessionMetaData :: ServiceSessionToken -> ThentosQuery ServiceSessionMetaData
+trans_getServiceSessionMetaData tok = do
+    mServiceSession <- Map.lookup tok . (^. dbServiceSessions) <$> ask
+    case mServiceSession of
+        -- FIXME: labels
+        Just serviceSess -> returnDb thentosPublic $ serviceSess ^. servSessMetadata
+        Nothing -> throwDb thentosPublic NoSuchToken
 
 
 -- *** helpers
@@ -822,6 +825,9 @@ getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans
 garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
+getServiceSessionMetaData :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError ServiceSessionMetaData)
+getServiceSessionMetaData tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetaData tok
+
 assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
 assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
 
@@ -871,6 +877,7 @@ $(makeAcidic ''DB
     , 'dropServiceLogin
     , 'getSessionServiceNames
     , 'garbageCollectSessions
+    , 'getServiceSessionMetaData
 
     , 'assignRole
     , 'unassignRole
