@@ -61,7 +61,7 @@ module Thentos.DB.Trans
   , GetSessionServiceNames(..), trans_getSessionServiceNames
   , GarbageCollectSessions(..), trans_garbageCollectSessions
 
-  , GetServiceSessionMetaData(..), trans_getServiceSessionMetaData
+  , GetServiceSessionMetadata(..), trans_getServiceSessionMetadata
 
   , AssignRole(..), trans_assignRole
   , UnassignRole(..), trans_unassignRole
@@ -524,7 +524,7 @@ trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
 
     let makeNewServiceSession user label = do
             let serviceSess = ServiceSession loginExpires
-                                             (ServiceSessionMetaData $ user ^. userName)
+                                             (ServiceSessionMetadata $ user ^. userName)
                                              sid
                                              tok
                 adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
@@ -596,8 +596,8 @@ trans_garbageCollectSessions :: ThentosQuery [SessionToken]
 trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSessions: not implemented"  -- FIXME
 
 
-trans_getServiceSessionMetaData :: ServiceSessionToken -> ThentosQuery ServiceSessionMetaData
-trans_getServiceSessionMetaData tok = do
+trans_getServiceSessionMetadata :: ServiceSessionToken -> ThentosQuery ServiceSessionMetadata
+trans_getServiceSessionMetadata tok = do
     mServiceSession <- Map.lookup tok . (^. dbServiceSessions) <$> ask
     case mServiceSession of
         -- FIXME: labels
@@ -828,8 +828,8 @@ getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans
 garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
 garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
 
-getServiceSessionMetaData :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError ServiceSessionMetaData)
-getServiceSessionMetaData tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetaData tok
+getServiceSessionMetadata :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError ServiceSessionMetadata)
+getServiceSessionMetadata tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetadata tok
 
 assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
 assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
@@ -880,7 +880,7 @@ $(makeAcidic ''DB
     , 'dropServiceLogin
     , 'getSessionServiceNames
     , 'garbageCollectSessions
-    , 'getServiceSessionMetaData
+    , 'getServiceSessionMetadata
 
     , 'assignRole
     , 'unassignRole

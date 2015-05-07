@@ -220,7 +220,7 @@ instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
 data ServiceSession =
     ServiceSession
       { _servSessExpiry         :: !Timestamp
-      , _servSessMetadata       :: !ServiceSessionMetaData
+      , _servSessMetadata       :: !ServiceSessionMetadata
       , _servSessService        :: !ServiceId
       , _servSessThentosSession :: !SessionToken
       }
@@ -229,14 +229,14 @@ data ServiceSession =
 instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
-data ServiceSessionMetaData =
-    ServiceSessionMetaData
+data ServiceSessionMetadata =
+    ServiceSessionMetadata
       { _servSessMDUser :: !UserName
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-instance Aeson.FromJSON ServiceSessionMetaData where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceSessionMetaData where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON ServiceSessionMetadata where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
@@ -445,7 +445,7 @@ $(deriveSafeCopy 0 'base ''ServiceKey)
 $(deriveSafeCopy 0 'base ''ServiceName)
 $(deriveSafeCopy 0 'base ''ServiceDescription)
 $(deriveSafeCopy 0 'base ''ServiceSession)
-$(deriveSafeCopy 0 'base ''ServiceSessionMetaData)
+$(deriveSafeCopy 0 'base ''ServiceSessionMetadata)
 $(deriveSafeCopy 0 'base ''ServiceSessionToken)
 $(deriveSafeCopy 0 'base ''SessionToken)
 $(deriveSafeCopy 0 'base ''UserEmail)

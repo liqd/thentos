@@ -177,8 +177,8 @@ instance ToSample (UserId, Timeout) where
 instance ToSample (UserId, ServiceId) where
     toSample = (,) <$> toSample <*> toSample
 
-instance ToSample ServiceSessionMetaData where
-    toSample = ServiceSessionMetaData <$> toSample
+instance ToSample ServiceSessionMetadata where
+    toSample = ServiceSessionMetadata <$> toSample
 
 instance ToSample () where
     toSample = Just ()

@@ -76,8 +76,8 @@ handleApp = do
         username = fromMaybe "ERROR: couldn't parse username" mUsername
     method GET . blaze $ appPage mToken tokenIsOk meta username
 
-appPage :: Show sessionMetaData => Maybe Text -> Bool -> sessionMetaData -> String -> Html
-appPage token isTokenOk sessionMetaData user =
+appPage :: Show sessionMetadata => Maybe Text -> Bool -> sessionMetadata -> String -> Html
+appPage token isTokenOk sessionMetadata user =
     H.docTypeHtml $ do
         H.head $ do
             H.title "Greetotron2000"
@@ -104,7 +104,7 @@ appPage token isTokenOk sessionMetaData user =
                     H.td . H.pre . H.string . ppShow $ isTokenOk
                 H.tr $ do
                     H.td "session meta data"
-                    H.td . H.pre . H.string . ppShow $ sessionMetaData
+                    H.td . H.pre . H.string . ppShow $ sessionMetadata
 
 
 routes :: [(ByteString, Handler App App ())]
