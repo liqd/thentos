@@ -633,13 +633,16 @@ writeSession tok session = do
 deleteSession :: SessionToken -> ThentosUpdate' e ()
 deleteSession tok = do
     mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
-    case (^. sessionAgent) <$> mSession of
-        Just (UserA    uid) -> modify $ dbUsers    %~ Map.adjust _updateUser uid
-        Just (ServiceA sid) -> modify $ dbServices %~ Map.adjust _updateService sid
-        Nothing             -> return ()
+    case mSession of
+        Just session -> do
+            case session ^. sessionAgent of
+                UserA    uid -> modify $ dbUsers    %~ Map.adjust _updateUser uid
+                ServiceA sid -> modify $ dbServices %~ Map.adjust _updateService sid
+            modify $ dbSessions %~ Map.delete tok
+            let serviceSessions = session ^. sessionServiceSessions
+            modify $ dbServiceSessions %~ Map.filterWithKey (\ t _ -> Set.notMember t serviceSessions)
+        Nothing -> return ()
 
-    modify $ dbSessions %~ Map.delete tok
-    return ()
   where
     _updateUser :: User -> User
     _updateUser = userSessions %~ Set.delete tok
