@@ -592,8 +592,16 @@ trans_getSessionServiceNames now tok uid = do
 -- | Go through 'dbSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
 -- and then @EndSession@ on all service ids individually.)
-trans_garbageCollectSessions :: ThentosQuery [SessionToken]
-trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSessions: not implemented"  -- FIXME
+trans_garbageCollectSessions :: Timestamp -> ThentosQuery [SessionToken]
+trans_garbageCollectSessions now = do
+    sessions <- (^. dbSessions) <$> ask
+    returnDb thentosPublic
+             (map fst $ filter (\ (_, s) -> s ^. sessionEnd < now) (Map.assocs sessions))
+
+trans_doGarbageCollectSessions :: [SessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectSessions tokens = do
+    forM_ tokens deleteSession
+    returnDb thentosPublic ()
 
 
 trans_getServiceSessionMetaData :: ServiceSessionToken -> ThentosQuery ServiceSessionMetaData
@@ -822,8 +830,8 @@ dropServiceLogin tok clearance = runThentosUpdate clearance $ trans_dropServiceL
 getSessionServiceNames :: Timestamp -> SessionToken -> UserId -> ThentosClearance -> Query DB (Either ThentosError [ServiceName])
 getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans_getSessionServiceNames now tok uid
 
-garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
-garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
+garbageCollectSessions :: Timestamp -> ThentosClearance -> Query DB (Either ThentosError [SessionToken])
+garbageCollectSessions now clearance = runThentosQuery clearance $ trans_garbageCollectSessions now
 
 getServiceSessionMetaData :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError ServiceSessionMetaData)
 getServiceSessionMetaData tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetaData tok
