@@ -19,10 +19,10 @@ import Data.Monoid ((<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
-import Network.HTTP.Types (methodPost)
+import Network.HTTP.Types (methodPost, methodDelete)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Snaplet (Snaplet, with, nestSnaplet)
-import Snap.Snaplet.Session (getFromSession, setInSession, commitSession)
+import Snap.Snaplet.Session (getFromSession, setInSession, commitSession, resetSession)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
 import Snap.Snaplet.Session.SessionManager (SessionManager)
 import Snap.Blaze (blaze)
@@ -173,11 +173,17 @@ helloWorldLogin = do
             <> urlEncode (helloWorldUrl hwConfig <> "/login_callback"))
         303
 
--- | FIXME: notify thentos that user is logged out of service.  this
--- can happen either directly between service and thentos, or via
--- redirect through the browser.
 helloWorldLogout :: Handler App App ()
-helloWorldLogout = redirect' "/app" 303
+helloWorldLogout = do
+    mToken <- with sess $ getFromSession "sessiontoken"
+    case mToken of
+        Just token -> do
+            initReq <- makeRequest ("/servicesession/" <> urlEncode (encodeUtf8 token))
+            let req = initReq { HC.method = methodDelete }
+            liftIO . withManager $ httpLbs req
+            with sess (resetSession >> commitSession)
+        Nothing -> return ()
+    redirect' "/app" 303
 
 verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
