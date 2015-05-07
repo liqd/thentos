@@ -76,19 +76,6 @@ handleApp = do
         username = fromMaybe "ERROR: couldn't parse username" mUsername
     method GET . blaze $ appPage mToken tokenIsOk meta username
 
-helloWorldLoginCallback :: AppHandler ()
-helloWorldLoginCallback = do
-    mTokenBS <- getParam "token"
-    case decodeUtf8' <$> mTokenBS of
-        Just (Right token) -> do
-            tokenIsOk <- verifyToken (Just token)
-            when tokenIsOk $ with sess $ do
-                setInSession "sessiontoken" token
-                commitSession
-        _ -> return ()
-    redirect "/app"
-
-
 appPage :: Show sessionMetaData => Maybe Text -> Bool -> sessionMetaData -> String -> Html
 appPage token isTokenOk sessionMetaData user =
     H.docTypeHtml $ do
@@ -172,6 +159,18 @@ helloWorldLogin = do
         (thentosFrontendUrl hwConfig <> "/service/login?sid=" <> (urlEncode . encodeUtf8 $ serviceId hwConfig) <> "&redirect="
             <> urlEncode (helloWorldUrl hwConfig <> "/login_callback"))
         303
+
+helloWorldLoginCallback :: AppHandler ()
+helloWorldLoginCallback = do
+    mTokenBS <- getParam "token"
+    case decodeUtf8' <$> mTokenBS of
+        Just (Right token) -> do
+            tokenIsOk <- verifyToken (Just token)
+            when tokenIsOk $ with sess $ do
+                setInSession "sessiontoken" token
+                commitSession
+        _ -> return ()
+    redirect "/app"
 
 helloWorldLogout :: Handler App App ()
 helloWorldLogout = do
