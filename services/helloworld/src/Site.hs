@@ -10,7 +10,8 @@ import Control.Monad.State.Class (gets)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson ((.=))
 import Data.ByteString (ByteString)
-import Data.ByteString.Lazy (toStrict)
+import Data.ByteString.Lazy (toStrict, fromStrict)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
@@ -25,6 +26,7 @@ import Text.Show.Pretty (ppShow)
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Configurator as Configurator
+import qualified Data.HashMap.Strict as HashMap
 import qualified Network.HTTP.Client.Conduit as HC
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
@@ -57,10 +59,14 @@ handleApp :: AppHandler ()
 handleApp = do
     token <- getParam "token"
     tokenIsOk <- verifyToken token
-    method GET . blaze $ appPage token tokenIsOk ()
+    metadata <- if tokenIsOk then getMetadata (fromJust token) else return ""
+    let json_obj = Aeson.decode $ fromStrict metadata
+        mUsername = json_obj >>= HashMap.lookup ("servSessMDUser" :: Text)
+        username = fromMaybe "ERROR: couldn't parse username" mUsername
+    method GET . blaze $ appPage token tokenIsOk metadata username
 
-appPage :: Show sessionMetaData => Maybe ByteString -> Bool -> sessionMetaData -> Html
-appPage token isTokenOk sessionMetaData =
+appPage :: Show sessionMetaData => Maybe ByteString -> Bool -> sessionMetaData -> String -> Html
+appPage token isTokenOk sessionMetaData user =
     H.docTypeHtml $ do
         H.head $ do
             H.title "Greetotron2000"
@@ -70,7 +76,7 @@ appPage token isTokenOk sessionMetaData =
 
             case token of
                 (Just _) -> H.div H.! HA.class_ "logged_in" $ do
-                    H.p "you are logged in.  hello, somebody!"
+                    H.p $ "you are logged in.  hello, " <> H.string user <> "!"
                     H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ H.text "logout"
                 Nothing -> H.div H.! HA.class_ "logged_out" $ do
                     H.p "hello, nobody!"
@@ -164,6 +170,22 @@ verifyToken (Just tokBS) =
                     "true"  -> return True
                     "false" -> return False
                     e       -> fail $ "Bad response: " ++ show e
+
+getMetadata :: ByteString -> Handler App App ByteString
+getMetadata token = do
+    let path = "/servicesession/" <> urlEncode token <> "/meta"
+    req <- makeRequest path
+    liftIO . withManager $ do
+        response <- httpLbs req
+        return . toStrict $ responseBody response
+
+makeRequest :: ByteString -> Handler App App HC.Request
+makeRequest path = do
+    hwConfig <- gets aHWConfig
+    let url = thentosBackendUrl hwConfig <> path
+    initReq <- liftIO . parseUrl $ BC.unpack url
+    let sid = encodeUtf8 $ serviceId hwConfig
+    return $ initReq { requestHeaders = [("X-Thentos-Service", sid)] }
 
 -- this is currently unused, but we should really have an example where
 -- the service has to authenticate with thentos
