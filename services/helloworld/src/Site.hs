@@ -69,7 +69,8 @@ handleApp :: AppHandler ()
 handleApp = do
     mToken <- with sess $ getFromSession "sessiontoken"
     tokenIsOk <- verifyToken mToken
-    meta <- fromMaybe (return "") (getMetadata <$> mToken)
+    meta <- fromMaybe (return "")
+                      (if tokenIsOk then getMetadata <$> mToken else Nothing)
     let json_obj = Aeson.decode $ fromStrict meta
         mUsername = json_obj >>= HashMap.lookup ("servSessMDUser" :: Text)
         username = fromMaybe "ERROR: couldn't parse username" mUsername

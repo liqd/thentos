@@ -602,7 +602,7 @@ trans_getServiceSessionMetaData tok = do
     case mServiceSession of
         -- FIXME: labels
         Just serviceSess -> returnDb thentosPublic $ serviceSess ^. servSessMetadata
-        Nothing -> throwDb thentosPublic NoSuchToken
+        Nothing -> throwDb thentosPublic NoSuchSession
 
 
 -- *** helpers
