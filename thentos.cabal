@@ -52,27 +52,26 @@ library
     cpp-options: -DDEVELOPMENT -w
     ghc-options: -w
   exposed-modules:
-      Thentos
-    , Thentos.Types
-    , Thentos.Util
-    , Thentos.Config
-    , Thentos.DB
-    , Thentos.DB.Core
-    , Thentos.DB.Trans
-    , Thentos.DB.Protect
-    , Thentos.Api
-    , Thentos.Backend.Core
-    , Thentos.Backend.Api.Simple
-    , Thentos.Backend.Api.Proxy
+      System.Log.Missing
+    , Thentos
+    , Thentos.Action
+    , Thentos.Action.Core
     , Thentos.Backend.Api.Adhocracy3
+    , Thentos.Backend.Api.Proxy
+    , Thentos.Backend.Api.Simple
+    , Thentos.Backend.Core
+    , Thentos.Config
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
-    , Thentos.Frontend.Util
     , Thentos.Frontend.Types
+    , Thentos.Frontend.Util
     , Thentos.Smtp
-    , System.Log.Missing
+    , Thentos.Transaction
+    , Thentos.Transaction.Core
+    , Thentos.Types
+    , Thentos.Util
   build-depends:
       base
     , acid-state

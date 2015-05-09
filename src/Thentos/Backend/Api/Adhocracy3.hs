@@ -8,6 +8,7 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -15,20 +16,19 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
-{-# OPTIONS  #-}
-
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
 module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
+import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (left)
 import Control.Monad.Trans.Reader (ask)
 import Control.Monad (when, unless, mzero)
-import Crypto.Random (SystemRNG)
+import "crypto-random" Crypto.Random (SystemRNG)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
@@ -54,14 +54,16 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 
 import System.Log.Missing
-import Thentos.Api
+import Thentos.Action
+import Thentos.Action.Core
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
-import Thentos.DB
 import Thentos.Smtp
 import Thentos.Types
 import Thentos.Util
+
+import qualified Thentos.Transaction as T
 
 
 -- * data types
@@ -211,7 +213,7 @@ data LoginRequest =
   deriving (Eq, Typeable, Generic)
 
 data RequestResult =
-    RequestSuccess Path SessionToken
+    RequestSuccess Path ThentosSessionToken
   | RequestError [ST]
   deriving (Eq, Show, Typeable, Generic)
 
@@ -261,12 +263,12 @@ instance FromJSON RequestResult where
 
 -- * main
 
-runBackend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runBackend :: HttpConfig -> ActionState -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi asg
 
-serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
+serveApi :: ActionState -> Application
 serveApi = serve (Proxy :: Proxy App) . app
 
 
@@ -283,7 +285,7 @@ type App =
   :<|> "login_email"           :> ReqBody LoginRequest :> Post RequestResult
   :<|> ServiceProxy
 
-app :: ActionStateGlobal (MVar SystemRNG) -> Server App
+app :: ActionState -> Server App
 app asg = p $
        addUser
   :<|> activate
@@ -291,42 +293,49 @@ app asg = p $
   :<|> login
   :<|> serviceProxy
   where
-    p = pushAction (asg, \ _ _ -> Right allowEverything)  -- FIXME: this is kinda bad security.
+    p = pushAction asg
 
 
 -- * handler
 
-addUser :: A3UserWithPass -> RestAction (A3Resource A3UserNoPass)
-addUser (A3UserWithPass user) = logActionError $ do
-    logger DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
-    ((_, _, config :: ThentosConfig), _) <- ask
+addUser :: A3UserWithPass -> Action (A3Resource A3UserNoPass)
+addUser (A3UserWithPass user) = logIfError'P $ do
+    logger'P DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
+    config <- getConfig'P
     (uid :: UserId, tok :: ConfirmationToken) <- addUnconfirmedUser user
     let activationUrl = cs (exposeUrl feHttp) <> "/signup_confirm/" <> cs enctok
         feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
               Just v -> Tagged v
         enctok = urlEncode . cs . fromConfirmationToken $ tok
-    liftIO $ sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
+    sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
+sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action ()
+sendUserConfirmationMail smtpConfig user callbackUrl = do
+    sendMail'P smtpConfig (Just $ udName user) (udEmail user) subject message
+  where
+    message = "Please go to " <> callbackUrl <> " to confirm your account."
+    subject = "Thentos account creation confirmation"
 
-activate :: ActivationRequest -> RestAction RequestResult
-activate (ActivationRequest p) = logActionError $ do
-    logger DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
-    ctok :: ConfirmationToken <- confirmationTokenFromPath p
-    uid  :: UserId            <- confirmNewUser ctok
-    stok :: SessionToken      <- startSessionNoPass (UserA uid)
+
+activate :: ActivationRequest -> Action RequestResult
+activate (ActivationRequest p) = logIfError'P $ do
+    logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
+    ctok :: ConfirmationToken   <- confirmationTokenFromPath p
+    uid  :: UserId              <- confirmNewUser ctok
+    stok :: ThentosSessionToken <- startThentosSessionByAgent (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
 
 -- | FIXME: check password!
-login :: LoginRequest -> RestAction RequestResult
-login r = logActionError $ do
-    -- logger DEBUG $ "route login:" <> show r
+login :: LoginRequest -> Action RequestResult
+login r = logIfError'P $ do
+    logger'P DEBUG $ "/login/"
     (uid, _) <- case r of
-        LoginByName  uname _  -> queryAction $ LookupUserByName  uname
-        LoginByEmail uemail _ -> queryAction $ LookupUserByEmail uemail
-    stok :: SessionToken <- startSessionNoPass (UserA uid)
+        LoginByName  uname _  -> lookupUserByName  uname
+        LoginByEmail uemail _ -> lookupUserByEmail uemail
+    stok :: ThentosSessionToken <- startThentosSessionByAgent (UserA uid)
     return $ RequestSuccess (userIdToPath uid) stok
 
 
@@ -335,17 +344,17 @@ login r = logActionError $ do
 userIdToPath :: UserId -> Path
 userIdToPath (UserId i) = Path . cs $ (printf "/princicpals/users/%7.7i" i :: String)
 
-userIdFromPath :: Path -> RestAction UserId
-userIdFromPath (Path s) = maybe (lift . left $ NoSuchUser) return $
+userIdFromPath :: Path -> Action UserId
+userIdFromPath (Path s) = maybe (throwError NoSuchUser) return $
     case ST.splitAt (ST.length prefix) s of
         (prefix', s') | prefix' == prefix -> fmap UserId . readMay . cs $ s'
         _ -> Nothing
   where
     prefix = "/principals/users/"
 
-confirmationTokenFromPath :: Path -> RestAction ConfirmationToken
+confirmationTokenFromPath :: Path -> Action ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
     (s, s') | s == prefix -> return $ ConfirmationToken s'
-    _ -> lift . left $ MalformedConfirmationToken p
+    _ -> throwError $ MalformedConfirmationToken p
   where
     prefix = "/activate/"

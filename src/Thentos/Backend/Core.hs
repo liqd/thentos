@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -15,17 +16,13 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
-{-# OPTIONS  #-}
-
 module Thentos.Backend.Core
 where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar)
 import Control.Exception (assert)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
-import Crypto.Random (SystemRNG)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
@@ -41,16 +38,15 @@ import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
 import Servant.Server (HasServer, Server, route)
+import LIO.DCLabel ((%%))
 
 import qualified Data.ByteString.Char8 as SBS
 
-import Thentos.Api
+import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Types
 
 
-type RestAction      = Action (MVar SystemRNG)
-type RestActionState = ActionState (MVar SystemRNG)
 type RestActionRaw   = EitherT RestError IO
 type RestError       = (Int, String)
 
@@ -63,7 +59,7 @@ type RestError       = (Int, String)
 -- 'RestError'.)
 class PushActionC a where
     type PushActionSubRoute a
-    pushAction :: RestActionState -> PushActionSubRoute a -> a
+    pushAction :: ActionState -> PushActionSubRoute a -> a
 
 instance (PushActionC b) => PushActionC (a -> b) where
     type PushActionSubRoute (a -> b) = a -> PushActionSubRoute b
@@ -74,8 +70,11 @@ instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
     pushAction clearance (a :<|> b) = pushAction clearance a :<|> pushAction clearance b
 
 instance PushActionC (RestActionRaw a) where
-    type PushActionSubRoute (RestActionRaw a) = RestAction a
-    pushAction restState restAction = fmapLTM showThentosError $ runReaderT restAction restState
+    type PushActionSubRoute (RestActionRaw a) = Action a
+    pushAction restState restAction = assert False $ error "PushActionC (RestActionRaw a)"
+                                        -- fmapLTM showThentosError $ runActionE clearance restState restAction
+      where
+        clearance = True %% False  -- FIXME
 
 -- | For handling 'Raw'.  (The 'Application' type has been stripped of
 -- its arguments by the time the compiler will find this instance.)
@@ -87,8 +86,9 @@ instance PushActionC (RestActionRaw a) where
 -- a transparent newtype that can be instantiated here instead of the
 -- function type.  for now, just crash in case of errors.
 instance PushActionC (IO ResponseReceived) where
-    type PushActionSubRoute (IO ResponseReceived) = RestAction ResponseReceived
-    pushAction restState restAction = (either crash id <$>) . runEitherT $ runReaderT restAction restState
+    type PushActionSubRoute (IO ResponseReceived) = Action ResponseReceived
+    pushAction restState restAction = assert False $ error "PushActionC (IO ResponseReceived)"
+                                -- (either crash id <$>) . runEitherT $ runReaderT restAction restState
       where
         crash x = assert False $ error $ "[PushActionC for Raw] somebody threw an error, but we can't handle those yet: "
                     ++ show x

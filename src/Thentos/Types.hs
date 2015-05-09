@@ -1,17 +1,16 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
-{-# LANGUAGE DeriveFunctor                            #-}
-{-# LANGUAGE DeriveGeneric                            #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving               #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TemplateHaskell                          #-}
-
-{-# OPTIONS  #-}
+{-# LANGUAGE DataKinds                   #-}
+{-# LANGUAGE DeriveDataTypeable          #-}
+{-# LANGUAGE DeriveFunctor               #-}
+{-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleInstances           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE OverloadedStrings           #-}
+{-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE TemplateHaskell             #-}
 
 module Thentos.Types where
 
+import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
@@ -22,12 +21,11 @@ import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCop
 import Data.Set (Set)
 import Data.String.Conversions (ST)
 import Data.String (IsString)
-import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
+import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import Data.Typeable (Proxy(Proxy), typeOf)
 import GHC.Generics (Generic)
-import LIO.DCLabel (DCLabel, ToCNF, toCNF)
-import LIO.Label (Label, canFlowTo, glb, lub)
+import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
@@ -35,6 +33,7 @@ import System.Log.Logger (Priority(INFO))
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.Map as Map
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -56,32 +55,39 @@ getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . r
 
 data DB =
     DB
-      { _dbUsers             :: Map UserId User
-      , _dbUnconfirmedUsers  :: Map ConfirmationToken (Timestamp, UserId, User)
-      , _dbServices          :: Map ServiceId Service
-      , _dbSessions          :: Map SessionToken Session
-      , _dbServiceSessions   :: Map ServiceSessionToken ServiceSession
-      , _dbRoles             :: Map Agent [Role]
-      , _dbPwResetTokens     :: Map PasswordResetToken (Timestamp, UserId)
-      , _dbEmailChangeTokens :: Map ConfirmationToken (Timestamp, UserId, UserEmail)
+      { _dbUsers             :: !(Map UserId User)
+      , _dbServices          :: !(Map ServiceId Service)
+      , _dbThentosSessions   :: !(Map ThentosSessionToken ThentosSession)
+      , _dbServiceSessions   :: !(Map ServiceSessionToken ServiceSession)
+      , _dbRoles             :: !(Map Agent (Set Role))
+      , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
+      , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
+      , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
 
+emptyDB :: DB
+emptyDB = DB m m m m
+             m m m m
+             (UserId 0)
+  where m = Map.empty
+
 
 -- * user
 
--- | (user groups (the data that services want to store and retrieve
--- in thentos) and session tokens of all active sessions are stored in
--- assoc lists rather than maps.  this saves us explicit json
+-- | (user groups (the data that services want to store and retrieve in thentos) and session tokens
+-- of all active sessions are stored in assoc lists rather than maps.  this saves us explicit json
 -- instances for now.)
 data User =
     User
-      { _userName     :: !UserName
-      , _userPassword :: !(HashedSecret UserPass)
-      , _userEmail    :: !UserEmail
-      , _userSessions :: !(Set SessionToken) -- ^ thentos sessions (service sessions are stored in @DB ^. dbSessions@)
-      , _userServices :: !(Map ServiceId ServiceAccount)  -- ^ services (with session info)
+      { _userName            :: !UserName
+      , _userPassword        :: !(HashedSecret UserPass)
+      , _userEmail           :: !UserEmail
+      , _userThentosSessions :: !(Set ThentosSessionToken)
+          -- ^ (service sessions are stored in the resp. value in @DB ^. dbSessions@)
+      , _userServices        :: !(Map ServiceId ServiceAccount)
+          -- ^ services (with session account information)
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -90,16 +96,14 @@ data User =
 data ServiceAccount =
     ServiceAccount
       { _serviceAnonymous :: !Bool
-        -- ^ Do not give out any information about user beyond session token validity bit.  (not implemented.)
+        -- ^ Do not give out any information about user beyond session token validity bit.  (not
+        -- implemented.)
 
-        -- FUTURE WORK: what we actually would want here is
-        -- "something" (type?  function?  something more creative?)
-        -- that can be used as a filter on 'User' and will hide things
-        -- from the service as appropriate.  we also want 'Service' to
-        -- contain a counterpart "something".  and a matcher that
-        -- takes a service "something" and a user "something" and
-        -- computes a compromise (or 'Nothing' if there is a
-        -- conflict).
+        -- FUTURE WORK: what we actually would want here is "something" (type?  function?  something
+        -- more creative?)  that can be used as a filter on 'User' and will hide things from the
+        -- service as appropriate.  we also want 'Service' to contain a counterpart "something".
+        -- and a matcher that takes a service "something" and a user "something" and computes a
+        -- compromise (or 'Nothing' if there is a conflict).
 
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -113,11 +117,9 @@ newtype UserId = UserId { fromUserId :: Integer }
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
 
--- | FIXME: ToJSON instance should go away in order to avoid
--- accidental leakage of cleartext passwords.  but for the
--- experimentation phase this is too much of a headache.  either way,
--- don't do any half-assed rendering to "[password hidden]".  causes
--- too many confusing errors.
+-- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
+-- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
+-- circumstances render to something like "[password hidden]".  Causes a lot of confusion.)
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
@@ -152,14 +154,17 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 -- * service
 
+-- | (Service owner is an 'Agent', not a 'User', so that services can (but do not have to) be owned
+-- by their parent services in a service hierarchy.)
 data Service =
     Service
-      { _serviceKey         :: !(HashedSecret ServiceKey)
-      , _serviceOwner       :: !Agent  -- ^ (Services can be created by their parents in the service hierarchy.)
-      , _serviceSession     :: !(Maybe SessionToken)  -- ^ Like 'userSessions', used by services to authenticate against thentos.
-      , _serviceName        :: !ServiceName
-      , _serviceDescription :: !ServiceDescription
-      , _serviceGroups      :: !(Map GroupNode (Set Group))
+      { _serviceKey            :: !(HashedSecret ServiceKey)
+      , _serviceOwner          :: !Agent
+      , _serviceThentosSession :: !(Maybe ThentosSessionToken)
+          -- ^ Used by the service to authenticate in communication with thentos.
+      , _serviceName           :: !ServiceName
+      , _serviceDescription    :: !ServiceDescription
+      , _serviceGroups         :: !(Map GroupNode (Set Group))
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -202,27 +207,35 @@ instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
 
--- * session, timestamp, timeout
+-- * thentos and service session
 
-data Session =
-    Session
-      { _sessionAgent           :: !Agent
-      , _sessionStart           :: !Timestamp
-      , _sessionEnd             :: !Timestamp
-      , _sessionTimeout         :: !Timeout
-      , _sessionServiceSessions :: !(Set ServiceSessionToken)
+newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+
+instance Aeson.FromJSON ThentosSessionToken where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ThentosSessionToken where toJSON = Aeson.gtoJson
+
+data ThentosSession =
+    ThentosSession
+      { _thSessAgent           :: !Agent
+      , _thSessStart           :: !Timestamp
+      , _thSessEnd             :: !Timestamp
+      , _thSessExpirePeriod    :: !Timeout
+      , _thSessServiceSessions :: !(Set ServiceSessionToken)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-instance Aeson.FromJSON SessionToken where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON SessionToken where toJSON = Aeson.gtoJson
+newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
 
 data ServiceSession =
     ServiceSession
-      { _servSessExpiry         :: !Timestamp
-      , _servSessMetadata       :: !ServiceSessionMetadata
-      , _servSessService        :: !ServiceId
-      , _servSessThentosSession :: !SessionToken
+      { _srvSessService        :: !ServiceId
+      , _srvSessStart          :: !Timestamp
+      , _srvSessEnd            :: !Timestamp
+      , _srvSessExpirePeriod   :: !Timeout
+      , _srvSessThentosSession :: !ThentosSessionToken
+      , _srvSessMetadata       :: !ServiceSessionMetadata
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -231,18 +244,15 @@ instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
 data ServiceSessionMetadata =
     ServiceSessionMetadata
-      { _servSessMDUser :: !UserName
+      { _srvSessMdUser :: !UserName
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance Aeson.FromJSON ServiceSessionMetadata where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
-newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
 
-newtype SessionToken = SessionToken { fromSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+-- * timestamp, timeout
 
 newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -293,9 +303,9 @@ instance Aeson.ToJSON Timeout
 
 -- * role, agent, lio
 
--- | Some thing or body that deals with (and can authenticate itself
--- before) thentos.  Examples: 'User' or 'Service'.  (We could have
--- called this 'Principal', but that name is in use by LIO already.)
+-- | Some thing or body that deals with (and can authenticate itself before) thentos.  Examples:
+-- 'User' or 'Service'.  (We could have called this 'Principal', but that name is in use by LIO
+-- already.)
 data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -304,9 +314,9 @@ instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
 data RoleBasic =
     RoleAdmin
-    -- ^ Can do anything.  (There may be no difference in behaviour
-    -- from 'allowEverything' resp. 'thentosPublic', but if we ever
-    -- want to restrict privileges, it's easier if it is a 'Role'.)
+    -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
+    -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
+    -- 'Role'.)
 
   | RoleOwnsUsers
     -- ^ Can do anything to map 'dbUsers' in 'DB'
@@ -327,6 +337,7 @@ data RoleBasic =
 instance Aeson.FromJSON RoleBasic where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON RoleBasic where toJSON = Aeson.gtoJson
 
+-- | Recursive role hierarchies.
 data Role =
     Roles [Role]
   | RoleBasic RoleBasic
@@ -336,43 +347,8 @@ instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
-instance ToCNF RoleBasic where toCNF = toCNF . RoleBasic
-instance ToCNF Role where toCNF = toCNF . show
-
--- | Wrapper for lio's 'Labeled' to avoid orphan instances.  (Also,
--- freeze 'ThentosLabel' as label type.)
-data ThentosLabeled t =
-    ThentosLabeled
-      { thentosLabelL :: ThentosLabel
-      , thentosLabelV :: t
-      }
-  deriving (Eq, Ord, Show, Read, Typeable, Functor)
-
-instance (SafeCopy t, Show t, Read t, Typeable t) => SafeCopy (ThentosLabeled t)
-  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
-
--- | Wrapper for lio's 'DCLabel' to avoid orphan instances.
-newtype ThentosLabel = ThentosLabel { fromThentosLabel :: DCLabel }
-  deriving (Eq, Ord, Show, Read, Typeable)
-
-instance SafeCopy ThentosLabel
-  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
-
-instance Label ThentosLabel where
-    lub (ThentosLabel l) (ThentosLabel l') = ThentosLabel $ lub l l'
-    glb (ThentosLabel l) (ThentosLabel l') = ThentosLabel $ glb l l'
-    canFlowTo (ThentosLabel l) (ThentosLabel l') = canFlowTo l l'
-
-newtype ThentosClearance = ThentosClearance { fromThentosClearance :: DCLabel }
-    deriving (Eq, Ord, Show, Read, Typeable)
-
-instance SafeCopy ThentosClearance
-  where putCopy = putCopyViaShowRead; getCopy = getCopyViaShowRead
-
-instance Label ThentosClearance where
-    lub (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ lub l l'
-    glb (ThentosClearance l) (ThentosClearance l') = ThentosClearance $ glb l l'
-    canFlowTo (ThentosClearance l) (ThentosClearance l') = canFlowTo l l'
+instance ToCNF RoleBasic where toCNF = toCNF . show
+-- (No CNF instance for Role for now.  We unravel role hierarchies during label construction.)
 
 
 -- * errors
@@ -382,79 +358,80 @@ data ThentosError =
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
     | NoSuchService
-    | NoSuchSession
+    | NoSuchThentosSession
+    | NoSuchServiceSession
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
-    | PermissionDenied String ThentosClearance ThentosLabel
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
     | MissingServiceHeader
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
-    | ServiceSessionInsteadOfUserSession
-    deriving (Eq, Ord, Show, Read, Typeable)
+    | NeedUserA ThentosSessionToken ServiceId
+    deriving (Eq, Show, Read, Typeable)
+
+instance Exception ThentosError
 
 instance SafeCopy ThentosError
   where
-    putCopy = contain . safePut . show
-    getCopy = contain $ safeGet >>= \ raw ->
-      maybe (fail $ "instance SafeCopy ThentosError: no parse" ++ show raw) return . readMay $ raw
+    putCopy = putCopyViaShowRead
+    getCopy = getCopyViaShowRead
 
--- | the type of this will change when servant has a better error type.
+-- | The type of this will change when servant has a better error type.
 showThentosError :: MonadIO m => ThentosError -> m (Int, String)
 showThentosError NoSuchUser                           = return (404, "user not found")
 showThentosError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
 showThentosError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
 showThentosError NoSuchService                        = return (404, "service not found")
-showThentosError NoSuchSession                        = return (404, "session not found")
+showThentosError NoSuchThentosSession                 = return (404, "thentos session not found")
+showThentosError NoSuchServiceSession                 = return (404, "service session not found")
 showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
 showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
 showThentosError NotRegisteredWithService             = return (403, "not registered with service")
 showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
 showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
-showThentosError e@(PermissionDenied _ _ _)           = logger INFO (show e) >> return (401, "unauthorized")
 showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
 showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
 showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
 showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
 showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
 showThentosError (NoSuchToken)                        = return (404, "no such token")
-showThentosError (ServiceSessionInsteadOfUserSession) = return (404, "no such token")
+showThentosError (NeedUserA _ _)                      = return (404, "thentos session belongs to service, cannot create service session")
 
 
 -- * boilerplate
 
 makeLenses ''DB
-makeLenses ''User
-makeLenses ''ServiceAccount
-makeLenses ''Session
-makeLenses ''ServiceSession
 makeLenses ''Service
+makeLenses ''ServiceAccount
+makeLenses ''ServiceSession
+makeLenses ''ThentosSession
+makeLenses ''User
 
+$(deriveSafeCopy 0 'base ''Agent)
+$(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''DB)
-$(deriveSafeCopy 0 'base ''User)
-$(deriveSafeCopy 0 'base ''ServiceAccount)
-$(deriveSafeCopy 0 'base ''Session)
+$(deriveSafeCopy 0 'base ''Group)
+$(deriveSafeCopy 0 'base ''GroupNode)
+$(deriveSafeCopy 0 'base ''PasswordResetToken)
+$(deriveSafeCopy 0 'base ''Role)
+$(deriveSafeCopy 0 'base ''RoleBasic)
 $(deriveSafeCopy 0 'base ''Service)
+$(deriveSafeCopy 0 'base ''ServiceAccount)
+$(deriveSafeCopy 0 'base ''ServiceDescription)
 $(deriveSafeCopy 0 'base ''ServiceId)
 $(deriveSafeCopy 0 'base ''ServiceKey)
 $(deriveSafeCopy 0 'base ''ServiceName)
-$(deriveSafeCopy 0 'base ''ServiceDescription)
 $(deriveSafeCopy 0 'base ''ServiceSession)
 $(deriveSafeCopy 0 'base ''ServiceSessionMetadata)
 $(deriveSafeCopy 0 'base ''ServiceSessionToken)
-$(deriveSafeCopy 0 'base ''SessionToken)
+$(deriveSafeCopy 0 'base ''ThentosSession)
+$(deriveSafeCopy 0 'base ''ThentosSessionToken)
+$(deriveSafeCopy 0 'base ''User)
 $(deriveSafeCopy 0 'base ''UserEmail)
-$(deriveSafeCopy 0 'base ''UserName)
-$(deriveSafeCopy 0 'base ''ConfirmationToken)
-$(deriveSafeCopy 0 'base ''PasswordResetToken)
-$(deriveSafeCopy 0 'base ''Group)
-$(deriveSafeCopy 0 'base ''GroupNode)
 $(deriveSafeCopy 0 'base ''UserId)
-$(deriveSafeCopy 0 'base ''Agent)
-$(deriveSafeCopy 0 'base ''Role)
-$(deriveSafeCopy 0 'base ''RoleBasic)
+$(deriveSafeCopy 0 'base ''UserName)

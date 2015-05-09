@@ -1,13 +1,14 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
-{-# LANGUAGE MultiWayIf                               #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TemplateHaskell                          #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE ViewPatterns                             #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE MultiWayIf           #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -15,833 +16,499 @@
 -- Core parametric in DB.  but that has its own obvious
 -- disadvantages.)
 
--- | This module provides a basic collection of acid-state
--- transactions on the state type 'DB'.
+-- | This module provides a basic collection of acid-state transactions on the state type 'DB'.
 --
--- For each transaction, we export the acid-state constructor
--- @FooBloo@ to be passed to 'query' or 'update' and a function
--- 'trans_fooBloo' to be used as building blocks for writing new, more
--- complex transactions.
+-- For each transaction, we export the acid-state constructor @FooBloo@ that can be be passed to
+-- 'query' or 'update' and a function 'trans_fooBloo' that can be used as a building block for
+-- writing new transactions.
 --
--- Lookup functions usually return the lookup key together with the
--- value.  The key can be discarded easy enough using pattern matching,
--- but in some cases it is useful to have it.
-module Thentos.DB.Trans
-  ( AllUserIds(..), trans_allUserIds
-  , LookupUser(..), trans_lookupUser
-  , LookupUserByName(..), trans_lookupUserByName
-  , LookupUserByEmail(..), trans_lookupUserByEmail
-  , AddUser(..), trans_addUser
-  , AddUnconfirmedUser(..), trans_addUnconfirmedUser
-  , FinishUserRegistration(..), trans_finishUserRegistration
-  , AddUsers(..), trans_addUsers
-  , UpdateUserField(..), trans_updateUserField, UpdateUserFieldOp(..)
-  , UpdateUserFields(..)
-  , DeleteUser(..), trans_deleteUser
-  , AddUserEmailChangeRequest(..), trans_addUserEmailChangeRequest
-  , ConfirmUserEmailChange(..), trans_confirmUserEmailChange
-  , AddPasswordResetToken(..), trans_addPasswordResetToken
-  , ResetPassword(..), trans_resetPassword
-
-  , AllServiceIds(..), trans_allServiceIds
-  , LookupService(..), trans_lookupService
-  , AddService(..), trans_addService
-  , DeleteService(..), trans_deleteService
-
-  , AllSessionTokens(..), trans_allSessionTokens
-  , LookupSessionQ(..), trans_lookupSessionQ
-  , LookupSession(..), trans_lookupSession
-  , StartSession(..), trans_startSession
-  , EndSession(..), trans_endSession
-  , IsActiveSession(..), trans_isActiveSession
-  , IsActiveSessionAndBump(..), trans_isActiveSessionAndBump
-  , IsActiveServiceSession(..), trans_isActiveServiceSession
-  , AddServiceLogin(..), trans_addServiceLogin
-  , DropServiceLogin(..), trans_dropServiceLogin
-  , GetSessionServiceNames(..), trans_getSessionServiceNames
-  , GarbageCollectSessions(..), trans_garbageCollectSessions
-
-  , GetServiceSessionMetadata(..), trans_getServiceSessionMetadata
-
-  , AssignRole(..), trans_assignRole
-  , UnassignRole(..), trans_unassignRole
-  , LookupAgentRoles(..), trans_lookupAgentRoles
-
-  , SnapShot(..), trans_snapShot
-
-  , pure_lookupUser
-  , pure_lookupUserByName
-  , pure_lookupService
-  , pure_lookupSession, LookupSessionResult(..)
-  , pure_lookupAgentRoles
-
-  , emptyDB
-  , createCheckpointLoop
-  )
+-- Lookup functions usually return the lookup key together with the value.  The key can be discarded
+-- easy enough using pattern matching, but in some cases it is useful to have it.
+module Thentos.Transaction
 where
 
-import Control.Exception (assert)
+import Control.Arrow (second)
 import Control.Lens ((^.), (.~), (%~))
-import Control.Monad (forM_)
+import Control.Monad (forM_, when, unless, void)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, gets, get)
 import Data.Acid (Query, Update, makeAcidic)
 import Data.AffineSpace ((.+^))
-import Data.EitherR (catchT)
+import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
-import Data.List (find, (\\), foldl')
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.List (find, foldl')
+import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
-import LIO.DCLabel ((\/), (/\))
-import LIO.Label (lub)
-import Safe (fromJustNote)
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Thentos.DB.Core
+import Thentos.Transaction.Core
 import Thentos.Types
 
 
--- * event functions
-
-emptyDB :: DB
-emptyDB = DB Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty Map.empty (UserId 0)
-
-
--- ** smart accessors
+-- * user
 
 freshUserId :: ThentosUpdate' e UserId
 freshUserId = do
     uid <- gets (^. dbFreshUserId)
-    modify (dbFreshUserId .~ succ uid)
+    modify $ dbFreshUserId .~ succ uid
     return uid
 
+assertUser :: Maybe UserId -> User -> ThentosQuery ()
+assertUser mUid user = ask >>= \ db ->
+    if | userFacetExists (^. userName)  mUid user db -> throwT UserNameAlreadyExists
+       | userFacetExists (^. userEmail) mUid user db -> throwT UserEmailAlreadyExists
+       | True -> return ()
 
--- ** users
+userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
+userFacetExists facet ((/=) -> notOwnUid) user db =
+    (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
+
+-- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
+-- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
+-- has expired, throw the given error.
+withExpiry :: Timestamp -> Timeout -> ThentosError -> ThentosUpdate (Maybe (a, Timestamp)) -> ThentosUpdate a
+withExpiry now expiry thentosError = withExpiryT now expiry thentosError id
+
+-- | Like 'withExpiry', but expects actions of the form offered by 'Map.updateLookupWithKey'.
+withExpiryU :: Timestamp -> Timeout -> ThentosError -> ThentosUpdate (Maybe (a, Timestamp), m) -> ThentosUpdate (a, m)
+withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
+  where
+    f (Just (a, timestamp), m) = Just ((a, m), timestamp)
+    f (Nothing, _)             = Nothing
+
+-- | Like 'withExpiry', but takes an extra function for transforming the result value of the action
+-- into what we need for the timeout check.
+withExpiryT :: Timestamp -> Timeout -> ThentosError -> (b -> (Maybe (a, Timestamp))) -> ThentosUpdate b -> ThentosUpdate a
+withExpiryT now expiry thentosError f action = do
+    mResult <- f <$> action
+    case mResult of
+        Nothing -> throwT thentosError
+        Just (result, tokenCreationTime) -> if fromTimestamp tokenCreationTime .+^ fromTimeout expiry < fromTimestamp now
+            then throwT thentosError
+            else return result
 
 trans_allUserIds :: ThentosQuery [UserId]
-trans_allUserIds = do
-    let label = RoleAdmin =%% False
-    ThentosLabeled label . Map.keys . (^. dbUsers) <$> ask
+trans_allUserIds = Map.keys . (^. dbUsers) <$> ask
 
 trans_lookupUser :: UserId -> ThentosQuery (UserId, User)
-trans_lookupUser uid = ask >>= \ db -> label_lookupUser $ pure_lookupUser db uid
+trans_lookupUser uid = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUser` uid)
 
 pure_lookupUser :: DB -> UserId -> Maybe (UserId, User)
-pure_lookupUser db uid =
-    fmap (uid,) . Map.lookup uid $ db ^. dbUsers
-
-label_lookupUser :: Maybe (UserId, User) -> ThentosQuery (UserId, User)
-label_lookupUser (Just result@(uid, _)) = do
-    let label  = RoleAdmin \/ UserA uid =%% False
-    returnDb label result
-label_lookupUser Nothing = do
-    let label = RoleAdmin =%% False
-    throwDb label NoSuchUser
+pure_lookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. dbUsers
 
 trans_lookupUserByName :: UserName -> ThentosQuery (UserId, User)
-trans_lookupUserByName name = ask >>= \ db -> label_lookupUser $ pure_lookupUserByName db name
+trans_lookupUserByName name = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByName` name)
 
--- FIXME: this is extremely inefficient, we should have a separate map
--- from user names to user ids.
+-- FIXME: this is extremely inefficient, we should have a separate map from user names to user ids.
 pure_lookupUserByName :: DB -> UserName -> Maybe (UserId, User)
 pure_lookupUserByName db name =
     find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. dbUsers) $ db
 
 trans_lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
-trans_lookupUserByEmail email = ask >>= \ db -> label_lookupUser $ pure_lookupUserByEmail db email
+trans_lookupUserByEmail email = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByEmail` email)
 
 -- FIXME: same as 'pure_lookupUserByName'.
 pure_lookupUserByEmail :: DB -> UserEmail -> Maybe (UserId, User)
 pure_lookupUserByEmail db email =
     find (\ (_, user) -> (user ^. userEmail == email)) . Map.toList . (^. dbUsers) $ db
 
--- | Write a new unconfirmed user (i.e. one whose email address we haven't
--- confirmed yet) to DB. Unlike addUser, this operation does not ensure
--- uniqueness of email adresses.
-trans_addUnconfirmedUser :: Timestamp -> ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
-trans_addUnconfirmedUser now token user = do
-    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
-    ThentosLabeled label' () <- liftThentosQuery $ assertUser label Nothing user
-    uid <- freshUserId
-    modify $ dbUnconfirmedUsers %~ Map.insert token (now, uid, user)
-    returnDb (lub label label') (uid, token)
-
--- | Note on the label for this transaction: If somebody has the
--- confirmation token, we assume that she is authenticated.  Since
--- 'makeThentosClearance' does not check for confirmation tokens, this
--- transaction is publicly accessible.
-trans_finishUserRegistration :: Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
-trans_finishUserRegistration now expiry token = withExpiration now expiry $ do
-    let label = RoleOwnsUnconfirmedUsers =%% RoleOwnsUnconfirmedUsers
-    users <- gets (^. dbUnconfirmedUsers)
-    case Map.lookup token users of
-        Nothing -> throwDb label NoSuchPendingUserConfirmation
-        Just (timestamp, uid, user) -> do
-            modify $ dbUnconfirmedUsers %~ Map.delete token
-            ThentosLabeled label' () <- writeUser uid user
-            returnDb (lub label label') (uid, timestamp)
-
--- | Write new user to DB.  Return the fresh user id.
+-- | Add a new user.  Return the new user's 'UserId'.  Call 'assertUser' for name clash exceptions.
 trans_addUser :: User -> ThentosUpdate UserId
 trans_addUser user = do
+    liftThentosQuery $ assertUser Nothing user
     uid <- freshUserId
-    ThentosLabeled label () <- liftThentosQuery (assertUser thentosPublic Nothing user) >> writeUser uid user
-    returnDb label uid
+    modify $ dbUsers %~ Map.insert uid user
+    return uid
 
--- | Write a list of new users to DB.  Return list of fresh user ids.
--- This is not the most vital part of the backend API, but it allows
--- for testing rollback in error cases.  It will also be a nice
--- example for intersecting authorizations.
+-- | Add a list of new users.  This could be inlined in a sequence of transactions, but that would
+-- have different rollback behaviour.
 trans_addUsers :: [User] -> ThentosUpdate [UserId]
-trans_addUsers [] = returnDb thentosPublic []
-trans_addUsers (u:us) = do
-    ThentosLabeled l  uid  <- trans_addUser  u
-    ThentosLabeled l' uids <- trans_addUsers us
-    returnDb (lub l l') (uid:uids)
+trans_addUsers = mapM trans_addUser
 
--- | Add a password reset token to the DB. Return the user whose password this
--- token can change.
+-- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).  Call
+-- 'assertUser' for name clash exceptions.
+trans_addUnconfirmedUser :: Timestamp -> ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
+trans_addUnconfirmedUser now token user = do
+    liftThentosQuery $ assertUser Nothing user
+    uid <- freshUserId
+    modify $ dbUnconfirmedUsers %~ Map.insert token ((uid, user), now)
+    return (uid, token)
+
+trans_finishUserRegistration :: Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
+trans_finishUserRegistration now expiry token = do
+    (uid, user) <- withExpiry now expiry NoSuchPendingUserConfirmation $
+        Map.lookup token <$> gets (^. dbUnconfirmedUsers)
+    modify $ dbUnconfirmedUsers %~ Map.delete token
+    modify $ dbUsers %~ Map.insert uid user
+    return uid
+
+-- | Add a password reset token.  Return the user whose password this token can change.
 trans_addPasswordResetToken :: Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User
 trans_addPasswordResetToken timestamp email token = do
-    let label = thentosPublic
     db <- get
     case pure_lookupUserByEmail db email of
-        Nothing -> throwDb label NoSuchUser
+        Nothing -> throwT NoSuchUser
         Just (uid, user) -> do
-            modify $ dbPwResetTokens %~ Map.insert token (timestamp, uid)
-            returnDb label user
+            modify $ dbPwResetTokens %~ Map.insert token (uid, timestamp)
+            return user
 
--- | Change a password with a given password reset token. Throws an error if
--- the token does not exist, has already been used or has expired
+-- | Change a password with a given password reset token and remove the token.  Throw an error if
+-- the token does not exist or has expired.
 trans_resetPassword :: Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
-trans_resetPassword now expiry token newPass = withExpiration now expiry $ do
-    let label = thentosPublic
-    resetTokens <- gets (^. dbPwResetTokens)
-    case Map.updateLookupWithKey (const . const Nothing) token resetTokens of
-        (Nothing, _) -> throwDb label NoSuchToken
-        (Just (timestamp, uid), newResetTokens) -> do
-            modify $ dbPwResetTokens .~ newResetTokens
-            mUser <- gets $ Map.lookup uid . (^. dbUsers)
-            case mUser of
-                Just user -> do
-                    let user' = userPassword .~ newPass $ user
-                    ThentosLabeled label' () <- writeUser uid user'
-                    returnDb (lub label label')  ((), timestamp)
-                Nothing -> throwDb label NoSuchToken
+trans_resetPassword now expiry token newPass = do
+    (uid, toks') <- withExpiryU now expiry NoSuchToken $
+        Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbPwResetTokens)
+    modify $ dbPwResetTokens .~ toks'
+    (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    modify $ dbUsers %~ Map.insert uid (userPassword .~ newPass $ user)
 
-trans_addUserEmailChangeRequest ::
-    Timestamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
+trans_addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate ()
 trans_addUserEmailChangeRequest timestamp uid email token = do
-    let label = UserA uid =%% UserA uid
-    modify $ dbEmailChangeTokens %~ Map.insert token (timestamp, uid, email)
-    returnDb label ()
+    modify $ dbEmailChangeTokens %~ Map.insert token ((uid, email), timestamp)
 
+-- | Change email with a given token and remove the token.  Throw an error if the token does not
+-- exist or has expired.
 trans_confirmUserEmailChange :: Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate ()
-trans_confirmUserEmailChange now expiry token = withExpiration now expiry $ do
-    emailChangeTokens <- gets (^. dbEmailChangeTokens)
-    case Map.updateLookupWithKey (const . const Nothing) token emailChangeTokens of
-        (Nothing, _) -> throwDb thentosPublic NoSuchToken
-        (Just (timestamp, uid, email), remainingRequests) -> do
-            modify $ dbEmailChangeTokens .~ remainingRequests
-            ThentosLabeled l () <- trans_updateUserField uid (UpdateUserFieldEmail email)
-            returnDb l ((), timestamp)
+trans_confirmUserEmailChange now expiry token = do
+    ((uid, email), toks') <- withExpiryU now expiry NoSuchToken $
+        Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbEmailChangeTokens)
+    modify $ dbEmailChangeTokens .~ toks'
+    trans_updateUserField uid (UpdateUserFieldEmail email)
+
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
-  | UpdateUserFieldAddService ServiceId ServiceAccount
-      -- FIXME: @UpdateUserFieldAddService@ should be called
-      -- @UpdateUserFieldInsertService@, as it has the same semantics
-      -- as Map.insert for existing keys (overwrites).
+  | UpdateUserFieldInsertService ServiceId ServiceAccount
   | UpdateUserFieldDropService ServiceId
   | UpdateUserFieldPassword (HashedSecret UserPass)
   deriving (Eq)
 
--- | Update existing user in DB.  Throw an error if user id does not
--- exist, or if email address in updated user is already in use by
--- another user.
+-- | Turn 'UpdateUserFieldOp' into an actual action.  The boolean states whether 'assertUser' should
+-- be run after the update to maintain consistency.
+runUpdateUserFieldOp :: UpdateUserFieldOp -> (User -> User, Bool)
+runUpdateUserFieldOp (UpdateUserFieldName n)            = (userName .~ n, True)
+runUpdateUserFieldOp (UpdateUserFieldEmail e)           = (userEmail .~ e, True)
+runUpdateUserFieldOp (UpdateUserFieldInsertService s a) = (userServices %~ Map.insert s a, False)
+runUpdateUserFieldOp (UpdateUserFieldDropService sid)   = (userServices %~ Map.filterWithKey (const . (/= sid)), False)
+runUpdateUserFieldOp (UpdateUserFieldPassword p)        = (userPassword .~ p, False)
+
+-- | See 'trans_updateUserFields'.
 trans_updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
 trans_updateUserField uid op = trans_updateUserFields uid [op]
 
+-- | Update existing user.  Throw an error if 'UserId' does not exist or if 'assertUser' is not
+-- happy with the requested changes.
 trans_updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosUpdate ()
 trans_updateUserFields uid freeOps = do
-    let runOp :: UpdateUserFieldOp -> (User -> User, Bool)
-        runOp (UpdateUserFieldName n)          = (userName .~ n, True)
-        runOp (UpdateUserFieldEmail e)         = (userEmail .~ e, True)
-        runOp (UpdateUserFieldAddService s a)  = (userServices %~ Map.insert s a, False)
-        runOp (UpdateUserFieldDropService sid) = (userServices %~ Map.filterWithKey (const . (/= sid)), False)
-        runOp (UpdateUserFieldPassword p)      = (userPassword .~ p, False)
+    let (ops, runCheck) = second or . unzip $ runUpdateUserFieldOp <$> freeOps
 
-        ops :: [(User -> User, Bool)]
-        ops = runOp <$> freeOps
+    (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    let user' = foldl' (flip ($)) user ops
+    when runCheck $
+        liftThentosQuery $ assertUser (Just uid) user'
+    modify $ dbUsers %~ Map.insert uid user'
 
-    ThentosLabeled label (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    let user' = foldl' (flip fst) user ops
-    _ <- if or $ snd <$> ops
-            then liftThentosQuery $ assertUser thentosPublic (Just uid) user'
-            else returnDb thentosPublic ()
-    ThentosLabeled label' () <- writeUser uid user'
-    returnDb (lub label label') ()
 
--- | Delete user with given user id.  If user does not exist, throw an
--- error.
+-- | Delete user with given 'UserId'.  Throw an error if user does not exist.
 trans_deleteUser :: UserId -> ThentosUpdate ()
 trans_deleteUser uid = do
-    let label = RoleAdmin \/ UserA uid =%% RoleAdmin /\ UserA uid
-    ThentosLabeled label' (_, user) <- liftThentosQuery $ trans_lookupUser uid
-    forM_ (Set.elems $ user ^. userSessions) deleteSession
+    (_, user) <- liftThentosQuery $ trans_lookupUser uid
+    forM_ (Set.elems $ user ^. userThentosSessions) trans_endThentosSession
     modify $ dbUsers %~ Map.delete uid
-    returnDb (lub label label') ()
 
 
--- *** helpers
-
--- | (db ^. dbUser) must only be modified using this function.
-writeUser :: UserId -> User -> ThentosUpdate ()
-writeUser uid user = do
-    let label = RoleAdmin \/ RoleOwnsUsers \/ UserA uid =%% RoleAdmin /\ RoleOwnsUsers /\ UserA uid
-    modify $ dbUsers %~ Map.insert uid user
-    returnDb label ()
-
-assertUser :: ThentosLabel -> Maybe UserId -> User -> ThentosQuery ()
-assertUser label mUid user = ask >>= \ db ->
-    if | userFacetExists (^. userName)  mUid user db -> throwDb label UserNameAlreadyExists
-       | userFacetExists (^. userEmail) mUid user db -> throwDb label UserEmailAlreadyExists
-       | True -> returnDb label ()
-
-userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
-userFacetExists facet ((/=) -> notOwnUid) user db =
-    (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
-
-
--- ** services
+-- * service
 
 trans_allServiceIds :: ThentosQuery [ServiceId]
-trans_allServiceIds = do
-    let label = RoleAdmin =%% False
-    ThentosLabeled label . Map.keys . (^. dbServices) <$> ask
+trans_allServiceIds = Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
-trans_lookupService sid = do
-    let label = RoleAdmin =%% False
-    db <- ask
-    maybe (throwDb label NoSuchService) (returnDb label) $
-        pure_lookupService db sid
+trans_lookupService sid = ask >>= maybe (throwT NoSuchService) (return) . (`pure_lookupService` sid)
 
 pure_lookupService :: DB -> ServiceId -> Maybe (ServiceId, Service)
 pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
--- | Write new service to DB.  Service key is generated automatically.
+-- | Add new service.
 trans_addService :: Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate ()
 trans_addService owner sid key name desc = do
-    let label = RoleAdmin \/ owner =%% RoleAdmin /\ owner
+    let service :: Service
         service = Service key owner Nothing name desc Map.empty
     modify $ dbServices %~ Map.insert sid service
-    returnDb label ()
 
+-- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.
 trans_deleteService :: ServiceId -> ThentosUpdate ()
 trans_deleteService sid = do
-    let label = RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
-    ThentosLabeled label' (_, service) <- liftThentosQuery $ trans_lookupService sid
-    maybe (return ()) deleteSession (service ^. serviceSession)
+    (_, service) <- liftThentosQuery $ trans_lookupService sid
+    maybe (return ()) trans_endThentosSession (service ^. serviceThentosSession)
     modify $ dbServices %~ Map.delete sid
-    returnDb (lub label label') ()
 
 
--- ** sessions
+-- * thentos and service session
 
--- | Complete list of all active and inactive sessions.  This
--- transaction may go away in the future unless we can think of a good
--- use for it.
-trans_allSessionTokens :: ThentosQuery [SessionToken]
-trans_allSessionTokens = do
-    let label = RoleAdmin =%% False
-    ThentosLabeled label . Map.keys . (^. dbSessions) <$> ask
+-- | Take a time and a thentos session, and decide whether the time lies between session start and
+-- end.
+thentosSessionNowActive :: Timestamp -> ThentosSession -> Bool
+thentosSessionNowActive now session = (session ^. thSessStart) < now && now < (session ^. thSessEnd)
 
+-- | Lookup session.  If session does not exist or has expired, throw an error.  If it does exist,
+-- dump the expiry time and return session with bumped expiry time.
+trans_lookupThentosSession :: Timestamp -> ThentosSessionToken -> ThentosUpdate (ThentosSessionToken, ThentosSession)
+trans_lookupThentosSession now tok = do
+    session <- Map.lookup tok . (^. dbThentosSessions) <$> get
+           >>= \case Just s  -> return s
+                     Nothing -> throwT NoSuchThentosSession
 
-data LookupSessionResult =
-    LookupSessionUnchanged (SessionToken, Session)
-  | LookupSessionBumped (SessionToken, Session)
-  | LookupSessionNotThere
-  | LookupSessionInactive
-  deriving (Eq, Ord, Show, Read)
+    unless (thentosSessionNowActive now session) $
+        throwT NoSuchThentosSession
 
--- | Lookup session.  Use second arg to only return session if now
--- active.  Use flag in second arg to update end-of-life 'Timestamp'
--- in result session.
-pure_lookupSession :: DB -> Maybe (Timestamp, Bool) -> SessionToken -> LookupSessionResult
-pure_lookupSession db mNow tok =
-    let mSession :: Maybe Session = Map.lookup tok $ db ^. dbSessions
-    in case (mSession, mNow) of
-        (Just session, Just (now, bump)) ->
-            if sessionNowActive now session
-                then if bump
-                    then let newEnd = Timestamp $ fromTimestamp now .+^ fromTimeout (session ^. sessionTimeout)
-                         in LookupSessionBumped (tok, sessionEnd .~ newEnd $ session)
-                    else LookupSessionUnchanged (tok, session)
-                else LookupSessionInactive
-        (Just session, Nothing) -> LookupSessionUnchanged (tok, session)
-        (Nothing, _) -> LookupSessionNotThere
+    let session' = thSessEnd .~ end' $ session
+        end' = Timestamp $ fromTimestamp now .+^ fromTimeout (session ^. thSessExpirePeriod)
 
--- | See 'trans_lookupSession'.  The difference is that you cannot
--- bump the session, so there cannot be any changes to the database,
--- so the result monad can be 'ThentosQuery'.
-trans_lookupSessionQ :: Maybe Timestamp -> SessionToken -> ThentosQuery (SessionToken, Session)
-trans_lookupSessionQ mNow tok = do
-    rSession <- (\ db -> pure_lookupSession db ((, False) <$> mNow) tok) <$> ask
+    modify $ dbThentosSessions %~ Map.insert tok session'
+    return (tok, session')
 
-    case rSession of
-        LookupSessionUnchanged (_, session) -> do
-            let label = RoleAdmin \/ (session ^. sessionAgent) =%% False
-            returnDb label (tok, session)
-        LookupSessionInactive -> do
-            let label = RoleAdmin =%% False
-            throwDb label NoSuchSession
-        LookupSessionNotThere -> do
-            let label = RoleAdmin =%% False
-            throwDb label NoSuchSession
-        LookupSessionBumped _ -> assert False $ error "trans_lookupSessionQ"
-
-
--- | Lookup session.  Use first arg to check if session is now active,
--- and if not, remove it from database.  Use flag in second arg to
--- update end-of-life 'Timestamp' in result session and database.  If
--- session does not exist, or if active check is enabled and session
--- is inactive, throw 'NoSuchSession'.
---
--- Inactive sessions are not deleted.  See
--- 'trans_GarbageCollectSessions'.
---
--- See 'trans_lookupSessionQ' for a variant of this function in
--- 'ThentosQuery'.
-trans_lookupSession :: Maybe (Timestamp, Bool) -> SessionToken -> ThentosUpdate (SessionToken, Session)
-trans_lookupSession mNow tok = lookupSessionAsService Nothing mNow tok
-
-
--- | Like 'trans_lookupSession', but accepts an extra 'ServiceId' as
--- first argument.  This is required for service login checks by the
--- service.
---
--- FIXME: why is this not a transaction, i.e., named starting with @trans_@?
-lookupSessionAsService :: Maybe ServiceId -> Maybe (Timestamp, Bool) -> SessionToken
-      -> ThentosUpdate (SessionToken, Session)
-lookupSessionAsService mSid mNow tok = do
-    let label = case mSid of
-          Just sid -> RoleAdmin \/ ServiceA sid =%% RoleAdmin /\ ServiceA sid
-          Nothing  -> RoleAdmin =%% RoleAdmin
-    rSession <- (\ db -> pure_lookupSession db mNow tok) <$> get
-
-    case rSession of
-        LookupSessionUnchanged (_, session) -> do
-            let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
-            returnDb (lub label label') (tok, session)
-        LookupSessionBumped (_, session) -> do
-            let label' = (session ^. sessionAgent) =%% (session ^. sessionAgent)
-            writeSession tok session
-            returnDb (lub label label') (tok, session)
-        LookupSessionInactive -> throwDb label NoSuchSession
-        LookupSessionNotThere -> throwDb label NoSuchSession
-
-
--- | Start a new thentos session for the given agent. Start and end time have
--- to be passed explicitly. Throw an error if the agent does not exist.
--- If the agent is a user, this new session is added to their existing sessions.
--- If the agent is a service with an existing session, its session is replaced.
-trans_startSession :: SessionToken -> Agent -> Timestamp -> Timeout -> ThentosUpdate ()
-trans_startSession freshSessionToken agent start lifetime = do
-    let label = agent =%% agent
-        session = Session agent start end lifetime Set.empty
-        end = Timestamp $ fromTimestamp start .+^ fromTimeout lifetime
-    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    writeSession freshSessionToken session
-    returnDb label ()
-
-
--- | End session.  Call can be caused by logout request from user
--- (before end of session life time), by session timeouts, or after
--- its natural life time (by application's own garbage collection).
--- If lookup of session owning user fails, throw an error.
-trans_endSession :: SessionToken -> ThentosUpdate ()
-trans_endSession tok = do
-    mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
-    let label = case mSession of
-            Just session -> RoleAdmin \/ (session ^. sessionAgent) =%% RoleAdmin /\ (session ^. sessionAgent)
-            Nothing      -> RoleAdmin =%% RoleAdmin
-
-    deleteSession tok
-    returnDb label ()
-
-
--- | Is session token currently active?  (Do not bump either way.)
--- Never throw errors; if session is inaccessible, simple return
--- 'False'.
---
--- Note on authorization: Since session tokens are as powerful as
--- login credentials, this transaction is labelled 'thentosPublic'.
--- (If we wanted to return 'False' for both 'PermissionDenied' and
--- 'NoSuchSession', we would have to do that in 'Action' rather than
--- in 'ThentosQuery': 'PermissionDenied' errors can only be
--- constructed from label /and/ clearance, but inside 'ThentosQuery'
--- we have no clearance value.
-trans_isActiveSession :: Timestamp -> SessionToken -> ThentosQuery Bool
-trans_isActiveSession now tok = do
-    let label = thentosPublic
-    catchT
-        (trans_lookupSessionQ (Just now) tok >> returnDb label True)
-        (const $ returnDb label False)
-
--- | Is session token currently active?  Bump if it is.  (See
--- 'trans_isActiveSession'.)
-trans_isActiveSessionAndBump :: Timestamp -> SessionToken -> ThentosUpdate Bool
-trans_isActiveSessionAndBump now tok = do
-    let label = thentosPublic
-    catchT
-        (trans_lookupSession (Just (now, True)) tok >> returnDb label True)
-        (const $ returnDb label False)
-
--- | Checks whether a given service sessions is still active
--- FIXME: expiry should be bumped (service session as well as thentos session)
-trans_isActiveServiceSession :: Timestamp -> ServiceSessionToken -> ThentosUpdate Bool
-trans_isActiveServiceSession now tok = do
-    serviceSessions <- gets (^. dbServiceSessions)
-    --FIXME: label
-    returnDb thentosPublic $ case Map.lookup tok serviceSessions of
-        Nothing -> False
-        Just session -> session ^. servSessExpiry >= now
-
-
--- | Add a service login to a user session. Throws an error if the session
--- doesn't exist / has expired or is a service session. If a service session
--- already exists for the given service, return its token. Do not bump the
--- the existing session.
-trans_addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosUpdate ServiceSessionToken
-trans_addServiceLogin now timeout tok sid newServiceSessionToken = do
-    let loginExpires = Timestamp $ fromTimestamp now .+^ fromTimeout timeout
-    ThentosLabeled l1 (_, session) <- trans_lookupSession (Just (now, True)) tok
-    serviceSessionMap <- gets (^. dbServiceSessions)
-
-    let makeNewServiceSession user label = do
-            let serviceSess = ServiceSession loginExpires
-                                             (ServiceSessionMetadata $ user ^. userName)
-                                             sid
-                                             tok
-                adjustSession = sessionServiceSessions %~ Set.insert newServiceSessionToken
-            modify $ dbServiceSessions %~ Map.insert newServiceSessionToken serviceSess
-            modify $ dbSessions %~ Map.adjust adjustSession tok
-            returnDb label newServiceSessionToken
-
-    case session ^. sessionAgent of
-        ServiceA _ -> throwDb l1 ServiceSessionInsteadOfUserSession
-        UserA uid -> do
-            ThentosLabeled l2 (_, user) <- liftThentosQuery $ trans_lookupUser uid
-            let label = lub l1 l2
-            case Map.lookup sid (user ^. userServices) of
-                Nothing -> throwDb label NotRegisteredWithService
-                Just _ -> do
-                    let serviceSessionTokens = Set.elems $ session ^. sessionServiceSessions
-                        serviceSessions = catMaybes $ map (\ t -> (t,) <$> Map.lookup t serviceSessionMap) serviceSessionTokens
-                    case filter (\ (_, s) -> s ^. servSessService == sid) serviceSessions of
-                        [] -> makeNewServiceSession user label
-                        [(t, _)] -> returnDb label t
-                        _ -> error "bad database state: multiple service sessions for same service under one session"
-
-
--- | Delete a service session. Does nothing if the session does not exist.
--- Throws an error if the session is owned by a service.
-trans_dropServiceLogin :: ServiceSessionToken -> ThentosUpdate ()
-trans_dropServiceLogin tok = do
-    let label' = RoleAdmin =%% RoleAdmin
-
-        label :: Maybe Agent -> ThentosLabel
-        label (Just agent) = label' `lub` agent =%% agent
-        label Nothing      = label'
-
-    mServiceSession <- Map.lookup tok <$> gets (^. dbServiceSessions)
-    case mServiceSession of
-        Nothing -> throwDb (label Nothing) NoSuchSession
-        Just session -> do
-            let thentosSessionToken = session ^. servSessThentosSession
-                adjustSession = sessionServiceSessions %~ Set.delete tok
-            modify $ dbSessions %~ Map.adjust adjustSession thentosSessionToken
-            modify $ dbServiceSessions %~ Map.delete tok
-            returnDb thentosPublic ()
-
-trans_getSessionServiceNames :: Timestamp -> SessionToken -> UserId -> ThentosQuery [ServiceName]
-trans_getSessionServiceNames now tok uid = do
-    ThentosLabeled label _ <- trans_lookupUser uid
-    serviceMap <- (^. dbServices) <$> ask
-    thentosSessions <- (^. dbSessions) <$> ask
-    serviceSessionMap <- (^. dbServiceSessions) <$> ask
-    case Map.lookup tok thentosSessions of
-        Just (session :: Session) -> do
-            let serviceSessionTokens = Set.elems $ session ^. sessionServiceSessions
-                serviceSessions = catMaybes $ map (\ t -> Map.lookup t serviceSessionMap) serviceSessionTokens
-                serviceIds = map (^. servSessService)
-                            . filter (\ s -> (s ^. servSessExpiry) >= now ) $
-                            serviceSessions
-                getServiceName sid = (^. serviceName)
-                                     . fromJustNote "inconsistent db state: user has sid that is not in dbServices"
-                                     $ Map.lookup sid serviceMap
-                serviceNames = map getServiceName serviceIds
-            returnDb label serviceNames
-        Nothing -> throwDb label NoSuchSession
-
-
--- | Go through 'dbSessions' map and find all expired sessions.
--- Return in 'ThentosQuery'.  (To reduce database locking, call this
--- and then @EndSession@ on all service ids individually.)
-trans_garbageCollectSessions :: ThentosQuery [SessionToken]
-trans_garbageCollectSessions = assert False $ error "trans_GarbageCollectSessions: not implemented"  -- FIXME
-
-
-trans_getServiceSessionMetadata :: ServiceSessionToken -> ThentosQuery ServiceSessionMetadata
-trans_getServiceSessionMetadata tok = do
-    mServiceSession <- Map.lookup tok . (^. dbServiceSessions) <$> ask
-    case mServiceSession of
-        -- FIXME: labels
-        Just serviceSess -> returnDb thentosPublic $ serviceSess ^. servSessMetadata
-        Nothing -> throwDb thentosPublic NoSuchSession
-
-
--- *** helpers
-
-sessionNowActive :: Timestamp -> Session -> Bool
-sessionNowActive now session = (session ^. sessionStart) < now && now < (session ^. sessionEnd)
-
-
--- | Write session to database (both in 'dbSessions' and in the
--- 'Agent').  If first arg is given and 'Agent' is a user, update
--- service login list of this user, too.
-writeSession :: SessionToken -> Session -> ThentosUpdate' e ()
-writeSession tok session = do
-    modify $ dbSessions %~ Map.insert tok session
-    modify $ case session ^. sessionAgent of
-        UserA    uid -> dbUsers    %~ Map.adjust _updateUser uid
-        ServiceA sid -> dbServices %~ Map.adjust _updateService sid
-    return ()
+-- | Start a new thentos session.  Start and end time have to be passed explicitly.  Call
+-- 'trans_assertAgent' on session owner.  If the agent is a user, this new session is added to their
+-- existing sessions.  If the agent is a service with an existing session, its session is replaced.
+trans_startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout -> ThentosUpdate ()
+trans_startThentosSession tok owner start expiry = do
+    let session = ThentosSession owner start end expiry Set.empty
+        end = Timestamp $ fromTimestamp start .+^ fromTimeout expiry
+    liftThentosQuery $ trans_assertAgent owner
+    modify $ dbThentosSessions %~ Map.insert tok session
+    updAgent owner
   where
-    _updateUser :: User -> User
-    _updateUser = userSessions %~ Set.insert tok
+    updAgent :: Agent -> ThentosUpdate ()
+    updAgent (UserA    uid) = modify $ dbUsers    %~ Map.adjust (userThentosSessions %~ Set.insert tok) uid
+    updAgent (ServiceA sid) = modify $ dbServices %~ Map.adjust (serviceThentosSession .~ Just tok)     sid
 
-    _updateService :: Service -> Service
-    _updateService = serviceSession .~ Just tok
-
--- | Remove session from the database (both from 'dbSessions' and the agent's
--- sessions)
-deleteSession :: SessionToken -> ThentosUpdate' e ()
-deleteSession tok = do
-    mSession :: Maybe Session <- Map.lookup tok . (^. dbSessions) <$> get
+-- | End thentos session and all associated service sessions.  Call 'trans_assertAgent' on session
+-- owner.  If thentos session does not exist or has expired, remove it just the same.
+--
+-- Always call this transaction if you want to clean up a session (e.g., from a garbage collection
+-- transatcion).  This way in the future, you can replace this transaction easily by one that does
+-- not actually destroy the session, but move it to an archive.
+trans_endThentosSession :: ThentosSessionToken -> ThentosUpdate ()
+trans_endThentosSession tok = do
+    mSession <- Map.lookup tok . (^. dbThentosSessions) <$> get
     case mSession of
         Just session -> do
-            case session ^. sessionAgent of
-                UserA    uid -> modify $ dbUsers    %~ Map.adjust _updateUser uid
-                ServiceA sid -> modify $ dbServices %~ Map.adjust _updateService sid
-            modify $ dbSessions %~ Map.delete tok
-            let serviceSessions = session ^. sessionServiceSessions
-            modify $ dbServiceSessions %~ Map.filterWithKey (\ t _ -> Set.notMember t serviceSessions)
+            delThentosSession
+            delServiceSessions session
+            let agent = session ^. thSessAgent
+            liftThentosQuery $ trans_assertAgent agent
+            cleanupAgent agent
+        Nothing -> return ()
+  where
+    delThentosSession :: ThentosUpdate ()
+    delThentosSession = modify $ dbThentosSessions %~ Map.delete tok
+
+    delServiceSessions :: ThentosSession -> ThentosUpdate ()
+    delServiceSessions session = modify $ dbServiceSessions %~ Map.filterWithKey dropThem
+      where
+        deadServiceSessions = session ^. thSessServiceSessions
+        dropThem t _ = Set.notMember t deadServiceSessions
+
+    cleanupAgent :: Agent -> ThentosUpdate ()
+    cleanupAgent (UserA    uid) = modify $ dbUsers    %~ Map.adjust (userThentosSessions %~ Set.delete tok) uid
+    cleanupAgent (ServiceA sid) = modify $ dbServices %~ Map.adjust (serviceThentosSession .~ Nothing)      sid
+
+
+-- | Take a time and a service session, and decide whether the time lies between session start and
+-- end.  Does not check the associated thentos session!
+serviceSessionNowActive :: Timestamp -> ServiceSession -> Bool
+serviceSessionNowActive now session = (session ^. srvSessStart) < now && now < (session ^. srvSessEnd)
+
+-- | Like 'trans_lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
+-- thentos session.  If the service session is still active, but the associated thentos session has
+-- expired, update service sessions expiry time to @now@ and throw 'NoSuchThentosSession'.
+trans_lookupServiceSession :: Timestamp -> ServiceSessionToken -> ThentosUpdate (ServiceSessionToken, ServiceSession)
+trans_lookupServiceSession now tok = do
+    session <- Map.lookup tok . (^. dbServiceSessions) <$> get
+           >>= \case Just s  -> return s
+                     Nothing -> throwT NoSuchServiceSession
+
+    unless (serviceSessionNowActive now session) $
+        throwT NoSuchServiceSession
+
+    _ <- catchT (trans_lookupThentosSession now (session ^. srvSessThentosSession)) $
+        \ e -> do
+            when (e == NoSuchThentosSession) $
+                trans_endServiceSession tok
+            throwT e
+
+    let session' = srvSessEnd .~ end' $ session
+        end' = Timestamp $ fromTimestamp now .+^ fromTimeout (session ^. srvSessExpirePeriod)
+    modify $ dbServiceSessions %~ Map.insert tok session'
+    return (tok, session')
+
+-- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
+-- error if thentos session lookup fails.  If a service session already exists for the given
+-- 'ServiceId', return its token.
+trans_startServiceSession :: ThentosSessionToken -> ServiceSessionToken -> ServiceId -> Timestamp -> Timeout -> ThentosUpdate ()
+trans_startServiceSession ttok stok sid start expiry = do
+    (_, tsession) <- trans_lookupThentosSession start ttok
+
+    (_, user) <- case tsession ^. thSessAgent of
+        ServiceA s -> throwT $ NeedUserA ttok s
+        UserA u    -> liftThentosQuery $ trans_lookupUser u
+
+    let ssession :: ServiceSession
+        ssession = ServiceSession sid start end expiry ttok meta
+          where
+            end = Timestamp $ fromTimestamp start .+^ fromTimeout expiry
+            meta = ServiceSessionMetadata $ user ^. userName
+
+    modify $ dbThentosSessions %~ Map.adjust (thSessServiceSessions %~ Set.insert stok) ttok
+    modify $ dbServiceSessions %~ Map.insert stok ssession
+
+-- | 'trans_endThentosSession' for service sessions (see there).  If thentos session or service
+-- session do not exist or have expired, remove the service session just the same, but never thentos
+-- session.
+trans_endServiceSession :: ServiceSessionToken -> ThentosUpdate ()
+trans_endServiceSession stok = do
+    mSession <- Map.lookup stok . (^. dbServiceSessions) <$> get
+    case mSession of
+        Just session -> do
+            modify $ dbThentosSessions %~ Map.adjust (thSessServiceSessions %~ Set.delete stok) (session ^. srvSessThentosSession)
+            modify $ dbServiceSessions %~ Map.delete stok
         Nothing -> return ()
 
-  where
-    _updateUser :: User -> User
-    _updateUser = userSessions %~ Set.delete tok
 
-    _updateService :: Service -> Service
-    _updateService = serviceSession .~ Nothing
+-- * agent and role
 
+-- | Lookup user or service, resp., and throw an appropriate error if not found.
+trans_assertAgent :: Agent -> ThentosQuery ()
+trans_assertAgent (UserA    uid) = void $ trans_lookupUser uid
+trans_assertAgent (ServiceA sid) = void $ trans_lookupService sid
 
--- * agents and roles
-
--- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
--- is already assigned to 'Agent', do nothing.  If Agent does not
--- point to an existing entry in user or service table (or such),
--- throw an error.
+-- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role' is already assigned to
+-- 'Agent', do nothing.  Call 'trans_assertAgent'.
 trans_assignRole :: Agent -> Role -> ThentosUpdate ()
 trans_assignRole agent role = do
-    let label = RoleAdmin =%% RoleAdmin
-    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    let inject = Just . (role:) . fromMaybe []
+    liftThentosQuery $ trans_assertAgent agent
+    let inject = Just . (Set.insert role) . fromMaybe Set.empty
     modify $ dbRoles %~ Map.alter inject agent
-    returnDb label ()
 
--- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role'
--- is not assigned to 'Agent', do nothing.  If Agent does not
--- point to an existing entry in user or service table (or such),
--- throw an error.
+-- | Remove 'Role' from 'Agent's entry in 'dbRoles'.  If 'Role' is not assigned to 'Agent', do
+-- nothing.  Call 'trans_assertAgent'.
 trans_unassignRole :: Agent -> Role -> ThentosUpdate ()
 trans_unassignRole agent role = do
-    let label = RoleAdmin =%% RoleAdmin
-    ThentosLabeled _ () <- liftThentosQuery $ assertAgent agent
-    let exject = fmap (\\ [role])
+    liftThentosQuery $ trans_assertAgent agent
+    let exject = fmap $ Set.delete role
     modify $ dbRoles %~ Map.alter exject agent
-    returnDb label ()
 
--- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or
--- has no entry in 'dbRoles', return an empty list.
-trans_lookupAgentRoles :: Agent -> ThentosQuery [Role]
-trans_lookupAgentRoles agent = do
-    let label = agent \/ RoleAdmin =%% False
-    ThentosLabeled label . (`pure_lookupAgentRoles` agent) <$> ask
-
-pure_lookupAgentRoles :: DB -> Agent -> [Role]
-pure_lookupAgentRoles db agent = fromMaybe [] $ Map.lookup agent (db ^. dbRoles)
+-- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no entry in 'dbRoles', return an
+-- empty list.
+trans_agentRoles :: Agent -> ThentosQuery (Set.Set Role)
+trans_agentRoles agent = fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <$> ask
 
 
--- *** helpers
-
--- | 'assertAgent' is only used to build transactions, and is not a
--- transaction itself.  Even though it has return type 'ThentosQuery',
--- it does not restrict the label in any way.
---
--- (In the long run, it would be beneficial to make more use of the
--- lio package and the 'LIO' monad in particular, so we could
--- accumulate and intersect labels on the way through complex
--- transactions.)
-assertAgent :: Agent -> ThentosQuery ()
-assertAgent = f
-  where
-    label = thentosDenied
-
-    f :: Agent -> ThentosQuery ()
-    f (UserA    uid) = ask >>= g . Map.lookup uid . (^. dbUsers)
-    f (ServiceA sid) = ask >>= g . Map.lookup sid . (^. dbServices)
-
-    g :: Maybe a -> ThentosQuery ()
-    g (Just _) = returnDb label ()
-    g Nothing  = throwDb label NoSuchUser
-
-
--- ** misc
+-- * misc
 
 trans_snapShot :: ThentosQuery DB
-trans_snapShot = do
-    let label = RoleAdmin =%% False
-    ask >>= returnDb label
-
--- | Token expiration handling
-withExpiration :: Timestamp -> Timeout -> ThentosUpdate (a, Timestamp) -> ThentosUpdate a
-withExpiration now expiryPeriod action = do
-    ThentosLabeled l (result, tokenCreationTime) <- action
-    if fromTimestamp tokenCreationTime .+^ fromTimeout expiryPeriod < fromTimestamp now
-        then throwDb l NoSuchToken
-        else returnDb l result
+trans_snapShot = ask
 
 
--- * event types
+-- * wrap-up
 
--- FIXME: this section should be entirely constructed by TemplateHaskell
+-- FIXME: this section should be completely TH-generated.  provide the macros for that in module
+-- "Thentos.Transaction.TH" so that lib client users can run it on their own sets of 'ThentosQuery'
+-- and 'ThentosUpdate' functions (those sets may include ours, even if the DB type has been
+-- specialized).
 
-allUserIds :: ThentosClearance -> Query DB (Either ThentosError [UserId])
-allUserIds clearance = runThentosQuery clearance trans_allUserIds
+allUserIds :: Query DB (Either ThentosError [UserId])
+allUserIds = runThentosQuery $ trans_allUserIds
 
-lookupUser :: UserId -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
-lookupUser uid clearance = runThentosQuery clearance $ trans_lookupUser uid
+lookupUser :: UserId -> Query DB (Either ThentosError (UserId, User))
+lookupUser uid = runThentosQuery $ trans_lookupUser uid
 
-lookupUserByName :: UserName -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
-lookupUserByName name clearance = runThentosQuery clearance $ trans_lookupUserByName name
+lookupUserByName :: UserName -> Query DB (Either ThentosError (UserId, User))
+lookupUserByName uname = runThentosQuery $ trans_lookupUserByName uname
 
-lookupUserByEmail :: UserEmail -> ThentosClearance -> Query DB (Either ThentosError (UserId, User))
-lookupUserByEmail email clearance = runThentosQuery clearance $ trans_lookupUserByEmail email
+lookupUserByEmail :: UserEmail -> Query DB (Either ThentosError (UserId, User))
+lookupUserByEmail uemail = runThentosQuery $ trans_lookupUserByEmail uemail
 
-addUnconfirmedUser :: Timestamp -> ConfirmationToken -> User -> ThentosClearance -> Update DB (Either ThentosError (UserId, ConfirmationToken))
-addUnconfirmedUser now token user clearance =
-    runThentosUpdate clearance $ trans_addUnconfirmedUser now token user
+addUser :: User -> Update DB (Either ThentosError UserId)
+addUser user = runThentosUpdate $ trans_addUser user
 
-finishUserRegistration :: Timestamp -> Timeout -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError UserId)
-finishUserRegistration now expiry token clearance =
-    runThentosUpdate clearance $ trans_finishUserRegistration now expiry token
+addUsers :: [User] -> Update DB (Either ThentosError [UserId])
+addUsers users = runThentosUpdate $ trans_addUsers users
 
-addUser :: User -> ThentosClearance -> Update DB (Either ThentosError UserId)
-addUser user clearance = runThentosUpdate clearance $ trans_addUser user
+addUnconfirmedUser :: Timestamp -> ConfirmationToken -> User -> Update DB (Either ThentosError (UserId, ConfirmationToken))
+addUnconfirmedUser now tok user = runThentosUpdate $ trans_addUnconfirmedUser now tok user
 
-addUsers :: [User] -> ThentosClearance -> Update DB (Either ThentosError [UserId])
-addUsers users clearance = runThentosUpdate clearance $ trans_addUsers users
+finishUserRegistration :: Timestamp -> Timeout -> ConfirmationToken -> Update DB (Either ThentosError UserId)
+finishUserRegistration now expiry tok = runThentosUpdate $ trans_finishUserRegistration now expiry tok
 
-addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
-addUserEmailChangeRequest now uid email token clearance = runThentosUpdate clearance $ trans_addUserEmailChangeRequest now uid email token
+addPasswordResetToken :: Timestamp -> UserEmail -> PasswordResetToken -> Update DB (Either ThentosError User)
+addPasswordResetToken now uemail tok = runThentosUpdate $ trans_addPasswordResetToken now uemail tok
 
-confirmUserEmailChange :: Timestamp -> Timeout -> ConfirmationToken -> ThentosClearance -> Update DB (Either ThentosError ())
-confirmUserEmailChange now expiry token clearance = runThentosUpdate clearance $ trans_confirmUserEmailChange now expiry token
+resetPassword :: Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> Update DB (Either ThentosError ())
+resetPassword now expiry tok pass = runThentosUpdate $ trans_resetPassword now expiry tok pass
 
-addPasswordResetToken :: Timestamp -> UserEmail -> PasswordResetToken -> ThentosClearance -> Update DB (Either ThentosError User)
-addPasswordResetToken timestamp email token clearance = runThentosUpdate clearance $ trans_addPasswordResetToken timestamp email token
+addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail -> ConfirmationToken -> Update DB (Either ThentosError ())
+addUserEmailChangeRequest now uid uemail tok = runThentosUpdate $ trans_addUserEmailChangeRequest now uid uemail tok
 
-resetPassword :: Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosClearance -> Update DB (Either ThentosError ())
-resetPassword timestamp expiry token newPass clearance = runThentosUpdate clearance $ trans_resetPassword timestamp expiry token newPass
+confirmUserEmailChange :: Timestamp -> Timeout -> ConfirmationToken -> Update DB (Either ThentosError ())
+confirmUserEmailChange now expiry tok = runThentosUpdate $ trans_confirmUserEmailChange now expiry tok
 
-updateUserField :: UserId -> UpdateUserFieldOp -> ThentosClearance -> Update DB (Either ThentosError ())
-updateUserField uid op clearance = runThentosUpdate clearance $ trans_updateUserField uid op
+updateUserField :: UserId -> UpdateUserFieldOp -> Update DB (Either ThentosError ())
+updateUserField uid op = runThentosUpdate $ trans_updateUserField uid op
 
-updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosClearance -> Update DB (Either ThentosError ())
-updateUserFields uid ops clearance = runThentosUpdate clearance $ trans_updateUserFields uid ops
+updateUserFields :: UserId -> [UpdateUserFieldOp] -> Update DB (Either ThentosError ())
+updateUserFields uid ops = runThentosUpdate $ trans_updateUserFields uid ops
 
-deleteUser :: UserId -> ThentosClearance -> Update DB (Either ThentosError ())
-deleteUser uid clearance = runThentosUpdate clearance $ trans_deleteUser uid
+deleteUser :: UserId -> Update DB (Either ThentosError ())
+deleteUser uid = runThentosUpdate $ trans_deleteUser uid
 
-allServiceIds :: ThentosClearance -> Query DB (Either ThentosError [ServiceId])
-allServiceIds clearance = runThentosQuery clearance trans_allServiceIds
+allServiceIds :: Query DB (Either ThentosError [ServiceId])
+allServiceIds = runThentosQuery $ trans_allServiceIds
 
-lookupService :: ServiceId -> ThentosClearance -> Query DB (Either ThentosError (ServiceId, Service))
-lookupService sid clearance = runThentosQuery clearance $ trans_lookupService sid
+lookupService :: ServiceId -> Query DB (Either ThentosError (ServiceId, Service))
+lookupService sid = runThentosQuery $ trans_lookupService sid
 
-addService :: Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription
-    -> ThentosClearance -> Update DB (Either ThentosError ())
-addService owner sid key name desc clearance = runThentosUpdate clearance $ trans_addService owner sid key name desc
+addService :: Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> Update DB (Either ThentosError ())
+addService agent sid key name desc = runThentosUpdate $ trans_addService agent sid key name desc
 
-deleteService :: ServiceId -> ThentosClearance -> Update DB (Either ThentosError ())
-deleteService sid clearance = runThentosUpdate clearance $ trans_deleteService sid
+deleteService :: ServiceId -> Update DB (Either ThentosError ())
+deleteService sid = runThentosUpdate $ trans_deleteService sid
 
-allSessionTokens :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
-allSessionTokens clearance = runThentosQuery clearance trans_allSessionTokens
+lookupThentosSession :: Timestamp -> ThentosSessionToken -> Update DB (Either ThentosError (ThentosSessionToken, ThentosSession))
+lookupThentosSession now tok = runThentosUpdate $ trans_lookupThentosSession now tok
 
-lookupSessionQ :: Maybe Timestamp -> SessionToken -> ThentosClearance -> Query DB (Either ThentosError (SessionToken, Session))
-lookupSessionQ mNow tok clearance = runThentosQuery clearance $ trans_lookupSessionQ mNow tok
+startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout -> Update DB (Either ThentosError ())
+startThentosSession tok agend now expiry = runThentosUpdate $ trans_startThentosSession tok agend now expiry
 
-lookupSession :: Maybe (Timestamp, Bool) -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError (SessionToken, Session))
-lookupSession mNow tok clearance = runThentosUpdate clearance $ trans_lookupSession mNow tok
+endThentosSession :: ThentosSessionToken -> Update DB (Either ThentosError ())
+endThentosSession tok = runThentosUpdate $ trans_endThentosSession tok
 
-startSession :: SessionToken -> Agent -> Timestamp -> Timeout -> ThentosClearance -> Update DB (Either ThentosError ())
-startSession tok agent start lifetime clearance = runThentosUpdate clearance $ trans_startSession tok agent start lifetime
+lookupServiceSession :: Timestamp -> ServiceSessionToken -> Update DB (Either ThentosError (ServiceSessionToken, ServiceSession))
+lookupServiceSession now tok = runThentosUpdate $ trans_lookupServiceSession now tok
 
-endSession :: SessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
-endSession tok clearance = runThentosUpdate clearance $ trans_endSession tok
+startServiceSession :: ThentosSessionToken -> ServiceSessionToken -> ServiceId -> Timestamp -> Timeout -> Update DB (Either ThentosError ())
+startServiceSession ttok stok sid now expiry = runThentosUpdate $ trans_startServiceSession ttok stok sid now expiry
 
-isActiveSession :: Timestamp -> SessionToken -> ThentosClearance -> Query DB (Either ThentosError Bool)
-isActiveSession now tok clearance = runThentosQuery clearance $ trans_isActiveSession now tok
+endServiceSession :: ServiceSessionToken -> Update DB (Either ThentosError ())
+endServiceSession stok = runThentosUpdate $ trans_endServiceSession stok
 
-isActiveSessionAndBump :: Timestamp -> SessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
-isActiveSessionAndBump now tok clearance = runThentosUpdate clearance $ trans_isActiveSessionAndBump now tok
+assertAgent :: Agent -> Query DB (Either ThentosError ())
+assertAgent agent = runThentosQuery $ trans_assertAgent agent
 
-isActiveServiceSession :: Timestamp -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError Bool)
-isActiveServiceSession now tok clearance = runThentosUpdate clearance $ trans_isActiveServiceSession now tok
+assignRole :: Agent -> Role -> Update DB (Either ThentosError ())
+assignRole atend role = runThentosUpdate $ trans_assignRole atend role
 
-addServiceLogin :: Timestamp -> Timeout -> SessionToken -> ServiceId -> ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ServiceSessionToken)
-addServiceLogin now timeout tok sid newServiceSessionToken clearance = runThentosUpdate clearance $ trans_addServiceLogin now timeout tok sid newServiceSessionToken
+unassignRole :: Agent -> Role -> Update DB (Either ThentosError ())
+unassignRole agent role = runThentosUpdate $ trans_unassignRole agent role
 
-dropServiceLogin :: ServiceSessionToken -> ThentosClearance -> Update DB (Either ThentosError ())
-dropServiceLogin tok clearance = runThentosUpdate clearance $ trans_dropServiceLogin tok
+agentRoles :: Agent -> Query DB (Either ThentosError (Set.Set Role))
+agentRoles agent = runThentosQuery $ trans_agentRoles agent
 
-getSessionServiceNames :: Timestamp -> SessionToken -> UserId -> ThentosClearance -> Query DB (Either ThentosError [ServiceName])
-getSessionServiceNames now tok uid clearance = runThentosQuery clearance $ trans_getSessionServiceNames now tok uid
-
-garbageCollectSessions :: ThentosClearance -> Query DB (Either ThentosError [SessionToken])
-garbageCollectSessions clearance = runThentosQuery clearance $ trans_garbageCollectSessions
-
-getServiceSessionMetadata :: ServiceSessionToken -> ThentosClearance -> Query DB (Either ThentosError ServiceSessionMetadata)
-getServiceSessionMetadata tok clearance = runThentosQuery clearance $ trans_getServiceSessionMetadata tok
-
-assignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
-assignRole agent role clearance = runThentosUpdate clearance $ trans_assignRole agent role
-
-unassignRole :: Agent -> Role -> ThentosClearance -> Update DB (Either ThentosError ())
-unassignRole agent role clearance = runThentosUpdate clearance $ trans_unassignRole agent role
-
-lookupAgentRoles :: Agent -> ThentosClearance -> Query DB (Either ThentosError [Role])
-lookupAgentRoles agent clearance = runThentosQuery clearance $ trans_lookupAgentRoles agent
-
-snapShot :: ThentosClearance -> Query DB (Either ThentosError DB)
-snapShot clearance = runThentosQuery clearance trans_snapShot
+snapShot :: Query DB (Either ThentosError DB)
+snapShot = runThentosQuery $ trans_snapShot
 
 
 $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
@@ -852,39 +519,29 @@ $(makeAcidic ''DB
     , 'lookupUserByName
     , 'lookupUserByEmail
     , 'addUser
+    , 'addUsers
     , 'addUnconfirmedUser
     , 'finishUserRegistration
-    , 'addUsers
+    , 'addPasswordResetToken
+    , 'resetPassword
+    , 'addUserEmailChangeRequest
+    , 'confirmUserEmailChange
     , 'updateUserField
     , 'updateUserFields
     , 'deleteUser
-    , 'addUserEmailChangeRequest
-    , 'confirmUserEmailChange
-    , 'addPasswordResetToken
-    , 'resetPassword
-
     , 'allServiceIds
     , 'lookupService
     , 'addService
     , 'deleteService
-
-    , 'allSessionTokens
-    , 'lookupSessionQ
-    , 'lookupSession
-    , 'startSession
-    , 'endSession
-    , 'isActiveSession
-    , 'isActiveSessionAndBump
-    , 'isActiveServiceSession
-    , 'addServiceLogin
-    , 'dropServiceLogin
-    , 'getSessionServiceNames
-    , 'garbageCollectSessions
-    , 'getServiceSessionMetadata
-
+    , 'lookupThentosSession
+    , 'startThentosSession
+    , 'endThentosSession
+    , 'lookupServiceSession
+    , 'startServiceSession
+    , 'endServiceSession
+    , 'assertAgent
     , 'assignRole
     , 'unassignRole
-    , 'lookupAgentRoles
-
+    , 'agentRoles
     , 'snapShot
     ])

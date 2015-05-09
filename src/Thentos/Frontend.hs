@@ -1,13 +1,14 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 
 module Thentos.Frontend where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Concurrent.MVar (MVar)
-import Crypto.Random (SystemRNG)
+import "crypto-random" Crypto.Random (SystemRNG)
 import Data.ByteString (ByteString)
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
@@ -22,17 +23,18 @@ import Snap.Util.FileServe (serveDirectory)
 import System.Log.Missing (logger)
 import System.Log (Priority(INFO))
 
-import Thentos.Api
+import qualified Thentos.Frontend.Handlers as H
+import qualified Thentos.Frontend.Pages as P
+
+import Thentos.Action
+import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Types
 import Thentos.Frontend.Util (serveSnaplet)
 
-import qualified Thentos.Frontend.Handlers as H
-import qualified Thentos.Frontend.Pages as P
 
-
-runFrontend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
+runFrontend :: HttpConfig -> ActionState -> IO ()
 runFrontend config asg = do
     logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
     serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg config)
@@ -40,8 +42,8 @@ runFrontend config asg = do
     host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
     port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
 
-frontendApp :: ActionStateGlobal (MVar SystemRNG) -> HttpConfig -> SnapletInit FrontendApp FrontendApp
-frontendApp (st, rn, _cfg) feConf =
+frontendApp :: ActionState -> HttpConfig -> SnapletInit FrontendApp FrontendApp
+frontendApp (ActionState (st, rn, _cfg)) feConf =
     makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
         addRoutes routes
         FrontendApp <$>

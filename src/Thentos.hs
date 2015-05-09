@@ -6,13 +6,13 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-
-{-# OPTIONS  #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module Thentos (main) where
 
@@ -21,22 +21,28 @@ import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket_, finally)
 import Control.Monad (void)
-import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Control.Monad (when)
+import "crypto-random" Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
-import Data.Acid.Advanced (query')
+import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Either (isRight, isLeft)
 import Data.Proxy (Proxy(Proxy))
 import System.Log.Logger (Priority(INFO), removeAllHandlers)
+import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty (ppShow)
 
-import Thentos.Config
-import Thentos.Types
-import Thentos.DB
-import Thentos.Frontend (runFrontend)
 import System.Log.Missing (logger)
+import Thentos.Action
+import Thentos.Action.Core
+import Thentos.Config
+import Thentos.Frontend (runFrontend)
+import Thentos.Types
+import Thentos.Util
 
-import qualified Thentos.Backend.Api.Simple (runBackend)
 import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
+import qualified Thentos.Backend.Api.Simple (runBackend)
+import qualified Thentos.Transaction as T
 
 
 -- * main
@@ -56,8 +62,11 @@ main =
 
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
     config :: ThentosConfig <- getConfig "devel.config"
+
+    let actionState = ActionState (st, rng, config)
+
     configLogger
-    _ <- createCheckpointLoop st 16000 Nothing
+    _ <- createCheckpointLoop st 16000
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
 
     let mBeConfig :: Maybe HttpConfig
@@ -70,21 +79,21 @@ main =
     let run = case config >>. (Proxy :: Proxy '["command"]) of
             ShowDB -> do
                 logger INFO "database contents:"
-                query' st (SnapShot allowEverything) >>= either (error "oops?") (logger INFO . ppShow)
+                query' st T.SnapShot >>= either (error "oops?") (logger INFO . ppShow)
 
             Run -> do
                 let backend = maybe (return ())
-                        (`Thentos.Backend.Api.Simple.runBackend` (st, rng, config))
+                        (`Thentos.Backend.Api.Simple.runBackend` actionState)
                         mBeConfig
                 let frontend = maybe (return ())
-                        (`runFrontend` (st, rng, config))
+                        (`runFrontend` actionState)
                         mFeConfig
 
                 void $ concurrently backend frontend
 
             RunA3 -> do
                 maybe (error "command `runa3` requires `--runbackend`")
-                    (`Thentos.Backend.Api.Adhocracy3.runBackend` (st, rng, config))
+                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
                     mBeConfig
 
     let finalize = do
@@ -94,3 +103,29 @@ main =
                 removeAllHandlers
 
     run `finally` finalize
+
+
+
+-- | If default user is 'Nothing' or user with 'UserId 0' exists, do
+-- nothing.  Otherwise, create default user.
+createDefaultUser :: AcidState DB -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser _ Nothing = return ()
+createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
+    eq <- query' st $ T.LookupUser (UserId 0)
+    when (isLeft eq) $ do
+        -- user
+        user <- makeUserFromFormData userData
+        logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
+        eu <- update' st $ T.AddUser user
+
+        if eu == Right (UserId 0)
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
+
+        -- roles
+        logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+        result <- mapM (\ role -> update' st (T.AssignRole (UserA (UserId 0)) role)) roles
+
+        if all isRight result
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
