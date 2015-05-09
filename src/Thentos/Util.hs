@@ -4,12 +4,12 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
 module Thentos.Util
-    ( makeUserFromFormData
+    ( hashUserPass
+    , hashServiceKey
+    , secretMatches
     , verifyPass
     , verifyKey
-    , secretMatches
-    , hashUserPass
-    , hashServiceKey
+    , makeUserFromFormData
     , cshow
     , readsPrecEnumBoundedShow
     , (<//>)
@@ -21,12 +21,15 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
 
-import Thentos.Types
-
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as ST
+
+import Thentos.Types
+
+
+-- * crypto
 
 -- | @[2 2 1]@ is fast, but does not provide adequate
 -- protection for passwords in production mode!
@@ -45,15 +48,6 @@ hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
 hashSecret a s = HashedSecret <$>
     (liftIO . Scrypt.encryptPassIO thentosScryptParams . Scrypt.Pass . encodeUtf8 $ a s)
 
-makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
-makeUserFromFormData userData = do
-    hashedPassword <- hashUserPass $ udPassword userData
-    return $ User (udName userData)
-                  hashedPassword
-                  (udEmail userData)
-                  Set.empty
-                  Map.empty
-
 secretMatches :: ST -> HashedSecret a -> Bool
 secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
                                        (fromHashedSecret s)
@@ -66,6 +60,17 @@ verifyKey :: ServiceKey -> Service -> Bool
 verifyKey key service = secretMatches (fromServiceKey key)
                                       (service ^. serviceKey)
 
+makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
+makeUserFromFormData userData = do
+    hashedPassword <- hashUserPass $ udPassword userData
+    return $ User (udName userData)
+                  hashedPassword
+                  (udEmail userData)
+                  Set.empty
+                  Map.empty
+
+
+-- * misc
 
 -- | Convertible show.
 --
