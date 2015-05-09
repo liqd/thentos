@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
 
@@ -8,15 +9,18 @@ module Thentos.Frontend.Handlers.Combinators where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
+import Control.Exception (assert)
 import Control.Lens ((^.), (%~), (.~))
+import Control.Monad.Except (liftIO)
 import Control.Monad.State.Class (gets)
-import Crypto.Random (SystemRNG)
+import "crypto-random" Crypto.Random (SystemRNG)
 import Data.Acid (AcidState)
 import Data.ByteString.Builder (Builder, toLazyByteString)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
+import LIO.DCLabel (DCLabel)
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
@@ -34,9 +38,9 @@ import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions, Query(..))
 import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
-import Thentos.Api
+import Thentos.Action
+import Thentos.Action.Core
 import Thentos.Config
-import Thentos.DB
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
 import Thentos.Types
@@ -64,15 +68,12 @@ buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
 -- pagelet.
 buildDashboard' :: DashboardTab -> (User -> [Role] -> FH H.Html) -> FH H.Html
 buildDashboard' tab pageletBuilder = do
-    runAsUser $ \ clearance _ sessionLoginData -> do
+    runAsUser $ \ _ _ sessionLoginData -> do
         msgs <- popAllFrontendMsgs
         let uid = sessionLoginData ^. fslUserId
-        eUser  <- snapRunAction' clearance . queryAction $ LookupUser uid
-        eRoles <- snapRunAction' clearance . queryAction $ LookupAgentRoles (UserA uid)
-        case (eUser, eRoles) of
-            (Right (_, user), Right roles) -> dashboardPagelet msgs roles tab <$> pageletBuilder user roles
-            e -> logger CRITICAL ("buildDashboard': unreachable: " <> show e) >> crash500 ()
-                 -- FIXME: error handling.  (we need a better approach for this in general!)
+        (_, user) <- snapRunAction $ lookupUser uid
+        roles     <- snapRunAction $ agentRoles (UserA uid)
+        dashboardPagelet msgs roles tab <$> pageletBuilder user roles
 
 
 -- * form rendering and processing
@@ -142,7 +143,7 @@ runHandlerForm f handler a = do
 
 -- | Call 'runAsUserOrNot', and redirect to login page if not logged
 -- in.
-runAsUser :: (ThentosClearance -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
+runAsUser :: (DCLabel -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
 runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 
 -- | Runs a given handler with the credentials and the session data of
@@ -151,12 +152,12 @@ runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 -- We don't have to verify that the user matches the session, since both are
 -- stored in encrypted in the session cookie, so they cannot be manipulated
 -- by the user.
-runAsUserOrNot :: (ThentosClearance -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
+runAsUserOrNot :: (DCLabel -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
 runAsUserOrNot loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- getSessionData
     case sessionData ^. fsdLogin of
         Just sessionLoginData -> do
-            Right clearance <- snapRunAction' allowEverything $ getUserClearance (sessionLoginData ^. fslUserId)
+            clearance <- snapRunAction . clearanceByAgent . UserA $ sessionLoginData ^. fslUserId
             loggedInHandler clearance sessionData sessionLoginData
         Nothing -> loggedOutHandler
 
@@ -287,14 +288,26 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
     er = crash500 . ("_tweakURI" :: ST, uriBS,)
 
 
-snapRunAction :: (DB -> Timestamp -> Either ThentosError ThentosClearance) -> Action (MVar SystemRNG) a
-      -> FH (Either ThentosError a)
-snapRunAction clearanceAbs action = do
-    rn :: MVar SystemRNG <- gets (^. rng)
-    st :: AcidState DB <- getAcidState
-    _cfg :: ThentosConfig <- gets (^. cfg)
-    runAction ((st, rn, _cfg), clearanceAbs) action
+-- * actions vs. snap
 
-snapRunAction' :: ThentosClearance -> Action (MVar SystemRNG) a
-      -> FH (Either ThentosError a)
-snapRunAction' clearance = snapRunAction (\ _ _ -> Right clearance)
+-- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
+-- left value.
+snapRunAction :: Action a -> FH a
+snapRunAction action = snapRunActionE action >>= \case
+    Right v -> return v
+    Left e  -> snapHandleError e
+
+-- | This function could, e.g., handle redirect to login page in case of permission denied.  For now
+-- it just crashes every time.
+snapHandleError :: ActionError -> FH a
+snapHandleError = crash500
+
+-- | Read the clearance from the 'App' state and apply it to 'runAction'.
+snapRunActionE :: Action a -> FH (Either ActionError a)
+snapRunActionE action = do
+    st :: AcidState DB   <- getAcidState
+    rn :: MVar SystemRNG <- gets (^. rng)
+    cf :: ThentosConfig  <- gets (^. cfg)
+
+    clearance :: DCLabel <- assert False $ error "snapRunAction: need to stick clearance into state"
+    liftIO $ runActionE clearance (ActionState (st, rn, cf)) action

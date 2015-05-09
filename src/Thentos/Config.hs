@@ -56,6 +56,7 @@ type ThentosConfig' =
   :*>       ("user_reg_expiration" :> Timeout     :>: "User registration expiration period")
   :*>       ("pw_reset_expiration" :> Timeout     :>: "Password registration token expiration period")
   :*>       ("email_change_expiration" :> Timeout :>: "Email-change-token expiration period")
+  :*> Maybe ("gc_interval"             :> Int     :>: "Garbage collection interval (ms)")
 
 defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
 defaultThentosConfig =
@@ -68,6 +69,7 @@ defaultThentosConfig =
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
+  :*> NothingO
 
 type HttpConfig = Tagged (NoDesc (ToConfigCode HttpConfig'))
 type HttpConfig' =

@@ -1,316 +1,179 @@
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE PackageImports       #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TupleSections        #-}
 
-{-# OPTIONS  #-}
-
-module Thentos.Api
-  ( -- * Overview
-    -- $overview
-
-    -- * Authorization
-    -- $authorization
-
-    ActionStateGlobal
-  , ActionState
-  , Action
-  , runAction', runAction
-  , catchAction, logActionError
-  , updateAction
-  , queryAction
-  , addUnconfirmedUser
-  , confirmNewUser
-  , addPasswordResetToken
-  , getUserClearance
-  , changePassword
-  , resetPassword
-  , checkPasswordByUserName
-  , checkPasswordByUserId
-  , requestUserEmailChange
-  , confirmUserEmailChange
-  , addService
-  , userGroups
-  , startThentosSessionByUserId
-  , startThentosSessionByUserName
-  , startSessionService
-  , startSessionNoPass
-  , bumpSession
-  , isActiveSession
-  , isActiveSessionAndBump
-  , isActiveServiceSession
-  , getSessionServiceNames
-  , addServiceRegistration
-  , dropServiceRegistration
-  , addServiceLogin
-  , dropServiceLogin
-  )
+module Thentos.Action
 where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar, modifyMVar)
+import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Exception (finally)
 import Control.Lens ((^.))
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT(EitherT), left, eitherT, runEitherT)
-import Control.Monad.Trans.Reader (ReaderT(ReaderT), ask, runReaderT)
-import Crypto.Random (CPRG, cprgGenerate)
-import Data.Acid (AcidState, QueryEvent, UpdateEvent, EventState, EventResult)
-import Data.Acid.Advanced (update', query')
+import Control.Monad.Except (throwError, catchError)
+import "crypto-random" Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
-import Data.String.Conversions (SBS, ST, cs)
-import Data.Thyme (getCurrentTime)
-import System.Log (Priority(DEBUG))
+import Data.String.Conversions (ST, cs)
+import LIO.Core (liftLIO, setLabel)
+import LIO.DCLabel ((%%))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import System.Log.Missing (logger)
+import Thentos.Action.Core
 import Thentos.Config
-import Thentos.DB
-import Thentos.Smtp (sendEmailChangeConfirmationMail)
 import Thentos.Types
 import Thentos.Util
 
-
--- * types
-
-type ActionStateGlobal r = (AcidState DB, r, ThentosConfig)
-type ActionState r = (ActionStateGlobal r, DB -> Timestamp -> Either ThentosError ThentosClearance)
-type Action r = ReaderT (ActionState r) (EitherT ThentosError IO)
-
-
--- * running actions
-
-runAction :: (MonadIO m, CPRG r) =>
-       ActionState (MVar r) -> Action (MVar r) a -> m (Either ThentosError a)
-runAction actionState action =
-    liftIO . eitherT (return . Left) (return . Right) $ action `runReaderT` actionState
-
-runAction' :: (MonadIO m, CPRG r) =>
-       (ActionStateGlobal (MVar r), ThentosClearance) -> Action (MVar r) a -> m (Either ThentosError a)
-runAction' (asg, clearance) = runAction (asg, \ _ _ -> Right clearance)
-
-catchAction :: Action r a -> (ThentosError -> Action r a) -> Action r a
-catchAction action handler =
-    ReaderT $ \ state -> do
-        EitherT $ do
-            outcome <- runEitherT $ action `runReaderT` state
-            case outcome of
-                Left e -> runEitherT $ (handler e) `runReaderT` state
-                Right v -> return $ Right v
-
-logActionError :: Action r a -> Action r a
-logActionError action = action `catchAction` \ e -> do
-    logger DEBUG $ "error: " ++ show e
-    lift $ left e
-
-
--- * actions and acid-state
-
-updateAction :: forall event a r .
-                 ( UpdateEvent event
-                 , EventState event ~ DB
-                 , EventResult event ~ Either ThentosError a
-                 ) => (ThentosClearance -> event) -> Action r a
-updateAction = accessAction Nothing update'
-
-queryAction :: forall event a r .
-                 ( QueryEvent event
-                 , EventState event ~ DB
-                 , EventResult event ~ Either ThentosError a
-                 ) => (ThentosClearance -> event) -> Action r a
-queryAction = accessAction Nothing query'
-
--- | Pull a snapshot from the database, pass it to the clearance
--- function in the reader monad, pass the resulting clearance to the
--- uncleared event, and pass the cleared event to either query' or
--- update' (whichever is passed as first arg).
---
--- Optional first argument @overrideClearance@ can be used to do write
--- actions that do something the clearance level from the application
--- would not allow.  Use with care!
---
--- NOTE: Authentication check and transaction do *not* form an atomic
--- transaction.  In order to get an upper bound on how long changes in
--- access privileges need to become effective, the following may work
--- (but is not implemented): 'SnapShot' returns 'DB' together with a
--- timestamp.  When the actual transaction is executed, 'mkAuth' will
--- be passed another timestamp (of the time of the execution of the
--- actual transaction), and can compare the two.  If the snapshot is
--- too old, it can throw an error.  (This would mean that 'mkAuth'
--- would have to live in 'Action', but I don't see any issues with
--- that.)
-accessAction :: forall event a r .
-                 ( EventState event ~ DB
-                 , EventResult event ~ Either ThentosError a
-                 ) => Maybe ThentosClearance
-                   -> (AcidState (EventState event) -> event -> Action r (EventResult event))
-                   -> (ThentosClearance -> event) -> Action r a
-accessAction overrideClearance access unclearedEvent = do
-    ((st, _, _), clearanceAbs) <- ask
-    now <- Timestamp <$> liftIO getCurrentTime
-    clearanceE :: Either ThentosError ThentosClearance
-        <- (>>= (`clearanceAbs` now)) <$> query' st (SnapShot allowEverything)
-
-    case clearanceE of
-        Left err -> lift $ left err
-        Right clearance -> do
-            result <- access st (unclearedEvent $ fromMaybe clearance overrideClearance)
-            case result of
-                Left err -> lift $ left err
-                Right success -> return success
+import qualified Thentos.Transaction as T
 
 
 -- * randomness
 
--- | A relative of 'cprgGenerate' from crypto-random who lives in
--- 'Action'.
-genRandomBytes :: CPRG r => Int -> Action (MVar r) SBS
-genRandomBytes i = do
-    ((_, mr, _), _) <- ask
-    liftIO . modifyMVar mr $ \ r -> do
-        let (result, r') = cprgGenerate i r
-        return (r', result)
+-- | Return a base64 encoded random string of length 24 (18 bytes of entropy).
+freshRandomName :: Action ST
+freshRandomName = cs . Base64.encode <$> genRandomBytes'P 18
 
-
--- | Return a base64 encoded random string of length 24 (18 bytes of
--- entropy).
-freshRandomName :: CPRG r => Action (MVar r) ST
-freshRandomName = cs . Base64.encode <$> genRandomBytes 18
-
-
-freshServiceId :: CPRG r => Action (MVar r) ServiceId
-freshServiceId = ServiceId <$> freshRandomName
-
-freshServiceKey :: CPRG r => Action (MVar r) ServiceKey
-freshServiceKey = ServiceKey <$> freshRandomName
-
-freshSessionToken :: CPRG r => Action (MVar r) SessionToken
-freshSessionToken = SessionToken <$> freshRandomName
-
-freshConfirmationToken :: CPRG r => Action (MVar r) ConfirmationToken
+freshConfirmationToken :: Action ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
-freshPasswordResetToken :: CPRG r => Action (MVar r) PasswordResetToken
+freshPasswordResetToken :: Action PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
-freshServiceSessionToken :: CPRG r => Action (MVar r) ServiceSessionToken
+freshServiceId :: Action ServiceId
+freshServiceId = ServiceId <$> freshRandomName
+
+freshServiceKey :: Action ServiceKey
+freshServiceKey = ServiceKey <$> freshRandomName
+
+freshSessionToken :: Action ThentosSessionToken
+freshSessionToken = ThentosSessionToken <$> freshRandomName
+
+freshServiceSessionToken :: Action ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 
--- ** users
+-- * user
 
-addUnconfirmedUser :: CPRG r => UserFormData -> Action (MVar r) (UserId, ConfirmationToken)
+lookupUser :: UserId -> Action (UserId, User)
+lookupUser = query'P . T.LookupUser
+
+lookupUserByName :: UserName -> Action (UserId, User)
+lookupUserByName = query'P . T.LookupUserByName
+
+lookupUserByEmail :: UserEmail -> Action (UserId, User)
+lookupUserByEmail = query'P . T.LookupUserByEmail
+
+addUnconfirmedUser :: UserFormData -> Action (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    now <- Timestamp <$> liftIO getCurrentTime
+    now <- getCurrentTime'P
     tok <- freshConfirmationToken
-    user <- makeUserFromFormData userData
-    updateAction $ AddUnconfirmedUser now tok user
+    user <- makeUserFromFormData'P userData
+    update'P $ T.AddUnconfirmedUser now tok user
 
-confirmNewUser :: ConfirmationToken -> Action (MVar r) UserId
+confirmNewUser :: ConfirmationToken -> Action UserId
 confirmNewUser token = do
-    ((_, _, config), _) <- ask
-    let expiryPeriod = config >>. (Proxy :: Proxy '["user_reg_expiration"])
-    now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ FinishUserRegistration now expiryPeriod token
+    expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
+    now <- getCurrentTime'P
+    update'P $ T.FinishUserRegistration now expiryPeriod token
 
-addPasswordResetToken :: CPRG r => UserEmail -> Action (MVar r) (User, PasswordResetToken)
+addPasswordResetToken :: UserEmail -> Action (User, PasswordResetToken)
 addPasswordResetToken email = do
-    now <- Timestamp <$> liftIO getCurrentTime
+    now <- getCurrentTime'P
     tok <- freshPasswordResetToken
-    user <- updateAction $ AddPasswordResetToken now email tok
+    user <- update'P $ T.AddPasswordResetToken now email tok
     return (user, tok)
 
-resetPassword :: PasswordResetToken -> UserPass -> Action r ()
+resetPassword :: PasswordResetToken -> UserPass -> Action ()
 resetPassword token password = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    ((_, _, config), _) <- ask
-    let expiryPeriod = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
-    hashedPassword <- hashUserPass password
-    updateAction $ ResetPassword now expiryPeriod token hashedPassword
+    now <- getCurrentTime'P
+    expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> getConfig'P
+    hashedPassword <- hashUserPass'P password
+    update'P $ T.ResetPassword now expiryPeriod token hashedPassword
 
-changePassword :: UserId -> UserPass -> UserPass -> Action r ()
+changePassword :: UserId -> UserPass -> UserPass -> Action ()
 changePassword uid old new = do
-    _ <- checkPasswordByUserId uid old
-    hashedPw <- hashUserPass new
-    updateAction $ UpdateUserField uid (UpdateUserFieldPassword hashedPw)
+    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) old
+    hashedPw <- hashUserPass'P new
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
-checkPasswordByUserName :: UserName -> UserPass -> Action r (UserId, User)
-checkPasswordByUserName username password =
-    checkPassword (LookupUserByName username) password
-
-checkPasswordByUserId :: UserId -> UserPass -> Action r (UserId, User)
-checkPasswordByUserId uid password = checkPassword (LookupUser uid) password
-
-checkPassword :: (QueryEvent event,
-                  EventResult event
-                    ~ Either ThentosError (UserId, User),
-                  EventState event ~ DB) =>
-     (ThentosClearance -> event) -> UserPass -> Action r (UserId, User)
-checkPassword action password = catchAction checkPw $ \err ->
-    case err of
-        NoSuchUser -> lift $ left BadCredentials
-        e -> lift $ left e
+-- | Find user running the action, confirm the password, and return the user or crash.  'NoSuchUser'
+-- is translated into 'BadCredentials'.
+findUserCheckPassword :: Action (UserId, User) -> UserPass -> Action (UserId, User)
+findUserCheckPassword action password = a `catchError` h
   where
-    checkPw = do
-        (uid, user) <- accessAction (Just allowEverything) query' action  -- FIXME: label action, don't override clearance.
+    a = do
+        (uid, user) <- action
         if verifyPass password user
             then return (uid, user)
-            else lift $ left BadCredentials
+            else throwError BadCredentials
 
-requestUserEmailChange :: CPRG r =>
-    UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action (MVar r) ()
+    h NoSuchUser = throwError BadCredentials
+    h e          = throwError e
+
+requestUserEmailChange :: UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
+    restrictWrite [UserA uid]
+
     tok <- freshConfirmationToken
-    ((_, _, config), _) <- ask
-    now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ AddUserEmailChangeRequest now uid newEmail tok
-    let callbackUrl = callbackUrlBuilder tok
-        smtpConfig = Tagged $ config >>. (Proxy :: Proxy '["smtp"])
-    liftIO $ sendEmailChangeConfirmationMail smtpConfig newEmail callbackUrl
-    return ()
+    now <- getCurrentTime'P
+    smtpConfig <- (Tagged . (>>. (Proxy :: Proxy '["smtp"]))) <$> getConfig'P
 
--- | Look up the given confirmation token and updates the user's email address
--- iff 1) the token exists and 2) the token belongs to the user and 3) the token
--- has not expired. If any of these conditions don't apply, throw
--- 'NoSuchToken' to avoid leaking information.
-confirmUserEmailChange :: ConfirmationToken -> Action (MVar r) ()
+    update'P $ T.AddUserEmailChangeRequest now uid newEmail tok
+
+    let message = "Please go to " <> callbackUrlBuilder tok <> " to confirm your change of email address."
+        subject = "Thentos email address change"
+    sendMail'P smtpConfig Nothing newEmail subject message
+
+-- | Look up the given confirmation token and updates the user's email address iff 1) the token
+-- exists, 2) the token belongs to the user, and 3) the token has not expired. If any of these
+-- conditions don't apply, throw 'NoSuchToken' to avoid leaking information.
+--
+-- FIXME: set label so that only the logged-in user can find the token.  then catch 'permission
+-- denied' and translate into 'no such token'.
+confirmUserEmailChange :: ConfirmationToken -> Action ()
 confirmUserEmailChange token = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    ((_, _, config), _) <- ask
-    let expiryPeriod = config >>. (Proxy :: Proxy '["email_change_expiration"])
-    catchAction
-        (updateAction $ ConfirmUserEmailChange now expiryPeriod token)
-        $ \err -> case err of
-            PermissionDenied _ _ _ -> lift (left NoSuchToken)
-            e                      -> lift (left e)
+    now <- getCurrentTime'P
+    expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
+    update'P $ T.ConfirmUserEmailChange now expiryPeriod token
 
-getUserClearance :: UserId -> Action r ThentosClearance
-getUserClearance uid = do
-    roles <- queryAction $ LookupAgentRoles (UserA uid)
-    return $ makeClearance (UserA uid) roles
+updateUserField :: UserId -> T.UpdateUserFieldOp -> Action ()
+updateUserField uid = update'P . T.UpdateUserField uid
+
+updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action ()
+updateUserFields uid = update'P . T.UpdateUserFields uid
 
 
--- ** services
+-- * service
 
-addService :: CPRG r => Agent -> ServiceName -> ServiceDescription -> Action (MVar r) (ServiceId, ServiceKey)
+lookupService :: ServiceId -> Action (ServiceId, Service)
+lookupService = query'P . T.LookupService
+
+addService :: Agent -> ServiceName -> ServiceDescription -> Action (ServiceId, ServiceKey)
 addService owner name desc = do
+    restrictWrite [owner]
+
     sid <- freshServiceId
     key <- freshServiceKey
-    hashedKey <- hashServiceKey key
-    updateAction $ AddService owner sid hashedKey name desc
+    hashedKey <- hashServiceKey'P key
+    update'P $ T.AddService owner sid hashedKey name desc
     return (sid, key)
 
 -- | List all group leafs a user is member in on some service.
-userGroups :: UserId -> ServiceId -> Action r [Group]
+userGroups :: UserId -> ServiceId -> Action [Group]
 userGroups uid sid = do
-    (_, service) <- queryAction $ LookupService sid
+    restrictRead [UserA uid, ServiceA sid]
+
+    (_, service) <- query'P $ T.LookupService sid
 
     let groupMap :: Map.Map GroupNode (Set Group)
         groupMap = service ^. serviceGroups
@@ -331,104 +194,173 @@ userGroups uid sid = do
     return . Set.toList . f . GroupU $ uid
 
 
--- ** sessions
+-- * thentos session
 
--- | Check user credentials and create a session for user.
-startThentosSessionByUserId :: CPRG r => UserId -> UserPass -> Action (MVar r) SessionToken
-startThentosSessionByUserId uid pass = do
-    _ <- checkPasswordByUserId uid pass
-    startSessionNoPass (UserA uid)
-
-startThentosSessionByUserName :: CPRG r => UserName-> UserPass -> Action (MVar r) (UserId, SessionToken)
-startThentosSessionByUserName name pass = do
-    (uid, _) <- checkPasswordByUserName name pass
-    token <- startSessionNoPass (UserA uid)
-    return (uid, token)
-
--- | Check service credentials and create a session for service.
-startSessionService :: CPRG r => ServiceId -> ServiceKey -> Action (MVar r) SessionToken
-startSessionService sid key = do
-    (_, service) <- accessAction (Just allowEverything) query' $ LookupService sid
-    if verifyKey key service
-        then startSessionNoPass (ServiceA sid)
-        else lift $ left BadCredentials
-
--- | Do NOT check credentials, and just open a session for any agent.
--- Only call this in the context of a successful authentication check!
-startSessionNoPass :: CPRG r => Agent -> Action (MVar r) SessionToken
-startSessionNoPass agent = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    tok <- freshSessionToken
-    accessAction (Just allowEverything) update' $ StartSession tok agent now defaultSessionTimeout
-    return tok
-
--- | Sessions have a fixed duration of 2 weeks.
+-- | Thentos and service sessions have a fixed duration of 2 weeks.
 --
--- FIXME: this is used for both service sessions and thentos sessions.
--- delete this name, and make two new names that disentangle that.
---
--- FIXME: make configurable.  (eventually, this will need to be
--- run-time configurable.  but there will probably still be global
+-- FIXME: make configurable, and distinguish between thentos sessions and service sessions.
+-- (eventually, this will need to be run-time configurable.  but there will probably still be global
 -- defaults handled by configifier.)
 defaultSessionTimeout :: Timeout
 defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
-bumpSession :: SessionToken -> Action r (SessionToken, Session)
-bumpSession tok = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ LookupSession (Just (now, True)) tok
+lookupThentosSession :: ThentosSessionToken -> Action ThentosSession
+lookupThentosSession tok = do
+    now <- getCurrentTime'P
+    snd <$> update'P (T.LookupThentosSession now tok)
 
-isActiveSession :: SessionToken -> Action r Bool
-isActiveSession tok = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    queryAction $ IsActiveSession now tok
+-- | Like 'lookupThentosSession', but (1) does not throw exceptions and (2) returns less information
+-- and therefore can have a more liberal label.
+existsThentosSession :: ThentosSessionToken -> Action Bool
+existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
+    \case NoSuchThentosSession -> return False
+          e                    -> throwError e
 
--- | FUTURE WORK [performance]: do a query first; if session has not
--- aged beyond a certain threshold, do not bump.  (also, we should
--- just bump the session in 'makeThentosClearance' and then be done
--- with it.  much simpler!)
-isActiveSessionAndBump :: SessionToken -> Action r Bool
-isActiveSessionAndBump tok = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ IsActiveSessionAndBump now tok
+-- | Check user credentials and create a session for user.
+startThentosSessionByUserId :: UserId -> UserPass -> Action ThentosSessionToken
+startThentosSessionByUserId uid pass = do
+    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) pass
+    startThentosSessionByAgent (UserA uid)
 
-isActiveServiceSession :: ServiceSessionToken -> Action r Bool
-isActiveServiceSession tok = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    updateAction $ IsActiveServiceSession now tok
+startThentosSessionByUserName :: UserName -> UserPass -> Action (UserId, ThentosSessionToken)
+startThentosSessionByUserName name pass = do
+    (uid, _) <- findUserCheckPassword (query'P $ T.LookupUserByName name) pass
+    (uid,) <$> startThentosSessionByAgent (UserA uid)
 
-getSessionServiceNames :: SessionToken -> UserId -> Action r [ServiceName]
-getSessionServiceNames sid uid = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    queryAction $ GetSessionServiceNames now sid uid
+-- | Check service credentials and create a session for service.
+startThentosSessionByServiceId :: ServiceId -> ServiceKey -> Action ThentosSessionToken
+startThentosSessionByServiceId sid key = do
+    _ <- findServiceCheckKey (query'P $ T.LookupService sid) key
+    startThentosSessionByAgent (ServiceA sid)
 
-_sessionAndUserIdFromToken :: SessionToken -> Action r (Session, UserId)
-_sessionAndUserIdFromToken tok = do
-    (_, session) <- bumpSession tok
-    case session ^. sessionAgent of
+endThentosSession :: ThentosSessionToken -> Action ()
+endThentosSession = update'P . T.EndThentosSession
+
+-- | Like 'findUserCheckPassword'.
+findServiceCheckKey :: Action (ServiceId, Service) -> ServiceKey -> Action (ServiceId, Service)
+findServiceCheckKey action key = a `catchError` h
+  where
+    a = do
+        (sid, service) <- action
+        if verifyKey key service
+            then return (sid, service)
+            else throwError BadCredentials
+
+    h NoSuchService = throwError BadCredentials
+    h e             = throwError e
+
+-- | Open a session for any agent.  This can only be called if you -- no, that's not how this works?!
+startThentosSessionByAgent :: Agent -> Action ThentosSessionToken
+startThentosSessionByAgent agent = do
+    restrictTotal
+
+    now <- getCurrentTime'P
+    tok <- freshSessionToken
+    update'P $ T.StartThentosSession tok agent now defaultSessionTimeout
+    return tok
+
+
+-- | For a thentos session, look up all service sessions and return their service names.
+serviceNamesFromThentosSession :: ThentosSessionToken -> Action [ServiceName]
+serviceNamesFromThentosSession tok = do
+    now <- getCurrentTime'P
+    ts :: Set.Set ServiceSessionToken <- (^. thSessServiceSessions) . snd <$> update'P (T.LookupThentosSession now tok)
+    ss :: [ServiceSession]            <- mapM (fmap snd . update'P . T.LookupServiceSession now) $ Set.toList ts
+    xs :: [(ServiceId, Service)]      <- mapM (\ s -> query'P $ T.LookupService (s ^. srvSessService)) ss
+
+    return $ (^. serviceName) . snd <$> xs
+
+
+-- * service session
+
+lookupServiceSession :: ServiceSessionToken -> Action ServiceSession
+lookupServiceSession tok = do
+    now <- getCurrentTime'P
+    snd <$> update'P (T.LookupServiceSession now tok)
+
+existsServiceSession :: ServiceSessionToken -> Action Bool
+existsServiceSession tok = (lookupServiceSession tok >> return True) `catchError`
+    \case NoSuchServiceSession -> return False
+          e                    -> throwError e
+
+thentosSessionAndUserIdByToken :: ThentosSessionToken -> Action (ThentosSession, UserId)
+thentosSessionAndUserIdByToken tok = do
+    session <- lookupThentosSession tok
+    case session ^. thSessAgent of
         UserA uid -> return (session, uid)
-        ServiceA _ -> lift $ left OperationNotPossibleInServiceSession
+        ServiceA sid -> throwError $ NeedUserA tok sid
 
-addServiceRegistration :: SessionToken -> ServiceId -> Action r ()
+addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action ()
 addServiceRegistration tok sid = do
-    (_, uid) <- _sessionAndUserIdFromToken tok
-    updateAction $ UpdateUserField uid (UpdateUserFieldAddService sid newServiceAccount)
+    (_, uid) <- thentosSessionAndUserIdByToken tok
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 
-dropServiceRegistration :: SessionToken -> ServiceId -> Action r ()
+dropServiceRegistration :: ThentosSessionToken -> ServiceId -> Action ()
 dropServiceRegistration tok sid = do
-    (_, uid) <- _sessionAndUserIdFromToken tok
-    updateAction $ UpdateUserField uid (UpdateUserFieldDropService sid)
+    (_, uid) <- thentosSessionAndUserIdByToken tok
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldDropService sid)
 
 -- | If user is not registered, throw an error.
-addServiceLogin :: CPRG r => SessionToken -> ServiceId -> Action (MVar r) ServiceSessionToken
-addServiceLogin tok sid = do
-    now <- Timestamp <$> liftIO getCurrentTime
-    serviceSessionToken <- freshServiceSessionToken
-    updateAction $ AddServiceLogin now defaultSessionTimeout tok sid serviceSessionToken
+startServiceSession :: ThentosSessionToken -> ServiceId -> Action ServiceSessionToken
+startServiceSession ttok sid = do
+    now <- getCurrentTime'P
+    stok <- freshServiceSessionToken
+    update'P $ T.StartServiceSession ttok stok sid now defaultSessionTimeout
+    return stok
 
 -- | If user is not registered, throw an error.
-dropServiceLogin :: ServiceSessionToken -> Action r ()
-dropServiceLogin tok = updateAction $ DropServiceLogin tok
+endServiceSession :: ServiceSessionToken -> Action ()
+endServiceSession = update'P . T.EndServiceSession
+
+getServiceSessionMetadata :: ServiceSessionToken -> Action ServiceSessionMetadata
+getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
+
+
+-- * agents and roles
+
+assignRole :: Agent -> Role -> Action ()
+assignRole agent = update'P . T.AssignRole agent
+
+unassignRole :: Agent -> Role -> Action ()
+unassignRole agent = update'P . T.UnassignRole agent
+
+agentRoles :: Agent -> Action [Role]
+agentRoles = fmap Set.toList . query'P . T.AgentRoles
+
+
+-- * garbage collection
+
+collectGarbage :: Action ()
+collectGarbage = do
+    now <- getCurrentTime'P
+    query'P (T.GarbageCollectThentosSessions now) >>= update'P . T.DoGarbageCollectThentosSessions
+    query'P (T.GarbageCollectServiceSessions now) >>= update'P . T.DoGarbageCollectServiceSessions
+
+    config <- getConfig'P
+    let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
+        passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
+        emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
+    update'P $ T.DoGarbageCollectUnconfirmedUsers now userExpiry
+    update'P $ T.DoGarbageCollectEmailChangeTokens now emailExpiry
+    update'P $ T.DoGarbageCollectPasswordResetTokens now passwordExpiry
+
+
+-- XXX: something like this should go to the test suite...
+main' :: IO ()
+main' =
+  do
+    st     :: AcidState DB   <- openLocalStateFrom ".acid-state/" emptyDB
+    rng    :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+    config :: ThentosConfig  <- getConfig "devel.config"
+
+    let clearance = False %% False
+
+    flip finally (createCheckpoint st >> closeAcidState st) $ do
+        result <- runActionE clearance (ActionState (st, rng, config)) $ do
+            liftLIO $ setLabel $ True %% True
+            query'P $ T.LookupUser (UserId 0)
+        print result
+
 
 
 -- $overview
@@ -445,7 +377,7 @@ dropServiceLogin tok = updateAction $ DropServiceLogin tok
 -- non-acidic fashion, and possibly do other things involving
 -- randomness or the system time.  Actions live in the 'Action' monad
 -- transformer stack and provide access to acid-state as well as 'IO',
--- and authentication management.  'queryAction' and 'updateAction'
+-- and authentication management.  'query'P' and 'update'P'
 -- can be used to translate transactions into actions.
 --
 -- A collection of basic transactions is implemented in "Thentos.DB.Trans",
@@ -462,7 +394,7 @@ dropServiceLogin tok = updateAction $ DropServiceLogin tok
 -- calling user.  Each transaction returns its result together with a
 -- label ('ThentosLabel').  The label must satisfy @label `canFlowTo`
 -- clearance@ (see 'canFlowTo').  The functions 'accessAction',
--- 'updateAction', 'queryAction' take the clearance level from the
+-- 'update'P', 'query'P' take the clearance level from the
 -- application state and attach it to the acid-state event.
 --
 -- Labels can be combined to a least upper bound (method 'lub' of type
