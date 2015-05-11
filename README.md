@@ -13,6 +13,20 @@ release plan.
 Having that said: enjoy!  (:
 
 
+Unstable dependencies
+---------------------
+
+You need to add a few sources not yet available from hackage to your
+cabal sandbox:
+
+```bash
+$ git checkout https://github.com/mpickering/servant-pandoc
+$ git clone https://github.com/fhartwig/pronk -b barely-working-state
+$ cabal sandbox add-source servant-pandoc
+$ cabal sandbox add-source pronk
+```
+
+
 Overview
 --------
 
@@ -105,8 +119,6 @@ $ cabal test --test-options="--skip selenium"
 Benchmarks:
 
 ```shell
-$ git clone https://github.com/fhartwig/pronk -b barely-working-state
-$ cabal sandbox add-source ./pronk
 $ cabal install --enable-bench
 $ cabal bench  # requires thentos to be running in another shell
 ```

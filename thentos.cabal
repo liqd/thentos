@@ -106,8 +106,8 @@ library
     , safecopy
     , sandi
     , scrypt
-    , servant
-    , servant-server
+    , servant >= 0.4 && < 0.5
+    , servant-server >= 0.4 && < 0.5
     , snap
     , snap-blaze
     , snap-core
@@ -177,8 +177,8 @@ executable build-docs
     , functor-infix
     , pandoc
     , process
-    , servant
-    , servant-docs
+    , servant >= 0.4 && < 0.5
+    , servant-docs >= 0.4 && < 0.5
     , servant-pandoc
     , thyme
 
@@ -231,7 +231,7 @@ test-suite tests
     , regex-easy
     , safecopy
     , scrypt
-    , servant-server
+    , servant-server >= 0.4 && < 0.5
     , snap-core
     , string-conversions
     , system-fileio
