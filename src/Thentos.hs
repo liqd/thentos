@@ -17,6 +17,7 @@
 module Thentos (main) where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket_, finally)
@@ -67,6 +68,7 @@ main =
 
     configLogger
     _ <- createCheckpointLoop st 16000
+    _ <- runGcLoop $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
 
     let mBeConfig :: Maybe HttpConfig
@@ -104,6 +106,13 @@ main =
 
     run `finally` finalize
 
+
+-- * garbage collection
+runGcLoop :: AcidState st -> Maybe Timeout -> IO ThreadId
+runGcLoop _         Nothing         = forkIO $ return ()
+runGcLoop acidState (Just interval) = forkIO . forever $ do
+    threadDelay $ fromTimeout interval * 1000
+    update' st T.collectGarbage
 
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
