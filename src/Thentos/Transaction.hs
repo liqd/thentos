@@ -37,6 +37,7 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, foldl')
+import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 
@@ -289,7 +290,7 @@ trans_startThentosSession tok owner start expiry = do
 -- owner.  If thentos session does not exist or has expired, remove it just the same.
 --
 -- Always call this transaction if you want to clean up a session (e.g., from a garbage collection
--- transatcion).  This way in the future, you can replace this transaction easily by one that does
+-- transaction).  This way in the future, you can replace this transaction easily by one that does
 -- not actually destroy the session, but move it to an archive.
 trans_endThentosSession :: ThentosSessionToken -> ThentosUpdate ()
 trans_endThentosSession tok = do
@@ -411,6 +412,37 @@ trans_agentRoles agent = fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <
 
 trans_snapShot :: ThentosQuery DB
 trans_snapShot = ask
+
+
+-- | Go through 'dbSessions' map and find all expired sessions.
+-- Return in 'ThentosQuery'.  (To reduce database locking, call this
+-- and then @EndSession@ on all service ids individually.)
+trans_garbageCollectSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
+trans_garbageCollectSessions now = do
+    sessions <- (^. dbThentosSessions) <$> ask
+    return (map fst $ filter (\ (_, s) -> s ^. thSessEnd < now)
+                             (Map.assocs sessions))
+
+trans_doGarbageCollectSessions :: [ThentosSessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectSessions tokens = forM_ tokens trans_endThentosSession
+
+-- | Removes all expired unconfirmed users from DB
+trans_doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectUnconfirmedUsers now expiry = do
+    modify $ dbUnconfirmedUsers %~ removeExpireds now expiry
+
+-- | Removes all expired password reset requests from DB
+trans_doGarbageCollectPasswordResetTokens :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectPasswordResetTokens now expiry = do
+    modify $ dbPwResetTokens %~ removeExpireds now expiry
+
+-- | Removes all expired email change requests from DB
+trans_doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectEmailChangeTokens now expiry = do
+    modify $ dbEmailChangeTokens %~ removeExpireds now expiry
+
+removeExpireds :: Timestamp -> Timeout -> Map k (v, Timestamp) -> Map k (v, Timestamp)
+removeExpireds now expiry = Map.filter (\ (_, created) -> fromTimestamp created .+^ fromTimeout expiry >= fromTimestamp now)
 
 
 -- * wrap-up
