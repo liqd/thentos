@@ -542,6 +542,21 @@ agentRoles agent = runThentosQuery $ trans_agentRoles agent
 snapShot :: Query DB (Either ThentosError DB)
 snapShot = runThentosQuery $ trans_snapShot
 
+garbageCollectSessions :: Timestamp -> Query DB (Either ThentosError [ThentosSessionToken])
+garbageCollectSessions = runThentosQuery . trans_garbageCollectSessions
+
+doGarbageCollectSessions :: [ThentosSessionToken] -> Update DB (Either ThentosError ())
+doGarbageCollectSessions = runThentosUpdate . trans_doGarbageCollectSessions
+
+doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectUnconfirmedUsers now expiry = runThentosUpdate $ trans_doGarbageCollectUnconfirmedUsers now expiry
+
+doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectEmailChangeTokens now expiry = runThentosUpdate $ trans_doGarbageCollectEmailChangeTokens now expiry
+
+doGarbageCollectPasswordResetTokens :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectPasswordResetTokens now expiry = runThentosUpdate $ trans_doGarbageCollectPasswordResetTokens now expiry
+
 
 $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
 
@@ -576,4 +591,9 @@ $(makeAcidic ''DB
     , 'unassignRole
     , 'agentRoles
     , 'snapShot
+    , 'garbageCollectSessions
+    , 'doGarbageCollectSessions
+    , 'doGarbageCollectUnconfirmedUsers
+    , 'doGarbageCollectEmailChangeTokens
+    , 'doGarbageCollectPasswordResetTokens
     ])
