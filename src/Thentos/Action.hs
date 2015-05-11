@@ -329,12 +329,12 @@ agentRoles = fmap Set.toList . query'P . T.AgentRoles
 
 
 -- * garbage collection
+
 collectGarbage :: Action ()
 collectGarbage = do
     now <- getCurrentTime'P
-    expiredSessions <- query'P $ T.GarbageCollectSessions now
-    update'P $ T.DoGarbageCollectSessions expiredSessions
-
+    query'P (T.GarbageCollectThentosSessions now) >>= update'P . T.DoGarbageCollectThentosSessions
+    query'P (T.GarbageCollectServiceSessions now) >>= update'P . T.DoGarbageCollectServiceSessions
 
     config <- getConfig'P
     let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])

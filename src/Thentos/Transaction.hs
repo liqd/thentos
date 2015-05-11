@@ -414,29 +414,40 @@ trans_snapShot :: ThentosQuery DB
 trans_snapShot = ask
 
 
--- | Go through 'dbSessions' map and find all expired sessions.
+-- * garbage collection
+
+-- | Go through 'dbThentosSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
--- and then @EndSession@ on all service ids individually.)
-trans_garbageCollectSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
-trans_garbageCollectSessions now = do
+-- and then @EndSession@ on all tokens individually.)
+trans_garbageCollectThentosSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
+trans_garbageCollectThentosSessions now = do
     sessions <- (^. dbThentosSessions) <$> ask
     return (map fst $ filter (\ (_, s) -> s ^. thSessEnd < now)
                              (Map.assocs sessions))
 
-trans_doGarbageCollectSessions :: [ThentosSessionToken] -> ThentosUpdate ()
-trans_doGarbageCollectSessions tokens = forM_ tokens trans_endThentosSession
+trans_doGarbageCollectThentosSessions :: [ThentosSessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectThentosSessions tokens = forM_ tokens trans_endThentosSession
 
--- | Removes all expired unconfirmed users from DB
+trans_garbageCollectServiceSessions :: Timestamp -> ThentosQuery [ServiceSessionToken]
+trans_garbageCollectServiceSessions now = do
+    sessions <- (^. dbServiceSessions) <$> ask
+    return (map fst $ filter (\ (_, s) -> s ^. srvSessEnd < now)
+                             (Map.assocs sessions))
+
+trans_doGarbageCollectServiceSessions :: [ServiceSessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectServiceSessions tokens = forM_ tokens trans_endServiceSession
+
+-- | Remove all expired unconfirmed users from DB.
 trans_doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> ThentosUpdate ()
 trans_doGarbageCollectUnconfirmedUsers now expiry = do
     modify $ dbUnconfirmedUsers %~ removeExpireds now expiry
 
--- | Removes all expired password reset requests from DB
+-- | Remove all expired password reset requests from DB.
 trans_doGarbageCollectPasswordResetTokens :: Timestamp -> Timeout -> ThentosUpdate ()
 trans_doGarbageCollectPasswordResetTokens now expiry = do
     modify $ dbPwResetTokens %~ removeExpireds now expiry
 
--- | Removes all expired email change requests from DB
+-- | Remove all expired email change requests from DB.
 trans_doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosUpdate ()
 trans_doGarbageCollectEmailChangeTokens now expiry = do
     modify $ dbEmailChangeTokens %~ removeExpireds now expiry
@@ -542,11 +553,17 @@ agentRoles agent = runThentosQuery $ trans_agentRoles agent
 snapShot :: Query DB (Either ThentosError DB)
 snapShot = runThentosQuery $ trans_snapShot
 
-garbageCollectSessions :: Timestamp -> Query DB (Either ThentosError [ThentosSessionToken])
-garbageCollectSessions = runThentosQuery . trans_garbageCollectSessions
+garbageCollectThentosSessions :: Timestamp -> Query DB (Either ThentosError [ThentosSessionToken])
+garbageCollectThentosSessions = runThentosQuery . trans_garbageCollectThentosSessions
 
-doGarbageCollectSessions :: [ThentosSessionToken] -> Update DB (Either ThentosError ())
-doGarbageCollectSessions = runThentosUpdate . trans_doGarbageCollectSessions
+doGarbageCollectThentosSessions :: [ThentosSessionToken] -> Update DB (Either ThentosError ())
+doGarbageCollectThentosSessions = runThentosUpdate . trans_doGarbageCollectThentosSessions
+
+garbageCollectServiceSessions :: Timestamp -> Query DB (Either ThentosError [ServiceSessionToken])
+garbageCollectServiceSessions = runThentosQuery . trans_garbageCollectServiceSessions
+
+doGarbageCollectServiceSessions :: [ServiceSessionToken] -> Update DB (Either ThentosError ())
+doGarbageCollectServiceSessions = runThentosUpdate . trans_doGarbageCollectServiceSessions
 
 doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
 doGarbageCollectUnconfirmedUsers now expiry = runThentosUpdate $ trans_doGarbageCollectUnconfirmedUsers now expiry
@@ -591,8 +608,10 @@ $(makeAcidic ''DB
     , 'unassignRole
     , 'agentRoles
     , 'snapShot
-    , 'garbageCollectSessions
-    , 'doGarbageCollectSessions
+    , 'garbageCollectThentosSessions
+    , 'doGarbageCollectThentosSessions
+    , 'garbageCollectServiceSessions
+    , 'doGarbageCollectServiceSessions
     , 'doGarbageCollectUnconfirmedUsers
     , 'doGarbageCollectEmailChangeTokens
     , 'doGarbageCollectPasswordResetTokens
