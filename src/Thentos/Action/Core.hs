@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -16,21 +17,21 @@ where
 
 import Control.Applicative (Applicative, (<*>), (<$>), pure)
 import Control.Concurrent (MVar, modifyMVar)
-import Control.Exception (throwIO)
+import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "crypto-random" Crypto.Random (SystemRNG, cprgGenerate)
 import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
 import Data.Acid.Advanced (query', update')
-import Data.EitherR (throwT)
+import Data.EitherR (fmapL)
 import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO, setLabel)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), dcPublic, ToCNF, toCNF)
+import LIO.Error (AnyLabelError(AnyLabelError))
 import LIO.TCB (LIO, ioTCB)
 
 import System.Log (Priority(DEBUG))
@@ -65,9 +66,16 @@ instance Monad Action where
     return = Action . return
     (Action a) >>= f = Action $ a >>= fromAction . f
 
+instance MonadReader ActionState Action where
+    ask = Action ask
+    local f (Action a) = Action $ local f a
+
+-- | FIXME: all exceptions that occur inside 'LIO' currently go uncaught until execution reaches
+-- 'runAction' or 'runActionE'.  should errors caught there actually be handled here already, so we
+-- can process them inside 'Action'?
 instance MonadError ThentosError Action where
     throwError :: ThentosError -> Action a
-    throwError = Action . lift . throwT
+    throwError = Action . throwError
 
     catchError :: Action a -> (ThentosError -> Action a) -> Action a
     catchError (Action a) handler = Action $ catchError a (fromAction . handler)
@@ -75,23 +83,35 @@ instance MonadError ThentosError Action where
 instance MonadLIO DCLabel Action where
     liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
 
--- (state reader works, but we do not want to export this.)
--- instance MonadReader ActionState Action where
---     ask = Action ask
---     local f (Action a) = Action $ local f a
+
+data ActionError =
+    ActionErrorThentos ThentosError
+  | ActionErrorAnyLabel AnyLabelError
+  | ActionErrorUnknown SomeException
+  deriving (Show, Typeable, Generic)
+
+instance Exception ActionError
 
 
 -- * running actions
 
 runAction :: DCLabel -> ActionState -> Action a -> IO a
-runAction clearance st action = runActionE clearance st action >>= either throwIO return
+runAction clearance state action = runActionE clearance state action >>= either throwIO return
 
-runActionE :: DCLabel -> ActionState -> Action a -> IO (Either ThentosError a)
-runActionE clearance st (Action action) =
-    (`evalLIO` LIOState dcPublic clearance) .
-    liftLIO .
-    eitherT (return . Left) (return . Right) $
-    action `runReaderT` st
+runActionE :: forall a . DCLabel -> ActionState -> Action a -> IO (Either ActionError a)
+runActionE clearance state action = catchUnknown
+  where
+    inner :: IO (Either ThentosError a)
+    inner = (`evalLIO` LIOState dcPublic clearance) .
+            liftLIO .
+            eitherT (return . Left) (return . Right) $
+            fromAction action `runReaderT` state
+
+    catchAnyLabelError :: IO (Either ActionError a)
+    catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
+
+    catchUnknown :: IO (Either ActionError a)
+    catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
 
 -- * labels and clearance
