@@ -14,6 +14,7 @@ module Thentos.Util
     , cshow
     , readsPrecEnumBoundedShow
     , (<//>)
+    , fmapLTM
 ) where
 
 import Control.Applicative ((<$>))
@@ -21,6 +22,7 @@ import Control.Concurrent (ThreadId, forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Acid (AcidState, createCheckpoint)
 import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
@@ -118,3 +120,13 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
   where
     q  :: ST = if "/" `ST.isSuffixOf` p  then ST.init p  else p
     q' :: ST = if "/" `ST.isPrefixOf` p' then ST.tail p' else p'
+
+
+-- | Like 'fmapLT' from "Data.EitherR", but with the update of the
+-- left value constructed in an impure action.
+fmapLTM :: (Monad m, Functor m) => (a -> m b) -> EitherT a m r -> EitherT b m r
+fmapLTM trans e = EitherT $ do
+    result <- runEitherT e
+    case result of
+        Right r -> return $ Right r
+        Left l -> Left <$> trans l

@@ -21,7 +21,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Exception (assert)
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
+import Control.Monad.Trans.Either  -- (EitherT(EitherT), runEitherT)
 import Control.Monad.Trans.Reader (runReaderT)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
@@ -37,7 +37,9 @@ import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (ResponseReceived, Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
-import Servant.Server (HasServer, Server, route)
+import Servant.Server  -- (HasServer, Server, ServantErr, route)
+import Servant.Server.Internal  -- ()
+import Servant.Server.Internal.ServantErr  -- ()
 import LIO.DCLabel ((%%))
 
 import qualified Data.ByteString.Char8 as SBS
@@ -47,9 +49,13 @@ import Thentos.Config
 import Thentos.Types
 
 
-type RestActionRaw   = EitherT RestError IO
-type RestError       = (Int, String)
+-- * action
 
+enterAction :: Action :~> EitherT ServantErr IO
+enterAction = Nat $ \ _ -> error "enterAction: not implemented."
+
+
+{-
 
 -- | This is a work-around: The 'Server' type family terminates in
 -- 'RestActionRaw' on all methods.  'PushActionC' instances transform
@@ -102,49 +108,51 @@ fmapLTM trans e = EitherT $ do
         Right r -> return $ Right r
         Left l -> Left <$> trans l
 
+-}
 
--- * header invariant
+
+
+-- * header
 
 data ThentosHeaderName =
     ThentosHeaderSession
   | ThentosHeaderService
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
 
+lookupRequestHeader :: Request -> ThentosHeaderName -> Maybe ST
+lookupRequestHeader req key =
+          lookup (renderThentosHeaderName key) (requestHeaders req)
+      >>= either (const Nothing) Just . decodeUtf8'
+
 renderThentosHeaderName :: ThentosHeaderName -> CI SBS
 renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
     ("ThentosHeader", s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
-    bad -> error $ "renderThentosHeaderName: bad prefix (left side) in " ++ show bad
+    bad -> error $ "renderThentosHeaderName: prefix (left side) must be \"ThentosHeader\" in " ++ show bad
   where
     dashify ""    = ""
     dashify (h:t) = if isUpper h
         then '-' : h : dashify t
         else       h : dashify t
 
-assertSoundHeadersHelper :: [Header] -> Bool
-assertSoundHeadersHelper = null . badHeadersHelper
-
-badHeadersHelper :: [Header] -> [Header]
-badHeadersHelper = filter g . filter f
+-- | Filter header list for all headers that start with "X-Thentos-", but have no parse in
+-- 'ThentosHeaderName'.
+badHeaders :: [Header] -> [Header]
+badHeaders = filter g . filter f
   where
     f (k, _) = foldCase "X-Thentos-" `SBS.isPrefixOf` foldedCase k
     g (k, _) = not $ k `elem` map renderThentosHeaderName [minBound..]
 
-lookupRequestHeader :: Request -> ThentosHeaderName -> Maybe ST
-lookupRequestHeader req key =
-          lookup (renderThentosHeaderName key) (requestHeaders req)
-      >>= either (const Nothing) Just . decodeUtf8'
+-- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
+data ThentosAssertHeaders subserver = ThentosAssertHeaders subserver
 
-data ThentosAssertHeaders layout = ThentosAssertHeaders layout
-
-instance ( HasServer sublayout ) => HasServer (ThentosAssertHeaders sublayout)
+instance (HasServer subserver) => HasServer (ThentosAssertHeaders subserver)
   where
-    type Server (ThentosAssertHeaders sublayout) = Server sublayout
+    type ServerT (ThentosAssertHeaders subserver) m = ServerT subserver m
 
-    route Proxy subserver request respond =
-        case badHeadersHelper (requestHeaders request) of
-            []  -> route (Proxy :: Proxy sublayout) subserver request respond
-            bad -> error $ "ThentosAssertHeaders: " ++ show bad
-                  -- FIXME: wait for better error support in servant?
+    route Proxy subserver request respond = case badHeaders $ requestHeaders request of
+        []  -> route (Proxy :: Proxy subserver) subserver request respond
+        bad -> respond . RR . Right . responseServantErr  -- FIXME: use left instead of this!
+             $ err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad }
 
 
 -- * warp

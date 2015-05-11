@@ -44,7 +44,7 @@ import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  us
 
 runBackend :: HttpConfig -> ActionState -> IO ()
 runBackend cfg asg = do
-    logger INFO $ "running rest api (simple style) on " ++show (bindUrl cfg) ++ "."
+    logger INFO $ "running rest api (simple style) on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi asg
 
 -- | (Required in test suite.)
