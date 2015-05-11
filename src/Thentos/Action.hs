@@ -328,7 +328,21 @@ agentRoles :: Agent -> Action [Role]
 agentRoles = fmap Set.toList . query'P . T.AgentRoles
 
 
+-- * garbage collection
 
+collectGarbage :: Action ()
+collectGarbage = do
+    now <- getCurrentTime'P
+    query'P (T.GarbageCollectThentosSessions now) >>= update'P . T.DoGarbageCollectThentosSessions
+    query'P (T.GarbageCollectServiceSessions now) >>= update'P . T.DoGarbageCollectServiceSessions
+
+    config <- getConfig'P
+    let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
+        passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
+        emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
+    update'P $ T.DoGarbageCollectUnconfirmedUsers now userExpiry
+    update'P $ T.DoGarbageCollectEmailChangeTokens now emailExpiry
+    update'P $ T.DoGarbageCollectPasswordResetTokens now passwordExpiry
 
 
 -- XXX: something like this should go to the test suite...

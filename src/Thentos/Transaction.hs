@@ -37,6 +37,7 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
 import Data.List (find, foldl')
+import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
 
@@ -289,7 +290,7 @@ trans_startThentosSession tok owner start expiry = do
 -- owner.  If thentos session does not exist or has expired, remove it just the same.
 --
 -- Always call this transaction if you want to clean up a session (e.g., from a garbage collection
--- transatcion).  This way in the future, you can replace this transaction easily by one that does
+-- transaction).  This way in the future, you can replace this transaction easily by one that does
 -- not actually destroy the session, but move it to an archive.
 trans_endThentosSession :: ThentosSessionToken -> ThentosUpdate ()
 trans_endThentosSession tok = do
@@ -413,6 +414,48 @@ trans_snapShot :: ThentosQuery DB
 trans_snapShot = ask
 
 
+-- * garbage collection
+
+-- | Go through 'dbThentosSessions' map and find all expired sessions.
+-- Return in 'ThentosQuery'.  (To reduce database locking, call this
+-- and then @EndSession@ on all tokens individually.)
+trans_garbageCollectThentosSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
+trans_garbageCollectThentosSessions now = do
+    sessions <- (^. dbThentosSessions) <$> ask
+    return (map fst $ filter (\ (_, s) -> s ^. thSessEnd < now)
+                             (Map.assocs sessions))
+
+trans_doGarbageCollectThentosSessions :: [ThentosSessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectThentosSessions tokens = forM_ tokens trans_endThentosSession
+
+trans_garbageCollectServiceSessions :: Timestamp -> ThentosQuery [ServiceSessionToken]
+trans_garbageCollectServiceSessions now = do
+    sessions <- (^. dbServiceSessions) <$> ask
+    return (map fst $ filter (\ (_, s) -> s ^. srvSessEnd < now)
+                             (Map.assocs sessions))
+
+trans_doGarbageCollectServiceSessions :: [ServiceSessionToken] -> ThentosUpdate ()
+trans_doGarbageCollectServiceSessions tokens = forM_ tokens trans_endServiceSession
+
+-- | Remove all expired unconfirmed users from DB.
+trans_doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectUnconfirmedUsers now expiry = do
+    modify $ dbUnconfirmedUsers %~ removeExpireds now expiry
+
+-- | Remove all expired password reset requests from DB.
+trans_doGarbageCollectPasswordResetTokens :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectPasswordResetTokens now expiry = do
+    modify $ dbPwResetTokens %~ removeExpireds now expiry
+
+-- | Remove all expired email change requests from DB.
+trans_doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosUpdate ()
+trans_doGarbageCollectEmailChangeTokens now expiry = do
+    modify $ dbEmailChangeTokens %~ removeExpireds now expiry
+
+removeExpireds :: Timestamp -> Timeout -> Map k (v, Timestamp) -> Map k (v, Timestamp)
+removeExpireds now expiry = Map.filter (\ (_, created) -> fromTimestamp created .+^ fromTimeout expiry >= fromTimestamp now)
+
+
 -- * wrap-up
 
 -- FIXME: this section should be completely TH-generated.  provide the macros for that in module
@@ -510,6 +553,27 @@ agentRoles agent = runThentosQuery $ trans_agentRoles agent
 snapShot :: Query DB (Either ThentosError DB)
 snapShot = runThentosQuery $ trans_snapShot
 
+garbageCollectThentosSessions :: Timestamp -> Query DB (Either ThentosError [ThentosSessionToken])
+garbageCollectThentosSessions = runThentosQuery . trans_garbageCollectThentosSessions
+
+doGarbageCollectThentosSessions :: [ThentosSessionToken] -> Update DB (Either ThentosError ())
+doGarbageCollectThentosSessions = runThentosUpdate . trans_doGarbageCollectThentosSessions
+
+garbageCollectServiceSessions :: Timestamp -> Query DB (Either ThentosError [ServiceSessionToken])
+garbageCollectServiceSessions = runThentosQuery . trans_garbageCollectServiceSessions
+
+doGarbageCollectServiceSessions :: [ServiceSessionToken] -> Update DB (Either ThentosError ())
+doGarbageCollectServiceSessions = runThentosUpdate . trans_doGarbageCollectServiceSessions
+
+doGarbageCollectUnconfirmedUsers :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectUnconfirmedUsers now expiry = runThentosUpdate $ trans_doGarbageCollectUnconfirmedUsers now expiry
+
+doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectEmailChangeTokens now expiry = runThentosUpdate $ trans_doGarbageCollectEmailChangeTokens now expiry
+
+doGarbageCollectPasswordResetTokens :: Timestamp -> Timeout -> Update DB (Either ThentosError ())
+doGarbageCollectPasswordResetTokens now expiry = runThentosUpdate $ trans_doGarbageCollectPasswordResetTokens now expiry
+
 
 $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
 
@@ -544,4 +608,11 @@ $(makeAcidic ''DB
     , 'unassignRole
     , 'agentRoles
     , 'snapShot
+    , 'garbageCollectThentosSessions
+    , 'doGarbageCollectThentosSessions
+    , 'garbageCollectServiceSessions
+    , 'doGarbageCollectServiceSessions
+    , 'doGarbageCollectUnconfirmedUsers
+    , 'doGarbageCollectEmailChangeTokens
+    , 'doGarbageCollectPasswordResetTokens
     ])
