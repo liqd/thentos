@@ -16,6 +16,10 @@ wc:
 
 clean:
 	find . -name '*~' -exec rm -f {} \;
+	find ./src -name '*.o' -exec rm -f {} \;
+	find ./src -name '*.hi' -exec rm -f {} \;
+	find ./src -name '*.dyn_o' -exec rm -f {} \;
+	find ./src -name '*.dyn_hi' -exec rm -f {} \;
 
 dist-clean: clean
 	cabal clean

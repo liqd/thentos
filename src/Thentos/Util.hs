@@ -14,6 +14,7 @@ module Thentos.Util
     , cshow
     , readsPrecEnumBoundedShow
     , (<//>)
+    , fmapLM
     , fmapLTM
 ) where
 
@@ -120,6 +121,13 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
   where
     q  :: ST = if "/" `ST.isSuffixOf` p  then ST.init p  else p
     q' :: ST = if "/" `ST.isPrefixOf` p' then ST.tail p' else p'
+
+
+-- | Like 'fmapL' from "Data.EitherR", but with the update of the
+-- left value constructed in an impure action.
+fmapLM :: (Monad m, Functor m) => (a -> m b) -> Either a r -> m (Either b r)
+fmapLM trans (Left e) = Left <$> trans e
+fmapLM _ (Right s) = return $ Right s
 
 
 -- | Like 'fmapLT' from "Data.EitherR", but with the update of the

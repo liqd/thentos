@@ -32,6 +32,7 @@ import Data.String.Conversions (SBS, ST)
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
+import LIO.DCLabel (DCLabel, (%%))
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -40,19 +41,33 @@ import Servant.API ((:<|>)((:<|>)))
 import Servant.Server  -- (HasServer, Server, ServantErr, route)
 import Servant.Server.Internal  -- ()
 import Servant.Server.Internal.ServantErr  -- ()
-import LIO.DCLabel ((%%))
+import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.ByteString.Char8 as SBS
 
+import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Types
+import Thentos.Util
 
 
 -- * action
 
-enterAction :: Action :~> EitherT ServantErr IO
-enterAction = Nat $ \ _ -> error "enterAction: not implemented."
+enterAction :: DCLabel -> ActionState -> Action :~> EitherT ServantErr IO
+enterAction clearance state = Nat $ _ . f
+  where
+    f :: Action a -> IO (Either ServantErr a)
+    f = (>>= fmapLM actionErrorToServantErr) . runActionE clearance state
+
+
+actionErrorToServantErr :: ActionError -> IO ServantErr
+actionErrorToServantErr e = do
+    -- (this will become more discriminating over time, but you get the idea: we can inspect the
+    -- action error and then log stuff and return different stuff over the wire.)
+    logger DEBUG $ show e
+    return $ err500 { errBody = cs $ show e }
+
 
 
 {-
