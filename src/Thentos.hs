@@ -20,7 +20,7 @@ import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
-import Control.Exception (bracket_, finally)
+import Control.Exception (finally)
 import Control.Monad (void, when, forever)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
@@ -33,7 +33,7 @@ import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty (ppShow)
 
-import System.Log.Missing (logger)
+import System.Log.Missing (logger, announceAction)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
@@ -51,11 +51,7 @@ import qualified Thentos.Transaction as T
 main :: IO ()
 main =
   do
-    let notify :: String -> IO a -> IO a
-        notify msg action = bracket_ (logger INFO msg)
-                                     (logger INFO $ msg ++ ": [ok]") action
-
-    st :: AcidState DB <- notify "setting up acid-state" $ openLocalStateFrom ".acid-state/" emptyDB
+    st :: AcidState DB <- announceAction "setting up acid-state" $ openLocalStateFrom ".acid-state/" emptyDB
         -- (opening acid-state can take rather long if a large
         -- changelog needs to be replayed.  use asci-progress here?
         -- even though that would probably require patching
@@ -102,9 +98,9 @@ main =
 -}
 
     let finalize = do
-            notify "creating checkpoint and shutting down acid-state" $
+            announceAction "creating checkpoint and shutting down acid-state" $
                 createCheckpoint st >> closeAcidState st
-            notify "shutting down hslogger" $
+            announceAction "shutting down hslogger" $
                 removeAllHandlers
 
     run `finally` finalize
