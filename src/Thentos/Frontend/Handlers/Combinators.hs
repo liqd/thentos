@@ -290,28 +290,24 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 
 -- * actions vs. snap
 
--- | Like 'snapRunActionE', but calls the 'crash' function group in case of error rather than
--- returning left values.
+-- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
+-- left value.
 snapRunAction :: Action a -> FH a
 snapRunAction action = snapRunActionE action >>= \case
-    Right a -> return a
-    Left (ThentosFrontendErrorBasic e)   -> crash500 e
-    Left (ThentosFrontendErrorUnknown e) -> crash500 e
+    Right v -> return v
+    Left e  -> snapHandleError e
 
-  -- (e.g., we could handle redirect to login in case of permission denied here?  but it's probably
-  -- more complicated than that.)
-
+-- | This function could, e.g., handle redirect to login page in case of permission denied.  For now
+-- it just crashes every time.
+snapHandleError :: ActionError -> FH a
+snapHandleError = crash500
 
 -- | Read the clearance from the 'App' state and apply it to 'runAction'.
-snapRunActionE :: Action a -> FH (Either ThentosFrontendError a)
+snapRunActionE :: Action a -> FH (Either ActionError a)
 snapRunActionE action = do
     st :: AcidState DB   <- getAcidState
     rn :: MVar SystemRNG <- gets (^. rng)
     cf :: ThentosConfig  <- gets (^. cfg)
 
     clearance :: DCLabel <- assert False $ error "snapRunAction: need to stick clearance into state"
-
-    ev <- liftIO $ runActionE clearance (ActionState (st, rn, cf)) action
-    return $ case ev of
-        Right v -> Right v
-        Left e  -> Left $ ThentosFrontendErrorBasic e
+    liftIO $ runActionE clearance (ActionState (st, rn, cf)) action

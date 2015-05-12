@@ -56,7 +56,7 @@ type ThentosConfig' =
   :*>       ("user_reg_expiration" :> Timeout     :>: "User registration expiration period")
   :*>       ("pw_reset_expiration" :> Timeout     :>: "Password registration token expiration period")
   :*>       ("email_change_expiration" :> Timeout :>: "Email-change-token expiration period")
-  :*> Maybe ("gc_interval"             :> Timeout :>: "Garbage collection interval")
+  :*> Maybe ("gc_interval"             :> Int     :>: "Garbage collection interval (ms)")
 
 defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
 defaultThentosConfig =

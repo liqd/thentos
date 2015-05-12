@@ -18,15 +18,12 @@
 module Thentos.Backend.Api.Simple where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
-import Control.Monad.IO.Class (liftIO)
-import "crypto-random" Crypto.Random (SystemRNG)
 import Data.Proxy (Proxy(Proxy))
 import LIO.DCLabel (dcPublic)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
-import Servant.Server.Internal (HasServer, Server, route)
+import Servant.Server.Internal (Server)
 import Servant.Server (ServerT, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
@@ -36,7 +33,6 @@ import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things f
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-import Thentos.Util
 
 import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  use Thentos.Action instead!
 

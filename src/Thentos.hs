@@ -17,18 +17,18 @@
 module Thentos (main) where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (bracket_, finally)
-import Control.Monad (void)
-import Control.Monad (when)
-import "crypto-random" Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Control.Monad (void, when, forever)
+import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Proxy (Proxy(Proxy))
+import LIO.DCLabel (dcPublic)
 import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty (ppShow)
@@ -41,8 +41,8 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Types
 import Thentos.Util
 
-import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
-import qualified Thentos.Backend.Api.Simple (runBackend)
+-- import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
+import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
 
 
@@ -68,7 +68,7 @@ main =
 
     configLogger
     _ <- createCheckpointLoop st 16000
-    _ <- runGcLoop $ config >>. (Proxy :: Proxy '["gc_interval"])
+    _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
 
     let mBeConfig :: Maybe HttpConfig
@@ -85,7 +85,7 @@ main =
 
             Run -> do
                 let backend = maybe (return ())
-                        (`Thentos.Backend.Api.Simple.runBackend` actionState)
+                        (`Thentos.Backend.Api.Simple.runApi` actionState)
                         mBeConfig
                 let frontend = maybe (return ())
                         (`runFrontend` actionState)
@@ -94,9 +94,12 @@ main =
                 void $ concurrently backend frontend
 
             RunA3 -> do
+                error "a3 backend is defunct."
+{-
                 maybe (error "command `runa3` requires `--runbackend`")
-                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
+                    (`Thentos.Backend.Api.Adhocracy3.runApi` actionState)
                     mBeConfig
+-}
 
     let finalize = do
             notify "creating checkpoint and shutting down acid-state" $
@@ -107,12 +110,14 @@ main =
     run `finally` finalize
 
 
--- * garbage collection
-runGcLoop :: AcidState st -> Maybe Timeout -> IO ThreadId
-runGcLoop _         Nothing         = forkIO $ return ()
-runGcLoop acidState (Just interval) = forkIO . forever $ do
-    threadDelay $ fromTimeout interval * 1000
-    update' st T.collectGarbage
+-- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
+-- yet.  It takes the time interval in such a weird type so that it's easier to call with the
+-- config.  This function should move and change in the future.)
+runGcLoop :: ActionState -> Maybe Int -> IO ThreadId
+runGcLoop _           Nothing         = forkIO $ return ()
+runGcLoop actionState (Just interval) = forkIO . forever $ do
+    threadDelay $ interval * 1000
+    runAction dcPublic actionState collectGarbage
 
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do

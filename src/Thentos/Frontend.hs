@@ -7,8 +7,6 @@
 module Thentos.Frontend where
 
 import Control.Applicative (pure, (<$>), (<*>))
-import Control.Concurrent.MVar (MVar)
-import "crypto-random" Crypto.Random (SystemRNG)
 import Data.ByteString (ByteString)
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
@@ -26,7 +24,6 @@ import System.Log (Priority(INFO))
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
 
-import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators

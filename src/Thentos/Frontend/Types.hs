@@ -7,7 +7,6 @@
 
 module Thentos.Frontend.Types where
 
-import Control.Exception (Exception, SomeException)
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view)
 import Control.Monad (mzero)
@@ -15,7 +14,6 @@ import "crypto-random" Crypto.Random (SystemRNG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (ST, cs)
-import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
@@ -25,8 +23,8 @@ import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxU
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
-import Thentos.Types
 import Thentos.Config
+import Thentos.Types
 
 data FrontendApp =
     FrontendApp
@@ -107,14 +105,6 @@ data FrontendMsg =
 
 instance FromJSON FrontendMsg where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendMsg where toJSON = Aeson.gtoJson
-
-
-data ThentosFrontendError =
-    ThentosFrontendErrorBasic ThentosError
-  | ThentosFrontendErrorUnknown SomeException
-  deriving (Show, Typeable, Generic)
-
-instance Exception ThentosFrontendError
 
 
 makeLenses ''FrontendSessionData

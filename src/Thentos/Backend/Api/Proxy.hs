@@ -14,7 +14,10 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
-module Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy) where
+module Thentos.Backend.Api.Proxy where
+
+
+{-
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
@@ -49,6 +52,9 @@ import Thentos.Types
 
 
 type ServiceProxy = Raw
+
+serviceProxy = undefined
+
 
 serviceProxy :: ServerT ServiceProxy Action
 serviceProxy req cont = catchProxy cont $ do
@@ -140,3 +146,5 @@ catchProxy cont action =
                 Left e -> showThentosError e >>= \ (status, msg) -> Right <$>
                               cont (S.responseLBS (T.Status status (cs msg)) [] (cs msg))
                 Right r -> return $ Right r
+
+-}

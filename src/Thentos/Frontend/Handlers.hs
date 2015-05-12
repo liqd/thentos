@@ -51,7 +51,7 @@ userRegister = do
                 snapRunAction $ sendUserConfirmationMail smtpConfig userFormData
                     (urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken token))
                 blaze userRegisterRequestedPage
-            Left (ThentosFrontendErrorBasic UserEmailAlreadyExists) -> do
+            Left (ActionErrorThentos UserEmailAlreadyExists) -> do
                 snapRunAction $ sendUserExistsMail smtpConfig (udEmail userFormData)
                 blaze userRegisterRequestedPage
             Left e -> logger INFO (show e) >> crash 400 "Registration failed."
@@ -90,7 +90,7 @@ userRegisterConfirm = do
                     mapM_ (snapRunAction . assignRole (UserA uid)) defaultUserRoles
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
                     userLoginCallAction $ (uid,) <$> startThentosSessionByAgent (UserA uid)
-                Left e@(ThentosFrontendErrorBasic NoSuchPendingUserConfirmation) -> do
+                Left e@(ActionErrorThentos NoSuchPendingUserConfirmation) -> do
                     logger INFO $ show e
                     crash 400 "Finalizing registration failed: unknown token."
                 Left e -> do
@@ -125,7 +125,7 @@ userLoginCallAction action = do
         Right (uid, sessionToken) -> do
             modifySessionData' $ fsdLogin .~ Just (FrontendSessionLoginData sessionToken uid)
             redirectToDashboardOrService
-        Left (ThentosFrontendErrorBasic BadCredentials) -> redirectRR
+        Left (ActionErrorThentos BadCredentials) -> redirectRR
             (RelativeRef Nothing "/user/login" (Query [("error_msg", "Bad username or password.")]) Nothing)
                   -- FIXME: this error passing method has been
                   -- deprecated by the 'FrontendMsg' queue in the snap
@@ -153,7 +153,7 @@ resetPassword = do
                     (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
                     (urlConfirm feConfig "/user/reset_password" (fromPasswordResetToken token))
                 blaze resetPasswordRequestedPage
-            Left (ThentosFrontendErrorBasic NoSuchUser) -> blaze resetPasswordRequestedPage
+            Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
             Left e -> crash500 ("resetPassword" :: ST, e)
 
 sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action ()
@@ -186,7 +186,7 @@ resetPasswordConfirm = do
                     -- (taking it from the request would be insecure!)
 
                     redirect' "/dashboard" 303
-                Left (ThentosFrontendErrorBasic NoSuchToken) -> crash 400 "No such reset token."
+                Left (ActionErrorThentos NoSuchToken) -> crash 400 "No such reset token."
                 Left e -> do
                     logger WARNING (show e)
                     crash 400 "Change password: error."
@@ -241,7 +241,7 @@ emailUpdate = runAsUser $ \ _ _ fsl -> do
                 (urlConfirm feConfig "/user/update_email_confirm" . fromConfirmationToken)
         case eResult of
             Right ()                                                -> emailSent
-            Left (ThentosFrontendErrorBasic UserEmailAlreadyExists) -> emailSent
+            Left (ActionErrorThentos UserEmailAlreadyExists) -> emailSent
             Left e                                                  -> crash500 e
   where
     emailSent = do
@@ -260,7 +260,7 @@ emailUpdateConfirm = do
             eResult <- snapRunActionE $ confirmUserEmailChange token
             case eResult of
                 Right ()          -> sendFrontendMsg (FrontendMsgSuccess "Change email: success!") >> redirect' "/dashboard" 303
-                Left (ThentosFrontendErrorBasic NoSuchToken)
+                Left (ActionErrorThentos NoSuchToken)
                                   -> crash 400 "Change email: no such token."
                 Left e            -> crash500 e
         Just (Left _unicodeError) -> crash 400 "Change email: bad token."
@@ -274,7 +274,7 @@ passwordUpdate = runAsUser $ \ _ _ fsl -> do
         eResult <- snapRunActionE $ changePassword (fsl ^. fslUserId) oldPw newPw
         case eResult of
             Right () -> sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard" 303
-            Left (ThentosFrontendErrorBasic BadCredentials)
+            Left (ActionErrorThentos BadCredentials)
                      -> sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password" 303
             Left e   -> crash500 e
 
@@ -355,7 +355,7 @@ serviceLogin = do
         loggedIn :: FrontendSessionLoginData -> FH ()
         loggedIn fsl = do
             let tok = fsl ^. fslToken
-            eSessionToken :: Either ThentosFrontendError ServiceSessionToken
+            eSessionToken :: Either ActionError ServiceSessionToken
                 <- snapRunActionE $ startServiceSession tok sid
 
             case eSessionToken of
@@ -376,7 +376,7 @@ serviceLogin = do
                 -- case C: user is logged into thentos, but not
                 -- registered with service.  redirect to service
                 -- registration page.
-                Left (ThentosFrontendErrorBasic NotRegisteredWithService) -> do
+                Left (ActionErrorThentos NotRegisteredWithService) -> do
                     redirect' "/service/register" 303
 
                 -- case D: user is logged into thentos, but something

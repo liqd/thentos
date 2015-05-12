@@ -19,7 +19,7 @@
 module Thentos.Backend.Core
 where
 
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
+import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
@@ -34,19 +34,17 @@ import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (Request, requestHeaders)
-import Servant.API ((:<|>)((:<|>)))
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
+import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err500, errBody, responseServantErr)
 import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.ByteString.Char8 as SBS
 import qualified Network.HTTP.Types.Header as HttpTypes
-import qualified Network.HTTP.Types.Status as HttpTypes
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Config
-import Thentos.Types
 import Thentos.Util
 
 
@@ -169,7 +167,7 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders subserver)
 
     route Proxy subserver request respond = case badHeaders $ requestHeaders request of
         []  -> route (Proxy :: Proxy subserver) subserver request respond
-        bad -> respond . RR . Right . responseServantErr  -- FIXME: use left instead of this!
+        bad -> respond . RR . Right . responseServantErr  -- FIXME: use 'left' instead of all this?  yields a type error, though.
              $ err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad }
 
 

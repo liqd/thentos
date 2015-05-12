@@ -20,6 +20,8 @@
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
 module Thentos.Backend.Api.Adhocracy3 where
 
+{-
+
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Concurrent.MVar (MVar)
 import Control.Monad.Except (throwError)
@@ -358,3 +360,5 @@ confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
     _ -> throwError $ MalformedConfirmationToken p
   where
     prefix = "/activate/"
+
+-}
