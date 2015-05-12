@@ -2,8 +2,8 @@
 {-# LANGUAGE ViewPatterns    #-}
 
 module Thentos.Transaction.TH
-    ( make_transactions_stage_1
-    , make_transactions_stage_2
+    ( makeThentosAcidicPhase1
+    , makeThentosAcidicPhase2
     )
 where
 
@@ -17,11 +17,11 @@ import Thentos.Types (DB, ThentosError)
 
 data ThentosTransactionType = ThentosQ | ThentosU
 
-make_transactions_stage_1 :: [Name] -> Q [Dec]
-make_transactions_stage_1 names = concat <$> mapM processTransaction names
+makeThentosAcidicPhase1 :: [Name] -> Q [Dec]
+makeThentosAcidicPhase1 names = concat <$> mapM processTransaction names
 
-make_transactions_stage_2:: Name -> [Name] -> Q [Dec]
-make_transactions_stage_2 stateName eventNames =
+makeThentosAcidicPhase2 :: Name -> [Name] -> Q [Dec]
+makeThentosAcidicPhase2 stateName eventNames =
     makeAcidic stateName $ map dropPrefix eventNames
 
 processTransaction :: Name -> Q [Dec]
@@ -29,7 +29,7 @@ processTransaction functionName = do
     info <- reify functionName
     let typ = case info of
             VarI _ t _ _ -> t
-            _ -> error "expected a function"
+            _ -> error $ nameBase functionName ++ " is not a function"
     processTransaction' functionName typ
 
 processTransaction' :: Name -> Type -> Q [Dec]
@@ -43,7 +43,7 @@ processTransaction' functionName typ = do
 dropPrefix :: Name -> Name
 dropPrefix (nameBase -> s)
     | take 6 s == "trans_" = mkName $ drop 6 s
-    | otherwise            = error "expected function name starting with trans_"
+    | otherwise            = error $ "expected function name starting with 'trans_', got '" ++ s ++ "'"
 
 -- | Count the number of arguments in a function type
 countArgs :: Type -> Int
@@ -60,7 +60,7 @@ makeThentosType (AppT (AppT ArrowT arg) returnType) =
 makeThentosType (AppT t returnType)
     | t == ConT (''ThentosUpdate) = (updateType, ThentosU)
     | t == ConT (''ThentosQuery) = (queryType, ThentosQ)
-    | otherwise = error "unexpected return type"
+    | otherwise = error $ "not a thentos transaction type: " ++ show t
   where
     updateType :: Type
     updateType = makeAcidStateType ''Update
@@ -71,7 +71,7 @@ makeThentosType (AppT t returnType)
     makeAcidStateType :: Name -> Type
     makeAcidStateType acidStateTypeConstructor =
         AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
-makeThentosType _ = error "unexpected type"
+makeThentosType t = error $ "not a thentos transaction type: " ++ show t
 
 -- | Generate a function definition
 makeFinalFun :: Name -> Name -> Int -> ThentosTransactionType -> Q Dec

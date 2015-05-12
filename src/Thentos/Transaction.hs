@@ -28,5 +28,5 @@ import Thentos.Transaction.Transactions
 import Thentos.Transaction.TH
 import Thentos.Types (DB)
 
-$(make_transactions_stage_1 transaction_names)
-$(make_transactions_stage_2 ''DB transaction_names)
+$(makeThentosAcidicPhase1 transaction_names)
+$(makeThentosAcidicPhase2 ''DB transaction_names)
