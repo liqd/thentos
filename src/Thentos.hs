@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Thentos (main) where
+module Thentos (main, createDefaultUser) where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)

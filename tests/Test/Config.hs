@@ -8,7 +8,7 @@ import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, Not
 
 import Thentos.Types
 import Thentos.Config
-import Thentos.DB.Protect
+import Thentos (createDefaultUser)
 
 
 data TestConfig =
@@ -44,6 +44,7 @@ testThentosConfig = Tagged $
   :*> Id (Timeout 3600)
   :*> Id (Timeout 3600)
   :*> Id (Timeout 3600)
+  :*> JustO (Id 1800)
 
 testFeConfig :: HttpConfig
 testFeConfig = Tagged $
