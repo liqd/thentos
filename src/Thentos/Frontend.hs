@@ -29,9 +29,10 @@ import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Types
 import Thentos.Frontend.Util (serveSnaplet)
+import Thentos.Types
 
 
-runFrontend :: HttpConfig -> ActionState -> IO ()
+runFrontend :: HttpConfig -> ActionState DB -> IO ()
 runFrontend config asg = do
     logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
     serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg config)
@@ -39,7 +40,7 @@ runFrontend config asg = do
     host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
     port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
 
-frontendApp :: ActionState -> HttpConfig -> SnapletInit FrontendApp FrontendApp
+frontendApp :: ActionState DB -> HttpConfig -> SnapletInit FrontendApp FrontendApp
 frontendApp (ActionState (st, rn, _cfg)) feConf =
     makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
         addRoutes routes

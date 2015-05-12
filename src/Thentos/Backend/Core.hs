@@ -50,10 +50,10 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: DCLabel -> ActionState -> Action :~> EitherT ServantErr IO
+enterAction :: forall db . DCLabel -> ActionState db -> Action db :~> EitherT ServantErr IO
 enterAction clearance state = Nat $ EitherT . run
   where
-    run :: Action a -> IO (Either ServantErr a)
+    run :: Action db a -> IO (Either ServantErr a)
     run = (>>= fmapLM actionErrorToServantErr) . runActionE clearance state
 
 

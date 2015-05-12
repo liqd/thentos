@@ -39,17 +39,17 @@ import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  us
 
 -- * main
 
-runApi :: HttpConfig -> ActionState -> IO ()
+runApi :: HttpConfig -> ActionState DB -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi asg
 
-serveApi :: ActionState -> Application
+serveApi :: ActionState DB -> Application
 serveApi = serve (Proxy :: Proxy Api) . api
 
 type Api = ThentosAssertHeaders ThentosBasic
 
-api :: ActionState -> Server Api
+api :: ActionState DB -> Server Api
 api asg = enter (enterAction dcPublic asg) thentosBasic
 
 
@@ -61,7 +61,7 @@ type ThentosBasic =
   :<|> "session" :> ThentosThentosSession
   :<|> "servicesession" :> ThentosServiceSession
 
-thentosBasic :: ServerT ThentosBasic Action
+thentosBasic :: ServerT ThentosBasic (Action DB)
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -106,7 +106,7 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
   :<|> Get '[JSON] [UserId]
 
-thentosUser :: ServerT ThentosUser Action
+thentosUser :: ServerT ThentosUser (Action DB)
 thentosUser =
        (>>= update'P . T.AddUser) . makeUserFromFormData'P
   :<|> update'P . T.DeleteUser
@@ -129,7 +129,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService Action
+thentosService :: ServerT ThentosService (Action DB)
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
     :<|> update'P . T.DeleteService
@@ -144,7 +144,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession Action
+thentosThentosSession :: ServerT ThentosThentosSession (Action DB)
 thentosThentosSession =
        uncurry startThentosSessionByUserId
   :<|> uncurry startThentosSessionByServiceId
@@ -159,7 +159,7 @@ type ThentosServiceSession =
   :<|> Capture "token" ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> Capture "token" ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession Action
+thentosServiceSession :: ServerT ThentosServiceSession (Action DB)
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata

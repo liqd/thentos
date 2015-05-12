@@ -74,7 +74,7 @@ encryptTestSecret pw =
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 
-setupDB :: ThentosConfig -> IO ActionState
+setupDB :: ThentosConfig -> IO (ActionState DB)
 setupDB thentosConfig = do
     destroyDB
     st <- openLocalStateFrom (dbPath testConfig) emptyDB
@@ -84,7 +84,7 @@ setupDB thentosConfig = do
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
     return $ ActionState (st, rng, thentosConfig)
 
-teardownDB :: ActionState -> IO ()
+teardownDB :: ActionState DB -> IO ()
 teardownDB (ActionState (st, _, _)) = do
     closeAcidState st
     destroyDB
@@ -98,7 +98,7 @@ destroyDB = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: Command -> IO (ActionState, Application, ThentosSessionToken, [Header])
+setupTestBackend :: Command -> IO (ActionState DB, Application, ThentosSessionToken, [Header])
 setupTestBackend cmd = do
     asg <- setupDB testThentosConfig
     case cmd of
@@ -113,14 +113,14 @@ setupTestBackend cmd = do
 -}
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
-teardownTestBackend :: (ActionState, Application, ThentosSessionToken, [Header]) -> IO ()
+teardownTestBackend :: (ActionState DB, Application, ThentosSessionToken, [Header]) -> IO ()
 teardownTestBackend (db, testBackend, tok, godCredentials) = do
     logoutAsGod testBackend tok godCredentials
     teardownDB db
 
 
 type TestServerFull =
-    ( ActionState
+    ( ActionState DB
     , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
     , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
     , forall a . WD.WD a -> IO a
