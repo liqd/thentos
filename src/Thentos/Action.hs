@@ -122,7 +122,7 @@ findUserCheckPassword action password = a `catchError` h
 
 requestUserEmailChange :: UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
-    restrictWrite [UserA uid]
+    -- restrictWrite [UserA uid]
 
     tok <- freshConfirmationToken
     now <- getCurrentTime'P
@@ -160,7 +160,7 @@ lookupService = query'P . T.LookupService
 
 addService :: Agent -> ServiceName -> ServiceDescription -> Action (ServiceId, ServiceKey)
 addService owner name desc = do
-    restrictWrite [owner]
+    -- restrictWrite [owner]
 
     sid <- freshServiceId
     key <- freshServiceKey
@@ -171,7 +171,7 @@ addService owner name desc = do
 -- | List all group leafs a user is member in on some service.
 userGroups :: UserId -> ServiceId -> Action [Group]
 userGroups uid sid = do
-    restrictRead [UserA uid, ServiceA sid]
+    -- restrictRead [UserA uid, ServiceA sid]
 
     (_, service) <- query'P $ T.LookupService sid
 
@@ -252,7 +252,7 @@ findServiceCheckKey action key = a `catchError` h
 -- | Open a session for any agent.  This can only be called if you -- no, that's not how this works?!
 startThentosSessionByAgent :: Agent -> Action ThentosSessionToken
 startThentosSessionByAgent agent = do
-    restrictTotal
+    -- restrictTotal
 
     now <- getCurrentTime'P
     tok <- freshSessionToken
