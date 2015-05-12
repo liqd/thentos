@@ -11,6 +11,7 @@ import Control.Applicative ((<$>))
 import Control.Monad (replicateM)
 import Data.Acid (Update, Query, makeAcidic)
 import Language.Haskell.TH
+import Text.Show.Pretty (ppShow)
 
 import Thentos.Transaction.Core (ThentosUpdate, ThentosQuery)
 import Thentos.Types (DB, ThentosError)
@@ -61,7 +62,7 @@ makeThentosType (AppT (AppT ArrowT arg) returnType) =
 makeThentosType (AppT (AppT t (VarT _)) returnType)
     | t == ConT (''ThentosUpdate) = (updateType, ThentosU)
     | t == ConT (''ThentosQuery) = (queryType, ThentosQ)
-    | otherwise = error $ "not a thentos transaction type: " ++ show t
+    | otherwise = error $ "not a thentos transaction type:" ++ ppprint t
   where
     updateType :: Type
     updateType = makeAcidStateType ''Update
@@ -73,7 +74,7 @@ makeThentosType (AppT (AppT t (VarT _)) returnType)
     makeAcidStateType acidStateTypeConstructor =
         AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
 makeThentosType (ForallT _ _ app) = makeThentosType app
-makeThentosType t = error $ "not a thentos transaction type: " ++ show t
+makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
 
 -- | Generate a function definition
 makeFinalFun :: Name -> Name -> Int -> ThentosTransactionType -> Q Dec
@@ -91,3 +92,6 @@ makeFinalFun nameWithPrefix functionName argCount transType = do
 makeFunApp :: Name -> Name -> [Name] -> Exp
 makeFunApp updateOrQuery funName argNames =
     AppE (VarE updateOrQuery) $ foldl AppE (VarE funName) (map VarE argNames)
+
+ppprint :: (Ppr a, Show a) => a -> [Char]
+ppprint t = "\n\n" ++ pprint t ++ "\n\n" ++ ppShow t ++ "\n"
