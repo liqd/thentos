@@ -13,6 +13,20 @@ release plan.
 Having that said: enjoy!  (:
 
 
+Unstable dependencies
+---------------------
+
+You need to add a few sources not yet available from hackage to your
+cabal sandbox:
+
+```bash
+$ git checkout https://github.com/mpickering/servant-pandoc
+$ git clone https://github.com/liqd/pronk -b thentos-patches
+$ cabal sandbox add-source servant-pandoc
+$ cabal sandbox add-source pronk
+```
+
+
 Overview
 --------
 
@@ -43,8 +57,16 @@ provides mostly acidic transactions, `Api.*` offers a more high-level
 access to the database.  It lives in between frontend/backend and
 persistence layer.
 
-We use parts of [lio](https://github.com/scslab/lio) for authorization
-management.  Acid transactions are labelled with authorization
+We use [lio](https://github.com/scslab/lio) for authorization
+management.
+
+[edit: One wonderful effect of using lio is that if you use thentos as
+a library, you do not need to trust your code to be secure, you just
+need to follow a few simple rules which modules to import, and lio
+will protect the imported functionality even against your own code.
+FIXME: explain this with an example.]
+
+Acid transactions are labelled with authorization
 expressions that are enforced against clearance expressions (almost)
 implicitly.  (We do not use the 'LIO' monad so far, as this requires
 changes to both acid-state and servant, and is most relevant when
@@ -105,8 +127,6 @@ $ cabal test --test-options="--skip selenium"
 Benchmarks:
 
 ```shell
-$ git clone https://github.com/fhartwig/pronk -b barely-working-state
-$ cabal sandbox add-source ./pronk
 $ cabal install --enable-bench
 $ cabal bench  # requires thentos to be running in another shell
 ```

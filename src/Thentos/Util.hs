@@ -4,29 +4,39 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
 module Thentos.Util
-    ( makeUserFromFormData
+    ( hashUserPass
+    , hashServiceKey
+    , secretMatches
     , verifyPass
     , verifyKey
-    , secretMatches
-    , hashUserPass
-    , hashServiceKey
+    , makeUserFromFormData
+    , createCheckpointLoop
     , cshow
     , readsPrecEnumBoundedShow
     , (<//>)
+    , fmapLM
+    , fmapLTM
 ) where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent (ThreadId, forkIO, threadDelay)
 import Control.Lens ((^.))
+import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
+import Data.Acid (AcidState, createCheckpoint)
 import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
-
-import Thentos.Types
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as ST
+
+import Thentos.Types
+
+
+-- * crypto
 
 -- | @[2 2 1]@ is fast, but does not provide adequate
 -- protection for passwords in production mode!
@@ -45,15 +55,6 @@ hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
 hashSecret a s = HashedSecret <$>
     (liftIO . Scrypt.encryptPassIO thentosScryptParams . Scrypt.Pass . encodeUtf8 $ a s)
 
-makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
-makeUserFromFormData userData = do
-    hashedPassword <- hashUserPass $ udPassword userData
-    return $ User (udName userData)
-                  hashedPassword
-                  (udEmail userData)
-                  Set.empty
-                  Map.empty
-
 secretMatches :: ST -> HashedSecret a -> Bool
 secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
                                        (fromHashedSecret s)
@@ -66,6 +67,32 @@ verifyKey :: ServiceKey -> Service -> Bool
 verifyKey key service = secretMatches (fromServiceKey key)
                                       (service ^. serviceKey)
 
+makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
+makeUserFromFormData userData = do
+    hashedPassword <- hashUserPass $ udPassword userData
+    return $ User (udName userData)
+                  hashedPassword
+                  (udEmail userData)
+                  Set.empty
+                  Map.empty
+
+
+-- * acid-state business
+
+-- | Create a new thread that calls `createCheckpoint` synchronously
+-- in a loop every @timeThreshold@ miliseconds.
+--
+-- FUTURE WORK: Take one more argument @sizeThreshold@ that skips
+-- creating the checkpoint if the number of change log entries since
+-- the last checkpoint is not large enough.  (I think this is not
+-- possible without patching acid-state.)
+createCheckpointLoop :: AcidState st -> Int -> IO ThreadId
+createCheckpointLoop acidState timeThreshold = forkIO . forever $ do
+      threadDelay $ timeThreshold * 1000
+      createCheckpoint acidState
+
+
+-- * misc
 
 -- | Convertible show.
 --
@@ -94,3 +121,20 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
   where
     q  :: ST = if "/" `ST.isSuffixOf` p  then ST.init p  else p
     q' :: ST = if "/" `ST.isPrefixOf` p' then ST.tail p' else p'
+
+
+-- | Like 'fmapL' from "Data.EitherR", but with the update of the
+-- left value constructed in an impure action.
+fmapLM :: (Monad m, Functor m) => (a -> m b) -> Either a r -> m (Either b r)
+fmapLM trans (Left e) = Left <$> trans e
+fmapLM _ (Right s) = return $ Right s
+
+
+-- | Like 'fmapLT' from "Data.EitherR", but with the update of the
+-- left value constructed in an impure action.
+fmapLTM :: (Monad m, Functor m) => (a -> m b) -> EitherT a m r -> EitherT b m r
+fmapLTM trans e = EitherT $ do
+    result <- runEitherT e
+    case result of
+        Right r -> return $ Right r
+        Left l -> Left <$> trans l

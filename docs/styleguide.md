@@ -5,7 +5,7 @@
 
 ## imports
 
-FIXME: single-letter module names are also allowed (as is tradition).
+FIXME: single-letter module names are also allowed (as is tradition).  is there a rule in this at all?
 
 qualified imports are given the name of the module (without path),
 not an abbreviation.  good:
@@ -72,6 +72,7 @@ synonyms match the module names that they are from.
 
 maximum line length is 140 chars.
 
-preceed haddock section headings with two empty lines.
+preceed haddock section headings with two empty lines.  succeed with
+one empty line.
 
 spacing in lambda: `\ x -> ...`; NOT: `\x -> ...`.

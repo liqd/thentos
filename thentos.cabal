@@ -52,27 +52,28 @@ library
     cpp-options: -DDEVELOPMENT -w
     ghc-options: -w
   exposed-modules:
-      Thentos
-    , Thentos.Types
-    , Thentos.Util
-    , Thentos.Config
-    , Thentos.DB
-    , Thentos.DB.Core
-    , Thentos.DB.Trans
-    , Thentos.DB.Protect
-    , Thentos.Api
-    , Thentos.Backend.Core
-    , Thentos.Backend.Api.Simple
-    , Thentos.Backend.Api.Proxy
+      System.Log.Missing
+    , Thentos
+    , Thentos.Action
+    , Thentos.Action.Core
     , Thentos.Backend.Api.Adhocracy3
+    , Thentos.Backend.Api.Proxy
+    , Thentos.Backend.Api.Simple
+    , Thentos.Backend.Core
+    , Thentos.Config
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
-    , Thentos.Frontend.Util
     , Thentos.Frontend.Types
+    , Thentos.Frontend.Util
     , Thentos.Smtp
-    , System.Log.Missing
+    , Thentos.Transaction
+    , Thentos.Transaction.Core
+    , Thentos.Transaction.TH
+    , Thentos.Transaction.Transactions
+    , Thentos.Types
+    , Thentos.Util
   build-depends:
       base
     , acid-state
@@ -107,14 +108,15 @@ library
     , safecopy
     , sandi
     , scrypt
-    , servant
-    , servant-server
+    , servant >= 0.4 && < 0.5
+    , servant-server >= 0.4 && < 0.5
     , snap
     , snap-blaze
     , snap-core
     , snaplet-acid-state
     , snap-server
     , string-conversions
+    , template-haskell
     , text
     , thyme
     , transformers
@@ -178,8 +180,8 @@ executable build-docs
     , functor-infix
     , pandoc
     , process
-    , servant
-    , servant-docs
+    , servant >= 0.4 && < 0.5
+    , servant-docs >= 0.4 && < 0.5
     , servant-pandoc
     , thyme
 
@@ -232,7 +234,7 @@ test-suite tests
     , regex-easy
     , safecopy
     , scrypt
-    , servant-server
+    , servant-server >= 0.4 && < 0.5
     , snap-core
     , string-conversions
     , system-fileio

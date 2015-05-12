@@ -13,157 +13,154 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
+{-# LANGUAGE PackageImports                           #-}
 
-{-# OPTIONS  #-}
-
-module Thentos.Backend.Api.Simple (App, ThentosAuth, runBackend, serveApi) where
+module Thentos.Backend.Api.Simple where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.))
-import Control.Monad.IO.Class (liftIO)
-import Crypto.Random (SystemRNG)
 import Data.Proxy (Proxy(Proxy))
+import LIO.DCLabel (dcPublic)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody)
-import Servant.Server.Internal (HasServer, Server, route)
-import Servant.Server (serve)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
+import Servant.Server.Internal (Server)
+import Servant.Server (ServerT, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
 import System.Log.Missing (logger)
-import Thentos.Api
-import Thentos.Backend.Api.Proxy
-import Thentos.Backend.Core (RestActionState, PushActionC, PushActionSubRoute, pushAction)
-import Thentos.Backend.Core (ThentosAssertHeaders, ThentosHeaderName(..), lookupRequestHeader, runWarpWithCfg)
+import Thentos.Action
+import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things from Thentos.Action!
+import Thentos.Backend.Core
 import Thentos.Config
-import Thentos.DB
 import Thentos.Types
-import Thentos.Util
+
+import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  use Thentos.Action instead!
 
 
-runBackend :: HttpConfig -> ActionStateGlobal (MVar SystemRNG) -> IO ()
-runBackend cfg asg = do
-    logger INFO $ "running rest api (simple style) on " ++show (bindUrl cfg) ++ "."
+-- * main
+
+runApi :: HttpConfig -> ActionState -> IO ()
+runApi cfg asg = do
+    logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi asg
 
--- | (Required in test suite.)
-serveApi :: ActionStateGlobal (MVar SystemRNG) -> Application
-serveApi = serve (Proxy :: Proxy App) . app
+serveApi :: ActionState -> Application
+serveApi = serve (Proxy :: Proxy Api) . api
+
+type Api = ThentosAssertHeaders ThentosBasic
+
+api :: ActionState -> Server Api
+api asg = enter (enterAction dcPublic asg) thentosBasic
 
 
--- * the application
-
-type App = ThentosAssertHeaders (ThentosAuth ThentosBasic)
-
-app :: ActionStateGlobal (MVar SystemRNG) -> Server App
-app asg = ThentosAuth asg thentosBasic
+-- * combinators
 
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
-  :<|> "session" :> ThentosSession
+  :<|> "session" :> ThentosThentosSession
   :<|> "servicesession" :> ThentosServiceSession
-  :<|> "proxy-test" :> ServiceProxy
 
-thentosBasic :: PushActionSubRoute (Server ThentosBasic)
+thentosBasic :: ServerT ThentosBasic Action
 thentosBasic =
        thentosUser
   :<|> thentosService
-  :<|> thentosSession
+  :<|> thentosThentosSession
   :<|> thentosServiceSession
-  :<|> serviceProxy
 
 
 -- * authentication
+
+{-
 
 -- | Empty data type for triggering authentication.  If you have an
 -- api type 'API', use like this: @ThentosAuth :> API@, then write a
 -- route handler that takes 'Auth' as an extra argument.  'Auth' will
 -- be parsed from the headers and injected into the @sublayout@
 -- handler.
-data ThentosAuth layout = ThentosAuth (ActionStateGlobal (MVar SystemRNG)) layout
+data ThentosAuth layout = ThentosAuth ActionState layout
 
 instance ( PushActionC (Server sublayout)
          , HasServer sublayout
          ) => HasServer (ThentosAuth sublayout)
   where
-    type Server (ThentosAuth sublayout) = ThentosAuth (PushActionSubRoute (Server sublayout))
+    type Server (ThentosAuth sublayout) = ThentosAuth ((Action sublayout))
 
     route Proxy (ThentosAuth asg subserver) request respond =
         route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
       where
-        routingState :: RestActionState
-        routingState = ( asg
-                       , makeThentosClearance $ lookupRequestHeader request ThentosHeaderSession
-                       )
+        routingState :: ActionState
+        routingState = asg
+
+-}
 
 
 -- * user
 
 type ThentosUser =
-       ReqBody UserFormData :> Post UserId
-  :<|> Capture "uid" UserId :> Delete
-  :<|> Capture "uid" UserId :> "name" :> ReqBody UserName :> Put ()
-  :<|> Capture "uid" UserId :> "name" :> Get UserName
-  :<|> Capture "uid" UserId :> "email" :> ReqBody UserEmail :> Put ()
-  :<|> Capture "uid" UserId :> "email" :> Get UserEmail
-  :<|> Get [UserId]
+       ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
+  :<|> Capture "uid" UserId :> Delete '[JSON] ()
+  :<|> Capture "uid" UserId :> "name" :> ReqBody '[JSON] UserName :> Put '[JSON] ()
+  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
+  :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
+  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
+  :<|> Get '[JSON] [UserId]
 
-
-thentosUser :: PushActionSubRoute (Server ThentosUser)
+thentosUser :: ServerT ThentosUser Action
 thentosUser =
-       (\ userFormData -> liftIO (makeUserFromFormData userFormData) >>= updateAction . AddUser)
-  :<|> updateAction . DeleteUser
-  :<|> (\ uid name -> updateAction $ UpdateUserField uid (UpdateUserFieldName name))
-  :<|> (((^. userName) . snd) <$>) . queryAction . LookupUser
-  :<|> (\ uid email -> updateAction $ UpdateUserField uid (UpdateUserFieldEmail email))
-  :<|> (((^. userEmail) . snd) <$>) . queryAction . LookupUser
-  :<|> queryAction AllUserIds
+       (>>= update'P . T.AddUser) . makeUserFromFormData'P
+  :<|> update'P . T.DeleteUser
+  :<|> (\ uid name -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldName name))
+  :<|> (((^. userName) . snd) <$>) . query'P . T.LookupUser
+  :<|> (\ uid email -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldEmail email))
+  :<|> (((^. userEmail) . snd) <$>) . query'P . T.LookupUser
+  :<|> query'P T.AllUserIds
 
 
 -- * service
 
 type ThentosService =
-       ReqBody (UserId, ServiceName, ServiceDescription) :> Post (ServiceId, ServiceKey)
+       ReqBody '[JSON] (UserId, ServiceName, ServiceDescription) :> Post '[JSON] (ServiceId, ServiceKey)
            -- FIXME: it would be much nicer to infer the owner from
            -- the session token, but that requires changes to the
            -- various action monads we are kicking around all over the
            -- place.  coming up soon!
 
-  :<|> Capture "sid" ServiceId :> Delete
-  :<|> Get [ServiceId]
+  :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
+  :<|> Get '[JSON] [ServiceId]
 
-thentosService :: PushActionSubRoute (Server ThentosService)
+thentosService :: ServerT ThentosService Action
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
-    :<|> updateAction . DeleteService
-    :<|> queryAction AllServiceIds
+    :<|> update'P . T.DeleteService
+    :<|> query'P T.AllServiceIds
 
 
 -- * session
 
-type ThentosSession =
-       ReqBody (UserId, UserPass)      :> Post SessionToken
-  :<|> ReqBody (ServiceId, ServiceKey) :> Post SessionToken
-  :<|> ReqBody SessionToken            :> Get Bool
-  :<|> ReqBody SessionToken            :> Delete
+type ThentosThentosSession =
+       ReqBody '[JSON] (UserId, UserPass)      :> Post '[JSON] ThentosSessionToken
+  :<|> ReqBody '[JSON] (ServiceId, ServiceKey) :> Post '[JSON] ThentosSessionToken
+  :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
+  :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
-thentosSession :: PushActionSubRoute (Server ThentosSession)
-thentosSession =
+thentosThentosSession :: ServerT ThentosThentosSession Action
+thentosThentosSession =
        uncurry startThentosSessionByUserId
-  :<|> uncurry startSessionService
-  :<|> isActiveSession
-  :<|> updateAction . EndSession
+  :<|> uncurry startThentosSessionByServiceId
+  :<|> existsThentosSession
+  :<|> endThentosSession
 
 
 -- * service session
-type ThentosServiceSession =
-       Capture "token" ServiceSessionToken :> Delete
-  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get ServiceSessionMetadata
-  :<|> Capture "token" ServiceSessionToken :> Get Bool
 
-thentosServiceSession :: PushActionSubRoute (Server ThentosServiceSession)
+type ThentosServiceSession =
+       Capture "token" ServiceSessionToken :> Get '[JSON] Bool
+  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
+  :<|> Capture "token" ServiceSessionToken :> Delete '[JSON] ()
+
+thentosServiceSession :: ServerT ThentosServiceSession Action
 thentosServiceSession =
-       dropServiceLogin
-  :<|> queryAction . GetServiceSessionMetadata
-  :<|> isActiveServiceSession
+       existsServiceSession
+  :<|> getServiceSessionMetadata
+  :<|> endServiceSession

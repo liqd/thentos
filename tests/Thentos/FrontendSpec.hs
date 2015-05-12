@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 
@@ -22,10 +22,10 @@ import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
+import Thentos.Action.Core
 import Thentos.Config
-import Thentos.DB.Protect
-import Thentos.DB.Trans
 import Thentos.Frontend.Handlers.Combinators (urlConfirm)
+import Thentos.Transaction
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
@@ -39,26 +39,26 @@ tests = hspec spec
 spec :: Spec
 spec = describe "selenium (consult README.md if this test fails)" $ do
   describe "many tests" . before setupTestServerFull . after teardownTestServerFull $ do
-    createUser
-    resetPassword
-    logIntoThentos
-    logOutOfThentos
-    serviceCreate
-    serviceDelete
-    serviceUpdateMetadata
-    serviceGiveToOtherUser
-    logIntoService
-    logOutOfService
-    browseMyServices
+    spec_createUser
+    spec_resetPassword
+    spec_logIntoThentos
+    spec_logOutOfThentos
+    spec_serviceCreate
+    spec_serviceDelete
+    spec_serviceUpdateMetadata
+    spec_serviceGiveToOtherUser
+    spec_logIntoService
+    spec_logOutOfService
+    spec_browseMyServices
 
   -- (this is a separate top-level test case because it changes the DB
   -- state and gets the other tests confused.)
   describe "update user" . before setupTestServerFull . after teardownTestServerFull $ do
-    updateSelf
+    spec_updateSelf
 
 
-createUser :: SpecWith TestServerFull
-createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+spec_createUser :: SpecWith TestServerFull
+spec_createUser = it "create user" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
@@ -80,7 +80,7 @@ createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestSer
         WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
     -- check that confirmation token is in DB.
-    Right (db1 :: DB) <- query' st $ SnapShot allowEverything
+    Right (db1 :: DB) <- query' st $ SnapShot
     Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
 
     -- click activation link.  (it would be nice if we
@@ -93,18 +93,18 @@ createUser = it "create user" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestSer
           bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
     -- check that user has arrived in DB.
-    Right (db2 :: DB) <- query' st $ SnapShot allowEverything
+    Right (db2 :: DB) <- query' st $ SnapShot
     Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
-    eUser <- query' st $ LookupUserByName (UserName myUsername) allowEverything
+    eUser <- query' st $ LookupUserByName (UserName myUsername)
     eUser `shouldSatisfy` isRight
 
 
-resetPassword :: SpecWith TestServerFull
-resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_resetPassword :: SpecWith TestServerFull
+spec_resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-updateSelf :: SpecWith TestServerFull
-updateSelf = describe "update self" $ do
+spec_updateSelf :: SpecWith TestServerFull
+spec_updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
 
@@ -112,7 +112,7 @@ updateSelf = describe "update self" $ do
         _click label = WD.findElem (WD.ById label) >>= WD.click
 
         _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
-        _check st f = liftIO $ query' st (SnapShot allowEverything) >>=
+        _check st f = liftIO $ query' st (SnapShot ) >>=
                         maybe (error "no such user") f .
                         either (error "could not take db snapshot") (Map.lookup (UserId selfId) . (^. dbUsers))
 
@@ -121,7 +121,7 @@ updateSelf = describe "update self" $ do
         selfName :: ST      = "god"
         selfPass :: ST      = "god"
 
-    it "username" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    it "username" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
@@ -133,7 +133,7 @@ updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    it "password" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update_password")
@@ -194,8 +194,8 @@ updateSelf = describe "update self" $ do
 -- manageRoles = describe "manage roles" $ do ...
 
 
-logIntoThentos :: SpecWith TestServerFull
-logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+spec_logIntoThentos :: SpecWith TestServerFull
+spec_logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Login successful")
 
@@ -204,8 +204,8 @@ logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestSer
     -- fact) that the lambda is polymorphic in all places where it
     -- takes '_'?)
 
-logOutOfThentos :: SpecWith TestServerFull
-logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+spec_logOutOfThentos :: SpecWith TestServerFull
+spec_logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -215,8 +215,8 @@ logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: Test
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
-serviceCreate :: SpecWith TestServerFull
-serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+spec_serviceCreate :: SpecWith TestServerFull
+spec_serviceCreate = it "service create" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
@@ -238,41 +238,41 @@ serviceCreate = it "service create" $ \ (((st, _, _), _, (_, feConfig), wd) :: T
     --   1. service has been created;
     --   2. has right sname, sdescr;
     --   3. has correct owner.
-    Right (db :: DB) <- query' st $ SnapShot allowEverything
+    Right (db :: DB) <- query' st $ SnapShot
     case Map.lookup serviceId (db ^. dbServices) of
         Nothing -> error "serviceId not found in db."
         Just service -> do
-            service ^. serviceSession     `shouldBe` Nothing
-            service ^. serviceName        `shouldBe` ServiceName sname
-            service ^. serviceDescription `shouldBe` ServiceDescription sdescr
-            -- service ^. serviceOwner       `shouldBe` UserId 0
+            service ^. serviceThentosSession `shouldBe` Nothing
+            service ^. serviceName           `shouldBe` ServiceName sname
+            service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
+            -- service ^. serviceOwner          `shouldBe` UserId 0
 
     -- FIXME: test: without login, create user fails with "permission denied"
     -- FIXME: test: if user is deleted, so are all their services.
 
 
-serviceDelete :: SpecWith TestServerFull
-serviceDelete = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceDelete :: SpecWith TestServerFull
+spec_serviceDelete = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-serviceUpdateMetadata :: SpecWith TestServerFull
-serviceUpdateMetadata = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata :: SpecWith TestServerFull
+spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-serviceGiveToOtherUser :: SpecWith TestServerFull
-serviceGiveToOtherUser = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser :: SpecWith TestServerFull
+spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-logIntoService :: SpecWith TestServerFull
-logIntoService = it "log into service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_logIntoService :: SpecWith TestServerFull
+spec_logIntoService = it "log into service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-logOutOfService :: SpecWith TestServerFull
-logOutOfService = it "log out of service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_logOutOfService :: SpecWith TestServerFull
+spec_logOutOfService = it "log out of service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 
 
-browseMyServices :: SpecWith TestServerFull
-browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_browseMyServices :: SpecWith TestServerFull
+spec_browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
 {-
       \ ((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do

@@ -16,6 +16,10 @@ wc:
 
 clean:
 	find . -name '*~' -exec rm -f {} \;
+	find ./src -name '*.o' -exec rm -f {} \;
+	find ./src -name '*.hi' -exec rm -f {} \;
+	find ./src -name '*.dyn_o' -exec rm -f {} \;
+	find ./src -name '*.dyn_hi' -exec rm -f {} \;
 
 dist-clean: clean
 	cabal clean
@@ -30,3 +34,8 @@ packunused:
 
 show-splices:
 	cabal install -j1 --ghc-options="-fforce-recomp -ddump-splices"
+
+update-stackage:
+#	wget https://www.stackage.org/lts/cabal.config
+	rm cabal.config
+	wget https://www.stackage.org/snapshot/nightly-`date +%F`/cabal.config

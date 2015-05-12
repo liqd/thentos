@@ -11,19 +11,13 @@ import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 import qualified Data.ByteString as SBS
 
 import Thentos.Types
-import Thentos.Backend.Api.Adhocracy3
+-- import Thentos.Backend.Api.Adhocracy3
 
 import Test.Util
 
 
 instance Arbitrary (HashedSecret a) where
     arbitrary = encryptTestSecret . SBS.pack <$> arbitrary
-
-instance Arbitrary ThentosLabel where
-    arbitrary = ThentosLabel <$> arbitrary
-
-instance Arbitrary ThentosClearance where
-    arbitrary = ThentosClearance <$> arbitrary
 
 instance Arbitrary DCLabel where
     arbitrary = DCLabel <$> arbitrary <*> arbitrary
@@ -60,4 +54,4 @@ instance Arbitrary UserFormData where
 -- here.
 deriving instance Show UserPass
 deriving instance Show UserFormData
-deriving instance Show A3UserNoPass
+-- deriving instance Show A3UserNoPass

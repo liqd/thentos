@@ -6,9 +6,9 @@ import Data.SafeCopy (safeGet, safePut)
 import Data.Serialize.Get (runGet)
 import Data.Serialize.Put (runPut)
 import LIO (canFlowTo, lub, glb)
-import LIO.DCLabel ((%%), (/\), (\/), toCNF)
-import Test.Hspec (Spec, describe, it, shouldBe, hspec)
+import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
+import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 import Test.QuickCheck (property)
 
 import Thentos.Types
@@ -56,7 +56,7 @@ spec = modifyMaxSize (* testSizeFactor) $ do
             , True
             ] `shouldBe` True
 
-      let (>>>) = canFlowTo
+      let (>>>) :: DCLabel -> DCLabel -> Bool = canFlowTo
           infix 5 >>>
 
           (<==>) = (==)
@@ -66,21 +66,21 @@ spec = modifyMaxSize (* testSizeFactor) $ do
           -- infix 2 ==>
 
       it "satisfies: l >>> l' && l' >>> l <==> l == l'" . property $
-          \ (ThentosLabel l) (ThentosLabel l') ->
+          \ l l' ->
               l >>> l' && l' >>> l <==> l == l'
 
       it "satisfies: l >>> l' <==> lub l l' == l'" . property $
-          \ (ThentosLabel l) (ThentosLabel l') ->
+          \ l l' ->
               l >>> l' <==> lub l l' == l'
 
       it "satisfies: l >>> l' <==> glb l l' == l" . property $
-          \ (ThentosLabel l) (ThentosLabel l') ->
+          \ l l' ->
               l >>> l' <==> glb l l' == l
 
       it "satisfies: l >>> c && l' >>> c <==> lub l l' >>> c" . property $
-          \ (ThentosLabel l) (ThentosLabel l') (ThentosClearance c) ->
+          \ l l' c ->
               l >>> c && l' >>> c <==> lub l l' >>> c
 
       it "satisfies: l >>> c && l >>> c' <==> l >>> glb c c'" . property $
-          \ (ThentosLabel l) (ThentosClearance c) (ThentosClearance c') ->
+          \ l c c' ->
               l >>> c && l >>> c' <==> l >>> glb c c'

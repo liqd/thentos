@@ -59,9 +59,9 @@ import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Thentos.Types
 import Thentos.Frontend.Types
-import Thentos.DB.Trans (UpdateUserFieldOp(..))
+import Thentos.Transaction
+import Thentos.Types
 
 
 -- * base

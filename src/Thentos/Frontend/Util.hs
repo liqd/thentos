@@ -1,8 +1,10 @@
 module Thentos.Frontend.Util where
 
 import Control.Exception (SomeException)
+import Control.Monad (when)
 import Control.Monad.CatchIO (try)
-import Snap (Snap, Config, getOther, SnapletInit, runSnaplet, when, liftIO, combineConfig, getVerbose)
+import Control.Monad.IO.Class (liftIO)
+import Snap (Snap, Config, getOther, SnapletInit, runSnaplet, combineConfig, getVerbose)
 import Snap.Http.Server (simpleHttpServe)
 import Snap.Snaplet.Config (AppConfig(appEnvironment))
 import System.Directory (createDirectoryIfMissing)

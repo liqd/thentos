@@ -22,12 +22,14 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Monad (when, void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (openLocalStateFrom, closeAcidState)
 import Data.Acid.Advanced (update')
+import Data.Acid (openLocalStateFrom, closeAcidState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, cs)
 import Filesystem (isDirectory, removeTree)
 import GHC.Exts (fromString)
@@ -39,8 +41,6 @@ import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStr
 import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import Text.Show.Pretty (ppShow)
-import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Proxy (Proxy(Proxy))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -50,12 +50,11 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
-import Thentos.Api
+import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
-import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Config
-import Thentos.DB
 import Thentos.Frontend (runFrontend)
+import Thentos.Transaction
 import Thentos.Types
 
 import Test.Config
@@ -75,18 +74,18 @@ encryptTestSecret pw =
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 
-setupDB :: ThentosConfig -> IO (ActionStateGlobal (MVar SystemRNG))
+setupDB :: ThentosConfig -> IO ActionState
 setupDB thentosConfig = do
     destroyDB
     st <- openLocalStateFrom (dbPath testConfig) emptyDB
     createGod st
-    Right (UserId 1) <- update' st $ AddUser user1 allowEverything
-    Right (UserId 2) <- update' st $ AddUser user2 allowEverything
+    Right (UserId 1) <- update' st $ AddUser user1
+    Right (UserId 2) <- update' st $ AddUser user2
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-    return (st, rng, thentosConfig)
+    return $ ActionState (st, rng, thentosConfig)
 
-teardownDB :: (ActionStateGlobal (MVar SystemRNG)) -> IO ()
-teardownDB (st, _, _) = do
+teardownDB :: ActionState -> IO ()
+teardownDB (ActionState (st, _, _)) = do
     closeAcidState st
     destroyDB
 
@@ -99,7 +98,7 @@ destroyDB = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: Command -> IO (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header])
+setupTestBackend :: Command -> IO (ActionState, Application, ThentosSessionToken, [Header])
 setupTestBackend cmd = do
     asg <- setupDB testThentosConfig
     case cmd of
@@ -107,19 +106,21 @@ setupTestBackend cmd = do
             let testBackend = Simple.serveApi asg
             (tok, headers) <- loginAsGod testBackend
             return (asg, testBackend, tok, headers)
+{-
         RunA3 ->
             let e = error "setupTestBackend: no god credentials!"
             in return (asg, Adhocracy3.serveApi asg, e, e)
+-}
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
-teardownTestBackend :: (ActionStateGlobal (MVar SystemRNG), Application, SessionToken, [Header]) -> IO ()
+teardownTestBackend :: (ActionState, Application, ThentosSessionToken, [Header]) -> IO ()
 teardownTestBackend (db, testBackend, tok, godCredentials) = do
     logoutAsGod testBackend tok godCredentials
     teardownDB db
 
 
 type TestServerFull =
-    ( ActionStateGlobal (MVar SystemRNG)
+    ( ActionState
     , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
     , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
     , forall a . WD.WD a -> IO a
@@ -134,7 +135,7 @@ setupTestServerFull = do
     let Just (beConfig :: HttpConfig) = Tagged <$> testThentosConfig >>. (Proxy :: Proxy '["backend"])
         Just (feConfig :: HttpConfig) = Tagged <$> testThentosConfig >>. (Proxy :: Proxy '["frontend"])
 
-    backend  <- async $ Simple.runBackend beConfig asg
+    backend  <- async $ Simple.runApi beConfig asg
     frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
 
     let wdConfig = WD.defaultConfig
@@ -159,17 +160,17 @@ teardownTestServerFull (db, (backend, _), (frontend, _), _) = do
     teardownDB db
 
 
-loginAsGod :: Application -> IO (SessionToken, [Header])
+loginAsGod :: Application -> IO (ThentosSessionToken, [Header])
 loginAsGod testBackend = debugRunSession False testBackend $ do
     response <- srequest (makeSRequest "POST" "/session" [] $ Aeson.encode (godUid, godPass))
     if (statusCode (simpleStatus response) /= 201)
         then error $ ppShow response
         else do
-            let Just (tok :: SessionToken) = Aeson.decode' $ simpleBody response
-            let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromSessionToken tok)]
+            let Just (tok :: ThentosSessionToken) = Aeson.decode' $ simpleBody response
+            let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
             return (tok, credentials)
 
-logoutAsGod :: Application -> SessionToken -> [Header] -> IO ()
+logoutAsGod :: Application -> ThentosSessionToken -> [Header] -> IO ()
 logoutAsGod testBackend tok godCredentials = debugRunSession False testBackend $ do
     void . srequest . makeSRequest "DELETE" "/session" godCredentials $ Aeson.encode tok
 

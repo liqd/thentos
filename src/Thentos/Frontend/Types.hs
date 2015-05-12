@@ -1,14 +1,16 @@
+{-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TemplateHaskell        #-}
 
 module Thentos.Frontend.Types where
 
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view)
 import Control.Monad (mzero)
-import Crypto.Random (SystemRNG)
+import "crypto-random" Crypto.Random (SystemRNG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (ST, cs)
@@ -21,8 +23,8 @@ import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxU
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
-import Thentos.Types
 import Thentos.Config
+import Thentos.Types
 
 data FrontendApp =
     FrontendApp
@@ -53,7 +55,7 @@ emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
 
 data FrontendSessionLoginData =
     FrontendSessionLoginData
-        { _fslToken  :: SessionToken
+        { _fslToken  :: ThentosSessionToken
         , _fslUserId :: UserId
         }
   deriving (Show, Eq, Generic)
