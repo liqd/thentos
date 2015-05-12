@@ -55,10 +55,10 @@ import Thentos.Util
 -- * action
 
 enterAction :: DCLabel -> ActionState -> Action :~> EitherT ServantErr IO
-enterAction clearance state = Nat $ _ . f
+enterAction clearance state = Nat $ EitherT . run
   where
-    f :: Action a -> IO (Either ServantErr a)
-    f = (>>= fmapLM actionErrorToServantErr) . runActionE clearance state
+    run :: Action a -> IO (Either ServantErr a)
+    run = (>>= fmapLM actionErrorToServantErr) . runActionE clearance state
 
 
 actionErrorToServantErr :: ActionError -> IO ServantErr
