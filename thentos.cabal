@@ -70,6 +70,8 @@ library
     , Thentos.Smtp
     , Thentos.Transaction
     , Thentos.Transaction.Core
+    , Thentos.Transaction.TH
+    , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
   build-depends:
@@ -114,6 +116,7 @@ library
     , snaplet-acid-state
     , snap-server
     , string-conversions
+    , template-haskell
     , text
     , thyme
     , transformers
