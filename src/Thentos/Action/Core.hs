@@ -31,7 +31,7 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO, setLabel)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), dcPublic, ToCNF, toCNF)
-import LIO.Error (AnyLabelError(AnyLabelError))
+import LIO.Error (AnyLabelError)
 import LIO.TCB (LIO, ioTCB)
 
 import System.Log (Priority(DEBUG))

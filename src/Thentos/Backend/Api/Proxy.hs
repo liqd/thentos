@@ -30,7 +30,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, LBS, cs)
 import Servant.API (Raw)
-import Servant.Server.Internal (Server)
+import Servant.Server.Internal (ServerT)
 import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.ByteString as SBS
@@ -50,7 +50,7 @@ import Thentos.Types
 
 type ServiceProxy = Raw
 
-serviceProxy :: PushActionSubRoute (Server ServiceProxy)
+serviceProxy :: ServerT ServiceProxy Action
 serviceProxy req cont = catchProxy cont $ do
     rqMod <- getRqMod req
     _ $ C.withManager C.defaultManagerSettings $ \ manager ->
@@ -71,10 +71,6 @@ prepareReq (RqMod target proxyHdrs) req = do
 
 prepareResp :: C.Response LBS -> S.Response
 prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (C.responseBody res)
-
--- | Remove all headers that match @X-Thentos-.*@.
-clearThentosHeaders :: T.RequestHeaders -> T.RequestHeaders
-clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.

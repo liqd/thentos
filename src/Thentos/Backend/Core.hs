@@ -19,10 +19,7 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative ((<$>))
-import Control.Exception (assert)
-import Control.Monad.Trans.Either  -- (EitherT(EitherT), runEitherT)
-import Control.Monad.Trans.Reader (runReaderT)
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
@@ -32,18 +29,19 @@ import Data.String.Conversions (SBS, ST)
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
-import LIO.DCLabel (DCLabel, (%%))
+import LIO.DCLabel (DCLabel)
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
-import Network.Wai (ResponseReceived, Request, requestHeaders)
+import Network.Wai (Request, requestHeaders)
 import Servant.API ((:<|>)((:<|>)))
-import Servant.Server  -- (HasServer, Server, ServantErr, route)
-import Servant.Server.Internal  -- ()
-import Servant.Server.Internal.ServantErr  -- ()
+import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
+import Servant.Server.Internal.ServantErr (err400, err500, errBody, responseServantErr)
 import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.ByteString.Char8 as SBS
+import qualified Network.HTTP.Types.Header as HttpTypes
+import qualified Network.HTTP.Types.Status as HttpTypes
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
@@ -156,6 +154,11 @@ badHeaders = filter g . filter f
   where
     f (k, _) = foldCase "X-Thentos-" `SBS.isPrefixOf` foldedCase k
     g (k, _) = not $ k `elem` map renderThentosHeaderName [minBound..]
+
+-- | Remove all headers that match @X-Thentos-.*@.  This is useful if the request is to be used as a
+-- basis for e.g. constructing another request to a proxy target.
+clearThentosHeaders :: HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
+clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
 data ThentosAssertHeaders subserver = ThentosAssertHeaders subserver
