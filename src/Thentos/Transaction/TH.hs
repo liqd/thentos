@@ -52,9 +52,9 @@ countArgs (ForallT _ _ app) = countArgs app
 countArgs (AppT (AppT ArrowT _arg) returnType) = 1 + countArgs returnType
 countArgs _ = 0
 
--- | Convert e.g. `a -> b -> ThentosUpdate Foo` to
--- `a -> b -> Update DB (Either ThentosError Foo) and check whether it
--- is an Update or a Query
+-- | Convert e.g. @a -> b -> ThentosUpdate Foo@ to
+-- @a -> b -> Update DB (Either ThentosError Foo)@ and check whether it
+-- is an Update or a Query.
 makeThentosType :: Type -> (Type, ThentosTransactionType)
 makeThentosType (AppT (AppT ArrowT arg) returnType) =
     let (rightOfArrow, transType) = makeThentosType returnType
@@ -76,7 +76,7 @@ makeThentosType (AppT (AppT t (VarT _)) returnType)
 makeThentosType (ForallT _ _ app) = makeThentosType app
 makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
 
--- | Generate a function definition
+-- | Generate a function definition.
 makeFinalFun :: Name -> Name -> Int -> ThentosTransactionType -> Q Dec
 makeFinalFun nameWithPrefix functionName argCount transType = do
     args <- replicateM argCount (newName "arg")
@@ -88,7 +88,7 @@ makeFinalFun nameWithPrefix functionName argCount transType = do
     return $ FunD functionName [Clause (map VarP args) body []]
 
 -- | Generate a function application expression like
--- `runThentosQuery (trans_do_something x y)`
+-- @runThentosQuery (trans_do_something x y)@.
 makeFunApp :: Name -> Name -> [Name] -> Exp
 makeFunApp updateOrQuery funName argNames =
     AppE (VarE updateOrQuery) $ foldl AppE (VarE funName) (map VarE argNames)
