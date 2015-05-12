@@ -11,7 +11,7 @@
 module Thentos.Types where
 
 import Control.Exception (Exception)
-import Control.Lens (makeLenses)
+import Control.Lens (makeLenses, Lens')
 import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable)
@@ -72,6 +72,12 @@ emptyDB = DB m m m m
              m m m m
              (UserId 0)
   where m = Map.empty
+
+class AsDB db where
+   asDB :: Lens' db DB
+
+instance AsDB DB where
+   asDB = id
 
 
 -- * user

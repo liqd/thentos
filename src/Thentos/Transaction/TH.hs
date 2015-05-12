@@ -47,6 +47,7 @@ dropPrefix (nameBase -> s)
 
 -- | Count the number of arguments in a function type
 countArgs :: Type -> Int
+countArgs (ForallT _ _ app) = countArgs app
 countArgs (AppT (AppT ArrowT _arg) returnType) = 1 + countArgs returnType
 countArgs _ = 0
 
@@ -57,7 +58,7 @@ makeThentosType :: Type -> (Type, ThentosTransactionType)
 makeThentosType (AppT (AppT ArrowT arg) returnType) =
     let (rightOfArrow, transType) = makeThentosType returnType
     in (AppT (AppT ArrowT arg) rightOfArrow, transType)
-makeThentosType (AppT t returnType)
+makeThentosType (AppT (AppT t (VarT _)) returnType)
     | t == ConT (''ThentosUpdate) = (updateType, ThentosU)
     | t == ConT (''ThentosQuery) = (queryType, ThentosQ)
     | otherwise = error $ "not a thentos transaction type: " ++ show t
@@ -71,6 +72,7 @@ makeThentosType (AppT t returnType)
     makeAcidStateType :: Name -> Type
     makeAcidStateType acidStateTypeConstructor =
         AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
+makeThentosType (ForallT _ _ app) = makeThentosType app
 makeThentosType t = error $ "not a thentos transaction type: " ++ show t
 
 -- | Generate a function definition
