@@ -292,7 +292,7 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 
 -- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
 -- left value.
-snapRunAction :: Action a -> FH a
+snapRunAction :: Action DB a -> FH a
 snapRunAction action = snapRunActionE action >>= \case
     Right v -> return v
     Left e  -> snapHandleError e
@@ -303,7 +303,7 @@ snapHandleError :: ActionError -> FH a
 snapHandleError = crash500
 
 -- | Read the clearance from the 'App' state and apply it to 'runAction'.
-snapRunActionE :: Action a -> FH (Either ActionError a)
+snapRunActionE :: Action DB a -> FH (Either ActionError a)
 snapRunActionE action = do
     st :: AcidState DB   <- getAcidState
     rn :: MVar SystemRNG <- gets (^. rng)

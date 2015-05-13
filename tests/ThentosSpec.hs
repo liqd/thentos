@@ -46,7 +46,7 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
             uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
 
     describe "checkPassword" $ do
-        it "..." $ \ (asg :: ActionState) -> do
+        it "..." $ \ (asg :: ActionState DB) -> do
             byId <- runActionE dcPublic asg $ startThentosSessionByUserId (UserId 0) (UserPass "god")
             byId `shouldSatisfy` isRight
             byName <- runActionE dcPublic asg $ startThentosSessionByUserName (UserName "god") (UserPass "god")

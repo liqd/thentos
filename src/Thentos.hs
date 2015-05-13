@@ -113,7 +113,7 @@ main =
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
-runGcLoop :: ActionState -> Maybe Int -> IO ThreadId
+runGcLoop :: ActionState DB -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     threadDelay $ interval * 1000

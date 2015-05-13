@@ -24,11 +24,11 @@ import Thentos.Types
 
 -- * types
 
-type ThentosUpdate a = ThentosUpdate' ThentosError a
-type ThentosQuery  a = ThentosQuery'  ThentosError a
+type ThentosUpdate db a = ThentosUpdate' db ThentosError a
+type ThentosQuery  db a = ThentosQuery'  db ThentosError a
 
-type ThentosUpdate' e a = EitherT e (StateT  DB Identity) a
-type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
+type ThentosUpdate' db e a = EitherT e (StateT  db Identity) a
+type ThentosQuery'  db e a = EitherT e (ReaderT db Identity) a
 
 -- FUTURE WORK: make primed types newtypes rather than type synonyms, and provide a generic monad
 -- instance.  (how does that work?)
@@ -37,7 +37,7 @@ type ThentosQuery'  e a = EitherT e (ReaderT DB Identity) a
 -- * plumbing
 
 -- | 'liftQuery' for 'ThentosUpdate' and 'ThentosUpdate''.
-liftThentosQuery :: ThentosQuery' e a -> ThentosUpdate' e a
+liftThentosQuery :: ThentosQuery' db e a -> ThentosUpdate' db e a
 liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
     (, state) <$> runEitherT thentosQuery `runReaderT` state
 
@@ -48,7 +48,7 @@ liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
 -- - http://petterbergman.se/aciderror.html.en
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
-runThentosUpdate :: ThentosUpdate a -> Update DB (Either ThentosError a)
+runThentosUpdate :: ThentosUpdate DB a -> Update DB (Either ThentosError a)
 runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
@@ -57,5 +57,5 @@ runThentosUpdate action = do
 
 
 -- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
-runThentosQuery :: ThentosQuery a -> Query DB (Either ThentosError a)
+runThentosQuery :: ThentosQuery DB a -> Query DB (Either ThentosError a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask

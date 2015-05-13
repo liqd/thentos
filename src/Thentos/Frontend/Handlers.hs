@@ -56,14 +56,14 @@ userRegister = do
                 blaze userRegisterRequestedPage
             Left e -> logger INFO (show e) >> crash 400 "Registration failed."
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action ()
+sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action DB ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
-sendUserExistsMail :: SmtpConfig -> UserEmail -> Action ()
+sendUserExistsMail :: SmtpConfig -> UserEmail -> Action DB ()
 sendUserExistsMail smtpConfig address = do
     sendMail'P smtpConfig Nothing address subject message
   where
@@ -114,7 +114,7 @@ userLogin = do
 
 -- | If user name and password match, login.  Otherwise, redirect to
 -- login page with a message that asks to try again.
-userLoginCallAction :: Action (UserId, ThentosSessionToken) -> FH ()
+userLoginCallAction :: Action DB (UserId, ThentosSessionToken) -> FH ()
 userLoginCallAction action = do
     eResult <- snapRunActionE action
       -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
@@ -156,7 +156,7 @@ resetPassword = do
             Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
             Left e -> crash500 ("resetPassword" :: ST, e)
 
-sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action ()
+sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action DB ()
 sendPasswordResetMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (user ^. userEmail) subject message
   where
