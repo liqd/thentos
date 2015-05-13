@@ -1,9 +1,11 @@
 module System.Log.Missing
   ( logger
   , loggerName
+  , announceAction
   )
 where
 
+import Control.Exception (bracket_)
 import System.Log.Logger
 import Control.Monad.IO.Class (MonadIO, liftIO)
 
@@ -16,3 +18,6 @@ logger prio msg = liftIO $ logM loggerName prio msg
 
 loggerName :: String
 loggerName = "Thentos"
+
+announceAction :: String -> IO a -> IO a
+announceAction msg = bracket_ (logger INFO msg) (logger INFO $ msg ++ ": [ok]")
