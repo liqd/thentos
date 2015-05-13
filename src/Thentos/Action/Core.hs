@@ -140,8 +140,12 @@ clearanceByAgent agent = makeClearance <$> query'P (AgentRoles agent)
     makeClearance :: Set.Set Role -> DCLabel
     makeClearance roles = s %% i
       where
-        s = Set.fold (/\) (toCNF agent) basicRoles
-        i = Set.fold (\/) (toCNF agent) basicRoles
+        s = Set.fold (\/) (toCNF agent) basicRoles  -- any of the listed principals is enough for read access
+        i = Set.fold (/\) (toCNF agent) basicRoles  -- any of the listed principals is enough for write access
+
+        -- (anyway, we want to talk about priviledges here, not labels!)
+
+        -- important paper: http://www.scs.stanford.edu/~dm/home/papers/stefan:dclabels.pdf
 
         basicRoles = Set.fold (flip f) Set.empty roles
           where
