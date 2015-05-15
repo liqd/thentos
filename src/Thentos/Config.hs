@@ -10,10 +10,10 @@ module Thentos.Config
 where
 
 import Control.Applicative ((<$>), (<|>))
-import Control.Exception (throwIO)
+import Control.Exception (throwIO, try)
 import Data.Configifier ((:>), (:*>)((:*>)), (:>:), (>>.))
-import Data.Configifier (configify', renderConfigFile, docs)
-import Data.Configifier (NoDesc, ToConfigCode, ToConfig, Source(..), Tagged(Tagged), TaggedM(TaggedM), Result, MaybeO(..))
+import Data.Configifier (configifyWithDefault, renderConfigFile, docs, defaultSources)
+import Data.Configifier (ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs, (<>))
@@ -21,7 +21,6 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
 import System.Directory (createDirectoryIfMissing)
-import System.Environment (getEnvironment, getArgs)
 import System.FilePath (takeDirectory)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
@@ -31,7 +30,6 @@ import System.Log.Missing (loggerName, logger)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as SBS
 import qualified Data.Map as Map
 import qualified Data.Text.IO as ST
 import qualified Generics.Generic.Aeson as Aeson
@@ -41,10 +39,7 @@ import Thentos.Types
 
 -- * config structure
 
-type ThentosConfig         = Tagged ThentosConfigUntagged
-type ThentosConfigUntagged = NoDesc ThentosConfigDesc  -- ('NoDesc' will be deprecated in configifier-0.0.4)
-type ThentosConfigDesc     = ToConfigCode ThentosConfig'
-
+type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
             ("command"      :> Command            :>: "One of 'run', runA3, 'showDB'.")
   :*> Maybe ("frontend"     :> HttpConfig'        :>: "HTTP server for html forms.")
@@ -58,7 +53,7 @@ type ThentosConfig' =
   :*>       ("email_change_expiration" :> Timeout :>: "Email-change-token expiration period")
   :*> Maybe ("gc_interval"             :> Int     :>: "Garbage collection interval (ms)")
 
-defaultThentosConfig :: ToConfig ThentosConfigUntagged Maybe
+defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
       Just Run
   :*> NothingO
@@ -71,7 +66,7 @@ defaultThentosConfig =
   :*> Just (Timeout 3600)
   :*> NothingO
 
-type HttpConfig = Tagged (NoDesc (ToConfigCode HttpConfig'))
+type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
       Maybe ("bind_schema"   :> HttpSchema)
   :*>       ("bind_host"     :> ST)
@@ -80,27 +75,27 @@ type HttpConfig' =
   :*> Maybe ("expose_host"   :> ST)
   :*> Maybe ("expose_port"   :> Int)
 
-type HttpProxyConfig = Tagged (NoDesc (ToConfigCode HttpProxyConfig'))
+type HttpProxyConfig = Tagged (ToConfigCode HttpProxyConfig')
 type HttpProxyConfig' =
             ("service_id" :> ST)
   :*>       ("http"       :> HttpConfig')
   :*> Maybe ("url_prefix" :> ST)
 
-type SmtpConfig = Tagged (NoDesc (ToConfigCode SmtpConfig'))
+type SmtpConfig = Tagged (ToConfigCode SmtpConfig')
 type SmtpConfig' =
       Maybe ("sender_name"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
   :*>       ("sender_address" :> ST)
   :*>       ("sendmail_path"  :> ST)
   :*>       ("sendmail_args"  :> [ST])
 
-defaultSmtpConfig :: ToConfig (NoDesc (ToConfigCode SmtpConfig')) Maybe
+defaultSmtpConfig :: ToConfig (ToConfigCode SmtpConfig') Maybe
 defaultSmtpConfig =
       NothingO
   :*> Nothing
   :*> Just "/usr/sbin/sendmail"
   :*> Just ["-t"]
 
-type DefaultUserConfig = Tagged (NoDesc (ToConfigCode DefaultUserConfig'))
+type DefaultUserConfig = Tagged (ToConfigCode DefaultUserConfig')
 type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
@@ -137,16 +132,13 @@ printConfigUsage = do
 
 getConfig :: FilePath -> IO ThentosConfig
 getConfig configFile = do
-    sources <- sequence
-        [ ConfigFileYaml <$> SBS.readFile configFile
-        , ShellEnv       <$> getEnvironment
-        , CommandLine    <$> getArgs
-        ]
+    sources <- defaultSources [configFile]
     logger DEBUG $ "config sources:\n" ++ ppShow sources
 
-    case configify' (TaggedM defaultThentosConfig) sources :: Result ThentosConfigUntagged of
+    result :: Either Error ThentosConfig <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
+    case result of
         Left e -> do
-            logger CRITICAL $ "error parsing config: " ++ show e
+            logger CRITICAL $ "error parsing config: " ++ ppShow e
             throwIO e
         Right cfg -> do
             logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
