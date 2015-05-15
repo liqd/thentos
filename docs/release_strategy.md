@@ -1,5 +1,4 @@
-Release Strategy
-----------------
+# Release Strategy
 
 1. Follow the [Haskell
    PVP](https://wiki.haskell.org/Package_versioning_policy).
