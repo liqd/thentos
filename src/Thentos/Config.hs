@@ -46,12 +46,12 @@ type ThentosConfigUntagged = NoDesc ThentosConfigDesc  -- ('NoDesc' will be depr
 type ThentosConfigDesc     = ToConfigCode ThentosConfig'
 
 type ThentosConfig' =
-            ("command"      :> Command)           :>: "One of 'run', runA3, 'showDB'."
+            ("command"      :> Command            :>: "One of 'run', runA3, 'showDB'.")
   :*> Maybe ("frontend"     :> HttpConfig'        :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'        :>: "HTTP server for rest api.")
   :*> Maybe ("proxies"      :> [HttpProxyConfig'] :>: "HTTP server for tunneling requests to services.")
         -- FIXME: make proxies a map keyed by service ids
-  :*>       ("smtp"         :> SmtpConfig')       :>: "Sending email."
+  :*>       ("smtp"         :> SmtpConfig'        :>: "Sending email.")
   :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if the user table is empty.")
   :*>       ("user_reg_expiration" :> Timeout     :>: "User registration expiration period")
   :*>       ("pw_reset_expiration" :> Timeout     :>: "Password registration token expiration period")
