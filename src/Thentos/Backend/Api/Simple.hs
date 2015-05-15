@@ -58,8 +58,8 @@ api asg = enter (enterAction dcPublic asg) thentosBasic
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
-  :<|> "session" :> ThentosThentosSession
-  :<|> "servicesession" :> ThentosServiceSession
+  :<|> "thentos_session" :> ThentosThentosSession
+  :<|> "service_session" :> ThentosServiceSession
 
 thentosBasic :: ServerT ThentosBasic (Action DB)
 thentosBasic =
@@ -155,9 +155,9 @@ thentosThentosSession =
 -- * service session
 
 type ThentosServiceSession =
-       Capture "token" ServiceSessionToken :> Get '[JSON] Bool
-  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
-  :<|> Capture "token" ServiceSessionToken :> Delete '[JSON] ()
+       ReqBody '[JSON] ServiceSessionToken :> Get '[JSON] Bool
+  :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
+  :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
 thentosServiceSession :: ServerT ThentosServiceSession (Action DB)
 thentosServiceSession =
