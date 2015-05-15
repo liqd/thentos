@@ -20,7 +20,7 @@ You need to add a few sources not yet available from hackage to your
 cabal sandbox:
 
 ```bash
-$ git checkout https://github.com/mpickering/servant-pandoc
+$ git clone https://github.com/mpickering/servant-pandoc
 $ git clone https://github.com/liqd/pronk -b thentos-patches
 $ cabal sandbox add-source servant-pandoc
 $ cabal sandbox add-source pronk
@@ -33,56 +33,48 @@ Overview
 Thentos (/'tentɒs/) is the swiss army knife of web application user
 management.  You can:
 
-- use it as a library to offer SSO (single-sign-on) via github or
-  facebook to your users,
+- use it as a library to offer github or twitter single-sign-on to the
+  users of your application,
 
-- run it as a proxy in front of your web application that does all the
+- run it as a proxy in front of your application that does all the
   user management for you (a bit like
-  [sproxy](https://github.com/zalora/sproxy)),
+  [sproxy](https://github.com/zalora/sproxy), but with more use cases
+  in mind),
 
-- set up your own, federated SSO service hierarchy,
+- run your own, federated SSO service hierarchy,
 
-- use a third-party SSO service to completely hide user information
-  from your application and only work with pre-authenticated,
-  anonymised sessions,
+- protect your application against any information about your users
+  and let some third party that your users trust do authorization
+  management for you,
 
-- and many other things.
+- distribute user information from your corporate legacy databases to
+  your services with minimal exposure.
 
-Thentos is based on [acid-state](http://acid-state.seize.it/) for
-persistence (modules `DB.*`),
-[servant](http://haskell-servant.github.io/) for rest apis (modules
-`Backend.*`), and [snap](http://snapframework.com/) for
-HTML-form-based user interfaces (modules `Frontend.*`).  While `DB.*`
-provides mostly acidic transactions, `Api.*` offers a more high-level
-access to the database.  It lives in between frontend/backend and
-persistence layer.
+- ...
 
-We use [lio](https://github.com/scslab/lio) for authorization
-management.
-
-[edit: One wonderful effect of using lio is that if you use thentos as
-a library, you do not need to trust your code to be secure, you just
-need to follow a few simple rules which modules to import, and lio
-will protect the imported functionality even against your own code.
-FIXME: explain this with an example.]
-
-Acid transactions are labelled with authorization
-expressions that are enforced against clearance expressions (almost)
-implicitly.  (We do not use the 'LIO' monad so far, as this requires
-changes to both acid-state and servant, and is most relevant when
-running a mix of trusted and untrusted Haskell modules.)
+Thentos uses [acid-state](http://acid-state.seize.it/) for persistence
+(modules `Transaction*`), [lio](https://github.com/scslab/lio) for
+information flow control and authorization management (modules
+`Action*`), [servant](http://haskell-servant.github.io/) for rest apis
+(modules `Backend.*`), and [snap](http://snapframework.com/) for
+HTML-form-based user interfaces (modules `Frontend.*`).
 
 Thentos is designed as both a library and an out-of-the-box web
 application and service.  You can use any of the parts that work for
 you and build something completely different from them:
 
-- implement your own rest api dialect on top of `DB.*` and `Api`;
-
 - write a new database schema derived from the old one and a lens into
-  the old one, and reuse all existing transactions on the new schema;
+  the old one, and reuse all existing transactions and actions on the
+  new schema;
 
-- use special-purpose blaze combinators and handlers from the default
-  frontend to build your own.
+- implement your own rest api dialect on top of `Action*` (and, thanks
+  to lio, rely on enforcement of the authorization policy implemented
+  there, even if your own code is malicious),
+
+- use a collection of application-specific rest api handlers, snap
+  handlers, and blaze combinators to build your own web interfaces.
+
+- ...
 
 
 Installation
@@ -98,7 +90,7 @@ To build, make sure ghc is in your path and `ghc --version` sais it is
 
 ```shell
 $ cabal sandbox init
-$ cabal install --enable-tests --enable-documentation
+$ cabal install --enable-tests --enable-documentation --dependencies-only
 ```
 
 This will take a while, as it will pull and build a lot of library
@@ -118,7 +110,8 @@ $ cabal test
 ```
 
 If you have no selenium grid set up, you can either read
-`./misc/selenium/Makefile` and get it to work, or do without:
+`./misc/selenium/Makefile` and get it to work (see there for more
+details and links to the download page), or do without:
 
 ```shell
 $ cabal test --test-options="--skip selenium"
@@ -131,9 +124,19 @@ $ cabal install --enable-bench
 $ cabal bench  # requires thentos to be running in another shell
 ```
 
+Generated Thentos documentation (thentos-0.0.1) can be found online:
+
+*[FIXME: this is quite outdated!]*
+
+- [servant-docs](https://liqd.github.io/thentos/gh-pages/servant-docs/)
+- [haddock](https://liqd.github.io/thentos/gh-pages/haddock/)
+- [SourceGraph](https://liqd.github.io/thentos/gh-pages/SourceGraph/thentos.html)
+
 
 Demo
 ----
+
+*[FIXME: this section is outdated!]*
 
 There is a helloworld service that you can use to test a simple
 oauth-like setup where browser and service connect to Thentos in order
@@ -183,23 +186,25 @@ curl -XPOST -d '{"name": "god", "password": "god"}' http://localhost:7001/login_
 implementation. :)
 
 
-Further Reading
----------------
+Related Work
+------------
 
-- `./docs/related_work.md`
+Please notify us if you want something to be added.
 
-    An incomplete list of related software projects.
-
-- Generated Thentos documentation (version 0.0.1):
-    - [servant-docs](https://liqd.github.io/thentos/gh-pages/servant-docs/)
-    - [haddock](https://liqd.github.io/thentos/gh-pages/haddock/)
-    - [SourceGraph](https://liqd.github.io/thentos/gh-pages/SourceGraph/thentos.html)
+- [http://barada.sourceforge.net/](http://barada.sourceforge.net/)
+- [http://jasig.github.io/cas/](http://jasig.github.io/cas/)
+- [http://oauth.net/2/](http://oauth.net/2/)
+- [http://openid.net/connect/](http://openid.net/connect/)
+- [https://github.com/DeDiS/Dissent](https://github.com/DeDiS/Dissent)
+- [https://github.com/zalora/sproxy](https://github.com/zalora/sproxy)
+- [http://shibboleth.net/](http://shibboleth.net/)
+- [http://www.openldap.org/](http://www.openldap.org/)
 
 
 Thanks!
 -------
 
-(in alphanumerical order)
+In alphanumerical order.  Please let us know if we forgot to add you.
 
 - Christian Siefkes
 - Julian Arni
