@@ -180,7 +180,8 @@ logoutAsGod testBackend tok godCredentials = debugRunSession False testBackend $
 makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
 makeSRequest method path headers body = SRequest req body
   where
-    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers } path
+    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers ++ defaultHeaders } path
+    defaultHeaders = [("Content-Type", "application/json")]
 
 
 -- | Like `runSession`, but with re-ordered arguments, and with an
