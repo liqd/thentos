@@ -29,8 +29,8 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO, setLabel)
-import LIO.DCLabel (DCLabel, (%%), (/\), (\/), dcPublic, ToCNF, toCNF)
+import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO)
+import LIO.DCLabel (DCLabel, (%%), (/\), (\/), dcPublic, toCNF)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (LIO, ioTCB)
 
@@ -116,6 +116,7 @@ runActionE clearance state action = catchUnknown
 
 -- * labels and clearance
 
+{-
 -- | Restrict confidentiality to list of principals or roles: After calling this action, at least
 -- one of the elements of the argument list is required in the confidentiality part of the active
 -- clearance level.
@@ -131,6 +132,11 @@ restrictWrite xs = liftLIO . setLabel $ True %% foldl' (\/) (toCNF True) xs
 -- | Make transaction uncallable until somebody raises the label again.
 restrictTotal :: Action db ()
 restrictTotal = liftLIO . setLabel $ False %% True
+-}
+
+-- | ...  (clearance should be called priv everywhere, btw)
+setClearance :: DCLabel -> Action DB ()
+setClearance = error "Action.Core.setClearance"
 
 -- | Unravel role hierarchie stored under 'Agent' and construct a 'DCLabel'.  There is no guarantee
 -- (at least not locally in this function) that the output will be finite.

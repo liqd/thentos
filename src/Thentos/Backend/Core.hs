@@ -19,6 +19,7 @@
 module Thentos.Backend.Core
 where
 
+import Control.Applicative ((<$>))
 import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
@@ -45,6 +46,7 @@ import qualified Network.HTTP.Types.Header as HttpTypes
 import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Config
+import Thentos.Types
 import Thentos.Util
 
 
@@ -65,64 +67,6 @@ actionErrorToServantErr e = do
     return $ err500 { errBody = cs $ show e }
 
 
-
-{-
-
--- | This is a work-around: The 'Server' type family terminates in
--- 'RestActionRaw' on all methods.  'PushActionC' instances transform
--- handlers implemented in a monad stack we want (providing acid
--- state, clearance info, random generator, ... in a reader) into the
--- handlers in 'RestActionRaw'.  (Also, translate 'DbError' to
--- 'RestError'.)
-class PushActionC a where
-    type PushActionSubRoute a
-    pushAction :: ActionState -> PushActionSubRoute a -> a
-
-instance (PushActionC b) => PushActionC (a -> b) where
-    type PushActionSubRoute (a -> b) = a -> PushActionSubRoute b
-    pushAction clearance f = pushAction clearance . f
-
-instance (PushActionC a, PushActionC b) => PushActionC (a :<|> b) where
-    type PushActionSubRoute (a :<|> b) = PushActionSubRoute a :<|> PushActionSubRoute b
-    pushAction clearance (a :<|> b) = pushAction clearance a :<|> pushAction clearance b
-
-instance PushActionC (RestActionRaw a) where
-    type PushActionSubRoute (RestActionRaw a) = Action a
-    pushAction restState restAction = assert False $ error "PushActionC (RestActionRaw a)"
-                                        -- fmapLTM showThentosError $ runActionE clearance restState restAction
-      where
-        clearance = True %% False  -- FIXME
-
--- | For handling 'Raw'.  (The 'Application' type has been stripped of
--- its arguments by the time the compiler will find this instance.)
---
--- FIXME: in order to do error handling here, which would be nice, we
--- would have to instantiate @((Response -> IO ResponseReceived) -> IO
--- ResponseReceived)@, which conflicts with the @a -> b@ instance
--- above.  a solution for this is to wrap 'Application' in 'Raw' into
--- a transparent newtype that can be instantiated here instead of the
--- function type.  for now, just crash in case of errors.
-instance PushActionC (IO ResponseReceived) where
-    type PushActionSubRoute (IO ResponseReceived) = Action ResponseReceived
-    pushAction restState restAction = assert False $ error "PushActionC (IO ResponseReceived)"
-                                -- (either crash id <$>) . runEitherT $ runReaderT restAction restState
-      where
-        crash x = assert False $ error $ "[PushActionC for Raw] somebody threw an error, but we can't handle those yet: "
-                    ++ show x
-
--- | Like 'fmapLT' from "Data.EitherR", but with the update of the
--- left value constructed in an impure action.
-fmapLTM :: (Monad m, Functor m) => (a -> m a') -> EitherT a m b -> EitherT a' m b
-fmapLTM trans e = EitherT $ do
-    result <- runEitherT e
-    case result of
-        Right r -> return $ Right r
-        Left l -> Left <$> trans l
-
--}
-
-
-
 -- * header
 
 data ThentosHeaderName =
@@ -130,10 +74,16 @@ data ThentosHeaderName =
   | ThentosHeaderService
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
 
-lookupRequestHeader :: Request -> ThentosHeaderName -> Maybe ST
-lookupRequestHeader req key =
+lookupThentosHeader :: Request -> ThentosHeaderName -> Maybe ST
+lookupThentosHeader req key =
           lookup (renderThentosHeaderName key) (requestHeaders req)
       >>= either (const Nothing) Just . decodeUtf8'
+
+lookupThentosHeaderSession :: Request -> Maybe ThentosSessionToken
+lookupThentosHeaderSession req = ThentosSessionToken <$> lookupThentosHeader req ThentosHeaderSession
+
+lookupThentosHeaderService :: Request -> Maybe ServiceId
+lookupThentosHeaderService req = ServiceId <$> lookupThentosHeader req ThentosHeaderService
 
 renderThentosHeaderName :: ThentosHeaderName -> CI SBS
 renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
