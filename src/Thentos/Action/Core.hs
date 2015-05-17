@@ -18,6 +18,7 @@ where
 import Control.Applicative (Applicative, (<*>), (<$>), pure)
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch)
+import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
@@ -29,10 +30,10 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO)
-import LIO.DCLabel (DCLabel, (%%), (/\), (\/), dcPublic, toCNF)
+import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
+import LIO.DCLabel (CNF, DCLabel(DCLabel), (\/), (/\), (%%), toCNF, cTrue, cFalse)
 import LIO.Error (AnyLabelError)
-import LIO.TCB (LIO, ioTCB)
+import LIO.TCB (Priv(PrivTCB), ioTCB)
 
 import System.Log (Priority(DEBUG))
 
@@ -95,14 +96,22 @@ instance Exception ActionError
 
 -- * running actions
 
-runAction :: DCLabel -> (ActionState db) -> Action db a -> IO a
-runAction clearance state action = runActionE clearance state action >>= either throwIO return
+-- | Call 'runActionE' and throw 'Left' values.
+runAction :: (ActionState db) -> Action db a -> IO a
+runAction state action = runActionE state action >>= either throwIO return
 
-runActionE :: forall a db . DCLabel -> (ActionState db) -> Action db a -> IO (Either ActionError a)
-runActionE clearance state action = catchUnknown
+-- | Call an action with no privileges.  Catch all errors.
+runActionE :: forall a db . (ActionState db) -> Action db a -> IO (Either ActionError a)
+runActionE state action = catchUnknown
   where
+    initialLabel :: DCLabel
+    initialLabel = True %% False  -- accessible data is public and maximally intact.
+
+    initialClearance :: DCLabel
+    initialClearance = False %% True  -- no data may be accessed (read or write) from within this action.
+
     inner :: IO (Either ThentosError a)
-    inner = (`evalLIO` LIOState dcPublic clearance) .
+    inner = (`evalLIO` LIOState initialLabel initialClearance) .
             liftLIO .
             eitherT (return . Left) (return . Right) $
             fromAction action `runReaderT` state
@@ -114,7 +123,7 @@ runActionE clearance state action = catchUnknown
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
 
--- * labels and clearance
+-- * labels and privileges
 
 {-
 -- | Restrict confidentiality to list of principals or roles: After calling this action, at least
@@ -134,29 +143,35 @@ restrictTotal :: Action db ()
 restrictTotal = liftLIO . setLabel $ False %% True
 -}
 
--- | ...  (clearance should be called priv everywhere, btw)
-setClearance :: DCLabel -> Action DB ()
-setClearance = error "Action.Core.setClearance"
-
--- | Unravel role hierarchie stored under 'Agent' and construct a 'DCLabel'.  There is no guarantee
--- (at least not locally in this function) that the output will be finite.
-clearanceByAgent :: Agent -> Action DB DCLabel
-clearanceByAgent agent = makeClearance <$> query'P (AgentRoles agent)
+-- | ... (?)
+setClearance'P :: [CNF] -> Action DB ()
+setClearance'P privs = liftLIO $ setClearanceP (PrivTCB $ toCNF True) l
   where
-    makeClearance :: Set.Set Role -> DCLabel
-    makeClearance roles = s %% i
+    l :: DCLabel
+    l = DCLabel (foldl' (/\) cTrue privs)
+                (foldl' (\/) cFalse privs)
+
+-- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
+-- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
+-- are finite and cycle-free.
+privsByAgent'P :: Agent -> Action DB [CNF]
+privsByAgent'P agent = Set.toList . makePrivs <$> query'P (AgentRoles agent)
+  where
+    makePrivs :: Set.Set Role -> Set.Set CNF
+    makePrivs = Set.fold (Set.insert) (Set.singleton $ toCNF agent) . Set.map toCNF . flatten
+
+    flatten :: Set.Set Role -> Set.Set RoleBasic
+    flatten = Set.fold (flip f) Set.empty
       where
-        s = Set.fold (/\) (toCNF agent) basicRoles
-        i = Set.fold (\/) (toCNF agent) basicRoles
+        f :: Set.Set RoleBasic -> Role -> Set.Set RoleBasic
+        f acc (Roles rs) = foldl' f acc rs
+        f acc (RoleBasic b) = Set.insert b acc
 
-        basicRoles = Set.fold (flip f) Set.empty roles
-          where
-            f :: Set.Set RoleBasic -> Role -> Set.Set RoleBasic
-            f acc (Roles rs) = foldl' f acc rs
-            f acc (RoleBasic b) = Set.insert b acc
-
-clearanceByThentosSession :: ThentosSessionToken -> Action db DCLabel
-clearanceByThentosSession = error "clearanceByThentosSession: not implemented"
+privsByThentosSession'P :: ThentosSessionToken -> Action DB [CNF]
+privsByThentosSession'P tok = do
+    now <- getCurrentTime'P
+    (_, session) <- update'P (LookupThentosSession now tok)
+    privsByAgent'P $ session ^. thSessAgent
 
 
 -- * TCB business

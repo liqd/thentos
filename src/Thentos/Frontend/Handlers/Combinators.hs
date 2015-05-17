@@ -157,8 +157,8 @@ runAsUserOrNot loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- getSessionData
     case sessionData ^. fsdLogin of
         Just sessionLoginData -> do
-            clearance <- snapRunAction . clearanceByAgent . UserA $ sessionLoginData ^. fslUserId
-            loggedInHandler clearance sessionData sessionLoginData
+            privs <- snapRunAction . privsByAgent'P . UserA $ sessionLoginData ^. fslUserId
+            loggedInHandler privs sessionData sessionLoginData
         Nothing -> loggedOutHandler
 
 

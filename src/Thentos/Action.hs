@@ -353,10 +353,8 @@ main' =
     rng    :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
     config :: ThentosConfig  <- getConfig "devel.config"
 
-    let clearance = False %% False
-
     flip finally (createCheckpoint st >> closeAcidState st) $ do
-        result <- runActionE clearance (ActionState (st, rng, config)) $ do
+        result <- runActionE (ActionState (st, rng, config)) $ do
             liftLIO $ setLabel $ True %% True
             query'P $ T.LookupUser (UserId 0)
         print result
