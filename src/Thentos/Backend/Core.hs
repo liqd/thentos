@@ -30,11 +30,11 @@ import Data.String.Conversions (SBS, ST)
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
-import LIO.DCLabel (DCLabel)
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (Request, requestHeaders)
+import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err500, errBody, responseServantErr)
@@ -52,11 +52,15 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: forall db . DCLabel -> ActionState db -> Action db :~> EitherT ServantErr IO
-enterAction clearance state = Nat $ EitherT . run
+enterAction :: ActionState DB -> Maybe ThentosSessionToken -> Action DB :~> EitherT ServantErr IO
+enterAction state mTok = Nat $ EitherT . run
   where
-    run :: Action db a -> IO (Either ServantErr a)
-    run = (>>= fmapLM actionErrorToServantErr) . runActionE clearance state
+    run :: Action DB a -> IO (Either ServantErr a)
+    run = (>>= fmapLM actionErrorToServantErr) . runActionE state . updatePrivs mTok
+
+    updatePrivs :: Maybe ThentosSessionToken -> Action DB a -> Action DB a
+    updatePrivs (Just tok) action = (privsByThentosSession'P tok >>= setClearance'P) >> action
+    updatePrivs Nothing    action = action
 
 
 actionErrorToServantErr :: ActionError -> IO ServantErr
@@ -109,11 +113,11 @@ clearThentosHeaders :: HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
 clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
-data ThentosAssertHeaders subserver = ThentosAssertHeaders subserver
+data ThentosAssertHeaders = ThentosAssertHeaders
 
-instance (HasServer subserver) => HasServer (ThentosAssertHeaders subserver)
+instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
   where
-    type ServerT (ThentosAssertHeaders subserver) m = ServerT subserver m
+    type ServerT (ThentosAssertHeaders :> subserver) m = ServerT subserver m
 
     route Proxy subserver request respond = case badHeaders $ requestHeaders request of
         []  -> route (Proxy :: Proxy subserver) subserver request respond

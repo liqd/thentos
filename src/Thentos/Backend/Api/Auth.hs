@@ -16,60 +16,43 @@
 {-# LANGUAGE UndecidableInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
+-- | Authentication via 'ThentosSessionToken'.
+--
+-- A LESS RELEVANT OBSERVATION: It would be nice if we could provide this function:
+--
+-- >>> thentosAuth :: ActionState DB
+-- >>>             -> ServerT api (Action DB)
+-- >>>             -> Maybe ThentosSessionToken
+-- >>>             -> Server api
+-- >>> thentosAuth actionState _api mTok = enter (enterAction actionState mTok) _api
+--
+-- because then here we could write:
+--
+-- >>> api :: ActionState DB -> Server (ThentosAuth :> MyApi)
+-- >>> api = (`thentosAuch` myApi)
+--
+-- But the signature of `thentosAuth` requires injectivity of `ServerT` (`api` needs to be inferred
+-- from `ServerT api (Action DB)`).  ghc-7.12 may help (see
+-- https://ghc.haskell.org/trac/ghc/wiki/InjectiveTypeFamilies), or it may not: Even if injective
+-- type families are supported, `ServerT` may not be injective in some particular type that this
+-- function is called with.
+--
+-- So instead, you will have to write something like this:
+--
+-- >>> api :: ActionState DB -> Server (ThentosAuth :> MyApi)
+-- >>> api actionState mTok = enter (enterAction actionState mTok) myApi
 module Thentos.Backend.Api.Auth where
 
 import Data.Proxy (Proxy(Proxy))
-import Network.Wai (Request)
-import Servant.API ((:<|>)((:<|>)))
-import Servant.Server (HasServer, Server, ServerT, route)
+import Servant.API ((:>))
+import Servant.Server (HasServer, ServerT, route)
 
-import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Types
 
 
-data ThentosAuth sub = ThentosAuth sub
+data ThentosAuth
 
--- | FIXME: 'route' requires handlers of type 'Server', not 'ServerT' with arbitrary monad.
--- therefore, the naive approach we tried in this module does not work: we cannot push an 'Action'
--- down the routes and then just sequence it with the handler's 'Action', because we need to talk
--- about the default servant monad.
---
--- This could be fixed by changing the 'HasServer' class, but perhaps there is an easier way.
--- instead of pushing down an 'Action', we could push down something that contains the action in a
--- form that fits into the existing servant types.
---
--- The problem is that it's not enough to run two actions that have been processed by 'enter'
--- separately: We want to modify the 'LIO' state with the action we push down the routes, but the
--- second action would not share the 'LIO' state with the first if they would not be sequenced as
--- @Action@, but as @ServerT ServantErr IO@.
-instance ( HasServer subApi
-         , HasPartialServer (Action DB) (ServerT subApi (Action DB))
-         ) => HasServer (ThentosAuth subApi)
-  where
-    type ServerT (ThentosAuth subApi) (Action DB) = ThentosAuth (ServerT subApi (Action DB))
-    route Proxy _ {- (ThentosAuth sub) -} request respond = route (Proxy :: Proxy subApi) sub' request respond
-      where
-        sub' :: Server subApi
-        sub' = undefined  -- pushPartial (setPrivsFromRequest request) sub
-
-setPrivsFromRequest :: Request -> Action DB ()
-setPrivsFromRequest request = case lookupThentosHeaderSession request of
-    Just tok -> clearanceByThentosSession tok >>= setClearance
-    Nothing -> return ()
-
-class HasPartialServer m a where
-    type PushPartial m a
-    pushPartial :: m () -> PushPartial m a -> a
-
-instance (HasServer (a -> b), HasPartialServer m b) => HasPartialServer m (a -> b) where
-    type PushPartial m (a -> b) = a -> PushPartial m b
-    pushPartial p f = pushPartial p . f
-
-instance (HasPartialServer m a, HasPartialServer m b) => HasPartialServer m (a :<|> b) where
-    type PushPartial m (a :<|> b) = PushPartial m a :<|> PushPartial m b
-    pushPartial p (a :<|> b) = pushPartial p a :<|> pushPartial p b
-
-instance HasPartialServer (Action db) (Action db a) where
-    type PushPartial (Action db) (Action db a) = Action db a
-    pushPartial p m = p >> m
+instance HasServer sub => HasServer (ThentosAuth :> sub) where
+  type ServerT (ThentosAuth :> sub) m = (Maybe ThentosSessionToken) -> ServerT sub m
+  route Proxy sub request = route (Proxy :: Proxy sub) (sub $ lookupThentosHeaderSession request) request

@@ -20,7 +20,6 @@ module Thentos.Backend.Api.Simple where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
-import LIO.DCLabel (dcPublic)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
@@ -29,7 +28,7 @@ import System.Log.Logger (Priority(INFO))
 import System.Log.Missing (logger)
 import Thentos.Action
 import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things from Thentos.Action!
--- import Thentos.Backend.Api.Auth
+import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
@@ -47,10 +46,10 @@ runApi cfg asg = do
 serveApi :: ActionState DB -> Application
 serveApi = serve (Proxy :: Proxy Api) . api
 
-type Api = ThentosAssertHeaders ({- ThentosAuth -} ThentosBasic)
+type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
 api :: ActionState DB -> Server Api
-api actionState = enter (enterAction dcPublic actionState) $ {- ThentosAuth -} thentosBasic
+api actionState mTok = enter (enterAction actionState mTok) thentosBasic
 
 
 -- * combinators
