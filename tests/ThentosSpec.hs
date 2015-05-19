@@ -18,7 +18,7 @@ import Control.Lens ((.~))
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
-import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith)
+import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
 import Thentos.Action
 import Thentos.Action.Core
@@ -69,20 +69,14 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
             result `shouldBe` Left UserEmailAlreadyExists
 
     describe "DeleteUser" $ do
-        it "user can delete herself, even if not admin" $ \ (_ :: ActionState DB) -> do
+        it "user can delete herself, even if not admin" $ \ asg -> do
+            let uid = UserId 1
+            result <- runActionWithPrivsE [UserA uid] asg . update'P $ DeleteUser uid
+            result `shouldSatisfy` isRight
 
-            pendingWith "permissions are out of order!"  -- FIXME
-
-            -- let uid = UserId 1
-            -- result <- runActionE (UserA uid %% UserA uid) asg . update'P $ DeleteUser uid
-            -- result `shouldSatisfy` isRight
-
-        it "nobody else but the deleted user and admin can do this" $ \ (_ :: ActionState DB) -> do
-
-            pendingWith "permissions are out of order!"  -- FIXME
-
-            -- result <- runActionE (UserA (UserId 2) %% UserA (UserId 2)) asg . update'P $ DeleteUser (UserId 1)
-            -- result `shouldSatisfy` isLeft
+        it "nobody else but the deleted user and admin can do this" $ \ asg -> do
+            result <- runActionWithPrivsE [UserA (UserId 2)] asg . update'P $ DeleteUser (UserId 1)
+            result `shouldSatisfy` isLeft
 
     describe "UpdateUser" $ do
         it "changes user if it exists" $ \ (ActionState (st, _, _)) -> do
@@ -127,40 +121,29 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
 
     describe "agents and roles" $ do
         describe "assign" $ do
-            it "can be called by admins" $ \ _ -> pendingWith "..."
-              {-
-                  \ asg -> do
+            it "can be called by admins" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionE (RoleAdmin %% RoleAdmin) asg . update'P $ AssignRole targetAgent (RoleBasic RoleAdmin)
+                result <- runActionWithPrivsE [RoleAdmin] asg . update'P $ AssignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isRight
-              -}
 
-            it "can NOT be called by any non-admin agents" $ \ _ -> do
-
-                pendingWith "permissions are out of order!"  -- FIXME
-
-              {-
+            it "can NOT be called by any non-admin agents" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionE (targetAgent %% targetAgent) asg . update'P $ AssignRole targetAgent (RoleBasic RoleAdmin)
+                result <- runActionWithPrivsE [targetAgent] asg . update'P $ AssignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isLeft
-              -}
 
         describe "lookup" $ do
             it "can be called by admins" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionE {- (RoleAdmin %% RoleAdmin) -} asg . query'P $ AgentRoles targetAgent
+                result <- runActionWithPrivsE [RoleAdmin] asg . query'P $ AgentRoles targetAgent
                 result `shouldSatisfy` isRight
 
             it "can be called by user for her own roles" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionE {- (targetAgent %% targetAgent) -} asg . query'P $ AgentRoles targetAgent
+                result <- runActionWithPrivsE [targetAgent] asg . query'P $ AgentRoles targetAgent
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by other users" $ \ asg -> do
-
-                pendingWith "permissions are out of order!"  -- FIXME
-
                 let targetAgent = UserA $ UserId 1
-                    -- askingAgent = UserA $ UserId 2
-                result <- runActionE {- (askingAgent %% askingAgent) -} asg . query'P $ AgentRoles targetAgent
+                    askingAgent = UserA $ UserId 2
+                result <- runActionWithPrivsE [askingAgent] asg . query'P $ AgentRoles targetAgent
                 result `shouldSatisfy` isLeft

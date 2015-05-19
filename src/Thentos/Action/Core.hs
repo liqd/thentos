@@ -31,7 +31,7 @@ import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
-import LIO.DCLabel (CNF, DCLabel(DCLabel), (\/), (/\), (%%), toCNF, cTrue, cFalse)
+import LIO.DCLabel (CNF, ToCNF, DCLabel(DCLabel), (\/), (/\), (%%), toCNF, cTrue, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 
@@ -97,11 +97,20 @@ instance Exception ActionError
 -- * running actions
 
 -- | Call 'runActionE' and throw 'Left' values.
-runAction :: (ActionState db) -> Action db a -> IO a
+runAction :: ActionState db -> Action db a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
+runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
+runActionWithPrivs privs state action = runActionWithPrivsE privs state action >>= either throwIO return
+
+runActionAsAgent :: Agent -> ActionState DB -> Action DB a -> IO a
+runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
+
+runActionInThentosSession :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO a
+runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
+
 -- | Call an action with no privileges.  Catch all errors.
-runActionE :: forall a db . (ActionState db) -> Action db a -> IO (Either ActionError a)
+runActionE :: forall a db . ActionState db -> Action db a -> IO (Either ActionError a)
 runActionE state action = catchUnknown
   where
     initialLabel :: DCLabel
@@ -121,6 +130,15 @@ runActionE state action = catchUnknown
 
     catchUnknown :: IO (Either ActionError a)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
+
+runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionWithPrivsE privs state = runActionE state . (setClearance'P privs >>)
+
+runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionAsAgentE agent state = runActionE state . ((privsByAgent'P agent >>= setClearance'P) >>)
+
+runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionInThentosSessionE tok state = runActionE state . ((privsByThentosSession'P tok >>= setClearance'P) >>)
 
 
 -- * labels and privileges
@@ -144,7 +162,7 @@ restrictTotal = liftLIO . setLabel $ False %% True
 -}
 
 -- | ... (?)
-setClearance'P :: [CNF] -> Action DB ()
+setClearance'P :: ToCNF cnf => [cnf] -> Action DB ()
 setClearance'P privs = liftLIO $ setClearanceP (PrivTCB $ toCNF True) l
   where
     l :: DCLabel

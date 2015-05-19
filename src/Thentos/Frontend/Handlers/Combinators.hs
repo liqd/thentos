@@ -307,9 +307,6 @@ snapRunActionE action = do
     cf :: ThentosConfig       <- gets (^. cfg)
     fs :: FrontendSessionData <- getSessionData
 
-    liftIO $ runActionE (ActionState (st, rn, cf)) $ do
-        case fs ^. fsdLogin of
-            Just sessionLoginData -> privsByAgent'P (UserA $ sessionLoginData ^. fslUserId) >>= setClearance'P
-            Nothing -> return ()
-
-        action
+    case (^. fslToken) <$> fs ^. fsdLogin of
+        Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
+        Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
