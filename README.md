@@ -20,9 +20,10 @@ You need to add a few sources not yet available from hackage to your
 cabal sandbox:
 
 ```bash
-$ git clone https://github.com/mpickering/servant-pandoc
-$ git clone https://github.com/liqd/pronk -b thentos-patches
+$ git clone https://github.com/zerobuzz/servant-pandoc -b may-fix-issue-2
 $ cabal sandbox add-source servant-pandoc
+# only required if you want to run benchmarks
+$ git clone https://github.com/liqd/pronk -b thentos-patches
 $ cabal sandbox add-source pronk
 ```
 
