@@ -12,7 +12,6 @@ module Thentos.Types where
 
 import Control.Exception (Exception)
 import Control.Lens (makeLenses, Lens')
-import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
@@ -29,15 +28,12 @@ import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
-import System.Log.Logger (Priority(INFO))
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
-
-import System.Log.Missing (logger)
 
 
 -- * aux
@@ -389,27 +385,6 @@ instance SafeCopy ThentosError
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
-
--- | The type of this will change when servant has a better error type.
-showThentosError :: MonadIO m => ThentosError -> m (Int, String)
-showThentosError NoSuchUser                           = return (404, "user not found")
-showThentosError NoSuchPendingUserConfirmation        = return (404, "unconfirmed user not found")
-showThentosError (MalformedConfirmationToken path)    = return (400, "malformed confirmation token: " ++ show path)
-showThentosError NoSuchService                        = return (404, "service not found")
-showThentosError NoSuchThentosSession                 = return (404, "thentos session not found")
-showThentosError NoSuchServiceSession                 = return (404, "service session not found")
-showThentosError OperationNotPossibleInServiceSession = return (404, "operation not possible in service session")
-showThentosError ServiceAlreadyExists                 = return (403, "service already exists")
-showThentosError NotRegisteredWithService             = return (403, "not registered with service")
-showThentosError UserEmailAlreadyExists               = return (403, "email already in use")
-showThentosError UserNameAlreadyExists                = return (403, "user name already in use")
-showThentosError e@BadCredentials                     = logger INFO (show e) >> return (401, "unauthorized")
-showThentosError BadAuthenticationHeaders             = return (400, "bad authentication headers")
-showThentosError ProxyNotAvailable                    = return (404, "proxying not activated")
-showThentosError MissingServiceHeader                 = return (404, "headers do not contain service id")
-showThentosError (ProxyNotConfiguredForService sid)   = return (404, "proxy not configured for service " ++ show sid)
-showThentosError (NoSuchToken)                        = return (404, "no such token")
-showThentosError (NeedUserA _ _)                      = return (404, "thentos session belongs to service, cannot create service session")
 
 
 -- * boilerplate
