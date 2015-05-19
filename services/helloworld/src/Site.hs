@@ -177,7 +177,7 @@ helloWorldLogout = do
     mToken <- with sess $ getFromSession "sessiontoken"
     case mToken of
         Just token -> do
-            initReq <- makeRequest ("/servicesession/" <> urlEncode (encodeUtf8 token))
+            initReq <- makeRequest ("/service_session/" <> urlEncode (encodeUtf8 token))
             let req = initReq { HC.method = methodDelete }
             liftIO . withManager $ httpLbs req
             with sess (resetSession >> commitSession)
@@ -188,13 +188,8 @@ verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
 verifyToken (Just token) = do
     hwConfig <- gets (^. aHWConfig)
-    let sid = encodeUtf8 $ serviceId hwConfig
-        url = thentosBackendUrl hwConfig <> "/servicesession/" <> urlEncode (encodeUtf8 token)
+    req <- makeRequest $ "/service_session/" <> urlEncode (encodeUtf8 token)
     liftIO . withManager $ do
-        initReq <- parseUrl $ BC.unpack url
-        let req = initReq
-                    { requestHeaders = [ ("X-Thentos-Service", sid) ]
-                    }
         response <- httpLbs req
         case responseBody response of
             "true"  -> return True
@@ -203,7 +198,7 @@ verifyToken (Just token) = do
 
 getMetadata :: Text -> Handler App App ByteString
 getMetadata token = do
-    let path = "/servicesession/" <> urlEncode (encodeUtf8 token) <> "/meta"
+    let path = "/service_session/" <> urlEncode (encodeUtf8 token) <> "/meta"
     req <- makeRequest path
     liftIO . withManager $ do
         response <- httpLbs req
@@ -215,7 +210,7 @@ makeRequest path = do
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
     let sid = encodeUtf8 $ serviceId hwConfig
-    return $ initReq { requestHeaders = [("X-Thentos-Service", sid)] }
+    return $ initReq { requestHeaders = [("X-Thentos-Service", sid), ("Content-Type", "application/json")] }
 
 -- this is currently unused, but we should really have an example where
 -- the service has to authenticate with thentos
@@ -231,6 +226,6 @@ getServiceSessionToken = do
     initReq <- liftIO $ parseUrl (BC.unpack url)
 
     liftIO . withManager $ do
-        let req = initReq { requestBody = reqBody, HC.method = methodPost }
+        let req = initReq { requestBody = reqBody, HC.method = methodPost }  -- FIXME: this won't work (need more headers!)
         response <- httpLbs req
         return . toStrict $ responseBody response
