@@ -203,14 +203,14 @@ userLogout = method GET  userLogoutConfirm
          <|> method POST userLogoutDone
 
 userLogoutConfirm :: FH ()
-userLogoutConfirm = runAsUser $ \ _ _ fsl -> do
+userLogoutConfirm = runAsUser $ \ _ fsl -> do
     eServiceNames <- snapRunActionE $ serviceNamesFromThentosSession (fsl ^. fslToken)
     case eServiceNames of
         Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames)
         Left e -> crash500 e
 
 userLogoutDone :: FH ()
-userLogoutDone = runAsUser $ \ _ _ fsl -> do
+userLogoutDone = runAsUser $ \ _ fsl -> do
     snapRunAction $ endThentosSession (fsl ^. fslToken)
     modifySessionData' $ fsdLogin .~ Nothing
     blaze userLogoutDonePage
@@ -219,7 +219,7 @@ userLogoutDone = runAsUser $ \ _ _ fsl -> do
 -- * user update
 
 userUpdate :: FH ()
-userUpdate = runAsUser $ \ _ _ fsl -> do
+userUpdate = runAsUser $ \ _ fsl -> do
     (_, user) <- snapRunAction $ lookupUser (fsl ^. fslUserId)
     runPageletForm
                (userUpdateForm
@@ -231,7 +231,7 @@ userUpdate = runAsUser $ \ _ _ fsl -> do
         redirect' "/dashboard" 303
 
 emailUpdate :: FH ()
-emailUpdate = runAsUser $ \ _ _ fsl -> do
+emailUpdate = runAsUser $ \ _ fsl -> do
     runPageletForm emailUpdateForm
                    emailUpdatePagelet DashboardTabDetails
                    $ \ newEmail -> do
@@ -267,7 +267,7 @@ emailUpdateConfirm = do
         Nothing                   -> crash 400 "Change email: missing token."
 
 passwordUpdate :: FH ()
-passwordUpdate = runAsUser $ \ _ _ fsl -> do
+passwordUpdate = runAsUser $ \ _ fsl -> do
     runPageletForm passwordUpdateForm
                    passwordUpdatePagelet DashboardTabDetails
                    $ \ (oldPw, newPw) -> do
@@ -282,7 +282,7 @@ passwordUpdate = runAsUser $ \ _ _ fsl -> do
 -- * services
 
 serviceCreate :: FH ()
-serviceCreate = runAsUser $ \ _ _ fsl -> do
+serviceCreate = runAsUser $ \ _ fsl -> do
     runPageletForm serviceCreateForm
                    serviceCreatePagelet DashboardTabOwnServices
                    $ \ (name, description) -> do
@@ -301,7 +301,7 @@ serviceCreate = runAsUser $ \ _ _ fsl -> do
 -- called so we have a callback to the login page stored in the
 -- session state.)
 serviceRegister :: FH ()
-serviceRegister = runAsUser $ \ _ _ fsl -> do
+serviceRegister = runAsUser $ \ _ fsl -> do
     ServiceLoginState sid rr <- getServiceLoginState >>= maybe (crash 400 "Service login: no state.") return
 
     let present :: ST -> View H.Html -> FH ()
@@ -387,7 +387,7 @@ serviceLogin = do
                     logger INFO $ show e
                     crash 400 "Service login: could not initiate session."
 
-    runAsUserOrNot (\ _ _ -> loggedIn) notLoggedIn
+    runAsUserOrNot (\ _ -> loggedIn) notLoggedIn
 
 
 -- | If a service login state exists, consume it, jump back to the
