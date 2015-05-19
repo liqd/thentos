@@ -234,6 +234,9 @@ data ThentosSession =
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
 
+instance Aeson.FromJSON ServiceSessionToken where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
+
 data ServiceSession =
     ServiceSession
       { _srvSessService        :: !ServiceId

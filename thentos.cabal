@@ -84,7 +84,7 @@ library
     , bytestring
     , case-insensitive
     , cereal
-    , configifier >= 0.0.3
+    , configifier >= 0.0.4
     , containers
     , crypto-random
     , digestive-functors

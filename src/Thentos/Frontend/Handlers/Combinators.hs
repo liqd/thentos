@@ -9,7 +9,6 @@ module Thentos.Frontend.Handlers.Combinators where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
-import Control.Exception (assert)
 import Control.Lens ((^.), (%~), (.~))
 import Control.Monad.Except (liftIO)
 import Control.Monad.State.Class (gets)
@@ -20,7 +19,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
-import LIO.DCLabel (DCLabel)
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
@@ -68,7 +66,7 @@ buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
 -- pagelet.
 buildDashboard' :: DashboardTab -> (User -> [Role] -> FH H.Html) -> FH H.Html
 buildDashboard' tab pageletBuilder = do
-    runAsUser $ \ _ _ sessionLoginData -> do
+    runAsUser $ \ _ sessionLoginData -> do
         msgs <- popAllFrontendMsgs
         let uid = sessionLoginData ^. fslUserId
         (_, user) <- snapRunAction $ lookupUser uid
@@ -143,7 +141,7 @@ runHandlerForm f handler a = do
 
 -- | Call 'runAsUserOrNot', and redirect to login page if not logged
 -- in.
-runAsUser :: (DCLabel -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
+runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
 runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 
 -- | Runs a given handler with the credentials and the session data of
@@ -152,13 +150,12 @@ runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 -- We don't have to verify that the user matches the session, since both are
 -- stored in encrypted in the session cookie, so they cannot be manipulated
 -- by the user.
-runAsUserOrNot :: (DCLabel -> FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
+runAsUserOrNot :: (FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a -> FH a
 runAsUserOrNot loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- getSessionData
     case sessionData ^. fsdLogin of
         Just sessionLoginData -> do
-            clearance <- snapRunAction . clearanceByAgent . UserA $ sessionLoginData ^. fslUserId
-            loggedInHandler clearance sessionData sessionLoginData
+            loggedInHandler sessionData sessionLoginData
         Nothing -> loggedOutHandler
 
 
@@ -305,9 +302,11 @@ snapHandleError = crash500
 -- | Read the clearance from the 'App' state and apply it to 'runAction'.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
 snapRunActionE action = do
-    st :: AcidState DB   <- getAcidState
-    rn :: MVar SystemRNG <- gets (^. rng)
-    cf :: ThentosConfig  <- gets (^. cfg)
+    st :: AcidState DB        <- getAcidState
+    rn :: MVar SystemRNG      <- gets (^. rng)
+    cf :: ThentosConfig       <- gets (^. cfg)
+    fs :: FrontendSessionData <- getSessionData
 
-    clearance :: DCLabel <- assert False $ error "snapRunAction: need to stick clearance into state"
-    liftIO $ runActionE clearance (ActionState (st, rn, cf)) action
+    case (^. fslToken) <$> fs ^. fsdLogin of
+        Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
+        Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action

@@ -6,6 +6,7 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -13,23 +14,21 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
-{-# LANGUAGE PackageImports                           #-}
 
 module Thentos.Backend.Api.Simple where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
-import LIO.DCLabel (dcPublic)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
-import Servant.Server.Internal (Server)
-import Servant.Server (ServerT, serve, enter)
+import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
 import System.Log.Missing (logger)
 import Thentos.Action
 import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things from Thentos.Action!
+import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
@@ -47,10 +46,10 @@ runApi cfg asg = do
 serveApi :: ActionState DB -> Application
 serveApi = serve (Proxy :: Proxy Api) . api
 
-type Api = ThentosAssertHeaders ThentosBasic
+type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
 api :: ActionState DB -> Server Api
-api asg = enter (enterAction dcPublic asg) thentosBasic
+api actionState mTok = enter (enterAction actionState mTok) thentosBasic
 
 
 -- * combinators
@@ -58,8 +57,8 @@ api asg = enter (enterAction dcPublic asg) thentosBasic
 type ThentosBasic =
        "user" :> ThentosUser
   :<|> "service" :> ThentosService
-  :<|> "session" :> ThentosThentosSession
-  :<|> "servicesession" :> ThentosServiceSession
+  :<|> "thentos_session" :> ThentosThentosSession
+  :<|> "service_session" :> ThentosServiceSession
 
 thentosBasic :: ServerT ThentosBasic (Action DB)
 thentosBasic =
@@ -67,32 +66,6 @@ thentosBasic =
   :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
-
-
--- * authentication
-
-{-
-
--- | Empty data type for triggering authentication.  If you have an
--- api type 'API', use like this: @ThentosAuth :> API@, then write a
--- route handler that takes 'Auth' as an extra argument.  'Auth' will
--- be parsed from the headers and injected into the @sublayout@
--- handler.
-data ThentosAuth layout = ThentosAuth ActionState layout
-
-instance ( PushActionC (Server sublayout)
-         , HasServer sublayout
-         ) => HasServer (ThentosAuth sublayout)
-  where
-    type Server (ThentosAuth sublayout) = ThentosAuth ((Action sublayout))
-
-    route Proxy (ThentosAuth asg subserver) request respond =
-        route (Proxy :: Proxy sublayout) (pushAction routingState subserver) request respond
-      where
-        routingState :: ActionState
-        routingState = asg
-
--}
 
 
 -- * user
@@ -155,9 +128,9 @@ thentosThentosSession =
 -- * service session
 
 type ThentosServiceSession =
-       Capture "token" ServiceSessionToken :> Get '[JSON] Bool
-  :<|> Capture "token" ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
-  :<|> Capture "token" ServiceSessionToken :> Delete '[JSON] ()
+       ReqBody '[JSON] ServiceSessionToken :> Get '[JSON] Bool
+  :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
+  :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
 thentosServiceSession :: ServerT ThentosServiceSession (Action DB)
 thentosServiceSession =

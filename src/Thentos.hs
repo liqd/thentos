@@ -28,7 +28,6 @@ import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Proxy (Proxy(Proxy))
-import LIO.DCLabel (dcPublic)
 import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import System.Log (Priority(DEBUG, ERROR))
 import Text.Show.Pretty (ppShow)
@@ -113,7 +112,7 @@ runGcLoop :: ActionState DB -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     threadDelay $ interval * 1000
-    runAction dcPublic actionState collectGarbage
+    runAction actionState collectGarbage
 
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
