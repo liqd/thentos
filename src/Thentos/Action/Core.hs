@@ -30,8 +30,8 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
-import LIO.DCLabel (CNF, ToCNF, DCLabel(DCLabel), (\/), (/\), (%%), toCNF, cTrue, cFalse)
+import LIO.Core (MonadLIO, LIO, liftLIO, evalLIO, setClearanceP)
+import LIO.DCLabel (CNF, ToCNF, DCLabel(DCLabel), (\/), (/\), toCNF, cTrue, cFalse, dcDefaultState)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 
@@ -109,21 +109,15 @@ runActionAsAgent agent state action = runActionAsAgentE agent state action >>= e
 runActionInThentosSession :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO a
 runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
 
--- | Call an action with no privileges.  Catch all errors.
+-- | Call an action with no access rights.  Catch all errors.
 runActionE :: forall a db . ActionState db -> Action db a -> IO (Either ActionError a)
 runActionE state action = catchUnknown
   where
-    initialLabel :: DCLabel
-    initialLabel = True %% False  -- accessible data is public and maximally intact.
-
-    initialClearance :: DCLabel
-    initialClearance = False %% True  -- no data may be accessed (read or write) from within this action.
-
     inner :: IO (Either ThentosError a)
-    inner = (`evalLIO` LIOState initialLabel initialClearance) .
-            liftLIO .
-            eitherT (return . Left) (return . Right) $
-            fromAction action `runReaderT` state
+    inner = (`evalLIO` dcDefaultState)
+          . liftLIO
+          . eitherT (return . Left) (return . Right)
+          $ fromAction action `runReaderT` state
 
     catchAnyLabelError :: IO (Either ActionError a)
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
