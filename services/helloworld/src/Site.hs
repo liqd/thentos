@@ -9,13 +9,11 @@ module Site
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens (makeLenses, (^.))
 import Control.Monad (when)
+import Control.Exception (SomeException, catch, bracket_)
 import Control.Monad.State.Class (gets)
-import Control.Monad.IO.Class (liftIO)
-import Data.Aeson ((.=))
-import Data.ByteString (ByteString)
-import Data.ByteString.Lazy (toStrict, fromStrict)
-import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Aeson (FromJSON, withObject, withText, (.=))
+import Data.String.Conversions (SBS, LBS, cs, (<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
@@ -29,6 +27,7 @@ import Snap.Blaze (blaze)
 import Snap.Util.FileServe (serveDirectory)
 import Text.Blaze.Html (Html)
 import Text.Show.Pretty (ppShow)
+import System.IO (hPutStrLn, stderr)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BC
@@ -55,9 +54,9 @@ configFilePath = "devel.config"
 -- two work together.
 data HWConfig =
     HWConfig
-      { thentosBackendUrl  :: ByteString
-      , thentosFrontendUrl :: ByteString
-      , helloWorldUrl      :: ByteString
+      { thentosBackendUrl  :: SBS
+      , thentosFrontendUrl :: SBS
+      , helloWorldUrl      :: SBS
       , serviceId          :: Text
       , serviceKey         :: Text
       }
@@ -67,17 +66,13 @@ makeLenses ''App
 
 handleApp :: AppHandler ()
 handleApp = do
-    mToken <- with sess $ getFromSession "sessiontoken"
+    mToken    <- with sess $ getFromSession "sessiontoken"
     tokenIsOk <- verifyToken mToken
-    meta <- fromMaybe (return "")
-                      (if tokenIsOk then getMetadata <$> mToken else Nothing)
-    let json_obj = Aeson.decode $ fromStrict meta
-        mUsername = json_obj >>= HashMap.lookup ("servSessMDUser" :: Text)
-        username = fromMaybe "ERROR: couldn't parse username" mUsername
-    method GET . blaze $ appPage mToken tokenIsOk meta username
+    meta      <- maybe (return Nothing) getMetadata mToken
+    method GET . blaze $ appPage mToken tokenIsOk meta
 
-appPage :: Show sessionMetadata => Maybe Text -> Bool -> sessionMetadata -> String -> Html
-appPage token isTokenOk sessionMetadata user =
+appPage :: Maybe Text -> Bool -> Maybe HwMetadata -> Html
+appPage token isTokenOk meta =
     H.docTypeHtml $ do
         H.head $ do
             H.title "Greetotron2000"
@@ -85,9 +80,9 @@ appPage token isTokenOk sessionMetadata user =
         H.body $ do
             H.h1 "Greetotron2000"
 
-            case token of
-                (Just _) -> H.div H.! HA.class_ "logged_in" $ do
-                    H.p $ "you are logged in.  hello, " <> H.string user <> "!"
+            case meta of
+                (Just (HwMetadata _ user)) -> H.div H.! HA.class_ "logged_in" $ do
+                    H.p $ "you are logged in.  hello, " <> H.text user <> "!"
                     H.p $ H.a H.! HA.href (H.toValue . BC.unpack $ "/logout") $ H.text "logout"
                 Nothing -> H.div H.! HA.class_ "logged_out" $ do
                     H.p "hello, nobody!"
@@ -104,10 +99,10 @@ appPage token isTokenOk sessionMetadata user =
                     H.td . H.pre . H.string . ppShow $ isTokenOk
                 H.tr $ do
                     H.td "session meta data"
-                    H.td . H.pre . H.string . ppShow $ sessionMetadata
+                    H.td . H.pre . H.string . ppShow $ meta
 
 
-routes :: [(ByteString, Handler App App ())]
+routes :: [(SBS, Handler App App ())]
 routes =
       [ ("",                ifTop $ redirect "/app")
       , ("/app",            handleApp)
@@ -177,9 +172,10 @@ helloWorldLogout = do
     mToken <- with sess $ getFromSession "sessiontoken"
     case mToken of
         Just token -> do
-            initReq <- makeRequest ("/servicesession/" <> urlEncode (encodeUtf8 token))
-            let req = initReq { HC.method = methodDelete }
-            liftIO . withManager $ httpLbs req
+            req <- do
+                initReq <- makeRequest "/service_session/" token
+                return $ initReq { HC.method = methodDelete }
+            runRequest req
             with sess (resetSession >> commitSession)
         Nothing -> return ()
     redirect' "/app" 303
@@ -187,39 +183,59 @@ helloWorldLogout = do
 verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
 verifyToken (Just token) = do
-    hwConfig <- gets (^. aHWConfig)
-    let sid = encodeUtf8 $ serviceId hwConfig
-        url = thentosBackendUrl hwConfig <> "/servicesession/" <> urlEncode (encodeUtf8 token)
+    liftIO $ print ("verifyToken" :: SBS)
+    req <- makeRequest "/service_session/" token
+    liftIO $ print req
     liftIO . withManager $ do
-        initReq <- parseUrl $ BC.unpack url
-        let req = initReq
-                    { requestHeaders = [ ("X-Thentos-Service", sid) ]
-                    }
-        response <- httpLbs req
+        response <- runRequest req
+        liftIO $ print (response, responseBody response)
         case responseBody response of
             "true"  -> return True
             "false" -> return False
             e       -> fail $ "Bad response: " ++ show e
 
-getMetadata :: Text -> Handler App App ByteString
-getMetadata token = do
-    let path = "/servicesession/" <> urlEncode (encodeUtf8 token) <> "/meta"
-    req <- makeRequest path
-    liftIO . withManager $ do
-        response <- httpLbs req
-        return . toStrict $ responseBody response
 
-makeRequest :: ByteString -> Handler App App HC.Request
-makeRequest path = do
+data HwMetadata = HwMetadata Aeson.Value Text
+  deriving (Eq, Show)
+
+instance FromJSON HwMetadata where
+    parseJSON v = flip (withObject msg) v $ \ obj -> case HashMap.lookup "servSessMDUser" obj of
+        Nothing -> fail "no servSessMDUser field."
+        Just t  -> withText msg (return . HwMetadata v) t
+      where
+        msg = "instance FromJSON (HwMetadata Aeson.Value Text)"
+
+
+getMetadata :: Text -> Handler App App (Maybe HwMetadata)
+getMetadata token = do
+    req <- makeRequest "/service_session/meta" token
+    response <- runRequest req
+    return . Aeson.decode $ responseBody response
+
+makeRequest :: SBS -> Text -> Handler App App HC.Request
+makeRequest path token = do
     hwConfig <- gets (^. aHWConfig)
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
     let sid = encodeUtf8 $ serviceId hwConfig
-    return $ initReq { requestHeaders = [("X-Thentos-Service", sid)] }
+    return $ initReq
+        { requestHeaders = [("X-Thentos-Service", sid), ("Content-Type", "application/json")]
+        , requestBody = RequestBodyLBS $ Aeson.encode token
+        }
+
+-- | httpLbs from http-conduit likes to throw exceptions a lot, and snap likes to pass them on the
+-- browser rather than log them to stderr.  this function is for handling exceptions better, even
+-- though currently it doesn't to all that great of a job.
+runRequest :: MonadIO m => HC.Request -> m (HC.Response LBS)
+runRequest req = liftIO $ bracket_
+    (return ())
+    (return ())
+    (withManager (httpLbs req) `catch` (\ (e :: SomeException) -> let s = "*** " ++ ppShow e in hPutStrLn stderr s >> error s))
+
 
 -- this is currently unused, but we should really have an example where
 -- the service has to authenticate with thentos
-getServiceSessionToken :: Handler App App ByteString
+getServiceSessionToken :: Handler App App SBS
 getServiceSessionToken = do
     hwConfig <- gets (^. aHWConfig)
     let sid = serviceId hwConfig
@@ -230,7 +246,6 @@ getServiceSessionToken = do
         reqBody = RequestBodyLBS $ Aeson.encode [json_sid, json_key]
     initReq <- liftIO $ parseUrl (BC.unpack url)
 
-    liftIO . withManager $ do
-        let req = initReq { requestBody = reqBody, HC.method = methodPost }
-        response <- httpLbs req
-        return . toStrict $ responseBody response
+    let req = initReq { requestBody = reqBody, HC.method = methodPost }  -- FIXME: this won't work (need more headers!)
+    response <- runRequest req
+    return . cs $ responseBody response
