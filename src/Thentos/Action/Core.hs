@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PackageImports         #-}
+{-# LANGUAGE Rank2Types             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
@@ -31,7 +32,8 @@ import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIO, liftLIO, evalLIO, setClearanceP)
-import LIO.DCLabel (CNF, ToCNF, DCLabel(DCLabel), (\/), (/\), toCNF, cTrue, cFalse, dcDefaultState)
+import LIO.Label (lub)
+import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, dcDefaultState)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 
@@ -101,7 +103,7 @@ runAction :: ActionState db -> Action db a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
 runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
-runActionWithPrivs privs state action = runActionWithPrivsE privs state action >>= either throwIO return
+runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
 
 runActionAsAgent :: Agent -> ActionState DB -> Action DB a -> IO a
 runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
@@ -126,51 +128,55 @@ runActionE state action = catchUnknown
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
 runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either ActionError a)
-runActionWithPrivsE privs state = runActionE state . (setClearance'P privs >>)
+runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
 runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either ActionError a)
-runActionAsAgentE agent state = runActionE state . ((privsByAgent'P agent >>= setClearance'P) >>)
+runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
 runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either ActionError a)
-runActionInThentosSessionE tok state = runActionE state . ((privsByThentosSession'P tok >>= setClearance'P) >>)
+runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
 
--- * labels and privileges
+-- * labels, privileges and access rights.
 
-{-
--- | Restrict confidentiality to list of principals or roles: After calling this action, at least
--- one of the elements of the argument list is required in the confidentiality part of the active
--- clearance level.
-restrictRead :: ToCNF a => [a] -> Action db ()
-restrictRead xs = liftLIO . setLabel $ foldl' (/\) (toCNF True) xs %% True
-
--- | Restrict integrity to list of principals or roles: After calling this action, at least one of
--- the elements of the argument list is required in the integrity part of the active clearance
--- level.
-restrictWrite :: ToCNF a => [a] -> Action db ()
-restrictWrite xs = liftLIO . setLabel $ True %% foldl' (\/) (toCNF True) xs
-
--- | Make transaction uncallable until somebody raises the label again.
-restrictTotal :: Action db ()
-restrictTotal = liftLIO . setLabel $ False %% True
--}
-
--- | ... (?)
-setClearance'P :: ToCNF cnf => [cnf] -> Action DB ()
-setClearance'P privs = liftLIO $ setClearanceP (PrivTCB $ toCNF True) l
+-- | In order to execute an 'Action', certain access rights need to be granted.  A set of access
+-- rights is a list of 'ToCNF' instances that are used to update the current clearance in the
+-- 'LIOState' in the 'LIO' monad underlying 'Action'.
+--
+-- To execute an 'Action' with the access rights of 'UserId' @u@ and 'BasicRole' @r@:
+--
+-- >>> grantAccessRights'P [toCNF u, toCNF r]
+--
+-- Or, to grant just @r@:
+--
+-- >>> grantAccessRights'P [r]
+--
+-- Adding more access rights must increase access, so for a list @ars@ of access rights, the
+-- constructed clearance level @c@ must satisfy:
+--
+-- >>> and [ (ar %% ar) `canFlowTo` c | ar <- ars ]
+--
+-- Therefore, @c@ is defined as the least upper bound (join) of the labels constructed from
+-- individual access rights:
+--
+-- >>> c = foldl' (lub) bottom [ ar %% ar | ar <- ars ]
+grantAccessRights'P :: ToCNF cnf => [cnf] -> Action DB ()
+grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB $ toCNF True) c
   where
-    l :: DCLabel
-    l = DCLabel (foldl' (/\) cTrue privs)
-                (foldl' (\/) cFalse privs)
+    c :: DCLabel
+    c = foldl' lub (True %% False) [ ar %% ar | ar <- ars ]
 
 -- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
 -- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
 -- are finite and cycle-free.
-privsByAgent'P :: Agent -> Action DB [CNF]
-privsByAgent'P agent = Set.toList . makePrivs <$> query'P (AgentRoles agent)
+accessRightsByAgent'P :: Agent -> Action DB [CNF]
+accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRoles agent)
   where
-    makePrivs :: Set.Set Role -> Set.Set CNF
-    makePrivs = Set.fold (Set.insert) (Set.singleton $ toCNF agent) . Set.map toCNF . flatten
+    makeAccessRights :: Set.Set Role -> Set.Set CNF
+    makeAccessRights roles = Set.fold Set.insert agent' roles'
+      where
+        agent' = Set.singleton $ toCNF agent
+        roles' = Set.map toCNF $ flatten roles
 
     flatten :: Set.Set Role -> Set.Set RoleBasic
     flatten = Set.fold (flip f) Set.empty
@@ -179,11 +185,11 @@ privsByAgent'P agent = Set.toList . makePrivs <$> query'P (AgentRoles agent)
         f acc (Roles rs) = foldl' f acc rs
         f acc (RoleBasic b) = Set.insert b acc
 
-privsByThentosSession'P :: ThentosSessionToken -> Action DB [CNF]
-privsByThentosSession'P tok = do
+accessRightsByThentosSession'P :: ThentosSessionToken -> Action DB [CNF]
+accessRightsByThentosSession'P tok = do
     now <- getCurrentTime'P
     (_, session) <- update'P (LookupThentosSession now tok)
-    privsByAgent'P $ session ^. thSessAgent
+    accessRightsByAgent'P $ session ^. thSessAgent
 
 
 -- * TCB business
