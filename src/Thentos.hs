@@ -111,7 +111,7 @@ main =
 runGcLoop :: ActionState DB -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    threadDelay $ interval * 1000
+    threadDelay $ interval * 1000 * 1000
     runAction actionState collectGarbage
 
 
