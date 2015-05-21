@@ -10,14 +10,13 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
-import Data.Either (isRight)
 import Data.Maybe (listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 import Text.Regex.Easy ((=~#), (=~-))
 
 import qualified Data.Map as Map
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy as LBS
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
@@ -37,7 +36,7 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "selenium (consult README.md if this test fails)" $ do
+spec = describe "selenium grid" $ do
   describe "many tests" . before setupTestServerFull . after teardownTestServerFull $ do
     spec_createUser
     spec_resetPassword
@@ -58,45 +57,46 @@ spec = describe "selenium (consult README.md if this test fails)" $ do
 
 
 spec_createUser :: SpecWith TestServerFull
-spec_createUser = it "create user" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+spec_createUser = describe "create user" $ do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    -- create confirmation token
-    wd $ do
-        WD.openPage (cs $ exposeUrl feConfig)
-        WD.findElem (WD.ByLinkText "Register new user") >>= WD.click
+    it "fill out form." $ \ ((ActionState (_, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+        wd $ do
+            WD.openPage (cs $ exposeUrl feConfig)
+            WD.findElem (WD.ByLinkText "Register new user") >>= WD.click
 
-        let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-            fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+            let fill :: WD.WebDriver wd => ST -> ST -> wd ()
+                fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-        fill "/user/register.name" myUsername
-        fill "/user/register.password1" myPassword
-        fill "/user/register.password2" myPassword
-        fill "/user/register.email" myEmail
+            fill "/user/register.name" myUsername
+            fill "/user/register.password1" myPassword
+            fill "/user/register.password2" myPassword
+            fill "/user/register.email" myEmail
 
-        WD.findElem (WD.ById "create_user_submit") >>= WD.click
-        WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
+            WD.findElem (WD.ById "create_user_submit") >>= WD.click
+            WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
-    -- check that confirmation token is in DB.
-    Right (db1 :: DB) <- query' st $ SnapShot
-    Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
+    it "click activation link." $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+        -- check confirmation token in DB.
+        Right (db1 :: DB) <- query' st $ SnapShot
+        Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
 
-    -- click activation link.  (it would be nice if we
-    -- somehow had the email here to extract the link from
-    -- there, but we don't.)
-    case Map.toList $ db1 ^. dbUnconfirmedUsers of
-          [(tok, _)] -> wd $ do
-              WD.openPage . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
-              WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
-          bad -> error $ "dbUnconfirmedUsers: " ++ show bad
+        -- (it would be nice if we somehow had access to the email here to extract the link from
+        -- there.  not yet...)
+        case Map.toList $ db1 ^. dbUnconfirmedUsers of
+              [(tok, _)] -> wd $ do
+                  WD.openPage . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
+                  WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
+              bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
-    -- check that user has arrived in DB.
-    Right (db2 :: DB) <- query' st $ SnapShot
-    Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
-    eUser <- query' st $ LookupUserByName (UserName myUsername)
-    eUser `shouldSatisfy` isRight
+    it "check user in DB." $ \ ((ActionState (st, _, _), _, (_, _), _) :: TestServerFull) -> do
+        Right (db2 :: DB) <- query' st $ SnapShot
+        Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
+        eUser <- query' st $ LookupUserByName (UserName myUsername)
+        fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
+        fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 
 
 spec_resetPassword :: SpecWith TestServerFull
@@ -232,7 +232,7 @@ spec_serviceCreate = it "service create" $ \ ((ActionState (st, _, _), _, (_, fe
 
         WD.findElem (WD.ById "create_service_submit") >>= WD.click
 
-        (\ s -> case cs s =~- "Service id: (.+)<" of [_, sid] -> ServiceId $ cs (LB.take 24 sid)) <$> WD.getSource
+        (\ s -> case cs s =~- "Service id: (.+)<" of [_, sid] -> ServiceId $ cs (LBS.take 24 sid)) <$> WD.getSource
 
     -- db: check that
     --   1. service has been created;
