@@ -72,11 +72,11 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \ asg -> do
             let uid = UserId 1
-            result <- runActionWithPrivsE [UserA uid] asg . update'P $ T.DeleteUser uid
+            result <- runActionWithPrivsE [UserA uid] asg $ deleteUser uid
             result `shouldSatisfy` isRight
 
         it "nobody else but the deleted user and admin can do this" $ \ asg -> do
-            result <- runActionWithPrivsE [UserA (UserId 2)] asg . update'P $ T.DeleteUser (UserId 1)
+            result <- runActionWithPrivsE [UserA (UserId 2)] asg $ deleteUser (UserId 1)
             result `shouldSatisfy` isLeft
 
     describe "UpdateUser" $ do
