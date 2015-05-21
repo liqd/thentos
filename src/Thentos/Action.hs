@@ -19,7 +19,7 @@ import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
 import Data.String.Conversions (ST, cs)
 import LIO.Core (liftLIO, setLabel)
-import LIO.DCLabel ((%%))
+import LIO.DCLabel ((%%), (\/), (/\))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
@@ -323,13 +323,17 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- * agents and roles
 
 assignRole :: Agent -> Role -> Action DB ()
-assignRole agent = update'P . T.AssignRole agent
+assignRole agent role = do
+    liftLIO $ setLabel (RoleAdmin %% RoleAdmin)
+    update'P $ T.AssignRole agent role
 
 unassignRole :: Agent -> Role -> Action DB ()
 unassignRole agent = update'P . T.UnassignRole agent
 
 agentRoles :: Agent -> Action DB [Role]
-agentRoles = fmap Set.toList . query'P . T.AgentRoles
+agentRoles agent = do
+    liftLIO $ setLabel (agent \/ RoleAdmin %% agent /\ RoleAdmin)
+    Set.toList <$> query'P (T.AgentRoles agent)
 
 
 -- * garbage collection
