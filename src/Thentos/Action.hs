@@ -210,7 +210,7 @@ lookupThentosSession tok = do
     snd <$> update'P (T.LookupThentosSession now tok)
 
 -- | Like 'lookupThentosSession', but (1) does not throw exceptions and (2) returns less information
--- and therefore can have a more liberal label.
+-- and therefore can have a more liberal lio label.
 existsThentosSession :: ThentosSessionToken -> Action DB Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
     \case NoSuchThentosSession -> return False
