@@ -162,7 +162,7 @@ teardownTestServerFull (db, (backend, _), (frontend, _), _) = do
 
 loginAsGod :: Application -> IO (ThentosSessionToken, [Header])
 loginAsGod testBackend = debugRunSession False testBackend $ do
-    response <- srequest (makeSRequest "POST" "/session" [] $ Aeson.encode (godUid, godPass))
+    response <- srequest (makeSRequest "POST" "/thentos_session" [] $ Aeson.encode (godUid, godPass))
     if (statusCode (simpleStatus response) /= 201)
         then error $ ppShow response
         else do
