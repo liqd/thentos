@@ -36,6 +36,15 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
+    describe "Fixtures" $ do
+        it "make sure backend is running at all." $ do
+            _ <- setupTestBackend Run
+            True `shouldBe` True
+
+        it "tear it down again, too." $ do
+            setupTestBackend Run >>= teardownTestBackend
+            True `shouldBe` True
+
     describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
