@@ -1,27 +1,20 @@
 #!/bin/bash
 
-test "$1" == "--yes-i-know" || exit 1
-test "`pwd`" == "/home/travis/thentos" || exit 2
-test "`whoami`" == "travis" || exit 3
+test "`pwd`" == "/home/travis/build/liqd/thentos" || exit 2
 
-# clone this repo into /home/travis/thentos, and run this script
+# clone this repo to /home/travis/build/liqd/thentos, and run this script
 # from there like this:
 #
-#     ./.travis/build-cache.sh --yes-i-know
+#     ./.travis/build-cache.sh
 #
 # WARNING: THIS SCRIPT IS NOT TESTED VERY THOROUGHLY!
-# ALSO IT REMOVES ~/.cabal, ~/.ghc!
 
-rm -rf ~/.cabal ~/.ghc
 cabal update
+cabal sandbox init
 time cabal install \
     --dependencies-only --enable-tests --disable-documentation \
   || exit 1
 
-cd ~
-time tar cvpJf new-cache.tar.xz .cabal .ghc || exit 1
-export FNAME=`sha1sum new-cache.tar.xz | perl -ne '/^(\S+) / && print "$1"'`
-mv new-cache.tar.xz $FNAME.tar.xz || exit 1
+time tar cvpJf new-cache.tar.xz .cabal-sandbox || exit 1
 
-echo 'now move ~travis/$FNAME.tar.xz to where travis can find it.'
-echo '(don'\''t forget to update hash in the install rule in .travis.yml!)'
+echo 'now move /home/travis/build/liqd/thentos/new-cache.tar.xz to where travis can find it.'

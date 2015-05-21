@@ -15,8 +15,7 @@ before_install:
   - cd ../..
 install:
     - git clone https://github.com/zerobuzz/servant-pandoc -b may-fix-issue-2
-    - cabal sandbox init
-    - cabal sandbox add-source servant-pandoc
+    - "./.travis/install.sh"
     - cabal install --dependencies-only --enable-tests
 script:
   - cabal configure --enable-tests -f-with-build-docs-executable && cabal build && cabal test
