@@ -78,6 +78,33 @@ you and build something completely different from them:
 - ...
 
 
+Code Structure
+--------------
+
+This is a possible quick walk through the code:
+
+- **Thentos.Types**: gives you the `DB` type that describes the
+    thentos data model (and some polymorphism over it).
+
+- **Thentos.Transaction...**: acid-state events with 'EitherT'
+    exceptions.  `Thentos.Transaction.Transactions` implements an
+    abstract api over the `DB` type.
+
+- **Thentos.Action...**: non-acidic actions in the `Action` monad.
+    `Action` provides access to acid state, randomness, and config
+    data (feel free to divert to `Thentos.Config` from here, not
+    covered in this tour).  Perhaps most importantly, it is not based
+    on `IO`, but on `LIO`, which provides information flow and access
+    control.  Actions can be composed of transactions and other things
+    like reading the system time.  `Thentos.Action` implements an api
+    that both frontend and backend use.
+
+- **Thentos.Backend...**: rest apis based on servant and wai.
+
+- **Thentos.Frontend...**: browser frontend for direct
+    user-interaction based on snap.
+
+
 Installation
 ------------
 
