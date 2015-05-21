@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE LambdaCase                               #-}
+{-# LANGUAGE TypeOperators                            #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -16,7 +17,7 @@ import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Data.Thyme.Time ()
-import Servant.API (Capture)
+import Servant.API (Capture, (:>))
 import Servant.Docs (HasDocs, docsFor, docs)
 import Servant.Docs.Pandoc (pandoc)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSample))
@@ -31,6 +32,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Servant.Docs as Docs
 
 import Thentos.Backend.Core
+import Thentos.Backend.Api.Auth
 import Thentos.Types
 
 -- import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
@@ -84,7 +86,10 @@ xsystem cmd = do
     return ()
 
 
-instance HasDocs sublayout => HasDocs (ThentosAssertHeaders sublayout) where
+instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
+    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
     docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 
@@ -179,6 +184,9 @@ instance ToSample (UserId, ServiceId) (UserId, ServiceId) where
 
 instance ToSample ServiceSessionMetadata ServiceSessionMetadata where
     toSample _ = ServiceSessionMetadata <$> toSample (Proxy :: Proxy UserName)
+
+instance ToSample ServiceSessionToken ServiceSessionToken where
+    toSample _ = Just $ ServiceSessionToken "abde1234llkjh"
 
 instance ToSample () () where
     toSample _ = Just ()
