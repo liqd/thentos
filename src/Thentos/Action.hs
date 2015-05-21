@@ -11,12 +11,8 @@ module Thentos.Action
 where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (finally)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError, catchError)
-import "crypto-random" Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
-import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -30,7 +26,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Thentos.Action.Core
-import Thentos.Config
 import Thentos.Types
 import Thentos.Util
 
