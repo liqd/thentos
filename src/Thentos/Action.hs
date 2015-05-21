@@ -73,6 +73,15 @@ lookupUserByName = query'P . T.LookupUserByName
 lookupUserByEmail :: UserEmail -> Action DB (UserId, User)
 lookupUserByEmail = query'P . T.LookupUserByEmail
 
+addUser :: UserFormData -> Action DB UserId
+addUser userData = do
+    makeUserFromFormData'P userData >>= update'P . T.AddUser
+
+deleteUser :: UserId -> Action DB ()
+deleteUser uid = do
+    liftLIO $ setLabel (UserA uid %% UserA uid)
+    update'P $ T.DeleteUser uid
+
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     now <- getCurrentTime'P
@@ -210,7 +219,7 @@ lookupThentosSession tok = do
     snd <$> update'P (T.LookupThentosSession now tok)
 
 -- | Like 'lookupThentosSession', but (1) does not throw exceptions and (2) returns less information
--- and therefore can have a more liberal label.
+-- and therefore can have a more liberal lio label.
 existsThentosSession :: ThentosSessionToken -> Action DB Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
     \case NoSuchThentosSession -> return False
