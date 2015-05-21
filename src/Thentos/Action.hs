@@ -59,6 +59,11 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 -- * user
 
+allUserIds :: Action DB [UserId]
+allUserIds = do
+    liftLIO $ setLabel (RoleAdmin %% False)
+    query'P T.AllUserIds
+
 lookupUser :: UserId -> Action DB (UserId, User)
 lookupUser = query'P . T.LookupUser
 
