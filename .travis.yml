@@ -18,4 +18,4 @@ install:
     - "./.travis/install.sh"
     - cabal install --dependencies-only --enable-tests
 script:
-  - cabal configure --enable-tests -f-with-build-docs-executable && cabal build && cabal test
+  - cabal configure --enable-tests && cabal build && cabal test
