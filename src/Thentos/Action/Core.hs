@@ -30,9 +30,9 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, liftLIO, evalLIO, setClearanceP)
+import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
 import LIO.Label (lub)
-import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, dcDefaultState)
+import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 
@@ -110,12 +110,14 @@ runActionAsAgent agent state action = runActionAsAgentE agent state action >>= e
 runActionInThentosSession :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO a
 runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
 
--- | Call an action with no access rights.  Catch all errors.
+-- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
+-- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
+-- executed, and the label has not been guarded by any action yet.
 runActionE :: forall a db . ActionState db -> Action db a -> IO (Either ActionError a)
 runActionE state action = catchUnknown
   where
     inner :: IO (Either ThentosError a)
-    inner = (`evalLIO` dcDefaultState)
+    inner = (`evalLIO` LIOState dcBottom dcBottom)
           . liftLIO
           . eitherT (return . Left) (return . Right)
           $ fromAction action `runReaderT` state
@@ -138,6 +140,16 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 
 -- * labels, privileges and access rights.
 
+
+-- | FIXME: move to LIO.Missing; make pull request
+dcBottom :: DCLabel
+dcBottom = True %% False
+
+-- | FIXME: move to LIO.Missing; make pull request
+dcTop :: DCLabel
+dcTop = False %% True
+
+
 -- | In order to execute an 'Action', certain access rights need to be granted.  A set of access
 -- rights is a list of 'ToCNF' instances that are used to update the current clearance in the
 -- 'LIOState' in the 'LIO' monad underlying 'Action'.
@@ -158,12 +170,12 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 -- Therefore, @c@ is defined as the least upper bound (join) of the labels constructed from
 -- individual access rights:
 --
--- >>> c = foldl' (lub) bottom [ ar %% ar | ar <- ars ]
+-- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
 grantAccessRights'P :: ToCNF cnf => [cnf] -> Action DB ()
-grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB $ toCNF True) c
+grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
   where
     c :: DCLabel
-    c = foldl' lub (True %% False) [ ar %% ar | ar <- ars ]
+    c = foldl' lub dcBottom [ ar %% ar | ar <- ars ]
 
 -- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
 -- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
