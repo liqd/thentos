@@ -22,7 +22,7 @@ import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeDirectory)
-import System.IO (stderr)
+import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
@@ -203,7 +203,11 @@ configLogger = do
     createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
-    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr loglevel
+    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stdout loglevel
+
+    -- NOTE: `sHandler` was originally writing to stderr, but since thentos has more than one
+    -- thread, this lead a lot of chaos where threads would log concurrently.  stdout is
+    -- line-buffered and works better that way.
 
     updateGlobalLogger loggerName $
         System.Log.Logger.setLevel DEBUG .
