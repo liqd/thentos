@@ -61,7 +61,7 @@ enterAction state mTok = Nat $ EitherT . run
     run = (>>= fmapLM actionErrorToServantErr) . runActionE state . updatePrivs mTok
 
     updatePrivs :: Maybe ThentosSessionToken -> Action DB a -> Action DB a
-    updatePrivs (Just tok) action = (privsByThentosSession'P tok >>= setClearance'P) >> action
+    updatePrivs (Just tok) action = (accessRightsByThentosSession'P tok >>= grantAccessRights'P) >> action
     updatePrivs Nothing    action = action
 
 
