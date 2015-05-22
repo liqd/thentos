@@ -53,6 +53,7 @@ library
     ghc-options: -w
   exposed-modules:
       System.Log.Missing
+    , Snap.Missing
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
@@ -67,7 +68,6 @@ library
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Types
-    , Thentos.Frontend.Util
     , Thentos.Smtp
     , Thentos.Transaction
     , Thentos.Transaction.Core
@@ -112,7 +112,6 @@ library
     , servant >= 0.4 && < 0.5
     , servant-server >= 0.4 && < 0.5
     , snap
-    , snap-blaze
     , snap-core
     , snaplet-acid-state
     , snap-server
@@ -198,6 +197,7 @@ test-suite tests
   other-modules:
       Test.Arbitrary
     , Test.Config
+    , Test.Types
     , Test.Util
     , ThentosSpec
     , Thentos.Backend.Api.Adhocracy3Spec

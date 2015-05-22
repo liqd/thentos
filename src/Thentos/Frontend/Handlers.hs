@@ -18,7 +18,6 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
-import Snap.Blaze (blaze)
 import Snap.Core (Method(GET, POST), method, getParam, redirect', urlDecode)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
@@ -28,6 +27,7 @@ import URI.ByteString (RelativeRef(..), Query(..))
 
 import qualified Text.Blaze.Html5 as H
 
+import Snap.Missing (blaze)
 import Thentos.Action as A
 import Thentos.Action.Core
 import Thentos.Config

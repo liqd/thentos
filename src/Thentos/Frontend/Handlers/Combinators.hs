@@ -20,7 +20,6 @@ import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import LIO.Error (AnyLabelError)
-import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
 import Snap.Snaplet.AcidState (getAcidState)
@@ -37,6 +36,7 @@ import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions, Query(..))
 import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
+import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
