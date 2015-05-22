@@ -20,7 +20,7 @@ import Control.Monad.State (liftIO)
 import Control.Monad (void)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
-import Network.Wai.Test (srequest, simpleStatus, simpleBody, runSession)
+import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
 
 import qualified Data.Aeson as Aeson
@@ -49,7 +49,7 @@ spec = do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
                     \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
                 let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
-                resp <- liftIO $ runSession (srequest req) testBackend
+                resp <- srequest req
                 liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
 
         describe "user" $ do
@@ -68,7 +68,7 @@ spec = do
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $
-                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
+                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
                     response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
@@ -87,14 +87,14 @@ spec = do
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
                 it "yields an email address" $
-                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
+                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
                     response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $
-                        \ (_, testBackend, _, godCredentials) -> (debugRunSession False testBackend) $ do
+                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
                     let userData = UserFormData "1" "2" "3"
                     response1 <- srequest $ makeSRequest "POST" "/user" godCredentials (Aeson.encode userData)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
