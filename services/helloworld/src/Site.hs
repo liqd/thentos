@@ -13,7 +13,7 @@ import Control.Exception (SomeException, catch, bracket_)
 import Control.Monad.State.Class (gets)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (FromJSON, withObject, withText, (.=))
-import Data.String.Conversions (SBS, LBS, cs, (<>))
+import Data.String.Conversions (SBS, LBS, ST, cs, (<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
@@ -194,13 +194,17 @@ verifyToken (Just token) = do
             "false" -> return False
             e       -> fail $ "Bad response: " ++ show e
 
+makeJsonServiceSessionToken :: Text -> RequestBody
+makeJsonServiceSessionToken token =
+    let json_token = Aeson.object ["fromServiceSessionToken" .= token]
+    in RequestBodyLBS $ Aeson.encode json_token
 
 data HwMetadata = HwMetadata Aeson.Value Text
   deriving (Eq, Show)
 
 instance FromJSON HwMetadata where
-    parseJSON v = flip (withObject msg) v $ \ obj -> case HashMap.lookup "servSessMDUser" obj of
-        Nothing -> fail "no servSessMDUser field."
+    parseJSON v = flip (withObject msg) v $ \ obj -> case HashMap.lookup "srvSessMdUser" obj of
+        Nothing -> fail "no srvSessMdUser field."
         Just t  -> withText msg (return . HwMetadata v) t
       where
         msg = "instance FromJSON (HwMetadata Aeson.Value Text)"
@@ -212,15 +216,16 @@ getMetadata token = do
     response <- runRequest req
     return . Aeson.decode $ responseBody response
 
-makeRequest :: SBS -> Text -> Handler App App HC.Request
+makeRequest :: SBS -> ST -> Handler App App HC.Request
 makeRequest path token = do
+    let body = makeJsonServiceSessionToken token
     hwConfig <- gets (^. aHWConfig)
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
     let sid = encodeUtf8 $ serviceId hwConfig
     return $ initReq
         { requestHeaders = [("X-Thentos-Service", sid), ("Content-Type", "application/json")]
-        , requestBody = RequestBodyLBS $ Aeson.encode token
+        , requestBody = body
         }
 
 -- | httpLbs from http-conduit likes to throw exceptions a lot, and snap likes to pass them on the
