@@ -18,7 +18,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
 import Data.String.Conversions (ST, cs)
-import LIO.Core (liftLIO, setLabel)
+import LIO.Core (liftLIO, guardWrite)
 import LIO.DCLabel ((%%), (\/), (/\))
 
 import qualified Codec.Binary.Base64 as Base64
@@ -61,7 +61,7 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 allUserIds :: Action DB [UserId]
 allUserIds = do
-    liftLIO $ setLabel (RoleAdmin %% False)
+    liftLIO $ guardWrite (RoleAdmin %% False)
     query'P T.AllUserIds
 
 lookupUser :: UserId -> Action DB (UserId, User)
@@ -79,7 +79,7 @@ addUser userData = do
 
 deleteUser :: UserId -> Action DB ()
 deleteUser uid = do
-    liftLIO $ setLabel (UserA uid %% UserA uid)
+    liftLIO $ guardWrite (UserA uid %% UserA uid)
     update'P $ T.DeleteUser uid
 
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
@@ -329,7 +329,7 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 
 assignRole :: Agent -> Role -> Action DB ()
 assignRole agent role = do
-    liftLIO $ setLabel (RoleAdmin %% RoleAdmin)
+    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
     update'P $ T.AssignRole agent role
 
 unassignRole :: Agent -> Role -> Action DB ()
@@ -337,7 +337,7 @@ unassignRole agent = update'P . T.UnassignRole agent
 
 agentRoles :: Agent -> Action DB [Role]
 agentRoles agent = do
-    liftLIO $ setLabel (agent \/ RoleAdmin %% agent /\ RoleAdmin)
+    liftLIO $ guardWrite (agent \/ RoleAdmin %% agent /\ RoleAdmin)
     Set.toList <$> query'P (T.AgentRoles agent)
 
 
