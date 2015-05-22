@@ -9,6 +9,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
@@ -19,6 +20,7 @@ where
 import Control.Applicative ((<*), (<$>))
 import Control.Concurrent.Async (Async, async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Lens (makeLenses, (^.))
 import Control.Monad (when, void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
@@ -95,17 +97,28 @@ destroyDB = do
         in isDirectory p >>= \ yes -> when yes $ removeTree p
 
 
+-- Backend test state.
+data BTS = BTS
+    { _btsActionState    :: ActionState DB
+    , _btsWai            :: Application
+    , _btsToken          :: ThentosSessionToken
+    , _btsGodCredentials :: [Header]
+    }
+
+$(makeLenses ''BTS)
+
+
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: Command -> IO (ActionState DB, Application, ThentosSessionToken, [Header])
+setupTestBackend :: Command -> IO BTS
 setupTestBackend cmd = do
     asg <- setupDB testThentosConfig
     case cmd of
         Run -> do
             let testBackend = Simple.serveApi asg
             (tok, headers) <- loginAsGod testBackend
-            return (asg, testBackend, tok, headers)
+            return $ BTS asg testBackend tok headers
 {-
         RunA3 ->
             let e = error "setupTestBackend: no god credentials!"
@@ -113,10 +126,8 @@ setupTestBackend cmd = do
 -}
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
-teardownTestBackend :: (ActionState DB, Application, ThentosSessionToken, [Header]) -> IO ()
-teardownTestBackend (db, testBackend, tok, godCredentials) = do
-    logoutAsGod testBackend tok godCredentials
-    teardownDB db
+teardownTestBackend :: BTS -> IO ()
+teardownTestBackend = teardownDB . (^. btsActionState)
 
 
 type TestServerFull =

@@ -16,6 +16,7 @@
 module Thentos.Backend.Api.SimpleSpec
 where
 
+import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
 import Control.Monad (void)
 import Data.Monoid ((<>))
@@ -47,7 +48,7 @@ spec = do
     describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
-                    \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
+                    \ bts -> debugRunSession False (bts ^. btsWai) $ do
                 let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
                 resp <- srequest req
                 liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
@@ -55,21 +56,21 @@ spec = do
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $
-                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
-                    response1 <- srequest $ makeSRequest "GET" "/user" godCredentials ""
+                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                    response1 <- srequest $ makeSRequest "GET" "/user" (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
                     liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
 
                 it "is not accessible for users without 'Admin' role" $
-                        \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
+                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $
-                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
-                    response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
+                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                    response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
                 it "can be called by user herself" $
@@ -87,21 +88,23 @@ spec = do
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
                 it "yields an email address" $
-                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
-                    response1 <- srequest $ makeSRequest "GET" resource godCredentials ""
+                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                    response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $
-                        \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
+                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
                     let userData = UserFormData "1" "2" "3"
-                    response1 <- srequest $ makeSRequest "POST" "/user" godCredentials (Aeson.encode userData)
+                    response1 <- srequest $ makeSRequest "POST" "/user" (bts ^. btsGodCredentials) (Aeson.encode userData)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
                     let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
                           Right v -> v
                           Left e -> error $ show (e, response1)
-                    response2 <- srequest $ makeSRequest "GET" ("/user/" <> (cs . show . fromUserId $ uid) <> "/name") godCredentials ""
+                    response2 <- srequest $ makeSRequest "GET"
+                                    ("/user/" <> (cs . show . fromUserId $ uid) <> "/name")
+                                    (bts ^. btsGodCredentials) ""
                     let name = case decodeLenient $ simpleBody response2 of
                           Right v -> v
                           Left e -> error $ show ("/user/" ++ show uid, e, response1)
