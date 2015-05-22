@@ -222,6 +222,7 @@ test-suite tests
     , configifier
     , containers
     , crypto-random
+    , directory
     , filepath
     , functor-infix
     , hspec
@@ -239,9 +240,11 @@ test-suite tests
     , snap-core
     , string-conversions
     , system-fileio
+    , temporary
     , text
     , thyme
     , transformers
+    , unix
     , wai
     , wai-extra
     , webdriver
