@@ -18,9 +18,9 @@ module Test.Util
 where
 
 import Control.Applicative ((<*), (<$>))
-import Control.Concurrent.Async (Async, async, cancel)
+import Control.Concurrent.Async (async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Lens (makeLenses, (^.))
+import Control.Lens ((^.))
 import Control.Monad (when, void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
@@ -60,6 +60,7 @@ import Thentos.Transaction
 import Thentos.Types
 
 import Test.Config
+import Test.Types
 
 
 user1, user2, user3, user4, user5 :: User
@@ -97,17 +98,6 @@ destroyDB = do
         in isDirectory p >>= \ yes -> when yes $ removeTree p
 
 
--- Backend test state.
-data BTS = BTS
-    { _btsActionState    :: ActionState DB
-    , _btsWai            :: Application
-    , _btsToken          :: ThentosSessionToken
-    , _btsGodCredentials :: [Header]
-    }
-
-$(makeLenses ''BTS)
-
-
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
@@ -130,16 +120,9 @@ teardownTestBackend :: BTS -> IO ()
 teardownTestBackend = teardownDB . (^. btsActionState)
 
 
-type TestServerFull =
-    ( ActionState DB
-    , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
-    , (Async (), HttpConfig)  -- FIXME: capture stdout, stderr
-    , forall a . WD.WD a -> IO a
-    )
-
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
-setupTestServerFull :: IO TestServerFull
+setupTestServerFull :: IO FTS
 setupTestServerFull = do
     asg <- setupDB testThentosConfig
 
@@ -162,10 +145,10 @@ setupTestServerFull = do
             WD.setPageLoadTimeout 1000
             action
 
-    return (asg, (backend, beConfig), (frontend, feConfig), wd)
+    return $ FTS asg backend beConfig frontend feConfig wd
 
-teardownTestServerFull :: TestServerFull -> IO ()
-teardownTestServerFull (db, (backend, _), (frontend, _), _) = do
+teardownTestServerFull :: FTS -> IO ()
+teardownTestServerFull (FTS db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
     teardownDB db

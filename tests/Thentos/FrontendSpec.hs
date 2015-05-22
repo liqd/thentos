@@ -29,6 +29,7 @@ import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
 import Test.Arbitrary ()
+import Test.Types
 import Test.Util
 
 
@@ -56,15 +57,15 @@ spec = describe "selenium grid" $ do
     spec_updateSelf
 
 
-spec_createUser :: SpecWith TestServerFull
+spec_createUser :: SpecWith FTS
 spec_createUser = describe "create user" $ do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ \ ((ActionState (_, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
-        wd $ do
-            WD.openPage (cs $ exposeUrl feConfig)
+    it "fill out form." $ \ fts -> do
+        (fts ^. ftsRunWD) $ do
+            WD.openPage (cs $ exposeUrl (fts ^. ftsFrontendCfg))
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.click
 
             let fill :: WD.WebDriver wd => ST -> ST -> wd ()
@@ -78,7 +79,7 @@ spec_createUser = describe "create user" $ do
             WD.findElem (WD.ById "create_user_submit") >>= WD.click
             WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
-    it "click activation link." $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+    it "click activation link." $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> do
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
         Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
@@ -91,7 +92,7 @@ spec_createUser = describe "create user" $ do
                   WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
-    it "check user in DB." $ \ ((ActionState (st, _, _), _, (_, _), _) :: TestServerFull) -> do
+    it "check user in DB." $ \ (FTS (ActionState (st, _, _)) _ _ _ _ _) -> do
         Right (db2 :: DB) <- query' st $ SnapShot
         Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
         eUser <- query' st $ LookupUserByName (UserName myUsername)
@@ -99,11 +100,11 @@ spec_createUser = describe "create user" $ do
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 
 
-spec_resetPassword :: SpecWith TestServerFull
-spec_resetPassword = it "reset password" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_resetPassword :: SpecWith FTS
+spec_resetPassword = it "reset password" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_updateSelf :: SpecWith TestServerFull
+spec_updateSelf :: SpecWith FTS
 spec_updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
@@ -121,7 +122,7 @@ spec_updateSelf = describe "update self" $ do
         selfName :: ST      = "god"
         selfPass :: ST      = "god"
 
-    it "username" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    it "username" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> wd $ do
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
@@ -133,7 +134,7 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+    it "password" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> wd $ do
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update_password")
@@ -147,7 +148,7 @@ spec_updateSelf = describe "update self" $ do
     -- "create_user" and "reset_password" (make sure the check is in
     -- separate function, not inlined.)
 
-    it "email" $ \ (_ :: TestServerFull) ->
+    it "email" $ \ (_ :: FTS) ->
         pendingWith "no test implemented."
 
         {-
@@ -190,12 +191,12 @@ spec_updateSelf = describe "update self" $ do
         -}
 
 
--- manageRoles :: SpecWith TestServerFull
+-- manageRoles :: SpecWith FTS
 -- manageRoles = describe "manage roles" $ do ...
 
 
-spec_logIntoThentos :: SpecWith TestServerFull
-spec_logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+spec_logIntoThentos :: SpecWith FTS
+spec_logIntoThentos = it "log into thentos" $ \ (FTS _ _ _ _ feConfig wd) -> wd $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Login successful")
 
@@ -204,8 +205,8 @@ spec_logIntoThentos = it "log into thentos" $ \ ((_, _, (_, feConfig), wd) :: Te
     -- fact) that the lambda is polymorphic in all places where it
     -- takes '_'?)
 
-spec_logOutOfThentos :: SpecWith TestServerFull
-spec_logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) :: TestServerFull) -> wd $ do
+spec_logOutOfThentos :: SpecWith FTS
+spec_logOutOfThentos = it "log out of thentos" $ \ (FTS _ _ _ _ feConfig wd) -> wd $ do
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -215,8 +216,8 @@ spec_logOutOfThentos = it "log out of thentos" $ \ ((_, _, (_, feConfig), wd) ::
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
-spec_serviceCreate :: SpecWith TestServerFull
-spec_serviceCreate = it "service create" $ \ ((ActionState (st, _, _), _, (_, feConfig), wd) :: TestServerFull) -> do
+spec_serviceCreate :: SpecWith FTS
+spec_serviceCreate = it "service create" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
@@ -251,28 +252,28 @@ spec_serviceCreate = it "service create" $ \ ((ActionState (st, _, _), _, (_, fe
     -- FIXME: test: if user is deleted, so are all their services.
 
 
-spec_serviceDelete :: SpecWith TestServerFull
-spec_serviceDelete = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceDelete :: SpecWith FTS
+spec_serviceDelete = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_serviceUpdateMetadata :: SpecWith TestServerFull
-spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata :: SpecWith FTS
+spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_serviceGiveToOtherUser :: SpecWith TestServerFull
-spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser :: SpecWith FTS
+spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_logIntoService :: SpecWith TestServerFull
-spec_logIntoService = it "log into service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_logIntoService :: SpecWith FTS
+spec_logIntoService = it "log into service" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_logOutOfService :: SpecWith TestServerFull
-spec_logOutOfService = it "log out of service" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_logOutOfService :: SpecWith FTS
+spec_logOutOfService = it "log out of service" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 
 
-spec_browseMyServices :: SpecWith TestServerFull
-spec_browseMyServices = it "browse my services" $ \ (_ :: TestServerFull) -> pendingWith "no test implemented."
+spec_browseMyServices :: SpecWith FTS
+spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "no test implemented."
 {-
       \ ((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do

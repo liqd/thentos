@@ -30,6 +30,7 @@ import qualified Network.HTTP.Types.Status as C
 import Thentos.Types
 import Thentos.Config (Command(Run))
 
+import Test.Types
 import Test.Util
 
 
