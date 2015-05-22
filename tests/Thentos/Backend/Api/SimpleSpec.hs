@@ -17,6 +17,7 @@ module Thentos.Backend.Api.SimpleSpec
 where
 
 import Control.Monad.State (liftIO)
+import Control.Monad (void)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody, runSession)
@@ -37,13 +38,11 @@ tests = hspec spec
 spec :: Spec
 spec = do
     describe "Fixtures" $ do
-        it "make sure backend is running at all." $ do
-            _ <- setupTestBackend Run
-            True `shouldBe` True
+        it "make sure backend is running at all." $
+            void $ setupTestBackend Run
 
-        it "tear it down again, too." $ do
-            setupTestBackend Run >>= teardownTestBackend
-            True `shouldBe` True
+        it "tear it down again, too." $
+            void $ setupTestBackend Run >>= teardownTestBackend
 
     describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
