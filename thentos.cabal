@@ -112,7 +112,6 @@ library
     , servant >= 0.4 && < 0.5
     , servant-server >= 0.4 && < 0.5
     , snap
-    , snap-blaze
     , snap-core
     , snaplet-acid-state
     , snap-server
