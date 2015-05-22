@@ -13,7 +13,7 @@ import Control.Exception (SomeException, catch, bracket_)
 import Control.Monad.State.Class (gets)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (FromJSON, withObject, withText, (.=))
-import Data.String.Conversions (SBS, LBS, cs, (<>))
+import Data.String.Conversions (SBS, LBS, ST, cs, (<>))
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
@@ -173,8 +173,7 @@ helloWorldLogout = do
     case mToken of
         Just token -> do
             req <- do
-                let body = makeJsonServiceSessionToken token
-                initReq <- makeRequest "/service_session/" body
+                initReq <- makeRequest "/service_session/" token
                 return $ initReq { HC.method = methodDelete }
             runRequest req
             with sess (resetSession >> commitSession)
@@ -185,8 +184,7 @@ verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
 verifyToken (Just token) = do
     liftIO $ print ("verifyToken" :: SBS)
-    let body = makeJsonServiceSessionToken token
-    req <- makeRequest "/service_session/" body
+    req <- makeRequest "/service_session/" token
     liftIO $ print req
     liftIO . withManager $ do
         response <- runRequest req
@@ -214,13 +212,13 @@ instance FromJSON HwMetadata where
 
 getMetadata :: Text -> Handler App App (Maybe HwMetadata)
 getMetadata token = do
-    let body = makeJsonServiceSessionToken token
-    req <- makeRequest "/service_session/meta" body
+    req <- makeRequest "/service_session/meta" token
     response <- runRequest req
     return . Aeson.decode $ responseBody response
 
-makeRequest :: SBS -> RequestBody -> Handler App App HC.Request
-makeRequest path body = do
+makeRequest :: SBS -> ST -> Handler App App HC.Request
+makeRequest path token = do
+    let body = makeJsonServiceSessionToken token
     hwConfig <- gets (^. aHWConfig)
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
