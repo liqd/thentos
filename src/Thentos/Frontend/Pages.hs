@@ -38,6 +38,7 @@ module Thentos.Frontend.Pages
 
     , errorPage
     , errorPagelet
+    , permissionDeniedPage
     , confirmationMailSentPage
     , confirmationMailSentPagelet
     ) where
@@ -437,6 +438,11 @@ serviceRegisterForm = pure ()
 
 errorPage :: String -> Html
 errorPage errorString = basePagelet "Error" . H.string $ "*** error: " ++ show errorString
+
+permissionDeniedPage :: Html
+permissionDeniedPage = do
+    H.h1 "Permission Denied"
+    H.p (H.a ! A.href "/dashboard" $ "Back to dashboard")
 
 errorPagelet :: u -> rs -> String -> Html
 errorPagelet _ _ errorString = H.string $ "*** error: " ++ show errorString

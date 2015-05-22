@@ -19,6 +19,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
+import LIO.Error (AnyLabelError)
 import Snap.Blaze (blaze)
 import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
@@ -26,7 +27,7 @@ import Snap.Snaplet.AcidState (getAcidState)
 import Snap.Snaplet (Handler, with)
 import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
 import System.Log.Missing (logger)
-import System.Log (Priority(DEBUG, CRITICAL))
+import System.Log (Priority(DEBUG, CRITICAL, INFO))
 import Text.Digestive.Form (Form)
 import Text.Digestive.Snap (runForm)
 import Text.Digestive.View (View)
@@ -247,6 +248,13 @@ crash500 a = do
     logger CRITICAL $ show ("*** internal error: " <> show a)
     crash 500 "internal error.  we are very sorry."
 
+permissionDenied :: AnyLabelError -> Handler b v x
+permissionDenied labelError = do
+    logger INFO $ "Label error :" ++ show labelError
+    modifyResponse $ setResponseStatus 403 "Permission denied"
+    blaze permissionDeniedPage
+    getResponse >>= finishWith
+
 urlConfirm :: HttpConfig -> ST -> ST -> ST
 urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
   where
@@ -297,7 +305,9 @@ snapRunAction action = snapRunActionE action >>= \case
 -- | This function could, e.g., handle redirect to login page in case of permission denied.  For now
 -- it just crashes every time.
 snapHandleError :: ActionError -> FH a
-snapHandleError = crash500
+snapHandleError = \case
+    ActionErrorAnyLabel labelError -> permissionDenied labelError
+    e -> crash500 e
 
 -- | Read the clearance from the 'App' state and apply it to 'runAction'.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
