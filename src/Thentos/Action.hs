@@ -11,26 +11,21 @@ module Thentos.Action
 where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (finally)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError, catchError)
-import "crypto-random" Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
-import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Set (Set)
 import Data.String.Conversions (ST, cs)
-import LIO.Core (liftLIO, setLabel)
-import LIO.DCLabel ((%%))
+import LIO.Core (liftLIO, guardWrite)
+import LIO.DCLabel ((%%), (\/), (/\))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import Thentos.Action.Core
-import Thentos.Config
 import Thentos.Types
 import Thentos.Util
 
@@ -64,6 +59,11 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 -- * user
 
+allUserIds :: Action DB [UserId]
+allUserIds = do
+    liftLIO $ guardWrite (RoleAdmin %% False)
+    query'P T.AllUserIds
+
 lookupUser :: UserId -> Action DB (UserId, User)
 lookupUser = query'P . T.LookupUser
 
@@ -79,7 +79,7 @@ addUser userData = do
 
 deleteUser :: UserId -> Action DB ()
 deleteUser uid = do
-    liftLIO $ setLabel (UserA uid %% UserA uid)
+    liftLIO $ guardWrite (UserA uid %% UserA uid)
     update'P $ T.DeleteUser uid
 
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
@@ -328,13 +328,17 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- * agents and roles
 
 assignRole :: Agent -> Role -> Action DB ()
-assignRole agent = update'P . T.AssignRole agent
+assignRole agent role = do
+    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    update'P $ T.AssignRole agent role
 
 unassignRole :: Agent -> Role -> Action DB ()
 unassignRole agent = update'P . T.UnassignRole agent
 
 agentRoles :: Agent -> Action DB [Role]
-agentRoles = fmap Set.toList . query'P . T.AgentRoles
+agentRoles agent = do
+    liftLIO $ guardWrite (agent \/ RoleAdmin %% agent /\ RoleAdmin)
+    Set.toList <$> query'P (T.AgentRoles agent)
 
 
 -- * garbage collection

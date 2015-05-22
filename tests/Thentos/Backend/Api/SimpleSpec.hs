@@ -20,7 +20,7 @@ import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody, runSession)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldThrow, anyException, pendingWith, hspec)
+import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
@@ -36,16 +36,22 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
+    describe "Fixtures" $ do
+        it "make sure backend is running at all." $ do
+            _ <- setupTestBackend Run
+            True `shouldBe` True
+
+        it "tear it down again, too." $ do
+            setupTestBackend Run >>= teardownTestBackend
+            True `shouldBe` True
+
     describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
-            it "bad unknown headers matching /X-Thentos-*/ results in a 500 error." $
-                    \ (_, testBackend, _, godCredentials) -> debugRunSession False testBackend $ do
-                let req = makeSRequest "GET" "/" (godCredentials ++ [("X-Thentos-No-Such-Header", "3")]) ""
-                liftIO $ runSession (srequest req) testBackend `shouldThrow` anyException
-
-                -- (sending 500 errors for user mistakes is not ideal,
-                -- but the error reporting functionality of servant is
-                -- still evolving.)
+            it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
+                    \ (_, testBackend, _, _) -> debugRunSession False testBackend $ do
+                let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
+                resp <- liftIO $ runSession (srequest req) testBackend
+                liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
 
         describe "user" $ do
             describe "Get [UserId]" $ do

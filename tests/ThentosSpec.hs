@@ -124,27 +124,27 @@ spec = describe "DB" . before (setupDB testThentosConfig) . after teardownDB $ d
         describe "assign" $ do
             it "can be called by admins" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionWithPrivsE [RoleAdmin] asg . update'P $ T.AssignRole targetAgent (RoleBasic RoleAdmin)
+                result <- runActionWithPrivsE [RoleAdmin] asg $ assignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionWithPrivsE [targetAgent] asg . update'P $ T.AssignRole targetAgent (RoleBasic RoleAdmin)
+                result <- runActionWithPrivsE [targetAgent] asg $ assignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
             it "can be called by admins" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionWithPrivsE [RoleAdmin] asg . query'P $ T.AgentRoles targetAgent
+                result <- runActionWithPrivsE [RoleAdmin] asg $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
             it "can be called by user for her own roles" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runActionWithPrivsE [targetAgent] asg . query'P $ T.AgentRoles targetAgent
+                result <- runActionWithPrivsE [targetAgent] asg $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by other users" $ \ asg -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
-                result <- runActionWithPrivsE [askingAgent] asg . query'P $ T.AgentRoles targetAgent
+                result <- runActionWithPrivsE [askingAgent] asg $ agentRoles targetAgent
                 result `shouldSatisfy` isLeft

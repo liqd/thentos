@@ -87,7 +87,7 @@ thentosUser =
   :<|> (((^. userName) . snd) <$>) . query'P . T.LookupUser
   :<|> (\ uid email -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldEmail email))
   :<|> (((^. userEmail) . snd) <$>) . query'P . T.LookupUser
-  :<|> query'P T.AllUserIds
+  :<|> allUserIds
 
 
 -- * service
