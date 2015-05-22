@@ -31,7 +31,7 @@ import Thentos.Types
 import Thentos.Config (Command(Run))
 
 import Test.Types
-import Test.Util
+import Test.Core
 
 
 tests :: IO ()

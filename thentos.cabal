@@ -197,8 +197,8 @@ test-suite tests
   other-modules:
       Test.Arbitrary
     , Test.Config
+    , Test.Core
     , Test.Types
-    , Test.Util
     , ThentosSpec
     , Thentos.Backend.Api.Adhocracy3Spec
     , Thentos.Backend.Api.SimpleSpec

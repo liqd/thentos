@@ -40,7 +40,7 @@ import Thentos.Config
 import Thentos.Types
 
 import Test.Arbitrary ()
-import Test.Util
+import Test.Core
 
 
 tests :: IO ()

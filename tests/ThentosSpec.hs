@@ -28,7 +28,7 @@ import Thentos.Types
 import qualified Thentos.Transaction as T
 
 import Test.Config
-import Test.Util
+import Test.Core
 
 
 tests :: IO ()

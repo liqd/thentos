@@ -31,7 +31,7 @@ import Thentos.Util ((<//>), verifyPass)
 
 import Test.Arbitrary ()
 import Test.Types
-import Test.Util
+import Test.Core
 
 
 tests :: IO ()

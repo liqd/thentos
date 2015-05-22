@@ -13,7 +13,7 @@ import qualified Data.ByteString as SBS
 import Thentos.Types
 -- import Thentos.Backend.Api.Adhocracy3
 
-import Test.Util
+import Test.Core
 
 
 instance Arbitrary (HashedSecret a) where

@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Test.Util
+module Test.Core
 where
 
 import Control.Applicative ((<*), (<$>))
