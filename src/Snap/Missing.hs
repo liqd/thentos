@@ -1,4 +1,6 @@
-module Thentos.Frontend.Util where
+{-# LANGUAGE OverloadedStrings  #-}
+
+module Snap.Missing where
 
 import Control.Exception (SomeException)
 import Control.Monad (when)
@@ -12,14 +14,14 @@ import System.IO (stderr, hPutStrLn)
 
 import qualified Data.Text as ST
 
--- * missing in snap
 
 -- | This does the same as serveSnaplet from the snap package, except that
--- it does not try to read app arguments from the command line
+-- it does not try to read app arguments from the command line.
 --
--- FIXME: there was some discussion over at snap on how to move that
--- upstream.  what's the state on that?  i think we will have to wait
--- for release 1.0?
+-- (Missing in "Snap.Snaplet"; package snap.)
+--
+-- See also: https://github.com/snapframework/snap/pull/135
+-- (Merged on 2015-02-02, but not released as of 2015-05-22.)
 serveSnaplet :: Config Snap AppConfig
                  -- ^ The configuration of the server - you can usually pass a
                  -- default 'Config' via

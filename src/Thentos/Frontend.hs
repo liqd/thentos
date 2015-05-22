@@ -24,11 +24,11 @@ import System.Log (Priority(INFO))
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
 
+import Snap.Missing (serveSnaplet)
 import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Types
-import Thentos.Frontend.Util (serveSnaplet)
 import Thentos.Types
 
 

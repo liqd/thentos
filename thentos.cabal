@@ -53,6 +53,7 @@ library
     ghc-options: -w
   exposed-modules:
       System.Log.Missing
+    , Snap.Missing
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
@@ -67,7 +68,6 @@ library
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Types
-    , Thentos.Frontend.Util
     , Thentos.Smtp
     , Thentos.Transaction
     , Thentos.Transaction.Core
