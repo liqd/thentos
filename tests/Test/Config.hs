@@ -76,8 +76,8 @@ testThentosConfig tcfg = Tagged $
     testSmtpConfig = Tagged $
           JustO (Id "Thentos")
       :*> Id "thentos@thentos.org"
-      :*> Id "/bin/cat"  -- FIXME: /bin/cat pollutes stdout.
-      :*> Id []  -- [">", "file"] does not work.  use 'tee'?  or an alternative fifo?  how is that done in configifier?
+      :*> Id "/bin/cat"
+      :*> Id []
 
 godUid :: UserId
 godUid = UserId 0
