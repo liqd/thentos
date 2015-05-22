@@ -173,7 +173,8 @@ helloWorldLogout = do
     case mToken of
         Just token -> do
             req <- do
-                initReq <- makeRequest "/service_session/" token
+                let body = makeJsonServiceSessionToken token
+                initReq <- makeRequest "/service_session/" body
                 return $ initReq { HC.method = methodDelete }
             runRequest req
             with sess (resetSession >> commitSession)
@@ -184,7 +185,8 @@ verifyToken :: Maybe Text -> Handler App App Bool
 verifyToken Nothing = return False
 verifyToken (Just token) = do
     liftIO $ print ("verifyToken" :: SBS)
-    req <- makeRequest "/service_session/" token
+    let body = makeJsonServiceSessionToken token
+    req <- makeRequest "/service_session/" body
     liftIO $ print req
     liftIO . withManager $ do
         response <- runRequest req
@@ -194,13 +196,17 @@ verifyToken (Just token) = do
             "false" -> return False
             e       -> fail $ "Bad response: " ++ show e
 
+makeJsonServiceSessionToken :: Text -> RequestBody
+makeJsonServiceSessionToken token =
+    let json_token = Aeson.object ["fromServiceSessionToken" .= token]
+    in RequestBodyLBS $ Aeson.encode json_token
 
 data HwMetadata = HwMetadata Aeson.Value Text
   deriving (Eq, Show)
 
 instance FromJSON HwMetadata where
-    parseJSON v = flip (withObject msg) v $ \ obj -> case HashMap.lookup "servSessMDUser" obj of
-        Nothing -> fail "no servSessMDUser field."
+    parseJSON v = flip (withObject msg) v $ \ obj -> case HashMap.lookup "srvSessMdUser" obj of
+        Nothing -> fail "no srvSessMdUser field."
         Just t  -> withText msg (return . HwMetadata v) t
       where
         msg = "instance FromJSON (HwMetadata Aeson.Value Text)"
@@ -208,19 +214,20 @@ instance FromJSON HwMetadata where
 
 getMetadata :: Text -> Handler App App (Maybe HwMetadata)
 getMetadata token = do
-    req <- makeRequest "/service_session/meta" token
+    let body = makeJsonServiceSessionToken token
+    req <- makeRequest "/service_session/meta" body
     response <- runRequest req
     return . Aeson.decode $ responseBody response
 
-makeRequest :: SBS -> Text -> Handler App App HC.Request
-makeRequest path token = do
+makeRequest :: SBS -> RequestBody -> Handler App App HC.Request
+makeRequest path body = do
     hwConfig <- gets (^. aHWConfig)
     let url = thentosBackendUrl hwConfig <> path
     initReq <- liftIO . parseUrl $ BC.unpack url
     let sid = encodeUtf8 $ serviceId hwConfig
     return $ initReq
         { requestHeaders = [("X-Thentos-Service", sid), ("Content-Type", "application/json")]
-        , requestBody = RequestBodyLBS $ Aeson.encode token
+        , requestBody = body
         }
 
 -- | httpLbs from http-conduit likes to throw exceptions a lot, and snap likes to pass them on the
