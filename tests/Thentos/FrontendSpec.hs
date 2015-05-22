@@ -234,7 +234,7 @@ spec_serviceCreate = it "service create" $ \ (FTS (ActionState (st, _, _)) _ _ _
 
         WD.findElem (WD.ById "create_service_submit") >>= WD.click
 
-        (\ ((=~- "Service id: (.+)<") . cs -> [_, sid]) -> ServiceId $ cs (LBS.take 24 sid)) <$> WD.getSource
+        (\ ((=~- "Service id: (.+)\"") . cs -> [_, sid]) -> ServiceId $ cs (LBS.take 24 sid)) <$> WD.getSource
 
     -- db: check that
     --   1. service has been created;
