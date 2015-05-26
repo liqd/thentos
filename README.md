@@ -232,8 +232,10 @@ Please notify us if you want something to be added.
 Thanks!
 -------
 
-In alphanumerical order.  Please let us know if we forgot to add you.
+In alphanumerical order.  Please let us know if we forgot to add you,
+or if you would like us to link to your github handle / email.
 
 - Christian Siefkes
 - Julian Arni
+- Robert Vollmert
 - Sönke Hahn
