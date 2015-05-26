@@ -37,13 +37,13 @@ import Thentos.Types
 -- * user
 
 freshUserId :: (AsDB db) => ThentosUpdate' db e UserId
-freshUserId = do
-    uid <- gets (^. asDB . dbFreshUserId)
-    modify $ asDB . dbFreshUserId .~ succ uid
+freshUserId = liftAsDBU $ do
+    uid <- gets (^. dbFreshUserId)
+    modify $ dbFreshUserId .~ succ uid
     return uid
 
 assertUser :: (AsDB db) => Maybe UserId -> User -> ThentosQuery db ()
-assertUser mUid user = ask >>= \ ((^. asDB) -> db) ->
+assertUser mUid user = liftAsDBQ $ ask >>= \ db ->
     if | userFacetExists (^. userName)  mUid user db -> throwT UserNameAlreadyExists
        | userFacetExists (^. userEmail) mUid user db -> throwT UserEmailAlreadyExists
        | True -> return ()
@@ -78,7 +78,20 @@ withExpiryT now expiry thentosError f action = do
             else return result
 
 trans_allUserIds :: (AsDB db) => ThentosQuery db [UserId]
-trans_allUserIds = Map.keys . (^. asDB . dbUsers) <$> ask
+trans_allUserIds = liftAsDBQ $ Map.keys . (^. dbUsers) <$> ask
+
+-- FIXME: keep refactoring for use of liftAsDBQ, liftAsDBU from here.
+--
+-- open questions:
+--   1. is this really lifting, or do we need a better name?  (it doesn't touch the monad
+--      transformer stack, but rather its state.)
+--   2. how to implement the functions *efficiently*?  (there should not be any runtime overhead.)
+--   3. i still like the idea, but it's not clear how to use it in @pure_*@ functions.  how useful
+--      is it after all?
+
+
+
+
 
 trans_lookupUser :: (AsDB db) => UserId -> ThentosQuery db (UserId, User)
 trans_lookupUser uid = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUser` uid)

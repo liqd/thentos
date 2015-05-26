@@ -10,6 +10,8 @@ module Thentos.Transaction.Core
   , liftThentosQuery
   , runThentosUpdate
   , runThentosQuery
+  , liftAsDBQ
+  , liftAsDBU
   ) where
 
 import Control.Applicative ((<$>))
@@ -59,3 +61,13 @@ runThentosUpdate action = do
 -- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
 runThentosQuery :: ThentosQuery DB a -> Query DB (Either ThentosError a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
+
+-- | Turn a transaction on 'DB' into on on any 'AsDB' instance.  The query case; see also
+-- 'liftAsDBU'.  (FUTURE WORK: shouldn't there be a way to do both cases with one lift function?)
+liftAsDBQ :: AsDB db => ThentosQuery' DB e a -> ThentosQuery' db e a
+liftAsDBQ = error "liftAsDBQ: not implemented"
+
+-- | Turn a transaction on 'DB' into on on any 'AsDB' instance.  The update case; see also
+-- 'liftAsDBQ'.
+liftAsDBU :: AsDB db => ThentosUpdate' DB e a -> ThentosUpdate' db e a
+liftAsDBU = error "liftAsDBU: not implemented"
