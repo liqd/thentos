@@ -14,7 +14,6 @@ before_install:
   - make start
   - cd ../..
 install:
-    - git clone https://github.com/zerobuzz/servant-pandoc -b may-fix-issue-2
     - "./.travis/install.sh"
     - cabal install --dependencies-only --enable-tests
 script:
