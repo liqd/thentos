@@ -80,7 +80,6 @@ spec_createUser = describe "create user" $ do
             WD.findElem (WD.ById "create_user_submit") >>= WD.click
             WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
-    it "click activation link." $ \ fts -> do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
             wd = fts ^. ftsRunWD
@@ -97,7 +96,7 @@ spec_createUser = describe "create user" $ do
                   WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
-    it "check user in DB." $ \ fts -> do
+        -- check that user is in db
         let ActionState (st, _, _) = fts ^. ftsActionState
         Right (db2 :: DB) <- query' st $ SnapShot
         Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
