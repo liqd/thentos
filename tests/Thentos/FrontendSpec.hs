@@ -30,8 +30,8 @@ import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
 import Test.Arbitrary ()
+import Test.Core
 import Test.Types
-import Test.Util
 
 
 tests :: IO ()
@@ -80,7 +80,11 @@ spec_createUser = describe "create user" $ do
             WD.findElem (WD.ById "create_user_submit") >>= WD.click
             WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
-    it "click activation link." $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> do
+    it "click activation link." $ \ fts -> do
+        let ActionState (st, _, _) = fts ^. ftsActionState
+            feConfig = fts ^. ftsFrontendCfg
+            wd = fts ^. ftsRunWD
+
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
         Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
@@ -93,7 +97,8 @@ spec_createUser = describe "create user" $ do
                   WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
-    it "check user in DB." $ \ (FTS (ActionState (st, _, _)) _ _ _ _ _) -> do
+    it "check user in DB." $ \ fts -> do
+        let ActionState (st, _, _) = fts ^. ftsActionState
         Right (db2 :: DB) <- query' st $ SnapShot
         Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
         eUser <- query' st $ LookupUserByName (UserName myUsername)
@@ -123,7 +128,10 @@ spec_updateSelf = describe "update self" $ do
         selfName :: ST      = "god"
         selfPass :: ST      = "god"
 
-    it "username" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> wd $ do
+    it "username" $ \ fts -> (fts ^. ftsRunWD) $ do
+        let ActionState (st, _, _) = fts ^. ftsActionState
+            feConfig = fts ^. ftsFrontendCfg
+
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
@@ -135,7 +143,10 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> wd $ do
+    it "password" $ \ fts -> fts ^. ftsRunWD $ do
+        let ActionState (st, _, _) = fts ^. ftsActionState
+            feConfig = fts ^. ftsFrontendCfg
+
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPage (cs $ exposeUrl feConfig <//> "/user/update_password")
@@ -197,7 +208,9 @@ spec_updateSelf = describe "update self" $ do
 
 
 spec_logIntoThentos :: SpecWith FTS
-spec_logIntoThentos = it "log into thentos" $ \ (FTS _ _ _ _ feConfig wd) -> wd $ do
+spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
+    let feConfig = fts ^. ftsFrontendCfg
+
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Login successful")
 
@@ -207,7 +220,9 @@ spec_logIntoThentos = it "log into thentos" $ \ (FTS _ _ _ _ feConfig wd) -> wd 
     -- takes '_'?)
 
 spec_logOutOfThentos :: SpecWith FTS
-spec_logOutOfThentos = it "log out of thentos" $ \ (FTS _ _ _ _ feConfig wd) -> wd $ do
+spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
+    let feConfig = fts ^. ftsFrontendCfg
+
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -218,7 +233,11 @@ spec_logOutOfThentos = it "log out of thentos" $ \ (FTS _ _ _ _ feConfig wd) -> 
 
 
 spec_serviceCreate :: SpecWith FTS
-spec_serviceCreate = it "service create" $ \ (FTS (ActionState (st, _, _)) _ _ _ feConfig wd) -> do
+spec_serviceCreate = it "service create" $ \ fts -> do
+    let ActionState (st, _, _) = fts ^. ftsActionState
+        feConfig = fts ^. ftsFrontendCfg
+        wd = fts ^. ftsRunWD
+
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."

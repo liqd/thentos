@@ -3,73 +3,81 @@
 module Test.Config
 where
 
+import Control.Applicative ((<$>))
+import Control.Lens ((^.))
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
+import Data.Maybe (fromMaybe)
+import System.Environment (getEnvironment)
+import System.FilePath ((</>))
+import System.IO.Temp (createTempDirectory)
+import System.Posix.Files (createNamedPipe)
 
 import Thentos.Types
 import Thentos.Config
 import Thentos (createDefaultUser)
 
+import Test.Types
 
-data TestConfig =
-    TestConfig
-      { dbPath :: FilePath
-      , restPort :: Int
-      , serverFullBackendPort :: Int
-      , serverFullFrontendPort :: Int
-      , webdriverHost :: String
-      , webdriverPort :: Int
-      }
-  deriving (Eq, Show)
 
-testConfig :: TestConfig
-testConfig =
-    TestConfig
-      { dbPath = ".test-db/"
-      , restPort = 8002
-      , serverFullBackendPort = 7118
-      , serverFullFrontendPort = 7119
-      , webdriverHost = "localhost"
-      , webdriverPort = 4451
-      }
+testConfig :: IO TestConfig
+testConfig = do
+    tmp <- thentosCreateTempDirectory
+    let cfg = TestConfig
+          { _tcfgTmp                    = tmp
+          , _tcfgDbPath                 = tmp </> "test-db/"
+          , _tcfgMailFifo               = tmp </> "mailfifo"
+          , _tcfgRestPort               = 8002
+          , _tcfgServerFullBackendPort  = 7118
+          , _tcfgServerFullFrontendPort = 7119
+          , _tcfgWebdriverHost          = "localhost"
+          , _tcfgWebdriverPort          = 4451
+          }
+    createNamedPipe (cfg ^. tcfgMailFifo) 0600
+    return cfg
 
-testThentosConfig :: ThentosConfig
-testThentosConfig = Tagged $
-      Id Run
-  :*> JustO (Id (fromTagged testFeConfig))
-  :*> JustO (Id (fromTagged testBeConfig))
-  :*> NothingO
-  :*> Id (fromTagged testSmtpConfig)
-  :*> NothingO
-  :*> Id (Timeout 3600)
-  :*> Id (Timeout 3600)
-  :*> Id (Timeout 3600)
-  :*> JustO (Id 1800)
+thentosCreateTempDirectory :: IO FilePath
+thentosCreateTempDirectory = do
+    tmp <- fromMaybe "/tmp/" . lookup "TMP" <$> getEnvironment
+    createTempDirectory tmp "_thentos_test_"
 
-testFeConfig :: HttpConfig
-testFeConfig = Tagged $
-      NothingO
-  :*> Id "localhost"
-  :*> Id (serverFullFrontendPort testConfig)
-  :*> NothingO
-  :*> NothingO
-  :*> NothingO
+testThentosConfig :: TestConfig -> ThentosConfig
+testThentosConfig tcfg = Tagged $
+          Id Run
+      :*> JustO (Id (fromTagged testFeConfig))
+      :*> JustO (Id (fromTagged testBeConfig))
+      :*> NothingO
+      :*> Id (fromTagged testSmtpConfig)
+      :*> NothingO
+      :*> Id (Timeout 3600)
+      :*> Id (Timeout 3600)
+      :*> Id (Timeout 3600)
+      :*> JustO (Id 1800)
+  where
+    testFeConfig :: HttpConfig
+    testFeConfig = Tagged $
+          NothingO
+      :*> Id "localhost"
+      :*> Id (tcfg ^. tcfgServerFullFrontendPort)
+      :*> NothingO
+      :*> NothingO
+      :*> NothingO
 
-testBeConfig :: HttpConfig
-testBeConfig = Tagged $
-      NothingO
-  :*> Id "localhost"
-  :*> Id (serverFullBackendPort testConfig)
-  :*> NothingO
-  :*> NothingO
-  :*> NothingO
+    testBeConfig :: HttpConfig
+    testBeConfig = Tagged $
+          NothingO
+      :*> Id "localhost"
+      :*> Id (tcfg ^. tcfgServerFullBackendPort)
+      :*> NothingO
+      :*> NothingO
+      :*> NothingO
 
-testSmtpConfig :: SmtpConfig
-testSmtpConfig = Tagged $
-      JustO (Id "Thentos")
-  :*> Id "thentos@thentos.org"
-  :*> Id "/bin/cat"  -- FIXME: /bin/cat pollutes stdout.
-  :*> Id []
+    testSmtpConfig :: SmtpConfig
+    testSmtpConfig = Tagged $
+          JustO (Id "Thentos")
+      :*> Id "thentos@thentos.org"
+      :*> Id "/bin/cat"
+      :*> Id []
 
 godUid :: UserId
 godUid = UserId 0

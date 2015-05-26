@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Test.Util
+module Test.Core
 where
 
 import Control.Applicative ((<*), (<$>))
@@ -42,6 +42,7 @@ import Network.Wai (Application, StreamingBody, requestMethod, requestBody, stri
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
+import System.Directory (removeDirectoryRecursive)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -77,24 +78,25 @@ encryptTestSecret pw =
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 
-setupDB :: ThentosConfig -> IO (ActionState DB)
-setupDB thentosConfig = do
-    destroyDB
-    st <- openLocalStateFrom (dbPath testConfig) emptyDB
+setupDB :: IO DBTS
+setupDB = do
+    tcfg <- testConfig
+    destroyDB tcfg
+    st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
     createGod st
     Right (UserId 1) <- update' st $ AddUser user1
     Right (UserId 2) <- update' st $ AddUser user2
     rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
-    return $ ActionState (st, rng, thentosConfig)
+    return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
 
-teardownDB :: ActionState DB -> IO ()
-teardownDB (ActionState (st, _, _)) = do
+teardownDB :: DBTS -> IO ()
+teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
     closeAcidState st
-    destroyDB
+    destroyDB tcfg
 
-destroyDB :: IO ()
-destroyDB = do
-    let p = (fromString (dbPath testConfig))
+destroyDB :: TestConfig -> IO ()
+destroyDB tcfg = do
+    let p = fromString $ tcfg ^. tcfgDbPath
         in isDirectory p >>= \ yes -> when yes $ removeTree p
 
 
@@ -103,12 +105,12 @@ destroyDB = do
 -- headers for default god user.
 setupTestBackend :: Command -> IO BTS
 setupTestBackend cmd = do
-    asg <- setupDB testThentosConfig
+    DBTS tcfg asg <- setupDB
     case cmd of
         Run -> do
             let testBackend = Simple.serveApi asg
             (tok, headers) <- loginAsGod testBackend
-            return $ BTS asg testBackend tok headers
+            return $ BTS tcfg asg testBackend tok headers
 {-
         RunA3 ->
             let e = error "setupTestBackend: no god credentials!"
@@ -117,25 +119,27 @@ setupTestBackend cmd = do
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
 teardownTestBackend :: BTS -> IO ()
-teardownTestBackend = teardownDB . (^. btsActionState)
+teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
 
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
 setupTestServerFull :: IO FTS
 setupTestServerFull = do
-    asg <- setupDB testThentosConfig
+    DBTS tcfg asg <- setupDB
 
-    let Just (beConfig :: HttpConfig) = Tagged <$> testThentosConfig >>. (Proxy :: Proxy '["backend"])
-        Just (feConfig :: HttpConfig) = Tagged <$> testThentosConfig >>. (Proxy :: Proxy '["frontend"])
+    let Just (beConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["backend"])
+        Just (feConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["frontend"])
 
     backend  <- async $ Simple.runApi beConfig asg
     frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
 
     let wdConfig = WD.defaultConfig
-            { WD.wdHost = webdriverHost testConfig
-            , WD.wdPort = webdriverPort testConfig
+            { WD.wdHost = tcfg ^. tcfgWebdriverHost
+            , WD.wdPort = tcfg ^. tcfgWebdriverPort
             }
+
+        wd :: forall a . WD.WD a -> IO a
         wd action = WD.runSession wdConfig . WD.finallyClose $ do
              -- running `WD.closeOnException` here is not
              -- recommended, as it hides all hspec errors behind an
@@ -145,13 +149,14 @@ setupTestServerFull = do
             WD.setPageLoadTimeout 1000
             action
 
-    return $ FTS asg backend beConfig frontend feConfig wd
+    return $ FTS tcfg asg backend beConfig frontend feConfig wd
 
 teardownTestServerFull :: FTS -> IO ()
-teardownTestServerFull (FTS db backend _ frontend _ _) = do
+teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
-    teardownDB db
+    removeDirectoryRecursive (tcfg ^. tcfgTmp)
+    teardownDB $ DBTS tcfg db
 
 
 loginAsGod :: Application -> IO (ThentosSessionToken, [Header])
