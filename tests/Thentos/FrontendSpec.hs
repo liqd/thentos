@@ -30,8 +30,8 @@ import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
 import Test.Arbitrary ()
-import Test.Types
 import Test.Core
+import Test.Types
 
 
 tests :: IO ()
