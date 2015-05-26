@@ -81,7 +81,6 @@ encryptTestSecret pw =
 setupDB :: IO DBTS
 setupDB = do
     tcfg <- testConfig
-    destroyDB tcfg
     st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
     createGod st
     Right (UserId 1) <- update' st $ AddUser user1
@@ -92,12 +91,7 @@ setupDB = do
 teardownDB :: DBTS -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
     closeAcidState st
-    destroyDB tcfg
-
-destroyDB :: TestConfig -> IO ()
-destroyDB tcfg = do
-    let p = fromString $ tcfg ^. tcfgDbPath
-        in isDirectory p >>= \ yes -> when yes $ removeTree p
+    removeDirectoryRecursive (tcfg ^. tcfgTmp)
 
 
 -- | Test backend does not open a tcp socket, but uses hspec-wai
@@ -155,7 +149,6 @@ teardownTestServerFull :: FTS -> IO ()
 teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
-    removeDirectoryRecursive (tcfg ^. tcfgTmp)
     teardownDB $ DBTS tcfg db
 
 
