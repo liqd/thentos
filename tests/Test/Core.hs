@@ -21,7 +21,7 @@ import Control.Applicative ((<*), (<$>))
 import Control.Concurrent.Async (async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Lens ((^.))
-import Control.Monad (when, void)
+import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
 import Data.Acid.Advanced (update')
@@ -33,8 +33,6 @@ import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, cs)
-import Filesystem (isDirectory, removeTree)
-import GHC.Exts (fromString)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.HTTP.Types.Status (statusCode)
@@ -43,6 +41,11 @@ import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStr
 import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import System.Directory (removeDirectoryRecursive)
+import System.FilePath ((</>))
+import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Handler.Simple (formatter, fileHandler)
+import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
+import System.Log.Missing (loggerName)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -78,9 +81,26 @@ encryptTestSecret pw =
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 
+-- | Log everything with 'DEBUG' level to @[tmp].../everything.log@.
+setupLogger :: TestConfig -> IO ()
+setupLogger tcfg = do
+    let loglevel = DEBUG
+        logfile = tcfg ^. tcfgTmp </> "everything.log"
+
+    removeAllHandlers
+    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
+    updateGlobalLogger loggerName $
+        setLevel DEBUG . setHandlers [fHandler]
+
+teardownLogger :: IO ()
+teardownLogger = removeAllHandlers
+
+
 setupDB :: IO DBTS
 setupDB = do
     tcfg <- testConfig
+    setupLogger tcfg
     st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
     createGod st
     Right (UserId 1) <- update' st $ AddUser user1
@@ -90,6 +110,7 @@ setupDB = do
 
 teardownDB :: DBTS -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
+    teardownLogger
     closeAcidState st
     removeDirectoryRecursive (tcfg ^. tcfgTmp)
 
