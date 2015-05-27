@@ -298,9 +298,10 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 -- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
 -- left value.
 snapRunAction :: Action DB a -> FH a
-snapRunAction action = snapRunActionE action >>= \case
-    Right v -> return v
-    Left e  -> snapHandleError e
+snapRunAction = wrapErrorHandling snapRunActionE
+
+snapRunAction'P :: Action DB a -> FH a
+snapRunAction'P = wrapErrorHandling snapRunActionE'P
 
 -- | This function could, e.g., handle redirect to login page in case of permission denied.  For now
 -- it just crashes every time.
@@ -308,6 +309,11 @@ snapHandleError :: ActionError -> FH a
 snapHandleError = \case
     ActionErrorAnyLabel labelError -> permissionDenied labelError
     e -> crash500 e
+
+wrapErrorHandling :: (Action DB a -> FH (Either ActionError a)) -> (Action DB a -> FH a)
+wrapErrorHandling f action = f action >>= \case
+    Right v -> return v
+    Left e  -> snapHandleError e
 
 -- | Read the clearance from the 'App' state and apply it to 'runAction'.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
@@ -320,3 +326,10 @@ snapRunActionE action = do
     case (^. fslToken) <$> fs ^. fsdLogin of
         Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
         Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
+
+snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
+snapRunActionE'P action = do
+    st :: AcidState DB <- getAcidState
+    rn :: MVar SystemRNG      <- gets (^. rng)
+    cf :: ThentosConfig       <- gets (^. cfg)
+    liftIO $ runActionWithLabelE dcTop (ActionState (st, rn, cf)) action
