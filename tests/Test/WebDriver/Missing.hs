@@ -62,7 +62,7 @@ waitForElementToGoStale freq timeout el = loop timeout
             liftIO $ threadDelay freq
             eResult :: Either () ST <- (Right <$> WD.getText el) `catches` [Handler ackStaleException]
             either (\ (_ :: ()) -> return ())
-                   (\ (_ :: ST) -> loop $ timeLeft - fromIntegral freq)
+                   (\ (_ :: ST) -> loop $ timeLeft - (fromIntegral freq / 1e6))
                 eResult
 
 -- | Return @Left ()@ iff exception is 'StaleElementReference'.  Re-throw all other exceptions.
