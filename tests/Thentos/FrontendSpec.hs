@@ -29,6 +29,7 @@ import Thentos.Transaction
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
+import Test.WebDriver.Missing as WD
 import Test.Arbitrary ()
 import Test.Core
 import Test.Types
@@ -66,8 +67,8 @@ spec_createUser = describe "create user" $ do
 
     it "fill out form." $ \ fts -> do
         (fts ^. ftsRunWD) $ do
-            WD.openPage (cs $ exposeUrl (fts ^. ftsFrontendCfg))
-            WD.findElem (WD.ByLinkText "Register new user") >>= WD.click
+            WD.openPageSync (cs $ exposeUrl (fts ^. ftsFrontendCfg))
+            WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
             let fill :: WD.WebDriver wd => ST -> ST -> wd ()
                 fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
@@ -77,7 +78,7 @@ spec_createUser = describe "create user" $ do
             fill "/user/register.password2" myPassword
             fill "/user/register.email" myEmail
 
-            WD.findElem (WD.ById "create_user_submit") >>= WD.click
+            WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
             WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
 
         let ActionState (st, _, _) = fts ^. ftsActionState
@@ -92,7 +93,7 @@ spec_createUser = describe "create user" $ do
         -- there.  not yet...)
         case Map.toList $ db1 ^. dbUnconfirmedUsers of
               [(tok, _)] -> wd $ do
-                  WD.openPage . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
+                  WD.openPageSync . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
                   WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
@@ -114,7 +115,7 @@ spec_updateSelf = describe "update self" $ do
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
 
         _click :: ST -> WD.WD ()
-        _click label = WD.findElem (WD.ById label) >>= WD.click
+        _click label = WD.findElem (WD.ById label) >>= WD.clickSync
 
         _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
         _check st f = liftIO $ query' st (SnapShot ) >>=
@@ -132,7 +133,7 @@ spec_updateSelf = describe "update self" $ do
 
         let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update")
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update")
         _fill "/user/update.name" newSelfName
         _click "update_user_submit"
         _check st ((`shouldBe` UserName newSelfName) . (^. userName))
@@ -147,7 +148,7 @@ spec_updateSelf = describe "update self" $ do
 
         let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/user/update_password")
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update_password")
         _fill "/user/update_password.old_password" selfPass
         _fill "/user/update_password.new_password1" newSelfPass
         _fill "/user/update_password.new_password2" newSelfPass
@@ -241,7 +242,7 @@ spec_serviceCreate = it "service create" $ \ fts -> do
         sdescr :: ST = "don't be evil."
     serviceId :: ServiceId <- wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPage (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
         let fill :: WD.WebDriver wd => ST -> ST -> wd ()
             fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
@@ -249,7 +250,7 @@ spec_serviceCreate = it "service create" $ \ fts -> do
         fill "/dashboard/ownservices.name" sname
         fill "/dashboard/ownservices.description" sdescr
 
-        WD.findElem (WD.ById "create_service_submit") >>= WD.click
+        WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
 
         (\ ((=~- "Service id: (.+)\"") . cs -> [_, sid]) -> ServiceId $ cs (LBS.take 24 sid)) <$> WD.getSource
 
@@ -309,14 +310,14 @@ spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "n
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
 wdLogin feConfig (UserName uname) (UserPass upass) = do
     WD.setImplicitWait 200
-    WD.openPage (cs $ exposeUrl feConfig <//> "/user/login")
+    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/login")
 
     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
     fill "/user/login.name" uname
     fill "/user/login.password" upass
 
-    WD.findElem (WD.ById "login_submit") >>= WD.click
+    WD.findElem (WD.ById "login_submit") >>= WD.clickSync
     return $ C.Status 200 "Ok."  -- FIXME: we need a man in the middle
                                  -- between browser and http server
                                  -- that we can ask for things
@@ -325,11 +326,11 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
 
 wdLogout :: HttpConfig -> WD.WD C.Status
 wdLogout feConfig = do
-    WD.openPage (cs $ exposeUrl feConfig <//> "/user/logout")
+    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/logout")
     WD.findElems (WD.ById "logout_submit") >>= maybe noButton buttonIsThere . listToMaybe
   where
     noButton = do
         return $ C.Status 400 "Perhaps we are already logged out?"
     buttonIsThere el = do
-        WD.click el
+        WD.clickSync el
         return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin

@@ -199,6 +199,7 @@ test-suite tests
     , Test.Config
     , Test.Core
     , Test.Types
+    , Test.WebDriver.Missing
     , ThentosSpec
     , Thentos.Backend.Api.Adhocracy3Spec
     , Thentos.Backend.Api.SimpleSpec
@@ -229,6 +230,7 @@ test-suite tests
     , hspec
     , http-types
     , lens
+    , lifted-base
     , lio
     , mime-mail
     , mtl
@@ -245,6 +247,7 @@ test-suite tests
     , text
     , thyme
     , transformers
+    , transformers-base
     , unix
     , wai
     , wai-extra
