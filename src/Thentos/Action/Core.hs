@@ -131,8 +131,8 @@ runActionE state action = catchUnknown
 runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either ActionError a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
-runActionWithLabelE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either ActionError a)
-runActionWithLabelE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
+runActionWithClearanceE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
 
 runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either ActionError a)
 runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
