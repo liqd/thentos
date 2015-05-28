@@ -298,22 +298,18 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 -- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
 -- left value.
 snapRunAction :: Action DB a -> FH a
-snapRunAction = snapHandleErrorE . snapRunActionE
+snapRunAction = (>>= snapHandleAllErrors) . snapRunActionE
 
 snapRunAction'P :: Action DB a -> FH a
-snapRunAction'P = snapHandleErrorE . snapRunActionE'P
+snapRunAction'P = (>>= snapHandleAllErrors) . snapRunActionE'P
 
--- | This function handles particular error cases for the frontend and serves
--- a 500 on unhandled errors.
-snapHandleError :: ActionError -> FH a
-snapHandleError = \case
-    ActionErrorAnyLabel labelError -> permissionDenied labelError
-    e -> crash500 e
-
-snapHandleErrorE :: FH (Either ActionError a) -> FH a
-snapHandleErrorE handler = handler >>= \case
-    Right v -> return v
-    Left e  -> snapHandleError e
+-- | Call 'snapHandleSomeErrors', and if error is still unhandled, call 'crash500'.
+snapHandleAllErrors :: Either ActionError a -> FH a
+snapHandleAllErrors eth = do
+    result <- snapHandleSomeErrors eth
+    case result of
+        Right val -> return val
+        Left err -> crash500 err
 
 -- | Run action with the clearance derived from thentos session token.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
@@ -334,3 +330,11 @@ snapRunActionE'P action = do
     rn :: MVar SystemRNG      <- gets (^. rng)
     cf :: ThentosConfig       <- gets (^. cfg)
     liftIO $ runActionWithClearanceE dcTop (ActionState (st, rn, cf)) action
+
+-- | This function handles particular error cases for the frontend and propagates others in 'Left'
+-- values.
+snapHandleSomeErrors :: Either ActionError a -> FH (Either ActionError a)
+snapHandleSomeErrors (Right v) = return $ Right v
+snapHandleSomeErrors (Left e) = case e of
+    ActionErrorAnyLabel labelError -> permissionDenied labelError
+    _ -> return $ Left e
