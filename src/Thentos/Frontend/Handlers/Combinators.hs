@@ -317,6 +317,9 @@ snapRunActionE action = do
     cf :: ThentosConfig       <- gets (^. cfg)
     fs :: FrontendSessionData <- getSessionData
 
-    case (^. fslToken) <$> fs ^. fsdLogin of
+    r <- case (^. fslToken) <$> fs ^. fsdLogin of
         Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
         Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
+    case r of
+        Left (ActionErrorAnyLabel e) -> permissionDenied e
+        _                            -> return r
