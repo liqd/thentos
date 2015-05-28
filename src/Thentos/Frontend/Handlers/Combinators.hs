@@ -319,9 +319,10 @@ snapRunActionE action = do
     cf :: ThentosConfig       <- gets (^. cfg)
     fs :: FrontendSessionData <- getSessionData
 
-    case (^. fslToken) <$> fs ^. fsdLogin of
+    result <- case (^. fslToken) <$> fs ^. fsdLogin of
         Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
         Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
+    snapHandleSomeErrors result
 
 -- | Call action with top clearance.
 snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
@@ -329,7 +330,9 @@ snapRunActionE'P action = do
     st :: AcidState DB <- getAcidState
     rn :: MVar SystemRNG      <- gets (^. rng)
     cf :: ThentosConfig       <- gets (^. cfg)
-    liftIO $ runActionWithClearanceE dcTop (ActionState (st, rn, cf)) action
+
+    result <- liftIO $ runActionWithClearanceE dcTop (ActionState (st, rn, cf)) action
+    snapHandleSomeErrors result
 
 -- | This function handles particular error cases for the frontend and propagates others in 'Left'
 -- values.
