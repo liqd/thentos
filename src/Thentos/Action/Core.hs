@@ -118,7 +118,6 @@ runActionE state action = catchUnknown
   where
     inner :: IO (Either ThentosError a)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
-          . liftLIO
           . eitherT (return . Left) (return . Right)
           $ fromAction action `runReaderT` state
 
