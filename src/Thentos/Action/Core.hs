@@ -130,6 +130,9 @@ runActionE state action = catchUnknown
 runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either ActionError a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
+runActionWithClearanceE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
+
 runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either ActionError a)
 runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
@@ -215,7 +218,7 @@ update'P e = do
     result <- liftLIO . ioTCB $ update' st e
     either throwError return result
 
--- | See 'updateA'.
+-- | See 'update'P'.
 query'P :: ( QueryEvent event
            , EventState event ~ db
            , EventResult event ~ Either ThentosError v

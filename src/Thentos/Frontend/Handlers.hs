@@ -87,7 +87,7 @@ userRegisterConfirm = do
             case eResult of
                 Right uid -> do
                     logger DEBUG $ "registered new user: " ++ show uid
-                    mapM_ (snapRunAction . assignRole (UserA uid)) defaultUserRoles
+                    mapM_ (snapRunAction'P . assignRole (UserA uid)) defaultUserRoles
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
                     userLoginCallAction $ (uid,) <$> startThentosSessionByAgent (UserA uid)
                 Left e@(ActionErrorThentos NoSuchPendingUserConfirmation) -> do
