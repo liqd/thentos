@@ -315,7 +315,7 @@ snapHandleErrorE handler = handler >>= \case
     Right v -> return v
     Left e  -> snapHandleError e
 
--- | Read the clearance from the 'App' state and apply it to 'runAction'.
+-- | Run action with the clearance derived from thentos session token.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
 snapRunActionE action = do
     st :: AcidState DB        <- getAcidState
@@ -327,6 +327,7 @@ snapRunActionE action = do
         Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
         Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
 
+-- | Call action with top clearance.
 snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
 snapRunActionE'P action = do
     st :: AcidState DB <- getAcidState
