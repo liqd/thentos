@@ -97,10 +97,9 @@ spec_createUser = describe "create user" $ do
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
         -- check that user is in db
-        let ActionState (st', _, _) = fts ^. ftsActionState
-        Right (db2 :: DB) <- query' st' $ SnapShot
+        Right (db2 :: DB) <- query' st $ SnapShot
         Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
-        eUser <- query' st' $ LookupUserByName (UserName myUsername)
+        eUser <- query' st $ LookupUserByName (UserName myUsername)
         fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 
