@@ -33,7 +33,7 @@ clickSync = waitForPageLoad . WD.click
 waitForPageLoad :: forall wd a . (MonadIO wd, WD.WebDriver wd) => wd a -> wd a
 waitForPageLoad action = do
     let freq    :: Int    = 92000  -- (microseconds)
-        timeout :: Double = 70      -- (seconds)
+        timeout :: Double = 7      -- (seconds)
         findHtml :: wd WD.Element = WD.findElem . WD.ByTag $ "html"
 
     -- first get old html tag, then call action
