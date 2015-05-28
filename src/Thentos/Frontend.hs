@@ -13,7 +13,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Snap.Core (ifTop, redirect')
-import Snap.Http.Server (defaultConfig, setBind, setPort)
+import Snap.Http.Server (defaultConfig, setBind, setPort, setVerbose)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
 import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
@@ -35,10 +35,14 @@ import Thentos.Types
 runFrontend :: HttpConfig -> ActionState DB -> IO ()
 runFrontend config asg = do
     logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
-    serveSnaplet (setBind host $ setPort port defaultConfig) (frontendApp asg config)
+    serveSnaplet snapConfig (frontendApp asg config)
   where
     host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
     port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
+    snapConfig = setPort port
+               . setBind host
+               . setVerbose False
+               $ defaultConfig
 
 frontendApp :: ActionState DB -> HttpConfig -> SnapletInit FrontendApp FrontendApp
 frontendApp (ActionState (st, rn, _cfg)) feConf =
