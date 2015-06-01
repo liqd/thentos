@@ -13,3 +13,7 @@ cabal.sandbox.config
 /services/helloworld/dist/
 /services/helloworld/log/
 log/*.log
+site_key.txt
+misc/selenium/log
+misc/selenium/*.jar
+*.swp
