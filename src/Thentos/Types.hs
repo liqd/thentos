@@ -52,6 +52,8 @@ getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . r
 data DB =
     DB
       { _dbUsers             :: !(Map UserId User)
+      , _dbUserIdsByName     :: !(Map UserName UserId)
+      , _dbUserIdsByEmail    :: !(Map UserEmail UserId)
       , _dbServices          :: !(Map ServiceId Service)
       , _dbThentosSessions   :: !(Map ThentosSessionToken ThentosSession)
       , _dbServiceSessions   :: !(Map ServiceSessionToken ServiceSession)
@@ -64,9 +66,7 @@ data DB =
   deriving (Eq, Show, Typeable, Generic)
 
 emptyDB :: DB
-emptyDB = DB m m m m
-             m m m m
-             (UserId 0)
+emptyDB = DB m m m m m m m m m m (UserId 0)
   where m = Map.empty
 
 class AsDB db where
