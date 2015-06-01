@@ -125,7 +125,7 @@ optional (but it will take a while to build no matter what).
 Start like this (in interpreted mode):
 
 ```shell
-$ cabal run -- thentos run --runbackend --runfrontend
+$ cabal run thentos
 ```
 
 To run the tests:
