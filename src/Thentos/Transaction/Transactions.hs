@@ -22,7 +22,7 @@ import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
 import Language.Haskell.TH.Syntax (Name)
-import Data.List (find, foldl')
+import Data.List (foldl')
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
@@ -89,25 +89,30 @@ pure_lookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. asDB . dbUsers
 trans_lookupUserByName :: (AsDB db) => UserName -> ThentosQuery db (UserId, User)
 trans_lookupUserByName name = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByName` name)
 
--- FIXME: this is extremely inefficient, we should have a separate map from user names to user ids.
 pure_lookupUserByName :: (AsDB db) => db -> UserName -> Maybe (UserId, User)
-pure_lookupUserByName db name =
-    find (\ (_, user) -> (user ^. userName == name)) . Map.toList . (^. asDB . dbUsers) $ db
+pure_lookupUserByName db name = maybeUserId >>= pure_lookupUser db
+  where maybeUserId = Map.lookup name $ db ^. asDB . dbUserIdsByName
 
 trans_lookupUserByEmail :: (AsDB db) => UserEmail -> ThentosQuery db (UserId, User)
 trans_lookupUserByEmail email = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByEmail` email)
 
--- FIXME: same as 'pure_lookupUserByName'.
 pure_lookupUserByEmail :: (AsDB db) => db -> UserEmail -> Maybe (UserId, User)
-pure_lookupUserByEmail db email =
-    find (\ (_, user) -> (user ^. userEmail == email)) . Map.toList . (^. asDB . dbUsers) $ db
+pure_lookupUserByEmail db email = maybeUserId >>= pure_lookupUser db
+  where maybeUserId = Map.lookup email $ db ^. asDB . dbUserIdsByEmail
+
+-- | Actually add a new user who already has an ID.
+addUserPrim :: (AsDB db) => UserId -> User -> ThentosUpdate db ()
+addUserPrim uid user = do
+    modify $ asDB . dbUsers %~ Map.insert uid user
+    modify $ asDB . dbUserIdsByName %~ Map.insert (user ^. userName) uid
+    modify $ asDB . dbUserIdsByEmail %~ Map.insert (user ^. userEmail) uid
 
 -- | Add a new user.  Return the new user's 'UserId'.  Call 'assertUser' for name clash exceptions.
 trans_addUser :: (AsDB db) => User -> ThentosUpdate db UserId
 trans_addUser user = do
     liftThentosQuery $ assertUser Nothing user
     uid <- freshUserId
-    modify $ asDB . dbUsers %~ Map.insert uid user
+    addUserPrim uid user
     return uid
 
 -- | Add a list of new users.  This could be inlined in a sequence of transactions, but that would
@@ -129,7 +134,7 @@ trans_finishUserRegistration now expiry token = do
     (uid, user) <- withExpiry now expiry NoSuchPendingUserConfirmation $
         Map.lookup token <$> gets (^. asDB . dbUnconfirmedUsers)
     modify $ asDB . dbUnconfirmedUsers %~ Map.delete token
-    modify $ asDB . dbUsers %~ Map.insert uid user
+    addUserPrim uid user
     return uid
 
 -- | Add a password reset token.  Return the user whose password this token can change.
@@ -198,7 +203,12 @@ trans_updateUserFields uid freeOps = do
     when runCheck $
         liftThentosQuery $ assertUser (Just uid) user'
     modify $ asDB . dbUsers %~ Map.insert uid user'
-
+    when (user ^. userName /= user' ^. userName) $ do
+        modify $ asDB . dbUserIdsByName %~ Map.insert (user' ^. userName) uid
+        modify $ asDB . dbUserIdsByName %~ Map.delete (user ^. userName)
+    when (user ^. userEmail /= user' ^. userEmail) $ do
+        modify $ asDB . dbUserIdsByEmail %~ Map.insert (user' ^. userEmail) uid
+        modify $ asDB . dbUserIdsByEmail %~ Map.delete (user ^. userEmail)
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
 trans_deleteUser :: (AsDB db) => UserId -> ThentosUpdate db ()
@@ -206,6 +216,8 @@ trans_deleteUser uid = do
     (_, user) <- liftThentosQuery $ trans_lookupUser uid
     forM_ (Set.elems $ user ^. userThentosSessions) trans_endThentosSession
     modify $ asDB . dbUsers %~ Map.delete uid
+    modify $ asDB . dbUserIdsByName %~ Map.delete (user ^. userName)
+    modify $ asDB . dbUserIdsByEmail %~ Map.delete (user ^. userEmail)
 
 
 -- * service
