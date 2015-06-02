@@ -58,6 +58,7 @@ import qualified Test.WebDriver as WD
 
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
+import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
@@ -126,11 +127,10 @@ setupTestBackend cmd = do
             let testBackend = Simple.serveApi asg
             (tok, headers) <- loginAsGod testBackend
             return $ BTS tcfg asg testBackend tok headers
-{-
         RunA3 ->
             let e = error "setupTestBackend: no god credentials!"
-            in return (asg, Adhocracy3.serveApi asg, e, e)
--}
+                testBackend = Adhocracy3.serveApi asg
+            in return $ BTS tcfg asg testBackend e e
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
 teardownTestBackend :: BTS -> IO ()
