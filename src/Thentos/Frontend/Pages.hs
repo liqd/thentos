@@ -2,6 +2,18 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE ViewPatterns       #-}
 
+-- | This module provides 'Html' pages and 'Form's (disgetive-functor thingies that parse filled-out
+-- forms).  The pages come in three flavours:
+--
+-- 1. *Complete pages* (starting with html tag and without holes);
+--
+-- 2. *Pagelets* (functions that return *complete pages*, but contain holes that need to be filled
+--    with the function's 'Html' argument(s));
+--
+-- 3. *Snippets*: 'Html' elements for filling holes in pagelets or other snippets.
+--
+-- FIXME: go through this modules and call all snippets snippets (they are currently called
+-- pagelets).
 module Thentos.Frontend.Pages
     ( dashboardPagelet
     , DashboardTab(..)

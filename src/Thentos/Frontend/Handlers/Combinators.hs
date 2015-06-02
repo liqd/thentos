@@ -77,20 +77,20 @@ buildDashboard' tab pageletBuilder = do
 
 -- * form rendering and processing
 
--- | Take a form action string, a form, a pagelet matching the form
--- and a dashboard tab to render it in, and an action to be performed
--- on the form data once submitted.  Depending on the 'runForm'
--- result, either render the form or process it.  The formAction
--- passed to 'runForm' is the URI of the current request.
+-- | Take a form, a pagelet matching this form, a dashboard tab to render it in, and an action to be
+-- performed on the form data once submitted.  Depending on the 'runForm' result, either render the
+-- form or process it calling the action.  (The formAction passed to 'runForm' is the URI of the
+-- current request.)
 runPageletForm :: forall v a .
-       Form v FH a
-    -> (ST -> View v -> User -> [Role] -> H.Html) -> DashboardTab
-    -> (a -> FH ())
+       Form v FH a  -- ^ result constructor
+    -> (ST -> View v -> User -> [Role] -> H.Html)  -- ^ dashboard tab contents
+    -> DashboardTab  -- ^ dashboard tab identifier
+    -> (a -> FH ())  -- ^ result consumer
     -> FH ()
 runPageletForm f pagelet = runPageletForm' f (\ formAction v u -> return . pagelet formAction v u)
 
--- | Like 'runPageletForm', but takes a page builder instead of a
--- page (this is more for internal use).
+-- | Like 'runPageletForm', but takes a page builder instead of a page (this is more for internal
+-- use).
 runPageletForm' :: forall v a .
        Form v FH a
     -> (ST -> View v -> User -> [Role] -> FH H.Html) -> DashboardTab
@@ -120,11 +120,9 @@ runPageForm' f buildPage a = runHandlerForm f handler a
     handler :: ST -> View v -> FH ()
     handler formAction view = buildPage formAction view >>= blaze
 
--- | Version of of 'runPageletForm'' that takes a handler rather than
--- a pagelet, and calls that in order to render the empty form.  (For
--- symmetry, the function name should be primed, but there is no
--- non-monadic way to call a handler, so there is only one version of
--- @runHandlerForm@.)
+-- | Version of of 'runPageletForm'' that takes a handler rather than a pagelet, and calls that in
+-- order to render the empty form.  (For symmetry, the function name could be primed, but there is
+-- no non-monadic way to call a handler, so there is only one version of @runHandlerForm@.)
 runHandlerForm :: forall v a b .
        Form v FH a
     -> (ST -> View v -> FH b)
