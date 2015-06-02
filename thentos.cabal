@@ -113,6 +113,7 @@ library
     , servant-server >= 0.4 && < 0.5
     , snap
     , snap-core
+    , snap-extras
     , snaplet-acid-state
     , snap-server
     , string-conversions

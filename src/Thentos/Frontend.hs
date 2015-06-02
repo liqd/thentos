@@ -48,6 +48,7 @@ frontendApp :: ActionState DB -> HttpConfig -> SnapletInit FrontendApp FrontendA
 frontendApp (ActionState (st, rn, _cfg)) feConf =
     makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
         wrapSite H.disableCaching
+        wrapSite csrfify
         addRoutes routes
         FrontendApp <$>
             (nestSnaplet "acid" db $ acidInitManual st) <*>

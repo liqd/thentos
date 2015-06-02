@@ -62,7 +62,7 @@ import Data.Monoid (Monoid, (<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Typeable (Typeable)
-import Text.Blaze.Html (Html, (!))
+import Text.Blaze.Html (Html, (!), ToValue(toValue))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit, childErrorList)
 import Text.Digestive.Form (Form, check, validate, text, (.:))
 import Text.Digestive.Types (Result(Success, Error))
@@ -95,6 +95,11 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
         H.h1 $ H.text title
         body
 
+
+csrfProofForm :: ST -> View Html -> ST -> Html -> Html
+csrfProofForm csrfToken v action html =
+    let htmlWithToken = html >> (H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken))
+    in form v action htmlWithToken
 
 -- * dashboard
 
@@ -158,10 +163,10 @@ data DashboardTab =
 
 -- * register (thentos)
 
-userRegisterPage :: ST -> View Html -> Html
-userRegisterPage formAction v =  basePagelet "Create User" $ do
+userRegisterPage :: ST -> ST -> View Html -> Html
+userRegisterPage csrfToken formAction v = basePagelet "Create User" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "name" v "User name:"
             inputText "name" v
@@ -194,10 +199,10 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 -- * login (thentos)
 
-userLoginPage :: Maybe ST -> ST -> View Html -> Html
-userLoginPage mMsg formAction v = basePagelet "Thentos Login" $ do
+userLoginPage :: Maybe ST -> ST -> ST -> View Html -> Html
+userLoginPage mMsg csrfToken formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         case mMsg of
             Just msg -> H.p $ H.text msg
             Nothing  -> return ()
@@ -226,10 +231,10 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordPage :: ST -> View Html -> Html
-resetPasswordPage formAction v = basePagelet "Thentos Login" $ do
+resetPasswordPage :: ST -> ST -> View Html -> Html
+resetPasswordPage csrfToken formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             H.text "You can send yourself an email with a link to the password reset page."
         H.p $ do
@@ -241,10 +246,10 @@ resetPasswordForm :: Monad m => Form Html m UserEmail
 resetPasswordForm =
     UserEmail <$> "email" .: validateEmail (text Nothing)
 
-resetPasswordConfirmPage :: ST -> View Html -> Html
-resetPasswordConfirmPage formAction v = basePagelet "Thentos Login" $ do
+resetPasswordConfirmPage :: ST -> ST -> View Html -> Html
+resetPasswordConfirmPage csrfToken formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "password1" v "New password: "
             inputPassword "password1" v
@@ -265,8 +270,8 @@ resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
 
 -- * logout (thentos)
 
-userLogoutConfirmPagelet :: ST -> [ServiceName] -> u -> rs -> Html
-userLogoutConfirmPagelet formAction serviceNames _ _ = do
+userLogoutConfirmPagelet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
+userLogoutConfirmPagelet formAction serviceNames csrfToken _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -276,8 +281,9 @@ userLogoutConfirmPagelet formAction serviceNames _ _ = do
         (_:_) -> H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
     H.table . H.tr $ do
         H.td $ do
-            H.form ! A.method "POST" ! A.action (H.textValue formAction) $
+            H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
                 H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
+                H.input ! A.type_ "hidden" ! A.value (toValue csrfToken) ! A.name "_csrf"
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
@@ -337,10 +343,10 @@ userServicesDisplayPagelet _ _ = do
                 H.tr $ H.td "Session expires: " >> H.td "in a month"
 
 
-userUpdatePagelet :: ST -> View Html -> u -> rs -> Html
-userUpdatePagelet formAction v _ _ = do
+userUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
+userUpdatePagelet csrfToken formAction v _ _ = do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "name" v "User name: "
             inputText "name" v
@@ -368,10 +374,10 @@ userUpdateForm uname =
     toMaybe True  v = Just v
     toMaybe False _ = Nothing
 
-passwordUpdatePagelet :: ST -> View Html -> u -> rs -> Html
-passwordUpdatePagelet formAction v _ _ = do
+passwordUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
+passwordUpdatePagelet csrfToken formAction v _ _ = do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "old_password" v "Current Password: "
             inputPassword "old_password" v
@@ -390,10 +396,10 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdatePagelet :: ST -> View Html -> u -> rs -> Html
-emailUpdatePagelet formAction v _ _ = do
+emailUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
+emailUpdatePagelet csrfToken formAction v _ _ = do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "email" v "Email Address: "
             inputText "email" v
@@ -406,10 +412,10 @@ emailUpdateForm =
 
 -- * services
 
-serviceCreatePagelet :: ST -> View Html -> u -> rs -> Html
-serviceCreatePagelet formAction v _ _ = basePagelet "Create Service" $ do
+serviceCreatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
+serviceCreatePagelet csrfToken formAction v _ _ = basePagelet "Create Service" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.p $ do
             label "name" v "Service name:"
             inputText "name" v
@@ -426,10 +432,10 @@ serviceCreateForm =
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
-serviceRegisterPage :: ST -> View Html -> ServiceId -> Service -> User -> Html
-serviceRegisterPage formAction v sid service user = basePagelet "Register with Service" $ do
+serviceRegisterPage :: ST -> ST -> View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage csrfToken formAction v sid service user = basePagelet "Register with Service" $ do
     childErrorList "" v
-    form v formAction $ do
+    csrfProofForm csrfToken v formAction $ do
         H.hr
         H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
         H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)

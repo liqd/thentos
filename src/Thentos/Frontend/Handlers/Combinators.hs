@@ -22,9 +22,10 @@ import Data.Text.Encoding (encodeUtf8)
 import LIO.Error (AnyLabelError)
 import Snap.Core (getResponse, finishWith, urlEncode, getParam)
 import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
+import Snap.Extras.CSRF (blanketCSRF)
 import Snap.Snaplet.AcidState (getAcidState)
 import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, CRITICAL, INFO))
 import Text.Digestive.Form (Form)
@@ -104,10 +105,13 @@ runPageletForm' f buildPagelet tab = runPageForm' f buildPage
 -- | Full-page version of 'runPageletForm'.
 runPageForm :: forall v a .
        Form v FH a
-    -> (ST -> View v -> H.Html)
+    -> (ST -> ST -> View v -> H.Html)
     -> (a -> FH ())
     -> FH ()
-runPageForm f page = runPageForm' f (\ formAction -> return . page formAction)
+--runPageForm f page = runPageForm' f (\ formAction -> return . page formAction)
+runPageForm f page a = do
+    tok <- with sess csrfToken
+    runPageForm' f (\ formAction -> return . page tok formAction) a
 
 -- | Full-page version of 'runPageletForm''.
 runPageForm' :: forall v a .
@@ -339,3 +343,12 @@ snapHandleSomeErrors (Right v) = return $ Right v
 snapHandleSomeErrors (Left e) = case e of
     ActionErrorAnyLabel labelError -> permissionDenied labelError
     _ -> return $ Left e
+
+-- | Wraps the top-level handler to prevent cross-site request forgery
+csrfify :: FH () -> FH ()
+csrfify handler = do
+    mSessData <- with sess (getFromSession "ThentosSessionData")
+    case mSessData of
+        -- FIXME: sensible error handling
+        Just _ -> blanketCSRF sess (crash 500 "csrf badness") handler
+        Nothing -> handler

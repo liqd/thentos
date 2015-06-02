@@ -19,7 +19,8 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
 import Snap.Core (Method(GET, POST), method, modifyResponse,  getParam, redirect', urlDecode, setHeader)
-import Snap.Snaplet (Handler)
+import Snap.Snaplet (Handler, with)
+import Snap.Snaplet.Session (csrfToken)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.View (View)
@@ -206,8 +207,9 @@ userLogout = method GET  userLogoutConfirm
 userLogoutConfirm :: FH ()
 userLogoutConfirm = runAsUser $ \ _ fsl -> do
     eServiceNames <- snapRunActionE $ serviceNamesFromThentosSession (fsl ^. fslToken)
+    tok <- with sess csrfToken
     case eServiceNames of
-        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames)
+        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames tok)
         Left e -> crash500 e
 
 userLogoutDone :: FH ()
@@ -222,10 +224,11 @@ userLogoutDone = runAsUser $ \ _ fsl -> do
 userUpdate :: FH ()
 userUpdate = runAsUser $ \ _ fsl -> do
     (_, user) <- snapRunAction $ lookupUser (fsl ^. fslUserId)
+    tok <- with sess csrfToken
     runPageletForm
                (userUpdateForm
                    (user ^. userName))
-               userUpdatePagelet DashboardTabDetails
+               (userUpdatePagelet tok) DashboardTabDetails
                $ \ fieldUpdates -> do
         snapRunAction $ updateUserFields (fsl ^. fslUserId) fieldUpdates
         sendFrontendMsg $ FrontendMsgSuccess "User data changed."
@@ -233,8 +236,9 @@ userUpdate = runAsUser $ \ _ fsl -> do
 
 emailUpdate :: FH ()
 emailUpdate = runAsUser $ \ _ fsl -> do
+    tok <- with sess csrfToken
     runPageletForm emailUpdateForm
-                   emailUpdatePagelet DashboardTabDetails
+                   (emailUpdatePagelet tok) DashboardTabDetails
                    $ \ newEmail -> do
         feConfig <- gets (^. frontendCfg)
         eResult <- snapRunActionE $
@@ -269,8 +273,9 @@ emailUpdateConfirm = do
 
 passwordUpdate :: FH ()
 passwordUpdate = runAsUser $ \ _ fsl -> do
+    tok <- with sess csrfToken
     runPageletForm passwordUpdateForm
-                   passwordUpdatePagelet DashboardTabDetails
+                   (passwordUpdatePagelet tok) DashboardTabDetails
                    $ \ (oldPw, newPw) -> do
         eResult <- snapRunActionE $ changePassword (fsl ^. fslUserId) oldPw newPw
         case eResult of
@@ -284,8 +289,9 @@ passwordUpdate = runAsUser $ \ _ fsl -> do
 
 serviceCreate :: FH ()
 serviceCreate = runAsUser $ \ _ fsl -> do
+    tok <- with sess csrfToken
     runPageletForm serviceCreateForm
-                   serviceCreatePagelet DashboardTabOwnServices
+                   (serviceCreatePagelet tok) DashboardTabOwnServices
                    $ \ (name, description) -> do
         eResult <- snapRunActionE $ addService (UserA $ fsl ^. fslUserId) name description
         case eResult of
@@ -315,7 +321,8 @@ serviceRegister = runAsUser $ \ _ fsl -> do
             -- allowed to look it up.  the user needs to present a
             -- cryptographic proof of the service's ok for lookup
             -- here.
-            blaze $ serviceRegisterPage formAction view sid service user
+            tok <- with sess csrfToken
+            blaze $ serviceRegisterPage tok formAction view sid service user
 
         process :: () -> FH ()
         process () = do
