@@ -16,7 +16,7 @@ import Snap.Core (ifTop, redirect')
 import Snap.Http.Server (defaultConfig, setBind, setPort, setVerbose)
 import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes)
+import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, wrapSite)
 import Snap.Util.FileServe (serveDirectory)
 import System.Log.Missing (logger)
 import System.Log (Priority(INFO))
@@ -47,6 +47,7 @@ runFrontend config asg = do
 frontendApp :: ActionState DB -> HttpConfig -> SnapletInit FrontendApp FrontendApp
 frontendApp (ActionState (st, rn, _cfg)) feConf =
     makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
+        wrapSite H.disableCaching
         addRoutes routes
         FrontendApp <$>
             (nestSnaplet "acid" db $ acidInitManual st) <*>
