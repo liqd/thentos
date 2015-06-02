@@ -19,7 +19,7 @@ where
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
-import Data.String.Conversions (cs, (<>))
+import Data.String.Conversions (LBS, (<>))
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
@@ -66,20 +66,15 @@ spec = do
 
                     -- Aeson.encode would strip the password, so we
                     -- need to do this one by hand.
-                    let rq1 = cs . unlines $
-                          "{" :
-                          "    \"data\": {" :
-                          "        \"adhocracy_core.sheets.principal.IPasswordAuthentication\": {" :
-                          "            \"password\": \"passwef\"" :
-                          "        }," :
-                          "        \"adhocracy_core.sheets.principal.IUserBasic\": {" :
-                          "            \"email\": \"wef@wef\"," :
-                          "            \"name\": \"wef\"" :
-                          "        }" :
-                          "    }," :
-                          "    \"content_type\": \"adhocracy_core.resources.principal.IUser\"" :
-                          "}" :
-                          []
+                    let rq1 :: LBS
+                        rq1 = "{\"data\": {\
+                              \   \"adhocracy_core.sheets.principal.IUserBasic\": {\
+                              \       \"email\": \"wef@wef\",\
+                              \       \"name\": \"wef\"},\
+                              \   \"adhocracy_core.sheets.principal.IPasswordAuthentication\": {\
+                              \       \"password\": \"passwef\"}\
+                              \   },\
+                              \ \"content_type\": \"adhocracy_core.resources.principal.IUser\"}"
 
                     rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] rq1
                     liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
