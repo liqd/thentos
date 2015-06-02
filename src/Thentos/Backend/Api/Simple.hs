@@ -21,12 +21,11 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), addHeader, Header, Headers, Put, Delete, Capture,
-                    ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), addHeader, Header, Headers, Post, Put, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
-import qualified Servant.API as PlainAPI
+import qualified Servant.API
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -55,51 +54,66 @@ api :: ActionState DB -> Server Api
 api actionState mTok = enter (enterAction actionState mTok) thentosBasic
 
 
+-- * toy example (FIXME: remove this section once understood.)
+
+type ThentosBasic =
+       "get" :> Get '[JSON] Int
+  :<|> "post" :> Post '[JSON] ()
+
+thentosBasic :: ServerT ThentosBasic (Action DB)
+thentosBasic =
+       return (addHeader "0" 3)
+  :<|> return ()
+
+type Get ctyps val = Servant.API.Get ctyps
+                     (Headers '[Header "X" String {- Header "Cache-Control" String, Header "Expires" String -}] val)
+
+-- FIXME: this is all nice and well, but we want to actually do the 'addHeader' call once at the top of the
+-- routing tree, and it should trickle down only into the Gets, not into the Posts.
+
+
+
+{- ----------------------------------------------------------------------
+
+
+
 -- * combinators
 
 type ThentosBasic =
        "user" :> ThentosUser
-{-  :<|> "service" :> ThentosService
+  :<|> "service" :> ThentosService
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
--}
 
 thentosBasic :: ServerT ThentosBasic (Action DB)
 thentosBasic =
        thentosUser
-{-  :<|> thentosService
+  :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
--}
+
 
 -- * user
 
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
-{-  :<|> Capture "uid" UserId :> Delete '[JSON] ()
+  :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> ReqBody '[JSON] UserName :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
   :<|> Get '[JSON] [UserId]
--}
-
-f :: UserFormData -> Action DB (Headers
-                          '[Header "X" String] UserId)
-f ufd = do
-    uid <- makeUserFromFormData'P ufd >>= update'P . T.AddUser
-    return $ addHeader "0" uid
 
 thentosUser :: ServerT ThentosUser (Action DB)
-thentosUser = f
-{-       (>>= update'P . T.AddUser) . makeUserFromFormData'P
+thentosUser =
+       (>>= update'P . T.AddUser) . makeUserFromFormData'P
   :<|> update'P . T.DeleteUser
   :<|> (\ uid name -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldName name))
   :<|> (((^. userName) . snd) <$>) . query'P . T.LookupUser
   :<|> (\ uid email -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldEmail email))
   :<|> (((^. userEmail) . snd) <$>) . query'P . T.LookupUser
   :<|> allUserIds
--}
+
 
 -- * service
 
@@ -149,14 +163,18 @@ thentosServiceSession =
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
 
+
 -- * Cache control
+
 -- Only needed for GET and HEAD requests, as other HTTP methods are
--- uncacheable by default.
+-- uncacheable by nature.
+
+-- (FIXME: move this section to its own module.  it is not Simple-specific.)
 
 -- | Disable caching of GET responses.
-type Get ctyps val = PlainAPI.Get ctyps
-                     (Headers '[Header "Cache-Control" String, Header "Expires" String] val)
+type Get ctyps val = Servant.API.Get ctyps
+                     (Headers '[Header "X" String {- Header "Cache-Control" String, Header "Expires" String -}] val)
 
-type Post ctyps val = PlainAPI.Post ctyps
-                     (Headers '[Header "X" String] val)
+-- type Head ctyps val = ...
 
+-}
