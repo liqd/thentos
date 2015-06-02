@@ -35,7 +35,7 @@ import Network.HTTP.Types (Header)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (Request, requestHeaders)
-import Servant.API ((:>))
+import Servant.API ((:>), Get)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody, responseServantErr)
@@ -98,7 +98,7 @@ actionErrorToServantErr e = do
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
--- * header
+-- * request header
 
 data ThentosHeaderName =
     ThentosHeaderSession
@@ -150,6 +150,19 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
         []  -> route (Proxy :: Proxy subserver) subserver request respond
         bad -> respond . RR . Right . responseServantErr  -- FIXME: use 'left' instead of all this?  yields a type error, though.
              $ err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad }
+
+
+-- * response header
+
+type CGet ctyps val = Servant.API.Get ctyps val
+
+instance (HasServer (Get ctyps val)) => HasServer (CGet ctyps val)
+  where
+    type ServerT (CGet ctyps val) m = ServerT (Get ctyps val) m
+
+    route Proxy subserver request respond =
+        route (Proxy :: Proxy subserver) subserver request $ \ response ->
+            respond (setHeaders [("Cache", "god no!"), ("Virus-Scanned", False)] response)
 
 
 -- * warp
