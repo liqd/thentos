@@ -449,15 +449,18 @@ serviceRegisterForm = pure ()
 -- ** error / status reports to the user
 
 errorPage :: String -> Html
-errorPage errorString = basePagelet "Error" . H.string $ "*** error: " ++ show errorString
+errorPage = basePagelet "Error" . errorHtml
+
+errorPagelet :: u -> rs -> String -> Html
+errorPagelet _ _ = errorHtml
+
+errorHtml :: String -> Html
+errorHtml = H.string . ("*** error: " ++) . show
 
 permissionDeniedPage :: Html
 permissionDeniedPage = basePagelet' "Permission Denied"
                                     Nothing
                                     (H.a ! A.href "/dashboard" $ "Back to dashboard")
-
-errorPagelet :: u -> rs -> String -> Html
-errorPagelet _ _ errorString = H.string $ "*** error: " ++ show errorString
 
 confirmationMailSentPage :: ST -> ST -> ST -> Html
 confirmationMailSentPage title msg1 msg2 = basePagelet title $ confirmationMailSentBody msg1 msg2
