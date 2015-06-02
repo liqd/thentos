@@ -331,7 +331,7 @@ login r = AC.logIfError'P $ do
 -- * aux
 
 userIdToPath :: UserId -> Path
-userIdToPath (UserId i) = Path . cs $ (printf "/princicpals/users/%7.7i" i :: String)
+userIdToPath (UserId i) = Path . cs $ (printf "/principals/users/%7.7i" i :: String)
 
 userIdFromPath :: Path -> AC.Action DB UserId
 userIdFromPath (Path s) = maybe (throwError NoSuchUser) return $
