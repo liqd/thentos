@@ -18,7 +18,8 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
-import Snap.Core (Method(GET, POST), method, getParam, redirect', urlDecode)
+import Snap.Core (Method(GET, POST), method, modifyResponse,  getParam, redirect', urlDecode, setHeader)
+import Snap.Snaplet (Handler)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.View (View)
@@ -398,3 +399,14 @@ redirectToDashboardOrService = do
     case mCallback of
         Just (ServiceLoginState _ rr) -> redirectRR rr
         Nothing                       -> redirect' "/dashboard" 303
+
+
+-- * Cache control
+
+-- | Disable response caching. The wrapped handled can overwrite this by
+-- setting its own cache control headers.
+disableCaching :: Handler b v a -> Handler b v a
+disableCaching h = do
+    modifyResponse $ setHeader "Cache-Control" "no-cache, no-store, must-revalidate"
+    modifyResponse $ setHeader "Expires" "0"
+    h
