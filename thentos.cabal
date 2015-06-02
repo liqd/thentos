@@ -101,7 +101,7 @@ library
     , http-types
     , lens
     , lio
-    , mime-mail >= 0.4.8
+    , mime-mail >= 0.4.9
     , mtl
     , old-locale
     , pretty-show
