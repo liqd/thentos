@@ -98,9 +98,11 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
 -- | Protect a form from CSRF attacks by including a secret token as a hidden
 -- field.
 csrfProofForm :: ST -> View Html -> ST -> Html -> Html
-csrfProofForm csrfToken v action html =
-    let htmlWithToken = html >> (H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken))
-    in form v action htmlWithToken
+csrfProofForm csrfToken v action html = form v action (addHiddenCsrfField html csrfToken)
+
+addHiddenCsrfField :: Html -> ST -> Html
+addHiddenCsrfField html csrfToken =
+    html <> (H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken))
 
 
 -- * dashboard
@@ -283,9 +285,10 @@ userLogoutConfirmPagelet formAction serviceNames csrfToken _ _ = do
         (_:_) -> H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
     H.table . H.tr $ do
         H.td $ do
-            H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
-                H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
-                H.input ! A.type_ "hidden" ! A.value (toValue csrfToken) ! A.name "_csrf"
+            H.form ! A.method "POST" ! A.action (H.textValue formAction) $
+                addHiddenCsrfField
+                    (H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit")
+                    csrfToken
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
