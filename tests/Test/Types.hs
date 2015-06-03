@@ -20,7 +20,6 @@ data TestConfig =
     TestConfig
       { _tcfgTmp                    :: FilePath
       , _tcfgDbPath                 :: FilePath
-      , _tcfgMailFifo               :: FilePath
       , _tcfgRestPort               :: Int
       , _tcfgServerFullBackendPort  :: Int
       , _tcfgServerFullFrontendPort :: Int

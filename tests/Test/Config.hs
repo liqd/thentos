@@ -11,7 +11,6 @@ import Data.Maybe (fromMaybe)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory)
-import System.Posix.Files (createNamedPipe)
 
 import Thentos.Types
 import Thentos.Config
@@ -26,14 +25,12 @@ testConfig = do
     let cfg = TestConfig
           { _tcfgTmp                    = tmp
           , _tcfgDbPath                 = tmp </> "test-db/"
-          , _tcfgMailFifo               = tmp </> "mailfifo"
           , _tcfgRestPort               = 8002
           , _tcfgServerFullBackendPort  = 7118
           , _tcfgServerFullFrontendPort = 7119
           , _tcfgWebdriverHost          = "localhost"
           , _tcfgWebdriverPort          = 4451
           }
-    createNamedPipe (cfg ^. tcfgMailFifo) 0600
     return cfg
 
 thentosCreateTempDirectory :: IO FilePath
