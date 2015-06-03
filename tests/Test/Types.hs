@@ -20,12 +20,12 @@ data TestConfig =
     TestConfig
       { _tcfgTmp                    :: FilePath
       , _tcfgDbPath                 :: FilePath
-      , _tcfgMailFifo               :: FilePath
       , _tcfgRestPort               :: Int
       , _tcfgServerFullBackendPort  :: Int
       , _tcfgServerFullFrontendPort :: Int
       , _tcfgWebdriverHost          :: String
       , _tcfgWebdriverPort          :: Int
+      , _tcfgTraceHttp              :: Bool
       }
   deriving (Eq, Show)
 

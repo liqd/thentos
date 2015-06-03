@@ -49,7 +49,7 @@ spec = do
     describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
-                    \ bts -> debugRunSession False (bts ^. btsWai) $ do
+              \ (bts :: BTS) -> runTestBackend bts $ do
                 let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
                 resp <- srequest req
                 liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
@@ -57,20 +57,20 @@ spec = do
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $
-                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                  \ bts -> runTestBackend bts $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
                     liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
 
                 it "is not accessible for users without 'Admin' role" $
-                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                  \ bts -> runTestBackend bts $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" [] ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
 
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $
-                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                  \ bts -> runTestBackend bts $ do
                     response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
@@ -89,14 +89,14 @@ spec = do
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
                 it "yields an email address" $
-                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                  \ bts -> runTestBackend bts $ do
                     response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $
-                        \ bts -> debugRunSession False (bts ^. btsWai) $ do
+                  \ bts -> runTestBackend bts $ do
                     let userData = UserFormData "1" "2" "3"
                     response1 <- srequest $ makeSRequest "POST" "/user" (bts ^. btsGodCredentials) (Aeson.encode userData)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
