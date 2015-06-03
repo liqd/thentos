@@ -79,7 +79,8 @@ spec = do
                                   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
                                   ]
 
-                    rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] rq1
+                    -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
+                    rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
                     liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
 
                     Right (db :: DB) <- query' st $ T.SnapShot

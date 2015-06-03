@@ -109,8 +109,8 @@ library
     , safecopy
     , sandi
     , scrypt
-    , servant >= 0.4 && < 0.5
-    , servant-server >= 0.4 && < 0.5
+    , servant >= 0.4.1 && < 0.5
+    , servant-server >= 0.4.1 && < 0.5
     , snap
     , snap-core
     , snaplet-acid-state
@@ -180,8 +180,8 @@ executable build-docs
     , functor-infix
     , pandoc
     , process
-    , servant >= 0.4 && < 0.5
-    , servant-docs >= 0.4 && < 0.5
+    , servant >= 0.4.1 && < 0.5
+    , servant-docs >= 0.4.1 && < 0.5
     , servant-pandoc
     , thyme
 
@@ -239,7 +239,7 @@ test-suite tests
     , regex-easy
     , safecopy
     , scrypt
-    , servant-server >= 0.4 && < 0.5
+    , servant-server >= 0.4.1 && < 0.5
     , snap-core
     , string-conversions
     , system-fileio
