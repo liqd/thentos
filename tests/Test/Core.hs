@@ -21,7 +21,6 @@ import Control.Applicative ((<*), (<$>))
 import Control.Concurrent.Async (async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Lens ((^.))
-import Control.Monad (void)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
 import Data.Acid.Advanced (update')
@@ -35,10 +34,9 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
-import Network.HTTP.Types.Status (statusCode)
 import Network.Wai (Application, StreamingBody, requestMethod, requestBody, strictRequestBody, requestHeaders)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
-import Network.Wai.Test (runSession, setPath, defaultRequest, srequest, simpleBody, simpleStatus)
+import Network.Wai.Test (runSession, setPath, defaultRequest)
 import Network.Wai.Test (Session, SRequest(SRequest))
 import System.Directory (removeDirectoryRecursive)
 import System.FilePath ((</>))
@@ -56,9 +54,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
+import Thentos.Action
 import Thentos.Action.Core
-import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
+import Thentos.Backend.Api.Simple as Simple
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
@@ -122,16 +121,12 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 setupTestBackend :: Command -> IO BTS
 setupTestBackend cmd = do
     DBTS tcfg asg <- setupDB
-    case cmd of
-        Run -> do
-            let testBackend = Simple.serveApi asg
-            (tok, headers) <- loginAsGod testBackend
-            return $ BTS tcfg asg testBackend tok headers
-        RunA3 ->
-            let e = error "setupTestBackend: no god credentials!"
-                testBackend = Adhocracy3.serveApi asg
-            in return $ BTS tcfg asg testBackend e e
-        bad -> error $ "setupTestBackend: bad command: " ++ show bad
+    (tok, headers) <- loginAsGod asg
+    let testBackend = case cmd of
+          Run   -> Simple.serveApi asg
+          RunA3 -> Adhocracy3.serveApi asg
+          bad -> error $ "setupTestBackend: bad command: " ++ show bad
+    return $ BTS tcfg asg testBackend tok headers
 
 teardownTestBackend :: BTS -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
@@ -173,19 +168,11 @@ teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     teardownDB $ DBTS tcfg db
 
 
-loginAsGod :: Application -> IO (ThentosSessionToken, [Header])
-loginAsGod testBackend = debugRunSession False testBackend $ do
-    response <- srequest (makeSRequest "POST" "/thentos_session" [] $ Aeson.encode (godUid, godPass))
-    if (statusCode (simpleStatus response) /= 201)
-        then error $ ppShow response
-        else do
-            let Just (tok :: ThentosSessionToken) = Aeson.decode' $ simpleBody response
-            let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
-            return (tok, credentials)
-
-logoutAsGod :: Application -> ThentosSessionToken -> [Header] -> IO ()
-logoutAsGod testBackend tok godCredentials = debugRunSession False testBackend $ do
-    void . srequest . makeSRequest "DELETE" "/session" godCredentials $ Aeson.encode tok
+loginAsGod :: ActionState DB -> IO (ThentosSessionToken, [Header])
+loginAsGod actionState = do
+    (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
+    let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
+    return (tok, credentials)
 
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
