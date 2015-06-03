@@ -32,7 +32,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, SBS, cs)
+import Data.String.Conversions (LBS, SBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.HTTP.Types.Status (statusCode)
@@ -58,6 +58,7 @@ import qualified Test.WebDriver as WD
 
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
+import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
@@ -126,11 +127,10 @@ setupTestBackend cmd = do
             let testBackend = Simple.serveApi asg
             (tok, headers) <- loginAsGod testBackend
             return $ BTS tcfg asg testBackend tok headers
-{-
         RunA3 ->
             let e = error "setupTestBackend: no god credentials!"
-            in return (asg, Adhocracy3.serveApi asg, e, e)
--}
+                testBackend = Adhocracy3.serveApi asg
+            in return $ BTS tcfg asg testBackend e e
         bad -> error $ "setupTestBackend: bad command: " ++ show bad
 
 teardownTestBackend :: BTS -> IO ()
@@ -249,3 +249,9 @@ decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
     Aeson.parseEither Aeson.parseJSON v
+
+
+-- | This is convenient if you have lots of string literals with @-XOverloadedStrings@ but do not
+-- want to do explicit type signatures to avoid type ambiguity.
+(..=) :: ST -> ST -> Aeson.Pair
+(..=) = (Aeson..=)
