@@ -75,6 +75,8 @@ library
     , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
+  other-modules:
+      Snap.Inline
   build-depends:
       base
     , acid-state
@@ -113,7 +115,6 @@ library
     , servant-server >= 0.4 && < 0.5
     , snap
     , snap-core
-    , snap-extras
     , snaplet-acid-state
     , snap-server
     , string-conversions
