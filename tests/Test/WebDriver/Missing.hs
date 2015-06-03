@@ -30,10 +30,14 @@ clickSync = waitForPageLoad . WD.click
 -- | If you have an action @act@ that you know will load a new page, and you want this page to be
 -- loaded and ready before the action returns, call @waitForPageLoad act@ instead.  (See
 -- http://www.obeythetestinggoat.com/how-to-get-selenium-to-wait-for-page-load-after-a-click.html.)
+--
+-- There are horrible things going on in here like seemingly arbitrary calls to threadDelay, and
+-- timeout values that may be exceeded by a lot in practice.  Using webdriver is not for the
+-- impatient.
 waitForPageLoad :: forall wd a . (MonadIO wd, WD.WebDriver wd) => wd a -> wd a
 waitForPageLoad action = do
     let freq    :: Int    = 92000  -- (microseconds)
-        timeout :: Double = 7      -- (seconds)
+        timeout :: Double = 13     -- (seconds)
         findHtml :: wd WD.Element = WD.findElem . WD.ByTag $ "html"
 
     -- first get old html tag, then call action
@@ -45,6 +49,9 @@ waitForPageLoad action = do
 
     -- wait until a new html tag shows up
     _ <- WD.waitUntil' freq timeout findHtml
+
+    -- voodoo, yes.  but perhaps it'll help?
+    liftIO . threadDelay $ 38 * 1000
 
     -- return result produced by action earlier
     return result
