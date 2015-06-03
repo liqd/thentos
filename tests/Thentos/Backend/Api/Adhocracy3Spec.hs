@@ -11,8 +11,6 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-{-# OPTIONS  #-}
-
 module Thentos.Backend.Api.Adhocracy3Spec
 where
 
@@ -31,7 +29,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 
-import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Backend.Api.Adhocracy3
 import Thentos.Config
@@ -67,7 +64,7 @@ spec = do
                 \ (BTS _ (ActionState (st, _, _)) testServer _ _) -> debugRunSession False testServer $ do
 
                     -- Aeson.encode would strip the password, so we
-                    -- need to do this one by hand.
+                    -- do this one by hand.
                     let rq1 :: LBS
                         rq1 = encodePretty . object $
                                   [ "data" .= object
