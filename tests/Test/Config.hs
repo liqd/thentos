@@ -30,6 +30,7 @@ testConfig = do
           , _tcfgServerFullFrontendPort = 7119
           , _tcfgWebdriverHost          = "localhost"
           , _tcfgWebdriverPort          = 4451
+          , _tcfgTraceHttp              = True
           }
     return cfg
 

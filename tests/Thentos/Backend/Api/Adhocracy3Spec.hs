@@ -61,7 +61,7 @@ spec = do
 
         describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
             it "works" $
-                \ (BTS _ (ActionState (st, _, _)) testServer _ _) -> debugRunSession False testServer $ do
+                \ bts@(BTS _ (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
                     -- Aeson.encode would strip the password, so we
                     -- do this one by hand.

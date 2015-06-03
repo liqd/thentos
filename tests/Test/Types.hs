@@ -25,6 +25,7 @@ data TestConfig =
       , _tcfgServerFullFrontendPort :: Int
       , _tcfgWebdriverHost          :: String
       , _tcfgWebdriverPort          :: Int
+      , _tcfgTraceHttp              :: Bool
       }
   deriving (Eq, Show)
 

@@ -34,16 +34,14 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
-import Network.Wai (Application, StreamingBody, requestMethod, requestBody, strictRequestBody, requestHeaders)
+import Network.Wai (Application, StreamingBody, Request, requestMethod, requestBody, strictRequestBody, requestHeaders)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
-import Network.Wai.Test (runSession, setPath, defaultRequest)
-import Network.Wai.Test (Session, SRequest(SRequest))
+import Network.Wai.Test (Session, SRequest(SRequest), runSession, setPath, defaultRequest)
 import System.Directory (removeDirectoryRecursive)
 import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
-import System.Log.Missing (loggerName)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -54,10 +52,12 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
+import System.Log.Missing (logger, loggerName)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Backend.Api.Simple as Simple
+import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
@@ -126,10 +126,13 @@ setupTestBackend cmd = do
           Run   -> Simple.serveApi asg
           RunA3 -> Adhocracy3.serveApi asg
           bad -> error $ "setupTestBackend: bad command: " ++ show bad
-    return $ BTS tcfg asg testBackend tok headers
+    return $ BTS tcfg asg (tracifyApplication tcfg testBackend) tok headers
 
 teardownTestBackend :: BTS -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
+
+runTestBackend :: BTS -> Session a -> IO a
+runTestBackend bts session = runSession session (bts ^. btsWai)
 
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
@@ -141,7 +144,7 @@ setupTestServerFull = do
     let Just (beConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["backend"])
         Just (feConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["frontend"])
 
-    backend  <- async $ Simple.runApi beConfig asg
+    backend  <- async $ runWarpWithCfg beConfig . tracifyApplication tcfg $ Simple.serveApi asg
     frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
 
     let wdConfig = WD.defaultConfig
@@ -184,46 +187,50 @@ makeSRequest method path headers body = SRequest req body
     defaultHeaders = [("Content-Type", "application/json")]
 
 
--- | Like `runSession`, but with re-ordered arguments, and with an
--- extra debug-output flag.  It's not a pretty function, but it helps
--- with debugging, and it is not intended for production use.
-debugRunSession :: Bool -> Application -> Network.Wai.Test.Session a -> IO a
-debugRunSession debug application session = runSession session (wrapApplication debug)
+
+-- | Log all requests and responses to log file (unless 'tcfgTraceApplication' of current config is
+-- 'False').
+tracifyApplication :: TestConfig -> Application -> Application
+tracifyApplication ((^. tcfgTraceHttp) -> False) application = application
+tracifyApplication _ application = application'
   where
-    wrapApplication :: Bool -> Application
-    wrapApplication False = application
-    wrapApplication True = \ _request respond -> do
-        (requestRendered, request') <- showRequest _request
-        print requestRendered
-        application request' (\ response -> putStrLn (showResponse response)  >> respond response)
+    application' :: Application
+    application' = \ req respond -> do
+        req' <- logRq req
+        application req' $ \ rsp -> logRsp rsp >> respond rsp
 
-    showRequest _request = do
-        body :: LBS <- strictRequestBody _request
+    logRq :: Request -> IO Request
+    logRq req = do
         bodyRef :: IORef Bool <- newIORef False
+        body :: LBS <- strictRequestBody req
 
+        logger DEBUG $ unlines
+            [ ""
+            , "=== REQUEST =========================================================="
+            , ppShow req
+            , "body:"
+            , cs body
+            ]
+
+        -- It is a bit tricky to force the 'LBS' body builder without falling into a black hole.
         let memoBody = do
               toggle <- readIORef bodyRef
               writeIORef bodyRef $ not toggle
               return $ if toggle then "" else cs body
 
-        let  showRequestHeader = "\n=== REQUEST ==========================================================\n"
+        return $ req { requestBody = memoBody }
 
-             showBody :: String
-             showBody = showRequestHeader ++ ppShow _request ++ "\nbody:" ++ show body ++ "\n"
-
-             request' = _request { requestBody = memoBody }
-
-        return (showBody, request')
+    logRsp :: Response -> IO ()
+    logRsp rsp = logger DEBUG $ unlines
+        [ ""
+        , "=== RESPONSE ========================================================="
+        , show_ rsp
+        ]
       where
-
-    showResponse response = showResponseHeader ++ show_ response
-      where
-        showResponseHeader = "\n=== RESPONSE =========================================================\n"
-
         show_ :: Response -> String
         show_ (ResponseFile _ _ _ _) = "ResponseFile"
-        show_ (ResponseBuilder status headers _) = "ResponseBuilder" ++ show (status, headers)
-        show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream" ++ show (status, headers)
+        show_ (ResponseBuilder status headers _) = "ResponseBuilder " ++ ppShow (status, headers)
+        show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream " ++ ppShow (status, headers)
         show_ (ResponseRaw _ _) = "ResponseRaw"
 
 
