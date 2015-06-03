@@ -323,6 +323,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
     WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "csrf badness")
 
+
 -- * wd actions
 
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
