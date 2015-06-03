@@ -95,11 +95,13 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
         H.h1 $ H.text title
         body
 
-
+-- | Protect a form from CSRF attacks by including a secret token as a hidden
+-- field.
 csrfProofForm :: ST -> View Html -> ST -> Html -> Html
 csrfProofForm csrfToken v action html =
     let htmlWithToken = html >> (H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken))
     in form v action htmlWithToken
+
 
 -- * dashboard
 

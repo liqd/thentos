@@ -108,7 +108,6 @@ runPageForm :: forall v a .
     -> (ST -> ST -> View v -> H.Html)
     -> (a -> FH ())
     -> FH ()
---runPageForm f page = runPageForm' f (\ formAction -> return . page formAction)
 runPageForm f page a = do
     tok <- with sess csrfToken
     runPageForm' f (\ formAction -> return . page tok formAction) a
@@ -349,6 +348,8 @@ csrfify :: FH () -> FH ()
 csrfify handler = do
     mSessData <- with sess (getFromSession "ThentosSessionData")
     case mSessData of
-        -- FIXME: sensible error handling
+        -- FIXME: sensible error handling. Opinions vary on what to tell the
+        -- user in this case. For discussion, see e.g.
+        -- http://security.stackexchange.com/questions/8446/how-should-a-web-page-respond-to-a-csrf-attack
         Just _ -> blanketCSRF sess (crash 500 "csrf badness") handler
         Nothing -> handler
