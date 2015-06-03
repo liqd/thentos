@@ -81,7 +81,7 @@ instance ToJSON ContentType where
     toJSON = Aeson.String . cs . show
 
 instance FromJSON ContentType where
-    parseJSON = Aeson.withText "content type string" $ maybe mzero return . readMay . cs
+    parseJSON = Aeson.withText "content type string" $ maybe (fail "invalid content type") return . readMay . cs
 
 data PropertySheet =
       PSUserBasic
