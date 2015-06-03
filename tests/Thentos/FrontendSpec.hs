@@ -329,7 +329,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     fill "/dashboard/ownservices.description" "this is a service description"
     -- check that we get the expected error
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "foo bar")
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "csrf badness")
 
 -- * wd actions
 
