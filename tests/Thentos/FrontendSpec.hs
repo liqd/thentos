@@ -52,6 +52,7 @@ spec = describe "selenium grid" $ do
     spec_logIntoService
     spec_logOutOfService
     spec_browseMyServices
+    spec_failOnCsrf
 
   -- (this is a separate top-level test case because it changes the DB
   -- state and gets the other tests confused.)
@@ -304,6 +305,32 @@ spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "n
         -- check that there are services that i'm logged outof
 -}
 
+
+spec_failOnCsrf :: SpecWith FTS
+spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
+    fail "arg!"
+    let feConfig = fts ^. ftsFrontendCfg
+    -- login into thentos
+    wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
+    -- store cookie somewhere
+    storedCookies <- WD.cookies
+    -- delete cookie (from session)
+    WD.deleteVisibleCookies
+    -- log into thentos
+    wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
+    -- go to page with form
+    WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
+    -- swap current cookie for the one we stored earlier
+    mapM_ WD.setCookie storedCookies
+    -- fill in form, try to submit it
+    let fill :: WD.WebDriver wd => ST -> ST -> wd ()
+        fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+
+    fill "/dashboard/ownservices.name" "this is a service name"
+    fill "/dashboard/ownservices.description" "this is a service description"
+    -- check that we get the expected error
+    WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
+    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "foo bar")
 
 -- * wd actions
 
