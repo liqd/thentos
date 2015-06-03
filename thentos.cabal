@@ -75,6 +75,8 @@ library
     , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
+  other-modules:
+      Snap.Inline
   build-depends:
       base
     , acid-state
