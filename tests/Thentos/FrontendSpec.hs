@@ -308,7 +308,6 @@ spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "n
 
 spec_failOnCsrf :: SpecWith FTS
 spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
-    fail "arg!"
     let feConfig = fts ^. ftsFrontendCfg
     -- login into thentos
     wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
