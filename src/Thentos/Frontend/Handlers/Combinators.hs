@@ -12,7 +12,7 @@ import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.), (%~), (.~))
 import Control.Monad.Except (liftIO)
 import Control.Monad.State.Class (gets)
-import "crypto-random" Crypto.Random (SystemRNG)
+import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.Acid (AcidState)
 import Data.ByteString.Builder (Builder, toLazyByteString)
 import Data.Maybe (fromMaybe)
@@ -316,7 +316,7 @@ snapHandleAllErrors eth = do
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
 snapRunActionE action = do
     st :: AcidState DB        <- getAcidState
-    rn :: MVar SystemRNG      <- gets (^. rng)
+    rn :: MVar ChaChaDRG      <- gets (^. rng)
     cf :: ThentosConfig       <- gets (^. cfg)
     fs :: FrontendSessionData <- getSessionData
 
@@ -328,9 +328,9 @@ snapRunActionE action = do
 -- | Call action with top clearance.
 snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
 snapRunActionE'P action = do
-    st :: AcidState DB <- getAcidState
-    rn :: MVar SystemRNG      <- gets (^. rng)
-    cf :: ThentosConfig       <- gets (^. cfg)
+    st :: AcidState DB   <- getAcidState
+    rn :: MVar ChaChaDRG <- gets (^. rng)
+    cf :: ThentosConfig  <- gets (^. cfg)
 
     result <- liftIO $ runActionWithClearanceE dcTop (ActionState (st, rn, cf)) action
     snapHandleSomeErrors result

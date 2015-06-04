@@ -21,7 +21,7 @@ import Control.Applicative ((<*), (<$>))
 import Control.Concurrent.Async (async, cancel)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Lens ((^.))
-import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
 import Data.Acid.Advanced (update')
 import Data.Acid (openLocalStateFrom, closeAcidState)
@@ -105,7 +105,7 @@ setupDB = do
     createGod st
     Right (UserId 1) <- update' st $ AddUser user1
     Right (UserId 2) <- update' st $ AddUser user2
-    rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+    rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
 
 teardownDB :: DBTS -> IO ()

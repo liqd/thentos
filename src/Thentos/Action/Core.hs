@@ -22,7 +22,7 @@ import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
-import "crypto-random" Crypto.Random (SystemRNG, cprgGenerate)
+import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
 import Data.Acid.Advanced (query', update')
 import Data.EitherR (fmapL)
@@ -51,7 +51,7 @@ import Thentos.Util
 
 -- * types
 
-newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar SystemRNG, ThentosConfig) }
+newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar ChaChaDRG, ThentosConfig) }
   deriving (Typeable, Generic)
 
 newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
@@ -238,8 +238,8 @@ getCurrentTime'P = Timestamp <$> liftLIO (ioTCB Thyme.getCurrentTime)
 -- 'Action'.
 genRandomBytes'P :: Int -> Action db SBS
 genRandomBytes'P i = do
-    let f :: SystemRNG -> (SystemRNG, SBS)
-        f r = case cprgGenerate i r of (output, r') -> (r', output)
+    let f :: ChaChaDRG -> (ChaChaDRG, SBS)
+        f r = case randomBytesGenerate i r of (output, r') -> (r', output)
     ActionState (_, mr, _) <- Action ask
     liftLIO . ioTCB . modifyMVar mr $ return . f
 

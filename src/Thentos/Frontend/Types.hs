@@ -10,7 +10,7 @@ module Thentos.Frontend.Types where
 import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses, view)
 import Control.Monad (mzero)
-import "crypto-random" Crypto.Random (SystemRNG)
+import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (ST, cs)
@@ -29,7 +29,7 @@ import Thentos.Types
 data FrontendApp =
     FrontendApp
       { _db :: Snaplet (Acid DB)
-      , _rng :: MVar SystemRNG
+      , _rng :: MVar ChaChaDRG
       , _cfg :: ThentosConfig
       , _sess :: Snaplet SessionManager
       , _frontendCfg :: HttpConfig
