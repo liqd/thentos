@@ -22,7 +22,8 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
 import Control.Monad (void, when, forever)
-import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
+import Crypto.Random (ChaChaDRG, drgNew)
+
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -56,7 +57,7 @@ main =
         -- even though that would probably require patching
         -- acid-state.)
 
-    rng :: MVar SystemRNG <- createEntropyPool >>= newMVar . cprgCreate
+    rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
     config :: ThentosConfig <- getConfig "devel.config"
 
     let actionState = ActionState (st, rng, config)

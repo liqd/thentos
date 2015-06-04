@@ -89,7 +89,7 @@ library
     , cereal
     , configifier >= 0.0.4
     , containers
-    , crypto-random
+    , cryptonite
     , digestive-functors
     , digestive-functors-blaze >= 0.6.0.5
     , digestive-functors-snap >= 0.6.1.1
@@ -224,7 +224,7 @@ test-suite tests
     , cereal
     , configifier
     , containers
-    , crypto-random
+    , cryptonite
     , directory
     , filepath
     , functor-infix
