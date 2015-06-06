@@ -114,7 +114,7 @@ runActionInThentosSession tok state action = runActionInThentosSessionE tok stat
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
 -- executed, and the label has not been guarded by any action yet.
 runActionE :: forall a db . ActionState db -> Action db a -> IO (Either ActionError a)
-runActionE state action = catchUnknown
+runActionE state (discretifyActionRuntimes () -> action) = catchUnknown
   where
     inner :: IO (Either ThentosError a)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
@@ -265,3 +265,25 @@ logIfError'P = (`catchError` f)
     f e = do
         logger'P DEBUG $ "*** error: " ++ show e
         throwError e
+
+
+-- * timing attack countermeasures
+
+type Runtimes = ()
+  -- FIXME: once 'discretifyActionRuntimes' is implemented, this type will have changed, and the
+  -- type checker can lead you to all the places where actual 'Runtimes' must be provided now.  (i
+  -- probably want the 'Runtimes' be provided in Thentos.Config by the operator in the config file.
+  -- a more sophisticated approach would be to take measurements and optimize them all the time
+  -- during the entire system run.)
+
+-- | Run an action.  Guarantee that the result time is one of ones listed in 'Runtimes' (the
+-- smallest one greater than the actual runtime).
+discretifyActionRuntimes :: Runtimes -> Action db a -> Action db a
+discretifyActionRuntimes _ action = action
+  -- FIXME: not implemented.
+  -- implementation hints:
+  --  0. defined @type Runtimes = [Double]@
+  --  1. start sub-thread with "Control.Concurrent.Async"
+  --  2. run action in sub-thread
+  --  3. in super-thread, map 'threadDelay' over the 'Runtimes' list
+  --  4. after each 'threadDelay', check if result is there.
