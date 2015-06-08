@@ -164,7 +164,7 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 -- to be a function in the request for which the response is constructed.  Not sure how best to
 -- combine these two requirements.
 httpCachePolicy :: HttpTypes.ResponseHeaders
-httpCachePolicy = [("Cache-Control", "no-cache, no-store, must-revalidate")]
+httpCachePolicy = [("Cache-Control", "no-cache, no-store, must-revalidate"), ("Expires", "0")]
 
 
 -- | Add 'httpCachePolicy' to response.
