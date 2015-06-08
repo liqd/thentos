@@ -21,7 +21,7 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), Post, Put, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
@@ -74,10 +74,10 @@ type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> ReqBody '[JSON] UserName :> Put '[JSON] ()
-  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
+  :<|> Capture "uid" UserId :> "name" :> CGet '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
-  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
-  :<|> Get '[JSON] [UserId]
+  :<|> Capture "uid" UserId :> "email" :> CGet '[JSON] UserEmail
+  :<|> CGet '[JSON] [UserId]
 
 thentosUser :: ServerT ThentosUser (Action DB)
 thentosUser =
@@ -100,7 +100,7 @@ type ThentosService =
            -- place.  coming up soon!
 
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
-  :<|> Get '[JSON] [ServiceId]
+  :<|> CGet '[JSON] [ServiceId]
 
 thentosService :: ServerT ThentosService (Action DB)
 thentosService =
@@ -114,7 +114,7 @@ thentosService =
 type ThentosThentosSession =
        ReqBody '[JSON] (UserId, UserPass)      :> Post '[JSON] ThentosSessionToken
   :<|> ReqBody '[JSON] (ServiceId, ServiceKey) :> Post '[JSON] ThentosSessionToken
-  :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
+  :<|> ReqBody '[JSON] ThentosSessionToken     :> CGet '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
 thentosThentosSession :: ServerT ThentosThentosSession (Action DB)
@@ -128,8 +128,8 @@ thentosThentosSession =
 -- * service session
 
 type ThentosServiceSession =
-       ReqBody '[JSON] ServiceSessionToken :> Get '[JSON] Bool
-  :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
+       ReqBody '[JSON] ServiceSessionToken :> CGet '[JSON] Bool
+  :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> CGet '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
 thentosServiceSession :: ServerT ThentosServiceSession (Action DB)
