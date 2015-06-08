@@ -24,6 +24,8 @@ import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
+import Data.Function (on)
+import Data.List (nubBy)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
 import Data.String.Conversions (SBS, ST)
@@ -31,10 +33,10 @@ import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import LIO.Error (AnyLabelError)
-import Network.HTTP.Types (Header)
-import Network.Wai (Application)
+import Network.HTTP.Types (Header, methodGet, methodHead)
+import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
-import Network.Wai (Request, requestHeaders)
+import Network.Wai.Internal (Response(..))
 import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
@@ -98,7 +100,7 @@ actionErrorToServantErr e = do
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
--- * header
+-- * request headers
 
 data ThentosHeaderName =
     ThentosHeaderSession
@@ -150,6 +152,31 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
         []  -> route (Proxy :: Proxy subserver) subserver request respond
         bad -> respond . RR . Right . responseServantErr  -- FIXME: use 'left' instead of all this?  yields a type error, though.
              $ err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad }
+
+
+-- * response headers
+
+-- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
+--
+-- FUTURE WORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
+-- to be a function in the request for which the response is constructed.  Not sure how best to
+-- combine these two requirements.
+httpCachePolicy :: HttpTypes.ResponseHeaders
+httpCachePolicy = [("Cache-Control", "no-cache, no-store, must-revalidate"), ("Expires", "0")]
+
+-- | Add suitable headers to HTTP responses. For now, this just prevents caching of all GET/HEAD
+-- requests (other HTTP methods are considered uncacheable by default). In the future we may use
+-- more refined caching strategies.
+addResponseHeaders :: Middleware
+addResponseHeaders app req respond
+  | requestMethod req `elem` [methodGet, methodHead] = app req $ respond . updR
+  | otherwise                                        = app req respond
+  where
+    updR (ResponseFile status hdrs filepath part) = ResponseFile status (updH hdrs) filepath part
+    updR (ResponseBuilder status hdrs builder)    = ResponseBuilder status (updH hdrs) builder
+    updR (ResponseStream status hdrs body)        = ResponseStream status (updH hdrs) body
+    updR (ResponseRaw action resp')               = ResponseRaw action (updR resp')
+    updH hdrs = nubBy ((==) `on` fst) $ httpCachePolicy ++ hdrs
 
 
 -- * warp
