@@ -17,25 +17,18 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Applicative ((<$>))
-import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), addHeader, Header, Headers, Post, Put, Delete, Capture, ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), addHeader, Header, Headers, Post, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
-import qualified Servant.API
-
 import System.Log.Missing (logger)
-import Thentos.Action
 import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things from Thentos.Action!
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-
-import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  use Thentos.Action instead!
 
 
 -- * main
