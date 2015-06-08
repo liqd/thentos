@@ -70,9 +70,9 @@ synonyms match the module names that they are from.
 
 ## layout
 
-maximum line length is 140 chars.
+maximum line length is 100 chars.
 
 preceed haddock section headings with two empty lines.  succeed with
 one empty line.
 
-spacing in lambda: `\ x -> ...`; NOT: `\x -> ...`.
+spacing in lambda: `\x -> ...`; NOT: `\ x -> ...`.
