@@ -24,6 +24,8 @@ import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Char (isUpper)
 import Data.Configifier ((>>.))
+import Data.Function (on)
+import Data.List (nubBy)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
 import Data.String.Conversions (SBS, ST)
@@ -33,6 +35,7 @@ import Data.Typeable (Typeable)
 import LIO.Error (AnyLabelError)
 import Network.HTTP.Types (Header)
 import Network.Wai (Application)
+import Network.Wai.Internal (Response(..))
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai (Request, requestHeaders)
 import Servant.API ((:>), Get)
@@ -52,7 +55,7 @@ import Thentos.Types
 import Thentos.Util
 
 
--- * action
+-- * actions
 
 enterAction :: ActionState DB -> Maybe ThentosSessionToken -> Action DB :~> EitherT ServantErr IO
 enterAction state mTok = Nat $ EitherT . run
@@ -98,7 +101,7 @@ actionErrorToServantErr e = do
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
--- * request header
+-- * request headers
 
 data ThentosHeaderName =
     ThentosHeaderSession
@@ -152,17 +155,49 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
              $ err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad }
 
 
--- * response header
+-- * response headers
 
-type CGet ctyps val = Servant.API.Get ctyps val
+-- | Caching information headers in HTTP responses.  This is currently just a constant list of
+-- headers.
+--
+-- FUTURE WORK: we may want for this to come from "Thentos.Config".  We may also want to the policy
+-- to be a function in the request for which the response is constructed.  Not sure how best to
+-- combine these two requirements.
+httpCachePolicy :: HttpTypes.ResponseHeaders
+httpCachePolicy = [("Cache-Control", "no-cache, no-store, must-revalidate")]
+
+
+-- | Add 'httpCachePolicy' to response.
+setHttpCachePolicy :: RouteResult Response -> RouteResult Response
+setHttpCachePolicy (RR (Right resp)) = RR . Right . updR $ resp
+  where
+    updR (ResponseFile status hdrs filepath part) = ResponseFile status (updH hdrs) filepath part
+    updR (ResponseBuilder status hdrs builder)    = ResponseBuilder status (updH hdrs) builder
+    updR (ResponseStream status hdrs body)        = ResponseStream status (updH hdrs) body
+    updR (ResponseRaw action resp')               = ResponseRaw action (updR resp')
+
+    updH hdrs = nubBy ((==) `on` fst) $ httpCachePolicy ++ hdrs
+
+setHttpCachePolicy rr@(RR (Left _)) = rr
+
+
+-- | 'Get' with caching policy in the response headers.  We could do something like this instead:
+--
+-- >>> data CGet ctyps val = CGet (Servant.API.Get ctyps
+-- >>>                             (Headers '[Header "cache-policy" Policy] val))
+--
+-- But different policies require setting different sets of headers, and we want to decide on that
+-- dynamically.  So instead, the 'HasServer' instance updates the wai response without any servant
+-- type-level business.
+data CGet ctyps val = CGet (Servant.API.Get ctyps val)
+  deriving (Typeable)
 
 instance (HasServer (Get ctyps val)) => HasServer (CGet ctyps val)
   where
     type ServerT (CGet ctyps val) m = ServerT (Get ctyps val) m
 
     route Proxy subserver request respond =
-        route (Proxy :: Proxy subserver) subserver request $ \ response ->
-            respond (setHeaders [("Cache", "god no!"), ("Virus-Scanned", False)] response)
+        route (Proxy :: Proxy (Get ctyps val)) subserver request (respond . setHttpCachePolicy)
 
 
 -- * warp
