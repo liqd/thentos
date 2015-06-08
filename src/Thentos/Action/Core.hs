@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE DeriveFunctor          #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
@@ -7,7 +8,9 @@
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PackageImports         #-}
+{-# LANGUAGE Rank2Types             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE ViewPatterns           #-}
@@ -21,11 +24,13 @@ import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
+import Control.Monad.Writer  -- (...)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
 import Data.Acid.Advanced (query', update')
 import Data.EitherR (fmapL)
+import Data.Functor.Infix ((<$$>))
 import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
@@ -54,15 +59,48 @@ import Thentos.Util
 newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar ChaChaDRG, ThentosConfig) }
   deriving (Typeable, Generic)
 
-newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
+-- | (Do not export this from this module.  Only required inside the implementations of the various
+-- instances.)
+newtype ActionErrorHandler db a =
+    ActionErrorHandler { fromActionErrorHandler :: ActionError -> Action db a }
+  deriving (Functor)
+
+-- | Note the assymetry between the error handlers (that operate on 'ActionError') and the exceptions thrown by
+newtype Action db a = Action { fromAction :: WriterT [ActionErrorHandler db a]
+                                                     (ReaderT (ActionState db)
+                                                              (EitherT ThentosError
+                                                                       (LIO DCLabel))) a }
   deriving (Typeable, Generic)
 
+data ActionError =
+    ActionErrorThentos ThentosError
+  | ActionErrorAnyLabel AnyLabelError
+  | ActionErrorUnknown SomeException
+  deriving (Show, Typeable, Generic)
+
+
+instance Exception ActionError
+
 instance Functor (Action db) where
-    fmap f (Action a) = Action $ fmap f a
+    -- fmap :: (a -> b) -> Action db a -> Action db b
+    fmap f (Action (WriterT a)) = Action . WriterT $ fmap f' a
+      where
+        -- f' :: (a, [ActionErrorHandler db a]) -> (b, [ActionErrorHandler db b])
+        f' (x, hs) = (f x, f <$$> hs)
+
+    -- FIXME: why are the type signatures not scoped together?
 
 instance Applicative (Action db) where
     pure = Action . pure
-    Action a <*> Action b = Action $ a <*> b
+    Action (WriterT af) <*> Action (WriterT ax) = Action . WriterT $ do
+        (f, hfs) <- af
+        (x, hxs) <- ax
+        pure (f x, _)
+
+        -- FIXME: we have exception handlers that are hoped to return lambda abstractions, and
+        -- exception handlers that are hoped to return arguments for those abstractions.  but there
+        -- is no meaningful way of combinding the two into handlers returning results of the
+        -- application.  perhpas there is no useful 'Applicative' instance for 'Action' any more?
 
 instance Monad (Action db) where
     return = Action . return
@@ -72,9 +110,7 @@ instance MonadReader (ActionState db) (Action db) where
     ask = Action ask
     local f (Action a) = Action $ local f a
 
--- | FIXME: all exceptions that occur inside 'LIO' currently go uncaught until execution reaches
--- 'runAction' or 'runActionE'.  should errors caught there actually be handled here already, so we
--- can process them inside 'Action'?
+
 instance MonadError ThentosError (Action db) where
     throwError :: ThentosError -> Action db a
     throwError = Action . throwError
@@ -82,17 +118,11 @@ instance MonadError ThentosError (Action db) where
     catchError :: Action db a -> (ThentosError -> Action db a) -> Action db a
     catchError (Action a) handler = Action $ catchError a (fromAction . handler)
 
+catchActionError :: Action db a -> (ActionError -> Action db a) -> Action db a
+catchActionError (Action a) handler = Action $ tell [ActionErrorHandler handler] >> a
+
 instance MonadLIO DCLabel (Action db) where
-    liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
-
-
-data ActionError =
-    ActionErrorThentos ThentosError
-  | ActionErrorAnyLabel AnyLabelError
-  | ActionErrorUnknown SomeException
-  deriving (Show, Typeable, Generic)
-
-instance Exception ActionError
+    liftLIO lio = Action . WriterT $ \ _ -> ReaderT $ \ _ -> EitherT (Right <$> lio)
 
 
 -- * running actions
@@ -120,6 +150,10 @@ runActionE state action = catchUnknown
     inner = (`evalLIO` LIOState dcBottom dcBottom)
           . eitherT (return . Left) (return . Right)
           $ fromAction action `runReaderT` state
+
+    -- FIXME: ...  and instead in the exception handler, we can somehow magically unwrap the writer
+    -- monad and let all the handlers accumulated there handle the excptions, even if they are
+    -- thrown from inside the action.  i'm suddenly skeptical about this whole approach...
 
     catchAnyLabelError :: IO (Either ActionError a)
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
