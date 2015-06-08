@@ -218,8 +218,12 @@ lookupThentosSession tok = do
     now <- getCurrentTime'P
     snd <$> update'P (T.LookupThentosSession now tok)
 
--- | Like 'lookupThentosSession', but (1) does not throw exceptions and (2) returns less information
--- and therefore can have a more liberal lio label.
+-- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist,
+-- but returns 'False' instead.
+--
+-- FIXME: calling this leaks information on existence and activeness of thentos sessions.  this may
+-- not be a serious problem, as the attacker is not expected to be in the possession of anybody
+-- else's tokens, but this is an instance of a more general problem.  See #131.
 existsThentosSession :: ThentosSessionToken -> Action DB Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
     \case NoSuchThentosSession -> return False
