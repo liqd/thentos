@@ -57,19 +57,13 @@ api actionState mTok = enter (enterAction actionState mTok) thentosBasic
 -- * toy example (FIXME: remove this section once understood.)
 
 type ThentosBasic =
-       "get" :> Get '[JSON] Int
+       "get" :> CGet '[JSON]  (Headers '[Header "X" String] Int)
   :<|> "post" :> Post '[JSON] ()
 
 thentosBasic :: ServerT ThentosBasic (Action DB)
 thentosBasic =
        return (addHeader "0" 3)
   :<|> return ()
-
-type Get ctyps val = Servant.API.Get ctyps
-                     (Headers '[Header "X" String {- Header "Cache-Control" String, Header "Expires" String -}] val)
-
--- FIXME: this is all nice and well, but we want to actually do the 'addHeader' call once at the top of the
--- routing tree, and it should trickle down only into the Gets, not into the Posts.
 
 
 
