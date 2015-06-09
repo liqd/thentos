@@ -137,7 +137,7 @@ badHeaders = filter g . filter f
 -- | Remove all headers that match @X-Thentos-.*@.  This is useful if the request is to be used as a
 -- basis for e.g. constructing another request to a proxy target.
 clearThentosHeaders :: HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
-clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
+clearThentosHeaders = filter $ not . (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
 data ThentosAssertHeaders = ThentosAssertHeaders
