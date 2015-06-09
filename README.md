@@ -105,6 +105,8 @@ This is a possible quick walk through the code:
 Installation
 ------------
 
+If you want to use vagrant, visit https://github.com/tarleb/thentos-vagrant.
+
 Tested on [ghc-7.8.4](https://www.haskell.org/ghc/download_ghc_7_8_4)
 with all versions pinned (see `cabal.config`).  You should be able to
 build with other ghc versions sind 7.8 and without pinning, but it may
@@ -232,6 +234,7 @@ Thanks!
 In alphanumerical order.  Please let us know if we forgot to add you,
 or if you would like us to link to your github handle / email.
 
+- Albert Krewinkel
 - Christian Siefkes
 - Julian Arni
 - Robert Vollmert
