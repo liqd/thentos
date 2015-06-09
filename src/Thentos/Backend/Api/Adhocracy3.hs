@@ -52,6 +52,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
+import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -274,7 +275,7 @@ type Api =
   :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post '[JSON] RequestResult
   :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
   :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
---   :<|> ServiceProxy
+  :<|> ServiceProxy
 
 app :: AC.ActionState DB -> Server Api
 app actionState = enter (enterAction actionState Nothing) $
@@ -282,7 +283,7 @@ app actionState = enter (enterAction actionState Nothing) $
   :<|> activate
   :<|> login
   :<|> login
---   :<|> serviceProxy
+  :<|> serviceProxy
 
 
 -- * handler

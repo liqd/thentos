@@ -25,6 +25,7 @@ import Control.Monad (void, when, forever)
 import Crypto.Random (SystemRNG, createEntropyPool, cprgCreate)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
+import Data.Functor.Infix ((<$$>))
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Proxy (Proxy(Proxy))
@@ -35,6 +36,7 @@ import Text.Show.Pretty (ppShow)
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
 import Thentos.Action.Core
+import Thentos.Backend.Api.Proxy (runProxy)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Types
@@ -71,6 +73,9 @@ main =
 
         mFeConfig :: Maybe HttpConfig
         mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+
+        mProxyConfig :: Maybe [HttpProxyConfig]
+        mProxyConfig = Tagged <$$> config >>. (Proxy :: Proxy '["proxies"])
 
     logger INFO "Press ^C to abort."
     let run = case config >>. (Proxy :: Proxy '["command"]) of
