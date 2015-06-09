@@ -448,6 +448,6 @@ disableCaching h = do
     when (rqMethod req `elem` [GET, HEAD]) addCacheControlHeaders
     h
   where
-    addCacheControlHeaders = do
+    addCacheControlHeaders =
         modifyResponse $ setHeader "Cache-Control" "no-cache, no-store, must-revalidate"
-        modifyResponse $ setHeader "Expires" "0"
+                       . setHeader "Expires" "0"

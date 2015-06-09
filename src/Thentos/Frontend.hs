@@ -94,5 +94,7 @@ routes = [ -- default entry point
 
          -- static files
          , ("", serveDirectory "snap/static")
+
+         -- 404 error page if no other route exists
          , ("", H.unknownPath)
          ]
