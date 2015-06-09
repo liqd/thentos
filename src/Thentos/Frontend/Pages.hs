@@ -51,6 +51,7 @@ module Thentos.Frontend.Pages
     , errorPage
     , errorPagelet
     , permissionDeniedPage
+    , notFoundPage
     , confirmationMailSentPage
     , confirmationMailSentPagelet
     ) where
@@ -471,6 +472,9 @@ permissionDeniedPage :: Html
 permissionDeniedPage = basePagelet' "Permission Denied"
                                     Nothing
                                     (H.a ! A.href "/dashboard" $ "Back to dashboard")
+
+notFoundPage :: Html
+notFoundPage = basePagelet "Not Found" $ H.p "The requested page does not exist."
 
 confirmationMailSentPage :: ST -> ST -> ST -> Html
 confirmationMailSentPage title msg1 msg2 = basePagelet title $ confirmationMailSentBody msg1 msg2
