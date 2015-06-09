@@ -94,4 +94,5 @@ routes = [ -- default entry point
 
          -- static files
          , ("", serveDirectory "snap/static")
+         , ("", H.unknownPath)
          ]

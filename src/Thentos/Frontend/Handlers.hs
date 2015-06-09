@@ -18,7 +18,8 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
-import Snap.Core (Method(GET, POST), method, modifyResponse,  getParam, redirect', urlDecode, setHeader)
+import Snap.Core (Method(GET, POST), method, modifyResponse,  getParam, redirect', urlDecode,
+                  setHeader, setResponseCode)
 import Snap.Snaplet (Handler, with)
 import Snap.Snaplet.Session (csrfToken)
 import System.Log.Missing (logger)
@@ -406,6 +407,13 @@ redirectToDashboardOrService = do
     case mCallback of
         Just (ServiceLoginState _ rr) -> redirectRR rr
         Nothing                       -> redirect' "/dashboard" 303
+
+
+-- | Return 404 Not Found error.
+unknownPath :: FH ()
+unknownPath = do
+    modifyResponse $ setResponseCode 404
+    blaze notFoundPage
 
 
 -- * Cache control
