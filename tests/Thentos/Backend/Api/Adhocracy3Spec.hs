@@ -45,7 +45,7 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = do
+spec =
     describe "Thentos.Backend.Api.Adhocracy3" $ do
         describe "A3UserNoPass" $ do
             it "has invertible *JSON instances" . property $
@@ -55,11 +55,11 @@ spec = do
                     (===) _ _ = False
                 in \ (A3UserNoPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u === Right u
 
-        describe "A3UserWithPassword" $ do
+        describe "A3UserWithPassword" $
             it "has invertible *JSON instances" . property $
                 \ (A3UserWithPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u == Right u
 
-        describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
+        describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
                 \ bts@(BTS _ (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
@@ -85,7 +85,7 @@ spec = do
                     rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
                     liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
 
-                    Right (db :: DB) <- query' st $ T.SnapShot
+                    Right (db :: DB) <- query' st T.SnapShot
                     let [(ConfirmationToken confTok, _)] = Map.toList $ db ^. dbUnconfirmedUsers
 
                     let rq2 = Aeson.encode . ActivationRequest . Path $ "/activate/" <> confTok
@@ -108,7 +108,7 @@ spec = do
             it "works" $
                 \ _ -> pendingWith "test missing."
 
-        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
+        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
                 \ _ -> pendingWith "test missing."
 
