@@ -80,7 +80,7 @@ spec_createUser = describe "create user" $ do
             fill "/user/register.email" myEmail
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
-            WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Please check your email")
+            WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Please check your email")
 
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
@@ -119,7 +119,7 @@ spec_updateSelf = describe "update self" $ do
         _click label = WD.findElem (WD.ById label) >>= WD.clickSync
 
         _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
-        _check st f = liftIO $ query' st (SnapShot ) >>=
+        _check st f = liftIO $ query' st SnapShot >>=
                         maybe (error "no such user") f .
                         either (error "could not take db snapshot") (Map.lookup (UserId selfId) . (^. dbUsers))
 
@@ -212,7 +212,7 @@ spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "Login successful")
+    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Login successful")
 
     -- (out of curiousity: why do we need the type signature in the
     -- lambda parameter?  shouldn't ghc infer (and be happy with the
@@ -226,7 +226,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "You have been logged out")
+    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "You have been logged out")
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
@@ -321,7 +321,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     fill "/dashboard/ownservices.name" "this is a service name"
     fill "/dashboard/ownservices.description" "this is a service description"
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-    WD.getSource >>= \ s -> liftIO $ (cs s) `shouldSatisfy` (=~# "csrf badness")
+    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "csrf badness")
 
 
 -- * wd actions

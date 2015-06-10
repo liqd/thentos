@@ -6,7 +6,6 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}

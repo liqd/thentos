@@ -9,7 +9,6 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
@@ -181,7 +180,7 @@ loginAsGod actionState = do
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
 makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
-makeSRequest method path headers body = SRequest req body
+makeSRequest method path headers = SRequest req
   where
     req = setPath defaultRequest { requestMethod = method, requestHeaders = headers ++ defaultHeaders } path
     defaultHeaders = [("Content-Type", "application/json")]
@@ -195,7 +194,7 @@ tracifyApplication ((^. tcfgTraceHttp) -> False) application = application
 tracifyApplication _ application = application'
   where
     application' :: Application
-    application' = \ req respond -> do
+    application' req respond = do
         req' <- logRq req
         application req' $ \ rsp -> logRsp rsp >> respond rsp
 

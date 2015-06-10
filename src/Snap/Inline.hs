@@ -26,9 +26,9 @@ blanketCSRF :: SnapletLens v SessionManager
             -> Handler b v ()
 blanketCSRF session onFailure onSucc = do
     h <- getHeader "content-type" `fmap` getRequest
-    case maybe False (B.isInfixOf "multipart/form-data") h of
-      True -> onSucc
-      False -> handleCSRF session onFailure onSucc
+    if maybe False (B.isInfixOf "multipart/form-data") h
+      then onSucc
+      else handleCSRF session onFailure onSucc
 
 
 ------------------------------------------------------------------------------
@@ -44,13 +44,11 @@ handleCSRF :: SnapletLens v SessionManager
            -> Handler b v ()
 handleCSRF session onFailure onSucc = do
     m <- getsRequest rqMethod
-    case m /= POST of
-      True ->  onSucc
-      False -> do
+    if m /= POST
+      then onSucc
+      else do
         tok <- getParam "_csrf"
         realTok <- with session csrfToken
         if tok == Just (T.encodeUtf8 realTok)
           then onSucc
           else onFailure >> getResponse >>= finishWith
-
-

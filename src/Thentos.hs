@@ -6,7 +6,6 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -134,7 +133,7 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-        result <- mapM (\ role -> update' st (T.AssignRole (UserA (UserId 0)) role)) roles
+        result <- mapM (update' st . T.AssignRole (UserA . UserId $ 0)) roles
 
         if all isRight result
             then logger DEBUG $ "[ok]"

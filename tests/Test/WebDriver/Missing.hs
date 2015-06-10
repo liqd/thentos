@@ -1,9 +1,7 @@
 {-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE KindSignatures       #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Test.WebDriver.Missing where
 

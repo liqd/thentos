@@ -1,8 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable   #-}
-{-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Transaction.Core
   ( ThentosUpdate, ThentosUpdate'
@@ -52,7 +49,7 @@ runThentosUpdate :: ThentosUpdate DB a -> Update DB (Either ThentosError a)
 runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
-        (Left err,     _)      ->               (return $ Left err)
+        (Left err,     _)      ->                return $ Left  err
         (Right result, state') -> put state' >> (return $ Right result)
 
 

@@ -10,7 +10,6 @@
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE ViewPatterns           #-}
 
 module Thentos.Action.Core
 where

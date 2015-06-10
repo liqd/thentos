@@ -3,6 +3,13 @@
 (will be re-structured as it grows)
 
 
+## hlint
+
+There is an hlint rule in the Makefile, and an associated
+customization file HLint.hs.  This implements the automatable part of
+the coding policy.
+
+
 ## imports
 
 FIXME: single-letter module names are also allowed (as is tradition).  is there a rule in this at all?

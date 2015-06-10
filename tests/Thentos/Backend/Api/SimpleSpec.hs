@@ -9,9 +9,6 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
-
-{-# OPTIONS  #-}
 
 module Thentos.Backend.Api.SimpleSpec
 where

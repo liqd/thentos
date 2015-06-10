@@ -11,9 +11,11 @@ where
 
 import Control.Applicative ((<$>), (<|>))
 import Control.Exception (throwIO, try)
-import Data.Configifier ((:>), (:*>)((:*>)), (:>:), (>>.))
-import Data.Configifier (configifyWithDefault, renderConfigFile, docs, defaultSources)
-import Data.Configifier (ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error)
+import Data.Configifier
+    ( (:>), (:*>)((:*>)), (:>:), (>>.)
+    , configifyWithDefault, renderConfigFile, docs, defaultSources
+    , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
+    )
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs, (<>))

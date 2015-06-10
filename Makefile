@@ -1,4 +1,5 @@
 SHELL=/bin/bash
+HLINT=hlint
 
 test:
 	cabal test --test-options="--skip selenium"
@@ -6,8 +7,9 @@ test:
 test-all:
 	cabal test
 
-lint:
-	find src tests -name '*.hs' | xargs hlint
+hlint:
+	$(HLINT) --version
+	find src tests exec -name '*.hs' | xargs $(HLINT)
 
 wc:
 	find src -name '*.hs' | xargs wc

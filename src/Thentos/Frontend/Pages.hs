@@ -122,7 +122,7 @@ dashboardPagelet msgs availableRoles ((==) -> isActive) body =
     tabLink :: DashboardTab -> Html
     tabLink tab
         | not available = return ()
-        | True = H.td $ H.div ! A.class_ className $ H.a ! A.href urlt $ linkt
+        | otherwise     = H.td $ H.div ! A.class_ className $ H.a ! A.href urlt $ linkt
       where
         available :: Bool
         available = all (`elem` availableRoles) (needsRoles tab)
