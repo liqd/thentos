@@ -85,11 +85,13 @@ instance FromJSON ContentType where
 
 data PropertySheet =
       PSUserBasic
+    | PSUserExtended
     | PSPasswordAuthentication
   deriving (Eq, Enum, Bounded, Typeable)
 
 instance Show PropertySheet where
     show PSUserBasic              = "adhocracy_core.sheets.principal.IUserBasic"
+    show PSUserExtended           = "adhocracy_core.sheets.principal.IUserExtended"
     show PSPasswordAuthentication = "adhocracy_core.sheets.principal.IPasswordAuthentication"
 
 instance Read PropertySheet where
@@ -142,7 +144,9 @@ a3UserToJSON withPass (UserFormData name password email) = object
     , "data" .= object (catMaybes
         [ Just $ cshow PSUserBasic .= object
             [ "name" .= name
-            , "email" .= email
+            ]
+        , Just $ cshow PSUserExtended .= object
+            [ "email" .= email
             ]
         , if withPass
             then Just $ cshow PSPasswordAuthentication .= object ["password" .= password]
@@ -156,7 +160,7 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
     name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-    email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
+    email        <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
     password     <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""

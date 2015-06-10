@@ -69,11 +69,13 @@ spec = do
                         rq1 = encodePretty . object $
                                   [ "data" .= object
                                       [ "adhocracy_core.sheets.principal.IUserBasic" .= object
-                                          [ "email" ..= "wef@wef"
-                                          , "name" ..= "wef"
+                                          [ "name" ..= "Anna Müller"
+                                          ]
+                                       , "adhocracy_core.sheets.principal.IUserExtended" .= object
+                                          [ "email" ..= "anna@example.org"
                                           ]
                                        , "adhocracy_core.sheets.principal.IPasswordAuthentication" .= object
-                                          [ "password" ..= "passwef"
+                                          [ "password" ..= "EckVocUbs3"
                                           ]
                                       ]
                                   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
