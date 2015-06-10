@@ -93,5 +93,5 @@ makeFunApp :: Name -> Name -> [Name] -> Exp
 makeFunApp updateOrQuery funName argNames =
     AppE (VarE updateOrQuery) $ foldl AppE (VarE funName) (map VarE argNames)
 
-ppprint :: (Ppr a, Show a) => a -> [Char]
+ppprint :: (Ppr a, Show a) => a -> String
 ppprint t = "\n\n" ++ pprint t ++ "\n\n" ++ ppShow t ++ "\n"

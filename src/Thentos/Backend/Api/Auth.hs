@@ -6,7 +6,6 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -14,7 +13,6 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 -- | Authentication via 'ThentosSessionToken'.
 --
@@ -54,5 +52,5 @@ import Thentos.Types
 data ThentosAuth
 
 instance HasServer sub => HasServer (ThentosAuth :> sub) where
-  type ServerT (ThentosAuth :> sub) m = (Maybe ThentosSessionToken) -> ServerT sub m
+  type ServerT (ThentosAuth :> sub) m = Maybe ThentosSessionToken -> ServerT sub m
   route Proxy sub request = route (Proxy :: Proxy sub) (sub $ lookupThentosHeaderSession request) request

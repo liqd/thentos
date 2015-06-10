@@ -69,11 +69,11 @@ spec = describe "DB" . before setupDB . after teardownDB $ do
             u `shouldBe` Left NoSuchUser
 
         it "guarantee that user names are unique" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUser (userEmail .~ (UserEmail "new@one.com") $ user1)
+            result <- update' st $ T.AddUser (userEmail .~ UserEmail "new@one.com" $ user1)
             result `shouldBe` Left UserNameAlreadyExists
 
         it "guarantee that user email addresses are unique" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUser (userName .~ (UserName "newone") $ user1)
+            result <- update' st $ T.AddUser (userName .~ UserName "newone" $ user1)
             result `shouldBe` Left UserEmailAlreadyExists
 
     describe "DeleteUser" $ do
@@ -92,10 +92,9 @@ spec = describe "DB" . before setupDB . after teardownDB $ do
                                                    (T.UpdateUserFieldName "fka_user1")
             result `shouldBe` Right ()
             result2 <- query' st $ T.LookupUser (UserId 1)
-            result2 `shouldBe` (Right (UserId 1, userName .~ "fka_user1" $ user1))
+            result2 `shouldBe` Right (UserId 1, userName .~ "fka_user1" $ user1)
         it "throws an error if user does not exist" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.UpdateUserField (UserId 391)
-                                                   (T.UpdateUserFieldName "moo")
+            result <- update' st $ T.UpdateUserField (UserId 391) (T.UpdateUserFieldName "moo")
             result `shouldBe` Left NoSuchUser
 
     describe "AddUsers" $ do
