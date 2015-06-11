@@ -12,14 +12,15 @@
 module Main where
 
 import Control.Applicative (pure, (<*>))
+import Control.Lens ((&), (%~))
 import Data.Char (toLower)
 import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Data.Thyme.Time ()
-import Servant.API (Capture)
+import Servant.API (Capture, (:>))
 import Servant.Docs
-    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), docs)
+    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor, docs)
 import Servant.Docs.Pandoc (pandoc)
 import System.Directory (setCurrentDirectory)
 import System.Exit (ExitCode(ExitSuccess))
@@ -31,7 +32,8 @@ import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, def)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Servant.Docs as Docs
 
-
+import Thentos.Backend.Core
+import Thentos.Backend.Api.Auth
 import Thentos.Types
 
 import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
@@ -68,14 +70,12 @@ xwriter apiName formatName = do
 --                           (Left bad) -> error $ show bad
 
 xdocs :: ApiName -> Docs.API
-xdocs Api_Simple     = simpleDocs
+xdocs Api_Simple     = docs (Proxy :: Proxy Simple.Api)
 xdocs Api_Adhocracy3 = docs (Proxy :: Proxy Adhocracy3.Api)
 
-
-simpleDocs :: Docs.API
-simpleDocs = Docs.docsWithIntros [intro] (Proxy :: Proxy Simple.ThentosBasic)
+introsForAuth :: [Docs.DocIntro]
+introsForAuth = [Docs.DocIntro "Request Headers" [headerDescription]]
   where
-    intro = Docs.DocIntro "Request Headers" [headerDescription]
     headerDescription =
         "To call any of this API's endpoints as a User or Service,\
         \ your request has to contain\
@@ -84,24 +84,13 @@ simpleDocs = Docs.docsWithIntros [intro] (Proxy :: Proxy Simple.ThentosBasic)
         \ authenticating to the /thentos_session endpoint"
         -- FIXME: is there any way to link to the endpoints we're referring to?
 
-
--- FIXME: The following compiles, but goes into an infinite loop when run. It
--- would be nice to put the intro that's currently in simpleDocs into
--- the docs for ThentosAuth, but I don't know how to make that work or if it's
--- event possible.
-{-
 instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
+    -- since ThentosAssertHeaders is an implementation detail (right?),
+    -- just generate the docs for its sub-api
     docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-    docsFor p _ = Docs.docsWithIntros [intro] p
-      where
-        intro = Docs.DocIntro "Request Headers" [headerDescription]
-        headerDescription =
-            "To call any of this API's endpoints, your request has to contain\
-            \ an HTTP header with the name 'X-Thentos-Session' and with the\
-            \ value set to a valid session token."
--}
+    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (introsForAuth ++)
 
 data ApiName = Api_Simple | Api_Adhocracy3
   deriving (Eq, Enum, Bounded, Read, Show)
