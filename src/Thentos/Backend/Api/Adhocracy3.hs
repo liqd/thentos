@@ -25,7 +25,7 @@ import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -158,18 +158,20 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     content_type :: ContentType <- v .: "content_type"
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
-    name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-    email        <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
+    name     <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
+    -- TODO
+    rawEmail <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
+    email    <- pure $ fromJust $ parseUserEmail rawEmail
     password     <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
     unless (userNameValid name) .
         fail $ "malformed user name: " ++ show name
-    unless (emailValid name) $
-        fail $ "malformed email address: " ++ show email
+    --unless (emailValid name) $
+    --    fail $ "malformed email address: " ++ show email
     when (withPass && not (passwordGood name)) $
         fail $ "bad password: " ++ show password
-    return $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+    return $ UserFormData (UserName name) (UserPass password) email
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -227,12 +229,14 @@ instance ToJSON LoginRequest where
 
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
-        n <- UserName  <$$> v .:? "name"
-        e <- UserEmail <$$> v .:? "email"
-        p <- UserPass  <$>  v .: "password"
-        case (n, e) of
-          (Just x,  Nothing) -> return $ LoginByName x p
-          (Nothing, Just x)  -> return $ LoginByEmail x p
+        name <- UserName  <$$> v .:? "name"
+        rawEmail <- UserEmail <$$> v .:? "email"
+        email <- pure $ parseUserEmail rawEmail
+        -- TODO
+        pass <- UserPass  <$>  v .: "password"
+        case (name, email) of
+          (Just x,  Nothing) -> return $ LoginByName x pass
+          (Nothing, Just x)  -> return $ LoginByEmail x pass
           (_,       _)       -> fail $ "malformed login request body: " ++ show v
 
 instance ToJSON RequestResult where

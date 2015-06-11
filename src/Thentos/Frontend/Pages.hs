@@ -58,7 +58,7 @@ module Thentos.Frontend.Pages
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Lens ((^.))
-import Data.Maybe (isJust, catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid (Monoid, (<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
@@ -188,14 +188,15 @@ userRegisterPage csrfToken formAction v = basePagelet "Create User" $ do
 
 userRegisterForm :: Monad m => Form Html m UserFormData
 userRegisterForm = validate validateUserData $ (,,,)
-    <$> (UserName  <$> "name"      .: validateNonEmpty "name"     (text Nothing))
-    <*> (UserPass  <$> "password1" .: validateNonEmpty "password" (text Nothing))
-    <*> (UserPass  <$> "password2" .: validateNonEmpty "password" (text Nothing))
-    <*> (UserEmail <$> "email"     .: validateEmail               (text Nothing))
+    <$> (UserName <$> "name"      .: validateNonEmpty "name"     (text Nothing))
+    <*> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
+    <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
+    <*> (             "email"     .: validateEmail               (text Nothing))
   where
     validateUserData (name, pw1, pw2, email)
-        | pw1 == pw2 = Success $ UserFormData name pw1 email
-        | otherwise  = Error "Passwords don't match"
+        | pw1 == pw2           = Success $ UserFormData name pw1 email
+        | otherwise            = Error "Passwords don't match"
+
 
 userRegisterRequestedPage :: Html
 userRegisterRequestedPage = confirmationMailSentPage "Create User"
@@ -248,8 +249,7 @@ resetPasswordPage csrfToken formAction v = basePagelet "Thentos Login" $ do
         inputSubmit "Send"
 
 resetPasswordForm :: Monad m => Form Html m UserEmail
-resetPasswordForm =
-    UserEmail <$> "email" .: validateEmail (text Nothing)
+resetPasswordForm = "email" .: validateEmail (text Nothing)
 
 resetPasswordConfirmPage :: ST -> ST -> View Html -> Html
 resetPasswordConfirmPage csrfToken formAction v = basePagelet "Thentos Login" $ do
@@ -411,8 +411,7 @@ emailUpdatePagelet csrfToken formAction v _ _ = do
         inputSubmit "Update Email Address" ! A.id "update_email_submit"
 
 emailUpdateForm :: Monad m => Form Html m UserEmail
-emailUpdateForm =
-    UserEmail <$> "email" .: validateEmail (text Nothing)
+emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 
 -- * services
@@ -495,8 +494,12 @@ confirmationMailSentBody msg1 msg2 = H.p . H.text . ST.unlines $
 validateNonEmpty :: (Monoid v, IsString v, Monad m) => v -> Form v m ST -> Form v m ST
 validateNonEmpty fieldName = check (fieldName <> " must not be empty") (not . ST.null)
 
-validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m ST
-validateEmail = check "must be a valid email address" (isJust . ST.find (== '@'))
+validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m UserEmail
+validateEmail = validate go
+  where
+    go t = case parseUserEmail t of
+        Just email -> Success email
+        Nothing    -> Error "email address invalid"
 
 validatePass :: (UserPass, UserPass) -> Result Html UserPass
 validatePass (p1, p2) = if p1 == p2
