@@ -90,7 +90,7 @@ main =
                 void $ concurrently backend frontend
 
             RunA3 -> do
-                maybe (error "command `runa3` requires `--runbackend`")
+                maybe (error "command `runa3` requires backend")
                     (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
                     mBeConfig
 

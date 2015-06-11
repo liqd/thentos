@@ -68,11 +68,11 @@ prepareReq (RqMod target proxyHdrs) req = do
 prepareResp :: C.Response LBS -> S.Response
 prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (C.responseBody res)
 
+
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.
 data RqMod = RqMod String T.RequestHeaders
   deriving (Eq, Show)
-
 
 -- | Extract proxy config from thentos config.  Look up session from
 -- the token provided in the request header @X-Thentos-Session@ and
