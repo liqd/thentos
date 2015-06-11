@@ -25,6 +25,7 @@ import Crypto.Random (ChaChaDRG, drgNew)
 
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
+import Data.Functor.Infix ((<$$>))
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Proxy (Proxy(Proxy))
@@ -40,7 +41,7 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Types
 import Thentos.Util
 
--- import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
+import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
 
@@ -89,12 +90,9 @@ main =
                 void $ concurrently backend frontend
 
             RunA3 -> do
-                error "a3 backend is defunct."
-{-
-                maybe (error "command `runa3` requires `--runbackend`")
-                    (`Thentos.Backend.Api.Adhocracy3.runApi` actionState)
+                maybe (error "command `runa3` requires backend")
+                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
                     mBeConfig
--}
 
     let finalize = do
             announceAction "creating checkpoint and shutting down acid-state" $

@@ -52,6 +52,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
+import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -269,20 +270,20 @@ serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . app
 -- particular, it is not an error to send username and password to
 -- @/login_email@.  This makes implementing all sides of the protocol
 -- a lot easier without sacrificing security.
-type Api =
+type Api = (
        "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass :> Post '[JSON] (A3Resource A3UserNoPass)
   :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post '[JSON] RequestResult
   :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
---   :<|> ServiceProxy
+  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult)
+  :<|> ServiceProxy
 
 app :: AC.ActionState DB -> Server Api
-app actionState = enter (enterAction actionState Nothing) $
+app actionState = (enter (enterAction actionState Nothing) $
        addUser
   :<|> activate
   :<|> login
-  :<|> login
---   :<|> serviceProxy
+  :<|> login)
+  :<|> serviceProxy actionState
 
 
 -- * handler
