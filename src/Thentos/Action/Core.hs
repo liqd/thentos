@@ -16,12 +16,12 @@
 module Thentos.Action.Core
 where
 
-import Control.Applicative (Applicative, (<*>), (<$>), pure)
+import Control.Applicative (Applicative, (<$>))
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
+import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
@@ -31,8 +31,8 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint)
-import LIO.Label (Label, lub)
+import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
+import LIO.Label (lub)
 import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
@@ -41,8 +41,8 @@ import System.Log (Priority(DEBUG))
 
 import qualified Data.Set as Set
 import qualified Data.Thyme as Thyme
-import qualified LIO.Exception as LE
 
+import LIO.Missing
 import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.Smtp
@@ -134,23 +134,6 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 
 
 -- * labels, privileges and access rights.
-
--- | FIXME: move to LIO.Missing; make pull request
-tryTaint :: (MonadLIO l m, Label l, Exception e) => l -> m r -> (e -> m r) -> m r
-tryTaint label onSuccess onFailure = do
-    result <- liftLIO $ LE.try (taint label)
-    case result of
-      Left e -> onFailure e
-      Right () -> onSuccess
-
--- | FIXME: move to LIO.Missing; make pull request
-dcBottom :: DCLabel
-dcBottom = True %% False
-
--- | FIXME: move to LIO.Missing; make pull request
-dcTop :: DCLabel
-dcTop = False %% True
-
 
 -- | In order to execute an 'Action', certain access rights need to be granted.  A set of access
 -- rights is a list of 'ToCNF' instances that are used to update the current clearance in the

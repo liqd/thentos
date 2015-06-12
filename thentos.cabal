@@ -52,8 +52,9 @@ library
     cpp-options: -DDEVELOPMENT -w
     ghc-options: -w
   exposed-modules:
-      System.Log.Missing
+      LIO.Missing
     , Snap.Missing
+    , System.Log.Missing
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core

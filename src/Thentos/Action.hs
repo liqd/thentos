@@ -25,6 +25,7 @@ import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import LIO.Missing
 import Thentos.Action.Core
 import Thentos.Types
 import Thentos.Util
