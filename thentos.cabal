@@ -208,7 +208,7 @@ test-suite tests
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
   ghc-options:
-      -Wall -threaded -rtsopts
+      -Wall -Werror -threaded -rtsopts
   cpp-options:
       -DGHC_GENERICS
   build-depends:
