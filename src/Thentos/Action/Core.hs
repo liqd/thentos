@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
+{-# LANGUAGE DeriveFunctor          #-}
 {-# LANGUAGE DeriveGeneric          #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -54,42 +56,29 @@ newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar Ch
   deriving (Typeable, Generic)
 
 newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
-  deriving (Typeable, Generic)
+  deriving ( Functor
+           , Applicative
+           , Monad
+           , MonadReader (ActionState db)
+           , MonadError ThentosError
+           , Typeable
+           , Generic
+           )
 
+-- | Errors known by 'runActionE', 'runAction', ....
+--
+-- The 'MonadError' instance of newtype 'Action' lets you throw and catch errors from *within* the
+-- 'Action', i.e., at construction time).  These are errors are handled in the 'ActionErrorThentos'
+-- constructor.  Label errors and other (possibly async) exceptions are caught (if possible) in
+-- 'runActionE' and its friends and maintained in other 'ActionError' constructors.
 data ActionError =
     ActionErrorThentos ThentosError
   | ActionErrorAnyLabel AnyLabelError
   | ActionErrorUnknown SomeException
   deriving (Show, Typeable, Generic)
 
-
 instance Exception ActionError
 
-instance Functor (Action db) where
-    fmap f (Action a) = Action $ fmap f a
-
-instance Applicative (Action db) where
-    pure = Action . pure
-    Action a <*> Action b = Action $ a <*> b
-
-instance Monad (Action db) where
-    return = Action . return
-    (Action a) >>= f = Action $ a >>= fromAction . f
-
-instance MonadReader (ActionState db) (Action db) where
-    ask = Action ask
-    local f (Action a) = Action $ local f a
-
--- | The 'MonadError' instance lets you throw and catch errors from *within* the 'Action', i.e., at
--- construction time).  These are errors are handled in the 'ActionErrorThentos' constructor.  Label
--- errors and other (possibly async) exceptions are caught (if possible) in 'runActionE' and its
--- friends and maintained in other 'ActionError' constructors.
-instance MonadError ThentosError (Action db) where
-    throwError :: ThentosError -> Action db a
-    throwError = Action . throwError
-
-    catchError :: Action db a -> (ThentosError -> Action db a) -> Action db a
-    catchError (Action a) handler = Action $ catchError a (fromAction . handler)
 
 instance MonadLIO DCLabel (Action db) where
     liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
