@@ -42,15 +42,6 @@ getStateAS (DBTS _ as) = as
 
 spec :: Spec
 spec = describe "DB" . before setupDB . after teardownDB $ do
-    describe "hspec meta" $ do
-        it "`setupDB, teardownDB` are called once for every `it` here (part I)." $ \ (getStateDB -> st) -> do
-            Right _ <- update' st $ T.AddUser user3
-            True `shouldBe` True
-
-        it "`setupDB, teardownDB` are called once for every `it` here (part II)." $ \ (getStateDB -> st) -> do
-            uids <- query' st $ T.AllUserIds
-            uids `shouldBe` Right [UserId 0, UserId 1, UserId 2]  -- (no (UserId 2))
-
     describe "checkPassword" $ do
         it "..." $ \ (getStateAS -> asg) -> do
             byId <- runActionE asg $ startThentosSessionByUserId (UserId 0) (UserPass "god")
