@@ -19,6 +19,7 @@ import Data.Set (Set)
 import Data.String.Conversions (ST, cs)
 import LIO.Core (liftLIO, guardWrite)
 import LIO.DCLabel ((%%), (\/), (/\))
+import LIO.Error (AnyLabelError)
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Map as Map
@@ -212,17 +213,22 @@ userGroups uid sid = do
 defaultSessionTimeout :: Timeout
 defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
+-- | Find 'ThentosSession' from token.  If 'ThentosSessionToken' does not exist or clearance does
+-- not allow access, throw 'NoSuchThentosSession'.
 lookupThentosSession :: ThentosSessionToken -> Action DB ThentosSession
 lookupThentosSession tok = do
     now <- getCurrentTime'P
-    snd <$> update'P (T.LookupThentosSession now tok)
+    session <- snd <$> update'P (T.LookupThentosSession now tok)
+    tryTaint (session ^. thSessAgent %% session ^. thSessAgent)
+        (return session)
+        (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
 
--- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist,
--- but returns 'False' instead.
---
--- FIXME: calling this leaks information on existence and activeness of thentos sessions.  this may
--- not be a serious problem, as the attacker is not expected to be in the possession of anybody
--- else's tokens, but this is an instance of a more general problem.  See #131.
+    -- FIXME: does 'tryTaint' make all the things we've seen since entering 'lookupThentosSession'
+    -- will safely disappear into unknowness and integerness, even though we've already seen them?
+    -- the exception will certainly be thrown back to the outside of the function.  so, i think so?
+
+-- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
+-- or is inaccessible, but returns 'False' instead.
 existsThentosSession :: ThentosSessionToken -> Action DB Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
     \case NoSuchThentosSession -> return False
