@@ -56,6 +56,15 @@ newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar Ch
 newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
   deriving (Typeable, Generic)
 
+data ActionError =
+    ActionErrorThentos ThentosError
+  | ActionErrorAnyLabel AnyLabelError
+  | ActionErrorUnknown SomeException
+  deriving (Show, Typeable, Generic)
+
+
+instance Exception ActionError
+
 instance Functor (Action db) where
     fmap f (Action a) = Action $ fmap f a
 
@@ -71,9 +80,10 @@ instance MonadReader (ActionState db) (Action db) where
     ask = Action ask
     local f (Action a) = Action $ local f a
 
--- | FIXME: all exceptions that occur inside 'LIO' currently go uncaught until execution reaches
--- 'runAction' or 'runActionE'.  should errors caught there actually be handled here already, so we
--- can process them inside 'Action'?
+-- | The 'MonadError' instance lets you throw and catch errors from *within* the 'Action', i.e., at
+-- construction time).  These are errors are handled in the 'ActionErrorThentos' constructor.  Label
+-- errors and other (possibly async) exceptions are caught (if possible) in 'runActionE' and its
+-- friends and maintained in other 'ActionError' constructors.
 instance MonadError ThentosError (Action db) where
     throwError :: ThentosError -> Action db a
     throwError = Action . throwError
@@ -85,15 +95,6 @@ instance MonadLIO DCLabel (Action db) where
     liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
 
 
-data ActionError =
-    ActionErrorThentos ThentosError
-  | ActionErrorAnyLabel AnyLabelError
-  | ActionErrorUnknown SomeException
-  deriving (Show, Typeable, Generic)
-
-instance Exception ActionError
-
-
 -- * running actions
 
 -- | Call 'runActionE' and throw 'Left' values.
@@ -102,6 +103,9 @@ runAction state action = runActionE state action >>= either throwIO return
 
 runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
+
+runActionWithClearance :: DCLabel -> ActionState DB -> Action DB a -> IO a
+runActionWithClearance label state action = runActionWithClearanceE label state action >>= either throwIO return
 
 runActionAsAgent :: Agent -> ActionState DB -> Action DB a -> IO a
 runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
