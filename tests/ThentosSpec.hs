@@ -14,6 +14,7 @@
 
 module ThentosSpec where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((.~))
 import Control.Monad (void)
 import Data.Acid (AcidState)
@@ -21,6 +22,7 @@ import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
 import Test.Hspec (Spec, hspec, describe, it, before, after, shouldBe, shouldSatisfy)
 
+import LIO.Missing
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Types
@@ -51,52 +53,64 @@ spec = describe "DB" . before setupDB . after teardownDB $ do
 
     describe "AddUser, LookupUser, DeleteUser" $ do
         it "works" $ \ (getStateDB -> st) -> do
-            Right uid <- update' st $ T.AddUser user3
-            Right (uid', user3') <- query' st $ T.LookupUser uid
-            user3' `shouldBe` user3
+            let user = testUsers !! 0
+            Right uid <- update' st $ T.AddUser user
+            Right (uid', user') <- query' st $ T.LookupUser uid
             uid' `shouldBe` uid
+            user' `shouldBe` user
             void . update' st $ T.DeleteUser uid
             u <- query' st $ T.LookupUser uid
             u `shouldBe` Left NoSuchUser
 
-        it "guarantee that user names are unique" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUser (userEmail .~ UserEmail "new@one.com" $ user1)
+        it "guarantee that user names are unique" $ \ dbts@(DBTS _ astate) -> do
+            let st = getStateDB dbts
+            (_, _, user) <- runActionWithClearance dcBottom astate $ addTestUser 1
+            result <- update' st $ T.AddUser (userEmail .~ UserEmail "new@one.com" $ user)
             result `shouldBe` Left UserNameAlreadyExists
 
-        it "guarantee that user email addresses are unique" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUser (userName .~ UserName "newone" $ user1)
+
+        it "guarantee that user email addresses are unique" $ \ dbts@(DBTS _ astate) -> do
+            let st = getStateDB dbts
+            (_, _, user) <- runActionWithClearance dcBottom astate $ addTestUser 1
+            result <- update' st $ T.AddUser (userName .~ UserName "newone" $ user)
             result `shouldBe` Left UserEmailAlreadyExists
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \ (getStateAS -> asg) -> do
-            let uid = UserId 1
+            (uid, _, _) <- runActionWithClearance dcBottom asg $ addTestUser 3
             result <- runActionWithPrivsE [UserA uid] asg $ deleteUser uid
             result `shouldSatisfy` isRight
 
         it "nobody else but the deleted user and admin can do this" $ \ (getStateAS -> asg) -> do
-            result <- runActionWithPrivsE [UserA (UserId 2)] asg $ deleteUser (UserId 1)
+            (uid,  _, _) <- runActionWithClearance dcBottom asg $ addTestUser 3
+            (uid', _, _) <- runActionWithClearance dcBottom asg $ addTestUser 4
+            result <- runActionWithPrivsE [UserA uid] asg $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
     describe "UpdateUser" $ do
-        it "changes user if it exists" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.UpdateUserField (UserId 1)
-                                                   (T.UpdateUserFieldName "fka_user1")
+        it "changes user if it exists" $ \ dbts@(DBTS _ astate) -> do
+            let st = getStateDB dbts
+            (uid, _, user) <- runActionWithClearance dcBottom astate $ addTestUser 1
+            result <- update' st $ T.UpdateUserField uid (T.UpdateUserFieldName "fka_user1")
             result `shouldBe` Right ()
-            result2 <- query' st $ T.LookupUser (UserId 1)
-            result2 `shouldBe` Right (UserId 1, userName .~ "fka_user1" $ user1)
+
+            result2 <- query' st $ T.LookupUser uid
+            result2 `shouldBe` Right (UserId 1, userName .~ "fka_user1" $ user)
+
         it "throws an error if user does not exist" $ \ (getStateDB -> st) -> do
             result <- update' st $ T.UpdateUserField (UserId 391) (T.UpdateUserFieldName "moo")
             result `shouldBe` Left NoSuchUser
 
     describe "AddUsers" $ do
         it "works" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUsers [user3, user4, user5]
-            result `shouldBe` Right (map UserId [3, 4, 5])
+            result <- update' st $ T.AddUsers ((testUsers !!) <$> [2..4])
+            result `shouldBe` Right (UserId <$> [1..3])
 
         it "rolls back in case of error (adds all or nothing)" $ \ (getStateDB -> st) -> do
-            Left UserNameAlreadyExists <- update' st $ T.AddUsers [user4, user3, user3]
+            _ <- update' st $ T.AddUser (testUsers !! 4)
+            Left UserNameAlreadyExists <- update' st $ T.AddUsers ((testUsers !!) <$> [2..4])
             result <- query' st $ T.AllUserIds
-            result `shouldBe` Right (map UserId [0, 1, 2])
+            result `shouldBe` Right (UserId <$> [0..1])
 
     describe "AddService, LookupService, DeleteService" $ do
         it "works" $ \ (getStateAS -> asg@(ActionState (st, _, _))) -> do
@@ -120,7 +134,7 @@ spec = describe "DB" . before setupDB . after teardownDB $ do
     describe "agents and roles" $ do
         describe "assign" $ do
             it "can be called by admins" $ \ (getStateAS -> asg) -> do
-                let targetAgent = UserA $ UserId 1
+                (UserA -> targetAgent, _, _) <- runActionWithClearance dcBottom asg $ addTestUser 1
                 result <- runActionWithPrivsE [RoleAdmin] asg $ assignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isRight
 
