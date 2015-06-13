@@ -55,11 +55,15 @@ userFacetExists facet ((/=) -> notOwnUid) user db =
 -- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
 -- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
 -- has expired, throw the given error.
-withExpiry :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> ThentosUpdate db (Maybe (a, Timestamp)) -> ThentosUpdate db a
+withExpiry :: (AsDB db) => Timestamp -> Timeout -> ThentosError
+                        -> ThentosUpdate db (Maybe (a, Timestamp))
+                        -> ThentosUpdate db a
 withExpiry now expiry thentosError = withExpiryT now expiry thentosError id
 
 -- | Like 'withExpiry', but expects actions of the form offered by 'Map.updateLookupWithKey'.
-withExpiryU :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> ThentosUpdate db (Maybe (a, Timestamp), m) -> ThentosUpdate db (a, m)
+withExpiryU :: (AsDB db) => Timestamp -> Timeout -> ThentosError
+                         -> ThentosUpdate db (Maybe (a, Timestamp), m)
+                         -> ThentosUpdate db (a, m)
 withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
   where
     f (Just (a, timestamp), m) = Just ((a, m), timestamp)
@@ -70,10 +74,11 @@ withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
 withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> (b -> Maybe (a, Timestamp))
     -> ThentosUpdate db b -> ThentosUpdate db a
 withExpiryT now expiry thentosError f action = do
+    let isActive crt = fromTimestamp crt .+^ fromTimeout expiry < fromTimestamp now
     mResult <- f <$> action
     case mResult of
         Nothing -> throwT thentosError
-        Just (result, tokenCreationTime) -> if fromTimestamp tokenCreationTime .+^ fromTimeout expiry < fromTimestamp now
+        Just (result, tokenCreationTime) -> if isActive tokenCreationTime
             then throwT thentosError
             else return result
 
@@ -122,14 +127,16 @@ trans_addUsers = mapM trans_addUser
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).  Call
 -- 'assertUser' for name clash exceptions.
-trans_addUnconfirmedUser :: (AsDB db) => Timestamp -> ConfirmationToken -> User -> ThentosUpdate db (UserId, ConfirmationToken)
+trans_addUnconfirmedUser :: (AsDB db) => Timestamp -> ConfirmationToken -> User
+                                      -> ThentosUpdate db (UserId, ConfirmationToken)
 trans_addUnconfirmedUser now token user = do
     liftThentosQuery $ assertUser Nothing user
     uid <- freshUserId
     modify $ asDB . dbUnconfirmedUsers %~ Map.insert token ((uid, user), now)
     return (uid, token)
 
-trans_finishUserRegistration :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate db UserId
+trans_finishUserRegistration :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
+                                          -> ThentosUpdate db UserId
 trans_finishUserRegistration now expiry token = do
     (uid, user) <- withExpiry now expiry NoSuchPendingUserConfirmation $
         Map.lookup token <$> gets (^. asDB . dbUnconfirmedUsers)
@@ -138,7 +145,8 @@ trans_finishUserRegistration now expiry token = do
     return uid
 
 -- | Add a password reset token.  Return the user whose password this token can change.
-trans_addPasswordResetToken :: (AsDB db) => Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate db User
+trans_addPasswordResetToken :: (AsDB db) => Timestamp -> UserEmail -> PasswordResetToken
+                                         -> ThentosUpdate db User
 trans_addPasswordResetToken timestamp email token = do
     (uid, user) <- liftThentosQuery $ trans_lookupUserByEmail email
     modify $ asDB . dbPwResetTokens %~ Map.insert token (uid, timestamp)
@@ -146,7 +154,9 @@ trans_addPasswordResetToken timestamp email token = do
 
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
-trans_resetPassword :: (AsDB db) => Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate db ()
+trans_resetPassword :: (AsDB db) => Timestamp -> Timeout -> PasswordResetToken
+                                 -> HashedSecret UserPass
+                                 -> ThentosUpdate db ()
 trans_resetPassword now expiry token newPass = do
     (uid, toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. asDB . dbPwResetTokens)
@@ -154,13 +164,16 @@ trans_resetPassword now expiry token newPass = do
     (_, user) <- liftThentosQuery $ trans_lookupUser uid
     modify $ asDB . dbUsers %~ Map.insert uid (userPassword .~ newPass $ user)
 
-trans_addUserEmailChangeRequest :: (AsDB db) => Timestamp -> UserId -> UserEmail -> ConfirmationToken -> ThentosUpdate db ()
+trans_addUserEmailChangeRequest :: (AsDB db) => Timestamp -> UserId -> UserEmail
+                                             -> ConfirmationToken
+                                             -> ThentosUpdate db ()
 trans_addUserEmailChangeRequest timestamp uid email token = do
     modify $ asDB . dbEmailChangeTokens %~ Map.insert token ((uid, email), timestamp)
 
 -- | Change email with a given token and remove the token.  Throw an error if the token does not
 -- exist or has expired.
-trans_confirmUserEmailChange :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate db ()
+trans_confirmUserEmailChange :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
+                                          -> ThentosUpdate db ()
 trans_confirmUserEmailChange now expiry token = do
     ((uid, email), toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. asDB . dbEmailChangeTokens)
@@ -182,7 +195,8 @@ runUpdateUserFieldOp :: UpdateUserFieldOp -> (User -> User, Bool)
 runUpdateUserFieldOp (UpdateUserFieldName n)            = (userName .~ n, True)
 runUpdateUserFieldOp (UpdateUserFieldEmail e)           = (userEmail .~ e, True)
 runUpdateUserFieldOp (UpdateUserFieldInsertService s a) = (userServices %~ Map.insert s a, False)
-runUpdateUserFieldOp (UpdateUserFieldDropService sid)   = (userServices %~ Map.filterWithKey (const . (/= sid)), False)
+runUpdateUserFieldOp (UpdateUserFieldDropService sid)   = (userServices %~ f, False)
+  where f = Map.filterWithKey (const . (/= sid))
 runUpdateUserFieldOp (UpdateUserFieldPassword p)        = (userPassword .~ p, False)
 
 -- | See 'trans_updateUserFields'.
@@ -229,7 +243,8 @@ trans_lookupService sid = ask >>= maybe (throwT NoSuchService) return . f
     f db = (sid,) <$> Map.lookup sid (db ^. asDB . dbServices)
 
 -- | Add new service.
-trans_addService :: (AsDB db) => Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate db ()
+trans_addService :: (AsDB db) => Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
+                              -> ServiceDescription -> ThentosUpdate db ()
 trans_addService owner sid key name desc = do
     let service :: Service
         service = Service key owner Nothing name desc Map.empty
@@ -252,7 +267,8 @@ thentosSessionNowActive now session = (session ^. thSessStart) < now && now < (s
 
 -- | Lookup session.  If session does not exist or has expired, throw an error.  If it does exist,
 -- dump the expiry time and return session with bumped expiry time.
-trans_lookupThentosSession :: (AsDB db) => Timestamp -> ThentosSessionToken -> ThentosUpdate db (ThentosSessionToken, ThentosSession)
+trans_lookupThentosSession :: (AsDB db) => Timestamp -> ThentosSessionToken
+                                        -> ThentosUpdate db (ThentosSessionToken, ThentosSession)
 trans_lookupThentosSession now tok = do
     session <- Map.lookup tok . (^. asDB . dbThentosSessions) <$> get
            >>= \case Just s  -> return s
@@ -270,7 +286,8 @@ trans_lookupThentosSession now tok = do
 -- | Start a new thentos session.  Start and end time have to be passed explicitly.  Call
 -- 'trans_assertAgent' on session owner.  If the agent is a user, this new session is added to their
 -- existing sessions.  If the agent is a service with an existing session, its session is replaced.
-trans_startThentosSession :: (AsDB db) => ThentosSessionToken -> Agent -> Timestamp -> Timeout -> ThentosUpdate db ()
+trans_startThentosSession :: (AsDB db) => ThentosSessionToken -> Agent -> Timestamp -> Timeout
+                                       -> ThentosUpdate db ()
 trans_startThentosSession tok owner start expiry = do
     let session = ThentosSession owner start end expiry Set.empty
         end = Timestamp $ fromTimestamp start .+^ fromTimeout expiry
@@ -279,8 +296,10 @@ trans_startThentosSession tok owner start expiry = do
     updAgent owner
   where
     updAgent :: (AsDB db) => Agent -> ThentosUpdate db ()
-    updAgent (UserA    uid) = modify $ asDB . dbUsers    %~ Map.adjust (userThentosSessions %~ Set.insert tok) uid
-    updAgent (ServiceA sid) = modify $ asDB . dbServices %~ Map.adjust (serviceThentosSession .~ Just tok)     sid
+    updAgent (UserA    uid) = modify $ asDB . dbUsers
+                                    %~ Map.adjust (userThentosSessions %~ Set.insert tok) uid
+    updAgent (ServiceA sid) = modify $ asDB . dbServices
+                                    %~ Map.adjust (serviceThentosSession .~ Just tok)     sid
 
 -- | End thentos session and all associated service sessions.  Call 'trans_assertAgent' on session
 -- owner.  If thentos session does not exist or has expired, remove it just the same.
@@ -310,8 +329,10 @@ trans_endThentosSession tok = do
         dropThem t _ = Set.notMember t deadServiceSessions
 
     cleanupAgent :: (AsDB db) => Agent -> ThentosUpdate db ()
-    cleanupAgent (UserA    uid) = modify $ asDB . dbUsers    %~ Map.adjust (userThentosSessions %~ Set.delete tok) uid
-    cleanupAgent (ServiceA sid) = modify $ asDB . dbServices %~ Map.adjust (serviceThentosSession .~ Nothing)      sid
+    cleanupAgent (UserA    uid) = modify $ asDB . dbUsers
+                                        %~ Map.adjust (userThentosSessions %~ Set.delete tok) uid
+    cleanupAgent (ServiceA sid) = modify $ asDB . dbServices
+                                        %~ Map.adjust (serviceThentosSession .~ Nothing)      sid
 
 
 -- | Take a time and a service session, and decide whether the time lies between session start and
@@ -322,7 +343,8 @@ serviceSessionNowActive now session = (session ^. srvSessStart) < now && now < (
 -- | Like 'trans_lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
 -- thentos session.  If the service session is still active, but the associated thentos session has
 -- expired, update service sessions expiry time to @now@ and throw 'NoSuchThentosSession'.
-trans_lookupServiceSession :: (AsDB db) => Timestamp -> ServiceSessionToken -> ThentosUpdate db (ServiceSessionToken, ServiceSession)
+trans_lookupServiceSession :: (AsDB db) => Timestamp -> ServiceSessionToken
+                                        -> ThentosUpdate db (ServiceSessionToken, ServiceSession)
 trans_lookupServiceSession now tok = do
     session <- Map.lookup tok . (^. asDB . dbServiceSessions) <$> get
            >>= \case Just s  -> return s
@@ -345,7 +367,8 @@ trans_lookupServiceSession now tok = do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
-trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId -> Timestamp -> Timeout -> ThentosUpdate db ()
+trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
+                                       -> Timestamp -> Timeout -> ThentosUpdate db ()
 trans_startServiceSession ttok stok sid start expiry = do
     (_, tsession) <- trans_lookupThentosSession start ttok
 
@@ -370,7 +393,9 @@ trans_endServiceSession stok = do
     mSession <- Map.lookup stok . (^. asDB . dbServiceSessions) <$> get
     case mSession of
         Just session -> do
-            modify $ asDB . dbThentosSessions %~ Map.adjust (thSessServiceSessions %~ Set.delete stok) (session ^. srvSessThentosSession)
+            modify $ asDB . dbThentosSessions
+                  %~ Map.adjust (thSessServiceSessions %~ Set.delete stok)
+                                (session ^. srvSessThentosSession)
             modify $ asDB . dbServiceSessions %~ Map.delete stok
         Nothing -> return ()
 
@@ -415,7 +440,8 @@ trans_snapShot = (^. asDB) <$> ask
 -- | Go through 'dbThentosSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
 -- and then @EndSession@ on all tokens individually.)
-trans_garbageCollectThentosSessions :: (AsDB db) => Timestamp -> ThentosQuery db [ThentosSessionToken]
+trans_garbageCollectThentosSessions :: (AsDB db) => Timestamp
+                                                 -> ThentosQuery db [ThentosSessionToken]
 trans_garbageCollectThentosSessions now = do
     sessions <- (^. asDB . dbThentosSessions) <$> ask
     return (map fst $ filter (\ (_, s) -> s ^. thSessEnd < now)
@@ -424,7 +450,8 @@ trans_garbageCollectThentosSessions now = do
 trans_doGarbageCollectThentosSessions :: (AsDB db) => [ThentosSessionToken] -> ThentosUpdate db ()
 trans_doGarbageCollectThentosSessions tokens = forM_ tokens trans_endThentosSession
 
-trans_garbageCollectServiceSessions :: (AsDB db) => Timestamp -> ThentosQuery db [ServiceSessionToken]
+trans_garbageCollectServiceSessions :: (AsDB db) => Timestamp
+                                                 -> ThentosQuery db [ServiceSessionToken]
 trans_garbageCollectServiceSessions now = do
     sessions <- (^. asDB . dbServiceSessions) <$> ask
     return (map fst $ filter (\ (_, s) -> s ^. srvSessEnd < now)
@@ -449,7 +476,8 @@ trans_doGarbageCollectEmailChangeTokens now expiry = do
     modify $ asDB . dbEmailChangeTokens %~ removeExpireds now expiry
 
 removeExpireds :: Timestamp -> Timeout -> Map k (v, Timestamp) -> Map k (v, Timestamp)
-removeExpireds now expiry = Map.filter (\ (_, created) -> fromTimestamp created .+^ fromTimeout expiry >= fromTimestamp now)
+removeExpireds now expiry = Map.filter f
+  where f (_, created) = fromTimestamp created .+^ fromTimeout expiry >= fromTimestamp now
 
 
 -- * wrap-up
