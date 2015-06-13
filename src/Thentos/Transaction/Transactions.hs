@@ -81,24 +81,24 @@ trans_allUserIds :: (AsDB db) => ThentosQuery db [UserId]
 trans_allUserIds = Map.keys . (^. asDB . dbUsers) <$> ask
 
 trans_lookupUser :: (AsDB db) => UserId -> ThentosQuery db (UserId, User)
-trans_lookupUser uid = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUser` uid)
+trans_lookupUser uid = ask >>= maybe (throwT NoSuchUser) return . (`pureLookupUser` uid)
 
-pure_lookupUser :: (AsDB db) => db -> UserId -> Maybe (UserId, User)
-pure_lookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. asDB . dbUsers
+pureLookupUser :: (AsDB db) => db -> UserId -> Maybe (UserId, User)
+pureLookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. asDB . dbUsers
 
 trans_lookupUserByName :: (AsDB db) => UserName -> ThentosQuery db (UserId, User)
-trans_lookupUserByName name = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByName` name)
-
-pure_lookupUserByName :: (AsDB db) => db -> UserName -> Maybe (UserId, User)
-pure_lookupUserByName db name = maybeUserId >>= pure_lookupUser db
-  where maybeUserId = Map.lookup name $ db ^. asDB . dbUserIdsByName
+trans_lookupUserByName name = ask >>= maybe (throwT NoSuchUser) return . f
+  where
+    f :: (AsDB db) => db -> Maybe (UserId, User)
+    f db = maybeUserId >>= pureLookupUser db
+      where maybeUserId = Map.lookup name $ db ^. asDB . dbUserIdsByName
 
 trans_lookupUserByEmail :: (AsDB db) => UserEmail -> ThentosQuery db (UserId, User)
-trans_lookupUserByEmail email = ask >>= maybe (throwT NoSuchUser) return . (`pure_lookupUserByEmail` email)
-
-pure_lookupUserByEmail :: (AsDB db) => db -> UserEmail -> Maybe (UserId, User)
-pure_lookupUserByEmail db email = maybeUserId >>= pure_lookupUser db
-  where maybeUserId = Map.lookup email $ db ^. asDB . dbUserIdsByEmail
+trans_lookupUserByEmail email = ask >>= maybe (throwT NoSuchUser) return . f
+  where
+    f :: (AsDB db) => db -> Maybe (UserId, User)
+    f db = maybeUserId >>= pureLookupUser db
+      where maybeUserId = Map.lookup email $ db ^. asDB . dbUserIdsByEmail
 
 -- | Actually add a new user who already has an ID.
 addUserPrim :: (AsDB db) => UserId -> User -> ThentosUpdate db ()
@@ -140,12 +140,9 @@ trans_finishUserRegistration now expiry token = do
 -- | Add a password reset token.  Return the user whose password this token can change.
 trans_addPasswordResetToken :: (AsDB db) => Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate db User
 trans_addPasswordResetToken timestamp email token = do
-    db <- get
-    case pure_lookupUserByEmail db email of
-        Nothing -> throwT NoSuchUser
-        Just (uid, user) -> do
-            modify $ asDB . dbPwResetTokens %~ Map.insert token (uid, timestamp)
-            return user
+    (uid, user) <- liftThentosQuery $ trans_lookupUserByEmail email
+    modify $ asDB . dbPwResetTokens %~ Map.insert token (uid, timestamp)
+    return user
 
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
@@ -226,10 +223,10 @@ trans_allServiceIds :: (AsDB db) => ThentosQuery db [ServiceId]
 trans_allServiceIds = Map.keys . (^. asDB . dbServices) <$> ask
 
 trans_lookupService :: (AsDB db) => ServiceId -> ThentosQuery db (ServiceId, Service)
-trans_lookupService sid = ask >>= maybe (throwT NoSuchService) return . (`pure_lookupService` sid)
-
-pure_lookupService :: (AsDB db) => db -> ServiceId -> Maybe (ServiceId, Service)
-pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. asDB . dbServices)
+trans_lookupService sid = ask >>= maybe (throwT NoSuchService) return . f
+  where
+    f :: (AsDB db) => db -> Maybe (ServiceId, Service)
+    f db = (sid,) <$> Map.lookup sid (db ^. asDB . dbServices)
 
 -- | Add new service.
 trans_addService :: (AsDB db) => Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName -> ServiceDescription -> ThentosUpdate db ()
