@@ -6,7 +6,6 @@
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Transaction.CoreSpec where
 
@@ -60,10 +59,8 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
         test0 $ emptyDB
         test0 $ CustomDB emptyDB 3
 
-        (do
-            let db = CustomDB emptyDB 3
-            case (i db) of
-                (prn', CustomDB db' x) -> do
-                    prn' `shouldBe` show db'
-                    db' `shouldBe` emptyDB
-                    x `shouldBe` 3)
+        let db = CustomDB emptyDB 3 in case i db of
+              (prn', CustomDB db' x) -> do
+                  prn' `shouldBe` show db'
+                  db' `shouldBe` emptyDB
+                  x `shouldBe` 3
