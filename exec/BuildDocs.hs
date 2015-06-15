@@ -12,6 +12,7 @@
 module Main where
 
 import Control.Applicative (pure, (<*>))
+import Control.Lens ((&), (%~))
 import Data.Char (toLower)
 import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
@@ -19,7 +20,7 @@ import Data.Thyme (fromSeconds)
 import Data.Thyme.Time ()
 import Servant.API (Capture, (:>))
 import Servant.Docs
-    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor, docs )
+    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor, docs)
 import Servant.Docs.Pandoc (pandoc)
 import System.Directory (setCurrentDirectory)
 import System.Exit (ExitCode(ExitSuccess))
@@ -35,7 +36,7 @@ import Thentos.Backend.Core
 import Thentos.Backend.Api.Auth
 import Thentos.Types
 
--- import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
+import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import qualified Thentos.Backend.Api.Simple as Simple
 
 
@@ -70,9 +71,28 @@ xwriter apiName formatName = do
 
 xdocs :: ApiName -> Docs.API
 xdocs Api_Simple     = docs (Proxy :: Proxy Simple.Api)
--- xdocs Api_Adhocracy3 = docs (Proxy :: Proxy Adhocracy3.App)
+xdocs Api_Adhocracy3 = docs (Proxy :: Proxy Adhocracy3.Api)
 
-data ApiName = Api_Simple  -- | Api_Adhocracy3
+introsForAuth :: [Docs.DocIntro]
+introsForAuth = [Docs.DocIntro "Request Headers" [headerDescription]]
+  where
+    headerDescription =
+        "To call any of this API's endpoints as a User or Service,\
+        \ your request has to contain\
+        \ an HTTP header with the name 'X-Thentos-Session' and with the\
+        \ value set to a valid session token. Session tokens can be acquired by\
+        \ authenticating to the /thentos_session endpoint"
+        -- FIXME: is there any way to link to the endpoints we're referring to?
+
+instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
+    -- since ThentosAssertHeaders is an implementation detail (right?),
+    -- just generate the docs for its sub-api
+    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
+
+instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
+    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (introsForAuth ++)
+
+data ApiName = Api_Simple | Api_Adhocracy3
   deriving (Eq, Enum, Bounded, Read, Show)
 
 data FormatName = Format_Markdown | Format_Html | Format_Docx
@@ -85,40 +105,35 @@ xsystem cmd = do
     ExitSuccess <- system cmd
     return ()
 
-
-instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
-    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
-
-instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-    docsFor Proxy = docsFor (Proxy :: Proxy sublayout)
-
-
-{-
 -- | (can this be derived entirely?)
-instance ToSample Adhocracy3.A3UserNoPass where
-    toSample = Adhocracy3.A3UserNoPass <$> toSample
+instance ToSample Adhocracy3.A3UserNoPass Adhocracy3.A3UserNoPass where
+    toSample _ = Adhocracy3.A3UserNoPass <$> toSample (Proxy :: Proxy UserFormData)
 
-instance ToSample Adhocracy3.A3UserWithPass where
-    toSample = Adhocracy3.A3UserWithPass <$> toSample
+instance ToSample Adhocracy3.A3UserWithPass Adhocracy3.A3UserWithPass where
+    toSample _ = Adhocracy3.A3UserWithPass <$> toSample (Proxy :: Proxy UserFormData)
 
-instance ToSample a => ToSample (Adhocracy3.A3Resource a) where
-    toSample = Adhocracy3.A3Resource <$> (Just <$> toSample) <*> (Just <$> toSample) <*> (Just <$> toSample)
+instance ToSample a a => ToSample (Adhocracy3.A3Resource a) (Adhocracy3.A3Resource a) where
+    toSample _ = Adhocracy3.A3Resource
+                    <$> (Just <$> toSample (Proxy :: Proxy Adhocracy3.Path))
+                    <*> (Just <$> toSample (Proxy :: Proxy Adhocracy3.ContentType))
+                    <*> (Just <$> toSample (Proxy :: Proxy a))
 
-instance ToSample Adhocracy3.Path where
-    toSample = pure $ Adhocracy3.Path "/proposals/environment"
+instance ToSample Adhocracy3.Path Adhocracy3.Path where
+    toSample _ = pure $ Adhocracy3.Path "/proposals/environment"
 
-instance ToSample Adhocracy3.ActivationRequest where
-    toSample = Adhocracy3.ActivationRequest <$> toSample
+instance ToSample Adhocracy3.ActivationRequest Adhocracy3.ActivationRequest where
+    toSample _ = Adhocracy3.ActivationRequest <$> toSample (Proxy :: Proxy Adhocracy3.Path)
 
-instance ToSample Adhocracy3.LoginRequest where
-    toSample = pure $ Adhocracy3.LoginByName (UserName "wef") (UserPass "passwef")
+instance ToSample Adhocracy3.LoginRequest Adhocracy3.LoginRequest where
+    toSample _ = pure $ Adhocracy3.LoginByName (UserName "wef") (UserPass "passwef")
 
-instance ToSample Adhocracy3.RequestResult where
-    toSample = Adhocracy3.RequestSuccess <$> toSample <*> toSample
+instance ToSample Adhocracy3.RequestResult Adhocracy3.RequestResult where
+    toSample _ = Adhocracy3.RequestSuccess
+                    <$> toSample (Proxy :: Proxy Adhocracy3.Path)
+                    <*> toSample (Proxy :: Proxy ThentosSessionToken)
 
-instance ToSample Adhocracy3.ContentType where
-    toSample = pure $ Adhocracy3.CTUser
--}
+instance ToSample Adhocracy3.ContentType Adhocracy3.ContentType where
+    toSample _ = pure $ Adhocracy3.CTUser
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "Thentos Session Token"

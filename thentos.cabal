@@ -181,6 +181,7 @@ executable build-docs
     , directory
     , filepath
     , functor-infix
+    , lens
     , pandoc
     , process
     , servant >= 0.4.1 && < 0.5
