@@ -25,7 +25,7 @@ import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
-import Data.Maybe (catMaybes, fromJust)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -159,19 +159,24 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
     name     <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-    -- TODO
     rawEmail <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
-    email    <- pure $ fromJust $ parseUserEmail rawEmail
+    email <- pure $ rawEmail >>= parseUserEmail
+    failIfEmailIsInvalid rawEmail email
     password     <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
     unless (userNameValid name) .
         fail $ "malformed user name: " ++ show name
-    --unless (emailValid name) $
-    --    fail $ "malformed email address: " ++ show email
     when (withPass && not (passwordGood name)) $
         fail $ "bad password: " ++ show password
-    return $ UserFormData (UserName name) (UserPass password) email
+    case email of
+        Just e -> return $ UserFormData (UserName name) (UserPass password) e
+        Nothing -> fail $ "missing email address"
+
+-- | Fail with an error message if an email address has been given but couldn't be parsed.
+failIfEmailIsInvalid :: (Monad m) => Maybe ST -> Maybe UserEmail -> m ()
+failIfEmailIsInvalid (Just rawEmail) Nothing = fail $ "malformed email address: " ++ show rawEmail
+failIfEmailIsInvalid _               _       = return ()
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -184,12 +189,6 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
 -- FIXME: not implemented.
 userNameValid :: ST -> Bool
 userNameValid _ = True
-
--- | RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
---
--- FIXME: not implemented.
-emailValid :: ST -> Bool
-emailValid _ = True
 
 -- | Only an empty password is a bad password.
 passwordGood :: ST -> Bool
@@ -230,9 +229,9 @@ instance ToJSON LoginRequest where
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
         name <- UserName  <$$> v .:? "name"
-        rawEmail <- UserEmail <$$> v .:? "email"
-        email <- pure $ parseUserEmail rawEmail
-        -- TODO
+        rawEmail <- v .:? "email"
+        email <- pure $ rawEmail >>= parseUserEmail
+        failIfEmailIsInvalid rawEmail email
         pass <- UserPass  <$>  v .: "password"
         case (name, email) of
           (Just x,  Nothing) -> return $ LoginByName x pass
