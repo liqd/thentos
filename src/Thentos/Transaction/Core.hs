@@ -7,11 +7,14 @@ module Thentos.Transaction.Core
   , liftThentosQuery
   , runThentosUpdate
   , runThentosQuery
+  , polyUpdate
+  , polyQuery
   ) where
 
 import Control.Applicative ((<$>))
-import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.Reader (ReaderT, runReaderT, ask)
+import Control.Lens ((^.), (%%~))
+import Control.Monad.Identity (Identity(Identity), runIdentity)
+import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Acid (Update, Query)
@@ -38,6 +41,7 @@ liftThentosQuery :: ThentosQuery' db e a -> ThentosUpdate' db e a
 liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
     (, state) <$> runEitherT thentosQuery `runReaderT` state
 
+
 -- | Push 'ThentosUpdate' event down to acid-state's own 'Update'.  Errors are returned as 'Left'
 -- values in an 'Either'.  See also:
 --
@@ -52,7 +56,25 @@ runThentosUpdate action = do
         (Left err,     _)      ->                return $ Left  err
         (Right result, state') -> put state' >> (return $ Right result)
 
-
 -- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
 runThentosQuery :: ThentosQuery DB a -> Query DB (Either ThentosError a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
+
+
+-- | Turn an update transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyQuery'.
+--
+-- FUTURE WORK:
+--
+--  1. shouldn't there be a way to do both cases with one function @poly@?
+--  2. shouldn't there be a way to make acid-state events polymorphic in the state type?  (first try
+--     without the template haskell magic, then, if that works, it should also work magically.)
+polyUpdate :: forall e a db . AsDB db => ThentosUpdate' DB e a -> ThentosUpdate' db e a
+polyUpdate upd = EitherT . StateT $ Identity . (asDB %%~ bare)
+  where
+    bare :: DB -> (Either e a, DB)
+    bare = runIdentity . runStateT (runEitherT upd)
+
+-- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
+polyQuery :: AsDB db => ThentosQuery' DB e a -> ThentosQuery' db e a
+polyQuery qry = EitherT . ReaderT $ \ (state :: db) ->
+    runEitherT qry `runReaderT` (state ^. asDB)
