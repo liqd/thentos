@@ -166,9 +166,8 @@ instance ToSample UserEmail UserEmail where
     toSample _ = Just sampleEmail
 
 sampleEmail :: UserEmail
-sampleEmail = case parseUserEmail "cobain@nirvana.com" of
-        Just email -> email
-        Nothing    -> error "ToSample UserEmail instance broken"
+sampleEmail = fromMaybe (error "ToSample UserEmail instance broken")
+                        (parseUserEmail "cobain@nirvana.com")
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12

@@ -97,6 +97,4 @@ createGod st = createDefaultUser st
 
 -- | Force a Text to be parsed as email address, throwing an error if it fails.
 forceUserEmail :: ST -> UserEmail
-forceUserEmail t = case parseUserEmail t of
-    Just email -> email
-    Nothing    -> error $ "Invalid email address: " ++ show t
+forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t
