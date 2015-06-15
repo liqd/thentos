@@ -71,7 +71,14 @@ xwriter apiName formatName = do
 
 xdocs :: ApiName -> Docs.API
 xdocs Api_Simple     = docs (Proxy :: Proxy Simple.Api)
-xdocs Api_Adhocracy3 = docs (Proxy :: Proxy Adhocracy3.Api)
+xdocs Api_Adhocracy3 = Docs.docsWithIntros introsForA3 (Proxy :: Proxy Adhocracy3.ThentosApi)
+
+introsForA3 :: [Docs.DocIntro]
+introsForA3 = [Docs.DocIntro "Proxy" [body]]
+  where
+    body = "All requests that are not handled by the endpoints listed below\
+           \ are forwarded to Adhocracy3 and their responses are returned\
+           \ unmodified."
 
 introsForAuth :: [Docs.DocIntro]
 introsForAuth = [Docs.DocIntro "Authentication" [headerDescription]]
@@ -83,6 +90,8 @@ introsForAuth = [Docs.DocIntro "Authentication" [headerDescription]]
         \ value set to a valid session token. Session tokens can be acquired by\
         \ authenticating to the /thentos_session endpoint."
         -- FIXME: is there any way to link to the endpoints we're referring to?
+
+-- FIXME: module-specific docs should live inside those modules
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
     docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (introsForAuth ++)
@@ -129,8 +138,12 @@ instance ToSample Adhocracy3.Path Adhocracy3.Path where
 instance ToSample Adhocracy3.ActivationRequest Adhocracy3.ActivationRequest where
     toSample _ = Adhocracy3.ActivationRequest <$> toSample (Proxy :: Proxy Adhocracy3.Path)
 
+-- FIXME: split up LoginRequest into two separate types for login by email
+-- and login by user name, in order to provide a correct example for
+-- login_email request body
 instance ToSample Adhocracy3.LoginRequest Adhocracy3.LoginRequest where
-    toSample _ = pure $ Adhocracy3.LoginByName (UserName "wef") (UserPass "passwef")
+    toSample _ = Adhocracy3.LoginByName <$> toSample (Proxy :: Proxy UserName)
+                                        <*> toSample (Proxy :: Proxy UserPass)
 
 instance ToSample Adhocracy3.RequestResult Adhocracy3.RequestResult where
     toSample _ = Adhocracy3.RequestSuccess
@@ -138,7 +151,7 @@ instance ToSample Adhocracy3.RequestResult Adhocracy3.RequestResult where
                     <*> toSample (Proxy :: Proxy ThentosSessionToken)
 
 instance ToSample Adhocracy3.ContentType Adhocracy3.ContentType where
-    toSample _ = pure $ Adhocracy3.CTUser
+    toSample _ = pure Adhocracy3.CTUser
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "Thentos Session Token"
@@ -162,21 +175,25 @@ instance ToSample [ThentosSessionToken] [ThentosSessionToken] where
     toSample _ = Just ["abde1234llkjh", "47202sdfsg"]
 
 instance ToSample UserFormData UserFormData where
-    toSample _ = Just $ UserFormData (UserName "Kurt Cobain")
-                                   (UserPass "Hunter2")
-                                   (UserEmail "cobain@nirvana.com")
+    toSample _ = UserFormData <$> toSample (Proxy :: Proxy UserName)
+                              <*> toSample (Proxy :: Proxy UserPass)
+                              <*> toSample (Proxy :: Proxy UserEmail)
+
+instance ToSample UserPass UserPass where
+    toSample _ = Just $ UserPass "secret"
 
 instance ToSample UserName UserName where
-    toSample _ = Just $ UserName "Kurt Cobain"
+    toSample _ = Just $ UserName "Alice"
 
 instance ToSample UserEmail UserEmail where
-    toSample _ = Just $ UserEmail "cobain@nirvana.com"
+    toSample _ = Just $ UserEmail "alice@example.com"
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12
 
 instance ToSample (UserId, UserPass) (UserId, UserPass) where
-    toSample _ = Just (UserId 12, UserPass "geheim")
+    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId)
+                     <*> toSample (Proxy :: Proxy UserPass)
 
 instance ToSample [UserId] [UserId] where
     toSample _ = Just [UserId 3, UserId 7, UserId 23]
@@ -188,10 +205,10 @@ instance ToSample ServiceKey ServiceKey where
     toSample _ = Just "yd090129rj"
 
 instance ToSample ServiceName ServiceName where
-    toSample _ = Just "Evil Corp."
+    toSample _ = Just "Example Service"
 
 instance ToSample ServiceDescription ServiceDescription where
-    toSample _ = Just "don't be evil"
+    toSample _ = Just "serve as an example"
 
 instance ToSample [ServiceId] [ServiceId] where
     toSample _ = Just ["23t92ege0n", "f4ghwgegin0"]
