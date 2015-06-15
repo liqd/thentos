@@ -72,14 +72,12 @@ import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.Set (Set)
 import Data.String.Conversions (ST, cs)
 import LIO.Core (liftLIO, guardWrite, taint)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
 
 import qualified Codec.Binary.Base64 as Base64
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import LIO.Missing
@@ -317,26 +315,7 @@ userGroups :: UserId -> ServiceId -> Action DB [Group]
 userGroups uid sid = do
     liftLIO $ taint (UserA uid \/ ServiceA sid %% False)
     (_, service) <- query'P $ T.LookupService sid
-
-        -- FIXME: The following let block should go to Transactions.  (It's actually a pure
-        -- function, but it belongs more to transactions than in here.)
-    let groupMap :: Map.Map GroupNode (Set Group)
-        groupMap = service ^. serviceGroups
-
-        memberships :: GroupNode -> Set Group
-        memberships g = Map.findWithDefault Set.empty g groupMap
-
-        unionz :: Set (Set Group) -> Set Group
-        unionz = Set.fold Set.union Set.empty
-
-        f :: GroupNode -> Set Group
-        f g@(GroupU _) =                r g
-        f g@(GroupG n) = n `Set.insert` r g
-
-        r :: GroupNode -> Set Group
-        r g = unionz $ Set.map (f . GroupG) (memberships g)
-
-    return . Set.toList . f . GroupU $ uid
+    return $ T.flattenGroups service uid
 
 
 -- * thentos session

@@ -21,6 +21,7 @@ import Control.Monad.State (modify, gets, get)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
+import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
 import Data.List (foldl')
 import Data.Map (Map)
@@ -257,6 +258,24 @@ trans_deleteService sid = polyUpdate $ do
     (_, service) <- liftThentosQuery $ trans_lookupService sid
     maybe (return ()) trans_endThentosSession (service ^. serviceThentosSession)
     modify $ dbServices %~ Map.delete sid
+
+-- | For a given service and user id, look up all groups the user has in the context of that service
+-- from the service's group tree, and collect them into a list.
+flattenGroups :: Service -> UserId -> [Group]
+flattenGroups ((^. serviceGroups) -> groupMap) = Set.toList . f . GroupU
+  where
+    memberships :: GroupNode -> Set Group
+    memberships g = Map.findWithDefault Set.empty g groupMap
+
+    unionz :: Set (Set Group) -> Set Group
+    unionz = Set.fold Set.union Set.empty
+
+    f :: GroupNode -> Set Group
+    f g@(GroupU _) =                r g
+    f g@(GroupG n) = n `Set.insert` r g
+
+    r :: GroupNode -> Set Group
+    r g = unionz $ Set.map (f . GroupG) (memberships g)
 
 
 -- * thentos and service session
