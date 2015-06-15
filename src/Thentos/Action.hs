@@ -165,6 +165,11 @@ updateUserFields uid = update'P . T.UpdateUserFields uid
 
 -- * service
 
+allServiceIds :: Action DB [ServiceId]
+allServiceIds = do
+    liftLIO $ guardWrite (RoleAdmin %% False)
+    query'P T.AllServiceIds
+
 lookupService :: ServiceId -> Action DB (ServiceId, Service)
 lookupService = query'P . T.LookupService
 
@@ -177,6 +182,11 @@ addService owner name desc = do
     hashedKey <- hashServiceKey'P key
     update'P $ T.AddService owner sid hashedKey name desc
     return (sid, key)
+
+deleteService :: ServiceId -> Action DB ()
+deleteService sid = do
+    liftLIO $ guardWrite (ServiceA sid %% ServiceA sid)
+    update'P $ T.DeleteService sid
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: UserId -> ServiceId -> Action DB [Group]
