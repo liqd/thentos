@@ -7,7 +7,6 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -27,8 +26,7 @@ import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs, (<>))
-import Data.String.Conversions (SBS, ST)
+import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
@@ -134,12 +132,12 @@ badHeaders :: [Header] -> [Header]
 badHeaders = filter g . filter f
   where
     f (k, _) = foldCase "X-Thentos-" `SBS.isPrefixOf` foldedCase k
-    g (k, _) = not $ k `elem` map renderThentosHeaderName [minBound..]
+    g (k, _) = k `notElem` map renderThentosHeaderName [minBound..]
 
 -- | Remove all headers that match @X-Thentos-.*@.  This is useful if the request is to be used as a
 -- basis for e.g. constructing another request to a proxy target.
 clearThentosHeaders :: HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
-clearThentosHeaders = filter $ (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
+clearThentosHeaders = filter $ not . (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
 data ThentosAssertHeaders = ThentosAssertHeaders

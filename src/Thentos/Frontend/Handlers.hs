@@ -1,9 +1,6 @@
-{-# LANGUAGE BangPatterns           #-}
 {-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
 
@@ -19,15 +16,17 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
-import Snap.Core (Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect',
-                  rqMethod, urlDecode, setHeader, setResponseCode)
+import Snap.Core
+    ( Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect'
+    , rqMethod, urlDecode, setHeader, setResponseCode
+    )
 import Snap.Snaplet (Handler, with)
 import Snap.Snaplet.Session (csrfToken)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.View (View)
-import URI.ByteString (parseURI, laxURIParserOptions, uriQueryL, queryPairsL)
-import URI.ByteString (RelativeRef(..), Query(..))
+import URI.ByteString
+    ( parseURI, laxURIParserOptions, uriQueryL, queryPairsL, RelativeRef(..), Query(..) )
 
 import qualified Text.Blaze.Html5 as H
 

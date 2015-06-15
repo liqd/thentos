@@ -6,7 +6,6 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -23,7 +22,6 @@ import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
 import Control.Monad (void, when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
-
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -41,7 +39,7 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Types
 import Thentos.Util
 
--- import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
+import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
 
@@ -90,12 +88,9 @@ main =
                 void $ concurrently backend frontend
 
             RunA3 -> do
-                error "a3 backend is defunct."
-{-
-                maybe (error "command `runa3` requires `--runbackend`")
-                    (`Thentos.Backend.Api.Adhocracy3.runApi` actionState)
+                maybe (error "command `runa3` requires backend")
+                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
                     mBeConfig
--}
 
     let finalize = do
             announceAction "creating checkpoint and shutting down acid-state" $
@@ -134,7 +129,7 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-        result <- mapM (\ role -> update' st (T.AssignRole (UserA (UserId 0)) role)) roles
+        result <- mapM (update' st . T.AssignRole (UserA . UserId $ 0)) roles
 
         if all isRight result
             then logger DEBUG $ "[ok]"

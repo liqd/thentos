@@ -228,14 +228,17 @@ Please notify us if you want something to be added.
 - [http://www.openldap.org/](http://www.openldap.org/)
 
 
-Thanks!
--------
+Contributors
+------------
 
 In alphanumerical order.  Please let us know if we forgot to add you,
 or if you would like us to link to your github handle / email.
 
 - Albert Krewinkel
+- Andres Löh
 - Christian Siefkes
+- Florian Hartwig
 - Julian Arni
+- Matthias Fischmann
 - Robert Vollmert
 - Sönke Hahn

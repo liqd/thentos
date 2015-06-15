@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 
 module Thentos.Frontend where
@@ -52,11 +51,11 @@ frontendApp (ActionState (st, rn, _cfg)) feConf =
         addRoutes routes
         FrontendApp <$>
             (nestSnaplet "acid" db $ acidInitManual st) <*>
-            (return rn) <*>
-            (return _cfg) <*>
+            return rn <*>
+            return _cfg <*>
             (nestSnaplet "sess" sess $
                initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
-            (pure feConf)
+            pure feConf
 
 routes :: [(ByteString, FH ())]
 routes = [ -- default entry point

@@ -8,12 +8,12 @@ description:
 license:             AGPL-3
 license-file:        LICENSE
 homepage:            https://github.com/liqd/thentos
-author:              Matthias Fischmann, Florian Hartwig
-maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de
+author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
+maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
-cabal-version:       >= 1.10
+cabal-version:       >= 1.20
 
 Source-Repository head
   type: git
@@ -52,8 +52,9 @@ library
     cpp-options: -DDEVELOPMENT -w
     ghc-options: -w
   exposed-modules:
-      System.Log.Missing
+      LIO.Missing
     , Snap.Missing
+    , System.Log.Missing
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
@@ -181,6 +182,7 @@ executable build-docs
     , directory
     , filepath
     , functor-infix
+    , lens
     , pandoc
     , process
     , servant >= 0.4.1 && < 0.5
@@ -209,7 +211,7 @@ test-suite tests
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
   ghc-options:
-      -Wall -threaded -rtsopts
+      -Wall -Werror -threaded -rtsopts
   cpp-options:
       -DGHC_GENERICS
   build-depends:

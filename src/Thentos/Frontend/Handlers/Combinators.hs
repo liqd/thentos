@@ -20,8 +20,10 @@ import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import LIO.Error (AnyLabelError)
-import Snap.Core (getResponse, finishWith, urlEncode, getParam)
-import Snap.Core (rqURI, getsRequest, redirect', modifyResponse, setResponseStatus)
+import Snap.Core
+    ( getResponse, finishWith, urlEncode, getParam
+    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
+    )
 import Snap.Inline (blanketCSRF)
 import Snap.Snaplet.AcidState (getAcidState)
 import Snap.Snaplet (Handler, with)
@@ -31,12 +33,15 @@ import System.Log (Priority(DEBUG, CRITICAL, INFO))
 import Text.Digestive.Form (Form)
 import Text.Digestive.Snap (runForm)
 import Text.Digestive.View (View)
-import URI.ByteString (parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef)
-import URI.ByteString (URI(..), RelativeRef(..), URIParserOptions, Query(..))
+import URI.ByteString
+    ( parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef
+    , URI(..), RelativeRef(..), URIParserOptions, Query(..)
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
+import LIO.Missing
 import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
@@ -118,7 +123,7 @@ runPageForm' :: forall v a .
     -> (ST -> View v -> FH H.Html)
     -> (a -> FH ())
     -> FH ()
-runPageForm' f buildPage a = runHandlerForm f handler a
+runPageForm' f buildPage = runHandlerForm f handler
   where
     handler :: ST -> View v -> FH ()
     handler formAction view = buildPage formAction view >>= blaze
@@ -199,7 +204,7 @@ setServiceLoginState = do
              (return . ServiceId . cs)
     rrf <- getsRequest rqURI >>= \ callbackSBS -> either
              (\ msg -> crash 400 $ "Service login: malformed redirect URI: " <> cs (show (msg, callbackSBS)))
-             (return)
+             return
              (parseRelativeRef laxURIParserOptions callbackSBS)
 
     let val = ServiceLoginState sid rrf
@@ -239,7 +244,7 @@ crash' status logMsg usrMsg = do
     getResponse >>= finishWith
 
 crash :: Int -> SBS -> Handler b v x
-crash status usrMsg = crash' status () usrMsg
+crash status = crash' status ()
 
 -- | Use this for internal errors.  Ideally, we shouldn't have to even
 -- write those, but structure the code in a way that makes places
@@ -312,27 +317,29 @@ snapHandleAllErrors eth = do
         Right val -> return val
         Left err -> crash500 err
 
+getActionState :: FH (ActionState DB)
+getActionState = do
+    st :: AcidState DB   <- getAcidState
+    rn :: MVar ChaChaDRG <- gets (^. rng)
+    cf :: ThentosConfig  <- gets (^. cfg)
+    return $ ActionState (st, rn, cf)
+
 -- | Run action with the clearance derived from thentos session token.
 snapRunActionE :: Action DB a -> FH (Either ActionError a)
 snapRunActionE action = do
-    st :: AcidState DB        <- getAcidState
-    rn :: MVar ChaChaDRG      <- gets (^. rng)
-    cf :: ThentosConfig       <- gets (^. cfg)
+    st :: ActionState DB      <- getActionState
     fs :: FrontendSessionData <- getSessionData
 
     result <- case (^. fslToken) <$> fs ^. fsdLogin of
-        Just tok -> liftIO $ runActionInThentosSessionE tok (ActionState (st, rn, cf)) action
-        Nothing  -> liftIO $ runActionE                     (ActionState (st, rn, cf)) action
+        Just tok -> liftIO $ runActionInThentosSessionE tok st action
+        Nothing  -> liftIO $ runActionE                     st action
     snapHandleSomeErrors result
 
 -- | Call action with top clearance.
 snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
 snapRunActionE'P action = do
-    st :: AcidState DB   <- getAcidState
-    rn :: MVar ChaChaDRG <- gets (^. rng)
-    cf :: ThentosConfig  <- gets (^. cfg)
-
-    result <- liftIO $ runActionWithClearanceE dcTop (ActionState (st, rn, cf)) action
+    st :: ActionState DB <- getActionState
+    result <- liftIO $ runActionWithClearanceE dcTop st action
     snapHandleSomeErrors result
 
 -- | This function handles particular error cases for the frontend and propagates others in 'Left'

@@ -67,7 +67,7 @@ withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
 
 -- | Like 'withExpiry', but takes an extra function for transforming the result value of the action
 -- into what we need for the timeout check.
-withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> (b -> (Maybe (a, Timestamp)))
+withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> (b -> Maybe (a, Timestamp))
     -> ThentosUpdate db b -> ThentosUpdate db a
 withExpiryT now expiry thentosError f action = do
     mResult <- f <$> action
@@ -226,7 +226,7 @@ trans_allServiceIds :: (AsDB db) => ThentosQuery db [ServiceId]
 trans_allServiceIds = Map.keys . (^. asDB . dbServices) <$> ask
 
 trans_lookupService :: (AsDB db) => ServiceId -> ThentosQuery db (ServiceId, Service)
-trans_lookupService sid = ask >>= maybe (throwT NoSuchService) (return) . (`pure_lookupService` sid)
+trans_lookupService sid = ask >>= maybe (throwT NoSuchService) return . (`pure_lookupService` sid)
 
 pure_lookupService :: (AsDB db) => db -> ServiceId -> Maybe (ServiceId, Service)
 pure_lookupService db sid = (sid,) <$> Map.lookup sid (db ^. asDB . dbServices)
@@ -390,7 +390,7 @@ trans_assertAgent (ServiceA sid) = void $ trans_lookupService sid
 trans_assignRole :: (AsDB db) => Agent -> Role -> ThentosUpdate db ()
 trans_assignRole agent role = do
     liftThentosQuery $ trans_assertAgent agent
-    let inject = Just . (Set.insert role) . fromMaybe Set.empty
+    let inject = Just . Set.insert role . fromMaybe Set.empty
     modify $ asDB . dbRoles %~ Map.alter inject agent
 
 -- | Remove 'Role' from 'Agent's entry in 'dbRoles'.  If 'Role' is not assigned to 'Agent', do
