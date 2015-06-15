@@ -27,6 +27,7 @@ import Thentos.Types
 
 import qualified Thentos.Transaction as T
 
+import Test.Config
 import Test.Core
 import Test.Types
 
@@ -69,7 +70,7 @@ spec = describe "DB" . before setupDB . after teardownDB $ do
             u `shouldBe` Left NoSuchUser
 
         it "guarantee that user names are unique" $ \ (getStateDB -> st) -> do
-            result <- update' st $ T.AddUser (userEmail .~ (UserEmail "new@one.com") $ user1)
+            result <- update' st $ T.AddUser (userEmail .~ (forceUserEmail "new@one.com") $ user1)
             result `shouldBe` Left UserNameAlreadyExists
 
         it "guarantee that user email addresses are unique" $ \ (getStateDB -> st) -> do

@@ -227,6 +227,7 @@ test-suite tests
     , containers
     , cryptonite
     , directory
+    , email-validate >= 2.1.3
     , filepath
     , functor-infix
     , hslogger

@@ -30,6 +30,7 @@ import qualified Network.HTTP.Types.Status as C
 import Thentos.Types
 import Thentos.Config (Command(Run))
 
+import Test.Config
 import Test.Types
 import Test.Core
 
@@ -97,7 +98,7 @@ spec = do
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $
                   \ bts -> runTestBackend bts $ do
-                    let userData = UserFormData "1" "2" "3"
+                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
                     response1 <- srequest $ makeSRequest "POST" "/user" (bts ^. btsGodCredentials) (Aeson.encode userData)
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
                     let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
