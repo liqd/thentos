@@ -160,9 +160,7 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
     name     <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-    rawEmail <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
-    email    <- pure $ rawEmail >>= parseUserEmail
-    failIfEmailIsInvalid rawEmail email
+    email    <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
     password <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
@@ -170,14 +168,7 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
         fail $ "malformed user name: " ++ show name
     when (withPass && not (passwordGood name)) $
         fail $ "bad password: " ++ show password
-    case email of
-        Just e -> return $ UserFormData (UserName name) (UserPass password) e
-        Nothing -> fail $ "missing email address"
-
--- | Fail with an error message if an email address has been given but couldn't be parsed.
-failIfEmailIsInvalid :: (Monad m) => Maybe ST -> Maybe UserEmail -> m ()
-failIfEmailIsInvalid (Just rawEmail) Nothing = fail $ "malformed email address: " ++ show rawEmail
-failIfEmailIsInvalid _               _       = return ()
+    return $ UserFormData (UserName name) (UserPass password) email
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -230,9 +221,7 @@ instance ToJSON LoginRequest where
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
         name <- UserName  <$$> v .:? "name"
-        rawEmail <- v .:? "email"
-        email <- pure $ rawEmail >>= parseUserEmail
-        failIfEmailIsInvalid rawEmail email
+        email <- v .:? "email"
         pass <- UserPass  <$>  v .: "password"
         case (name, email) of
           (Just x,  Nothing) -> return $ LoginByName x pass

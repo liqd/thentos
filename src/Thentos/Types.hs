@@ -149,8 +149,8 @@ instance Aeson.FromJSON UserEmail
   where
     parseJSON (String t) = case emailAddress $ cs t of
         Just email -> return $ UserEmail email
-        Nothing    -> fail "Not a valid email address"
-    parseJSON _          = fail "Not a valid email address"
+        Nothing    -> fail $ "Not a valid email address: " ++ cs t
+    parseJSON bad        = fail $ "Not a valid email address: " ++ show bad
 
 instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
