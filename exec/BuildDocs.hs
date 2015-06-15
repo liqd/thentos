@@ -14,6 +14,7 @@ module Main where
 import Control.Applicative (pure, (<*>))
 import Control.Lens ((&), (%~))
 import Data.Char (toLower)
+import Data.Maybe (fromMaybe)
 import Data.Functor.Infix ((<$>))
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
