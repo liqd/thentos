@@ -50,7 +50,7 @@ hashUserPass = hashSecret fromUserPass
 hashServiceKey :: (Functor m, MonadIO m) => ServiceKey -> m (HashedSecret ServiceKey)
 hashServiceKey = hashSecret fromServiceKey
 
--- encryptPassIO' gets its entropy from /dev/urandom
+-- | 'encryptPassIO'' gets its entropy from /dev/urandom
 hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
 hashSecret a s = HashedSecret <$>
     (liftIO . Scrypt.encryptPassIO thentosScryptParams . Scrypt.Pass . encodeUtf8 $ a s)

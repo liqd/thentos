@@ -1,25 +1,27 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE InstanceSigs           #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE DataKinds                   #-}
+{-# LANGUAGE DeriveDataTypeable          #-}
+{-# LANGUAGE DeriveFunctor               #-}
+{-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleContexts            #-}
+{-# LANGUAGE FlexibleInstances           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE InstanceSigs                #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
+{-# LANGUAGE OverloadedStrings           #-}
+{-# LANGUAGE PackageImports              #-}
+{-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE TypeFamilies                #-}
+{-# LANGUAGE TypeOperators               #-}
 
 module Thentos.Action.Core
 where
 
-import Control.Applicative (Applicative, (<*>), (<$>), pure)
+import Control.Applicative (Applicative, (<$>))
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask, local)
+import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
@@ -40,6 +42,7 @@ import System.Log (Priority(DEBUG))
 import qualified Data.Set as Set
 import qualified Data.Thyme as Thyme
 
+import LIO.Missing
 import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.Smtp
@@ -54,37 +57,21 @@ newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar Ch
   deriving (Typeable, Generic)
 
 newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
-  deriving (Typeable, Generic)
+  deriving ( Functor
+           , Applicative
+           , Monad
+           , MonadReader (ActionState db)
+           , MonadError ThentosError
+           , Typeable
+           , Generic
+           )
 
-instance Functor (Action db) where
-    fmap f (Action a) = Action $ fmap f a
-
-instance Applicative (Action db) where
-    pure = Action . pure
-    Action a <*> Action b = Action $ a <*> b
-
-instance Monad (Action db) where
-    return = Action . return
-    (Action a) >>= f = Action $ a >>= fromAction . f
-
-instance MonadReader (ActionState db) (Action db) where
-    ask = Action ask
-    local f (Action a) = Action $ local f a
-
--- | FIXME: all exceptions that occur inside 'LIO' currently go uncaught until execution reaches
--- 'runAction' or 'runActionE'.  should errors caught there actually be handled here already, so we
--- can process them inside 'Action'?
-instance MonadError ThentosError (Action db) where
-    throwError :: ThentosError -> Action db a
-    throwError = Action . throwError
-
-    catchError :: Action db a -> (ThentosError -> Action db a) -> Action db a
-    catchError (Action a) handler = Action $ catchError a (fromAction . handler)
-
-instance MonadLIO DCLabel (Action db) where
-    liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
-
-
+-- | Errors known by 'runActionE', 'runAction', ....
+--
+-- The 'MonadError' instance of newtype 'Action' lets you throw and catch errors from *within* the
+-- 'Action', i.e., at construction time).  These are errors are handled in the 'ActionErrorThentos'
+-- constructor.  Label errors and other (possibly async) exceptions are caught (if possible) in
+-- 'runActionE' and its friends and maintained in other 'ActionError' constructors.
 data ActionError =
     ActionErrorThentos ThentosError
   | ActionErrorAnyLabel AnyLabelError
@@ -92,6 +79,10 @@ data ActionError =
   deriving (Show, Typeable, Generic)
 
 instance Exception ActionError
+
+
+instance MonadLIO DCLabel (Action db) where
+    liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
 
 
 -- * running actions
@@ -102,6 +93,9 @@ runAction state action = runActionE state action >>= either throwIO return
 
 runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
+
+runActionWithClearance :: DCLabel -> ActionState DB -> Action DB a -> IO a
+runActionWithClearance label state action = runActionWithClearanceE label state action >>= either throwIO return
 
 runActionAsAgent :: Agent -> ActionState DB -> Action DB a -> IO a
 runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
@@ -140,16 +134,6 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 
 
 -- * labels, privileges and access rights.
-
-
--- | FIXME: move to LIO.Missing; make pull request
-dcBottom :: DCLabel
-dcBottom = True %% False
-
--- | FIXME: move to LIO.Missing; make pull request
-dcTop :: DCLabel
-dcTop = False %% True
-
 
 -- | In order to execute an 'Action', certain access rights need to be granted.  A set of access
 -- rights is a list of 'ToCNF' instances that are used to update the current clearance in the

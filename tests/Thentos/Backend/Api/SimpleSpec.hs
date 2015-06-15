@@ -57,7 +57,7 @@ spec = do
                   \ bts -> runTestBackend bts $ do
                     response1 <- srequest $ makeSRequest "GET" "/user" (bts ^. btsGodCredentials) ""
                     liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-                    liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0, UserId 1, UserId 2]
+                    liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0]
 
                 it "is not accessible for users without 'Admin' role" $
                   \ bts -> runTestBackend bts $ do

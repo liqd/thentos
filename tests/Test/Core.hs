@@ -22,7 +22,6 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid.Advanced (update')
 import Data.Acid (openLocalStateFrom, closeAcidState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
@@ -66,19 +65,41 @@ import Test.Config
 import Test.Types
 
 
-user1, user2, user3, user4, user5 :: User
-user1 = User "name1" (encryptTestSecret "passwd") "em@il" Set.empty Map.empty
-user2 = User "name2" (encryptTestSecret "passwd") "em38@il" Set.empty Map.empty
-user3 = User "name3" (encryptTestSecret "3") "3" Set.empty Map.empty
-user4 = User "name4" (encryptTestSecret "4") "4" Set.empty Map.empty
-user5 = User "name5" (encryptTestSecret "5") "5" Set.empty Map.empty
+-- * test users
 
+testUserForms :: [UserFormData]
+testUserForms =
+    [ UserFormData "name1" "passwd" "em@il"
+    , UserFormData "name2" "passwd" "em38@il"
+    , UserFormData "name3" "3" "3"
+    , UserFormData "name4" "4" "4"
+    , UserFormData "name5" "5" "5"
+    ]
+
+testUsers :: [User]
+testUsers = (\ (UserFormData name pass email) ->
+                User name (encryptTestSecret . cs . fromUserPass $ pass) email Set.empty Map.empty)
+    <$> testUserForms
+
+-- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
+-- it.
+addTestUser :: Int -> Action DB (UserId, UserFormData, User)
+addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
+    uid <- update'P $ AddUser user
+    return (uid, uf, user)
+
+-- | Create a list of test users (with fast scrypt params), store them in the database, and return
+-- them for use in test cases.
+initializeTestUsers :: Action DB [(UserId, UserFormData, User)]
+initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
 encryptTestSecret pw =
     HashedSecret $
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
+
+-- * test logger
 
 -- | Log everything with 'DEBUG' level to @[tmp].../everything.log@.
 setupLogger :: TestConfig -> IO ()
@@ -96,14 +117,14 @@ teardownLogger :: IO ()
 teardownLogger = removeAllHandlers
 
 
+-- * DBTS
+
 setupDB :: IO DBTS
 setupDB = do
     tcfg <- testConfig
     setupLogger tcfg
     st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
     createGod st
-    Right (UserId 1) <- update' st $ AddUser user1
-    Right (UserId 2) <- update' st $ AddUser user2
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
 
@@ -113,6 +134,8 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
     closeAcidState st
     removeDirectoryRecursive (tcfg ^. tcfgTmp)
 
+
+-- * BTS
 
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
@@ -133,6 +156,8 @@ teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionSta
 runTestBackend :: BTS -> Session a -> IO a
 runTestBackend bts session = runSession session (bts ^. btsWai)
 
+
+-- * FTS
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
@@ -232,6 +257,8 @@ tracifyApplication _ application = application'
         show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream " ++ ppShow (status, headers)
         show_ (ResponseRaw _ _) = "ResponseRaw"
 
+
+-- * misc
 
 -- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
 -- objects and arrays.

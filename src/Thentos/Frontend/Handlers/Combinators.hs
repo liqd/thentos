@@ -41,6 +41,7 @@ import URI.ByteString
 import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
+import LIO.Missing
 import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
