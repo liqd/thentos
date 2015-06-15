@@ -142,15 +142,18 @@ instance ToSample [ThentosSessionToken] [ThentosSessionToken] where
     toSample _ = Just ["abde1234llkjh", "47202sdfsg"]
 
 instance ToSample UserFormData UserFormData where
-    toSample _ = Just $ UserFormData (UserName "Kurt Cobain")
-                                   (UserPass "Hunter2")
-                                   (UserEmail "cobain@nirvana.com")
+    toSample _ = Just $ UserFormData (UserName "Kurt Cobain") (UserPass "Hunter2") sampleEmail
 
 instance ToSample UserName UserName where
     toSample _ = Just $ UserName "Kurt Cobain"
 
 instance ToSample UserEmail UserEmail where
-    toSample _ = Just $ UserEmail "cobain@nirvana.com"
+    toSample _ = Just sampleEmail
+
+sampleEmail :: UserEmail
+sampleEmail = case parseUserEmail "cobain@nirvana.com" of
+        Just email -> email
+        Nothing    -> error "ToSample UserEmail instance broken"
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12
