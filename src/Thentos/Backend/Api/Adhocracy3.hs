@@ -161,9 +161,9 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
         fail $ "wrong content type: " ++ show content_type
     name     <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
     rawEmail <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
-    email <- pure $ rawEmail >>= parseUserEmail
+    email    <- pure $ rawEmail >>= parseUserEmail
     failIfEmailIsInvalid rawEmail email
-    password     <- if withPass
+    password <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
     unless (userNameValid name) .
