@@ -173,12 +173,13 @@ trans_addUserEmailChangeRequest timestamp uid email token = polyUpdate $ do
 -- | Change email with a given token and remove the token.  Throw an error if the token does not
 -- exist or has expired.
 trans_confirmUserEmailChange :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
-                                          -> ThentosUpdate db ()
+                                          -> ThentosUpdate db UserId
 trans_confirmUserEmailChange now expiry token = polyUpdate $ do
     ((uid, email), toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbEmailChangeTokens)
     modify $ dbEmailChangeTokens .~ toks'
     trans_updateUserField uid (UpdateUserFieldEmail email)
+    return uid
 
 
 data UpdateUserFieldOp =
@@ -367,6 +368,8 @@ trans_lookupServiceSession now tok = polyUpdate $ do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
+--
+-- FIXME: test whether user is registered with service!
 trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
                                        -> Timestamp -> Timeout -> ThentosUpdate db ()
 trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
