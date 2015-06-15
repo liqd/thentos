@@ -140,6 +140,9 @@ deleteUser uid = do
     liftLIO $ guardWrite (UserA uid %% UserA uid)
     update'P $ T.DeleteUser uid
 
+
+-- ** email confirmation
+
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     now <- getCurrentTime'P
@@ -152,6 +155,9 @@ confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
     update'P $ T.FinishUserRegistration now expiryPeriod token
+
+
+-- ** password reset
 
 addPasswordResetToken :: UserEmail -> Action DB (User, PasswordResetToken)
 addPasswordResetToken email = do
@@ -167,11 +173,8 @@ resetPassword token password = do
     hashedPassword <- hashUserPass'P password
     update'P $ T.ResetPassword now expiryPeriod token hashedPassword
 
-changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
-changePassword uid old new = do
-    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) old
-    hashedPw <- hashUserPass'P new
-    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
+
+-- ** login
 
 -- | Find user running the action, confirm the password, and return the user or crash.  'NoSuchUser'
 -- is translated into 'BadCredentials'.
@@ -186,6 +189,21 @@ findUserCheckPassword action password = a `catchError` h
 
     h NoSuchUser = throwError BadCredentials
     h e          = throwError e
+
+
+-- ** change user data
+
+updateUserField :: UserId -> T.UpdateUserFieldOp -> Action DB ()
+updateUserField uid = update'P . T.UpdateUserField uid
+
+updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action DB ()
+updateUserFields uid = update'P . T.UpdateUserFields uid
+
+changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
+changePassword uid old new = do
+    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) old
+    hashedPw <- hashUserPass'P new
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 requestUserEmailChange :: UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action DB ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
@@ -212,12 +230,6 @@ confirmUserEmailChange token = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     update'P $ T.ConfirmUserEmailChange now expiryPeriod token
-
-updateUserField :: UserId -> T.UpdateUserFieldOp -> Action DB ()
-updateUserField uid = update'P . T.UpdateUserField uid
-
-updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action DB ()
-updateUserFields uid = update'P . T.UpdateUserFields uid
 
 
 -- * service
