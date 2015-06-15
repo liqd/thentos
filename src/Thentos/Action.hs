@@ -224,10 +224,6 @@ lookupThentosSession tok = do
         (return session)
         (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
 
-    -- FIXME: does 'tryTaint' make sure all things we've seen since entering 'lookupThentosSession'
-    -- will safely remain secret and intact, even though we've already seen them?
-    -- the exception will certainly be thrown back to the outside of the function.  so, i think so?
-
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
 existsThentosSession :: ThentosSessionToken -> Action DB Bool
