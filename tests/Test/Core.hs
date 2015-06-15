@@ -69,11 +69,11 @@ import Test.Types
 
 testUserForms :: [UserFormData]
 testUserForms =
-    [ UserFormData "name1" "passwd" "em@il"
-    , UserFormData "name2" "passwd" "em38@il"
-    , UserFormData "name3" "3" "3"
-    , UserFormData "name4" "4" "4"
-    , UserFormData "name5" "5" "5"
+    [ UserFormData "name1" "passwd" $ forceUserEmail "em@il.org"
+    , UserFormData "name2" "passwd" $ forceUserEmail "em38@il.org"
+    , UserFormData "name3" "3" $ forceUserEmail "3@example.org"
+    , UserFormData "name4" "4" $ forceUserEmail "4@example.org"
+    , UserFormData "name5" "5" $ forceUserEmail "5@example.org"
     ]
 
 testUsers :: [User]
