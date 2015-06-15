@@ -7,6 +7,63 @@
 {-# LANGUAGE TupleSections        #-}
 
 module Thentos.Action
+    ( freshRandomName
+    , freshConfirmationToken
+    , freshPasswordResetToken
+    , freshServiceId
+    , freshServiceKey
+    , freshSessionToken
+    , freshServiceSessionToken
+
+    , allUserIds
+    , lookupUser
+    , lookupUserByName
+    , lookupUserByEmail
+    , addUser
+    , deleteUser
+    , addUnconfirmedUser
+    , confirmNewUser
+    , addPasswordResetToken
+    , resetPassword
+    , changePassword
+    , findUserCheckPassword
+    , requestUserEmailChange
+    , confirmUserEmailChange
+    , updateUserField, T.UpdateUserFieldOp(..)
+    , updateUserFields
+
+    , allServiceIds
+    , lookupService
+    , addService
+    , deleteService
+    , userGroups
+
+    , defaultSessionTimeout
+    , lookupThentosSession
+    , existsThentosSession
+    , startThentosSessionByUserId
+    , startThentosSessionByUserName
+    , startThentosSessionByServiceId
+    , endThentosSession
+    , findServiceCheckKey
+    , startThentosSessionByAgent
+    , serviceNamesFromThentosSession
+
+    , lookupServiceSession
+    , existsServiceSession
+    , thentosSessionAndUserIdByToken
+    , addServiceRegistration
+    , dropServiceRegistration
+    , startServiceSession
+    , endServiceSession
+    , getServiceSessionMetadata
+
+    , assignRole
+    , unassignRole
+    , agentRoles
+
+    , collectGarbage
+    )
 where
 
 import Control.Applicative ((<$>))
