@@ -43,7 +43,7 @@ data ServiceProxy
 
 instance HasServer ServiceProxy where
   type ServerT ServiceProxy m = S.Application
-  route Proxy l = route (Proxy :: Proxy Raw) l
+  route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: ActionState DB -> Server ServiceProxy
 serviceProxy state req cont = do
