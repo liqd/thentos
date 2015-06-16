@@ -164,11 +164,13 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     password <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
-    unless (userNameValid name) .
-        fail $ "malformed user name: " ++ show name
-    when (withPass && not (passwordAcceptable password)) $
-        fail $ "bad password: " ++ show password
+    failOnError $ userNameValid name
+    when withPass . failOnError $ passwordAcceptable password
     return $ UserFormData (UserName name) (UserPass password) email
+
+-- | Fail if the argument is 'Just' an error. Do nothing otherwise.
+failOnError :: Monad m => Maybe String -> m ()
+failOnError = maybe (return ()) fail
 
 -- | Check constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -177,14 +179,23 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
 -- preceded and followed by non-whitespace (no whitespace at begin or
 -- end, multiple subsequent spaces are forbidden, tabs and newlines
 -- are forbidden).
-userNameValid :: ST -> Bool
-userNameValid name = ST.all (/= '@') name && normalizedName == name
-    where normalizedName = ST.unwords . ST.words $ name
+-- Returns 'Nothing' on success, otherwise 'Just' an error message.
+userNameValid :: ST -> Maybe String
+userNameValid name
+  | ST.null name           = Just "user name is empty"
+  | ST.any (== '@') name   = Just $ "'@' in user name is not allowed: "  ++ show name
+  | normalizedName /= name = Just $ "Illegal whitespace sequence in user name: "  ++ show name
+  | otherwise              = Nothing
+  where normalizedName = ST.unwords . ST.words $ name
 
 -- | Check constraints on password: It must have between 6 and 100 chars.
-passwordAcceptable :: ST -> Bool
-passwordAcceptable pass = len >= 6 && len <= 100
-    where len = ST.length pass
+-- Returns 'Nothing' on success, otherwise 'Just' an error message.
+passwordAcceptable :: ST -> Maybe String
+passwordAcceptable pass
+  | len < 6   = Just "password too short (less than 6 characters)"
+  | len > 100 = Just "password too long (more than 100 characters)"
+  | otherwise = Nothing
+  where len = ST.length pass
 
 
 -- ** other types
