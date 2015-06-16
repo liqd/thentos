@@ -12,6 +12,7 @@ module Thentos.Backend.Api.Docs.Common () where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Servant.API (Capture, (:>))
