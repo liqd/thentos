@@ -112,19 +112,18 @@ instance (ToSample a a, ToSample b b) => ToSample (a, b) (a, b) where
 instance (ToSample a a, ToSample b b, ToSample c c) => ToSample (a, b, c) (a, b, c) where
     toSample _ = (,,) <$> toSample (Proxy :: Proxy a) <*> toSample (Proxy :: Proxy b) <*> toSample (Proxy :: Proxy c)
 
-introsForAuth :: [Docs.DocIntro]
-introsForAuth = [Docs.DocIntro "Authentication" [headerDescription]]
-  where
-    headerDescription =
-        "To call any of this API's endpoints as a User or Service,\
-        \ your request has to contain\
-        \ an HTTP header with the name 'X-Thentos-Session' and with the\
-        \ value set to a valid session token. Session tokens can be acquired by\
-        \ authenticating to the /thentos_session endpoint."
+instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
+    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
+      where
+        intros = [Docs.DocIntro title [text]]
+        title = "Authentication"
+        text = "To call any of this API's endpoints as a User or Service,\
+               \ your request has to contain an HTTP header with the name\
+               \ 'X-Thentos-Session' and with the value set to a valid session\
+               \ token. Session tokens can be acquired by authenticating to\
+               \ the /thentos_session endpoint."
         -- FIXME: is there any way to link to the endpoints we're referring to?
 
-instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (introsForAuth ++)
 
 instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
     docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
