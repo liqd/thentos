@@ -10,6 +10,7 @@ test "`pwd`" == "/home/travis/build/liqd/thentos" || exit 2
 # WARNING: THIS SCRIPT IS NOT TESTED VERY THOROUGHLY!
 
 cabal update
+cabal sandbox delete
 cabal sandbox init
 time cabal install \
     --dependencies-only --enable-tests --disable-documentation \
