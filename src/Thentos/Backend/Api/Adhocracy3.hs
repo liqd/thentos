@@ -265,12 +265,13 @@ serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . app
 -- particular, it is not an error to send username and password to
 -- @/login_email@.  This makes implementing all sides of the protocol
 -- a lot easier without sacrificing security.
-type Api = (
+type ThentosApi =
        "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass :> Post '[JSON] (A3Resource A3UserNoPass)
   :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post '[JSON] RequestResult
   :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult)
-  :<|> ServiceProxy
+  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
+
+type Api = ThentosApi :<|> ServiceProxy
 
 app :: AC.ActionState DB -> Server Api
 app actionState = (enter (enterAction actionState Nothing) $
