@@ -166,26 +166,25 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
         else pure ""
     unless (userNameValid name) .
         fail $ "malformed user name: " ++ show name
-    when (withPass && not (passwordGood name)) $
+    when (withPass && not (passwordAcceptable name)) $
         fail $ "bad password: " ++ show password
     return $ UserFormData (UserName name) (UserPass password) email
 
--- | constraints on user name: The "name" field in the "IUserBasic"
+-- | Check constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
 -- '@' (to make user names distinguishable from email addresses). The
 -- username must not contain any whitespace except single spaces,
 -- preceded and followed by non-whitespace (no whitespace at begin or
 -- end, multiple subsequent spaces are forbidden, tabs and newlines
 -- are forbidden).
---
--- FIXME: not implemented.
 userNameValid :: ST -> Bool
-userNameValid _ = True
+userNameValid name = ST.all (/= '@') name && normalizedName == name
+    where normalizedName = ST.unwords . ST.words $ name
 
--- | Only an empty password is a bad password.
-passwordGood :: ST -> Bool
-passwordGood "" = False
-passwordGood _ = True
+-- | Check constraints on password: It must have between 6 and 100 chars.
+passwordAcceptable :: ST -> Bool
+passwordAcceptable pass = len >= 6 && len <= 100
+    where len = ST.length pass
 
 
 -- ** other types
@@ -314,14 +313,12 @@ activate (ActivationRequest p) = AC.logIfError'P $ do
     return $ RequestSuccess (userIdToPath uid) stok
 
 
--- | FIXME: check password!
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
-    (uid, _) <- case r of
-        LoginByName  uname _  -> A.lookupUserByName  uname
-        LoginByEmail uemail _ -> A.lookupUserByEmail uemail
-    stok :: ThentosSessionToken <- A.startThentosSessionByAgent (UserA uid)
+    (uid, stok) <- case r of
+        LoginByName  uname pass  -> A.startThentosSessionByUserName uname pass
+        LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
     return $ RequestSuccess (userIdToPath uid) stok
 
 
