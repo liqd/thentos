@@ -59,7 +59,7 @@ instance ToSample UserName UserName where
 
 instance ToSample UserEmail UserEmail where
     toSample _ = Just $ fromMaybe (error "ToSample UserEmail instance broken")
-                                  (parseUserEmail "cobain@nirvana.com")
+                                  (parseUserEmail "alice@example.com")
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12
