@@ -45,6 +45,10 @@ readableStrings =
     "few" : "public" : "bad" : "same" : "able" :
     []
 
+-- | We just use one of the 'readableStrings' as name.
+instance Arbitrary UserName where
+    arbitrary = elements readableStrings >>= return . UserName . cs
+
 instance Arbitrary UserEmail where
     arbitrary = do
         localName  <- elements readableStrings
@@ -66,8 +70,7 @@ instance Arbitrary UserPass where
         passwordChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
 
 instance Arbitrary UserFormData where
-    arbitrary = UserFormData <$> s UserName <*> arbitrary <*> arbitrary
-      where s cons = cons . cs <$> elements readableStrings
+    arbitrary = UserFormData <$> arbitrary <*> arbitrary <*> arbitrary
 
 -- | 'UserPass' has no 'Show' instance so we cannot accidentally leak
 -- it into, say, a log file.  For testing, password leakage is not a
