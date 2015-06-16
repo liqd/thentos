@@ -47,7 +47,7 @@ readableStrings =
 
 -- | We just use one of the 'readableStrings' as name.
 instance Arbitrary UserName where
-    arbitrary = elements readableStrings >>= return . UserName . cs
+    arbitrary = UserName . cs <$> elements readableStrings
 
 instance Arbitrary UserEmail where
     arbitrary = do
