@@ -7,6 +7,63 @@
 {-# LANGUAGE TupleSections        #-}
 
 module Thentos.Action
+    ( freshRandomName
+    , freshConfirmationToken
+    , freshPasswordResetToken
+    , freshServiceId
+    , freshServiceKey
+    , freshSessionToken
+    , freshServiceSessionToken
+
+    , allUserIds
+    , lookupUser
+    , lookupUserByName
+    , lookupUserByEmail
+    , addUser
+    , deleteUser
+    , addUnconfirmedUser
+    , confirmNewUser
+    , addPasswordResetToken
+    , resetPassword
+    , changePassword
+    , findUserCheckPassword
+    , requestUserEmailChange
+    , confirmUserEmailChange
+    , updateUserField, T.UpdateUserFieldOp(..)
+    , updateUserFields
+
+    , allServiceIds
+    , lookupService
+    , addService
+    , deleteService
+    , userGroups
+
+    , defaultSessionTimeout
+    , lookupThentosSession
+    , existsThentosSession
+    , startThentosSessionByUserId
+    , startThentosSessionByUserName
+    , startThentosSessionByServiceId
+    , endThentosSession
+    , findServiceCheckKey
+    , startThentosSessionByAgent
+    , serviceNamesFromThentosSession
+
+    , lookupServiceSession
+    , existsServiceSession
+    , thentosSessionAndUserIdByToken
+    , addServiceRegistration
+    , dropServiceRegistration
+    , startServiceSession
+    , endServiceSession
+    , getServiceSessionMetadata
+
+    , assignRole
+    , unassignRole
+    , agentRoles
+
+    , collectGarbage
+    )
 where
 
 import Control.Applicative ((<$>))
@@ -83,6 +140,9 @@ deleteUser uid = do
     liftLIO $ guardWrite (UserA uid %% UserA uid)
     update'P $ T.DeleteUser uid
 
+
+-- ** email confirmation
+
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     now <- getCurrentTime'P
@@ -95,6 +155,9 @@ confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
     update'P $ T.FinishUserRegistration now expiryPeriod token
+
+
+-- ** password reset
 
 addPasswordResetToken :: UserEmail -> Action DB (User, PasswordResetToken)
 addPasswordResetToken email = do
@@ -110,11 +173,8 @@ resetPassword token password = do
     hashedPassword <- hashUserPass'P password
     update'P $ T.ResetPassword now expiryPeriod token hashedPassword
 
-changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
-changePassword uid old new = do
-    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) old
-    hashedPw <- hashUserPass'P new
-    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
+
+-- ** login
 
 -- | Find user running the action, confirm the password, and return the user or crash.  'NoSuchUser'
 -- is translated into 'BadCredentials'.
@@ -129,6 +189,21 @@ findUserCheckPassword action password = a `catchError` h
 
     h NoSuchUser = throwError BadCredentials
     h e          = throwError e
+
+
+-- ** change user data
+
+updateUserField :: UserId -> T.UpdateUserFieldOp -> Action DB ()
+updateUserField uid = update'P . T.UpdateUserField uid
+
+updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action DB ()
+updateUserFields uid = update'P . T.UpdateUserFields uid
+
+changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
+changePassword uid old new = do
+    _ <- findUserCheckPassword (query'P $ T.LookupUser uid) old
+    hashedPw <- hashUserPass'P new
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 requestUserEmailChange :: UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action DB ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
@@ -156,14 +231,13 @@ confirmUserEmailChange token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     update'P $ T.ConfirmUserEmailChange now expiryPeriod token
 
-updateUserField :: UserId -> T.UpdateUserFieldOp -> Action DB ()
-updateUserField uid = update'P . T.UpdateUserField uid
-
-updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action DB ()
-updateUserFields uid = update'P . T.UpdateUserFields uid
-
 
 -- * service
+
+allServiceIds :: Action DB [ServiceId]
+allServiceIds = do
+    liftLIO $ guardWrite (RoleAdmin %% False)
+    query'P T.AllServiceIds
 
 lookupService :: ServiceId -> Action DB (ServiceId, Service)
 lookupService = query'P . T.LookupService
@@ -177,6 +251,11 @@ addService owner name desc = do
     hashedKey <- hashServiceKey'P key
     update'P $ T.AddService owner sid hashedKey name desc
     return (sid, key)
+
+deleteService :: ServiceId -> Action DB ()
+deleteService sid = do
+    liftLIO $ guardWrite (ServiceA sid %% ServiceA sid)
+    update'P $ T.DeleteService sid
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: UserId -> ServiceId -> Action DB [Group]
@@ -223,10 +302,6 @@ lookupThentosSession tok = do
     tryTaint (session ^. thSessAgent %% session ^. thSessAgent)
         (return session)
         (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
-
-    -- FIXME: does 'tryTaint' make sure all things we've seen since entering 'lookupThentosSession'
-    -- will safely remain secret and intact, even though we've already seen them?
-    -- the exception will certainly be thrown back to the outside of the function.  so, i think so?
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.

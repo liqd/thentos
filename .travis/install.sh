@@ -5,6 +5,7 @@ export VERBOSE=1
 
 function fallback() {
     echo $1
+    cabal sandbox init
     if [ "$VERBOSE" == "1" ]; then
         echo "=== cabal --version"  ; cabal --version
         echo "=== cabal.config:"    ; cat cabal.config
@@ -22,7 +23,6 @@ function recover_cache() {
     echo "Unpack: start unpacking sandbox"
     tar xpJ -f new-cache.tar.xz || fallback "could not unpack cache"
     echo "Unpack: done."
-    cabal sandbox init
     rm new-cache.tar.xz
 }
 

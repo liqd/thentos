@@ -26,13 +26,11 @@ import System.Log.Logger (Priority(INFO))
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Core  -- FIXME: this shouldn't be here.  use only things from Thentos.Action!
+import Thentos.Action.Core (ActionState, Action)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-
-import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.  use Thentos.Action instead!
 
 
 -- * main
@@ -80,12 +78,12 @@ type ThentosUser =
 
 thentosUser :: ServerT ThentosUser (Action DB)
 thentosUser =
-       (>>= update'P . T.AddUser) . makeUserFromFormData'P
-  :<|> update'P . T.DeleteUser
-  :<|> (\ uid name -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldName name))
-  :<|> (((^. userName) . snd) <$>) . query'P . T.LookupUser
-  :<|> (\ uid email -> update'P $ T.UpdateUserField uid (T.UpdateUserFieldEmail email))
-  :<|> (((^. userEmail) . snd) <$>) . query'P . T.LookupUser
+       addUser
+  :<|> deleteUser
+  :<|> (\ uid name -> updateUserField uid (UpdateUserFieldName name))
+  :<|> (((^. userName) . snd) <$>) . lookupUser
+  :<|> (\ uid email -> updateUserField uid (UpdateUserFieldEmail email))
+  :<|> (((^. userEmail) . snd) <$>) . lookupUser
   :<|> allUserIds
 
 
@@ -104,8 +102,8 @@ type ThentosService =
 thentosService :: ServerT ThentosService (Action DB)
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
-    :<|> update'P . T.DeleteService
-    :<|> query'P T.AllServiceIds
+    :<|> deleteService
+    :<|> allServiceIds
 
 
 -- * session
