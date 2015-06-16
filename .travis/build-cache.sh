@@ -16,6 +16,8 @@ time cabal install \
     --dependencies-only --enable-tests --disable-documentation \
   || exit 1
 
+time cabal install hlint || exit 1
+
 time tar cvpJf new-cache.tar.xz .cabal-sandbox || exit 1
 
 echo 'now move /home/travis/build/liqd/thentos/new-cache.tar.xz to where travis can find it.'
