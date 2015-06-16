@@ -8,6 +8,7 @@ import Control.Lens ((^.))
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
 import Data.Maybe (fromMaybe)
+import Data.String.Conversions (ST)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory)
@@ -91,5 +92,9 @@ createGod st = createDefaultUser st
     (Just . Tagged $
           Id (fromUserName godName)
       :*> Id (fromUserPass godPass)
-      :*> Id "postmaster@localhost"
+      :*> Id (forceUserEmail "postmaster@localhost")
       :*> JustO (Id [RoleAdmin]) :: Maybe DefaultUserConfig)
+
+-- | Force a Text to be parsed as email address, throwing an error if it fails.
+forceUserEmail :: ST -> UserEmail
+forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t

@@ -8,7 +8,6 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -86,11 +85,13 @@ instance FromJSON ContentType where
 
 data PropertySheet =
       PSUserBasic
+    | PSUserExtended
     | PSPasswordAuthentication
   deriving (Eq, Enum, Bounded, Typeable)
 
 instance Show PropertySheet where
     show PSUserBasic              = "adhocracy_core.sheets.principal.IUserBasic"
+    show PSUserExtended           = "adhocracy_core.sheets.principal.IUserExtended"
     show PSPasswordAuthentication = "adhocracy_core.sheets.principal.IPasswordAuthentication"
 
 instance Read PropertySheet where
@@ -110,7 +111,7 @@ instance ToJSON a => ToJSON (A3Resource a) where
             Just _ -> []
 
 instance FromJSON a => FromJSON (A3Resource a) where
-    parseJSON = withObject "resource object" $ \ v -> do
+    parseJSON = withObject "resource object" $ \ v ->
         A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*>
             if "data" `HashMap.member` v
                 then Just <$> Aeson.parseJSON (Object v)
@@ -143,7 +144,9 @@ a3UserToJSON withPass (UserFormData name password email) = object
     , "data" .= object (catMaybes
         [ Just $ cshow PSUserBasic .= object
             [ "name" .= name
-            , "email" .= email
+            ]
+        , Just $ cshow PSUserExtended .= object
+            [ "email" .= email
             ]
         , if withPass
             then Just $ cshow PSPasswordAuthentication .= object ["password" .= password]
@@ -156,18 +159,16 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     content_type :: ContentType <- v .: "content_type"
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
-    name         <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
-    email        <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "email")
-    password     <- if withPass
+    name     <- v .: "data" >>= (.: cshow PSUserBasic) >>= (.: "name")
+    email    <- v .: "data" >>= (.: cshow PSUserExtended) >>= (.: "email")
+    password <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
-    when (not $ userNameValid name) $
+    unless (userNameValid name) .
         fail $ "malformed user name: " ++ show name
-    when (not $ emailValid name) $
-        fail $ "malformed email address: " ++ show email
     when (withPass && not (passwordGood name)) $
         fail $ "bad password: " ++ show password
-    return $ UserFormData (UserName name) (UserPass password) (UserEmail email)
+    return $ UserFormData (UserName name) (UserPass password) email
 
 -- | constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
@@ -180,12 +181,6 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
 -- FIXME: not implemented.
 userNameValid :: ST -> Bool
 userNameValid _ = True
-
--- | RFC 5322 (sections 3.2.3 and 3.4.1) and RFC 5321
---
--- FIXME: not implemented.
-emailValid :: ST -> Bool
-emailValid _ = True
 
 -- | Only an empty password is a bad password.
 passwordGood :: ST -> Bool
@@ -225,12 +220,12 @@ instance ToJSON LoginRequest where
 
 instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \ v -> do
-        n <- UserName  <$$> v .:? "name"
-        e <- UserEmail <$$> v .:? "email"
-        p <- UserPass  <$>  v .: "password"
-        case (n, e) of
-          (Just x,  Nothing) -> return $ LoginByName x p
-          (Nothing, Just x)  -> return $ LoginByEmail x p
+        name <- UserName  <$$> v .:? "name"
+        email <- v .:? "email"
+        pass <- UserPass  <$>  v .: "password"
+        case (name, email) of
+          (Just x,  Nothing) -> return $ LoginByName x pass
+          (Nothing, Just x)  -> return $ LoginByEmail x pass
           (_,       _)       -> fail $ "malformed login request body: " ++ show v
 
 instance ToJSON RequestResult where
@@ -303,7 +298,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> AC.Action DB ()
-sendUserConfirmationMail smtpConfig user callbackUrl = do
+sendUserConfirmationMail smtpConfig user callbackUrl =
     AC.sendMail'P smtpConfig (Just $ udName user) (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
@@ -322,7 +317,7 @@ activate (ActivationRequest p) = AC.logIfError'P $ do
 -- | FIXME: check password!
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
-    AC.logger'P DEBUG $ "/login/"
+    AC.logger'P DEBUG "/login/"
     (uid, _) <- case r of
         LoginByName  uname _  -> A.lookupUserByName  uname
         LoginByEmail uemail _ -> A.lookupUserByEmail uemail

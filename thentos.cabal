@@ -98,6 +98,7 @@ library
     , digestive-functors-blaze >= 0.6.0.5
     , digestive-functors-snap >= 0.6.1.1
     , either
+    , email-validate >= 2.1.3
     , errors
     , filepath
     , functor-infix
@@ -232,6 +233,7 @@ test-suite tests
     , containers
     , cryptonite
     , directory
+    , email-validate >= 2.1.3
     , filepath
     , functor-infix
     , hslogger

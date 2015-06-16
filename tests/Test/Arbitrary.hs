@@ -13,6 +13,7 @@ import qualified Data.ByteString as SBS
 import Thentos.Types
 -- import Thentos.Backend.Api.Adhocracy3
 
+import Test.Config
 import Test.Core
 
 
@@ -44,8 +45,19 @@ readableStrings =
     "few" : "public" : "bad" : "same" : "able" :
     []
 
+instance Arbitrary UserEmail where
+    arbitrary = do
+        localName  <- elements readableStrings
+        domainName <- elements readableStrings
+        tld        <- elements topLevelDomains
+        return . forceUserEmail . cs . concat $ [localName, "@", domainName, ".", tld]
+
+-- | Some frequently used top-level domains.
+topLevelDomains :: [String]
+topLevelDomains = ["com", "net", "org", "info", "de", "fr", "ru", "co.uk"]
+
 instance Arbitrary UserFormData where
-    arbitrary = UserFormData <$> s UserName <*> s UserPass <*> s UserEmail
+    arbitrary = UserFormData <$> s UserName <*> s UserPass <*> arbitrary
       where s cons = cons . cs <$> elements readableStrings
 
 -- | 'UserPass' has no 'Show' instance so we cannot accidentally leak

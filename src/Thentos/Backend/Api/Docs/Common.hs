@@ -12,6 +12,7 @@ module Thentos.Backend.Api.Docs.Common () where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
 import Servant.API (Capture, (:>))
@@ -57,7 +58,8 @@ instance ToSample UserName UserName where
     toSample _ = Just $ UserName "Alice"
 
 instance ToSample UserEmail UserEmail where
-    toSample _ = Just $ UserEmail "alice@example.com"
+    toSample _ = Just $ fromMaybe (error "ToSample UserEmail instance broken")
+                                  (parseUserEmail "cobain@nirvana.com")
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12

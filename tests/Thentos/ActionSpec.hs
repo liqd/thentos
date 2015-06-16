@@ -13,6 +13,7 @@ import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, should
 
 import LIO.Missing
 import Test.Arbitrary ()
+import Test.Config
 import Test.Core
 import Test.Types
 import Thentos.Action
@@ -48,7 +49,7 @@ spec_user = describe "user" $ do
 
         it "guarantee that user names are unique" $ \ (DBTS _ sta@(ActionState (st, _, _))) -> do
             (_, _, user) <- runActionWithClearance dcBottom sta $ addTestUser 1
-            result <- update' st $ T.AddUser (userEmail .~ UserEmail "new@one.com" $ user)
+            result <- update' st $ T.AddUser (userEmail .~ forceUserEmail "new@one.com" $ user)
             result `shouldBe` Left UserNameAlreadyExists
 
         it "guarantee that user email addresses are unique" $ \ (DBTS _ sta@(ActionState (st, _, _))) -> do

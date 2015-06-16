@@ -101,7 +101,7 @@ type DefaultUserConfig = Tagged (ToConfigCode DefaultUserConfig')
 type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
-  :*>       ("email"    :> ST)  -- FIXME: use more specific type 'Network.Mail.Mime.Address'
+  :*>       ("email"    :> UserEmail)
   :*> Maybe ("roles"    :> [RoleBasic])
 
 
@@ -186,7 +186,7 @@ getUserData :: DefaultUserConfig -> UserFormData
 getUserData cfg = UserFormData
     (UserName  (cfg >>. (Proxy :: Proxy '["name"])))
     (UserPass  (cfg >>. (Proxy :: Proxy '["password"])))
-    (UserEmail (cfg >>. (Proxy :: Proxy '["email"])))
+    (cfg >>. (Proxy :: Proxy '["email"]))
 
 getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
 getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))

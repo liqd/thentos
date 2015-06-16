@@ -12,13 +12,14 @@ module Thentos.Types where
 
 import Control.Exception (Exception)
 import Control.Lens (makeLenses, Lens')
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
-import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy, safePut, safeGet)
+import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
+                      safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (ST)
+import Data.String.Conversions (ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -28,6 +29,7 @@ import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
+import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
@@ -132,8 +134,31 @@ instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
     getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
 
-newtype UserEmail = UserEmail { fromUserEmail :: ST }
-    deriving (Eq, Ord, FromJSON, ToJSON, Show, Read, Typeable, Generic, IsString)
+newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+parseUserEmail :: ST -> Maybe UserEmail
+parseUserEmail t = do
+    email <- emailAddress (cs t)
+    return $ UserEmail email
+
+fromUserEmail :: UserEmail -> ST
+fromUserEmail = cs . toByteString . userEmailAddress
+
+instance Aeson.FromJSON UserEmail
+  where
+    parseJSON (String t) = case emailAddress $ cs t of
+        Just email -> return $ UserEmail email
+        Nothing    -> fail $ "Not a valid email address: " ++ cs t
+    parseJSON bad        = fail $ "Not a valid email address: " ++ show bad
+
+instance Aeson.ToJSON UserEmail
+    where toJSON = Aeson.toJSON . fromUserEmail
+
+instance SafeCopy UserEmail
+  where
+    putCopy = putCopyViaShowRead
+    getCopy = getCopyViaShowRead
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -416,6 +441,5 @@ $(deriveSafeCopy 0 'base ''ServiceSessionToken)
 $(deriveSafeCopy 0 'base ''ThentosSession)
 $(deriveSafeCopy 0 'base ''ThentosSessionToken)
 $(deriveSafeCopy 0 'base ''User)
-$(deriveSafeCopy 0 'base ''UserEmail)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserName)
