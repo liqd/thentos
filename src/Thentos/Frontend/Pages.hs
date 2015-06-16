@@ -495,11 +495,7 @@ validateNonEmpty :: (Monoid v, IsString v, Monad m) => v -> Form v m ST -> Form 
 validateNonEmpty fieldName = check (fieldName <> " must not be empty") (not . ST.null)
 
 validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m UserEmail
-validateEmail = validate go
-  where
-    go t = case parseUserEmail t of
-        Just email -> Success email
-        Nothing    -> Error "email address invalid"
+validateEmail = validate $ maybe (Error "email address invalid") Success . parseUserEmail
 
 validatePass :: (UserPass, UserPass) -> Result Html UserPass
 validatePass (p1, p2) = if p1 == p2

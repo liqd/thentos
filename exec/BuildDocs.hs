@@ -158,17 +158,16 @@ instance ToSample [ThentosSessionToken] [ThentosSessionToken] where
     toSample _ = Just ["abde1234llkjh", "47202sdfsg"]
 
 instance ToSample UserFormData UserFormData where
-    toSample _ = Just $ UserFormData (UserName "Kurt Cobain") (UserPass "Hunter2") sampleEmail
+    toSample _ = do
+        sampleEmail <- toSample (Proxy :: Proxy UserEmail)
+        Just $ UserFormData (UserName "Kurt Cobain") (UserPass "Hunter2") sampleEmail
 
 instance ToSample UserName UserName where
     toSample _ = Just $ UserName "Kurt Cobain"
 
 instance ToSample UserEmail UserEmail where
-    toSample _ = Just sampleEmail
-
-sampleEmail :: UserEmail
-sampleEmail = fromMaybe (error "ToSample UserEmail instance broken")
-                        (parseUserEmail "cobain@nirvana.com")
+    toSample _ = Just $ fromMaybe (error "ToSample UserEmail instance broken")
+                                  (parseUserEmail "cobain@nirvana.com")
 
 instance ToSample UserId UserId where
     toSample _ = Just $ UserId 12
