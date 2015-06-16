@@ -17,7 +17,8 @@ where
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
-import Data.String.Conversions (LBS, (<>))
+import Data.Functor ((<$>))
+import Data.String.Conversions (LBS, ST, (<>))
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
@@ -55,31 +56,52 @@ spec =
                     (===) _ _ = False
                 in \ (A3UserNoPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u === Right u
 
-        describe "A3UserWithPassword" $
+        describe "A3UserWithPassword" $ do
             it "has invertible *JSON instances" . property $
                 \ (A3UserWithPass -> u) -> (Aeson.eitherDecode . Aeson.encode) u == Right u
+
+            it "rejects short passwords" $ do
+                 let userdata = mkUserJson "Anna Müller" "anna@example.org" "short"
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "password too short (less than 6 characters)"
+
+            it "rejects long passwords" $ do
+                 let longpass = ST.replicate 26 "long"
+                     userdata = mkUserJson "Anna Müller" "anna@example.org" longpass
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "password too long (more than 100 characters)"
+
+            it "rejects invalid email addresses" $ do
+                 let userdata = mkUserJson "Anna Müller" "anna@" "EckVocUbs3"
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "Not a valid email address: anna@"
+
+            it "rejects empty user names" $ do
+                 let userdata = mkUserJson "" "anna@example.org" "EckVocUbs3"
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "user name is empty"
+
+            it "rejects user names with @" $ do
+                 let userdata = mkUserJson "Bla@Blub" "anna@example.org" "EckVocUbs3"
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "'@' in user name is not allowed: \"Bla@Blub\""
+
+            it "rejects user names with too much whitespace" $ do
+                 let userdata = mkUserJson " Anna  Toll" "anna@example.org" "EckVocUbs3"
+                 fromA3UserWithPass <$>
+                     (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
+                     `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
 
         describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
                 \ bts@(BTS _ (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
-                    -- Aeson.encode would strip the password, so we
-                    -- do this one by hand.
-                    let rq1 :: LBS
-                        rq1 = encodePretty . object $
-                                  [ "data" .= object
-                                      [ "adhocracy_core.sheets.principal.IUserBasic" .= object
-                                          [ "name" ..= "Anna Müller"
-                                          ]
-                                       , "adhocracy_core.sheets.principal.IUserExtended" .= object
-                                          [ "email" ..= "anna@example.org"
-                                          ]
-                                       , "adhocracy_core.sheets.principal.IPasswordAuthentication" .= object
-                                          [ "password" ..= "EckVocUbs3"
-                                          ]
-                                      ]
-                                  , "content_type" ..= "adhocracy_core.resources.principal.IUser"
-                                  ]
+                    let rq1 = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
 
                     -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
                     rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
@@ -104,6 +126,17 @@ spec =
 
                     return ()
 
+        -- FIXME currently not working because of Servant quirks on failures
+        --describe "create user errors" . before (setupTestBackend RunA3)
+        --                              . after teardownTestBackend $
+        --    it "rejects users with short passwords" $
+        --        \ bts@(BTS _ (ActionState (_, _, _)) _ _ _) -> runTestBackend bts $ do
+        --
+        --            let rq1 = mkUserJson "Anna Müller" "anna@example.org" "short"
+        --            rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1
+        --            liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 400
+        --            liftIO $ simpleBody rsp1 `shouldBe` "..."
+
         describe "send email" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
             it "works" $
                 \ _ -> pendingWith "test missing."
@@ -115,3 +148,22 @@ spec =
                 -- (we need to close the previous session, probably
                 -- just by direct access to DB api because the a3 rest
                 -- api does not offer logout.)
+
+-- | Create a JSON object describing an user.
+-- Aeson.encode would strip the password, hence we do it by hand.
+mkUserJson :: ST -> ST -> ST -> LBS
+mkUserJson name email password = encodePretty . object $
+  [ "data" .= object
+      [ "adhocracy_core.sheets.principal.IUserBasic" .= object
+          [ "name" ..= name
+          ]
+       , "adhocracy_core.sheets.principal.IUserExtended" .= object
+          [ "email" ..= email
+          ]
+       , "adhocracy_core.sheets.principal.IPasswordAuthentication" .= object
+          [ "password" ..= password
+          ]
+      ]
+  , "content_type" ..= "adhocracy_core.resources.principal.IUser"
+  ]
+
