@@ -166,7 +166,7 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
         else pure ""
     unless (userNameValid name) .
         fail $ "malformed user name: " ++ show name
-    when (withPass && not (passwordAcceptable name)) $
+    when (withPass && not (passwordAcceptable password)) $
         fail $ "bad password: " ++ show password
     return $ UserFormData (UserName name) (UserPass password) email
 
