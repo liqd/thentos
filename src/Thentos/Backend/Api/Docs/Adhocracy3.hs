@@ -13,6 +13,7 @@ import Servant.Docs (ToSample(toSample))
 import qualified Servant.Docs as Docs
 
 import Thentos.Backend.Api.Docs.Common ()
+import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Types
 
 import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
@@ -51,12 +52,5 @@ instance ToSample Adhocracy3.RequestResult Adhocracy3.RequestResult where
 instance ToSample Adhocracy3.ContentType Adhocracy3.ContentType where
     toSample _ = pure Adhocracy3.CTUser
 
-introsForA3 :: [Docs.DocIntro]
-introsForA3 = [Docs.DocIntro "Proxy" [body]]
-  where
-    body = "All requests that are not handled by the endpoints listed below\
-           \ are forwarded to Adhocracy3 and their responses are returned\
-           \ unmodified."
-
 docs :: Docs.API
-docs = Docs.docsWithIntros introsForA3 (Proxy :: Proxy Adhocracy3.ThentosApi)
+docs = Docs.docs (Proxy :: Proxy Adhocracy3.Api)

@@ -1,4 +1,4 @@
-module Thentos.Backend.Api.Docs.BuildDocs where
+module Main where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.Char (toLower)

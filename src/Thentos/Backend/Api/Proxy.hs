@@ -24,7 +24,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, LBS, cs)
 import Servant.API (Raw)
-import Servant.Server (Server)
+import Servant.Server (Server, HasServer(..))
 import Servant.Server.Internal.ServantErr (responseServantErr)
 import System.Log.Logger (Priority(DEBUG))
 
@@ -39,7 +39,11 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
-type ServiceProxy = Raw
+data ServiceProxy
+
+instance HasServer ServiceProxy where
+  type ServerT ServiceProxy m = S.Application
+  route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: ActionState DB -> Server ServiceProxy
 serviceProxy state req cont = do
