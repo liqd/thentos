@@ -64,6 +64,7 @@ library
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Api.Docs.Adhocracy3
     , Thentos.Backend.Api.Docs.Common
+    , Thentos.Backend.Api.Docs.Proxy
     , Thentos.Backend.Api.Docs.Simple
     , Thentos.Backend.Core
     , Thentos.Config
