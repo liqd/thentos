@@ -9,6 +9,7 @@ import Control.Lens ((.~))
 import Control.Monad (void)
 import Data.Acid.Advanced (query', update')
 import Data.Either (isLeft, isRight)
+import LIO.DCLabel ((%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
 
 import LIO.Missing
@@ -22,7 +23,6 @@ import Thentos.Types
 
 import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.
 
---import Text.Show.Pretty (ppShow)
 
 tests :: IO ()
 tests = hspec spec
@@ -96,9 +96,6 @@ spec_user = describe "user" $ do
 
     describe "checkPassword" $ do
         it "works" $ \ (DBTS _ sta) -> do
-            --let ActionState (st, _, _) = sta
-            --Right (db :: DB) <- query' st T.SnapShot
-            --_ <- error (ppShow db)
             byId <- runActionE sta $ startThentosSessionByUserId (UserId 0) (UserPass "god")
             byId `shouldSatisfy` isRight
             byName <- runActionE sta $ startThentosSessionByUserName (UserName "god") (UserPass "god")
@@ -109,7 +106,7 @@ spec_service :: SpecWith DBTS
 spec_service = describe "service" $ do
     describe "AddService, LookupService, DeleteService" $ do
         it "works" $ \ (DBTS _ sta@(ActionState (st, _, _))) -> do
-            let addsvc name desc = runActionE sta $ addService (UserA (UserId 0)) name desc
+            let addsvc name desc = runActionWithClearanceE (UserA godUid %% UserA godUid) sta $ addService (UserA (UserId 0)) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
             Right (service2_id, _s2_key) <- addsvc "different name" "different description"
             Right service1 <- query' st $ T.LookupService service1_id
@@ -157,7 +154,7 @@ spec_session :: SpecWith DBTS
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \ (DBTS _ sta) -> do
-            result <- runActionE sta $ startThentosSessionByAgent (UserA $ UserId 0)
+            result <- runActionE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()
 

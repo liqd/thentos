@@ -126,10 +126,6 @@ allUserIds = do
 lookupUser :: UserId -> Action DB (UserId, User)
 lookupUser uid = _lookupUser $ T.LookupUser uid
 
--- FIXME: make this take a Transaction instead of an Action and query
-    -- the transaction directly
---_lookupUser :: Action DB (UserId, User) -> Action DB (UserId, User)
---_lookupUser :: ThentosQuery DB (UserId, User) -> Action DB (UserId, User)
 _lookupUser :: ( QueryEvent event
                , EventState event ~ DB
                , EventResult event ~ Either ThentosError (UserId, User)) =>
@@ -292,7 +288,7 @@ confirmUserEmailChange token = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     -- liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    uid <- update'P $ T.ConfirmUserEmailChange now expiryPeriod token
+    _ <- update'P $ T.ConfirmUserEmailChange now expiryPeriod token
     return ()
 
 
@@ -466,7 +462,6 @@ _thentosSessionAndUserIdByToken tok = do
 addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action DB ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
-    -- FIXME: figure our correct label for this
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 
