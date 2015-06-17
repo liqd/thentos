@@ -216,7 +216,7 @@ test-suite tests
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
   ghc-options:
-      -Wall -Werror -threaded -rtsopts
+      -Wall -threaded -rtsopts
   cpp-options:
       -DGHC_GENERICS
   build-depends:
@@ -246,6 +246,7 @@ test-suite tests
     , mime-mail
     , mtl
     , pretty-show
+    , process
     , QuickCheck
     , regex-easy
     , safecopy
