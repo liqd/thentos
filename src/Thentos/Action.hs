@@ -43,6 +43,7 @@ module Thentos.Action
     , existsThentosSession
     , startThentosSessionByUserId
     , startThentosSessionByUserName
+    , startThentosSessionByUserEmail
     , startThentosSessionByServiceId
     , endThentosSession
     , findServiceCheckKey
@@ -319,6 +320,11 @@ startThentosSessionByUserId uid pass = do
 startThentosSessionByUserName :: UserName -> UserPass -> Action DB (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- findUserCheckPassword (query'P $ T.LookupUserByName name) pass
+    (uid,) <$> startThentosSessionByAgent (UserA uid)
+
+startThentosSessionByUserEmail :: UserEmail -> UserPass -> Action DB (UserId, ThentosSessionToken)
+startThentosSessionByUserEmail email pass = do
+    (uid, _) <- findUserCheckPassword (query'P $ T.LookupUserByEmail email) pass
     (uid,) <$> startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.

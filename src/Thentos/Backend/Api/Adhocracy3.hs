@@ -164,28 +164,38 @@ a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
     password <- if withPass
         then v .: "data" >>= (.: cshow PSPasswordAuthentication) >>= (.: "password")
         else pure ""
-    unless (userNameValid name) .
-        fail $ "malformed user name: " ++ show name
-    when (withPass && not (passwordGood name)) $
-        fail $ "bad password: " ++ show password
+    failOnError $ userNameValid name
+    when withPass . failOnError $ passwordAcceptable password
     return $ UserFormData (UserName name) (UserPass password) email
 
--- | constraints on user name: The "name" field in the "IUserBasic"
+-- | Fail if the argument is 'Just' an error. Do nothing otherwise.
+failOnError :: Monad m => Maybe String -> m ()
+failOnError = maybe (return ()) fail
+
+-- | Check constraints on user name: The "name" field in the "IUserBasic"
 -- schema is a non-empty string that can contain any characters except
 -- '@' (to make user names distinguishable from email addresses). The
 -- username must not contain any whitespace except single spaces,
 -- preceded and followed by non-whitespace (no whitespace at begin or
 -- end, multiple subsequent spaces are forbidden, tabs and newlines
 -- are forbidden).
---
--- FIXME: not implemented.
-userNameValid :: ST -> Bool
-userNameValid _ = True
+-- Returns 'Nothing' on success, otherwise 'Just' an error message.
+userNameValid :: ST -> Maybe String
+userNameValid name
+  | ST.null name           = Just "user name is empty"
+  | ST.any (== '@') name   = Just $ "'@' in user name is not allowed: "  ++ show name
+  | normalizedName /= name = Just $ "Illegal whitespace sequence in user name: "  ++ show name
+  | otherwise              = Nothing
+  where normalizedName = ST.unwords . ST.words $ name
 
--- | Only an empty password is a bad password.
-passwordGood :: ST -> Bool
-passwordGood "" = False
-passwordGood _ = True
+-- | Check constraints on password: It must have between 6 and 100 chars.
+-- Returns 'Nothing' on success, otherwise 'Just' an error message.
+passwordAcceptable :: ST -> Maybe String
+passwordAcceptable pass
+  | len < 6   = Just "password too short (less than 6 characters)"
+  | len > 100 = Just "password too long (more than 100 characters)"
+  | otherwise = Nothing
+  where len = ST.length pass
 
 
 -- ** other types
@@ -314,14 +324,12 @@ activate (ActivationRequest p) = AC.logIfError'P $ do
     return $ RequestSuccess (userIdToPath uid) stok
 
 
--- | FIXME: check password!
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
-    (uid, _) <- case r of
-        LoginByName  uname _  -> A.lookupUserByName  uname
-        LoginByEmail uemail _ -> A.lookupUserByEmail uemail
-    stok :: ThentosSessionToken <- A.startThentosSessionByAgent (UserA uid)
+    (uid, stok) <- case r of
+        LoginByName  uname pass  -> A.startThentosSessionByUserName uname pass
+        LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
     return $ RequestSuccess (userIdToPath uid) stok
 
 

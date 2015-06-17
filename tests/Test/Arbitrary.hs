@@ -45,6 +45,10 @@ readableStrings =
     "few" : "public" : "bad" : "same" : "able" :
     []
 
+-- | We just use one of the 'readableStrings' as name.
+instance Arbitrary UserName where
+    arbitrary = UserName . cs <$> elements readableStrings
+
 instance Arbitrary UserEmail where
     arbitrary = do
         localName  <- elements readableStrings
@@ -56,9 +60,17 @@ instance Arbitrary UserEmail where
 topLevelDomains :: [String]
 topLevelDomains = ["com", "net", "org", "info", "de", "fr", "ru", "co.uk"]
 
+-- | Password made up of 10 to 20 random ASCII letters and numbers.
+instance Arbitrary UserPass where
+    arbitrary = do
+        len  <- elements [10..20]
+        pass <- vectorOf len $ elements passwordChar
+        return . UserPass . cs $ pass
+      where
+        passwordChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
+
 instance Arbitrary UserFormData where
-    arbitrary = UserFormData <$> s UserName <*> s UserPass <*> arbitrary
-      where s cons = cons . cs <$> elements readableStrings
+    arbitrary = UserFormData <$> arbitrary <*> arbitrary <*> arbitrary
 
 -- | 'UserPass' has no 'Show' instance so we cannot accidentally leak
 -- it into, say, a log file.  For testing, password leakage is not a
