@@ -26,7 +26,6 @@ module Thentos.Action
     , addPasswordResetToken
     , resetPassword
     , changePassword
-    , lookupUserCheckPassword
     , requestUserEmailChange
     , confirmUserEmailChange
     , updateUserField, T.UpdateUserFieldOp(..)
@@ -47,7 +46,6 @@ module Thentos.Action
     , startThentosSessionByServiceId
     , endThentosSession
     , lookupServiceCheckKey
-    , startThentosSessionByAgent
     , serviceNamesFromThentosSession
 
     , lookupServiceSession
@@ -69,6 +67,7 @@ where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError, catchError)
+import Data.Acid (QueryEvent, EventState, EventResult)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -125,22 +124,29 @@ allUserIds = do
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See 'lookupUserCheckPassword' for
 -- user lookup prior to authentication.
 lookupUser :: UserId -> Action DB (UserId, User)
-lookupUser = _lookupUser . query'P . T.LookupUser
+lookupUser uid = _lookupUser $ T.LookupUser uid
 
-_lookupUser :: Action DB (UserId, User) -> Action DB (UserId, User)
-_lookupUser action = do
-    val@(uid, _) <- action
+-- FIXME: make this take a Transaction instead of an Action and query
+    -- the transaction directly
+--_lookupUser :: Action DB (UserId, User) -> Action DB (UserId, User)
+--_lookupUser :: ThentosQuery DB (UserId, User) -> Action DB (UserId, User)
+_lookupUser :: ( QueryEvent event
+               , EventState event ~ DB
+               , EventResult event ~ Either ThentosError (UserId, User)) =>
+               event -> Action DB (UserId, User)
+_lookupUser transaction = do
+    val@(uid, _) <- query'P transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
         (return val)
         (\ (_ :: AnyLabelError) -> throwError NoSuchUser)
 
 -- | Like 'lookupUser', but based on 'UserName'.
 lookupUserByName :: UserName -> Action DB (UserId, User)
-lookupUserByName = _lookupUser . query'P . T.LookupUserByName
+lookupUserByName name = _lookupUser $ T.LookupUserByName name
 
 -- | Like 'lookupUser', but based on 'UserEmail'.
 lookupUserByEmail :: UserEmail -> Action DB (UserId, User)
-lookupUserByEmail = _lookupUser . query'P . T.LookupUserByEmail
+lookupUserByEmail email = _lookupUser $ T.LookupUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
@@ -207,12 +213,16 @@ resetPassword token password = do
 
 -- | Find user running the action, confirm the password, and return the user or crash.  'NoSuchUser'
 -- is translated into 'BadCredentials'.
-lookupUserCheckPassword :: Action DB (UserId, User) -> UserPass -> Action DB (UserId, User)
-lookupUserCheckPassword action password = a `catchError` h
+-- NOTE: This should not be exported from this module, as it allows access to
+-- the user map without any clearance.
+lookupUserCheckPassword :: ( QueryEvent event
+                           , EventState event ~ DB
+                           , EventResult event ~ Either ThentosError (UserId, User)) =>
+    event -> UserPass -> Action DB (UserId, User)
+lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
-        (uid, user) <- action
-        liftLIO $ taint (RoleAdmin \/ UserA uid %% False)
+        (uid, user) <- query'P transaction
         if verifyPass password user
             then return (uid, user)
             else throwError BadCredentials
@@ -242,7 +252,7 @@ updateUserFields uid ops = do
 -- 'RoleAdmin' or privs of user that owns the password.
 changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
 changePassword uid old new = do
-    _ <- lookupUserCheckPassword (lookupUser uid) old
+    _ <- lookupUserCheckPassword (T.LookupUser uid) old
     hashedPw <- hashUserPass'P new
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
@@ -349,13 +359,13 @@ existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError
 -- 'startThentosSessionByAgent'.
 startThentosSessionByUserId :: UserId -> UserPass -> Action DB ThentosSessionToken
 startThentosSessionByUserId uid pass = do
-    _ <- lookupUserCheckPassword (lookupUser uid) pass
+    _ <- lookupUserCheckPassword (T.LookupUser uid) pass
     startThentosSessionByAgent (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
 startThentosSessionByUserName :: UserName -> UserPass -> Action DB (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
-    (uid, _) <- lookupUserCheckPassword (lookupUserByName name) pass
+    (uid, _) <- lookupUserCheckPassword (T.LookupUserByName name) pass
     (uid,) <$> startThentosSessionByAgent (UserA uid)
 
 startThentosSessionByUserEmail :: UserEmail -> UserPass -> Action DB (UserId, ThentosSessionToken)
@@ -388,10 +398,10 @@ lookupServiceCheckKey action key = a `catchError` h
     h NoSuchService = throwError BadCredentials
     h e             = throwError e
 
--- | Open a session for any agent.  Requires 'RoleAdmin' or agent privs.
+-- | Open a session for any agent.
+-- NOTE: This should only be called after verifying the agent's credentials
 startThentosSessionByAgent :: Agent -> Action DB ThentosSessionToken
 startThentosSessionByAgent agent = do
-    liftLIO $ guardWrite (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     now <- getCurrentTime'P
     tok <- freshSessionToken
     update'P $ T.StartThentosSession tok agent now defaultSessionTimeout
@@ -454,6 +464,7 @@ _thentosSessionAndUserIdByToken tok = do
 addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action DB ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
+    -- FIXME: figure our correct label for this
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 

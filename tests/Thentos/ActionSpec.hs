@@ -22,6 +22,7 @@ import Thentos.Types
 
 import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.
 
+--import Text.Show.Pretty (ppShow)
 
 tests :: IO ()
 tests = hspec spec
@@ -95,6 +96,9 @@ spec_user = describe "user" $ do
 
     describe "checkPassword" $ do
         it "works" $ \ (DBTS _ sta) -> do
+            --let ActionState (st, _, _) = sta
+            --Right (db :: DB) <- query' st T.SnapShot
+            --_ <- error (ppShow db)
             byId <- runActionE sta $ startThentosSessionByUserId (UserId 0) (UserPass "god")
             byId `shouldSatisfy` isRight
             byName <- runActionE sta $ startThentosSessionByUserName (UserName "god") (UserPass "god")
