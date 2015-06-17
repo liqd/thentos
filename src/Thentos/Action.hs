@@ -372,28 +372,21 @@ startThentosSessionByUserEmail email pass = do
 
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId :: ServiceId -> ServiceKey -> Action DB ThentosSessionToken
-startThentosSessionByServiceId sid key = do
-    _ <- _lookupServiceCheckKey (lookupService sid) key
-    _startThentosSessionByAgent (ServiceA sid)
+startThentosSessionByServiceId sid key = a `catchError` h
+  where
+    a = do
+        (_, service) <- query'P (T.LookupService sid)
+        unless (verifyKey key service) $ throwError BadCredentials
+        _startThentosSessionByAgent (ServiceA sid)
+
+    h NoSuchService = throwError BadCredentials
+    h e             = throwError e
 
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
 -- token is enough authentication to terminate it.
 endThentosSession :: ThentosSessionToken -> Action DB ()
 endThentosSession = update'P . T.EndThentosSession
 
-
--- | Like '_lookupUserCheckPassword'.
-_lookupServiceCheckKey :: Action DB (ServiceId, Service) -> ServiceKey -> Action DB (ServiceId, Service)
-_lookupServiceCheckKey action key = a `catchError` h
-  where
-    a = do
-        (sid, service) <- action
-        if verifyKey key service
-            then return (sid, service)
-            else throwError BadCredentials
-
-    h NoSuchService = throwError BadCredentials
-    h e             = throwError e
 
 -- | Open a session for any agent.
 -- NOTE: This should only be called after verifying the agent's credentials
