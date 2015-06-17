@@ -305,7 +305,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
               Just v -> Tagged v
         enctok = urlEncode . cs . fromConfirmationToken $ tok
     sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
-    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
+    return $ A3Resource (Just $ userIdToPath config uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> AC.Action DB ()
 sendUserConfirmationMail smtpConfig user callbackUrl =
@@ -318,26 +318,35 @@ sendUserConfirmationMail smtpConfig user callbackUrl =
 activate :: ActivationRequest -> AC.Action DB RequestResult
 activate (ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
+    config <- AC.getConfig'P
     ctok :: ConfirmationToken   <- confirmationTokenFromPath p
     uid  :: UserId              <- A.confirmNewUser ctok
     stok :: ThentosSessionToken <- A.startThentosSessionByAgent (UserA uid)
-    return $ RequestSuccess (userIdToPath uid) stok
+    return $ RequestSuccess (userIdToPath config uid) stok
 
 
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
+    config <- AC.getConfig'P
     (uid, stok) <- case r of
         LoginByName  uname pass  -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
-    return $ RequestSuccess (userIdToPath uid) stok
+    return $ RequestSuccess (userIdToPath config uid) stok
 
 
 -- * aux
 
-userIdToPath :: UserId -> Path
-userIdToPath (UserId i) = Path . cs $ (printf "/principals/users/%7.7i" i :: String)
+userIdToPath :: ThentosConfig -> UserId -> Path
+userIdToPath config (UserId i) = Path $ domain <> userpath
+  where
+    domain   = cs $ exposeUrl beHttp
+    userpath = cs (printf "principals/users/%7.7i" i :: String)
+    beHttp   = case config >>. (Proxy :: Proxy '["backend"]) of
+                    Nothing -> error "userIdToPath: backend not configured!"
+                    Just v -> Tagged v
 
+-- TODO adapt
 userIdFromPath :: Path -> AC.Action DB UserId
 userIdFromPath (Path s) = maybe (throwError NoSuchUser) return $
     case ST.splitAt (ST.length prefix) s of
