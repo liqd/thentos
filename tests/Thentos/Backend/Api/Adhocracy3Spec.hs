@@ -159,6 +159,7 @@ spec =
         -- (1) An error is returned if the specified user name or email doesn't exist
         -- (2) An error is returned if the wrong password is specified
 
+        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
                 \ _ -> pendingWith "test missing."
 
