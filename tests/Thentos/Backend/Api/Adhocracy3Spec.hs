@@ -155,11 +155,10 @@ spec =
         --            liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 400
         --            liftIO $ simpleBody rsp1 `shouldBe` "..."
 
-        describe "send email" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
-            it "works" $
-                \ _ -> pendingWith "test missing."
+        -- FIXME further stuff that can only be tested after Servant has been fixed:
+        -- (1) An error is returned if the specified user name or email doesn't exist
+        -- (2) An error is returned if the wrong password is specified
 
-        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
                 \ _ -> pendingWith "test missing."
 
