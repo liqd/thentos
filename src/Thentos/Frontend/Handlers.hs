@@ -88,11 +88,11 @@ userRegisterConfirm = do
         Just (Right token) -> do
             eResult <- snapRunActionE $ confirmNewUser token
             case eResult of
-                Right uid -> do
+                Right (uid, sessTok) -> do
                     logger DEBUG $ "registered new user: " ++ show uid
                     mapM_ (snapRunAction'P . assignRole (UserA uid)) defaultUserRoles
                     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
-                    userLoginCallAction $ (uid,) <$> startThentosSessionByAgent (UserA uid)
+                    userLoginCallAction $ return (uid, sessTok)
                 Left e@(ActionErrorThentos NoSuchPendingUserConfirmation) -> do
                     logger INFO $ show e
                     crash 400 "Finalizing registration failed: unknown token."

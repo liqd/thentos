@@ -181,11 +181,13 @@ addUnconfirmedUser userData = do
 -- user has been created by calling this function.
 --
 -- See also: 'addUnconfirmedUser'.
-confirmNewUser :: ConfirmationToken -> Action DB UserId
+confirmNewUser :: ConfirmationToken -> Action DB (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
-    update'P $ T.FinishUserRegistration now expiryPeriod token
+    uid <- update'P $ T.FinishUserRegistration now expiryPeriod token
+    sessionToken <- startThentosSessionByAgent (UserA uid)
+    return (uid, sessionToken)
 
 
 -- ** password reset
@@ -370,7 +372,7 @@ startThentosSessionByUserName name pass = do
 
 startThentosSessionByUserEmail :: UserEmail -> UserPass -> Action DB (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
-    (uid, _) <- findUserCheckPassword (query'P $ T.LookupUserByEmail email) pass
+    (uid, _) <- lookupUserCheckPassword (T.LookupUserByEmail email) pass
     (uid,) <$> startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.
