@@ -45,7 +45,6 @@ module Thentos.Action
     , startThentosSessionByUserEmail
     , startThentosSessionByServiceId
     , endThentosSession
-    , lookupServiceCheckKey
     , serviceNamesFromThentosSession
 
     , lookupServiceSession
@@ -121,7 +120,7 @@ allUserIds = do
     query'P T.AllUserIds
 
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
--- no user is found or access is not granted, throw 'NoSuchUser'.  See 'lookupUserCheckPassword' for
+-- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
 -- user lookup prior to authentication.
 lookupUser :: UserId -> Action DB (UserId, User)
 lookupUser uid = _lookupUser $ T.LookupUser uid
@@ -182,7 +181,7 @@ confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
     uid <- update'P $ T.FinishUserRegistration now expiryPeriod token
-    sessionToken <- startThentosSessionByAgent (UserA uid)
+    sessionToken <- _startThentosSessionByAgent (UserA uid)
     return (uid, sessionToken)
 
 
@@ -213,11 +212,11 @@ resetPassword token password = do
 -- is translated into 'BadCredentials'.
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
-lookupUserCheckPassword :: ( QueryEvent event
-                           , EventState event ~ DB
-                           , EventResult event ~ Either ThentosError (UserId, User)) =>
+_lookupUserCheckPassword :: ( QueryEvent event
+                            , EventState event ~ DB
+                            , EventResult event ~ Either ThentosError (UserId, User)) =>
     event -> UserPass -> Action DB (UserId, User)
-lookupUserCheckPassword transaction password = a `catchError` h
+_lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
         (uid, user) <- query'P transaction
@@ -250,7 +249,7 @@ updateUserFields uid ops = do
 -- 'RoleAdmin' or privs of user that owns the password.
 changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
 changePassword uid old new = do
-    _ <- lookupUserCheckPassword (T.LookupUser uid) old
+    _ <- _lookupUserCheckPassword (T.LookupUser uid) old
     hashedPw <- hashUserPass'P new
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
@@ -354,28 +353,28 @@ existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError
           e                    -> throwError e
 
 -- | Check user credentials and create a session for user.  Requires 'lub' or 'lookupUser' and
--- 'startThentosSessionByAgent'.
+-- '_startThentosSessionByAgent'.
 startThentosSessionByUserId :: UserId -> UserPass -> Action DB ThentosSessionToken
 startThentosSessionByUserId uid pass = do
-    _ <- lookupUserCheckPassword (T.LookupUser uid) pass
-    startThentosSessionByAgent (UserA uid)
+    _ <- _lookupUserCheckPassword (T.LookupUser uid) pass
+    _startThentosSessionByAgent (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
 startThentosSessionByUserName :: UserName -> UserPass -> Action DB (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
-    (uid, _) <- lookupUserCheckPassword (T.LookupUserByName name) pass
-    (uid,) <$> startThentosSessionByAgent (UserA uid)
+    (uid, _) <- _lookupUserCheckPassword (T.LookupUserByName name) pass
+    (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 startThentosSessionByUserEmail :: UserEmail -> UserPass -> Action DB (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
-    (uid, _) <- lookupUserCheckPassword (T.LookupUserByEmail email) pass
-    (uid,) <$> startThentosSessionByAgent (UserA uid)
+    (uid, _) <- _lookupUserCheckPassword (T.LookupUserByEmail email) pass
+    (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId :: ServiceId -> ServiceKey -> Action DB ThentosSessionToken
 startThentosSessionByServiceId sid key = do
-    _ <- lookupServiceCheckKey (lookupService sid) key
-    startThentosSessionByAgent (ServiceA sid)
+    _ <- _lookupServiceCheckKey (lookupService sid) key
+    _startThentosSessionByAgent (ServiceA sid)
 
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
 -- token is enough authentication to terminate it.
@@ -383,9 +382,9 @@ endThentosSession :: ThentosSessionToken -> Action DB ()
 endThentosSession = update'P . T.EndThentosSession
 
 
--- | Like 'lookupUserCheckPassword'.
-lookupServiceCheckKey :: Action DB (ServiceId, Service) -> ServiceKey -> Action DB (ServiceId, Service)
-lookupServiceCheckKey action key = a `catchError` h
+-- | Like '_lookupUserCheckPassword'.
+_lookupServiceCheckKey :: Action DB (ServiceId, Service) -> ServiceKey -> Action DB (ServiceId, Service)
+_lookupServiceCheckKey action key = a `catchError` h
   where
     a = do
         (sid, service) <- action
@@ -398,8 +397,8 @@ lookupServiceCheckKey action key = a `catchError` h
 
 -- | Open a session for any agent.
 -- NOTE: This should only be called after verifying the agent's credentials
-startThentosSessionByAgent :: Agent -> Action DB ThentosSessionToken
-startThentosSessionByAgent agent = do
+_startThentosSessionByAgent :: Agent -> Action DB ThentosSessionToken
+_startThentosSessionByAgent agent = do
     now <- getCurrentTime'P
     tok <- freshSessionToken
     update'P $ T.StartThentosSession tok agent now defaultSessionTimeout
