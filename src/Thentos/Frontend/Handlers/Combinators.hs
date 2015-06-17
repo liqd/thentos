@@ -261,15 +261,15 @@ permissionDenied labelError = do
     blaze permissionDeniedPage
     getResponse >>= finishWith
 
+
+-- * uri manipulation
+
 urlConfirm :: HttpConfig -> ST -> ST -> ST
 urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
   where
     ref   = RelativeRef Nothing (cs path) (Query query) Nothing
     query = [("token", urlEncode . encodeUtf8 $ token)]
     toST  = cs . toLazyByteString . serializeRelativeRef
-
-
--- * uri manipulation
 
 redirectURI :: URI -> FH ()
 redirectURI ref = redirect' (cs . toLazyByteString . serializeURI $ ref) 303
