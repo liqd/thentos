@@ -17,13 +17,17 @@ where
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid.Advanced (query')
+import Data.Aeson (object, (.=))
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
-import Data.String.Conversions (LBS, ST, (<>))
+import Data.String.Conversions (LBS, ST, cs, (<>))
+import Network.HTTP.Types.URI (urlEncode)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
-import Data.Aeson (object, (.=))
-import Data.Aeson.Encode.Pretty (encodePretty)
+import System.Exit (ExitCode(ExitSuccess))
+import System.FilePath ((</>))
+import System.Process (readProcess, readProcessWithExitCode)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
@@ -99,7 +103,7 @@ spec =
 
         describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
-                \ bts@(BTS _ (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
+                \ bts@(BTS tcfg (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
                     let rq1 = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
 
@@ -109,6 +113,20 @@ spec =
 
                     Right (db :: DB) <- query' st T.SnapShot
                     let [(ConfirmationToken confTok, _)] = Map.toList $ db ^. dbUnconfirmedUsers
+
+                    -- Check that activation email was sent and contains the confirmation token.
+                    -- We use system calls to "grep" here which is ugly but works, while reading the
+                    -- log file within Haskell doesn't (openFile: resource busy (file is locked)).
+                    let logfile = tcfg ^. tcfgTmp </> "everything.log"
+                    (statusCode, _, _) <- liftIO $ readProcessWithExitCode "grep"
+                        ["-q", "Subject: Thentos account creation", logfile] ""
+                    liftIO $ statusCode `shouldBe` ExitSuccess
+                    loggedLine <- liftIO $ readProcess "grep" ["\"Please go to ", logfile] ""
+                    -- The grepped line should contain the percent-encoded token (but the case of
+                    --percent-encoded chars may vary, therefore toLower)
+                    let encodedTok = cs . urlEncode True $ cs confTok
+                    liftIO $ ST.toLower encodedTok `shouldSatisfy`
+                        (`ST.isInfixOf` (ST.toLower . cs $ loggedLine))
 
                     let rq2 = Aeson.encode . ActivationRequest . Path $ "/activate/" <> confTok
                     rsp2 <- srequest $ makeSRequest "POST" "/activate_account" [] rq2
