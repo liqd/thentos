@@ -318,9 +318,8 @@ sendUserConfirmationMail smtpConfig user callbackUrl =
 activate :: ActivationRequest -> AC.Action DB RequestResult
 activate (ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
-    ctok :: ConfirmationToken   <- confirmationTokenFromPath p
-    uid  :: UserId              <- A.confirmNewUser ctok
-    stok :: ThentosSessionToken <- A.startThentosSessionByAgent (UserA uid)
+    ctok        :: ConfirmationToken             <- confirmationTokenFromPath p
+    (uid, stok) :: (UserId, ThentosSessionToken) <- A.confirmNewUser ctok
     return $ RequestSuccess (userIdToPath uid) stok
 
 

@@ -21,6 +21,7 @@ import Control.Monad.State (modify, gets, get)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
 import Data.Functor.Infix ((<$>))
+import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
 import Data.List (foldl')
 import Data.Map (Map)
@@ -173,12 +174,13 @@ trans_addUserEmailChangeRequest timestamp uid email token = polyUpdate $ do
 -- | Change email with a given token and remove the token.  Throw an error if the token does not
 -- exist or has expired.
 trans_confirmUserEmailChange :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
-                                          -> ThentosUpdate db ()
+                                          -> ThentosUpdate db UserId
 trans_confirmUserEmailChange now expiry token = polyUpdate $ do
     ((uid, email), toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbEmailChangeTokens)
     modify $ dbEmailChangeTokens .~ toks'
     trans_updateUserField uid (UpdateUserFieldEmail email)
+    return uid
 
 
 data UpdateUserFieldOp =
@@ -256,6 +258,24 @@ trans_deleteService sid = polyUpdate $ do
     (_, service) <- liftThentosQuery $ trans_lookupService sid
     maybe (return ()) trans_endThentosSession (service ^. serviceThentosSession)
     modify $ dbServices %~ Map.delete sid
+
+-- | For a given service and user id, look up all groups the user has in the context of that service
+-- from the service's group tree, and collect them into a list.
+flattenGroups :: Service -> UserId -> [Group]
+flattenGroups ((^. serviceGroups) -> groupMap) = Set.toList . f . GroupU
+  where
+    memberships :: GroupNode -> Set Group
+    memberships g = Map.findWithDefault Set.empty g groupMap
+
+    unionz :: Set (Set Group) -> Set Group
+    unionz = Set.fold Set.union Set.empty
+
+    f :: GroupNode -> Set Group
+    f g@(GroupU _) =                r g
+    f g@(GroupG n) = n `Set.insert` r g
+
+    r :: GroupNode -> Set Group
+    r g = unionz $ Set.map (f . GroupG) (memberships g)
 
 
 -- * thentos and service session
@@ -367,6 +387,8 @@ trans_lookupServiceSession now tok = polyUpdate $ do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
+--
+-- FIXME: test whether user is registered with service!
 trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
                                        -> Timestamp -> Timeout -> ThentosUpdate db ()
 trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
