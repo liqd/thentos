@@ -182,6 +182,14 @@ trans_confirmUserEmailChange now expiry token = polyUpdate $ do
     trans_updateUserField uid (UpdateUserFieldEmail email)
     return uid
 
+-- | Look up an email change token. Does not verify that the token is still
+-- valid, just retrieves it from the database.
+trans_lookupEmailChangeToken :: (AsDB db) => ConfirmationToken -> ThentosQuery db ((UserId, UserEmail), Timestamp)
+trans_lookupEmailChangeToken tok = polyQuery $ do
+    emailTokens <- (^. dbEmailChangeTokens) <$> ask
+    case Map.lookup tok emailTokens of
+        Just result -> return result
+        Nothing     -> throwT NoSuchToken
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -519,6 +527,7 @@ transaction_names =
     , 'trans_addPasswordResetToken
     , 'trans_resetPassword
     , 'trans_addUserEmailChangeRequest
+    , 'trans_lookupEmailChangeToken
     , 'trans_confirmUserEmailChange
     , 'trans_updateUserField
     , 'trans_updateUserFields

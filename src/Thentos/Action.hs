@@ -65,7 +65,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
-import Control.Monad (unless)
+import Control.Monad (unless, void)
 import Control.Monad.Except (throwError, catchError)
 import Data.Acid (QueryEvent, EventState, EventResult)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -277,9 +277,6 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- expired. If any of these conditions don't apply, throw 'NoSuchToken' to avoid leaking
 -- information.
 --
--- FIXME: set label so that only the logged-in user can find the token.  then catch 'permission
--- denied' and translate into 'no such token'.
---
 -- SECURITY: The security information from 'confirmNewUser' does not directly apply here: the
 -- attacker needs to fulfil **all** three conditions mentioned above for a successful attack, not
 -- only token secrecy.
@@ -287,9 +284,10 @@ confirmUserEmailChange :: ConfirmationToken -> Action DB ()
 confirmUserEmailChange token = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
-    -- liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    _ <- update'P $ T.ConfirmUserEmailChange now expiryPeriod token
-    return ()
+    ((uid, _), _) <- query'P $ T.LookupEmailChangeToken token
+    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+                  (void . update'P $ T.ConfirmUserEmailChange now expiryPeriod token)
+                  (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
 
 
 -- * service
