@@ -447,7 +447,7 @@ _thentosSessionAndUserIdByToken tok = do
 _serviceSessionUser :: ServiceSessionToken -> Action DB UserId
 _serviceSessionUser tok = do
     serviceSession <- lookupServiceSession tok
-    let thentosSessionToken = (serviceSession ^. srvSessThentosSession)
+    let thentosSessionToken = serviceSession ^. srvSessThentosSession
     thentosSession <- lookupThentosSession thentosSessionToken
     case thentosSession ^. thSessAgent of
         UserA uid -> return uid
