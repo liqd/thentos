@@ -65,6 +65,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
+import Control.Monad (unless)
 import Control.Monad.Except (throwError, catchError)
 import Data.Acid (QueryEvent, EventState, EventResult)
 import Data.Configifier ((>>.), Tagged(Tagged))
