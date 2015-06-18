@@ -8,22 +8,61 @@
 
 {-# OPTIONS -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Docs.Common () where
+module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
 import Control.Applicative (pure, (<$>), (<*>))
-import Control.Lens ((&), (%~))
+import Control.Lens ((&), (%~), (^.), (.~))
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Maybe (fromMaybe)
+import Data.Map (Map)
+import Data.String.Conversions (LBS)
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
+import Network.HTTP.Media (MediaType)
+import Safe (fromJustNote)
 import Servant.API (Capture, (:>))
 import Servant.Docs
     ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor)
+
+import qualified Data.Aeson as Aeson
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Map as Map
 import qualified Servant.Docs as Docs
 
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Types
 
+
+-- * Pretty-printing
+prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
+prettyMimeRender' pprinters api = (Docs.apiEndpoints .~ newEndpoints) api
+  where
+    oldEndpoints = api ^. Docs.apiEndpoints
+    newEndpoints = HM.map (pprintAction pprinters) oldEndpoints
+
+prettyMimeRender :: Docs.API -> Docs.API
+prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
+
+pprintJson :: LBS -> LBS
+pprintJson = encodePretty
+           . fromJustNote "failed to parse JSON from servant-docs API"
+           . (Aeson.decode :: LBS -> Maybe Aeson.Value)
+
+pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
+pprintAction pprinters action = (Docs.rqbody .~ newReqBody) . (Docs.response .~ newResponse) $ action
+  where
+    oldReqBody = action ^. Docs.rqbody
+    oldResponse = action ^. Docs.response
+    newReqBody = map (pprintData pprinters) oldReqBody
+    newResponse = (Docs.respBody %~ pprintRespBody) oldResponse
+    pprintRespBody = map (\(t, m, bs) -> (t, m, snd (pprintData pprinters (m, bs))))
+
+pprintData :: Map MediaType (LBS -> LBS) -> (MediaType, LBS) -> (MediaType, LBS)
+pprintData pprinters (mType, bs) = (mType, pprint bs)
+  where pprint = fromMaybe id (Map.lookup mType pprinters)
+
+-- * instances for servant-docs
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "Thentos Session Token"
 

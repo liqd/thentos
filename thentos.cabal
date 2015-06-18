@@ -106,6 +106,7 @@ library
     , generic-aeson
     , hslogger
     , http-client
+    , http-media
     , http-types
     , lens
     , lio
