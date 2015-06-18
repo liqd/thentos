@@ -182,6 +182,14 @@ trans_confirmUserEmailChange now expiry token = polyUpdate $ do
     trans_updateUserField uid (UpdateUserFieldEmail email)
     return uid
 
+-- | Look up an email change token. Does not verify that the token is still
+-- valid, just retrieves it from the database.
+trans_lookupEmailChangeToken :: (AsDB db) => ConfirmationToken -> ThentosQuery db ((UserId, UserEmail), Timestamp)
+trans_lookupEmailChangeToken tok = polyQuery $ do
+    emailTokens <- (^. dbEmailChangeTokens) <$> ask
+    case Map.lookup tok emailTokens of
+        Just result -> return result
+        Nothing     -> throwT NoSuchToken
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -387,8 +395,6 @@ trans_lookupServiceSession now tok = polyUpdate $ do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
---
--- FIXME: test whether user is registered with service!
 trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
                                        -> Timestamp -> Timeout -> ThentosUpdate db ()
 trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
@@ -397,6 +403,7 @@ trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
     (_, user) <- case tsession ^. thSessAgent of
         ServiceA s -> throwT $ NeedUserA ttok s
         UserA u    -> liftThentosQuery $ trans_lookupUser u
+    unless (sid `Map.member` (user ^. userServices)) $ throwT NotRegisteredWithService
 
     let ssession :: ServiceSession
         ssession = ServiceSession sid start end expiry ttok meta
@@ -520,6 +527,7 @@ transaction_names =
     , 'trans_addPasswordResetToken
     , 'trans_resetPassword
     , 'trans_addUserEmailChangeRequest
+    , 'trans_lookupEmailChangeToken
     , 'trans_confirmUserEmailChange
     , 'trans_updateUserField
     , 'trans_updateUserFields

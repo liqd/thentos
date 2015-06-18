@@ -65,6 +65,7 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
+import Control.Monad (unless, void)
 import Control.Monad.Except (throwError, catchError)
 import Data.Acid (QueryEvent, EventState, EventResult)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -276,9 +277,6 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- expired. If any of these conditions don't apply, throw 'NoSuchToken' to avoid leaking
 -- information.
 --
--- FIXME: set label so that only the logged-in user can find the token.  then catch 'permission
--- denied' and translate into 'no such token'.
---
 -- SECURITY: The security information from 'confirmNewUser' does not directly apply here: the
 -- attacker needs to fulfil **all** three conditions mentioned above for a successful attack, not
 -- only token secrecy.
@@ -286,9 +284,10 @@ confirmUserEmailChange :: ConfirmationToken -> Action DB ()
 confirmUserEmailChange token = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
-    -- liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    _ <- update'P $ T.ConfirmUserEmailChange now expiryPeriod token
-    return ()
+    ((uid, _), _) <- query'P $ T.LookupEmailChangeToken token
+    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+                  (void . update'P $ T.ConfirmUserEmailChange now expiryPeriod token)
+                  (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
 
 
 -- * service
@@ -445,6 +444,15 @@ _thentosSessionAndUserIdByToken tok = do
         UserA uid -> return (session, uid)
         ServiceA sid -> throwError $ NeedUserA tok sid
 
+_serviceSessionUser :: ServiceSessionToken -> Action DB UserId
+_serviceSessionUser tok = do
+    serviceSession <- lookupServiceSession tok
+    let thentosSessionToken = serviceSession ^. srvSessThentosSession
+    thentosSession <- lookupThentosSession thentosSessionToken
+    case thentosSession ^. thSessAgent of
+        UserA uid -> return uid
+        ServiceA sid -> throwError $ NeedUserA thentosSessionToken sid
+
 -- | Register a user with a service.  Requires 'RoleAdmin' or user privs.
 --
 -- FIXME: We do not ask for any authorization from 'ServiceId' as of now.  It is enough to know a
@@ -471,8 +479,6 @@ dropServiceRegistration tok sid = do
 --
 -- Inherits label and exception behavor from 'lookupThentosSession' and write-guards for thentos
 -- session owner.
---
--- FIXME: see FIXME in 'trans_startServiceSession'.
 startServiceSession :: ThentosSessionToken -> ServiceId -> Action DB ServiceSessionToken
 startServiceSession ttok sid = do
     now <- getCurrentTime'P
@@ -481,9 +487,14 @@ startServiceSession ttok sid = do
     update'P $ T.StartServiceSession ttok stok sid now defaultSessionTimeout
     return stok
 
--- | FIXME: set label.  catch and convert exception to avoid info leakage.  document.
+-- | Terminate service session. Throws NoSuchServiceSession if the user does not
+-- own the session.
 endServiceSession :: ServiceSessionToken -> Action DB ()
-endServiceSession = update'P . T.EndServiceSession
+endServiceSession tok = do
+    uid <- _serviceSessionUser tok
+    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
+                  (update'P $ T.EndServiceSession tok)
+                  (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
 
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: ServiceSessionToken -> Action DB ServiceSessionMetadata
