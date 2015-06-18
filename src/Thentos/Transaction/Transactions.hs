@@ -387,8 +387,6 @@ trans_lookupServiceSession now tok = polyUpdate $ do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
---
--- FIXME: test whether user is registered with service!
 trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
                                        -> Timestamp -> Timeout -> ThentosUpdate db ()
 trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
@@ -397,6 +395,7 @@ trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
     (_, user) <- case tsession ^. thSessAgent of
         ServiceA s -> throwT $ NeedUserA ttok s
         UserA u    -> liftThentosQuery $ trans_lookupUser u
+    unless (sid `Map.member` (user ^. userServices)) $ throwT NotRegisteredWithService
 
     let ssession :: ServiceSession
         ssession = ServiceSession sid start end expiry ttok meta
