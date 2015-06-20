@@ -1,11 +1,10 @@
 {-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
-{-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GADTs                                    #-}
 {-# LANGUAGE InstanceSigs                             #-}
+{-# LANGUAGE LambdaCase                               #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
@@ -24,8 +23,8 @@
 -- >>> 01.  1.   BRO -> A3:    "can i give you access to my sso data on github so you know it's me?"
 -- >>> 02.  1.   A3  -> BRO:   "ok, here is a request token."
 -- >>> 03.  2.   BRO -> GIH:   "a3 gave me this request token."
--- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 wants to access your name and t-shirt size?"
--- >>> 05.  3.   BRO -> GIH:   "sure: confirmed!"
+-- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 access your name and t-shirt size?"
+-- >>> 05.  3.   BRO -> GIH:   "sure!"
 -- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to a3."
 -- >>> 07.  4.   BRO -> A3:    "here you go: take this to github and check out my t-shirt size."
 -- >>> 08.  5.     A3  -> GIH: "here is an access token."
@@ -34,40 +33,38 @@
 --
 -- (A3 is represented by this module; the actual application first sees any traffic only after the
 -- browser has received the response in step 8 and sends a new, authenticated request.)
+--
+-- This workflow is complicated further by the fact that rest api and traditional http/html both
+-- play a role in both a3 and thentos.  So a differnt view on what happens is this:
+--
+-- FIXME: document!
 module Thentos.Backend.Api.Adhocracy3Sso where
 
-import Control.Applicative ((<$>), (<*>), pure)
-import Control.Monad.Except (throwError)
-import Control.Monad (when, unless, mzero)
-import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
-import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Functor.Infix ((<$$>))
-import Data.Maybe (catMaybes)
-import Data.Monoid ((<>))
+import Control.Applicative ((<$>), (<*>))
+import Control.Monad.Except (throwError, catchError)
+import Control.Monad (mzero)
+import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
+import LIO.Core (liftLIO)
+import LIO.TCB (ioTCB)
+import Network.OAuth.OAuth2
+    ( OAuth2Result, AccessToken(..), OAuth2(..)
+    , authorizationUrl, accessTokenUrl, doJSONPostRequest, appendQueryParam, authGetJSON
+    )
 import Network.Wai (Application)
-import Safe (readMay)
-import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
-import Servant.Server.Internal (Server)
-import Servant.Server (serve, enter)
-import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
-import System.Log (Priority(DEBUG, INFO))
-import Text.Printf (printf)
+import Servant.API ((:<|>)((:<|>)), (:>), Capture, Post, JSON)
+import Servant.Server (Server, serve, enter)
+import System.Log (Priority(INFO))
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Encode.Pretty as Aeson
-import qualified Data.Aeson.Types as Aeson
-import qualified Data.HashMap.Strict as HashMap
-import qualified Data.Text as ST
+import qualified Data.Text.Encoding   as ST
+import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-import Thentos.Util
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 
 import qualified Thentos.Action as A
@@ -88,8 +85,17 @@ serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
 
 -- * api
 
+type ThentosA3Sso =
+       "sso" :> "github" :>
+            ("request" :> Post '[JSON] AuthRequest
+        :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Post '[JSON] A3.RequestResult)
 
-type Api = {- ThenosA3Sso :<|> -} A3.ThentosApi :<|> ServiceProxy
+type Api = ThentosA3Sso :<|> A3.ThentosApi :<|> ServiceProxy
+
+thentosA3Sso :: AC.ActionState DB -> Server ThentosA3Sso
+thentosA3Sso actionState = enter (enterAction actionState Nothing) $
+       githubRequest
+  :<|> githubConfirm
 
 -- | Like 'A3.thentosApi', but does connects error responses to the end points rather than handling
 -- them as expected in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
@@ -103,17 +109,102 @@ thentosApi404 actionState = enter (enterAction actionState Nothing) $
 
 api :: AC.ActionState DB -> Server Api
 api actionState =
-       thentosApi404 actionState
-  :<|> serviceProxy actionState
+       thentosA3Sso  actionState
+  :<|> thentosApi404 actionState
+  :<|> serviceProxy  actionState
 
 
 -- * handler
 
 addUser :: A3.A3UserWithPass -> AC.Action DB (A3.A3Resource A3.A3UserNoPass)
-addUser _ = error "404"  -- FIXME
+addUser _ = error "404"  -- FIXME: respond with a non-internal error
 
 activate :: A3.ActivationRequest -> AC.Action DB A3.RequestResult
-activate _ = error "404"  -- FIXME
+activate _ = error "404"  -- FIXME: respond with a non-internal error
 
 login :: A3.LoginRequest -> AC.Action DB A3.RequestResult
-login _ = error "404"  -- FIXME
+login _ = error "404"  -- FIXME: respond with a non-internal error
+
+
+data AuthRequest = AuthRequest ST
+
+instance ToJSON AuthRequest where
+    toJSON (AuthRequest st) = object ["redirect" .= st]
+
+
+data GithubUser = GithubUser { gid   :: Integer
+                             , gname :: ST
+                             } deriving (Show, Eq)
+
+instance FromJSON GithubUser where
+    parseJSON (Object o) = GithubUser
+                           <$> o .: "id"
+                           <*> o .: "name"
+    parseJSON _ = mzero
+
+-- | FIXME: move this to config.  this may also be a point in favour of configifier: we now need to
+-- start thinking about composing configs just like we compose apis.
+--
+-- http://developer.github.com/v3/oauth/
+-- https://github.com/settings/applications/214371
+githubKey :: OAuth2
+githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
+                   , oauthClientSecret = "51009ec786aa61296ac2f2564f9b5f1fbb23a24f"
+                   , oauthCallback = Just "https://thentos-dev-frontend.liqd.net/sso/github/confirm"
+                   , oauthOAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
+                   , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
+                   }
+
+
+-- | FIXME: document!
+githubRequest :: AC.Action DB AuthRequest
+githubRequest = do
+    state <- A.freshRandomName
+
+    -- FIXME: store state in DB.
+
+    return . AuthRequest . cs $ authorizationUrl githubKey `appendQueryParam` [("state", cs state)]
+
+
+-- | FIXME: document!
+githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
+githubConfirm state code = do
+
+    -- FIXME: lookup state in DB and crash if it does not exist.  remove if it does exist.
+
+    mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
+
+    eToken :: OAuth2Result AccessToken
+        <- liftLIO . ioTCB $ do
+            let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code
+            doJSONPostRequest mgr githubKey url (body ++ [("state", cs state)])
+
+    case eToken of
+        Right token  -> do
+            eGhUser :: OAuth2Result GithubUser
+                <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
+            liftLIO . ioTCB $ Http.closeManager mgr  -- FIXME: use something like `finalize`
+
+            case eGhUser of
+                Right ghUser -> loginGithubUser ghUser
+                Left e -> return $ A3.RequestError ["could not access github user info", cs e]
+                    -- FIXME: throw all errors as exceptions, and handle them before returning from
+                    -- this function.
+
+        Left e -> do
+            liftLIO . ioTCB $ Http.closeManager mgr
+            return $ A3.RequestError ["could not obtain access token", cs e]
+
+
+-- | FIXME: document!
+loginGithubUser :: GithubUser -> AC.Action DB A3.RequestResult
+loginGithubUser (GithubUser _ uname) = do
+    let makeTok = A.startThentosSessionByUserName (UserName uname) (UserPass "")
+
+    (_, tok) <- makeTok `catchError`
+        \case BadCredentials -> do
+                _ <- A.addUser $ UserFormData (UserName uname) (UserPass "") (UserEmail $ error "no email")
+                makeTok
+              e -> throwError e
+
+    return $ A3.RequestSuccess (A3.Path "/dashboard") tok

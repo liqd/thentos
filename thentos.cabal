@@ -108,6 +108,7 @@ library
     , hoauth2 >= 0.4.8 && < 0.5
     , hslogger
     , http-client
+    , http-conduit >= 2.1.5 && < 2.2
     , http-types
     , lens
     , lio
