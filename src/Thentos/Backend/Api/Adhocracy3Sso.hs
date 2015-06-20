@@ -15,6 +15,25 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
+-- | This is a variant of "Thentos.Backend.Api.Adhocracy3" that throws errors on the old
+-- authentication end points and instead performs github authentication.  The intricacies of the
+-- protocol look something like this:
+--
+-- >>> step req# description
+-- >>>
+-- >>> 01.  1.   BRO -> A3:    "can i give you access to my sso data on github so you know it's me?"
+-- >>> 02.  1.   A3  -> BRO:   "ok, here is a request token."
+-- >>> 03.  2.   BRO -> GIH:   "a3 gave me this request token."
+-- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 wants to access your name and t-shirt size?"
+-- >>> 05.  3.   BRO -> GIH:   "sure: confirmed!"
+-- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to a3."
+-- >>> 07.  4.   BRO -> A3:    "here you go: take this to github and check out my t-shirt size."
+-- >>> 08.  5.     A3  -> GIH: "here is an access token."
+-- >>> 09.  5.     GIH -> A3:  "here is some accessed information: t-shirt size and name."
+-- >>> 10.  4.   A3  -> BRO:   "here is your 'ThentosSessionToken'."
+--
+-- (A3 is represented by this module; the actual application first sees any traffic only after the
+-- browser has received the response in step 8 and sends a new, authenticated request.)
 module Thentos.Backend.Api.Adhocracy3Sso where
 
 import Control.Applicative ((<$>), (<*>), pure)
