@@ -69,34 +69,32 @@ serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
 
 -- * api
 
--- | Note: login_username and login_email have identical behavior.  In
--- particular, it is not an error to send username and password to
--- @/login_email@.  This makes implementing all sides of the protocol
--- a lot easier without sacrificing security.
-type ThentosApi =
-       "principals" :> "users" :> ReqBody '[JSON] A3.A3UserWithPass :> Post '[JSON] (A3.A3Resource A3.A3UserNoPass)
-  :<|> "activate_account"      :> ReqBody '[JSON] A3.ActivationRequest :> Post '[JSON] A3.RequestResult
-  :<|> "login_username"        :> ReqBody '[JSON] A3.LoginRequest :> Post '[JSON] A3.RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] A3.LoginRequest :> Post '[JSON] A3.RequestResult
 
-type Api = ThentosApi :<|> ServiceProxy
+type Api = {- ThenosA3Sso :<|> -} A3.ThentosApi :<|> ServiceProxy
 
-api :: AC.ActionState DB -> Server Api
-api actionState = (enter (enterAction actionState Nothing) $
+-- | Like 'A3.thentosApi', but does connects error responses to the end points rather than handling
+-- them as expected in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
+-- won't let any user management requests through that have been sent by confused clients.
+thentosApi404 :: AC.ActionState DB -> Server A3.ThentosApi
+thentosApi404 actionState = enter (enterAction actionState Nothing) $
        addUser
   :<|> activate
   :<|> login
-  :<|> login)
+  :<|> login
+
+api :: AC.ActionState DB -> Server Api
+api actionState =
+       thentosApi404 actionState
   :<|> serviceProxy actionState
 
 
 -- * handler
 
 addUser :: A3.A3UserWithPass -> AC.Action DB (A3.A3Resource A3.A3UserNoPass)
-addUser = A3.addUser
+addUser _ = error "404"  -- FIXME
 
 activate :: A3.ActivationRequest -> AC.Action DB A3.RequestResult
-activate = A3.activate
+activate _ = error "404"  -- FIXME
 
 login :: A3.LoginRequest -> AC.Action DB A3.RequestResult
-login = A3.login
+login _ = error "404"  -- FIXME
