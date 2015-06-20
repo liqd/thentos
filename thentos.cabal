@@ -104,6 +104,7 @@ library
     , filepath
     , functor-infix
     , generic-aeson
+    , hoauth2 >= 0.4.8 && < 0.5
     , hslogger
     , http-client
     , http-types
