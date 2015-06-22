@@ -70,7 +70,7 @@ data DB =
   deriving (Eq, Show, Typeable, Generic)
 
 emptyDB :: DB
-emptyDB = DB m m m m m m m m m m (Set.empty) (UserId 0)
+emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
 class AsDB db where

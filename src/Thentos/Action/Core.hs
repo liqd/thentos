@@ -132,6 +132,13 @@ runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent
 runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either ActionError a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
+-- | Run an action followed by a second action. The second action is run
+-- even if the first one throws an error.
+finally :: forall a b db . Action db a -> Action db b -> Action db a
+finally a sequel = do
+    r <- catchError a (\e -> sequel >> throwError e)
+    _ <- sequel
+    return r
 
 -- * labels, privileges and access rights.
 

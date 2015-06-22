@@ -194,30 +194,27 @@ githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
 githubConfirm state code = do
     ssoTokenExists <- AC.update'P $ LookupAndRemoveSsoToken (SsoToken state)
     unless ssoTokenExists $ throwError NoSuchToken
-
     mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
-
-    eToken :: OAuth2Result AccessToken
-        <- liftLIO . ioTCB $ do
+    confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
+  where
+    confirm mgr = do
+        eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
             let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code
             doJSONPostRequest mgr githubKey url (body ++ [("state", cs state)])
 
-    case eToken of
-        Right token  -> do
-            eGhUser :: OAuth2Result GithubUser
-                <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
-            liftLIO . ioTCB $ Http.closeManager mgr  -- FIXME: use something like `finalize`
+        case eToken of
+            Right token  -> do
+                eGhUser :: OAuth2Result GithubUser
+                    <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
+                case eGhUser of
+                    Right ghUser -> loginGithubUser ghUser
+                    Left e -> return $ A3.RequestError ["could not access github user info", cs e]
+                        -- FIXME: throw all errors as exceptions, and handle them before returning from
+                        -- this function.
 
-            case eGhUser of
-                Right ghUser -> loginGithubUser ghUser
-                Left e -> return $ A3.RequestError ["could not access github user info", cs e]
-                    -- FIXME: throw all errors as exceptions, and handle them before returning from
-                    -- this function.
-
-        Left e -> do
-            liftLIO . ioTCB $ Http.closeManager mgr
-            return $ A3.RequestError ["could not obtain access token", cs e]
-
+            Left e -> do
+                liftLIO . ioTCB $ Http.closeManager mgr
+                return $ A3.RequestError ["could not obtain access token", cs e]
 
 -- | FIXME: document!
 loginGithubUser :: GithubUser -> AC.Action DB A3.RequestResult
