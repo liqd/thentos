@@ -35,9 +35,29 @@
 -- browser has received the response in step 8 and sends a new, authenticated request.)
 --
 -- This workflow is complicated further by the fact that rest api and traditional http/html both
--- play a role in both a3 and thentos.  So a differnt view on what happens is this:
+-- play a role in both a3 and thentos.  So a differnt (and equally valid) view on what happens is
+-- this (javascript pseudo-code, as will be delivered by thentos frontend):
 --
--- FIXME: document!
+--
+-- >>> // this function is called when the login button is clicked.
+-- >>> function handle_sso_login_button_click() {
+-- >>>     var request_url = post(backend + "/sso/github/request", { data: {} });
+-- >>>     open_browser_tab(request_url);
+-- >>> }
+-- >>>
+-- >>> // this function is registered under the route of the auth callback url.  that is, when the browser
+-- >>> // is redirected back from github, it will call this function first.
+-- >>> function handle_confirm_redirect() {
+-- >>>
+-- >>>     // extract authentication token from request
+-- >>>     // pass to thentos rest api
+-- >>>     // process login response
+-- >>>     // proceed normally
+-- >>>
+-- >>> }
+--
+-- FIXME: implement this.
+--
 module Thentos.Backend.Api.Adhocracy3Sso where
 
 import Control.Applicative ((<$>), (<*>))
