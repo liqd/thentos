@@ -63,6 +63,7 @@ pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response 
 
 
 -- * instances for servant-docs
+
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "Thentos Session Token"
 
