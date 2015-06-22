@@ -266,7 +266,7 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . app
+serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
 
 
 -- * api
@@ -281,14 +281,20 @@ type ThentosApi =
   :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
   :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
 
-type Api = ThentosApi :<|> ServiceProxy
+type Api =
+       ThentosApi
+  :<|> ServiceProxy
 
-app :: AC.ActionState DB -> Server Api
-app actionState = (enter (enterAction actionState Nothing) $
+thentosApi :: AC.ActionState DB -> Server ThentosApi
+thentosApi actionState = enter (enterAction actionState Nothing) $
        addUser
   :<|> activate
   :<|> login
-  :<|> login)
+  :<|> login
+
+api :: AC.ActionState DB -> Server Api
+api actionState =
+       thentosApi actionState
   :<|> serviceProxy actionState
 
 
@@ -319,9 +325,8 @@ activate :: ActivationRequest -> AC.Action DB RequestResult
 activate (ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     config <- AC.getConfig'P
-    ctok :: ConfirmationToken   <- confirmationTokenFromPath p
-    uid  :: UserId              <- A.confirmNewUser ctok
-    stok :: ThentosSessionToken <- A.startThentosSessionByAgent (UserA uid)
+    ctok        :: ConfirmationToken             <- confirmationTokenFromPath p
+    (uid, stok) :: (UserId, ThentosSessionToken) <- A.confirmNewUser ctok
     return $ RequestSuccess (userIdToPath config uid) stok
 
 
