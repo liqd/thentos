@@ -37,7 +37,7 @@ import Thentos.Types
 -- * Pretty-printing
 
 prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
-prettyMimeRender' pprinters api = (Docs.apiEndpoints %~ updateEndpoints) api
+prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
   where
     updateEndpoints = HM.map (pprintAction pprinters)
 
