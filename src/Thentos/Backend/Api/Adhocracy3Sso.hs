@@ -86,6 +86,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
+import Thentos.Transaction (AddSsoToken(AddSsoToken))
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -175,15 +176,17 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
                    , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
                    }
 
+addNewSsoToken :: AC.Action DB SsoToken
+addNewSsoToken = do
+    tok <- A.freshSsoToken
+    AC.update'P $ AddSsoToken tok
+    return tok
 
 -- | FIXME: document!
 githubRequest :: AC.Action DB AuthRequest
 githubRequest = do
-    state <- A.freshRandomName
-
-    -- FIXME: store state in DB.
-
-    return . AuthRequest . cs $ authorizationUrl githubKey `appendQueryParam` [("state", cs state)]
+    state <- addNewSsoToken
+    return . AuthRequest . cs $ authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
 
 -- | FIXME: document!

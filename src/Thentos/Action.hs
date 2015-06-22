@@ -14,6 +14,7 @@ module Thentos.Action
     , freshServiceKey
     , freshSessionToken
     , freshServiceSessionToken
+    , freshSsoToken
 
     , allUserIds
     , lookupUser
@@ -110,6 +111,9 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: Action DB ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
+
+freshSsoToken :: Action DB SsoToken
+freshSsoToken = SsoToken <$> freshRandomName
 
 
 -- * user
