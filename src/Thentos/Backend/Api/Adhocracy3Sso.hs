@@ -97,8 +97,8 @@ thentosA3Sso actionState = enter (enterAction actionState Nothing) $
        githubRequest
   :<|> githubConfirm
 
--- | Like 'A3.thentosApi', but does connects error responses to the end points rather than handling
--- them as expected in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
+-- | Like 'A3.thentosApi', but responds with 404 on all end points rather than handling
+-- them as in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
 -- won't let any user management requests through that have been sent by confused clients.
 thentosApi404 :: AC.ActionState DB -> Server A3.ThentosApi
 thentosApi404 actionState = enter (enterAction actionState Nothing) $
