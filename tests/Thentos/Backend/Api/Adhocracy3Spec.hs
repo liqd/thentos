@@ -104,7 +104,7 @@ spec =
 
         describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
-                \ bts@(BTS tcfg (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
+                \ bts@(BTS tcfg ast@(ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
                     let rq1 = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
 
@@ -114,16 +114,17 @@ spec =
 
                     -- Extract user path from response
                     let respJson = Aeson.decode (simpleBody rsp1) :: Maybe Aeson.Value
-                        maybeUserPath = case respJson of
+                        mUserPath = case respJson of
                             Just (Aeson.Object m) -> HashMap.lookup "path" m
                             _                     -> error "Response is not a JSON object"
 
                     -- Check that it looks as it should
-                    case maybeUserPath of
+                    case mUserPath of
                         Just pathItem -> case pathItem of
-                            Aeson.String userPath -> liftIO $ userPath `shouldSatisfy`
-                                \x -> ST.isPrefixOf "http" x && ST.isInfixOf "/principals/users/" x
-                            _                      -> error "'path' in response is not a string"
+                            Aeson.String userPath -> do
+                                userId <- liftIO . runAction ast . userIdFromPath . Path $ userPath
+                                liftIO $ fromUserId userId `shouldSatisfy` (> 0)
+                            _ -> error "'path' in response is not a string"
                         Nothing -> error "Response doesn't contain 'path' field"
 
                     Right (db :: DB) <- query' st T.SnapShot
