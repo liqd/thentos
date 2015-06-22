@@ -346,14 +346,12 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
                     Nothing -> error "userIdToPath: backend not configured!"
                     Just v -> Tagged v
 
--- TODO adapt
 userIdFromPath :: Path -> AC.Action DB UserId
-userIdFromPath (Path s) = maybe (throwError NoSuchUser) return $
-    case ST.splitAt (ST.length prefix) s of
-        (prefix', s') | prefix' == prefix -> fmap UserId . readMay . cs $ s'
-        _ -> Nothing
+userIdFromPath (Path s) | ST.null prefix = throwError $ MalformedUserPath s
+                        | otherwise      = maybe (throwError NoSuchUser) return maybeUserId
   where
-    prefix = "/principals/users/"
+    (prefix, match) = ST.breakOnEnd "/principals/users/" s
+    maybeUserId     = fmap UserId . readMay . cs $ match
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of

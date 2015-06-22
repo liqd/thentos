@@ -93,6 +93,8 @@ actionErrorToServantErr e = do
     _thentos (ProxyNotConfiguredForService sid) = pure $ err404 { errBody = "proxy not configured for service " <> cs (show sid) }
     _thentos (NoSuchToken) = pure $ err404 { errBody = "no such token" }
     _thentos (NeedUserA _ _) = pure $ err404 { errBody = "thentos session belongs to service, cannot create service session" }
+    _thentos (MalformedUserPath path) = pure $
+        err400 { errBody = "malformed user path: " <> cs (show path) }
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })

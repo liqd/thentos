@@ -402,6 +402,7 @@ data ThentosError =
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
+    | MalformedUserPath ST
     deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosError
