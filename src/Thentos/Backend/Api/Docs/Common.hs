@@ -45,10 +45,11 @@ prettyMimeRender :: Docs.API -> Docs.API
 prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
 
 pprintJson :: LBS -> LBS
-pprintJson = encodePretty
-           . fromJustNote "Internal error in Thentos.Backend.Api.Docs.Common:\
-                          \ Non-invertible ToJSON instance detected."
+pprintJson raw = encodePretty
+           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:\
+                           \ Non-invertible ToJSON instance detected: " ++ show raw)
            . (Aeson.decode :: LBS -> Maybe Aeson.Value)
+           $ raw
 
 pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
 pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response %~ updateResponse) $ action
