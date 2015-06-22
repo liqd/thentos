@@ -49,8 +49,11 @@ xwriter apiName formatName = do
 --                           (Left bad) -> error $ show bad
 
 xdocs :: ApiName -> Docs.API
-xdocs Api_Simple     = Simple.docs
-xdocs Api_Adhocracy3 = prettyMimeRender A3.docs
+xdocs api = prettyMimeRender docs
+  where
+    docs = case api of
+        Api_Simple     -> Simple.docs
+        Api_Adhocracy3 -> A3.docs
 
 data ApiName = Api_Simple | Api_Adhocracy3
   deriving (Eq, Enum, Bounded, Read, Show)
