@@ -261,6 +261,7 @@ test-suite tests
     , transformers
     , transformers-base
     , unix
+    , unordered-containers
     , wai
     , wai-extra
     , webdriver

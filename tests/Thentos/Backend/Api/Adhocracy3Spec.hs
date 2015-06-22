@@ -31,6 +31,7 @@ import System.Process (readProcess, readProcessWithExitCode)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 
@@ -110,6 +111,20 @@ spec =
                     -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
                     rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
                     liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
+
+                    -- Extract user path from response
+                    let respJson = Aeson.decode (simpleBody rsp1) :: Maybe Aeson.Value
+                        maybeUserPath = case respJson of
+                            Just (Aeson.Object m) -> HashMap.lookup "path" m
+                            _                     -> error "Response is not a JSON object"
+
+                    -- Check that it looks as it should
+                    case maybeUserPath of
+                        Just pathItem -> case pathItem of
+                            Aeson.String userPath -> liftIO $ userPath `shouldSatisfy`
+                                \x -> ST.isPrefixOf "http" x && ST.isInfixOf "/principals/users/" x
+                            _                      -> error "'path' in response is not a string"
+                        Nothing -> error "Response doesn't contain 'path' field"
 
                     Right (db :: DB) <- query' st T.SnapShot
                     let [(ConfirmationToken confTok, _)] = Map.toList $ db ^. dbUnconfirmedUsers
