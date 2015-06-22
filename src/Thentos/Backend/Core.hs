@@ -100,9 +100,13 @@ actionErrorToServantErr e = do
 
 -- * request headers
 
+-- FIXME This is the list of X-Thentos headers used in ALL backends. It would be better to allow
+-- each backend to define its own additional headers, but still to preserve type-safety.
 data ThentosHeaderName =
     ThentosHeaderSession
   | ThentosHeaderService
+  | ThentosHeaderUser
+  | ThentosHeaderGroups
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
 
 lookupThentosHeader :: Request -> ThentosHeaderName -> Maybe ST
@@ -117,14 +121,10 @@ lookupThentosHeaderService :: Request -> Maybe ServiceId
 lookupThentosHeaderService req = ServiceId <$> lookupThentosHeader req ThentosHeaderService
 
 renderThentosHeaderName :: ThentosHeaderName -> CI SBS
-renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
-    ("ThentosHeader", s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
-    bad -> error $ "renderThentosHeaderName: prefix (left side) must be \"ThentosHeader\" in " ++ show bad
-  where
-    dashify ""    = ""
-    dashify (h:t) = if isUpper h
-        then '-' : h : dashify t
-        else       h : dashify t
+renderThentosHeaderName ThentosHeaderSession = mk "X-Thentos-Session"
+renderThentosHeaderName ThentosHeaderService = mk "X-Thentos-Service"
+renderThentosHeaderName ThentosHeaderUser    = mk "X-Thentos-User"
+renderThentosHeaderName ThentosHeaderGroups  = mk "X-Thentos-Groups"
 
 -- | Filter header list for all headers that start with "X-Thentos-", but have no parse in
 -- 'ThentosHeaderName'.
