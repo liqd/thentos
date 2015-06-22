@@ -13,6 +13,7 @@ module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson.Utils (decodeV)
 import Data.Maybe (fromMaybe)
 import Data.Map (Map)
 import Data.String.Conversions (LBS)
@@ -48,7 +49,7 @@ pprintJson :: LBS -> LBS
 pprintJson = encodePretty
            . fromJustNote "Internal error in Thentos.Backend.Api.Docs.Common:\
                           \ Non-invertible ToJSON instance detected."
-           . (Aeson.decode :: LBS -> Maybe Aeson.Value)
+           . (decodeV :: LBS -> Maybe Aeson.Value)
 
 pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
 pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response %~ updateResponse) $ action

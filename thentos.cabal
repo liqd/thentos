@@ -87,6 +87,7 @@ library
     , acid-state
     , aeson
     , aeson-pretty
+    , aeson-utils
     , async
     , blaze-html
     , bytestring
