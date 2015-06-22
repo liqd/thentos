@@ -12,7 +12,7 @@ module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
-import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
 import Data.Maybe (fromMaybe)
 import Data.Map (Map)
@@ -45,7 +45,8 @@ prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
 prettyMimeRender :: Docs.API -> Docs.API
 prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
 
-pprintJson raw = encodePretty
+pprintJson :: LBS -> LBS
+pprintJson raw = encodePretty' (defConfig {confCompare = compare})
            . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:\
                            \ Non-invertible ToJSON instance detected: " ++ show raw)
            . (decodeV :: LBS -> Maybe Aeson.Value)
