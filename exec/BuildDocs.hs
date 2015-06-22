@@ -14,6 +14,7 @@ import Text.Pandoc (writeMarkdown, writeHtml, writeDocx, def)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Servant.Docs as Docs
 
+import Thentos.Backend.Api.Docs.Common (prettyMimeRender)
 import qualified Thentos.Backend.Api.Docs.Simple as Simple
 import qualified Thentos.Backend.Api.Docs.Adhocracy3 as A3
 
@@ -48,8 +49,11 @@ xwriter apiName formatName = do
 --                           (Left bad) -> error $ show bad
 
 xdocs :: ApiName -> Docs.API
-xdocs Api_Simple     = Simple.docs
-xdocs Api_Adhocracy3 = A3.docs
+xdocs api = prettyMimeRender docs
+  where
+    docs = case api of
+        Api_Simple     -> Simple.docs
+        Api_Adhocracy3 -> A3.docs
 
 data ApiName = Api_Simple | Api_Adhocracy3
   deriving (Eq, Enum, Bounded, Read, Show)

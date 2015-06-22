@@ -88,6 +88,7 @@ library
     , acid-state
     , aeson
     , aeson-pretty
+    , aeson-utils
     , async
     , blaze-html
     , bytestring
@@ -109,6 +110,7 @@ library
     , hslogger
     , http-client
     , http-conduit >= 2.1.5 && < 2.2
+    , http-media
     , http-types
     , lens
     , lio

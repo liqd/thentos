@@ -8,21 +8,63 @@
 
 {-# OPTIONS -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Docs.Common () where
+module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
+import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
+import Data.Aeson.Utils (decodeV)
 import Data.Maybe (fromMaybe)
+import Data.Map (Map)
+import Data.String.Conversions (LBS)
 import Data.Proxy (Proxy(Proxy))
 import Data.Thyme (fromSeconds)
+import Network.HTTP.Media (MediaType)
+import Safe (fromJustNote)
 import Servant.API (Capture, (:>))
 import Servant.Docs
     ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor)
+
+import qualified Data.Aeson as Aeson
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Map as Map
 import qualified Servant.Docs as Docs
 
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Types
+
+
+-- * Pretty-printing
+
+prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
+prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
+  where
+    updateEndpoints = HM.map (pprintAction pprinters)
+
+prettyMimeRender :: Docs.API -> Docs.API
+prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
+
+pprintJson :: LBS -> LBS
+pprintJson raw = encodePretty' (defConfig {confCompare = compare})
+           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:\
+                           \ Non-invertible ToJSON instance detected: " ++ show raw)
+           . (decodeV :: LBS -> Maybe Aeson.Value)
+           $ raw
+
+pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
+pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response %~ updateResponse) $ action
+  where
+    updateReqBody = map pprintData
+    updateResponse = Docs.respBody %~ pprintRespBody
+    pprintRespBody = map (\(t, m, bs) -> (t, m, snd (pprintData (m, bs))))
+
+    pprintData :: (MediaType, LBS) -> (MediaType, LBS)
+    pprintData (mType, bs) = (mType, pprint bs)
+      where pprint = fromMaybe id (Map.lookup mType pprinters)
+
+
+-- * instances for servant-docs
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "Thentos Session Token"
