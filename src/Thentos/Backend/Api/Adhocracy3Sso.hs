@@ -62,7 +62,7 @@ module Thentos.Backend.Api.Adhocracy3Sso where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Except (throwError, catchError)
-import Control.Monad (mzero)
+import Control.Monad (mzero, unless)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -86,7 +86,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
-import Thentos.Transaction (AddSsoToken(AddSsoToken))
+import Thentos.Transaction (AddSsoToken(..), LookupAndRemoveSsoToken(..))
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -192,8 +192,8 @@ githubRequest = do
 -- | FIXME: document!
 githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
 githubConfirm state code = do
-
-    -- FIXME: lookup state in DB and crash if it does not exist.  remove if it does exist.
+    ssoTokenExists <- AC.update'P $ LookupAndRemoveSsoToken (SsoToken state)
+    unless ssoTokenExists $ throwError NoSuchToken
 
     mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
 
