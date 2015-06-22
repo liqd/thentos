@@ -59,6 +59,7 @@ library
     , Thentos.Action
     , Thentos.Action.Core
     , Thentos.Backend.Api.Adhocracy3
+    , Thentos.Backend.Api.Adhocracy3Sso
     , Thentos.Backend.Api.Auth
     , Thentos.Backend.Api.Proxy
     , Thentos.Backend.Api.Simple
@@ -105,8 +106,10 @@ library
     , filepath
     , functor-infix
     , generic-aeson
+    , hoauth2 >= 0.4.8 && < 0.5
     , hslogger
     , http-client
+    , http-conduit >= 2.1.5 && < 2.2
     , http-media
     , http-types
     , lens
