@@ -51,22 +51,22 @@ serviceProxy renderHeaderFun state req cont = do
     case eRqMod of
         Right rqMod -> do
             C.withManager C.defaultManagerSettings $ \ manager ->
-                prepareReq rqMod req >>=
+                prepareReq renderHeaderFun rqMod req >>=
                 (`C.httpLbs` manager) >>=
                 cont . prepareResp
         Left e -> do
             servantError <- actionErrorToServantErr e
             cont $ responseServantErr servantError
 
-prepareReq :: RqMod -> S.Request -> IO C.Request
-prepareReq (RqMod target proxyHdrs) req = do
+prepareReq :: RenderHeaderFun -> RqMod -> S.Request -> IO C.Request
+prepareReq renderHeaderFun (RqMod target proxyHdrs) req = do
     body <- S.strictRequestBody req
     req' <- C.parseUrl $ target ++ (cs $ S.rawPathInfo req)
     return . C.setQueryString (S.queryString req) $ req'
         { C.method         = S.requestMethod req
         , C.checkStatus    = \ _ _ _ -> Nothing
         , C.requestBody    = C.RequestBodyLBS body
-        , C.requestHeaders = proxyHdrs <> clearThentosHeaders (S.requestHeaders req)
+        , C.requestHeaders = proxyHdrs <> clearCustomHeaders renderHeaderFun (S.requestHeaders req)
         }
 
 prepareResp :: C.Response LBS -> S.Response
