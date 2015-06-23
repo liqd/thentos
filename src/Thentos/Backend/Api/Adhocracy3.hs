@@ -25,6 +25,7 @@ import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
+import Data.List (stripPrefix)
 import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -45,6 +46,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
+import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Backend.Core
@@ -352,11 +354,12 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
                     Just v -> Tagged v
 
 userIdFromPath :: Path -> AC.Action DB UserId
-userIdFromPath (Path s) | ST.null prefix = throwError $ MalformedUserPath s
-                        | otherwise      = maybe (throwError NoSuchUser) return maybeUserId
-  where
-    (prefix, match) = ST.breakOnEnd "/principals/users/" s
-    maybeUserId     = fmap UserId . readMay . cs $ match
+userIdFromPath (Path s) = case URI.parseURI URI.laxURIParserOptions $ cs s of
+    Right uri -> do
+        mRawId <- maybe (throwError $ MalformedUserPath s) return $
+            stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
+        maybe (throwError NoSuchUser) return $ fmap UserId . readMay $ mRawId
+    Left _    -> throwError $ MalformedUserPath s
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
