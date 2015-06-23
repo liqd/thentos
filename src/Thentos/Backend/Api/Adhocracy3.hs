@@ -355,12 +355,13 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
                     Just v -> Tagged v
 
 userIdFromPath :: MonadError ThentosError m => Path -> m UserId
-userIdFromPath (Path s) = case URI.parseURI URI.laxURIParserOptions $ cs s of
-    Right uri -> do
-        mRawId <- maybe (throwError $ MalformedUserPath s) return $
-            stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
-        maybe (throwError NoSuchUser) return $ fmap UserId . readMay $ mRawId
-    Left _    -> throwError $ MalformedUserPath s
+userIdFromPath (Path s) = do
+    uri <- either (const . throwError . MalformedUserPath $ s) return $
+        URI.parseURI URI.laxURIParserOptions $ cs s
+    rawId <- maybe (throwError $ MalformedUserPath s) return $
+        stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
+    maybe (throwError NoSuchUser) (return . UserId) $
+        readMay rawId
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
