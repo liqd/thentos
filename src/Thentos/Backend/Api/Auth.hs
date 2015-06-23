@@ -53,4 +53,5 @@ data ThentosAuth
 
 instance HasServer sub => HasServer (ThentosAuth :> sub) where
   type ServerT (ThentosAuth :> sub) m = Maybe ThentosSessionToken -> ServerT sub m
-  route Proxy sub request = route (Proxy :: Proxy sub) (sub $ lookupThentosHeaderSession request) request
+  route Proxy sub request = route (Proxy :: Proxy sub)
+      (sub $ lookupThentosHeaderSession renderThentosHeaderName request) request

@@ -131,7 +131,8 @@ api :: AC.ActionState DB -> Server Api
 api actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
-  :<|> serviceProxy  actionState
+       -- TODO use different function
+  :<|> serviceProxy renderThentosHeaderName actionState
 
 
 -- * handler

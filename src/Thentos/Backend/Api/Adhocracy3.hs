@@ -295,7 +295,8 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
 api :: AC.ActionState DB -> Server Api
 api actionState =
        thentosApi actionState
-  :<|> serviceProxy actionState
+       -- TODO define distinct function
+  :<|> serviceProxy renderThentosHeaderName actionState
 
 
 -- * handler
