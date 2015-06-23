@@ -140,6 +140,7 @@ finally a sequel = do
     _ <- sequel
     return r
 
+
 -- * labels, privileges and access rights.
 
 -- | In order to execute an 'Action', certain access rights need to be granted.  A set of access

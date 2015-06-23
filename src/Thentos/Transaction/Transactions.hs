@@ -465,13 +465,12 @@ trans_agentRoles agent = polyQuery $ fromMaybe Set.empty . Map.lookup agent . (^
 trans_addSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
 trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
 
--- | Remove an SSO token from the database. Return True if token existed, False otherwise.
-trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db Bool
+-- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
+trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
 trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
     exists <- Set.member tok . (^. dbSsoTokens) <$> get
-    when exists $
-        modify $ dbSsoTokens %~ Set.delete tok
-    return exists
+    unless exists $ throwT NoSuchToken
+    modify $ dbSsoTokens %~ Set.delete tok
 
 
 -- * misc

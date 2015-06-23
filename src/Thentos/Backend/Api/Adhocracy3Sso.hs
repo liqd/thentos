@@ -62,7 +62,7 @@ module Thentos.Backend.Api.Adhocracy3Sso where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Except (throwError, catchError)
-import Control.Monad (mzero, unless)
+import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -86,7 +86,6 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
-import Thentos.Transaction (AddSsoToken(..), LookupAndRemoveSsoToken(..))
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -176,24 +175,19 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
                    , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
                    }
 
-addNewSsoToken :: AC.Action DB SsoToken
-addNewSsoToken = do
-    tok <- A.freshSsoToken
-    AC.update'P $ AddSsoToken tok
-    return tok
 
 -- | FIXME: document!
 githubRequest :: AC.Action DB AuthRequest
 githubRequest = do
-    state <- addNewSsoToken
-    return . AuthRequest . cs $ authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
+    state <- A.addNewSsoToken
+    return . AuthRequest . cs $
+        authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
 
 -- | FIXME: document!
 githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
 githubConfirm state code = do
-    ssoTokenExists <- AC.update'P $ LookupAndRemoveSsoToken (SsoToken state)
-    unless ssoTokenExists $ throwError NoSuchToken
+    A.lookupAndRemoveSsoToken (SsoToken state)
     mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
     confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
   where

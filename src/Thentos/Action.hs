@@ -60,6 +60,9 @@ module Thentos.Action
     , unassignRole
     , agentRoles
 
+    , addNewSsoToken
+    , lookupAndRemoveSsoToken
+
     , collectGarbage
     )
 where
@@ -521,6 +524,22 @@ agentRoles :: Agent -> Action DB [Role]
 agentRoles agent = do
     liftLIO $ guardWrite (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     Set.toList <$> query'P (T.AgentRoles agent)
+
+
+-- * SSO
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+addNewSsoToken :: Action DB SsoToken
+addNewSsoToken = do
+    tok <- freshSsoToken
+    update'P $ T.AddSsoToken tok
+    return tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+lookupAndRemoveSsoToken :: SsoToken -> Action DB ()
+lookupAndRemoveSsoToken tok = update'P $ T.LookupAndRemoveSsoToken tok
 
 
 -- * garbage collection
