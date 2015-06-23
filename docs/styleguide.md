@@ -5,8 +5,8 @@
 
 ## HLint
 
-There is an hlint rule in the Makefile, and an associated
-customization file HLint.hs.  This implements the automatable part of
+There is an hlint rule in the Makefile, and an associated customization
+file HLint.hs.  This implements some elements of the automatable part of
 the coding policy.
 
 
@@ -17,12 +17,12 @@ group should be sorted alphabetically and groups should be separated by a
 single line.
 
  1. Explicit unqualified imports from third-party modules (including the
-    base library). Imported functions and types **must** by listed
+    base library). Imported functions and types **must** be listed
     explicitly.
  2. Qualified imports from third-party modules. Rename them using,
     preferably, the name of the module (without path). If that would result
     in a non-descriptive name such as `Strict`, use an earlier part of the
-    name (see the `Map` and `URI` samples below). Import Text and
+    full name (see the `Map` and `URI` samples below). Import Text and
     ByteString modules using the names defined in the string-conversions
     package (`SBS, LBS, ST, LT`). It's OK to rename several related modules
     to the same name if their definitions don't overlap (see the `Aeson`
