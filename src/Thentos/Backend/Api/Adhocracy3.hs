@@ -20,6 +20,7 @@
 module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
+import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (throwError)
 import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
@@ -353,7 +354,7 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
                     Nothing -> error "userIdToPath: backend not configured!"
                     Just v -> Tagged v
 
-userIdFromPath :: Path -> AC.Action DB UserId
+userIdFromPath :: MonadError ThentosError m => Path -> m UserId
 userIdFromPath (Path s) = case URI.parseURI URI.laxURIParserOptions $ cs s of
     Right uri -> do
         mRawId <- maybe (throwError $ MalformedUserPath s) return $
