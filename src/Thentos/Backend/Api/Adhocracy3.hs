@@ -360,8 +360,7 @@ userIdFromPath (Path s) = do
         URI.parseURI URI.laxURIParserOptions $ cs s
     rawId <- maybe (throwError $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
-    maybe (throwError NoSuchUser) (return . UserId) $
-        readMay rawId
+    maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
