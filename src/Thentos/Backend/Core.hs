@@ -93,6 +93,8 @@ actionErrorToServantErr e = do
     _thentos (ProxyNotConfiguredForService sid) = pure $ err404 { errBody = "proxy not configured for service " <> cs (show sid) }
     _thentos (NoSuchToken) = pure $ err404 { errBody = "no such token" }
     _thentos (NeedUserA _ _) = pure $ err404 { errBody = "thentos session belongs to service, cannot create service session" }
+    _thentos (MalformedUserPath path) = pure $
+        err400 { errBody = "malformed user path: " <> cs (show path) }
     -- the following shouldn't actually reach servant:
     _thentos SsoErrorUnknownCsrfToken = pure $ err500
         { errBody = "invalid token returned during sso process" }

@@ -408,6 +408,7 @@ data ThentosError =
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
+    | MalformedUserPath ST
     | SsoErrorUnknownCsrfToken
     | SsoErrorCouldNotAccessUserInfo LBS
     | SsoErrorCouldNotGetAccessToken LBS
