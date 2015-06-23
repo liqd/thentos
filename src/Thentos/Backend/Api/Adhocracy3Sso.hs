@@ -186,11 +186,22 @@ githubRequest = do
 
 -- | FIXME: document!
 githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
-githubConfirm state code = do
-    A.lookupAndRemoveSsoToken (SsoToken state)
-    mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
-    confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
+githubConfirm state code =
+    go `catchError` \e ->
+        case e of
+            SsoErrorUnknownCsrfToken       ->
+                return $ A3.RequestError ["unknown sso csrf token"]
+            SsoErrorCouldNotAccessUserInfo msg ->
+                return $ A3.RequestError ["could not access github user info", cs msg]
+            SsoErrorCouldNotGetAccessToken msg ->
+                return $ A3.RequestError ["could not obtain access token", cs msg]
+            otherError                     -> throwError otherError
   where
+    go = do
+        A.lookupAndRemoveSsoToken (SsoToken state)
+        mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
+        confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
+
     confirm mgr = do
         eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
             let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code
@@ -202,13 +213,8 @@ githubConfirm state code = do
                     <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
                 case eGhUser of
                     Right ghUser -> loginGithubUser ghUser
-                    Left e -> return $ A3.RequestError ["could not access github user info", cs e]
-                        -- FIXME: throw all errors as exceptions, and handle them before returning from
-                        -- this function.
-
-            Left e -> do
-                liftLIO . ioTCB $ Http.closeManager mgr
-                return $ A3.RequestError ["could not obtain access token", cs e]
+                    Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
+            Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
 
 -- | FIXME: document!
 loginGithubUser :: GithubUser -> AC.Action DB A3.RequestResult

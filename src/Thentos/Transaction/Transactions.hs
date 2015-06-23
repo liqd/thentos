@@ -469,7 +469,7 @@ trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
 trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
 trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
     exists <- Set.member tok . (^. dbSsoTokens) <$> get
-    unless exists $ throwT NoSuchToken
+    unless exists $ throwT SsoErrorUnknownCsrfToken
     modify $ dbSsoTokens %~ Set.delete tok
 
 

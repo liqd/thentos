@@ -19,7 +19,7 @@ import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST, cs, LBS)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -408,6 +408,9 @@ data ThentosError =
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
+    | SsoErrorUnknownCsrfToken
+    | SsoErrorCouldNotAccessUserInfo LBS
+    | SsoErrorCouldNotGetAccessToken LBS
     deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosError
