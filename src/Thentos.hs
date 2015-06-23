@@ -32,7 +32,7 @@ import Text.Show.Pretty (ppShow)
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core
+import Thentos.Action.Core (ActionState(..), runAction)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Types

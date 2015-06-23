@@ -93,6 +93,13 @@ actionErrorToServantErr e = do
     _thentos (ProxyNotConfiguredForService sid) = pure $ err404 { errBody = "proxy not configured for service " <> cs (show sid) }
     _thentos (NoSuchToken) = pure $ err404 { errBody = "no such token" }
     _thentos (NeedUserA _ _) = pure $ err404 { errBody = "thentos session belongs to service, cannot create service session" }
+    -- the following shouldn't actually reach servant:
+    _thentos SsoErrorUnknownCsrfToken = pure $ err500
+        { errBody = "invalid token returned during sso process" }
+    _thentos (SsoErrorCouldNotAccessUserInfo _) = pure $ err500
+        { errBody = "error accessing user info" }
+    _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
+        { errBody = "error retrieving access token" }
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })

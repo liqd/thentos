@@ -153,6 +153,7 @@ trans_addPasswordResetToken timestamp email token = polyUpdate $ do
     modify $ dbPwResetTokens %~ Map.insert token (uid, timestamp)
     return user
 
+
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
 trans_resetPassword :: (AsDB db) => Timestamp -> Timeout -> PasswordResetToken
@@ -458,6 +459,20 @@ trans_agentRoles :: (AsDB db) => Agent -> ThentosQuery db (Set.Set Role)
 trans_agentRoles agent = polyQuery $ fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <$> ask
 
 
+-- * SSO
+
+-- | Add an SSO token to the database
+trans_addSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
+
+-- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
+trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
+    exists <- Set.member tok . (^. dbSsoTokens) <$> get
+    unless exists $ throwT SsoErrorUnknownCsrfToken
+    modify $ dbSsoTokens %~ Set.delete tok
+
+
 -- * misc
 
 trans_snapShot :: (AsDB db) => ThentosQuery db DB
@@ -546,6 +561,8 @@ transaction_names =
     , 'trans_assignRole
     , 'trans_unassignRole
     , 'trans_agentRoles
+    , 'trans_addSsoToken
+    , 'trans_lookupAndRemoveSsoToken
     , 'trans_snapShot
     , 'trans_garbageCollectThentosSessions
     , 'trans_doGarbageCollectThentosSessions
