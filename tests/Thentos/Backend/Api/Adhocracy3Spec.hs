@@ -21,10 +21,10 @@ import Data.Aeson (object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
 import Data.String.Conversions (LBS, ST, cs, (<>))
+import Network.HTTP.Types.URI (urlEncode)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
-import Snap (urlEncode)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>))
 import System.Process (readProcess, readProcessWithExitCode)
@@ -140,7 +140,7 @@ spec =
                     loggedLine <- liftIO $ readProcess "grep" ["\"Please go to ", logfile] ""
                     -- The grepped line should contain the percent-encoded token (but the case of
                     --percent-encoded chars may vary, therefore toLower)
-                    let encodedTok = cs . urlEncode $ cs confTok
+                    let encodedTok = cs . urlEncode True $ cs confTok
                     liftIO $ ST.toLower encodedTok `shouldSatisfy`
                         (`ST.isInfixOf` (ST.toLower . cs $ loggedLine))
 
