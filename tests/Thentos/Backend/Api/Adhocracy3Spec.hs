@@ -31,6 +31,7 @@ import System.Process (readProcess, readProcessWithExitCode)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 
@@ -103,13 +104,28 @@ spec =
 
         describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
-                \ bts@(BTS tcfg (ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
+                \ bts@(BTS tcfg ast@(ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 
                     let rq1 = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
 
                     -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
                     rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
                     liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
+
+                    -- Extract user path from response
+                    let respJson = Aeson.decode (simpleBody rsp1) :: Maybe Aeson.Value
+                        mUserPath = case respJson of
+                            Just (Aeson.Object m) -> HashMap.lookup "path" m
+                            _                     -> error "Response is not a JSON object"
+
+                    -- Check that it looks as it should
+                    case mUserPath of
+                        Just pathItem -> case pathItem of
+                            Aeson.String userPath -> do
+                                userId <- liftIO . runAction ast . userIdFromPath . Path $ userPath
+                                liftIO $ fromUserId userId `shouldSatisfy` (> 0)
+                            _ -> error "'path' in response is not a string"
+                        Nothing -> error "Response doesn't contain 'path' field"
 
                     Right (db :: DB) <- query' st T.SnapShot
                     let [(ConfirmationToken confTok, _)] = Map.toList $ db ^. dbUnconfirmedUsers
@@ -155,9 +171,9 @@ spec =
         --            liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 400
         --            liftIO $ simpleBody rsp1 `shouldBe` "..."
 
-        describe "send email" . before (setupTestBackend RunA3) . after teardownTestBackend $ do
-            it "works" $
-                \ _ -> pendingWith "test missing."
+        -- FIXME further stuff that can only be tested after Servant has been fixed:
+        -- (1) An error is returned if the specified user name or email doesn't exist
+        -- (2) An error is returned if the wrong password is specified
 
         describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $
             it "works" $
