@@ -60,6 +60,8 @@ module Thentos.Action
     , agentRoles
 
     , collectGarbage
+
+    , HasDB(..)
     )
 where
 
@@ -86,6 +88,13 @@ import Thentos.Util
 
 import qualified Thentos.Transaction as T
 
+-- TODO: this should probably live somewhere else
+class (AsDB db) => HasDB db where
+    lookupUser' :: UserId -> Action db (UserId, User)
+
+instance HasDB DB where
+    --lookupUser' = --query'P . T.LookupUser
+    lookupUser' = lookupUser
 
 -- * randomness
 
