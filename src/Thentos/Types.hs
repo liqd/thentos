@@ -4,9 +4,11 @@
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE KindSignatures              #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TemplateHaskell             #-}
+{-# LANGUAGE TypeFamilies                #-}
 
 module Thentos.Types where
 
@@ -389,7 +391,13 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data ThentosError =
+data family ThentosError (db :: *) :: *
+
+data instance ThentosError DB = ThentosErrorDB
+
+-- | This type should be considered private.  Always use @(ThentosError DB)@ instead.  (FIXME: write
+-- an export list for this module.)
+data ThentosErrorDB =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -414,9 +422,9 @@ data ThentosError =
     | SsoErrorCouldNotGetAccessToken LBS
     deriving (Eq, Show, Read, Typeable)
 
-instance Exception ThentosError
+instance Exception ThentosErrorDB
 
-instance SafeCopy ThentosError
+instance SafeCopy ThentosErrorDB
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
