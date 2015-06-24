@@ -18,6 +18,7 @@ import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
 import Control.Monad.State (StateT(StateT), runStateT, get, put)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Acid (Update, Query)
+import Data.EitherR (fmapL)
 
 import Thentos.Types
 
@@ -68,10 +69,10 @@ runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 polyUpdate :: forall a db . AsDB db => ThentosUpdate DB a -> ThentosUpdate db a
 polyUpdate upd = EitherT . StateT $ Identity . (asDB %%~ bare)
   where
-    bare :: DB -> (Either (ThentosError DB) a, DB)
-    bare = runIdentity . runStateT (runEitherT upd)
+    bare :: DB -> (Either (ThentosError db) a, DB)
+    bare = runIdentity . runStateT (fmapL asDBError <$> runEitherT upd)
 
 -- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
 polyQuery :: forall a db . AsDB db => ThentosQuery DB a -> ThentosQuery db a
 polyQuery qry = EitherT . ReaderT $ \ (state :: db) ->
-    runEitherT qry `runReaderT` (state ^. asDB)
+    fmapL asDBError <$> runEitherT qry `runReaderT` (state ^. asDB)

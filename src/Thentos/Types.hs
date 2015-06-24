@@ -75,11 +75,19 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
+-- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
+-- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
 class AsDB db where
-   asDB :: Lens' db DB
+    asDB      :: Lens' db DB
+    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+
+    asDBError :: ThentosError DB -> ThentosError db
+    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
+    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
 
 instance AsDB DB where
-   asDB = id
+    asDB      = id
+    asDBError = id
 
 
 -- * user
