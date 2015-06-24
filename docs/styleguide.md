@@ -54,9 +54,6 @@ import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
 ```
 
-(FIXME: `LT` for `Data.Text.Lazy` is `less than` from Prelude.  Is there a
-better name?  (Should string-conversions adopt that, too?))
-
 
 ## Naming
 
