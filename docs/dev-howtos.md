@@ -40,6 +40,9 @@ cabal run thentos
 If there are no errors, the frontend will start on http://localhost:7002/
 and talk to the backend running on http://localhost:7001/.
 
+Take a look at the configuration file `devel.config` if you want to change
+this.
+
 ## Running the test suite
 
 To run the complete test suite, you first have to start selenium:
@@ -71,11 +74,15 @@ cabal test --show-details=always --test-options="--match XXX"
 `--show-details=always` is useful to see which tests were actually
 executed.
 
-## Deleting the database
+## Updating or deleting the database
 
-Sometimes Thentos will refuse to start because the data structures stored
-in the DB no longer correspond to those in the compiled program. Our
-current "migration process" for that problem is simple: Just delete the DB!
+If the database state type changes,
+http://hackage.haskell.org/package/safecopy is used to migrate deprecated
+existing serializations from disk transparently.
+
+There should be tests that make sure nobody breaks this rule, but currently
+there aren't.  Instead, the current "migration process" is simple: Just
+delete the DB!
 
 ```bash
 rm -rf .acid-state
@@ -85,7 +92,10 @@ rm -rf .acid-state
 
 If you need a new dependency (not yet listed in `thentos.cabal`), first add
 it to `thentos.cabal` in the appropriate `build-depends` section(s). Please
-specify a suitable minimum version (`>=`).
+specify a suitable minimum (`>=`) and maximum version. A good rule of thumb
+is to set the lower bound to whatever is most recent at the time of
+creating the dependency, and the upper bound to `<a.(b+1)`, where
+`a.b.c...` is the lower bound.
 
 If everything works as it should, regenerate the `cabal.config` file that
 freezes the exact versions of all libraries we use:
@@ -94,12 +104,13 @@ freezes the exact versions of all libraries we use:
 cabal freeze --enable-tests
 ```
 
+Check `git diff cabal.config` to see if everything went as expected.
+
 ## Creating branches and pull requests
 
-Committing any changes directly on master is **not** allowed (except
-possibly for trivial changes such as typo fixes in the documentation).
-Instead, create a branch and later turn that branch into a pull request
-(PR) on GitHub.
+Committing any changes directly on master is **not** allowed. Instead,
+create a branch and later turn that branch into a pull request (PR) on
+GitHub.
 
 For branch names we use the following schema:
 `year-month-xx-branch-description`. xx is an abbreviation identifying the
