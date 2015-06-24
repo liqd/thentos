@@ -131,7 +131,7 @@ api :: AC.ActionState DB -> Server Api
 api actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
-  :<|> serviceProxy  actionState
+  :<|> serviceProxy A3.renderA3HeaderName actionState
 
 
 -- * handler

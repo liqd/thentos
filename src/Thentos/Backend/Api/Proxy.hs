@@ -45,28 +45,28 @@ instance HasServer ServiceProxy where
   type ServerT ServiceProxy m = S.Application
   route Proxy = route (Proxy :: Proxy Raw)
 
-serviceProxy :: ActionState DB -> Server ServiceProxy
-serviceProxy state req cont = do
-    eRqMod <- runActionE state $ getRqMod req
+serviceProxy :: RenderHeaderFun -> ActionState DB -> Server ServiceProxy
+serviceProxy renderHeaderFun state req cont = do
+    eRqMod <- runActionE state $ getRqMod renderHeaderFun req
     case eRqMod of
         Right rqMod -> do
             C.withManager C.defaultManagerSettings $ \ manager ->
-                prepareReq rqMod req >>=
+                prepareReq renderHeaderFun rqMod req >>=
                 (`C.httpLbs` manager) >>=
                 cont . prepareResp
         Left e -> do
             servantError <- actionErrorToServantErr e
             cont $ responseServantErr servantError
 
-prepareReq :: RqMod -> S.Request -> IO C.Request
-prepareReq (RqMod target proxyHdrs) req = do
+prepareReq :: RenderHeaderFun -> RqMod -> S.Request -> IO C.Request
+prepareReq renderHeaderFun (RqMod target proxyHdrs) req = do
     body <- S.strictRequestBody req
     req' <- C.parseUrl $ target ++ (cs $ S.rawPathInfo req)
     return . C.setQueryString (S.queryString req) $ req'
         { C.method         = S.requestMethod req
         , C.checkStatus    = \ _ _ _ -> Nothing
         , C.requestBody    = C.RequestBodyLBS body
-        , C.requestHeaders = proxyHdrs <> clearThentosHeaders (S.requestHeaders req)
+        , C.requestHeaders = proxyHdrs <> clearCustomHeaders renderHeaderFun (S.requestHeaders req)
         }
 
 prepareResp :: C.Response LBS -> S.Response
@@ -83,8 +83,11 @@ data RqMod = RqMod String T.RequestHeaders
 -- fill headers @X-Thentos-User@, @X-Thentos-Groups@.  If
 -- 'proxyConfig' is 'Nothing' or an invalid or inactive session token
 -- is provided, throw an error.
-getRqMod :: S.Request -> Action DB RqMod
-getRqMod req = do
+--
+-- The first parameter is a function that can be used to rename the Thentos-specific headers.
+-- To stick with the default names, use 'Thentos.Backend.Core.renderThentosHeaderName'.
+getRqMod :: RenderHeaderFun -> S.Request -> Action DB RqMod
+getRqMod renderHeaderFun req = do
     thentosConfig <- getConfig'P
 
     prxCfg :: Map.Map ServiceId HttpProxyConfig
@@ -92,14 +95,14 @@ getRqMod req = do
     (uid, user) :: (UserId, User)
         <- do
             tok <- maybe (throwError NoSuchThentosSession) return
-                         (lookupThentosHeaderSession req)
+                         (lookupThentosHeaderSession renderHeaderFun req)
             session <- lookupThentosSession tok
             case session ^. thSessAgent of
                 UserA uid  -> lookupUser uid
                 ServiceA sid -> throwError $ NeedUserA tok sid
 
     sid :: ServiceId
-        <- case lookupThentosHeaderService req of
+        <- case lookupThentosHeaderService renderHeaderFun req of
                Just s  -> return s
                Nothing -> throwError MissingServiceHeader
 
@@ -107,9 +110,9 @@ getRqMod req = do
         <- userGroups uid sid
 
     let hdrs =
-            ("X-Thentos-User", cs . fromUserName $ user ^. userName) :
-            ("X-Thentos-Groups", cs $ show groups) :
-            []
+            [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
+            , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
+            ]
 
     target :: String
         <- case Map.lookup sid prxCfg of

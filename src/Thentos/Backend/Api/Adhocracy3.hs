@@ -24,6 +24,7 @@ import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (throwError)
 import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
+import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.List (stripPrefix)
@@ -298,7 +299,7 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
 api :: AC.ActionState DB -> Server Api
 api actionState =
        thentosApi actionState
-  :<|> serviceProxy actionState
+  :<|> serviceProxy renderA3HeaderName actionState
 
 
 -- * handler
@@ -344,6 +345,12 @@ login r = AC.logIfError'P $ do
 
 
 -- * aux
+
+-- | Render Thentos/A3-specific custom headers using the names expected by A3.
+renderA3HeaderName :: RenderHeaderFun
+renderA3HeaderName ThentosHeaderSession = mk "X-User-Token"
+renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
+renderA3HeaderName h                    = renderThentosHeaderName h
 
 userIdToPath :: ThentosConfig -> UserId -> Path
 userIdToPath config (UserId i) = Path $ domain <> userpath
