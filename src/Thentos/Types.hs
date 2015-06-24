@@ -5,7 +5,9 @@
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE KindSignatures              #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
+{-# LANGUAGE Rank2Types                  #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
@@ -77,17 +79,17 @@ emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
 
 -- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
 -- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
-class AsDB db where
-    asDB      :: Lens' db DB
+class AsDB db e where
+    asDB      :: Proxy (db, e) -> Lens' db DB
     -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
 
-    asDBError :: ThentosError DB -> ThentosError db
+    asDBError :: Proxy (db, e) -> ThentosError -> e
     -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
     -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
 
-instance AsDB DB where
-    asDB      = id
-    asDBError = id
+instance AsDB DB ThentosError where
+    asDB      Proxy = id
+    asDBError Proxy = id
 
 
 -- * user
@@ -399,13 +401,7 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data family ThentosError (db :: *) :: *
-
-data instance ThentosError DB = ThentosErrorDB
-
--- | This type should be considered private.  Always use @(ThentosError DB)@ instead.  (FIXME: write
--- an export list for this module.)
-data ThentosErrorDB =
+data ThentosError =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -430,9 +426,9 @@ data ThentosErrorDB =
     | SsoErrorCouldNotGetAccessToken LBS
     deriving (Eq, Show, Read, Typeable)
 
-instance Exception ThentosErrorDB
+instance Exception ThentosError
 
-instance SafeCopy ThentosErrorDB
+instance SafeCopy ThentosError
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead

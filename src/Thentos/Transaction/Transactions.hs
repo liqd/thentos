@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE LambdaCase           #-}
@@ -27,6 +28,7 @@ import Data.List (foldl')
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (deriveSafeCopy, base)
+import Data.Typeable (Proxy(Proxy))
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -37,13 +39,13 @@ import Thentos.Types
 
 -- * user
 
-freshUserId :: (AsDB db) => ThentosUpdate db UserId
+freshUserId :: (AsDB db e) => ThentosUpdate db e UserId
 freshUserId = polyUpdate $ do
-    uid <- gets (^. asDB . dbFreshUserId)
+    uid <- gets ((^. (asDB (Proxy :: Proxy (db, e)))) . dbFreshUserId)
     modify $ dbFreshUserId .~ succ uid
     return uid
 
-assertUser :: (AsDB db) => Maybe UserId -> User -> ThentosQuery db ()
+assertUser :: (AsDB db e) => Maybe UserId -> User -> ThentosQuery db e ()
 assertUser mUid user = polyQuery $ ask >>= \ db ->
     if | userFacetExists (^. userName)  mUid user db -> throwT UserNameAlreadyExists
        | userFacetExists (^. userEmail) mUid user db -> throwT UserEmailAlreadyExists
@@ -56,15 +58,15 @@ userFacetExists facet ((/=) -> notOwnUid) user db =
 -- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
 -- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
 -- has expired, throw the given error.
-withExpiry :: (AsDB db) => Timestamp -> Timeout -> ThentosError db
-                        -> ThentosUpdate db (Maybe (a, Timestamp))
-                        -> ThentosUpdate db a
+withExpiry :: (AsDB db e) => Timestamp -> Timeout -> ThentosError
+                        -> ThentosUpdate db ThentosError (Maybe (a, Timestamp))
+                        -> ThentosUpdate db ThentosError a
 withExpiry now expiry thentosError = withExpiryT now expiry thentosError id
 
 -- | Like 'withExpiry', but expects actions of the form offered by 'Map.updateLookupWithKey'.
-withExpiryU :: (AsDB db) => Timestamp -> Timeout -> ThentosError db
-                         -> ThentosUpdate db (Maybe (a, Timestamp), m)
-                         -> ThentosUpdate db (a, m)
+withExpiryU :: (AsDB db e) => Timestamp -> Timeout -> ThentosError
+                         -> ThentosUpdate db ThentosError (Maybe (a, Timestamp), m)
+                         -> ThentosUpdate db ThentosError (a, m)
 withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
   where
     f (Just (a, timestamp), m) = Just ((a, m), timestamp)
@@ -72,8 +74,8 @@ withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
 
 -- | Like 'withExpiry', but takes an extra function for transforming the result value of the action
 -- into what we need for the timeout check.
-withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError db -> (b -> Maybe (a, Timestamp))
-    -> ThentosUpdate db b -> ThentosUpdate db a
+withExpiryT :: (AsDB db e) => Timestamp -> Timeout -> ThentosError -> (b -> Maybe (a, Timestamp))
+    -> ThentosUpdate db ThentosError b -> ThentosUpdate db ThentosError a
 withExpiryT now expiry thentosError f action = do
     let isActive crt = fromTimestamp crt .+^ fromTimeout expiry < fromTimestamp now
     mResult <- f <$> action
@@ -83,23 +85,23 @@ withExpiryT now expiry thentosError f action = do
             then throwT thentosError
             else return result
 
-trans_allUserIds :: (AsDB db) => ThentosQuery db [UserId]
+trans_allUserIds :: (AsDB db e) => ThentosQuery db ThentosError [UserId]
 trans_allUserIds = polyQuery $ Map.keys . (^. dbUsers) <$> ask
 
-trans_lookupUser :: (AsDB db) => UserId -> ThentosQuery db (UserId, User)
+trans_lookupUser :: (AsDB db e) => UserId -> ThentosQuery db ThentosError (UserId, User)
 trans_lookupUser uid = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . (`pureLookupUser` uid)
 
 pureLookupUser :: DB -> UserId -> Maybe (UserId, User)
 pureLookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. dbUsers
 
-trans_lookupUserByName :: (AsDB db) => UserName -> ThentosQuery db (UserId, User)
+trans_lookupUserByName :: (AsDB db e) => UserName -> ThentosQuery db ThentosError (UserId, User)
 trans_lookupUserByName name = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
     f db = maybeUserId >>= pureLookupUser db
       where maybeUserId = Map.lookup name $ db ^. dbUserIdsByName
 
-trans_lookupUserByEmail :: (AsDB db) => UserEmail -> ThentosQuery db (UserId, User)
+trans_lookupUserByEmail :: (AsDB db e) => UserEmail -> ThentosQuery db ThentosError (UserId, User)
 trans_lookupUserByEmail email = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
@@ -107,14 +109,14 @@ trans_lookupUserByEmail email = polyQuery $ ask >>= maybe (throwT NoSuchUser) re
       where maybeUserId = Map.lookup email $ db ^. dbUserIdsByEmail
 
 -- | Actually add a new user who already has an ID.
-trans_addUserPrim :: (AsDB db) => UserId -> User -> ThentosUpdate db ()
+trans_addUserPrim :: (AsDB db e) => UserId -> User -> ThentosUpdate db ThentosError ()
 trans_addUserPrim uid user = polyUpdate $ do
     modify $ dbUsers %~ Map.insert uid user
     modify $ dbUserIdsByName %~ Map.insert (user ^. userName) uid
     modify $ dbUserIdsByEmail %~ Map.insert (user ^. userEmail) uid
 
 -- | Add a new user.  Return the new user's 'UserId'.  Call 'assertUser' for name clash exceptions.
-trans_addUser :: (AsDB db) => User -> ThentosUpdate db UserId
+trans_addUser :: (AsDB db e) => User -> ThentosUpdate db ThentosError UserId
 trans_addUser user = do
     liftThentosQuery $ assertUser Nothing user
     uid <- freshUserId
@@ -123,21 +125,21 @@ trans_addUser user = do
 
 -- | Add a list of new users.  This could be inlined in a sequence of transactions, but that would
 -- have different rollback behaviour.
-trans_addUsers :: (AsDB db) => [User] -> ThentosUpdate db [UserId]
+trans_addUsers :: (AsDB db e) => [User] -> ThentosUpdate db ThentosError [UserId]
 trans_addUsers = mapM trans_addUser
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).  Call
 -- 'assertUser' for name clash exceptions.
-trans_addUnconfirmedUser :: (AsDB db) => Timestamp -> ConfirmationToken -> User
-                                      -> ThentosUpdate db (UserId, ConfirmationToken)
+trans_addUnconfirmedUser :: (AsDB db e) => Timestamp -> ConfirmationToken -> User
+                                      -> ThentosUpdate db ThentosError (UserId, ConfirmationToken)
 trans_addUnconfirmedUser now token user = polyUpdate $ do
     liftThentosQuery $ assertUser Nothing user
     uid <- freshUserId
     modify $ dbUnconfirmedUsers %~ Map.insert token ((uid, user), now)
     return (uid, token)
 
-trans_finishUserRegistration :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
-                                          -> ThentosUpdate db UserId
+trans_finishUserRegistration :: (AsDB db e) => Timestamp -> Timeout -> ConfirmationToken
+                                          -> ThentosUpdate db ThentosError UserId
 trans_finishUserRegistration now expiry token = polyUpdate $ do
     (uid, user) <- withExpiry now expiry NoSuchPendingUserConfirmation $
         Map.lookup token <$> gets (^. dbUnconfirmedUsers)
@@ -146,8 +148,8 @@ trans_finishUserRegistration now expiry token = polyUpdate $ do
     return uid
 
 -- | Add a password reset token.  Return the user whose password this token can change.
-trans_addPasswordResetToken :: (AsDB db) => Timestamp -> UserEmail -> PasswordResetToken
-                                         -> ThentosUpdate db User
+trans_addPasswordResetToken :: (AsDB db e) => Timestamp -> UserEmail -> PasswordResetToken
+                                         -> ThentosUpdate db ThentosError User
 trans_addPasswordResetToken timestamp email token = polyUpdate $ do
     (uid, user) <- liftThentosQuery $ trans_lookupUserByEmail email
     modify $ dbPwResetTokens %~ Map.insert token (uid, timestamp)
@@ -156,9 +158,9 @@ trans_addPasswordResetToken timestamp email token = polyUpdate $ do
 
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
-trans_resetPassword :: (AsDB db) => Timestamp -> Timeout -> PasswordResetToken
+trans_resetPassword :: (AsDB db e) => Timestamp -> Timeout -> PasswordResetToken
                                  -> HashedSecret UserPass
-                                 -> ThentosUpdate db ()
+                                 -> ThentosUpdate db ThentosError ()
 trans_resetPassword now expiry token newPass = polyUpdate $ do
     (uid, toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbPwResetTokens)
@@ -166,16 +168,16 @@ trans_resetPassword now expiry token newPass = polyUpdate $ do
     (_, user) <- liftThentosQuery $ trans_lookupUser uid
     modify $ dbUsers %~ Map.insert uid (userPassword .~ newPass $ user)
 
-trans_addUserEmailChangeRequest :: (AsDB db) => Timestamp -> UserId -> UserEmail
+trans_addUserEmailChangeRequest :: (AsDB db e) => Timestamp -> UserId -> UserEmail
                                              -> ConfirmationToken
-                                             -> ThentosUpdate db ()
+                                             -> ThentosUpdate db ThentosError ()
 trans_addUserEmailChangeRequest timestamp uid email token = polyUpdate $ do
     modify $ dbEmailChangeTokens %~ Map.insert token ((uid, email), timestamp)
 
 -- | Change email with a given token and remove the token.  Throw an error if the token does not
 -- exist or has expired.
-trans_confirmUserEmailChange :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
-                                          -> ThentosUpdate db UserId
+trans_confirmUserEmailChange :: (AsDB db e) => Timestamp -> Timeout -> ConfirmationToken
+                                          -> ThentosUpdate db ThentosError UserId
 trans_confirmUserEmailChange now expiry token = polyUpdate $ do
     ((uid, email), toks') <- withExpiryU now expiry NoSuchToken $
         Map.updateLookupWithKey (\ _ _ -> Nothing) token <$> gets (^. dbEmailChangeTokens)
@@ -185,7 +187,8 @@ trans_confirmUserEmailChange now expiry token = polyUpdate $ do
 
 -- | Look up an email change token. Does not verify that the token is still
 -- valid, just retrieves it from the database.
-trans_lookupEmailChangeToken :: (AsDB db) => ConfirmationToken -> ThentosQuery db ((UserId, UserEmail), Timestamp)
+trans_lookupEmailChangeToken :: (AsDB db e) => ConfirmationToken
+      -> ThentosQuery db ThentosError ((UserId, UserEmail), Timestamp)
 trans_lookupEmailChangeToken tok = polyQuery $ do
     emailTokens <- (^. dbEmailChangeTokens) <$> ask
     case Map.lookup tok emailTokens of
@@ -211,12 +214,12 @@ runUpdateUserFieldOp (UpdateUserFieldDropService sid)   = (userServices %~ f, Fa
 runUpdateUserFieldOp (UpdateUserFieldPassword p)        = (userPassword .~ p, False)
 
 -- | See 'trans_updateUserFields'.
-trans_updateUserField :: (AsDB db) => UserId -> UpdateUserFieldOp -> ThentosUpdate db ()
+trans_updateUserField :: (AsDB db e) => UserId -> UpdateUserFieldOp -> ThentosUpdate db ThentosError ()
 trans_updateUserField uid op = trans_updateUserFields uid [op]
 
 -- | Update existing user.  Throw an error if 'UserId' does not exist or if 'assertUser' is not
 -- happy with the requested changes.
-trans_updateUserFields :: (AsDB db) => UserId -> [UpdateUserFieldOp] -> ThentosUpdate db ()
+trans_updateUserFields :: (AsDB db e) => UserId -> [UpdateUserFieldOp] -> ThentosUpdate db ThentosError ()
 trans_updateUserFields uid freeOps = polyUpdate $ do
     let (ops, runCheck) = second or . unzip $ runUpdateUserFieldOp <$> freeOps
 
@@ -233,7 +236,7 @@ trans_updateUserFields uid freeOps = polyUpdate $ do
         modify $ dbUserIdsByEmail %~ Map.delete (user ^. userEmail)
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
-trans_deleteUser :: (AsDB db) => UserId -> ThentosUpdate db ()
+trans_deleteUser :: (AsDB db e) => UserId -> ThentosUpdate db ThentosError ()
 trans_deleteUser uid = polyUpdate $ do
     (_, user) <- liftThentosQuery $ trans_lookupUser uid
     forM_ (Set.elems $ user ^. userThentosSessions) trans_endThentosSession
@@ -244,25 +247,25 @@ trans_deleteUser uid = polyUpdate $ do
 
 -- * service
 
-trans_allServiceIds :: (AsDB db) => ThentosQuery db [ServiceId]
+trans_allServiceIds :: (AsDB db e) => ThentosQuery db ThentosError [ServiceId]
 trans_allServiceIds = polyQuery $ Map.keys . (^. dbServices) <$> ask
 
-trans_lookupService :: (AsDB db) => ServiceId -> ThentosQuery db (ServiceId, Service)
+trans_lookupService :: (AsDB db e) => ServiceId -> ThentosQuery db ThentosError (ServiceId, Service)
 trans_lookupService sid = polyQuery $ ask >>= maybe (throwT NoSuchService) return . f
   where
     f :: DB -> Maybe (ServiceId, Service)
     f db = (sid,) <$> Map.lookup sid (db ^. dbServices)
 
 -- | Add new service.
-trans_addService :: (AsDB db) => Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
-                              -> ServiceDescription -> ThentosUpdate db ()
+trans_addService :: (AsDB db e) => Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
+                              -> ServiceDescription -> ThentosUpdate db ThentosError ()
 trans_addService owner sid key name desc = polyUpdate $ do
     let service :: Service
         service = Service key owner Nothing name desc Map.empty
     modify $ dbServices %~ Map.insert sid service
 
 -- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.
-trans_deleteService :: (AsDB db) => ServiceId -> ThentosUpdate db ()
+trans_deleteService :: (AsDB db e) => ServiceId -> ThentosUpdate db ThentosError ()
 trans_deleteService sid = polyUpdate $ do
     (_, service) <- liftThentosQuery $ trans_lookupService sid
     maybe (return ()) trans_endThentosSession (service ^. serviceThentosSession)
@@ -296,8 +299,8 @@ thentosSessionNowActive now session = (session ^. thSessStart) < now && now < (s
 
 -- | Lookup session.  If session does not exist or has expired, throw an error.  If it does exist,
 -- dump the expiry time and return session with bumped expiry time.
-trans_lookupThentosSession :: (AsDB db) => Timestamp -> ThentosSessionToken
-                                        -> ThentosUpdate db (ThentosSessionToken, ThentosSession)
+trans_lookupThentosSession :: (AsDB db e) => Timestamp -> ThentosSessionToken
+        -> ThentosUpdate db ThentosError (ThentosSessionToken, ThentosSession)
 trans_lookupThentosSession now tok = polyUpdate $ do
     session <- Map.lookup tok . (^. dbThentosSessions) <$> get
            >>= \case Just s  -> return s
@@ -315,8 +318,8 @@ trans_lookupThentosSession now tok = polyUpdate $ do
 -- | Start a new thentos session.  Start and end time have to be passed explicitly.  Call
 -- 'trans_assertAgent' on session owner.  If the agent is a user, this new session is added to their
 -- existing sessions.  If the agent is a service with an existing session, its session is replaced.
-trans_startThentosSession :: (AsDB db) => ThentosSessionToken -> Agent -> Timestamp -> Timeout
-                                       -> ThentosUpdate db ()
+trans_startThentosSession :: (AsDB db e) => ThentosSessionToken -> Agent -> Timestamp -> Timeout
+                                       -> ThentosUpdate db ThentosError ()
 trans_startThentosSession tok owner start expiry = polyUpdate $ do
     let session = ThentosSession owner start end expiry Set.empty
         end = Timestamp $ fromTimestamp start .+^ fromTimeout expiry
@@ -324,7 +327,7 @@ trans_startThentosSession tok owner start expiry = polyUpdate $ do
     modify $ dbThentosSessions %~ Map.insert tok session
     updAgent owner
   where
-    updAgent :: Agent -> ThentosUpdate DB ()
+    updAgent :: Agent -> ThentosUpdate DB ThentosError ()
     updAgent (UserA    uid) = modify $ dbUsers
                                     %~ Map.adjust (userThentosSessions %~ Set.insert tok) uid
     updAgent (ServiceA sid) = modify $ dbServices
@@ -336,7 +339,7 @@ trans_startThentosSession tok owner start expiry = polyUpdate $ do
 -- Always call this transaction if you want to clean up a session (e.g., from a garbage collection
 -- transaction).  This way in the future, you can replace this transaction easily by one that does
 -- not actually destroy the session, but move it to an archive.
-trans_endThentosSession :: (AsDB db) => ThentosSessionToken -> ThentosUpdate db ()
+trans_endThentosSession :: (AsDB db e) => ThentosSessionToken -> ThentosUpdate db ThentosError ()
 trans_endThentosSession tok = polyUpdate $ do
     mSession <- Map.lookup tok . (^. dbThentosSessions) <$> get
     case mSession of
@@ -348,16 +351,16 @@ trans_endThentosSession tok = polyUpdate $ do
             cleanupAgent agent
         Nothing -> return ()
   where
-    delThentosSession :: ThentosUpdate DB ()
+    delThentosSession :: ThentosUpdate DB ThentosError ()
     delThentosSession = modify $ dbThentosSessions %~ Map.delete tok
 
-    delServiceSessions :: ThentosSession -> ThentosUpdate DB ()
+    delServiceSessions :: ThentosSession -> ThentosUpdate DB ThentosError ()
     delServiceSessions session = modify $ dbServiceSessions %~ Map.filterWithKey dropThem
       where
         deadServiceSessions = session ^. thSessServiceSessions
         dropThem t _ = Set.notMember t deadServiceSessions
 
-    cleanupAgent :: Agent -> ThentosUpdate DB ()
+    cleanupAgent :: Agent -> ThentosUpdate DB ThentosError ()
     cleanupAgent (UserA    uid) = modify $ dbUsers
                                         %~ Map.adjust (userThentosSessions %~ Set.delete tok) uid
     cleanupAgent (ServiceA sid) = modify $ dbServices
@@ -372,8 +375,8 @@ serviceSessionNowActive now session = (session ^. srvSessStart) < now && now < (
 -- | Like 'trans_lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
 -- thentos session.  If the service session is still active, but the associated thentos session has
 -- expired, update service sessions expiry time to @now@ and throw 'NoSuchThentosSession'.
-trans_lookupServiceSession :: (AsDB db) => Timestamp -> ServiceSessionToken
-                                        -> ThentosUpdate db (ServiceSessionToken, ServiceSession)
+trans_lookupServiceSession :: (AsDB db e) => Timestamp -> ServiceSessionToken
+        -> ThentosUpdate db ThentosError (ServiceSessionToken, ServiceSession)
 trans_lookupServiceSession now tok = polyUpdate $ do
     session <- Map.lookup tok . (^. dbServiceSessions) <$> get
            >>= \case Just s  -> return s
@@ -396,8 +399,8 @@ trans_lookupServiceSession now tok = polyUpdate $ do
 -- | 'trans_starThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
 -- 'ServiceId', return its token.
-trans_startServiceSession :: (AsDB db) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
-                                       -> Timestamp -> Timeout -> ThentosUpdate db ()
+trans_startServiceSession :: (AsDB db e) => ThentosSessionToken -> ServiceSessionToken -> ServiceId
+        -> Timestamp -> Timeout -> ThentosUpdate db ThentosError ()
 trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
     (_, tsession) <- trans_lookupThentosSession start ttok
 
@@ -418,7 +421,7 @@ trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
 -- | 'trans_endThentosSession' for service sessions (see there).  If thentos session or service
 -- session do not exist or have expired, remove the service session just the same, but never thentos
 -- session.
-trans_endServiceSession :: (AsDB db) => ServiceSessionToken -> ThentosUpdate db ()
+trans_endServiceSession :: (AsDB db e) => ServiceSessionToken -> ThentosUpdate db ThentosError ()
 trans_endServiceSession stok = polyUpdate $ do
     mSession <- Map.lookup stok . (^. dbServiceSessions) <$> get
     case mSession of
@@ -433,13 +436,13 @@ trans_endServiceSession stok = polyUpdate $ do
 -- * agent and role
 
 -- | Lookup user or service, resp., and throw an appropriate error if not found.
-trans_assertAgent :: (AsDB db) => Agent -> ThentosQuery db ()
+trans_assertAgent :: (AsDB db e) => Agent -> ThentosQuery db ThentosError ()
 trans_assertAgent (UserA    uid) = void $ trans_lookupUser uid
 trans_assertAgent (ServiceA sid) = void $ trans_lookupService sid
 
 -- | Extend 'Agent's entry in 'dbRoles' with a new 'Role'.  If 'Role' is already assigned to
 -- 'Agent', do nothing.  Call 'trans_assertAgent'.
-trans_assignRole :: (AsDB db) => Agent -> Role -> ThentosUpdate db ()
+trans_assignRole :: (AsDB db e) => Agent -> Role -> ThentosUpdate db ThentosError ()
 trans_assignRole agent role = polyUpdate $ do
     liftThentosQuery $ trans_assertAgent agent
     let inject = Just . Set.insert role . fromMaybe Set.empty
@@ -447,7 +450,7 @@ trans_assignRole agent role = polyUpdate $ do
 
 -- | Remove 'Role' from 'Agent's entry in 'dbRoles'.  If 'Role' is not assigned to 'Agent', do
 -- nothing.  Call 'trans_assertAgent'.
-trans_unassignRole :: (AsDB db) => Agent -> Role -> ThentosUpdate db ()
+trans_unassignRole :: (AsDB db e) => Agent -> Role -> ThentosUpdate db ThentosError ()
 trans_unassignRole agent role = polyUpdate $ do
     liftThentosQuery $ trans_assertAgent agent
     let exject = fmap $ Set.delete role
@@ -455,18 +458,18 @@ trans_unassignRole agent role = polyUpdate $ do
 
 -- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no entry in 'dbRoles', return an
 -- empty list.
-trans_agentRoles :: (AsDB db) => Agent -> ThentosQuery db (Set.Set Role)
+trans_agentRoles :: (AsDB db e) => Agent -> ThentosQuery db ThentosError (Set.Set Role)
 trans_agentRoles agent = polyQuery $ fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <$> ask
 
 
 -- * SSO
 
 -- | Add an SSO token to the database
-trans_addSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_addSsoToken :: AsDB db e => SsoToken -> ThentosUpdate db ThentosError ()
 trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
 
 -- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
-trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_lookupAndRemoveSsoToken :: AsDB db e => SsoToken -> ThentosUpdate db ThentosError ()
 trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
     exists <- Set.member tok . (^. dbSsoTokens) <$> get
     unless exists $ throwT SsoErrorUnknownCsrfToken
@@ -475,7 +478,7 @@ trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
 
 -- * misc
 
-trans_snapShot :: (AsDB db) => ThentosQuery db DB
+trans_snapShot :: (AsDB db e) => ThentosQuery db e DB
 trans_snapShot = (^. asDB) <$> ask
 
 
@@ -484,38 +487,42 @@ trans_snapShot = (^. asDB) <$> ask
 -- | Go through 'dbThentosSessions' map and find all expired sessions.
 -- Return in 'ThentosQuery'.  (To reduce database locking, call this
 -- and then @EndSession@ on all tokens individually.)
-trans_garbageCollectThentosSessions :: (AsDB db) => Timestamp
-                                                 -> ThentosQuery db [ThentosSessionToken]
+trans_garbageCollectThentosSessions :: (AsDB db e) => Timestamp
+        -> ThentosQuery db ThentosError [ThentosSessionToken]
 trans_garbageCollectThentosSessions now = polyQuery $ do
     sessions <- (^. dbThentosSessions) <$> ask
     return (map fst $ filter (\ (_, s) -> s ^. thSessEnd < now)
                              (Map.assocs sessions))
 
-trans_doGarbageCollectThentosSessions :: (AsDB db) => [ThentosSessionToken] -> ThentosUpdate db ()
+trans_doGarbageCollectThentosSessions :: (AsDB db e)
+        => [ThentosSessionToken] -> ThentosUpdate db ThentosError ()
 trans_doGarbageCollectThentosSessions tokens = forM_ tokens trans_endThentosSession
 
-trans_garbageCollectServiceSessions :: (AsDB db) => Timestamp
-                                                 -> ThentosQuery db [ServiceSessionToken]
+trans_garbageCollectServiceSessions :: (AsDB db e) => Timestamp
+        -> ThentosQuery db ThentosError [ServiceSessionToken]
 trans_garbageCollectServiceSessions now = polyQuery $ do
     sessions <- (^. dbServiceSessions) <$> ask
     return (map fst $ filter (\ (_, s) -> s ^. srvSessEnd < now)
                              (Map.assocs sessions))
 
-trans_doGarbageCollectServiceSessions :: (AsDB db) => [ServiceSessionToken] -> ThentosUpdate db ()
+trans_doGarbageCollectServiceSessions :: (AsDB db e)
+        => [ServiceSessionToken] -> ThentosUpdate db ThentosError ()
 trans_doGarbageCollectServiceSessions tokens = forM_ tokens trans_endServiceSession
 
 -- | Remove all expired unconfirmed users from DB.
-trans_doGarbageCollectUnconfirmedUsers :: (AsDB db) => Timestamp -> Timeout -> ThentosUpdate db ()
+trans_doGarbageCollectUnconfirmedUsers :: (AsDB db e)
+        => Timestamp -> Timeout -> ThentosUpdate db ThentosError ()
 trans_doGarbageCollectUnconfirmedUsers now expiry = polyUpdate $ do
     modify $ dbUnconfirmedUsers %~ removeExpireds now expiry
 
 -- | Remove all expired password reset requests from DB.
-trans_doGarbageCollectPasswordResetTokens :: (AsDB db) => Timestamp -> Timeout -> ThentosUpdate db ()
+trans_doGarbageCollectPasswordResetTokens :: (AsDB db e)
+        => Timestamp -> Timeout -> ThentosUpdate db ThentosError ()
 trans_doGarbageCollectPasswordResetTokens now expiry = polyUpdate $ do
     modify $ dbPwResetTokens %~ removeExpireds now expiry
 
 -- | Remove all expired email change requests from DB.
-trans_doGarbageCollectEmailChangeTokens :: (AsDB db) => Timestamp -> Timeout -> ThentosUpdate db ()
+trans_doGarbageCollectEmailChangeTokens :: (AsDB db e) => Timestamp -> Timeout -> ThentosUpdate db ThentosError ()
 trans_doGarbageCollectEmailChangeTokens now expiry = polyUpdate $ do
     modify $ dbEmailChangeTokens %~ removeExpireds now expiry
 
