@@ -5,36 +5,31 @@ grow!
 
 ## Setup
 
-We currently use ghc 7.8.x, where x >= 4. ghc 7.10 is not yet supported.
+Please follow the instructions from the README file to initialize a cabal
+sandbox and install Thentos in it. For development, you'll also need recent
+versions of cabal and hlint. Provided you already have a (possibly older)
+cabal version installed, you can get them via:
 
-If your package manager doesn't have a suitable ghc version, you can
-download it manually from https://www.haskell.org/ghc/.
-
-Recent versions of cabal and hlint are also required. Provided you already
-have a (possibly older) cabal version installed, you can get them via:
-
-```bash
-cabal install cabal-install hlint
+```shell
+$ cabal install cabal-install hlint
 ```
 
-Afterwards follow the instructions from the README file to initialize a
-cabal sandbox and install Thentos in it.
-
-To run the complete test suite, you also need to download the latest
+To run the complete test suite, you need to download the latest
 `selenium-server-standalone-x.x.x.jar` from
 http://selenium-release.storage.googleapis.com/index.html and place it in
-the `misc/selenium` directory. Additionally, create a log directory for selenium:
+the `misc/selenium` directory. Additionally, create a log directory for
+selenium:
 
-```bash
-mkdir misc/selenium/log
+```shell
+$ mkdir misc/selenium/log
 ```
 
 ## Running Thentos
 
 To run Thentos locally, type
 
-```bash
-cabal run thentos
+```shell
+$ cabal run thentos
 ```
 
 If there are no errors, the frontend will start on http://localhost:7002/
@@ -47,32 +42,50 @@ this.
 
 To run the complete test suite, you first have to start selenium:
 
-```bash
-cd misc/selenium && make
+```shell
+$ cd misc/selenium && make
 ```
 
 Then start the test suite (in a different shell window):
 
-```bash
-cabal test
+```shell
+$ cabal test
 ```
 
 If you just want to run the backend tests, you don't need selenium. Just
 type:
 
-```bash
-cabal test --test-options="--skip selenium"
+```shell
+$ cabal test --test-options="--skip selenium"
 ```
 
 If you just want to run a specific test or set of tests, you can specify
 their name (from the `describe` clause) via `--match`:
 
-```bash
-cabal test --show-details=always --test-options="--match XXX"
+```shell
+$ cabal test --show-details=always --test-options="--match XXX"
 ```
 
 `--show-details=always` is useful to see which tests were actually
 executed.
+
+# Running benchmarks
+
+If you want to run benchmarks, you need to add a patched version of `pronk` to
+your cabal sandbox:
+
+```shell
+$ git clone https://github.com/liqd/pronk -b thentos-patches
+$ cabal sandbox add-source pronk
+```
+
+To start the benchmarks:
+
+```shell
+$ cabal install --enable-bench
+$ cabal bench  # requires thentos to be running in another shell
+```
+
 
 ## Updating or deleting the database
 
@@ -84,8 +97,8 @@ There should be tests that make sure nobody breaks this rule, but currently
 there aren't.  Instead, the current "migration process" is simple: Just
 delete the DB!
 
-```bash
-rm -rf .acid-state
+```shell
+$ rm -rf .acid-state
 ```
 
 ## Adding new dependencies
@@ -100,8 +113,8 @@ creating the dependency, and the upper bound to `<a.(b+1)`, where
 If everything works as it should, regenerate the `cabal.config` file that
 freezes the exact versions of all libraries we use:
 
-```bash
-cabal freeze --enable-tests
+```shell
+$ cabal freeze --enable-tests
 ```
 
 Check `git diff cabal.config` to see if everything went as expected.
@@ -126,9 +139,9 @@ are none before creating the PR!
 To do so, check that neither cabal nor hlint has anything to complain
 about:
 
-```bash
-cabal install --ghc-options=-Werror
-make hlint
+```shell
+$ cabal install --ghc-options=-Werror
+$ make hlint
 ```
 
 Also run the test suite.
