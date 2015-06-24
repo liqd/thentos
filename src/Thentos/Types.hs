@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveDataTypeable          #-}
 {-# LANGUAGE DeriveFunctor               #-}
@@ -13,7 +14,7 @@
 module Thentos.Types where
 
 import Control.Exception (Exception)
-import Control.Lens (makeLenses, Lens')
+import Control.Lens  -- (makeLenses, Lens')
 import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
@@ -75,17 +76,24 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
--- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
--- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
-class AsDB db where
-    asDB      :: Lens' db DB
-    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+class AsDB db e where
+    asDB      :: IndexedLens' e  db           DB
+    asDBError :: IndexedLens' db ThentosError e
 
-    asDBError :: ThentosError DB -> ThentosError db
-    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
-    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
+{-
 
-instance AsDB DB where
+    -- ... or even:
+
+    asDB :: Lens' (db, ThentosError) (DB, e)
+
+    -- and then functions:
+
+dbAsDB    :: Lens' (db, ThentosError) (DB, e) -> Lens' db DB
+errorAsDB :: Lens' (db, ThentosError) (DB, e) -> Lens' ThentosError e
+
+-}
+
+instance AsDB DB ThentosError where
     asDB      = id
     asDBError = id
 
@@ -399,13 +407,9 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data family ThentosError (db :: *) :: *
-
-data instance ThentosError DB = ThentosErrorDB
-
 -- | This type should be considered private.  Always use @(ThentosError DB)@ instead.  (FIXME: write
 -- an export list for this module.)
-data ThentosErrorDB =
+data ThentosError =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -430,9 +434,9 @@ data ThentosErrorDB =
     | SsoErrorCouldNotGetAccessToken LBS
     deriving (Eq, Show, Read, Typeable)
 
-instance Exception ThentosErrorDB
+instance Exception ThentosError
 
-instance SafeCopy ThentosErrorDB
+instance SafeCopy ThentosError
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
