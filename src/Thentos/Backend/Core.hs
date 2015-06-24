@@ -155,7 +155,7 @@ clearCustomHeaders renderHeaderFun = filter $ (`notElem` customHeaderNames) . fs
   where customHeaderNames = map renderHeaderFun [minBound..]
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
-data ThentosAssertHeaders = ThentosAssertHeaders
+data ThentosAssertHeaders
 
 instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
   where
