@@ -64,7 +64,7 @@ data DB =
       , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
       , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
       , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
-      , _dbSsoTokens          :: !(Set SsoToken)
+      , _dbSsoTokens         :: !(Set SsoToken)
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
