@@ -58,6 +58,7 @@ library
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
+    , Thentos.Action.TransactionWrappers
     , Thentos.Backend.Api.Adhocracy3
     , Thentos.Backend.Api.Adhocracy3Sso
     , Thentos.Backend.Api.Auth
@@ -219,6 +220,7 @@ test-suite tests
     , Thentos.Backend.Api.Adhocracy3Spec
     , Thentos.Backend.Api.SimpleSpec
     , Thentos.FrontendSpec
+    , Thentos.PolyDBSpec
     , Thentos.TypesSpec
   ghc-options:
       -Wall -threaded -rtsopts

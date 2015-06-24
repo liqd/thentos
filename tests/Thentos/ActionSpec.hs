@@ -2,6 +2,8 @@
 {-# LANGUAGE ViewPatterns         #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
+{-# LANGUAGE TemplateHaskell      #-}
+
 module Thentos.ActionSpec where
 
 import Control.Applicative ((<$>))
@@ -173,11 +175,3 @@ spec_session = describe "session" $ do
             v4 <- runActionAsAgent (UserA bertId)  astate (existsThentosSession tok)
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
-
-data MyDB = MyDB DB Int
-
-instance AsDB MyDB where
-    asDB f (MyDB db n) = (`MyDB` n) <$> f db
-
-instance HasDB MyDB where
-    lookupUser' = query'P . T.LookupUser
