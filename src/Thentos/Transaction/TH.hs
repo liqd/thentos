@@ -53,7 +53,7 @@ countArgs (AppT (AppT ArrowT _arg) returnType) = 1 + countArgs returnType
 countArgs _ = 0
 
 -- | Convert e.g. @a -> b -> ThentosUpdate Foo@ to
--- @a -> b -> Update DB (Either ThentosError Foo)@ and check whether it
+-- @a -> b -> Update DB (Either (ThentosError DB) Foo)@ and check whether it
 -- is an Update or a Query.
 makeThentosType :: Type -> (Type, ThentosTransactionType)
 makeThentosType (AppT (AppT ArrowT arg) returnType) =
@@ -72,7 +72,8 @@ makeThentosType (AppT (AppT t (VarT _)) returnType)
 
     makeAcidStateType :: Name -> Type
     makeAcidStateType acidStateTypeConstructor =
-        AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
+        AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB))
+             (AppT (AppT (ConT ''Either) (AppT (ConT ''ThentosError) (ConT ''DB))) returnType)
 makeThentosType (ForallT _ _ app) = makeThentosType app
 makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
 

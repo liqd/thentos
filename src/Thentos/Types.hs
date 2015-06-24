@@ -4,9 +4,12 @@
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE KindSignatures              #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
+{-# LANGUAGE TypeFamilies                #-}
 
 module Thentos.Types where
 
@@ -73,11 +76,19 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
+-- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
+-- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
 class AsDB db where
-   asDB :: Lens' db DB
+    asDB :: Lens' db DB
+    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+
+    asDBThentosError :: ThentosError DB -> ThentosError db
+    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
+    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
 
 instance AsDB DB where
-   asDB = id
+    asDB = id
+    asDBThentosError = id
 
 
 -- * user
@@ -389,7 +400,9 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data ThentosError =
+data family ThentosError (db :: *) :: *
+
+data instance ThentosError DB =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -412,11 +425,15 @@ data ThentosError =
     | SsoErrorUnknownCsrfToken
     | SsoErrorCouldNotAccessUserInfo LBS
     | SsoErrorCouldNotGetAccessToken LBS
-    deriving (Eq, Show, Read, Typeable)
 
-instance Exception ThentosError
+deriving instance Eq (ThentosError DB)
+deriving instance Show (ThentosError DB)
+deriving instance Read (ThentosError DB)
+deriving instance Typeable ThentosError
 
-instance SafeCopy ThentosError
+instance Exception (ThentosError DB)
+
+instance SafeCopy (ThentosError DB)
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead

@@ -135,7 +135,7 @@ lookupUser uid = _lookupUser $ T.LookupUser uid
 
 _lookupUser :: ( QueryEvent event
                , EventState event ~ DB
-               , EventResult event ~ Either ThentosError (UserId, User)) =>
+               , EventResult event ~ Either (ThentosError DB) (UserId, User)) =>
                event -> Action DB (UserId, User)
 _lookupUser transaction = do
     val@(uid, _) <- query'P transaction
@@ -222,7 +222,7 @@ resetPassword token password = do
 -- the user map without any clearance.
 _lookupUserCheckPassword :: ( QueryEvent event
                             , EventState event ~ DB
-                            , EventResult event ~ Either ThentosError (UserId, User)) =>
+                            , EventResult event ~ Either (ThentosError DB) (UserId, User)) =>
     event -> UserPass -> Action DB (UserId, User)
 _lookupUserCheckPassword transaction password = a `catchError` h
   where

@@ -364,7 +364,7 @@ serviceLogin = do
         loggedIn :: FrontendSessionLoginData -> FH ()
         loggedIn fsl = do
             let tok = fsl ^. fslToken
-            eSessionToken :: Either ActionError ServiceSessionToken
+            eSessionToken :: Either (ActionError DB) ServiceSessionToken
                 <- snapRunActionE $ startServiceSession tok sid
 
             case eSessionToken of

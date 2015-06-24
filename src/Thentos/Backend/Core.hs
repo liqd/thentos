@@ -65,7 +65,7 @@ enterAction state mTok = Nat $ EitherT . run
 
 
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
-actionErrorToServantErr :: ActionError -> IO ServantErr
+actionErrorToServantErr :: forall db . (AsDB db, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
@@ -73,7 +73,7 @@ actionErrorToServantErr e = do
         (ActionErrorAnyLabel le) -> _permissions le
         (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
   where
-    _thentos :: ThentosError -> IO ServantErr
+    _thentos :: ThentosError db -> IO ServantErr
     _thentos NoSuchUser = pure $ err404 { errBody = "user not found" }
     _thentos NoSuchPendingUserConfirmation = pure $ err404 { errBody = "unconfirmed user not found" }
     _thentos (MalformedConfirmationToken path) = pure $ err400 { errBody = "malformed confirmation token: " <> cs (show path) }

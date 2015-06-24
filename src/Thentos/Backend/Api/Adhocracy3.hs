@@ -361,7 +361,7 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
                     Nothing -> error "userIdToPath: backend not configured!"
                     Just v -> Tagged v
 
-userIdFromPath :: MonadError ThentosError m => Path -> m UserId
+userIdFromPath :: MonadError (ThentosError DB) m => Path -> m UserId
 userIdFromPath (Path s) = do
     uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
