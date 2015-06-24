@@ -18,25 +18,25 @@ import Thentos.Types (DB, ThentosError)
 
 data ThentosTransactionType = ThentosQ | ThentosU
 
-makeThentosAcidicPhase1 :: [Name] -> Q [Dec]
-makeThentosAcidicPhase1 names = concat <$> mapM processTransaction names
+makeThentosAcidicPhase1 :: Name -> [Name] -> Q [Dec]
+makeThentosAcidicPhase1 dbType names = concat <$> mapM (processTransaction dbType) names
 
 makeThentosAcidicPhase2 :: Name -> [Name] -> Q [Dec]
 makeThentosAcidicPhase2 stateName eventNames =
     makeAcidic stateName $ map dropPrefix eventNames
 
-processTransaction :: Name -> Q [Dec]
-processTransaction functionName = do
+processTransaction :: Name -> Name -> Q [Dec]
+processTransaction dbType functionName = do
     info <- reify functionName
     let typ = case info of
             VarI _ t _ _ -> t
             _ -> error $ nameBase functionName ++ " is not a function"
-    processTransaction' functionName typ
+    processTransaction' dbType functionName typ
 
-processTransaction' :: Name -> Type -> Q [Dec]
-processTransaction' functionName typ = do
+processTransaction' :: Name -> Name -> Type -> Q [Dec]
+processTransaction' dbType functionName typ = do
     let name_suffix = dropPrefix functionName
-        (sig, transType) = makeThentosType typ
+        (sig, transType) = makeThentosType dbType typ
         signature = SigD name_suffix sig
     fun <- makeFinalFun functionName name_suffix (countArgs typ) transType
     return [signature, fun]
@@ -55,11 +55,11 @@ countArgs _ = 0
 -- | Convert e.g. @a -> b -> ThentosUpdate Foo@ to
 -- @a -> b -> Update DB (Either ThentosError Foo)@ and check whether it
 -- is an Update or a Query.
-makeThentosType :: Type -> (Type, ThentosTransactionType)
-makeThentosType (AppT (AppT ArrowT arg) returnType) =
-    let (rightOfArrow, transType) = makeThentosType returnType
+makeThentosType :: Name -> Type -> (Type, ThentosTransactionType)
+makeThentosType dbType (AppT (AppT ArrowT arg) returnType) =
+    let (rightOfArrow, transType) = makeThentosType dbType returnType
     in (AppT (AppT ArrowT arg) rightOfArrow, transType)
-makeThentosType (AppT (AppT t (VarT _)) returnType)
+makeThentosType dbType (AppT (AppT t (VarT _)) returnType)
     | t == ConT (''ThentosUpdate) = (updateType, ThentosU)
     | t == ConT (''ThentosQuery) = (queryType, ThentosQ)
     | otherwise = error $ "not a thentos transaction type:" ++ ppprint t
@@ -72,9 +72,9 @@ makeThentosType (AppT (AppT t (VarT _)) returnType)
 
     makeAcidStateType :: Name -> Type
     makeAcidStateType acidStateTypeConstructor =
-        AppT (AppT (ConT acidStateTypeConstructor) (ConT ''DB)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
-makeThentosType (ForallT _ _ app) = makeThentosType app
-makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
+        AppT (AppT (ConT acidStateTypeConstructor) (ConT dbType)) (AppT (AppT (ConT ''Either) (ConT ''ThentosError)) returnType)
+makeThentosType dbType (ForallT _ _ app) = makeThentosType dbType app
+makeThentosType _ t = error $ "not a thentos transaction type: " ++ ppprint t
 
 -- | Generate a function definition.
 makeFinalFun :: Name -> Name -> Int -> ThentosTransactionType -> Q Dec

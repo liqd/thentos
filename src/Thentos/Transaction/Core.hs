@@ -49,7 +49,7 @@ liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
 -- - http://petterbergman.se/aciderror.html.en
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
-runThentosUpdate :: ThentosUpdate DB a -> Update DB (Either ThentosError a)
+runThentosUpdate :: ThentosUpdate db a -> Update db (Either ThentosError a)
 runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
@@ -57,7 +57,7 @@ runThentosUpdate action = do
         (Right result, state') -> put state' >> (return $ Right result)
 
 -- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
-runThentosQuery :: ThentosQuery DB a -> Query DB (Either ThentosError a)
+runThentosQuery :: ThentosQuery db a -> Query db (Either ThentosError a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 
 
