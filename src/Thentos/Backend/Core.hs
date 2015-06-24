@@ -152,7 +152,7 @@ badHeaders = filter g . filter f
 -- used as a basis for e.g. constructing another request to a proxy target.
 clearCustomHeaders :: RenderHeaderFun -> HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
 clearCustomHeaders renderHeaderFun = filter $ (`notElem` customHeaderNames) . fst
-  where customHeaderNames = map renderThentosHeaderName [minBound..]
+  where customHeaderNames = map renderHeaderFun [minBound..]
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
 data ThentosAssertHeaders = ThentosAssertHeaders
