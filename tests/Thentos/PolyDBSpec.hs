@@ -25,6 +25,8 @@ import Thentos.Transaction.Core (runThentosQuery, runThentosUpdate)
 
 import Test.Hspec (Spec)
 
+import Thentos.Action.TH
+
 spec :: Spec
 spec = return ()
 
@@ -42,3 +44,4 @@ instance AsDB MyDB where
 
 instance HasDB MyDB where
     lookupUser' = query'P . LookupUser
+

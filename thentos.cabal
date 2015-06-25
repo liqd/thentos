@@ -58,6 +58,7 @@ library
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
+    , Thentos.Action.TH
     , Thentos.Action.TransactionWrappers
     , Thentos.Backend.Api.Adhocracy3
     , Thentos.Backend.Api.Adhocracy3Sso
