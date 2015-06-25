@@ -70,9 +70,9 @@ polyUpdate :: forall a db . AsDB db => ThentosUpdate DB a -> ThentosUpdate db a
 polyUpdate upd = EitherT . StateT $ Identity . (asDB %%~ bare)
   where
     bare :: DB -> (Either (ThentosError db) a, DB)
-    bare = runIdentity . runStateT (fmapL asDBError <$> runEitherT upd)
+    bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
 
 -- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
 polyQuery :: forall a db . AsDB db => ThentosQuery DB a -> ThentosQuery db a
 polyQuery qry = EitherT . ReaderT $ \ (state :: db) ->
-    fmapL asDBError <$> runEitherT qry `runReaderT` (state ^. asDB)
+    fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. asDB)
