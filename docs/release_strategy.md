@@ -10,7 +10,7 @@
    `cabal.config`.)
 
 3. All release versions have the form `A.B.C`; version `1.8.1` can be
-   considered the major release `1.8`.
+   considered the major release `1.8`. FIXME Shouldn't that be `1.8.0`?
 
 4. Every release is tagged in git (example: `git tag release-0.0.1`).
 

@@ -32,7 +32,7 @@ single line.
  4. Qualified imports from Thentos. Here it's acceptable to use
     abbreviations (typically one or two letters) when renaming them.
 
-````
+```haskell
 import Control.Applicative (pure, (<$>), (<*>))
 import Control.Monad (unless)
 import Data.String.Conversions (SBS, ST, cs)
@@ -52,10 +52,7 @@ import Thentos.Types
 
 import qualified Thentos.Frontend.Handlers as H
 import qualified Thentos.Frontend.Pages as P
-````
-
-(FIXME: `LT` for `Data.Text.Lazy` is `less than` from Prelude.  Is there a
-better name?  (Should string-conversions adopt that, too?))
+```
 
 
 ## Naming
