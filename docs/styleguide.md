@@ -3,11 +3,24 @@
 (Will be re-structured as it grows.)
 
 
-## HLint
+## Testing
+
+### HLint
 
 There is an hlint rule in the Makefile, and an associated customization
 file HLint.hs.  This implements some elements of the automatable part of
 the coding policy.
+
+
+### hspec module names
+
+For each file of the form `src/*.hs`, there may be a file called
+`tests/*Spec.hs` that contains tests for the code in this file.  These
+are automatically collected by hspec-discover.
+
+Other test modules, or tests for code from unassociated production
+modules, are only allowed if there are good reasons.  These reasons
+must be documented in the module's haddock comment.
 
 
 ## Imports
