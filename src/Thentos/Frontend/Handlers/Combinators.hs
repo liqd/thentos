@@ -310,7 +310,7 @@ snapRunAction'P :: Action DB a -> FH a
 snapRunAction'P = (>>= snapHandleAllErrors) . snapRunActionE'P
 
 -- | Call 'snapHandleSomeErrors', and if error is still unhandled, call 'crash500'.
-snapHandleAllErrors :: Either ActionError a -> FH a
+snapHandleAllErrors :: Either (ActionError DB) a -> FH a
 snapHandleAllErrors eth = do
     result <- snapHandleSomeErrors eth
     case result of
@@ -325,7 +325,7 @@ getActionState = do
     return $ ActionState (st, rn, cf)
 
 -- | Run action with the clearance derived from thentos session token.
-snapRunActionE :: Action DB a -> FH (Either ActionError a)
+snapRunActionE :: Action DB a -> FH (Either (ActionError DB) a)
 snapRunActionE action = do
     st :: ActionState DB      <- getActionState
     fs :: FrontendSessionData <- getSessionData
@@ -336,7 +336,7 @@ snapRunActionE action = do
     snapHandleSomeErrors result
 
 -- | Call action with top clearance.
-snapRunActionE'P :: Action DB a -> FH (Either ActionError a)
+snapRunActionE'P :: Action DB a -> FH (Either (ActionError DB) a)
 snapRunActionE'P action = do
     st :: ActionState DB <- getActionState
     result <- liftIO $ runActionWithClearanceE dcTop st action
@@ -344,7 +344,7 @@ snapRunActionE'P action = do
 
 -- | This function handles particular error cases for the frontend and propagates others in 'Left'
 -- values.
-snapHandleSomeErrors :: Either ActionError a -> FH (Either ActionError a)
+snapHandleSomeErrors :: Either (ActionError DB) a -> FH (Either (ActionError DB) a)
 snapHandleSomeErrors (Right v) = return $ Right v
 snapHandleSomeErrors (Left e) = case e of
     ActionErrorAnyLabel labelError -> permissionDenied labelError

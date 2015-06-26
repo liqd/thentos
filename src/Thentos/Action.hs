@@ -14,6 +14,7 @@ module Thentos.Action
     , freshServiceKey
     , freshSessionToken
     , freshServiceSessionToken
+    , freshSsoToken
 
     , allUserIds
     , lookupUser
@@ -58,6 +59,9 @@ module Thentos.Action
     , assignRole
     , unassignRole
     , agentRoles
+
+    , addNewSsoToken
+    , lookupAndRemoveSsoToken
 
     , collectGarbage
     )
@@ -111,6 +115,9 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 freshServiceSessionToken :: Action DB ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
+freshSsoToken :: Action DB SsoToken
+freshSsoToken = SsoToken <$> freshRandomName
+
 
 -- * user
 
@@ -128,7 +135,7 @@ lookupUser uid = _lookupUser $ T.LookupUser uid
 
 _lookupUser :: ( QueryEvent event
                , EventState event ~ DB
-               , EventResult event ~ Either ThentosError (UserId, User)) =>
+               , EventResult event ~ Either (ThentosError DB) (UserId, User)) =>
                event -> Action DB (UserId, User)
 _lookupUser transaction = do
     val@(uid, _) <- query'P transaction
@@ -215,7 +222,7 @@ resetPassword token password = do
 -- the user map without any clearance.
 _lookupUserCheckPassword :: ( QueryEvent event
                             , EventState event ~ DB
-                            , EventResult event ~ Either ThentosError (UserId, User)) =>
+                            , EventResult event ~ Either (ThentosError DB) (UserId, User)) =>
     event -> UserPass -> Action DB (UserId, User)
 _lookupUserCheckPassword transaction password = a `catchError` h
   where
@@ -517,6 +524,22 @@ agentRoles :: Agent -> Action DB [Role]
 agentRoles agent = do
     liftLIO $ guardWrite (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     Set.toList <$> query'P (T.AgentRoles agent)
+
+
+-- * SSO
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+addNewSsoToken :: Action DB SsoToken
+addNewSsoToken = do
+    tok <- freshSsoToken
+    update'P $ T.AddSsoToken tok
+    return tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+lookupAndRemoveSsoToken :: SsoToken -> Action DB ()
+lookupAndRemoveSsoToken tok = update'P $ T.LookupAndRemoveSsoToken tok
 
 
 -- * garbage collection

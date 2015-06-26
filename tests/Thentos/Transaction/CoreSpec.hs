@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeFamilies         #-}
 
 module Thentos.Transaction.CoreSpec where
 
@@ -35,6 +36,10 @@ instance AsDB CustomDB where
     asDB :: forall (f :: * -> *). Functor f => (DB -> f DB) -> CustomDB -> f CustomDB
     asDB f (CustomDB db i) = (`CustomDB` i) <$> f db
 
+    asDBThentosError :: ThentosError DB -> ThentosError CustomDB
+    asDBThentosError = CustomDBError
+
+data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
 
 spec_polyQU :: Spec
 spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do

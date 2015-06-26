@@ -20,23 +20,26 @@
 module Thentos.Backend.Api.Adhocracy3 where
 
 import Control.Applicative ((<$>), (<*>), pure)
+import Control.Monad.Error.Class (MonadError)
 import Control.Monad.Except (throwError)
 import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
+import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
+import Data.List (stripPrefix)
 import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
+import Network.HTTP.Types.URI (urlEncode)
 import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
-import Snap (urlEncode)  -- (not sure if this dependency belongs to backend?)
 import System.Log (Priority(DEBUG, INFO))
 import Text.Printf (printf)
 
@@ -45,6 +48,7 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
+import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Backend.Core
@@ -295,7 +299,7 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
 api :: AC.ActionState DB -> Server Api
 api actionState =
        thentosApi actionState
-  :<|> serviceProxy actionState
+  :<|> serviceProxy renderA3HeaderName actionState
 
 
 -- * handler
@@ -309,9 +313,9 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
         feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
               Just v -> Tagged v
-        enctok = urlEncode . cs . fromConfirmationToken $ tok
+        enctok = urlEncode True . cs . fromConfirmationToken $ tok
     sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
-    return $ A3Resource (Just $ userIdToPath uid) (Just CTUser) (Just $ A3UserNoPass user)
+    return $ A3Resource (Just $ userIdToPath config uid) (Just CTUser) (Just $ A3UserNoPass user)
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> AC.Action DB ()
 sendUserConfirmationMail smtpConfig user callbackUrl =
@@ -324,32 +328,46 @@ sendUserConfirmationMail smtpConfig user callbackUrl =
 activate :: ActivationRequest -> AC.Action DB RequestResult
 activate (ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
+    config <- AC.getConfig'P
     ctok        :: ConfirmationToken             <- confirmationTokenFromPath p
     (uid, stok) :: (UserId, ThentosSessionToken) <- A.confirmNewUser ctok
-    return $ RequestSuccess (userIdToPath uid) stok
+    return $ RequestSuccess (userIdToPath config uid) stok
 
 
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
+    config <- AC.getConfig'P
     (uid, stok) <- case r of
         LoginByName  uname pass  -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
-    return $ RequestSuccess (userIdToPath uid) stok
+    return $ RequestSuccess (userIdToPath config uid) stok
 
 
 -- * aux
 
-userIdToPath :: UserId -> Path
-userIdToPath (UserId i) = Path . cs $ (printf "/principals/users/%7.7i" i :: String)
+-- | Render Thentos/A3-specific custom headers using the names expected by A3.
+renderA3HeaderName :: RenderHeaderFun
+renderA3HeaderName ThentosHeaderSession = mk "X-User-Token"
+renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
+renderA3HeaderName h                    = renderThentosHeaderName h
 
-userIdFromPath :: Path -> AC.Action DB UserId
-userIdFromPath (Path s) = maybe (throwError NoSuchUser) return $
-    case ST.splitAt (ST.length prefix) s of
-        (prefix', s') | prefix' == prefix -> fmap UserId . readMay . cs $ s'
-        _ -> Nothing
+userIdToPath :: ThentosConfig -> UserId -> Path
+userIdToPath config (UserId i) = Path $ domain <> userpath
   where
-    prefix = "/principals/users/"
+    domain   = cs $ exposeUrl beHttp
+    userpath = cs (printf "principals/users/%7.7i" i :: String)
+    beHttp   = case config >>. (Proxy :: Proxy '["backend"]) of
+                    Nothing -> error "userIdToPath: backend not configured!"
+                    Just v -> Tagged v
+
+userIdFromPath :: MonadError (ThentosError DB) m => Path -> m UserId
+userIdFromPath (Path s) = do
+    uri <- either (const . throwError . MalformedUserPath $ s) return $
+        URI.parseURI URI.laxURIParserOptions $ cs s
+    rawId <- maybe (throwError $ MalformedUserPath s) return $
+        stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
+    maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of

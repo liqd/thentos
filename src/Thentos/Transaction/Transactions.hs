@@ -37,7 +37,7 @@ import Thentos.Types
 
 -- * user
 
-freshUserId :: (AsDB db) => ThentosUpdate' db e UserId
+freshUserId :: (AsDB db) => ThentosUpdate db UserId
 freshUserId = polyUpdate $ do
     uid <- gets (^. asDB . dbFreshUserId)
     modify $ dbFreshUserId .~ succ uid
@@ -56,13 +56,13 @@ userFacetExists facet ((/=) -> notOwnUid) user db =
 -- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
 -- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
 -- has expired, throw the given error.
-withExpiry :: (AsDB db) => Timestamp -> Timeout -> ThentosError
+withExpiry :: (AsDB db) => Timestamp -> Timeout -> ThentosError db
                         -> ThentosUpdate db (Maybe (a, Timestamp))
                         -> ThentosUpdate db a
 withExpiry now expiry thentosError = withExpiryT now expiry thentosError id
 
 -- | Like 'withExpiry', but expects actions of the form offered by 'Map.updateLookupWithKey'.
-withExpiryU :: (AsDB db) => Timestamp -> Timeout -> ThentosError
+withExpiryU :: (AsDB db) => Timestamp -> Timeout -> ThentosError db
                          -> ThentosUpdate db (Maybe (a, Timestamp), m)
                          -> ThentosUpdate db (a, m)
 withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
@@ -72,7 +72,7 @@ withExpiryU now expiry thentosError = withExpiryT now expiry thentosError f
 
 -- | Like 'withExpiry', but takes an extra function for transforming the result value of the action
 -- into what we need for the timeout check.
-withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError -> (b -> Maybe (a, Timestamp))
+withExpiryT :: (AsDB db) => Timestamp -> Timeout -> ThentosError db -> (b -> Maybe (a, Timestamp))
     -> ThentosUpdate db b -> ThentosUpdate db a
 withExpiryT now expiry thentosError f action = do
     let isActive crt = fromTimestamp crt .+^ fromTimeout expiry < fromTimestamp now
@@ -152,6 +152,7 @@ trans_addPasswordResetToken timestamp email token = polyUpdate $ do
     (uid, user) <- liftThentosQuery $ trans_lookupUserByEmail email
     modify $ dbPwResetTokens %~ Map.insert token (uid, timestamp)
     return user
+
 
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
@@ -458,6 +459,20 @@ trans_agentRoles :: (AsDB db) => Agent -> ThentosQuery db (Set.Set Role)
 trans_agentRoles agent = polyQuery $ fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <$> ask
 
 
+-- * SSO
+
+-- | Add an SSO token to the database
+trans_addSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
+
+-- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
+trans_lookupAndRemoveSsoToken :: AsDB db => SsoToken -> ThentosUpdate db ()
+trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
+    exists <- Set.member tok . (^. dbSsoTokens) <$> get
+    unless exists $ throwT SsoErrorUnknownCsrfToken
+    modify $ dbSsoTokens %~ Set.delete tok
+
+
 -- * misc
 
 trans_snapShot :: (AsDB db) => ThentosQuery db DB
@@ -546,6 +561,8 @@ transaction_names =
     , 'trans_assignRole
     , 'trans_unassignRole
     , 'trans_agentRoles
+    , 'trans_addSsoToken
+    , 'trans_lookupAndRemoveSsoToken
     , 'trans_snapShot
     , 'trans_garbageCollectThentosSessions
     , 'trans_doGarbageCollectThentosSessions

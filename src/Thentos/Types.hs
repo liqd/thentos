@@ -4,9 +4,12 @@
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE KindSignatures              #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
+{-# LANGUAGE TypeFamilies                #-}
 
 module Thentos.Types where
 
@@ -19,7 +22,7 @@ import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST, cs, LBS)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -34,6 +37,7 @@ import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -63,19 +67,28 @@ data DB =
       , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
       , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
       , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
+      , _dbSsoTokens         :: !(Set SsoToken)
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
 
 emptyDB :: DB
-emptyDB = DB m m m m m m m m m m (UserId 0)
+emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
+-- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
+-- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
 class AsDB db where
-   asDB :: Lens' db DB
+    asDB :: Lens' db DB
+    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+
+    asDBThentosError :: ThentosError DB -> ThentosError db
+    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
+    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
 
 instance AsDB DB where
-   asDB = id
+    asDB = id
+    asDBThentosError = id
 
 
 -- * user
@@ -165,6 +178,10 @@ newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype SsoToken = SsoToken { fromSsoToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
 
 -- | Information required to create a new User
 data UserFormData =
@@ -383,7 +400,9 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data ThentosError =
+data family ThentosError (db :: *) :: *
+
+data instance ThentosError DB =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -402,11 +421,19 @@ data ThentosError =
     | ProxyNotConfiguredForService ServiceId
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
-    deriving (Eq, Show, Read, Typeable)
+    | MalformedUserPath ST
+    | SsoErrorUnknownCsrfToken
+    | SsoErrorCouldNotAccessUserInfo LBS
+    | SsoErrorCouldNotGetAccessToken LBS
 
-instance Exception ThentosError
+deriving instance Eq (ThentosError DB)
+deriving instance Show (ThentosError DB)
+deriving instance Read (ThentosError DB)
+deriving instance Typeable ThentosError
 
-instance SafeCopy ThentosError
+instance Exception (ThentosError DB)
+
+instance SafeCopy (ThentosError DB)
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
@@ -443,3 +470,4 @@ $(deriveSafeCopy 0 'base ''ThentosSessionToken)
 $(deriveSafeCopy 0 'base ''User)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserName)
+$(deriveSafeCopy 0 'base ''SsoToken)

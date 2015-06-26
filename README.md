@@ -1,4 +1,4 @@
-Thentos: The swiss army knife of privacy-preserving identity management
+Thentos: The Swiss army knife of privacy-preserving identity management
 =======================================================================
 
 Warning
@@ -13,25 +13,13 @@ release plan.
 Having that said: enjoy!  (:
 
 
-Unstable dependencies
----------------------
-
-If you want to run benchmarks, you need to add a patched version of `pronk` to
-your cabal sandbox:
-
-```bash
-$ git clone https://github.com/liqd/pronk -b thentos-patches
-$ cabal sandbox add-source pronk
-```
-
-
 Overview
 --------
 
-Thentos (/'tentɒs/) is the swiss army knife of web application user
+Thentos (/'tentɒs/) is the Swiss army knife of web application user
 management.  You can:
 
-- use it as a library to offer github or twitter single-sign-on to the
+- use it as a library to offer GitHub or Twitter single-sign-on to the
   users of your application,
 
 - run it as a proxy in front of your application that does all the
@@ -53,7 +41,7 @@ management.  You can:
 Thentos uses [acid-state](http://acid-state.seize.it/) for persistence
 (modules `Transaction*`), [lio](https://github.com/scslab/lio) for
 information flow control and authorization management (modules
-`Action*`), [servant](http://haskell-servant.github.io/) for rest apis
+`Action*`), [servant](http://haskell-servant.github.io/) for rest APIs
 (modules `Backend.*`), and [snap](http://snapframework.com/) for
 HTML-form-based user interfaces (modules `Frontend.*`).
 
@@ -65,11 +53,11 @@ you and build something completely different from them:
   the old one, and reuse all existing transactions and actions on the
   new schema;
 
-- implement your own rest api dialect on top of `Action*` (and, thanks
+- implement your own rest API dialect on top of `Action*` (and, thanks
   to lio, rely on enforcement of the authorization policy implemented
   there, even if your own code is malicious),
 
-- use a collection of application-specific rest api handlers, snap
+- use a collection of application-specific rest API handlers, snap
   handlers, and blaze combinators to build your own web interfaces.
 
 - ...
@@ -81,11 +69,11 @@ Code Structure
 This is a possible quick walk through the code:
 
 - **Thentos.Types**: gives you the `DB` type that describes the
-    thentos data model (and some polymorphism over it).
+    Thentos data model (and some polymorphism over it).
 
 - **Thentos.Transaction...**: acid-state events with 'EitherT'
     exceptions.  `Thentos.Transaction.Transactions` implements an
-    abstract api over the `DB` type.
+    abstract API over the `DB` type.
 
 - **Thentos.Action...**: non-acidic actions in the `Action` monad.
     `Action` provides access to acid state, randomness, and config
@@ -93,10 +81,10 @@ This is a possible quick walk through the code:
     covered in this tour).  Perhaps most importantly, it is not based
     on `IO`, but on `LIO`, which provides information flow and access
     control.  Actions can be composed of transactions and other things
-    like reading the system time.  `Thentos.Action` implements an api
+    like reading the system time.  `Thentos.Action` implements an API
     that both frontend and backend use.
 
-- **Thentos.Backend...**: rest apis based on servant and wai.
+- **Thentos.Backend...**: rest APIs based on servant and wai.
 
 - **Thentos.Frontend...**: browser frontend for direct
     user-interaction based on snap.
@@ -109,11 +97,15 @@ If you want to use vagrant, visit https://github.com/tarleb/thentos-vagrant.
 
 Tested on [ghc-7.8.4](https://www.haskell.org/ghc/download_ghc_7_8_4)
 with all versions pinned (see `cabal.config`).  You should be able to
-build with other ghc versions sind 7.8 and without pinning, but it may
+build with other ghc versions since 7.8 and without pinning, but it may
 involve some tweaking (and hence some familiarity with ghc).
 
-To build, make sure ghc is in your path and `ghc --version` sais it is
-7.8.4.  Then:
+But it's best to use ghc 7.8.x, where x >= 4. ghc 7.10 is not yet
+supported. If your package manager doesn't have a suitable ghc version, you
+can download it manually from https://www.haskell.org/ghc/.
+
+Clone the Thentos repository from GitHub. Afterwards create a cabal sandbox
+in the same directory and install Thentos:
 
 ```shell
 $ cabal sandbox init
@@ -142,13 +134,6 @@ details and links to the download page), or do without:
 
 ```shell
 $ cabal test --test-options="--skip selenium"
-```
-
-Benchmarks:
-
-```shell
-$ cabal install --enable-bench
-$ cabal bench  # requires thentos to be running in another shell
 ```
 
 Generated Thentos documentation (thentos-0.0.1) can be found online:
@@ -192,7 +177,7 @@ Create a user (use god/god as username/password if you want to skip
 this step): visit the [Thentos fronend](http://localhost:7002/) again,
 click on `create_user`.  Email confirmation is configured to work if
 there is a mail system running that supports email to local users.
-Just use user unix user name as email address and hope for the best.
+Just use your Unix user name as email address and hope for the best.
 There should also be a line in ./log/thentos.log that contains the
 confirmation token (logging needs to be set to `DEBUG`, but that is
 currently the hard-wired default).
@@ -201,7 +186,7 @@ Visit the [helloworld service](http://localhost:8000/).  You should be
 able to log in and out now.
 
 There is also a highly experimental (even more so than the rest of
-Thentos) alternative rest api that mimics the
+Thentos) alternative rest API that mimics the
 [adhocracy3](https://github.com/liqd/adhocracy3.mercator) backend:
 
 ```shell
@@ -232,7 +217,7 @@ Contributors
 ------------
 
 In alphanumerical order.  Please let us know if we forgot to add you,
-or if you would like us to link to your github handle / email.
+or if you would like us to link to your GitHub handle / email.
 
 - Albert Krewinkel
 - Andres Löh
@@ -242,3 +227,7 @@ or if you would like us to link to your github handle / email.
 - Matthias Fischmann
 - Robert Vollmert
 - Sönke Hahn
+
+If you want to get involved, you're very welcome! Please read
+docs/dev-howtos.md and docs/styleguide.md to learn more about our
+development practices and our coding guidelines for Haskell.

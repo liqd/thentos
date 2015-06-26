@@ -21,7 +21,6 @@ where
 import Control.Applicative ((<$>), pure)
 import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
-import Data.Char (isUpper)
 import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
@@ -66,7 +65,7 @@ enterAction state mTok = Nat $ EitherT . run
 
 
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
-actionErrorToServantErr :: ActionError -> IO ServantErr
+actionErrorToServantErr :: forall db . (AsDB db, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
@@ -74,7 +73,7 @@ actionErrorToServantErr e = do
         (ActionErrorAnyLabel le) -> _permissions le
         (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
   where
-    _thentos :: ThentosError -> IO ServantErr
+    _thentos :: ThentosError db -> IO ServantErr
     _thentos NoSuchUser = pure $ err404 { errBody = "user not found" }
     _thentos NoSuchPendingUserConfirmation = pure $ err404 { errBody = "unconfirmed user not found" }
     _thentos (MalformedConfirmationToken path) = pure $ err400 { errBody = "malformed confirmation token: " <> cs (show path) }
@@ -93,6 +92,15 @@ actionErrorToServantErr e = do
     _thentos (ProxyNotConfiguredForService sid) = pure $ err404 { errBody = "proxy not configured for service " <> cs (show sid) }
     _thentos (NoSuchToken) = pure $ err404 { errBody = "no such token" }
     _thentos (NeedUserA _ _) = pure $ err404 { errBody = "thentos session belongs to service, cannot create service session" }
+    _thentos (MalformedUserPath path) = pure $
+        err400 { errBody = "malformed user path: " <> cs (show path) }
+    -- the following shouldn't actually reach servant:
+    _thentos SsoErrorUnknownCsrfToken = pure $ err500
+        { errBody = "invalid token returned during sso process" }
+    _thentos (SsoErrorCouldNotAccessUserInfo _) = pure $ err500
+        { errBody = "error accessing user info" }
+    _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
+        { errBody = "error retrieving access token" }
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
@@ -100,47 +108,54 @@ actionErrorToServantErr e = do
 
 -- * request headers
 
+-- FIXME This is the list of X-Thentos headers used in ALL backends. It would be better to allow
+-- each backend to define its own additional headers, but still to preserve type-safety.
 data ThentosHeaderName =
     ThentosHeaderSession
   | ThentosHeaderService
+  | ThentosHeaderUser
+  | ThentosHeaderGroups
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
 
-lookupThentosHeader :: Request -> ThentosHeaderName -> Maybe ST
-lookupThentosHeader req key =
-          lookup (renderThentosHeaderName key) (requestHeaders req)
+type RenderHeaderFun = ThentosHeaderName -> CI SBS
+
+lookupThentosHeader :: RenderHeaderFun -> Request -> ThentosHeaderName -> Maybe ST
+lookupThentosHeader renderHeaderFun req key =
+          lookup (renderHeaderFun key) (requestHeaders req)
       >>= either (const Nothing) Just . decodeUtf8'
 
-lookupThentosHeaderSession :: Request -> Maybe ThentosSessionToken
-lookupThentosHeaderSession req = ThentosSessionToken <$> lookupThentosHeader req ThentosHeaderSession
+lookupThentosHeaderSession :: RenderHeaderFun -> Request -> Maybe ThentosSessionToken
+lookupThentosHeaderSession renderHeaderFun req =
+    ThentosSessionToken <$> lookupThentosHeader renderHeaderFun req ThentosHeaderSession
 
-lookupThentosHeaderService :: Request -> Maybe ServiceId
-lookupThentosHeaderService req = ServiceId <$> lookupThentosHeader req ThentosHeaderService
+lookupThentosHeaderService :: RenderHeaderFun -> Request -> Maybe ServiceId
+lookupThentosHeaderService renderHeaderFun req =
+    ServiceId <$> lookupThentosHeader renderHeaderFun req ThentosHeaderService
 
-renderThentosHeaderName :: ThentosHeaderName -> CI SBS
-renderThentosHeaderName x = case splitAt (SBS.length "ThentosHeader") (show x) of
-    ("ThentosHeader", s) -> mk . SBS.pack $ "X-Thentos" ++ dashify s
-    bad -> error $ "renderThentosHeaderName: prefix (left side) must be \"ThentosHeader\" in " ++ show bad
-  where
-    dashify ""    = ""
-    dashify (h:t) = if isUpper h
-        then '-' : h : dashify t
-        else       h : dashify t
+-- The default function used to render Thentos-specific header names.
+-- Defining alternatives functions allows renaming some or all of the headers.
+renderThentosHeaderName :: RenderHeaderFun
+renderThentosHeaderName ThentosHeaderSession = mk "X-Thentos-Session"
+renderThentosHeaderName ThentosHeaderService = mk "X-Thentos-Service"
+renderThentosHeaderName ThentosHeaderUser    = mk "X-Thentos-User"
+renderThentosHeaderName ThentosHeaderGroups  = mk "X-Thentos-Groups"
 
--- | Filter header list for all headers that start with "X-Thentos-", but have no parse in
--- 'ThentosHeaderName'.
+-- | Filter header list for all headers that start with "X-Thentos-", but don't correspond to
+-- the default rendering of any 'ThentosHeaderName'.
 badHeaders :: [Header] -> [Header]
 badHeaders = filter g . filter f
   where
     f (k, _) = foldCase "X-Thentos-" `SBS.isPrefixOf` foldedCase k
     g (k, _) = k `notElem` map renderThentosHeaderName [minBound..]
 
--- | Remove all headers that match @X-Thentos-.*@.  This is useful if the request is to be used as a
--- basis for e.g. constructing another request to a proxy target.
-clearThentosHeaders :: HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
-clearThentosHeaders = filter $ not . (foldedCase "X-Thentos-" `SBS.isPrefixOf`) . foldedCase . fst
+-- | Remove all headers matched by a 'RenderHeaderFun'.  This is useful if the request is to be
+-- used as a basis for e.g. constructing another request to a proxy target.
+clearCustomHeaders :: RenderHeaderFun -> HttpTypes.RequestHeaders -> HttpTypes.RequestHeaders
+clearCustomHeaders renderHeaderFun = filter $ (`notElem` customHeaderNames) . fst
+  where customHeaderNames = map renderHeaderFun [minBound..]
 
 -- | Make sure that all thentos headers are good ('badHeaders' yields empty list).
-data ThentosAssertHeaders = ThentosAssertHeaders
+data ThentosAssertHeaders
 
 instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
   where

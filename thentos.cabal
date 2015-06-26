@@ -260,6 +260,7 @@ test-suite tests
     , safecopy
     , scrypt
     , servant-server >= 0.4.1 && < 0.5
+    , snap
     , snap-core
     , string-conversions
     , system-fileio
@@ -269,6 +270,7 @@ test-suite tests
     , transformers
     , transformers-base
     , unix
+    , unordered-containers
     , wai
     , wai-extra
     , webdriver
