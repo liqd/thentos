@@ -23,7 +23,7 @@ The problem
 We have some domain-specific state that we'd like to log and make
 persistent using acid-state.
 
-To keep things simple, that our state / database contains just a single
+To keep things simple, our state / database contains just a single
 integer.
 
 > data DBM = DBM { _dbCounterM :: Int }
@@ -37,7 +37,7 @@ general purposes, we want to derive lenses for it, too:
 
 Now let's assume we have three operations on the database: one to read
 the current counter value, one to increment it, and one to set it to
-an arbitrary value. With acid-state, we first declare each action as
+an arbitrary value. With acid-state, we first declare each transaction as
 follows:
 
 > getCounterM :: Query DBM Int
@@ -49,8 +49,8 @@ follows:
 > incCounterM :: Update DBM ()
 > incCounterM = dbCounterM += 1
 
-Now each of these actions is monomorphic in type `DBM`. Under this
-assumption, it's easy to make these actions acidic as follows:
+Now each of these transactions is monomorphic in type `DBM`. Under this
+assumption, it's easy to make these transactions acidic as follows:
 
 > makeAcidic ''DBM ['getCounterM, 'setCounterM, 'incCounterM]
 
@@ -80,7 +80,7 @@ Here's an example:
 
 The problem arises because we'd like `DBM` to be *extensible*.
 Another application might need to extend `DBM` with new pieces of
-data and additional actions. However, the old actions defined by
+data and additional transactions. However, the old transactions defined by
 the original library should continue to work in the new context.
 
 Extending the database is simple enough:
@@ -110,7 +110,7 @@ Going into more detail
 The first call to `makeAcidic` above generates the following
 code (we omit certain parts such as the `SafeCopy` instances
 being generated that aren't directly relevant here), and we
-also just focus on the `getCounter` action, as the others are
+also just focus on the `getCounter` transaction, as the others are
 similar.
 
 < data GetCounterM = GetCounterM
@@ -140,14 +140,14 @@ And the type of `QueryEvent` is as follows:
 <            => (e -> Query (MethodState e) (MethodResult e))
 <            -> Event (MethodState e)
 
-So via `MethodState`, the `GetCounterM` action is tied very
+So via `MethodState`, the `GetCounterM` transaction is tied very
 specifically to `DBM`. It isn't type-correct if it occurs in
 an `IsAcidic` instance for `UDBM`. Also,
 
 < query :: QueryEvent e
 <       => AcidState (MethodState e) -> e -> IO (MethodResult e)
 
-ensures that we can only run this action in an `AcidState`
+ensures that we can only run this transaction in an `AcidState`
 context that is specific to `DBM`, and not one that is specific
 to `UDBM`.
 
@@ -156,7 +156,7 @@ Towards a solution
 
 Intuitively, there is hope: we have a lens between `UDBM` and `DBM`
 given by `udbCoreM`. In general, if `DBM` is contained via a lens
-in a larger database, we should be able to run actions based on the
+in a larger database, we should be able to run transactions based on the
 smaller database in the larger context.
 
 If we try to make things more polymorphic in order to achieve this, we
@@ -173,7 +173,7 @@ relating to the state type, and has several internal constructors for
 different acid-state models (in-memory, local disk, remote), so that
 adapting this would be a very invasive operation.
 
-The other, more promising, option seems to be to make the actions
+The other, more promising, option seems to be to make the transactions
 themselves more polymorphic.
 
 In fact, it is near-trivial to make the original method definitions
@@ -209,7 +209,7 @@ a type class that gives us the lens when desired:
 > instance UDBP `Extends` DBP where
 >   focus = udbCoreP
 
-When defining the actions, we can now use the `Extends` class in
+When defining the transactions, we can now use the `Extends` class in
 order to keep them polymorphic. This requires ever so slightly
 rephrasing them, but is all in all very easy:
 
@@ -237,7 +237,7 @@ context. A call for `UDBP` fails for the same reason.
 
 But is this all just a shortcoming of the Template Haskell code
 in `makeAcidic`? Not quite. The question is what code we'd want
-to generate for each action, such as `getCounterP`. Let's
+to generate for each transaction, such as `getCounterP`. Let's
 look once again at the code we had for `getCounterM`:
 
 < data GetCounterM = GetCounterM
@@ -275,7 +275,7 @@ over its state type:
 >
 > instance (db `Extends` DBP) => QueryEvent (GetCounterP db)
 
-We can proceed similarly for the other actions:
+We can proceed similarly for the other transactions:
 
 > data SetCounterP db = SetCounterP Int
 >   deriving Typeable
@@ -334,7 +334,7 @@ is trivial:
 Having separate, monomorphic, instances of `IsAcidic` makes sense.
 After all, in one application, we're probably going to work with
 either the one or the other database, but not with both. The
-achievement is that we can use actions such as `IncCounterP` in
+achievement is that we can use transactions such as `IncCounterP` in
 both contexts, without having to redefine or cast them in any way.
 
 Here's the original program in the new polymorphic context:
@@ -383,12 +383,12 @@ more succinctly by saying
 < makePolyAcidic ''UDBP [''DBP] ['toggleExtraP]
 
 The first and final argument would be like that for `makeAcidic`, but
-only contain the actions specific to the current database type. The new
+only contain the transactions specific to the current database type. The new
 middle argument would indicate which other operations to include.
 
 
 With a little bit of hackery, it may also be possible to make the
-definition of the polymorphic actions themselves slightly more systematic.
+definition of the polymorphic transactions themselves slightly more systematic.
 Unfortunately, this will again either mean putting code directly into
 acid-state, or unsafely coercing the `Update` and `Query` datatypes
 to their internal representations, because acid-state doesn't expose anything
@@ -404,7 +404,7 @@ of them.
 > instance Magnify (Query s) (Query t) s t where
 >   magnify = unsafeCoerce (magnify :: LensLike' (Magnified (Query  s) c) t s -> Reader s c -> Reader t c)
 
-With this, we could define our actions as follows:
+With this, we could define our transactions as follows:
 
 > getCounterP' :: (db `Extends` DBP) => Query db Int
 > getCounterP' = magnify focus $ view dbCounterP
@@ -420,6 +420,6 @@ With this, we could define our actions as follows:
 >   udbExtraP %= not
 >   use (udbExtraP)
 
-This is systematic enough that we could even allow the actions to be
+This is systematic enough that we could even allow the transactions to be
 defined monomorphically, and have the `makePolyAcidic` code apply `zoom`
-in order to turn them into polymorphic actions.
+in order to turn them into polymorphic transactions.
