@@ -10,6 +10,7 @@
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
 
@@ -53,15 +54,21 @@ import Thentos.Util
 
 -- * types
 
-newtype ActionState db = ActionState { fromActionState :: (AcidState db, MVar ChaChaDRG, ThentosConfig) }
+newtype ActionState db =
+    ActionState
+      { fromActionState :: (AcidState db, MVar ChaChaDRG, ThentosConfig)
+      }
   deriving (Typeable, Generic)
 
-newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT ThentosError (LIO DCLabel)) a }
+newtype Action db a =
+    Action
+      { fromAction :: ReaderT (ActionState db) (EitherT (ThentosError db) (LIO DCLabel)) a
+      }
   deriving ( Functor
            , Applicative
            , Monad
            , MonadReader (ActionState db)
-           , MonadError ThentosError
+           , MonadError (ThentosError db)
            , Typeable
            , Generic
            )
@@ -72,13 +79,20 @@ newtype Action db a = Action { fromAction :: ReaderT (ActionState db) (EitherT T
 -- 'Action', i.e., at construction time).  These are errors are handled in the 'ActionErrorThentos'
 -- constructor.  Label errors and other (possibly async) exceptions are caught (if possible) in
 -- 'runActionE' and its friends and maintained in other 'ActionError' constructors.
-data ActionError =
-    ActionErrorThentos ThentosError
+data ActionError db =
+    ActionErrorThentos (ThentosError db)
   | ActionErrorAnyLabel AnyLabelError
   | ActionErrorUnknown SomeException
-  deriving (Show, Typeable, Generic)
 
-instance Exception ActionError
+deriving instance Show (ActionError DB)
+deriving instance Typeable ActionError
+
+instance Exception (ActionError DB)
+
+asDBActionError :: AsDB db => ActionError DB -> ActionError db
+asDBActionError (ActionErrorThentos e)  = ActionErrorThentos $ asDBThentosError e
+asDBActionError (ActionErrorAnyLabel e) = ActionErrorAnyLabel e
+asDBActionError (ActionErrorUnknown e)  = ActionErrorUnknown e
 
 
 instance MonadLIO DCLabel (Action db) where
@@ -88,7 +102,7 @@ instance MonadLIO DCLabel (Action db) where
 -- * running actions
 
 -- | Call 'runActionE' and throw 'Left' values.
-runAction :: ActionState db -> Action db a -> IO a
+runAction :: forall db a . (Exception (ActionError db)) => ActionState db -> Action db a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
 runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
@@ -106,30 +120,30 @@ runActionInThentosSession tok state action = runActionInThentosSessionE tok stat
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
 -- executed, and the label has not been guarded by any action yet.
-runActionE :: forall a db . ActionState db -> Action db a -> IO (Either ActionError a)
+runActionE :: forall a db . ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionE state action = catchUnknown
   where
-    inner :: IO (Either ThentosError a)
+    inner :: IO (Either (ThentosError db) a)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
           . eitherT (return . Left) (return . Right)
           $ fromAction action `runReaderT` state
 
-    catchAnyLabelError :: IO (Either ActionError a)
+    catchAnyLabelError :: IO (Either (ActionError db) a)
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
 
-    catchUnknown :: IO (Either ActionError a)
+    catchUnknown :: IO (Either (ActionError db) a)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
-runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
-runActionWithClearanceE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionWithClearanceE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
 runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
 
-runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
 runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
-runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either ActionError a)
+runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
 -- | Run an action followed by a second action. The second action is run
@@ -200,9 +214,12 @@ accessRightsByThentosSession'P tok = do
 
 -- | Call 'update'' on the 'ActionState' and re-throw the exception that has been turned into an
 -- 'Either' on the border between acid-state and the real world.
-update'P :: ( UpdateEvent event
+update'P :: forall event db v
+          . ( UpdateEvent event
             , EventState event ~ db
-            , EventResult event ~ Either ThentosError v
+            , EventResult event ~ Either (ThentosError db) v
+            , Exception (ActionError db)
+            , db ~ DB
             ) => event -> Action db v
 update'P e = do
     ActionState (st, _, _) <- Action ask
@@ -212,7 +229,8 @@ update'P e = do
 -- | See 'update'P'.
 query'P :: ( QueryEvent event
            , EventState event ~ db
-           , EventResult event ~ Either ThentosError v
+           , EventResult event ~ Either (ThentosError db) v
+           , db ~ DB
            ) => event -> Action db v
 query'P e = do
     (ActionState (st, _, _)) <- Action ask
@@ -250,7 +268,9 @@ logger'P :: Priority -> String -> Action db ()
 logger'P prio = liftLIO . ioTCB . logger prio
 
 -- | (This type signature could be greatly simplified, but that would also make it less explanatory.)
-logIfError'P :: forall m l e v db . (m ~ Action db, Monad m, MonadLIO l m, MonadError e m, Show e) => m v -> m v
+logIfError'P :: forall m l e v db
+             . (db ~ DB, m ~ Action db, Monad m, MonadLIO l m, MonadError e m, Show e)
+             => m v -> m v
 logIfError'P = (`catchError` f)
   where
     f e = do
