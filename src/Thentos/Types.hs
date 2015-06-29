@@ -2,14 +2,17 @@
 {-# LANGUAGE DeriveDataTypeable          #-}
 {-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE KindSignatures              #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
+{-# LANGUAGE TypeOperators               #-}
 
 module Thentos.Types where
 
@@ -76,20 +79,22 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
+
+-- FIXME: generalise docs
 -- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
 -- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
-class AsDB db where
-    asDB :: Lens' db DB
-    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+class (Typeable db1, Typeable db2, SafeCopy db1, SafeCopy db2,
+       SafeCopy (ThentosError db1), SafeCopy (ThentosError db2)) =>
+        db1 `Extends` db2 where
+    focus :: Lens' db1 db2
+    -- ^ if a transaction or action associated with 'DB' throws an error, use
+    -- this function to convert it to an error that can be thrown by
+    -- transactions or actions associated with @DB'@.
+    asDBThentosError :: ThentosError db2 -> ThentosError db1
 
-    asDBThentosError :: ThentosError DB -> ThentosError db
-    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
-    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
-
-instance AsDB DB where
-    asDB = id
+instance DB `Extends` DB where
+    focus = id
     asDBThentosError = id
-
 
 -- * user
 

@@ -1,17 +1,22 @@
-{-# LANGUAGE DeriveDataTypeable   #-}
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE InstanceSigs         #-}
-{-# LANGUAGE KindSignatures       #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 
 module Thentos.Transaction.CoreSpec where
 
 import Control.Lens ((%~), (%%~))
 import Data.Functor.Infix ((<$>))
+import Data.SafeCopy (deriveSafeCopy, base)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Test.Hspec (Spec, describe, it, shouldBe, hspec)
@@ -32,9 +37,8 @@ spec = describe "Thentos.Transaction.Core" $ do
 data CustomDB = CustomDB DB Int
   deriving (Eq, Show, Typeable, Generic)
 
-instance AsDB CustomDB where
-    asDB :: forall (f :: * -> *). Functor f => (DB -> f DB) -> CustomDB -> f CustomDB
-    asDB f (CustomDB db i) = (`CustomDB` i) <$> f db
+instance CustomDB `Extends` DB where
+    focus f (CustomDB db i) = (`CustomDB` i) <$> f db
 
     asDBThentosError :: ThentosError DB -> ThentosError CustomDB
     asDBThentosError = CustomDBError
@@ -47,16 +51,16 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
         let f :: DB -> DB
             f = id
 
-            g :: AsDB db => db -> db
-            g = asDB %~ f
+            g :: (db `Extends` DB) => db -> db
+            g = focus %~ f
 
             h :: DB -> (String, DB)
             h db = (show db, db)
 
-            i :: AsDB db => db -> (String, db)
-            i = asDB %%~ h
+            i :: (db `Extends` DB) => db -> (String, db)
+            i = focus %%~ h
 
-            test0 :: (Eq db, Show db, AsDB db) => db -> IO ()
+            test0 :: (Eq db, Show db, db `Extends` DB) => db -> IO ()
             test0 db = do
                 db `shouldBe` g db
                 db `shouldBe` snd (i db)
@@ -69,3 +73,5 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
                   prn' `shouldBe` show db'
                   db' `shouldBe` emptyDB
                   x `shouldBe` 3
+
+$(deriveSafeCopy 0 'base ''CustomDB)

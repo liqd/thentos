@@ -65,7 +65,7 @@ enterAction state mTok = Nat $ EitherT . run
 
 
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
-actionErrorToServantErr :: forall db . (AsDB db, db ~ DB) => ActionError db -> IO ServantErr
+actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
