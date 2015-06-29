@@ -197,7 +197,7 @@ executable build-docs
     , process
     , servant >= 0.4.1 && < 0.5
     , servant-docs >= 0.4.1 && < 0.5
-    , servant-pandoc
+    , servant-pandoc >= 0.4.1 && < 0.5
     , thyme
 
 test-suite tests
