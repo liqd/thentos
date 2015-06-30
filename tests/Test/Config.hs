@@ -46,6 +46,7 @@ testThentosConfig tcfg = Tagged $
       :*> JustO (Id (fromTagged testFeConfig))
       :*> JustO (Id (fromTagged testBeConfig))
       :*> NothingO
+      :*> NothingO
       :*> Id (fromTagged testSmtpConfig)
       :*> NothingO
       :*> Id (Timeout 3600)
