@@ -16,6 +16,7 @@
 
 module Thentos.Backend.Api.Proxy where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
@@ -90,37 +91,58 @@ getRqMod :: RenderHeaderFun -> S.Request -> Action DB RqMod
 getRqMod renderHeaderFun req = do
     thentosConfig <- getConfig'P
 
-    prxCfg :: Map.Map ServiceId HttpProxyConfig
-        <- maybe (throwError ProxyNotAvailable) return $ getProxyConfigMap thentosConfig
-    (uid, user) :: (UserId, User)
-        <- do
-            tok <- maybe (throwError NoSuchThentosSession) return
-                         (lookupThentosHeaderSession renderHeaderFun req)
-            session <- lookupThentosSession tok
-            case session ^. thSessAgent of
-                UserA uid  -> lookupUser uid
-                ServiceA sid -> throwError $ NeedUserA tok sid
+    let proxyMap :: Map.Map ServiceId ProxyConfig =
+            fromMaybe Map.empty $ getProxyConfigMap thentosConfig
+        mDefaultProxy :: Maybe ProxyConfig =
+            Tagged <$> thentosConfig >>. (Proxy :: Proxy '["proxy"])
+        mTok = lookupThentosHeaderSession renderHeaderFun req
 
-    sid :: ServiceId
-        <- case lookupThentosHeaderService renderHeaderFun req of
-               Just s  -> return s
-               Nothing -> throwError MissingServiceHeader
+    (sid, target) <- case lookupThentosHeaderService renderHeaderFun req of
+        Just s  -> serviceIdAndTargetFromProxyMap s proxyMap
+        Nothing -> serviceIdAndTargetFromDefaultProxy mDefaultProxy
 
-    groups :: [Group]
-        <- userGroups uid sid
-
-    let hdrs =
-            [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
-            , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
-            ]
-
-    target :: String
-        <- case Map.lookup sid prxCfg of
-            Just t  -> let http :: HttpConfig = Tagged $ t >>. (Proxy :: Proxy '["http"])
-                           prefix :: ST = fromMaybe "" $ t >>. (Proxy :: Proxy '["url_prefix"])
-                       in return . cs $ exposeUrl http <> prefix
-            Nothing -> throwError $ ProxyNotConfiguredForService sid
+    hdrs <- createCustomHeaders renderHeaderFun mTok sid
 
     let rqMod = RqMod target hdrs
     logger'P DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
     return rqMod
+
+serviceIdAndTargetFromProxyMap :: ServiceId -> Map.Map ServiceId ProxyConfig
+                               -> Action DB (ServiceId, String)
+serviceIdAndTargetFromProxyMap sid proxyMap = do
+    target <- case Map.lookup sid proxyMap of
+            Just proxy -> return $ extractTargetUrl proxy
+            Nothing    -> throwError $ ProxyNotConfiguredForService sid
+    return (sid, target)
+
+serviceIdAndTargetFromDefaultProxy :: Maybe ProxyConfig -> Action DB (ServiceId, String)
+serviceIdAndTargetFromDefaultProxy Nothing      = throwError MissingServiceHeader
+serviceIdAndTargetFromDefaultProxy (Just proxy) = do
+    sid <- return . ServiceId $ proxy >>. (Proxy :: Proxy '["service_id"])
+    let target = extractTargetUrl proxy
+    return (sid, target)
+
+extractTargetUrl :: ProxyConfig -> String
+extractTargetUrl proxy = cs $ exposeUrl http <> prefix
+  where
+    http :: HttpConfig = Tagged $ proxy >>. (Proxy :: Proxy '["http"])
+    prefix :: ST       = fromMaybe "" $ proxy >>. (Proxy :: Proxy '["url_prefix"])
+
+-- | Create headers identifying the user and their groups.
+-- Returns an empty list in case of an anonymous request.
+createCustomHeaders :: RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId
+                    -> Action DB T.RequestHeaders
+createCustomHeaders _ Nothing _                    = return []
+createCustomHeaders renderHeaderFun (Just tok) sid = do
+    (uid, user) :: (UserId, User)
+        <- do
+            session <- lookupThentosSession tok
+            case session ^. thSessAgent of
+                UserA uid  -> lookupUser uid
+                ServiceA servId -> throwError $ NeedUserA tok servId
+
+    groups :: [Group] <- userGroups uid sid
+
+    return [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
+           , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
+           ]

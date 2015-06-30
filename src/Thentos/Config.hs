@@ -43,22 +43,26 @@ import Thentos.Types
 
 type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
-            ("command"      :> Command            :>: "E.g. 'run', 'runA3', 'runA3Sso', 'showDB', ...")
+            ("command"      :> Command               :>:
+      "E.g. 'run', 'runA3', 'runA3Sso', 'showDB', ...")
                -- FIXME: this doc string should really be generated from the 'Command' type.
-  :*> Maybe ("frontend"     :> HttpConfig'        :>: "HTTP server for html forms.")
-  :*> Maybe ("backend"      :> HttpConfig'        :>: "HTTP server for rest api.")
-  :*> Maybe ("proxies"      :> [HttpProxyConfig'] :>: "HTTP server for tunneling requests to services.")
-        -- FIXME: make proxies a map keyed by service ids
-  :*>       ("smtp"         :> SmtpConfig'        :>: "Sending email.")
-  :*> Maybe ("default_user" :> DefaultUserConfig' :>: "A user that is created if the user table is empty.")
-  :*>       ("user_reg_expiration" :> Timeout     :>: "User registration expiration period")
-  :*>       ("pw_reset_expiration" :> Timeout     :>: "Password registration token expiration period")
-  :*>       ("email_change_expiration" :> Timeout :>: "Email-change-token expiration period")
-  :*> Maybe ("gc_interval"             :> Int     :>: "Garbage collection interval (ms)")
+  :*> Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
+  :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
+  :*> Maybe ("proxy"        :> ProxyConfig'          :>: "The default proxied app.")
+  :*> Maybe ("proxies"      :> [ProxyConfig']        :>: "A list of proxied apps.")
+  :*>       ("smtp"         :> SmtpConfig'           :>: "Sending email.")
+  :*> Maybe ("default_user" :> DefaultUserConfig'    :>:
+      "A user that is created if the user table is empty.")
+  :*>       ("user_reg_expiration" :> Timeout        :>: "User registration expiration period")
+  :*>       ("pw_reset_expiration" :> Timeout        :>:
+      "Password registration token expiration period")
+  :*>       ("email_change_expiration" :> Timeout    :>: "Email-change-token expiration period")
+  :*> Maybe ("gc_interval"             :> Int        :>: "Garbage collection interval (ms)")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
       Just Run
+  :*> NothingO
   :*> NothingO
   :*> NothingO
   :*> NothingO
@@ -78,8 +82,8 @@ type HttpConfig' =
   :*> Maybe ("expose_host"   :> ST)
   :*> Maybe ("expose_port"   :> Int)
 
-type HttpProxyConfig = Tagged (ToConfigCode HttpProxyConfig')
-type HttpProxyConfig' =
+type ProxyConfig = Tagged (ToConfigCode ProxyConfig')
+type ProxyConfig' =
             ("service_id" :> ST)
   :*>       ("http"       :> HttpConfig')
   :*> Maybe ("url_prefix" :> ST)
@@ -155,11 +159,11 @@ getConfig configFile = do
 -- the supported leaf types in the config structure.  we hope it'll
 -- get smaller over time.
 
-getProxyConfigMap :: ThentosConfig -> Maybe (Map.Map ServiceId HttpProxyConfig)
+getProxyConfigMap :: ThentosConfig -> Maybe (Map.Map ServiceId ProxyConfig)
 getProxyConfigMap cfg = (Map.fromList . fmap (exposeKey . Tagged)) <$>
       cfg >>. (Proxy :: Proxy '["proxies"])
   where
-    exposeKey :: HttpProxyConfig -> (ServiceId, HttpProxyConfig)
+    exposeKey :: ProxyConfig -> (ServiceId, ProxyConfig)
     exposeKey w = (ServiceId (w >>. (Proxy :: Proxy '["service_id"])), w)
 
 bindUrl :: HttpConfig -> ST
