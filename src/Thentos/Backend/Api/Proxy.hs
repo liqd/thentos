@@ -79,11 +79,17 @@ prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (
 data RqMod = RqMod String T.RequestHeaders
   deriving (Eq, Show)
 
--- | Extract proxy config from thentos config.  Look up session from
--- the token provided in the request header @X-Thentos-Session@ and
--- fill headers @X-Thentos-User@, @X-Thentos-Groups@.  If
--- 'proxyConfig' is 'Nothing' or an invalid or inactive session token
--- is provided, throw an error.
+-- | Create request modifier with custom headers to add to it and the target URL of the
+-- proxied app to forward it to.
+--
+-- If the request contains a @X-Thentos-Service@ header, we find the proxied app based on
+-- this header -- an error is thrown if the "proxies" section of the config doesn't match.
+-- Otherwise, the default proxied app from the "proxy" section of the config is used --
+-- an error is thrown if that section is missing.
+--
+-- If the request contains a @X-Thentos-Session@ header, we validate the session and set the
+-- @X-Thentos-User@ and @X-Thentos-Groups@ headers accordingly. Otherwise the request is
+-- forwarded as an anonymous request (no user logged in).
 --
 -- The first parameter is a function that can be used to rename the Thentos-specific headers.
 -- To stick with the default names, use 'Thentos.Backend.Core.renderThentosHeaderName'.
