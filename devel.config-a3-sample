@@ -1,5 +1,9 @@
 # Sample config for running A3 with Thentos in proxy mode.
 # Used ports: A3 frontend on 6551, Thentos proxy on 6546, A3 backend on 6541.
+# Required change in the A3 config:
+# * Change the following line in frontend_development.ini.in:
+#       adhocracy.frontend.rest_url = http://localhost:6546
+# * Call bin/buildout
 
 command: "runA3"
 
