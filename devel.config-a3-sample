@@ -1,0 +1,35 @@
+# Sample config for running A3 with Thentos in proxy mode.
+# Suggested ports: A3 frontend on 6551, Thentos proxy on 6546, A3 backend on 6541.
+
+command: "runA3"
+
+backend:
+    bind_port: 6546
+    bind_host: "127.0.0.1"
+
+#frontend:
+#    bind_port: 7002
+#    bind_host: "127.0.0.1"
+
+proxy:
+    service_id: qlX4MP7xEgtRng+8iNvMIcSo
+    http:
+        bind_port: 6541
+        bind_host: "127.0.0.1"
+
+smtp:
+    sender_name: "Thentos"
+    sender_address: "thentos@thentos.org"
+    sendmail_path: "/usr/sbin/sendmail"    # (built-in default)
+    sendmail_args: ["-t"]                  # (built-in default)
+
+default_user:
+    name: "god"
+    password: "god"
+    email: "postmaster@localhost"
+    roles: ["roleAdmin", "roleUser", "roleServiceAdmin", "roleUserAdmin"]
+
+user_reg_expiration: "1800"
+pw_reset_expiration: "1800"
+email_change_expiration: "1800"
+gc_interval: 1800
