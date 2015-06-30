@@ -95,9 +95,6 @@ createCheckpointLoop acidState timeThreshold = forkIO . forever $ do
 -- * misc
 
 -- | Convertible show.
---
--- Remove once https://github.com/soenkehahn/string-conversions/pull/1
--- has been released.
 cshow :: (Show a, ConvertibleStrings String b) => a -> b
 cshow = cs . show
 
