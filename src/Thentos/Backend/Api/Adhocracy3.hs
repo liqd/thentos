@@ -34,7 +34,6 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.HTTP.Types.URI (urlEncode)
 import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
@@ -309,11 +308,10 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
     config <- AC.getConfig'P
     (uid :: UserId, tok :: ConfirmationToken) <- A.addUnconfirmedUser user
-    let activationUrl = cs (exposeUrl feHttp) <> "/signup_confirm/" <> cs enctok
+    let activationUrl = cs (exposeUrl feHttp) <> "activate/" <> cs (fromConfirmationToken tok)
         feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
               Just v -> Tagged v
-        enctok = urlEncode True . cs . fromConfirmationToken $ tok
     sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
     return $ A3Resource (Just $ userIdToPath config uid) (Just CTUser) (Just $ A3UserNoPass user)
 
@@ -324,7 +322,6 @@ sendUserConfirmationMail smtpConfig user callbackUrl =
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
-
 activate :: ActivationRequest -> AC.Action DB RequestResult
 activate (ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
@@ -332,7 +329,6 @@ activate (ActivationRequest p) = AC.logIfError'P $ do
     ctok        :: ConfirmationToken             <- confirmationTokenFromPath p
     (uid, stok) :: (UserId, ThentosSessionToken) <- A.confirmNewUser ctok
     return $ RequestSuccess (userIdToPath config uid) stok
-
 
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
