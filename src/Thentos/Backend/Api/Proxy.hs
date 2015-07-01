@@ -96,36 +96,37 @@ data RqMod = RqMod String T.RequestHeaders
 getRqMod :: RenderHeaderFun -> S.Request -> Action DB RqMod
 getRqMod renderHeaderFun req = do
     thentosConfig <- getConfig'P
-
-    let proxyMap :: Map.Map ServiceId ProxyConfig =
-            fromMaybe Map.empty $ getProxyConfigMap thentosConfig
-        mDefaultProxy :: Maybe ProxyConfig =
-            Tagged <$> thentosConfig >>. (Proxy :: Proxy '["proxy"])
-        mTok = lookupThentosHeaderSession renderHeaderFun req
+    let mTok = lookupThentosHeaderSession renderHeaderFun req
 
     (sid, target) <- case lookupThentosHeaderService renderHeaderFun req of
-        Just s  -> serviceIdAndTargetFromProxyMap s proxyMap
-        Nothing -> serviceIdAndTargetFromDefaultProxy mDefaultProxy
+        Just s  -> findTargetForServiceId s thentosConfig
+        Nothing -> findDefaultServiceIdAndTarget thentosConfig
 
     hdrs <- createCustomHeaders renderHeaderFun mTok sid
-
     let rqMod = RqMod target hdrs
     logger'P DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
     return rqMod
 
-serviceIdAndTargetFromProxyMap :: ServiceId -> Map.Map ServiceId ProxyConfig
-                               -> Action DB (ServiceId, String)
-serviceIdAndTargetFromProxyMap sid proxyMap = do
+-- | Look up the target URL for requests based on the given service ID. This requires a "proxies"
+-- section in the config. An error is thrown if this section is missing or doesn't contain a match.
+-- For convenience, both service ID and target URL are returned.
+findTargetForServiceId :: ServiceId -> ThentosConfig -> Action DB (ServiceId, String)
+findTargetForServiceId sid conf = do
     target <- case Map.lookup sid proxyMap of
             Just proxy -> return $ extractTargetUrl proxy
             Nothing    -> throwError $ ProxyNotConfiguredForService sid
     return (sid, target)
+  where
+    proxyMap :: Map.Map ServiceId ProxyConfig = fromMaybe Map.empty $ getProxyConfigMap conf
 
-serviceIdAndTargetFromDefaultProxy :: Maybe ProxyConfig -> Action DB (ServiceId, String)
-serviceIdAndTargetFromDefaultProxy Nothing      = throwError MissingServiceHeader
-serviceIdAndTargetFromDefaultProxy (Just proxy) = do
-    sid <- return . ServiceId $ proxy >>. (Proxy :: Proxy '["service_id"])
-    let target = extractTargetUrl proxy
+-- | Look up the service ID and target URL in the "proxy" section of the config.
+-- An error is thrown if that section is missing.
+findDefaultServiceIdAndTarget :: ThentosConfig -> Action DB (ServiceId, String)
+findDefaultServiceIdAndTarget conf = do
+    defaultProxy <- maybe (throwError MissingServiceHeader) return $
+        Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
+    sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
+    let target = extractTargetUrl defaultProxy
     return (sid, target)
 
 extractTargetUrl :: ProxyConfig -> String
