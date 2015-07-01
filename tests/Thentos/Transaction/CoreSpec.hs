@@ -1,12 +1,14 @@
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
@@ -16,7 +18,7 @@ module Thentos.Transaction.CoreSpec where
 
 import Control.Lens ((%~), (%%~))
 import Data.Functor.Infix ((<$>))
-import Data.SafeCopy (deriveSafeCopy, base)
+import Data.SafeCopy (SafeCopy(..), deriveSafeCopy, base)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Test.Hspec (Spec, describe, it, shouldBe, hspec)
@@ -44,6 +46,14 @@ instance CustomDB `Extends` DB where
     asDBThentosError = CustomDBError
 
 data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
+
+deriving instance Show (ThentosError CustomDB)
+deriving instance Read (ThentosError CustomDB)
+
+instance SafeCopy (ThentosError CustomDB)
+  where
+    putCopy = putCopyViaShowRead
+    getCopy = getCopyViaShowRead
 
 spec_polyQU :: Spec
 spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do

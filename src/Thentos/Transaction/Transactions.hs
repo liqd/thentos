@@ -1,5 +1,3 @@
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE MultiWayIf           #-}
