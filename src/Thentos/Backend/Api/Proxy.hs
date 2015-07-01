@@ -16,6 +16,7 @@
 
 module Thentos.Backend.Api.Proxy where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
@@ -78,49 +79,75 @@ prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (
 data RqMod = RqMod String T.RequestHeaders
   deriving (Eq, Show)
 
--- | Extract proxy config from thentos config.  Look up session from
--- the token provided in the request header @X-Thentos-Session@ and
--- fill headers @X-Thentos-User@, @X-Thentos-Groups@.  If
--- 'proxyConfig' is 'Nothing' or an invalid or inactive session token
--- is provided, throw an error.
+-- | Create request modifier with custom headers to add to it and the target URL of the
+-- proxied app to forward it to.
+--
+-- If the request contains a @X-Thentos-Service@ header, we find the proxied app based on
+-- this header -- an error is thrown if the "proxies" section of the config doesn't match.
+-- Otherwise, the default proxied app from the "proxy" section of the config is used --
+-- an error is thrown if that section is missing.
+--
+-- If the request contains a @X-Thentos-Session@ header, we validate the session and set the
+-- @X-Thentos-User@ and @X-Thentos-Groups@ headers accordingly. Otherwise the request is
+-- forwarded as an anonymous request (no user logged in).
 --
 -- The first parameter is a function that can be used to rename the Thentos-specific headers.
 -- To stick with the default names, use 'Thentos.Backend.Core.renderThentosHeaderName'.
 getRqMod :: RenderHeaderFun -> S.Request -> Action DB RqMod
 getRqMod renderHeaderFun req = do
     thentosConfig <- getConfig'P
+    let mTok = lookupThentosHeaderSession renderHeaderFun req
 
-    prxCfg :: Map.Map ServiceId HttpProxyConfig
-        <- maybe (throwError ProxyNotAvailable) return $ getProxyConfigMap thentosConfig
-    (uid, user) :: (UserId, User)
-        <- do
-            tok <- maybe (throwError NoSuchThentosSession) return
-                         (lookupThentosHeaderSession renderHeaderFun req)
-            session <- lookupThentosSession tok
-            case session ^. thSessAgent of
-                UserA uid  -> lookupUser uid
-                ServiceA sid -> throwError $ NeedUserA tok sid
+    (sid, target) <- case lookupThentosHeaderService renderHeaderFun req of
+        Just s  -> findTargetForServiceId s thentosConfig
+        Nothing -> findDefaultServiceIdAndTarget thentosConfig
 
-    sid :: ServiceId
-        <- case lookupThentosHeaderService renderHeaderFun req of
-               Just s  -> return s
-               Nothing -> throwError MissingServiceHeader
-
-    groups :: [Group]
-        <- userGroups uid sid
-
-    let hdrs =
-            [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
-            , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
-            ]
-
-    target :: String
-        <- case Map.lookup sid prxCfg of
-            Just t  -> let http :: HttpConfig = Tagged $ t >>. (Proxy :: Proxy '["http"])
-                           prefix :: ST = fromMaybe "" $ t >>. (Proxy :: Proxy '["url_prefix"])
-                       in return . cs $ exposeUrl http <> prefix
-            Nothing -> throwError $ ProxyNotConfiguredForService sid
-
+    hdrs <- createCustomHeaders renderHeaderFun mTok sid
     let rqMod = RqMod target hdrs
     logger'P DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
     return rqMod
+
+-- | Look up the target URL for requests based on the given service ID. This requires a "proxies"
+-- section in the config. An error is thrown if this section is missing or doesn't contain a match.
+-- For convenience, both service ID and target URL are returned.
+findTargetForServiceId :: ServiceId -> ThentosConfig -> Action DB (ServiceId, String)
+findTargetForServiceId sid conf = do
+    target <- case Map.lookup sid (getProxyConfigMap conf) of
+            Just proxy -> return $ extractTargetUrl proxy
+            Nothing    -> throwError $ ProxyNotConfiguredForService sid
+    return (sid, target)
+
+-- | Look up the service ID and target URL in the "proxy" section of the config.
+-- An error is thrown if that section is missing.
+findDefaultServiceIdAndTarget :: ThentosConfig -> Action DB (ServiceId, String)
+findDefaultServiceIdAndTarget conf = do
+    defaultProxy <- maybe (throwError MissingServiceHeader) return $
+        Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
+    sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
+    let target = extractTargetUrl defaultProxy
+    return (sid, target)
+
+extractTargetUrl :: ProxyConfig -> String
+extractTargetUrl proxy = cs $ exposeUrl http <> prefix
+  where
+    http :: HttpConfig = Tagged $ proxy >>. (Proxy :: Proxy '["http"])
+    prefix :: ST       = fromMaybe "" $ proxy >>. (Proxy :: Proxy '["url_prefix"])
+
+-- | Create headers identifying the user and their groups.
+-- Returns an empty list in case of an anonymous request.
+createCustomHeaders :: RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId
+                    -> Action DB T.RequestHeaders
+createCustomHeaders _ Nothing _                    = return []
+createCustomHeaders renderHeaderFun (Just tok) sid = do
+    (uid, user) :: (UserId, User)
+        <- do
+            session <- lookupThentosSession tok
+            case session ^. thSessAgent of
+                UserA uid  -> lookupUser uid
+                ServiceA servId -> throwError $ NeedUserA tok servId
+
+    groups :: [Group] <- userGroups uid sid
+
+    return [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
+           , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
+           ]

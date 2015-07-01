@@ -21,7 +21,6 @@ import Data.Aeson (object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
 import Data.String.Conversions (LBS, ST, cs, (<>))
-import Network.HTTP.Types.URI (urlEncode)
 import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, shouldSatisfy, pendingWith, hspec)
 import Test.QuickCheck (property)
@@ -138,11 +137,8 @@ spec =
                         ["-q", "Subject: Thentos account creation", logfile] ""
                     liftIO $ statusCode `shouldBe` ExitSuccess
                     loggedLine <- liftIO $ readProcess "grep" ["\"Please go to ", logfile] ""
-                    -- The grepped line should contain the percent-encoded token (but the case of
-                    --percent-encoded chars may vary, therefore toLower)
-                    let encodedTok = cs . urlEncode True $ cs confTok
-                    liftIO $ ST.toLower encodedTok `shouldSatisfy`
-                        (`ST.isInfixOf` (ST.toLower . cs $ loggedLine))
+                    -- The grepped line should contain the confirmation token
+                    liftIO $ confTok `shouldSatisfy` (`ST.isInfixOf` cs loggedLine)
 
                     let rq2 = Aeson.encode . ActivationRequest . Path $ "/activate/" <> confTok
                     rsp2 <- srequest $ makeSRequest "POST" "/activate_account" [] rq2

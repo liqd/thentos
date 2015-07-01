@@ -82,6 +82,7 @@ import LIO.Error (AnyLabelError)
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Set as Set
+import qualified Data.Text as ST
 
 import LIO.Missing
 import Thentos.Action.Core
@@ -94,8 +95,16 @@ import qualified Thentos.Transaction as T
 -- * randomness
 
 -- | Return a base64 encoded random string of length 24 (18 bytes of entropy).
+-- We use @_@ instead of @/@ as last letter of the base64 alphabet since it allows using names
+-- within URLs without percent-encoding. Our Base64 alphabet thus consists of ASCII letters +
+-- digits as well as @+@ and @_@. All of these are reliably recognized in URLs, even if they occur
+-- at the end.
+--
+-- RFC 4648 also has a "URL Safe Alphabet" which additionally replaces @+@ by @-@. But that's
+-- problematic, since @-@ at the end of URLs is not recognized as part of the URL by some programs
+-- such as Thunderbird.
 freshRandomName :: Action DB ST
-freshRandomName = cs . Base64.encode <$> genRandomBytes'P 18
+freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> genRandomBytes'P 18
 
 freshConfirmationToken :: Action DB ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
