@@ -112,12 +112,10 @@ getRqMod renderHeaderFun req = do
 -- For convenience, both service ID and target URL are returned.
 findTargetForServiceId :: ServiceId -> ThentosConfig -> Action DB (ServiceId, String)
 findTargetForServiceId sid conf = do
-    target <- case Map.lookup sid proxyMap of
+    target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
             Nothing    -> throwError $ ProxyNotConfiguredForService sid
     return (sid, target)
-  where
-    proxyMap :: Map.Map ServiceId ProxyConfig = fromMaybe Map.empty $ getProxyConfigMap conf
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.

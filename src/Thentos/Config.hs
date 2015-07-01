@@ -159,8 +159,8 @@ getConfig configFile = do
 -- the supported leaf types in the config structure.  we hope it'll
 -- get smaller over time.
 
-getProxyConfigMap :: ThentosConfig -> Maybe (Map.Map ServiceId ProxyConfig)
-getProxyConfigMap cfg = (Map.fromList . fmap (exposeKey . Tagged)) <$>
+getProxyConfigMap :: ThentosConfig -> Map.Map ServiceId ProxyConfig
+getProxyConfigMap cfg = fromMaybe Map.empty $ (Map.fromList . fmap (exposeKey . Tagged)) <$>
       cfg >>. (Proxy :: Proxy '["proxies"])
   where
     exposeKey :: ProxyConfig -> (ServiceId, ProxyConfig)
