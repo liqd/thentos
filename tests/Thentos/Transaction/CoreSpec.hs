@@ -9,10 +9,10 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
 
 module Thentos.Transaction.CoreSpec where
 
@@ -24,6 +24,12 @@ import GHC.Generics (Generic)
 import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 
 import Thentos.Types
+--import Thentos.Transaction hiding (dbEvents) -- (transaction_names, AllUserIds(..))
+import Thentos.Transaction.Core
+import Thentos.Transaction.Types
+
+import Data.Acid (openLocalState)
+import Data.Acid.Advanced (query')
 
 import Test.Arbitrary ()
 
@@ -34,26 +40,7 @@ tests = hspec spec
 spec :: Spec
 spec = describe "Thentos.Transaction.Core" $ do
     spec_polyQU
-
-
-data CustomDB = CustomDB DB Int
-  deriving (Eq, Show, Typeable, Generic)
-
-instance CustomDB `Extends` DB where
-    focus f (CustomDB db i) = (`CustomDB` i) <$> f db
-
-    asDBThentosError :: ThentosError DB -> ThentosError CustomDB
-    asDBThentosError = CustomDBError
-
-data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
-
-deriving instance Show (ThentosError CustomDB)
-deriving instance Read (ThentosError CustomDB)
-
-instance SafeCopy (ThentosError CustomDB)
-  where
-    putCopy = putCopyViaShowRead
-    getCopy = getCopyViaShowRead
+    spec_useCustomDB
 
 spec_polyQU :: Spec
 spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
@@ -84,4 +71,10 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
                   db' `shouldBe` emptyDB
                   x `shouldBe` 3
 
-$(deriveSafeCopy 0 'base ''CustomDB)
+spec_useCustomDB :: Spec
+spec_useCustomDB = describe "custom db" $ do
+    it "works" $ \ () -> do
+        st <- openLocalState (CustomDB emptyDB 3)
+        u <- query' st $ AllUserIds
+        u `shouldBe` Right []
+        return ()

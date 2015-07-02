@@ -13,6 +13,9 @@
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
+{-# LANGUAGE UndecidableInstances        #-}
+{-# LANGUAGE OverlappingInstances        #-}
+{-# LANGUAGE AllowAmbiguousTypes         #-}
 
 module Thentos.Types where
 
@@ -95,6 +98,10 @@ class (Typeable db1, Typeable db2, SafeCopy db1, SafeCopy db2,
 instance DB `Extends` DB where
     focus = id
     asDBThentosError = id
+
+instance (db1 `Extends` db2, db2 `Extends` db3) => db1 `Extends` db3 where
+    focus = focus . focus
+    asDBThentosError = asDBThentosError . asDBThentosError
 
 -- * user
 

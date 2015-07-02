@@ -220,6 +220,8 @@ test-suite tests
     , Thentos.Backend.Api.SimpleSpec
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
+    , Thentos.Transaction.CoreSpec
+    , Thentos.Transaction.Types
   ghc-options:
       -Wall -threaded -rtsopts
   cpp-options:
