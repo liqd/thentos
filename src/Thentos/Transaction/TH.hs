@@ -1,7 +1,8 @@
-{-# LANGUAGE MultiWayIf      #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeOperators   #-}
-{-# LANGUAGE ViewPatterns    #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE MultiWayIf                #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 module Thentos.Transaction.TH
      ( makeThentosAcidicPhase1
@@ -70,61 +71,46 @@ makeIsAcidic dbType =
     [d| instance IsAcidic $(conT dbType) where acidEvents = $(varE $ mkName "dbEvents") |]
 
 mkEventList :: Name -> [Name] -> Q [Dec]
-mkEventList dbName eventNames = do
-    -- sig <- mkSig
-    -- def <- mkDef
-    -- return [sig, def]
-    mkSig
+mkEventList dbName eventNames =
+    [d|
+        dbEvents :: forall dbVar . (dbVar `Extends` $(conT dbName)) => [Event dbVar]
+        dbEvents = $(ListE <$> mapM mkEntryForEvent eventNames)
+     |]
   where
-    mkSig = do
-        -- dbTypeVar <- newName "db"
-        let dbTypeVar = VarT <$> newName "db"
-        -- let ctx = [ClassP ''Extends [VarT dbTypeVar, ConT dbName]]
-            --typ = SigD (mkName "dbEvents") $ ForallT [PlainTV dbTypeVar] ctx (AppT ListT (AppT (ConT ''Event) (VarT dbTypeVar)))
-        --typ <- [d| dbEvents :: $(plainTV dbTypeVar) $|]
-        typ <- [d| 
-            dbEvents :: ($dbTypeVar `Extends` $(conT dbName)) => [Event $dbTypeVar]
-            dbEvents = $(ListE <$> mapM mkEntryForEvent eventNames)
-               |]
-        return typ
-        
-    {-
-    mkDef = do
-        l <- ListE <$> mapM mkEntryForEvent eventNames
-        return $ ValD (VarP $ mkName "dbEvents") (NormalB l) []
-    -}
     mkEntryForEvent :: Name -> Q Exp
     mkEntryForEvent eventName = do
         (argTypes, evType, _) <- analyseEventFunc eventName
         argNames <- mapM (\_ -> newName "arg") argTypes
-        let evConst = ConE $ case evType of
+        let evConst = conE $ case evType of
                 TransQuery -> 'QueryEvent
                 TransUpdate -> 'UpdateEvent
             constName = toTypeName eventName
 
-            lambdaBody = foldl AppE (VarE eventName) (map VarE argNames)
-            lambda = LamE [ConP constName (map VarP argNames)] lambdaBody
-        return $ AppE evConst lambda
+            lambdaBody = foldl appE (varE eventName) (map varE argNames)
+            lambda = lamE [conP constName (map varP argNames)] lambdaBody
+            -- the following should also work, but crashes my version of ghc:
+            -- lambda = [e| \ $(conP constName (map varP argNames)) -> $lambdaBody |]
+        appE evConst lambda
 
 acidifyTrans :: Name -> Name -> Q [Dec]
 acidifyTrans dbName eventName = do
     (argTypes, transType, returnType) <- analyseEventFunc eventName
-    typDecl <- mkTypeDecl argTypes
+    typDecl <- mkTypeDecl (map pure argTypes)
     sc <- mkSafeCopyInstance (length argTypes)
     methodInstance <- mkMethodInstance returnType
     eventInstance <- mkEventInstance transType
-    return [typDecl, sc, methodInstance, eventInstance]
+    return $ [typDecl] ++ sc ++ [methodInstance, eventInstance]
   where
     acidTypeName = toTypeName eventName
 
     -- data AgentRoles t = AgentRoles Agent deriving Typeable
-    mkTypeDecl :: [Type] -> Q Dec
+    mkTypeDecl :: [Q Type] -> Q Dec
     mkTypeDecl args = do
         typeVar <- newName "t"
-        let conArgs = map (\a -> (NotStrict, a)) args
-            constructor = NormalC acidTypeName conArgs
+        let conArgs = map (\a -> strictType notStrict a) args
+            constructor = normalC acidTypeName conArgs
             derive = [''Typeable]
-        return $ DataD [] acidTypeName [PlainTV $ typeVar] [constructor] derive
+        dataD (pure []) acidTypeName [PlainTV typeVar] [constructor] derive
 
     -- instance (db `Extends` DB) => Method (AgentRoles db) where
     --     type MethodResult (AgentRoles db) = Either (ThentosError db) (Set Role)
@@ -134,17 +120,16 @@ acidifyTrans dbName eventName = do
         dbTypeVar <- VarT <$> newName "db"
         let ctx = [ClassP ''Extends [dbTypeVar, ConT dbName]]
             fullType = AppT (ConT ''Method) (AppT (ConT acidTypeName) dbTypeVar)
-        rDecl <- mkResultDecl dbTypeVar returnType
+        rDecl <- mkResultDecl (pure dbTypeVar) (pure returnType)
         sDecl <- mkStateDecl dbTypeVar
         return $ InstanceD ctx fullType [rDecl, sDecl]
         
-    -- type MethodResult (AgentRoles db) = Either (ThentosError db) (Set.Set Role)
-    mkResultDecl :: Type -> Type -> Q Dec
+    -- type MethodResult (AgentRoles db) = Either (ThentosError db) (Set Role)
+    mkResultDecl :: Q Type -> Q Type -> Q Dec
     mkResultDecl dbTypeVar eventReturnType = do
-        let lhs_type = AppT (ConT acidTypeName) dbTypeVar
-            errorType = AppT (ConT ''ThentosError) dbTypeVar
-            returnType = AppT (AppT (ConT ''Either) errorType) eventReturnType
-        return $ TySynInstD ''MethodResult (TySynEqn [lhs_type] returnType)
+        let lhs_type = [t| $(conT acidTypeName) $dbTypeVar |]
+            returnType = [t| Either (ThentosError $dbTypeVar) $eventReturnType|]
+        tySynInstD ''MethodResult (tySynEqn [lhs_type] returnType)
 
     -- type MethodState (AgentRoles db) = db
     mkStateDecl :: Type -> Q Dec
@@ -168,27 +153,23 @@ acidifyTrans dbName eventName = do
     -- instance SafeCopy (AgentRoles db) where
     --    putCopy (AgentRoles a) = contain (do putCopy a; return ();)
     --    getCopy = contain (pure AgentRoles <*> getCopy)
-    mkSafeCopyInstance :: Int -> Q Dec
+    mkSafeCopyInstance :: Int -> Q [Dec]
     mkSafeCopyInstance argCount = do
         argNames <- replicateM argCount (newName "arg")
-        dbTypeVarName <- newName "db"
         let eventTypeName = toTypeName eventName
-            putDecl = FunD 'putCopy
-                           [Clause [ConP eventTypeName (map VarP argNames)]
-                                   putBody
-                                   []
-                           ]
-            putBody = NormalB $ AppE (VarE 'contain) $ DoE $ map (\a -> NoBindS $ AppE (VarE 'safePut) (VarE a)) argNames ++ [NoBindS $ AppE (VarE 'return) (ConE '())]
-            
-            getDecl = ValD (VarP 'getCopy) (NormalB getBody) []
-            getBody = AppE (VarE 'contain) $
-                foldl (\a b -> UInfixE a (VarE '(<*>)) b)
-                      (AppE (VarE 'pure) (ConE eventTypeName))
-                      (replicate argCount (VarE 'safeGet))
+            putBody = appE (varE 'contain) doPut
+            doPut = doE $ map (\a -> noBindS [e| safePut $(varE a) |])
+                              argNames
+                        ++ [noBindS [e| return () |] ]
+            getBody = appE (varE 'contain) $
+                foldl (\a b -> uInfixE a (varE '(<*>)) b)
+                      [e| pure $(conE eventTypeName) |]
+                      (replicate argCount (varE 'safeGet))
 
-        return $ InstanceD []
-                           (AppT (ConT ''SafeCopy) (AppT (ConT eventTypeName) (VarT dbTypeVarName)))
-                           [getDecl, putDecl]
+        [d| instance SafeCopy ($(conT acidTypeName) db) where
+                putCopy $(conP acidTypeName (map varP argNames)) = $putBody
+                getCopy = $getBody
+          |]
         
 toTypeName :: Name -> Name
 toTypeName (nameBase -> s) =
@@ -221,7 +202,7 @@ analyseEventFunc func = do
         (transType, rType) = analyseReturnType returnType
     return (args, transType, rType)
 
--- Query db (Either (ThentosError db) (Set.Set Role)) --> (TransQuery, (Set.Set Role))
+-- Query db (Either (ThentosError db) (Set Role)) --> (TransQuery, (Set Role))
 analyseReturnType :: Type -> (TransactionType, Type)
 analyseReturnType (AppT (AppT transType _dbVar) (AppT (_either_err) returnType)) =
     let ttyp = if | transType == ConT ''Query -> TransQuery
