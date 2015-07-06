@@ -293,6 +293,8 @@ benchmark load-test
     , random
     , resourcet
     , safe
+    , sandi
+    , string-conversions
     , text
     , text-format
     , time

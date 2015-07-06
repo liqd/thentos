@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Main (main) where
 
@@ -6,6 +7,7 @@ import Data.Aeson (encode, decode)
 import Data.List (unfoldr)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Monoid ((<>))
+import Data.String.Conversions (cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Conduit (Request(..), parseUrl, RequestBody(RequestBodyLBS))
 import Network.HTTP.Conduit (Response(responseBody), withManager, httpLbs)
@@ -15,6 +17,7 @@ import Safe (fromJustNote)
 import System.IO (stdout)
 import System.Random (RandomGen, split, randoms, newStdGen)
 
+import qualified Codec.Binary.Base32 as Base32
 import qualified Network.HTTP.LoadTest as Pronk
 import qualified Network.HTTP.LoadTest.Report as Pronk
 import qualified Network.HTTP.LoadTest.Analysis as Pronk
@@ -74,8 +77,9 @@ defaultBenchmarkConfig = BenchmarkConfig "localhost" 7001
 getThentosSessionToken :: BenchmarkConfig -> IO (Maybe ThentosSessionToken)
 getThentosSessionToken conf = do
     let req = (fromJust . parseUrl $ "http://" ++ targetBackendHost conf ++ ":"
-                        ++ show (targetBackendPort conf) ++ "/session"
+                        ++ show (targetBackendPort conf) ++ "/thentos_session"
               ) { requestBody = RequestBodyLBS $ encode (UserId 0, UserPass "god")
+                , requestHeaders = [("Content-Type", "application/json")]
                 , method = methodPost
                 }
     withManager $ \m -> do
@@ -91,15 +95,18 @@ makeRequest mSession conf endpoint =
     case mSession of
         Nothing -> r
         Just token ->
-            r {requestHeaders = [("X-Thentos-Session",
-                                  encodeUtf8 $ fromThentosSessionToken token)]}
+            r {requestHeaders = [ ("X-Thentos-Session", encodeUtf8 $ fromThentosSessionToken token)
+                                , ("Content-Type", "application/json")
+                                ]}
+
 
 -- specific benchmarks
 
 -- signup
+
 signupGenTrans :: ThentosSessionToken -> [Char] -> (Req, Response LBS.ByteString -> [Char])
 signupGenTrans sessionToken charSource =
-    let (name, remaining) = splitAt 10 charSource in
+    let (cs . Base32.encode . cs -> name, remaining) = splitAt 30 charSource in
     let req = mkReq name in
     let cont = const remaining in
     (Req req, cont)
@@ -113,8 +120,8 @@ signupGenTrans sessionToken charSource =
         tName = ST.pack name
         uName = UserName tName
         uPass = "dummyPassword"
-        uEmail = fromJustNote "signupGenTrans: unreachable!" . parseUserEmail
-               $ tName <> "@example.com"
+        uEmail = fromJustNote ("signupGenTrans: bad email: " <> show uEmail') $ parseUserEmail uEmail'
+        uEmail' = tName <> "@example.com"
         formData = UserFormData uName uPass uEmail
 
 mkSignupGens :: RandomGen r => r -> ThentosSessionToken -> [Pronk.RequestGenerator]
@@ -144,7 +151,7 @@ loginGenTrans (MachineState uid loginState) =
         LoggedIn $ fromMaybe (error "Got no session token") sessionToken
 
     loginReq =
-        (makeRequest Nothing defaultBenchmarkConfig "/session")
+        (makeRequest Nothing defaultBenchmarkConfig "/thentos_session")
             { method = methodPost
             , requestBody = RequestBodyLBS $ encode (uid, UserPass "dummyPassword")
             }
@@ -152,7 +159,7 @@ loginGenTrans (MachineState uid loginState) =
     logout tok = (logoutReq tok, const LoggedOut)
 
     logoutReq tok =
-        (makeRequest (Just tok) defaultBenchmarkConfig "/session")
+        (makeRequest (Just tok) defaultBenchmarkConfig "/thentos_session")
             { method = methodDelete
             , requestBody = RequestBodyLBS $ encode tok
             }
@@ -182,8 +189,9 @@ mkLoginGens sessionToken = do
 -- This is an intentionally trivial benchmark that is supposed to give
 -- us a performance baseline by measuring mostly overhead (routing, json
 -- decoding etc.)
+
 sessionCheckGen :: ThentosSessionToken -> Pronk.RequestGenerator
 sessionCheckGen sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
-    req = (makeRequest (Just sessionToken) defaultBenchmarkConfig "/session")
+    req = (makeRequest (Just sessionToken) defaultBenchmarkConfig "/thentos_session")
             {requestBody = RequestBodyLBS $ encode sessionToken }
