@@ -21,13 +21,14 @@ import Language.Haskell.TH
 import Text.Show.Pretty (ppShow)
 
 import Thentos.Transaction.Core (ThentosUpdate, ThentosQuery)
-import Thentos.Types (DB, ThentosError, Extends)
+import Thentos.Types (ThentosError, Extends)
 
 
 data TransactionType = TransQuery | TransUpdate
 
-makeThentosAcidicPhase1 :: [Name] -> Q [Dec]
-makeThentosAcidicPhase1 names = concat <$> mapM processTransaction names
+makeThentosAcidicPhase1 :: Name -> [Name] -> Q [Dec]
+makeThentosAcidicPhase1 dbTypeName names =
+    concat <$> mapM (processTransaction $ ConT dbTypeName) names
 
 {-
 -- for every transaction, we need the following:
@@ -233,18 +234,18 @@ analyseReturnType (AppT (AppT transType _dbVar) (AppT (_either_err) returnType))
 analyseReturnType _ = error "analyseReturnType: unexpected type"
 
 
-processTransaction :: Name -> Q [Dec]
-processTransaction functionName = do
+processTransaction :: Type -> Name -> Q [Dec]
+processTransaction dbType functionName = do
     info <- reify functionName
     let typ = case info of
             VarI _ t _ _ -> t
             _ -> error $ nameBase functionName ++ " is not a function"
-    processTransaction' functionName typ
+    processTransaction' functionName typ dbType
 
-processTransaction' :: Name -> Type -> Q [Dec]
-processTransaction' functionName typ = do
+processTransaction' :: Name -> Type -> Type -> Q [Dec]
+processTransaction' functionName typ dbType = do
     let name_suffix = dropPrefix functionName
-        (sig, transType) = makeThentosType' typ
+        (sig, transType) = makeThentosType' typ dbType
         signature = SigD name_suffix sig
     fun <- makeFinalFun functionName name_suffix (countArgs typ) transType
     return [signature, fun]
@@ -284,10 +285,10 @@ makeThentosType (AppT (AppT t (VarT _)) returnType)
 makeThentosType (ForallT _ _ app) = makeThentosType app
 makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
 
-makeThentosType' :: Type -> (Type, TransactionType)
-makeThentosType' t =
+makeThentosType' :: Type -> Type -> (Type, TransactionType)
+makeThentosType' t dbType =
     let (typ, transTyp) = makeThentosType t
-    in (ForallT [PlainTV dbVarName] [ClassP ''Extends [VarT dbVarName, ConT ''DB]] typ, transTyp)
+    in (ForallT [PlainTV dbVarName] [ClassP ''Extends [VarT dbVarName, dbType]] typ, transTyp)
   where
     dbVarName = mkName "db"
 

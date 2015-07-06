@@ -49,7 +49,7 @@ liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
 -- - http://petterbergman.se/aciderror.html.en
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
-runThentosUpdate :: (db `Extends` DB) => ThentosUpdate db a -> Update db (Either (ThentosError db) a)
+runThentosUpdate :: ThentosUpdate db a -> Update db (Either (ThentosError db) a)
 runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
@@ -57,7 +57,7 @@ runThentosUpdate action = do
         (Right result, state') -> put state' >> (return $ Right result)
 
 -- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
-runThentosQuery :: (db `Extends` DB) => ThentosQuery db a -> Query db (Either (ThentosError db) a)
+runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 
 
@@ -68,15 +68,13 @@ runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 --  1. shouldn't there be a way to do both cases with one function @poly@?
 --  2. shouldn't there be a way to make acid-state events polymorphic in the state type?  (first try
 --     without the template haskell magic, then, if that works, it should also work magically.)
--- FIXME : this doesn't work for UserDefinedDB1 -> UserDefinedDB2
-polyUpdate :: forall a db . (db `Extends` DB) => ThentosUpdate DB a -> ThentosUpdate db a
+polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
 polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
   where
-    bare :: DB -> (Either (ThentosError db) a, DB)
+    bare :: db1 -> (Either (ThentosError db2) a, db1)
     bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
 
 -- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
--- FIXME : see polyUpdate
-polyQuery :: forall a db . (db `Extends` DB) => ThentosQuery DB a -> ThentosQuery db a
-polyQuery qry = EitherT . ReaderT $ \ (state :: db) ->
+polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
+polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
     fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. focus)

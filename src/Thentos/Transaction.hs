@@ -30,5 +30,5 @@ import Thentos.Transaction.Transactions
 import Thentos.Transaction.TH
 import Thentos.Types
 
-$(makeThentosAcidicPhase1 transaction_names)
+$(makeThentosAcidicPhase1 ''DB transaction_names)
 $(makeThentosAcidicPhase2 ''DB transaction_names [] [])
