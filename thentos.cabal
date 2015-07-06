@@ -213,6 +213,7 @@ test-suite tests
       Test.Arbitrary
     , Test.Config
     , Test.Core
+    , Test.CustomDB
     , Test.Types
     , Test.WebDriver.Missing
     , ThentosSpec
@@ -221,7 +222,6 @@ test-suite tests
     , Thentos.FrontendSpec
     , Thentos.TypesSpec
     , Thentos.Transaction.CoreSpec
-    , Thentos.Transaction.Types
   ghc-options:
       -Wall -threaded -rtsopts
   cpp-options:

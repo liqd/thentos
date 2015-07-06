@@ -192,6 +192,7 @@ acidifyTrans dbName eventName = do
                 putCopy $(conP acidTypeName (map varP argNames)) = $putBody
                 getCopy = $getBody
           |]
+
 -- | lookupUser -> LookupUser
 toTypeName :: Name -> Name
 toTypeName (nameBase -> s) =

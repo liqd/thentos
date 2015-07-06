@@ -15,7 +15,9 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
-module Thentos.Transaction.Types where
+-- | This defines a custom db type that extends the basic thentos DB. It is
+-- used by the tests in the Thentos.Transaction.CoreSpec module.
+module Test.CustomDB where
 
 import Control.Applicative ((<$>))
 import Control.Monad.Reader (ask)
@@ -28,7 +30,6 @@ import Thentos.Transaction.TH
 import Thentos.Types
 
 import qualified Thentos.Transaction as T
-import qualified Thentos.Transaction.Transactions as T
 
 data CustomDB = CustomDB DB Int
   deriving (Eq, Show, Typeable, Generic)

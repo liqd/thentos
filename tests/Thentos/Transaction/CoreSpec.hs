@@ -17,13 +17,13 @@ import Test.Hspec (Spec, describe, it, shouldBe, hspec, before, after)
 
 import Thentos.Types
 import Thentos.Transaction (AllUserIds(..))
-import Thentos.Transaction.Types
 
 import Data.Acid (openLocalStateFrom)
 import Data.Acid.Advanced (query')
 
 import Test.Arbitrary ()
 import Test.Core
+import Test.CustomDB
 import Test.Types
 
 
