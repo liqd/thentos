@@ -292,6 +292,7 @@ benchmark load-test
     -- (only available from https://github.com/liqd/pronk in branch thentos-patches)
     , random
     , resourcet
+    , safe
     , text
     , text-format
     , time
