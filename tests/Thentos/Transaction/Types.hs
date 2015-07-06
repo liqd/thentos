@@ -17,15 +17,18 @@
 
 module Thentos.Transaction.Types where
 
-import qualified Thentos.Transaction.Transactions as T
-import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
-import qualified Thentos.Transaction as T
-import Thentos.Types
-import Thentos.Transaction.TH
+import Control.Applicative ((<$>))
+import Control.Monad.Reader (ask)
 import Data.SafeCopy (SafeCopy(..), deriveSafeCopy, base)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Data.Functor.Infix ((<$>))
+
+import Thentos.Transaction.Core
+import Thentos.Transaction.TH
+import Thentos.Types
+
+import qualified Thentos.Transaction as T
+import qualified Thentos.Transaction.Transactions as T
 
 data CustomDB = CustomDB DB Int
   deriving (Eq, Show, Typeable, Generic)
@@ -51,6 +54,12 @@ instance SafeCopy (ThentosError CustomDB)
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
 
+
+trans_getTheInt :: (db `Extends` CustomDB) => ThentosQuery db Int
+trans_getTheInt = polyQuery $ do
+    CustomDB _ n <- ask
+    return n
+
 $(deriveSafeCopy 0 'base ''CustomDB)
-$(makeThentosAcidicPhase1 T.transaction_names)
-$(makeThentosAcidicPhase2 ''CustomDB [] [''DB] ['T.dbEvents])
+$(makeThentosAcidicPhase1 ''CustomDB ['trans_getTheInt])
+$(makeThentosAcidicPhase2 ''CustomDB ['trans_getTheInt] [''DB] ['T.dbEvents])

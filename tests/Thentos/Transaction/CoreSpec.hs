@@ -68,6 +68,9 @@ spec_useCustomDB :: Spec
 spec_useCustomDB = describe "custom db" . before setupBare . after teardownBare $ do
     it "works" $ \ (TS tcfg) -> do
         st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (CustomDB emptyDB 3)
-        u <- query' st $ AllUserIds
+        u <- query' st AllUserIds
         u `shouldBe` Right []
+
+        theInt <- query' st GetTheInt
+        theInt `shouldBe` Right 3
         return ()
