@@ -1,14 +1,10 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -17,15 +13,10 @@
 module Thentos.Transaction.CoreSpec where
 
 import Control.Lens ((%~), (%%~), (^.))
-import Data.Functor.Infix ((<$>))
-import Data.SafeCopy (SafeCopy(..), deriveSafeCopy, base)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
 import Test.Hspec (Spec, describe, it, shouldBe, hspec, before, after)
 
 import Thentos.Types
---import Thentos.Transaction hiding (dbEvents) -- (transaction_names, AllUserIds(..))
-import Thentos.Transaction.Core
+import Thentos.Transaction (AllUserIds(..))
 import Thentos.Transaction.Types
 
 import Data.Acid (openLocalStateFrom)

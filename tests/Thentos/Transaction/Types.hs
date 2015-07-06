@@ -18,7 +18,8 @@
 module Thentos.Transaction.Types where
 
 import qualified Thentos.Transaction.Transactions as T
-import Thentos.Transaction.Core
+import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
+import qualified Thentos.Transaction as T
 import Thentos.Types
 import Thentos.Transaction.TH
 import Data.SafeCopy (SafeCopy(..), deriveSafeCopy, base)
@@ -52,4 +53,4 @@ instance SafeCopy (ThentosError CustomDB)
 
 $(deriveSafeCopy 0 'base ''CustomDB)
 $(makeThentosAcidicPhase1 T.transaction_names)
-$(makeThentosAcidicPhase2 ''CustomDB T.transaction_names)
+$(makeThentosAcidicPhase2 ''CustomDB [] [''DB] ['T.dbEvents])

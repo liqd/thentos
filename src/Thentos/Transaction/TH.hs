@@ -53,14 +53,18 @@ dbEvents =
     ..
     ]
 
+-- for db types that extend an existing db type, dbEvents will look like this:
+dbEvents :: (db `Extends` DB, db `Extends` CustomDB => [Event db]
+dbEvents = [...new events...] ++ ParentDb.dbEvents
+
 instance IsAcidic DB where
     acidEvents = dbEvents
 -}
 
-makeThentosAcidicPhase2 :: Name -> [Name] -> Q [Dec]
-makeThentosAcidicPhase2 stateName transNames = do
+makeThentosAcidicPhase2 :: Name -> [Name] -> [Name] -> [Name] -> Q [Dec]
+makeThentosAcidicPhase2 stateName transNames inheritedDbTypes inheritedEvents = do
     decs <- concat <$> mapM (acidifyTrans stateName) eventNames
-    eventList <- mkEventList stateName eventNames
+    eventList <- mkEventList inheritedDbTypes inheritedEvents stateName eventNames
     isAcidic <- makeIsAcidic stateName
     return $ decs ++ eventList ++ isAcidic
   where
@@ -70,13 +74,30 @@ makeIsAcidic :: Name -> Q [Dec]
 makeIsAcidic dbType =
     [d| instance IsAcidic $(conT dbType) where acidEvents = $(varE $ mkName "dbEvents") |]
 
-mkEventList :: Name -> [Name] -> Q [Dec]
-mkEventList dbName eventNames =
-    [d|
-        dbEvents :: forall dbVar . (dbVar `Extends` $(conT dbName)) => [Event dbVar]
-        dbEvents = $(ListE <$> mapM mkEntryForEvent eventNames)
-     |]
+mkEventList :: [Name] -> [Name] -> Name -> [Name] -> Q [Dec]
+mkEventList inheritedDbTypes inheritedEvents dbName eventNames = do
+     sig <- mkSig
+     def <- mkDef
+     return [sig, def]
   where
+    mkSig = do
+        dbTypeVar <- newName "db"
+        let ctx = mapM (\db -> classP ''Extends [varT dbTypeVar, db]) allDbTypes
+        sigD (mkName "dbEvents") $
+            forallT [PlainTV dbTypeVar]
+            ctx
+            [t| [Event $(varT dbTypeVar)] |]
+
+    mkDef = do
+        newEvents <- listE $ map mkEntryForEvent eventNames
+        let l = foldr (\a b -> UInfixE a (VarE '(++)) b)
+                      (ListE [])
+                      (newEvents : map VarE inheritedEvents)
+        valD (varP $ mkName "dbEvents") (pure $ NormalB l) []
+
+    allDbTypes :: [Q Type]
+    allDbTypes = map conT (dbName : inheritedDbTypes)
+
     mkEntryForEvent :: Name -> Q Exp
     mkEntryForEvent eventName = do
         (argTypes, evType, _) <- analyseEventFunc eventName
@@ -170,7 +191,7 @@ acidifyTrans dbName eventName = do
                 putCopy $(conP acidTypeName (map varP argNames)) = $putBody
                 getCopy = $getBody
           |]
-        
+-- | lookupUser -> LookupUser
 toTypeName :: Name -> Name
 toTypeName (nameBase -> s) =
     mkName $ case s of
