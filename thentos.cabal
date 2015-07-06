@@ -288,7 +288,8 @@ benchmark load-test
     , conduit
     , http-conduit
     , http-types
-    , pronk
+    , pronk >= 0.1.1
+    -- (only available from https://github.com/liqd/pronk in branch thentos-patches)
     , random
     , resourcet
     , text
