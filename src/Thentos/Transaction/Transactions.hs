@@ -51,7 +51,7 @@ assertUser mUid user = polyQuery $ ask >>= \ db ->
 
 -- | Assert that no user with the same name or email address already exists in the DB.
 trans_assertUserIsNew :: (AsDB db) => User -> ThentosQuery db ()
-trans_assertUserIsNew user = assertUser Nothing user
+trans_assertUserIsNew = assertUser Nothing
 
 userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
 userFacetExists facet ((/=) -> notOwnUid) user db =
