@@ -61,20 +61,17 @@ runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 
 
--- | Turn an update transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyQuery'.
+-- | Turn an update transaction on a db into one on any extending db.  See also 'polyQuery'.
 --
--- FUTURE WORK:
---
---  1. shouldn't there be a way to do both cases with one function @poly@?
---  2. shouldn't there be a way to make acid-state events polymorphic in the state type?  (first try
---     without the template haskell magic, then, if that works, it should also work magically.)
+-- FUTURE WORK: shouldn't there be a way to do both cases with one function @poly@?  (same goes for
+-- 'runThentos*' above, as a matter of fact).
 polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
 polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
   where
     bare :: db1 -> (Either (ThentosError db2) a, db1)
     bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
 
--- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
+-- | Turn a query transaction on a db on any extending db.  See also 'polyUpdate'.
 polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
 polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
     fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. focus)
