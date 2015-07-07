@@ -213,13 +213,10 @@ test-suite tests
       Test.Arbitrary
     , Test.Config
     , Test.Core
+    , Test.CustomDB
     , Test.Types
     , Test.WebDriver.Missing
-    , ThentosSpec
-    , Thentos.Backend.Api.Adhocracy3Spec
-    , Thentos.Backend.Api.SimpleSpec
-    , Thentos.FrontendSpec
-    , Thentos.TypesSpec
+    -- (modules to be collected by hspec-discover are not to be mentioned here.)
   ghc-options:
       -Wall -threaded -rtsopts
   cpp-options:

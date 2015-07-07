@@ -1,5 +1,7 @@
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE TypeOperators        #-}
 
 module Thentos.Transaction.Core
   ( ThentosUpdate
@@ -47,32 +49,29 @@ liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
 -- - http://petterbergman.se/aciderror.html.en
 -- - http://acid-state.seize.it/Error%20Scenarios
 -- - https://github.com/acid-state/acid-state/pull/38
-runThentosUpdate :: ThentosUpdate DB a -> Update DB (Either (ThentosError DB) a)
+runThentosUpdate :: ThentosUpdate db a -> Update db (Either (ThentosError db) a)
 runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
         (Left err,     _)      ->                return $ Left  err
         (Right result, state') -> put state' >> (return $ Right result)
 
--- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
-runThentosQuery :: ThentosQuery DB a -> Query DB (Either (ThentosError DB) a)
+-- | Like 'runThentosUpdate', but for 'ThentosQuery' and 'ThentosQuery''.
+runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 
 
--- | Turn an update transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyQuery'.
+-- | Turn an update transaction on a db into one on any extending db.  See also 'polyQuery'.
 --
--- FUTURE WORK:
---
---  1. shouldn't there be a way to do both cases with one function @poly@?
---  2. shouldn't there be a way to make acid-state events polymorphic in the state type?  (first try
---     without the template haskell magic, then, if that works, it should also work magically.)
-polyUpdate :: forall a db . AsDB db => ThentosUpdate DB a -> ThentosUpdate db a
-polyUpdate upd = EitherT . StateT $ Identity . (asDB %%~ bare)
+-- FUTURE WORK: shouldn't there be a way to do both cases with one function @poly@?  (same goes for
+-- 'runThentos*' above, as a matter of fact).
+polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
+polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
   where
-    bare :: DB -> (Either (ThentosError db) a, DB)
+    bare :: db1 -> (Either (ThentosError db2) a, db1)
     bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
 
--- | Turn a query transaction on 'DB' into one on any 'AsDB' instance.  See also 'polyUpdate'.
-polyQuery :: forall a db . AsDB db => ThentosQuery DB a -> ThentosQuery db a
-polyQuery qry = EitherT . ReaderT $ \ (state :: db) ->
-    fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. asDB)
+-- | Turn a query transaction on a db on any extending db.  See also 'polyUpdate'.
+polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
+polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
+    fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. focus)

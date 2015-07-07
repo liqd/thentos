@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -26,7 +28,7 @@ where
 import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
 import Thentos.Transaction.Transactions
 import Thentos.Transaction.TH
-import Thentos.Types (DB)
+import Thentos.Types
 
-$(makeThentosAcidicPhase1 transaction_names)
-$(makeThentosAcidicPhase2 ''DB transaction_names)
+$(makeThentosAcidicPhase1 ''DB transaction_names)
+$(makeThentosAcidicPhase2 ''DB transaction_names [] [])

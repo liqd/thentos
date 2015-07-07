@@ -2,14 +2,18 @@
 {-# LANGUAGE DeriveDataTypeable          #-}
 {-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE KindSignatures              #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
+{-# LANGUAGE TypeOperators               #-}
+{-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Types where
 
@@ -76,18 +80,22 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
--- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
--- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
-class AsDB db where
-    asDB :: Lens' db DB
-    -- ^ read and write access to @DB'@ with readers and writers for 'DB'.
+-- | In order to use a derived db type @dbChild@ with transactions and actions
+-- defined for @dbParent@, instantiate this class.
+class (Typeable dbParent, Typeable dbChild, SafeCopy dbParent, SafeCopy dbChild,
+       SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)) =>
+        dbChild `Extends` dbParent where
 
-    asDBThentosError :: ThentosError DB -> ThentosError db
-    -- ^ if a transaction or action associated with 'DB' throws an error, use this function to
-    -- convert it to an error that can be thrown by transactions or actions associated with @DB'@.
+    focus :: Lens' dbChild dbParent
+    -- ^ Apply anything that is intended for @dbParent@ to @dbChild@.
 
-instance AsDB DB where
-    asDB = id
+    asDBThentosError :: ThentosError dbParent -> ThentosError dbChild
+    -- ^ If a transaction or action associated with 'dbParent' throws an error, use
+    -- this function to convert it to an error that can be thrown by
+    -- transactions or actions associated with @dbChild@.
+
+instance DB `Extends` DB where
+    focus = id
     asDBThentosError = id
 
 
