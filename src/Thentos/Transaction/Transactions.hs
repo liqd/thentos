@@ -49,6 +49,10 @@ assertUser mUid user = polyQuery $ ask >>= \ db ->
        | userFacetExists (^. userEmail) mUid user db -> throwT UserEmailAlreadyExists
        | True -> return ()
 
+-- | Assert that no user with the same name or email address already exists in the DB.
+trans_assertUserIsNew :: (AsDB db) => User -> ThentosQuery db ()
+trans_assertUserIsNew user = assertUser Nothing user
+
 userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
 userFacetExists facet ((/=) -> notOwnUid) user db =
     (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
@@ -539,7 +543,8 @@ $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
 
 transaction_names :: [Name]
 transaction_names =
-    [ 'trans_allUserIds
+    [ 'trans_assertUserIsNew
+    , 'trans_allUserIds
     , 'trans_lookupUser
     , 'trans_lookupUserByName
     , 'trans_lookupUserByEmail

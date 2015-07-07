@@ -312,6 +312,7 @@ api actionState =
 addUser :: A3UserWithPass -> AC.Action DB (A3Resource A3UserNoPass)
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
+    A.assertUserIsNew user
     config <- AC.getConfig'P
     uid <- createUserInA3'P user
     tok <- A.addUnconfirmedUserWithId user uid
