@@ -110,7 +110,7 @@ mkEventList inheritedDbTypes inheritedEvents dbName eventNames = do
 
             lambdaBody = foldl appE (varE eventName) (map varE argNames)
             lambda = lamE [conP constName (map varP argNames)] lambdaBody
-            -- the following should also work, but crashes my version of ghc:
+            -- the following should also work, but crashes ghc-7.8.4 on mac:
             -- lambda = [e| \ $(conP constName (map varP argNames)) -> $lambdaBody |]
         appE evConst lambda
 
@@ -145,7 +145,7 @@ acidifyTrans dbName eventName = do
         rDecl <- mkResultDecl (pure dbTypeVar) (pure returnType)
         sDecl <- mkStateDecl dbTypeVar
         return $ InstanceD ctx fullType [rDecl, sDecl]
-        
+
     -- type MethodResult (AgentRoles db) = Either (ThentosError db) (Set Role)
     mkResultDecl :: Q Type -> Q Type -> Q Dec
     mkResultDecl dbTypeVar eventReturnType = do
