@@ -20,6 +20,7 @@ ignore "Use head"
 ignore "Use list literal"
 ignore "Use mappend"
 ignore "Use record patterns"
+ignore "Parse error"
 
 -- FIXME: missing checks:
 --
