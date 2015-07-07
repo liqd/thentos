@@ -247,6 +247,7 @@ test-suite tests
     , lio
     , mime-mail
     , mtl
+    , network
     , pretty-show
     , process
     , QuickCheck
@@ -308,6 +309,7 @@ benchmark load-test
     , lio
     , mime-mail
     , mtl
+    , network
     , pretty-show
     , process
     , pronk >= 0.1.1

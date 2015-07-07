@@ -1,6 +1,5 @@
 module MetaSpec where
 
-import Control.Concurrent (threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef)
@@ -49,8 +48,6 @@ setupTestServerFullSpec = describe "setupTestServerFull" . it "works" $ do
     fts <- liftIO setupTestServerFull
     let bport = show $ fts ^. (ftsCfg . tcfgServerFullBackendPort)
         fport = show $ fts ^. (ftsCfg . tcfgServerFullFrontendPort)
-
-    threadDelay $ 2 * 1000 * 1000  -- FIXME: not sure if this even helps.  in any case it should not be needed!
 
     bresult <- liftIO . system $ "curl http://localhost:" ++ bport ++ " > /dev/null 2>&1"
     bresult `shouldBe` ExitSuccess
