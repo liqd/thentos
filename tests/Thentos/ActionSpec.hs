@@ -20,8 +20,6 @@ import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Types
 
-import qualified Thentos.Transaction as T  -- FIXME: this shouldn't be here.
-
 
 tests :: IO ()
 tests = hspec spec
@@ -94,13 +92,15 @@ spec_user = describe "user" $ do
     describe "UpdateUser" $ do
         it "changes user if it exists" $ \(DBTS _ sta) -> do
             (uid, _, user) <- runActionWithClearance dcBottom sta $ addTestUser 1
-            runActionWithPrivs [UserA uid] sta $ updateUserField uid (T.UpdateUserFieldName "fka_user1")
+            runActionWithPrivs [UserA uid] sta $
+                updateUserField uid (UpdateUserFieldName "fka_user1")
 
             result <- runActionWithPrivs [UserA uid] sta $ lookupUser uid
             result `shouldBe` (UserId 1, userName .~ "fka_user1" $ user)
 
         it "throws an error if user does not exist" $ \(DBTS _ sta) -> do
-            Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $ updateUserField (UserId 391) (T.UpdateUserFieldName "moo")
+            Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $
+                updateUserField (UserId 391) (UpdateUserFieldName "moo")
             e `shouldBe` NoSuchUser
 
     describe "checkPassword" $ do
