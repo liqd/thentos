@@ -4,6 +4,7 @@
 
 module Thentos.ActionSpec where
 
+import Control.Applicative ((<$>))
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
 import Data.Either (isLeft, isRight)
@@ -64,19 +65,19 @@ spec_user = describe "user" $ do
             Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
 
-{-
-    -- FIXME: there doesn't seem to be a corresponding action for AddUsers yet
-    describe "AddUsers" $ do
-        it "works" $ \ (DBTS _ (ActionState (st, _, _))) -> do
-            result <- update' st $ T.AddUsers ((testUsers !!) <$> [2..4])
-            result `shouldBe` Right (UserId <$> [1..3])
+    describe "addUsers" $ do
+        it "works" $ \(DBTS _ sta) -> do
+            result <- runActionWithPrivs [RoleAdmin] sta $
+                addUsers ((testUserForms !!) <$> [2..4])
+            result `shouldBe` (UserId <$> [1..3])
 
-        it "rolls back in case of error (adds all or nothing)" $ \ (DBTS _ (ActionState (st, _, _))) -> do
-            _ <- update' st $ T.AddUser (testUsers !! 4)
-            Left UserNameAlreadyExists <- update' st $ T.AddUsers ((testUsers !!) <$> [2..4])
-            result <- query' st $ T.AllUserIds
-            result `shouldBe` Right (UserId <$> [0..1])
--}
+        it "rolls back in case of error (adds all or nothing)" $ \(DBTS _ sta) -> do
+            _ <- runActionWithPrivs [RoleAdmin] sta $ addUser (testUserForms !! 4)
+            Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta
+                $ addUsers ((testUserForms !!) <$> [2..4])
+            e `shouldBe` UserNameAlreadyExists
+            result <- runActionWithPrivs [RoleAdmin] sta allUserIds
+            result `shouldBe` (UserId <$> [0..1])
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \(DBTS _ sta) -> do
