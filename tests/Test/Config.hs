@@ -26,7 +26,6 @@ testConfig = do
     let cfg = TestConfig
           { _tcfgTmp                    = tmp
           , _tcfgDbPath                 = tmp </> "test-db/"
-          , _tcfgRestPort               = 8002
           , _tcfgServerFullBackendPort  = 7118
           , _tcfgServerFullFrontendPort = 7119
           , _tcfgWebdriverHost          = "localhost"
