@@ -23,6 +23,7 @@ module Thentos.Action
     , addUser
     , deleteUser
     , addUnconfirmedUser
+    , addUnconfirmedUserWithId
     , confirmNewUser
     , addPasswordResetToken
     , resetPassword
@@ -181,10 +182,23 @@ deleteUser uid = do
 -- 'confirmNewUser'.
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
+    (now, tok, user) <- prepareUserData userData
+    update'P $ T.AddUnconfirmedUser now tok user
+
+-- | Initiate email-verified user creation, assigning a specific ID to the new user.
+-- If the ID is already in use, an error is thrown. Does not require any privileges.
+addUnconfirmedUserWithId :: UserFormData -> UserId -> Action DB ConfirmationToken
+addUnconfirmedUserWithId userData userId = do
+    (now, tok, user) <- prepareUserData userData
+    update'P $ T.AddUnconfirmedUserWithId now tok user userId
+
+-- | Collect the data needed for the /addUnconfirmedUser.../ calls.
+prepareUserData :: UserFormData -> Action DB (Timestamp, ConfirmationToken, User)
+prepareUserData userData = do
     now <- getCurrentTime'P
     tok <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
-    update'P $ T.AddUnconfirmedUser now tok user
+    return (now, tok, user)
 
 -- | Finish email-verified user creation.
 --

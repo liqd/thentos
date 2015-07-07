@@ -136,6 +136,15 @@ trans_addUnconfirmedUser now token user = polyUpdate $ do
     modify $ dbUnconfirmedUsers %~ Map.insert token ((uid, user), now)
     return (uid, token)
 
+-- | Add a new unconfirmed user, assigning a specific ID to the new user. If the ID is already
+-- in use, an error is thrown. Calls 'assertUser' for name clash exceptions.
+trans_addUnconfirmedUserWithId :: (AsDB db) => Timestamp -> ConfirmationToken -> User -> UserId
+                                            -> ThentosUpdate db ConfirmationToken
+trans_addUnconfirmedUserWithId now token user userId = polyUpdate $ do
+    liftThentosQuery $ assertUser Nothing user
+    modify $ dbUnconfirmedUsers %~ Map.insert token ((userId, user), now)
+    return token
+
 trans_finishUserRegistration :: (AsDB db) => Timestamp -> Timeout -> ConfirmationToken
                                           -> ThentosUpdate db UserId
 trans_finishUserRegistration now expiry token = polyUpdate $ do
@@ -538,6 +547,7 @@ transaction_names =
     , 'trans_addUser
     , 'trans_addUsers
     , 'trans_addUnconfirmedUser
+    , 'trans_addUnconfirmedUserWithId
     , 'trans_finishUserRegistration
     , 'trans_addPasswordResetToken
     , 'trans_resetPassword
