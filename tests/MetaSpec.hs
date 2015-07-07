@@ -1,13 +1,22 @@
 module MetaSpec where
 
+import Control.Concurrent (threadDelay)
+import Control.Lens ((^.))
+import Control.Monad.IO.Class (liftIO)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef)
+import System.Exit (ExitCode(ExitSuccess))
+import System.Process (system)
 import Test.Hspec (Spec, describe, it, before_, shouldBe, runIO, hspec)
+
+import Test.Core
+import Test.Types
+
 
 tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = hooks
+spec = hooks >> setupTestServerFullSpec
 
 
 -- `before` and `after` hooks are run before and after each spec item (see
@@ -31,3 +40,22 @@ specFoo ref = describe "do the test" $ do
     it "environment gets cleaned up before second test item" $ do
         cur <- readIORef ref
         cur `shouldBe` 0
+
+
+-- check that as soon as `setupTestServerFull`, two tcp listeners are running.
+
+setupTestServerFullSpec :: Spec
+setupTestServerFullSpec = describe "setupTestServerFull" . it "works" $ do
+    fts <- liftIO setupTestServerFull
+    let bport = show $ fts ^. (ftsCfg . tcfgServerFullBackendPort)
+        fport = show $ fts ^. (ftsCfg . tcfgServerFullFrontendPort)
+
+    threadDelay $ 2 * 1000 * 1000  -- FIXME: not sure if this even helps.  in any case it should not be needed!
+
+    bresult <- liftIO . system $ "curl http://localhost:" ++ bport ++ " > /dev/null 2>&1"
+    bresult `shouldBe` ExitSuccess
+
+    fresult <- liftIO . system $ "curl http://localhost:" ++ fport ++ " > /dev/null 2>&1"
+    fresult `shouldBe` ExitSuccess
+
+    liftIO $ teardownTestServerFull fts
