@@ -80,18 +80,16 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
-
--- FIXME: generalise docs
--- | In order to use a (hypothetical) derived type @DB'@ instead of @DB@ to run
--- "Thentos.Transaction"s and "Thentos.Action"s on, instantiate this class.
+-- | In order to use a derived db type @db2@ with transactions and actions
+-- defined for @db1@, instantiate this class.
 class (Typeable db1, Typeable db2, SafeCopy db1, SafeCopy db2,
        SafeCopy (ThentosError db1), SafeCopy (ThentosError db2)) =>
-        db1 `Extends` db2 where
-    focus :: Lens' db1 db2
-    -- ^ if a transaction or action associated with 'DB' throws an error, use
+        db2 `Extends` db1 where
+    focus :: Lens' db2 db1
+    -- ^ if a transaction or action associated with 'db1' throws an error, use
     -- this function to convert it to an error that can be thrown by
-    -- transactions or actions associated with @DB'@.
-    asDBThentosError :: ThentosError db2 -> ThentosError db1
+    -- transactions or actions associated with @db2@.
+    asDBThentosError :: ThentosError db1 -> ThentosError db2
 
 instance DB `Extends` DB where
     focus = id

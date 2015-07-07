@@ -219,7 +219,6 @@ update'P :: forall event db v
             , EventState event ~ db
             , EventResult event ~ Either (ThentosError db) v
             , Exception (ActionError db)
-            -- , db ~ DB
             ) => event -> Action db v
 update'P e = do
     ActionState (st, _, _) <- Action ask
@@ -230,7 +229,6 @@ update'P e = do
 query'P :: ( QueryEvent event
            , EventState event ~ db
            , EventResult event ~ Either (ThentosError db) v
-           -- , db `Extends` DB
            ) => event -> Action db v
 query'P e = do
     (ActionState (st, _, _)) <- Action ask

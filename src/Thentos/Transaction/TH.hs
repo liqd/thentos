@@ -5,9 +5,9 @@
 {-# LANGUAGE ViewPatterns              #-}
 
 module Thentos.Transaction.TH
-     ( makeThentosAcidicPhase1
-     , makeThentosAcidicPhase2
-     )
+    ( makeThentosAcidicPhase1
+    , makeThentosAcidicPhase2
+    )
 where
 
 import Control.Applicative (pure, (<$>), (<*>))
@@ -258,7 +258,7 @@ dropPrefix (nameBase -> s)
 
 -- | Count the number of arguments in a function type
 countArgs :: Type -> Int
-countArgs = length . fst. extractArgs
+countArgs = length . fst . extractArgs
 
 -- | Convert e.g. @a -> b -> ThentosUpdate Foo@ to
 -- @a -> b -> Update DB (Either (ThentosError DB) Foo)@ and check whether it
