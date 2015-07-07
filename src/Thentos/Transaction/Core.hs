@@ -56,7 +56,7 @@ runThentosUpdate action = do
         (Left err,     _)      ->                return $ Left  err
         (Right result, state') -> put state' >> (return $ Right result)
 
--- | 'runThentosUpdate' for 'ThentosQuery' and 'ThentosQuery''
+-- | Like 'runThentosUpdate', but for 'ThentosQuery' and 'ThentosQuery''.
 runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)
 runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 
