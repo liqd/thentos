@@ -80,16 +80,19 @@ emptyDB :: DB
 emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
   where m = Map.empty
 
--- | In order to use a derived db type @db2@ with transactions and actions
--- defined for @db1@, instantiate this class.
-class (Typeable db1, Typeable db2, SafeCopy db1, SafeCopy db2,
-       SafeCopy (ThentosError db1), SafeCopy (ThentosError db2)) =>
-        db2 `Extends` db1 where
-    focus :: Lens' db2 db1
-    -- ^ if a transaction or action associated with 'db1' throws an error, use
+-- | In order to use a derived db type @dbChild@ with transactions and actions
+-- defined for @dbParent@, instantiate this class.
+class (Typeable dbParent, Typeable dbChild, SafeCopy dbParent, SafeCopy dbChild,
+       SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)) =>
+        dbChild `Extends` dbParent where
+
+    focus :: Lens' dbChild dbParent
+    -- ^ Apply anything that is intended for @dbParent@ to @dbChild@.
+
+    asDBThentosError :: ThentosError dbParent -> ThentosError dbChild
+    -- ^ If a transaction or action associated with 'dbParent' throws an error, use
     -- this function to convert it to an error that can be thrown by
-    -- transactions or actions associated with @db2@.
-    asDBThentosError :: ThentosError db1 -> ThentosError db2
+    -- transactions or actions associated with @dbChild@.
 
 instance DB `Extends` DB where
     focus = id
