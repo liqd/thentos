@@ -101,6 +101,8 @@ actionErrorToServantErr e = do
         { errBody = "error accessing user info" }
     _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
         { errBody = "error retrieving access token" }
+    _thentos (A3BackendError msg) = pure $ err500
+        { errBody = "error talking to A3 backend: " <> cs msg }
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })

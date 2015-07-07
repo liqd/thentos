@@ -20,10 +20,9 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, cs)
+import Data.String.Conversions (LBS, cs)
 import Servant.API (Raw)
 import Servant.Server (Server, HasServer(..))
 import Servant.Server.Internal.ServantErr (responseServantErr)
@@ -115,7 +114,7 @@ findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
             Nothing    -> throwError $ ProxyNotConfiguredForService sid
-    return (sid, target)
+    return (sid, cs target)
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
@@ -124,14 +123,7 @@ findDefaultServiceIdAndTarget conf = do
     defaultProxy <- maybe (throwError MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
     sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
-    let target = extractTargetUrl defaultProxy
-    return (sid, target)
-
-extractTargetUrl :: ProxyConfig -> String
-extractTargetUrl proxy = cs $ exposeUrl http <> prefix
-  where
-    http :: HttpConfig = Tagged $ proxy >>. (Proxy :: Proxy '["http"])
-    prefix :: ST       = fromMaybe "" $ proxy >>. (Proxy :: Proxy '["url_prefix"])
+    return (sid, cs $ extractTargetUrl defaultProxy)
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.

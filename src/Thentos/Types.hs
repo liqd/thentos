@@ -425,6 +425,7 @@ data instance ThentosError DB =
     | SsoErrorUnknownCsrfToken
     | SsoErrorCouldNotAccessUserInfo LBS
     | SsoErrorCouldNotGetAccessToken LBS
+    | A3BackendError ST
 
 deriving instance Eq (ThentosError DB)
 deriving instance Show (ThentosError DB)
