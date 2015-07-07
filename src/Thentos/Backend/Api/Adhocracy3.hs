@@ -118,11 +118,10 @@ instance ToJSON a => ToJSON (A3Resource a) where
             Just _ -> []
 
 instance FromJSON a => FromJSON (A3Resource a) where
-    parseJSON = withObject "resource object" $ \v -> do
-        path <- v .:? "path"
-        contentType <- v .:? "content_type"
-        dat <- v .:? "data"
-        return $ A3Resource path contentType dat
+    parseJSON = withObject "resource object" $ \v -> A3Resource
+        <$> (v .:? "path")
+        <*> (v .:? "content_type")
+        <*> (v .:? "data")
 
 
 -- ** individual resources
@@ -354,7 +353,7 @@ login r = AC.logIfError'P $ do
 createUserInA3'P :: UserFormData -> AC.Action DB UserId
 createUserInA3'P user = do
     config <- AC.getConfig'P
-    let a3req = fromMaybe (error "addUser: mkUserCreationRequestForA3 failed, check config!") $
+    let a3req = fromMaybe (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
@@ -368,7 +367,7 @@ createUserInA3'P user = do
     responseCode = Status.statusCode . Client.responseStatus
 
 
--- * aux
+-- * low-level helpers
 
 -- | Create a user creation request to be sent to the A3 backend. The actual user password is
 -- replaced by a dummy, as A3 doesn't have to know it.
