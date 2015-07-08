@@ -13,6 +13,7 @@
 {-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
+{-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Action.Core
 where
@@ -87,7 +88,7 @@ data ActionError db =
 deriving instance Show (ActionError DB)
 deriving instance Typeable ActionError
 
-instance Exception (ActionError DB)
+instance (db `Extends` DB, Show (ActionError db)) => Exception (ActionError db)
 
 asDBActionError :: (db `Extends` DB) => ActionError DB -> ActionError db
 asDBActionError (ActionErrorThentos e)  = ActionErrorThentos $ asDBThentosError e
@@ -105,16 +106,20 @@ instance MonadLIO DCLabel (Action db) where
 runAction :: forall db a . (Exception (ActionError db)) => ActionState db -> Action db a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
-runActionWithPrivs ::  ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO a
+runActionWithPrivs :: (ToCNF cnf, Exception (ActionError db)) =>
+    [cnf] -> ActionState db -> Action db a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
 
-runActionWithClearance :: DCLabel -> ActionState DB -> Action DB a -> IO a
+runActionWithClearance :: Exception (ActionError db) =>
+    DCLabel -> ActionState db -> Action db a -> IO a
 runActionWithClearance label state action = runActionWithClearanceE label state action >>= either throwIO return
 
-runActionAsAgent :: Agent -> ActionState DB -> Action DB a -> IO a
+runActionAsAgent :: (db `Extends` DB, Exception (ActionError db)) =>
+    Agent -> ActionState db -> Action db a -> IO a
 runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
 
-runActionInThentosSession :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO a
+runActionInThentosSession :: (db `Extends` DB, Exception (ActionError db)) =>
+    ThentosSessionToken -> ActionState db -> Action db a -> IO a
 runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
 
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
@@ -134,16 +139,18 @@ runActionE state action = catchUnknown
     catchUnknown :: IO (Either (ActionError db) a)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
-runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
+runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
-runActionWithClearanceE :: DCLabel -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
+runActionWithClearanceE :: DCLabel -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
 
-runActionAsAgentE :: Agent -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
+runActionAsAgentE :: (db `Extends` DB) =>
+    Agent -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
-runActionInThentosSessionE :: ThentosSessionToken -> ActionState DB -> Action DB a -> IO (Either (ActionError DB) a)
+runActionInThentosSessionE :: (db `Extends` DB, Exception (ActionError db)) =>
+    ThentosSessionToken -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
 -- | Run an action followed by a second action. The second action is run
@@ -178,7 +185,7 @@ finally a sequel = do
 -- individual access rights:
 --
 -- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
-grantAccessRights'P :: ToCNF cnf => [cnf] -> Action DB ()
+grantAccessRights'P :: ToCNF cnf => [cnf] -> Action db ()
 grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
   where
     c :: DCLabel
@@ -187,7 +194,7 @@ grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
 -- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
 -- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
 -- are finite and cycle-free.
-accessRightsByAgent'P :: Agent -> Action DB [CNF]
+accessRightsByAgent'P :: (db `Extends` DB) => Agent -> Action db [CNF]
 accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRoles agent)
   where
     makeAccessRights :: Set.Set Role -> Set.Set CNF
@@ -203,7 +210,7 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRo
         f acc (Roles rs) = foldl' f acc rs
         f acc (RoleBasic b) = Set.insert b acc
 
-accessRightsByThentosSession'P :: ThentosSessionToken -> Action DB [CNF]
+accessRightsByThentosSession'P :: (db `Extends` DB, Exception (ActionError db)) => ThentosSessionToken -> Action db [CNF]
 accessRightsByThentosSession'P tok = do
     now <- getCurrentTime'P
     (_, session) <- update'P (LookupThentosSession now tok)
@@ -267,8 +274,8 @@ logger'P prio = liftLIO . ioTCB . logger prio
 
 -- | (This type signature could be greatly simplified, but that would also make it less explanatory.)
 logIfError'P :: forall m l e v db
-             . (db ~ DB, m ~ Action db, Monad m, MonadLIO l m, MonadError e m, Show e)
-             => m v -> m v
+    . (m ~ Action db, Monad m, MonadLIO l m, MonadError e m, Show e, Show (ThentosError db))
+    => m v -> m v
 logIfError'P = (`catchError` f)
   where
     f e = do
