@@ -27,6 +27,7 @@ import GHC.Generics (Generic)
 
 import Thentos.Transaction.Core
 import Thentos.Transaction.TH
+import Thentos.Action.Core (ActionError(..))
 import Thentos.Types
 
 import qualified Thentos.Transaction as T
@@ -49,6 +50,7 @@ data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: The
 deriving instance Eq (ThentosError CustomDB)
 deriving instance Read (ThentosError CustomDB)
 deriving instance Show (ThentosError CustomDB)
+deriving instance Show (ActionError CustomDB)
 
 instance SafeCopy (ThentosError CustomDB)
   where
