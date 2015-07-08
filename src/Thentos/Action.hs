@@ -69,7 +69,7 @@ module Thentos.Action
     )
 where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Lens ((^.))
 import Control.Monad (unless, void)
 import Control.Monad.Except (throwError, catchError)
@@ -202,11 +202,8 @@ addUnconfirmedUserWithId userData userId = do
 
 -- | Collect the data needed for the /addUnconfirmedUser.../ calls.
 prepareUserData :: UserFormData -> Action DB (Timestamp, ConfirmationToken, User)
-prepareUserData userData = do
-    now <- getCurrentTime'P
-    tok <- freshConfirmationToken
-    user <- makeUserFromFormData'P userData
-    return (now, tok, user)
+prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
+                                <*> makeUserFromFormData'P userData
 
 -- | Finish email-verified user creation.
 --
