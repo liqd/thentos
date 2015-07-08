@@ -38,7 +38,7 @@ import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody, responseServantErr)
-import System.Log.Logger (Priority(DEBUG, INFO, CRITICAL))
+import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString.Char8 as SBS
@@ -95,6 +95,7 @@ actionErrorToServantErr e = do
     _thentos NotRegisteredWithService = pure $ err403 { errBody = "not registered with service" }
     _thentos UserEmailAlreadyExists = pure $ err403 { errBody = "email already in use" }
     _thentos UserNameAlreadyExists = pure $ err403 { errBody = "user name already in use" }
+    _thentos UserIdAlreadyExists = logger ERROR (ppShow e) >> pure err500
     _thentos BadCredentials = logger INFO (show e) >> pure (err401 { errBody = "unauthorized" })
     _thentos BadAuthenticationHeaders = pure $ err400 { errBody = "bad authentication headers" }
     _thentos ProxyNotAvailable = pure $ err404 { errBody = "proxying not activated" }
@@ -111,7 +112,7 @@ actionErrorToServantErr e = do
         { errBody = "error accessing user info" }
     _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
         { errBody = "error retrieving access token" }
-    _thentos (A3BackendError _) = logger CRITICAL (ppShow e) >> pure err500
+    _thentos (A3BackendError _) = logger ERROR (ppShow e) >> pure err500
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })

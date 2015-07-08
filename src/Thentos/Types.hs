@@ -414,6 +414,7 @@ data instance ThentosError DB =
     | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
+    | UserIdAlreadyExists
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
