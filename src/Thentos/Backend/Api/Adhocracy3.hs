@@ -28,7 +28,7 @@ import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, w
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
-import Data.List (stripPrefix)
+import Data.List (dropWhileEnd, stripPrefix)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -122,6 +122,20 @@ instance FromJSON a => FromJSON (A3Resource a) where
         <$> (v .:? "path")
         <*> (v .:? "content_type")
         <*> (v .:? "data")
+
+-- | Similar to A3Resource, but tailored for cases where @path@ and @content_type@ are present and
+-- @data@ is absent (or irrelevant).
+data TypedPath = TypedPath
+  { tpPath :: Path
+  , tpContentType :: ContentType
+  } deriving (Eq, Show)
+
+instance ToJSON TypedPath where
+    toJSON (TypedPath p ct) = object ["path" .= p, "content_type" .= ct]
+
+instance FromJSON TypedPath where
+    parseJSON = withObject "resource object" $ \v -> TypedPath
+        <$> (v .: "path") <*> (v .: "content_type")
 
 
 -- ** individual resources
@@ -391,15 +405,8 @@ mkUserCreationRequestForA3 config user = do
 extractUserId :: MonadError (ThentosError DB) m => Client.Response LBS -> m UserId
 extractUserId resp = do
     resource <- either (\err -> throwError . A3BackendError . cs $ "invalid JSON: " <> err) return $
-        -- Note: String is just a dummy argument, as the response won't contain a "data" element
-        (Aeson.eitherDecode . Client.responseBody $ resp :: Either String (A3Resource String))
-    path <- maybe (throwError . A3BackendError $ "missing path") return $ mPath resource
-    let pathElements = reverse . filter (not . ST.null) . ST.split (=='/') $ fromPath path
-    maybe (throwError . A3BackendError $ "invalid path") (return . UserId) $ firstAsInt pathElements
-  where
-    firstAsInt :: [ST] -> Maybe Integer
-    firstAsInt (x:_) = readMay $ cs x :: Maybe Integer
-    firstAsInt []    = Nothing
+        (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
+    userIdFromPath $ tpPath resource
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
 renderA3HeaderName :: RenderHeaderFun
@@ -421,7 +428,7 @@ userIdFromPath (Path s) = do
     uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
     rawId <- maybe (throwError $ MalformedUserPath s) return $
-        stripPrefix "/principals/users/" (cs $ URI.uriPath uri)
+        stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
