@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE GADTs                                    #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving               #-}
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
@@ -28,18 +29,20 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
 import Data.List (stripPrefix)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Wai (Application)
+import LIO.Core (liftLIO)
+import LIO.TCB (ioTCB)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
-import System.Log (Priority(DEBUG, INFO))
+import System.Log (Priority(DEBUG, INFO, WARNING))
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
@@ -47,6 +50,8 @@ import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
+import qualified Network.HTTP.Client as Client
+import qualified Network.HTTP.Types.Status as Status
 import qualified URI.ByteString as URI
 
 import System.Log.Missing
@@ -64,14 +69,10 @@ import qualified Thentos.Action.Core as AC
 
 -- ** basics
 
-newtype Path = Path ST
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+newtype Path = Path { fromPath :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
-instance ToJSON Path
-instance FromJSON Path
-
-data ContentType =
-      CTUser
+data ContentType = CTUser
   deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
 
 instance Show ContentType where
@@ -103,8 +104,11 @@ instance Read PropertySheet where
 
 -- ** resource
 
-data A3Resource a = A3Resource (Maybe Path) (Maybe ContentType) (Maybe a)
-  deriving (Eq, Show, Typeable, Generic)
+data A3Resource a = A3Resource
+  { mPath :: Maybe Path
+  , mContentType :: Maybe ContentType
+  , mData :: Maybe a
+  } deriving (Eq, Show, Typeable, Generic)
 
 instance ToJSON a => ToJSON (A3Resource a) where
     toJSON (A3Resource p ct r) =
@@ -114,11 +118,10 @@ instance ToJSON a => ToJSON (A3Resource a) where
             Just _ -> []
 
 instance FromJSON a => FromJSON (A3Resource a) where
-    parseJSON = withObject "resource object" $ \ v ->
-        A3Resource <$> (v .:? "path") <*> (v .:? "content_type") <*>
-            if "data" `HashMap.member` v
-                then Just <$> Aeson.parseJSON (Object v)
-                else pure Nothing
+    parseJSON = withObject "resource object" $ \v -> A3Resource
+        <$> (v .:? "path")
+        <*> (v .:? "content_type")
+        <*> (v .:? "data")
 
 
 -- ** individual resources
@@ -303,11 +306,15 @@ api actionState =
 
 -- * handler
 
+-- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
+-- If A3 reponds with a error, user creation is aborted.
 addUser :: A3UserWithPass -> AC.Action DB (A3Resource A3UserNoPass)
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
-    AC.logger'P DEBUG . ("route addUser:" <>) . cs . Aeson.encodePretty $ A3UserWithPass user
+    AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
+    A.assertUserIsNew user
     config <- AC.getConfig'P
-    (uid :: UserId, tok :: ConfirmationToken) <- A.addUnconfirmedUser user
+    uid <- createUserInA3'P user
+    tok <- A.addUnconfirmedUserWithId user uid
     let activationUrl = cs (exposeUrl feHttp) <> "activate/" <> cs (fromConfirmationToken tok)
         feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
@@ -340,7 +347,53 @@ login r = AC.logIfError'P $ do
     return $ RequestSuccess (userIdToPath config uid) stok
 
 
--- * aux
+-- * helper action
+
+-- | Create a user in A3 and return the user ID.
+createUserInA3'P :: UserFormData -> AC.Action DB UserId
+createUserInA3'P user = do
+    config <- AC.getConfig'P
+    let a3req = fromMaybe (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
+                mkUserCreationRequestForA3 config user
+    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
+    when (responseCode a3resp >= 400) $ do
+        AC.logger'P WARNING $ "A3 backend replied with status code " <> show (responseCode a3resp)
+                              <> ", response body: " <> cs (Client.responseBody a3resp)
+        throwError . A3BackendError $ "status code " <> cs (show $ responseCode a3resp)
+    extractUserId a3resp
+  where
+    sendRequest ::  Client.Request -> IO (Client.Response LBS)
+    sendRequest req = Client.withManager Client.defaultManagerSettings $ Client.httpLbs req
+    responseCode = Status.statusCode . Client.responseStatus
+
+
+-- * low-level helpers
+
+-- | Create a user creation request to be sent to the A3 backend. The actual user password is
+-- replaced by a dummy, as A3 doesn't have to know it.
+mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
+mkUserCreationRequestForA3 config user = do
+    defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
+    let target = extractTargetUrl defaultProxy
+        user'  = user { udPassword =  "dummypass" }
+    initReq <- Client.parseUrl $ cs target <> "/principals/users"
+    return initReq { Client.method = "POST",
+        Client.requestHeaders = [("Content-Type", "application/json")],
+        Client.requestBody = Client.RequestBodyLBS . Aeson.encode . A3UserWithPass $ user' }
+
+-- | Extract the user ID from an A3 response received for a user creation request.
+extractUserId :: MonadError (ThentosError DB) m => Client.Response LBS -> m UserId
+extractUserId resp = do
+    resource <- either (\err -> throwError . A3BackendError . cs $ "invalid JSON: " <> err) return $
+        -- Note: String is just a dummy argument, as the response won't contain a "data" element
+        (Aeson.eitherDecode . Client.responseBody $ resp :: Either String (A3Resource String))
+    path <- maybe (throwError . A3BackendError $ "missing path") return $ mPath resource
+    let pathElements = reverse . filter (not . ST.null) . ST.split (=='/') $ fromPath path
+    maybe (throwError . A3BackendError $ "invalid path") (return . UserId) $ firstAsInt pathElements
+  where
+    firstAsInt :: [ST] -> Maybe Integer
+    firstAsInt (x:_) = readMay $ cs x :: Maybe Integer
+    firstAsInt []    = Nothing
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
 renderA3HeaderName :: RenderHeaderFun

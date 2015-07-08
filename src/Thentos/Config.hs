@@ -180,6 +180,12 @@ exposeUrl cfg = _renderUrl bs bh bp
     bh = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_host"])) (cfg >>. (Proxy :: Proxy '["expose_host"]))
     bp = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_port"])) (cfg >>. (Proxy :: Proxy '["expose_port"]))
 
+extractTargetUrl :: ProxyConfig -> ST
+extractTargetUrl proxy = exposeUrl http <> prefix
+  where
+    http :: HttpConfig = Tagged $ proxy >>. (Proxy :: Proxy '["http"])
+    prefix :: ST       = fromMaybe "" $ proxy >>. (Proxy :: Proxy '["url_prefix"])
+
 _renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
 _renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"
 

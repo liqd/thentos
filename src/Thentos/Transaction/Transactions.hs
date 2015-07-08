@@ -24,7 +24,7 @@ import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
 import Data.List (foldl')
 import Data.Map (Map)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe, maybeToList)
 import Data.SafeCopy (deriveSafeCopy, base)
 
 import qualified Data.Map as Map
@@ -42,15 +42,59 @@ freshUserId = polyUpdate $ do
     modify $ dbFreshUserId .~ succ uid
     return uid
 
+-- | Assert that no confirmed or unconfirmed user with the same name or email adready exists
+-- (unless mUid Just matches).
 assertUser :: (db `Extends` DB) => Maybe UserId -> User -> ThentosQuery db ()
-assertUser mUid user = polyQuery $ ask >>= \ db ->
-    if | userFacetExists (^. userName)  mUid user db -> throwT UserNameAlreadyExists
-       | userFacetExists (^. userEmail) mUid user db -> throwT UserEmailAlreadyExists
-       | True -> return ()
+assertUser mUid user = polyQuery $ do
+    userNameExists mUid user
+    userEmailExists mUid user
 
-userFacetExists :: Eq a => (User -> a) -> Maybe UserId -> User -> DB -> Bool
-userFacetExists facet ((/=) -> notOwnUid) user db =
-    (facet user `elem`) . map (facet . snd) . filter (notOwnUid . Just . fst) . Map.toList $ db ^. dbUsers
+-- | Assert that no confirmed or unconfirmed user with the same name or email adready exists.
+trans_assertUserIsNew :: (db `Extends` DB) => User -> ThentosQuery db ()
+trans_assertUserIsNew = assertUser Nothing
+
+type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
+
+-- | Throw 'UserNameAlreadyExists' if a user with the same name already exists in the DB
+-- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
+userNameExists :: Maybe UserId -> User -> ThentosQuery DB ()
+userNameExists mUid user = ask >>= \db -> userFacetExists UserNameAlreadyExists
+    (Map.lookup name $ db ^. dbUserIdsByName) unconfirmedUserMatches mUid
+  where
+    name = user ^. userName
+    unconfirmedUserMatches ((uid, user'), _) | user' ^. userName == name = Just uid
+    unconfirmedUserMatches _                                             = Nothing
+
+-- | Throw 'UserEmailAlreadyExists' if a user with the same email already exists in the DB
+-- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
+userEmailExists :: Maybe UserId -> User -> ThentosQuery DB ()
+userEmailExists mUid user = ask >>= \db -> userFacetExists UserEmailAlreadyExists
+    (Map.lookup email $ db ^. dbUserIdsByEmail) unconfirmedUserMatches mUid
+  where
+    email = user ^. userEmail
+    unconfirmedUserMatches ((uid, user'), _) | user' ^. userEmail == email = Just uid
+    unconfirmedUserMatches _                                               = Nothing
+
+-- | Throw 'UserIdAlreadyExists' if a user with the given ID already exists in the DB.
+-- Both confirmed and unconfirmed users are checked.
+userIdExists :: UserId -> ThentosQuery DB ()
+userIdExists uid = ask >>= \db -> userFacetExists UserIdAlreadyExists
+    (if Map.member uid $ db ^. dbUsers then Just uid else Nothing) unconfirmedUserMatches Nothing
+  where
+    unconfirmedUserMatches ((uid', _), _) | uid' == uid = Just uid
+    unconfirmedUserMatches _                            = Nothing
+
+-- Test whether a specific user facet (e.g. name, email, ID) already exists in the DB
+-- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
+-- This includes expired unconfirmed users, but as long as garbage collection is run frequently
+-- enough, that shouldn't be a problem.
+userFacetExists :: (db `Extends` DB) =>
+    ThentosError DB -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery db ()
+userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = polyQuery $
+    ask >>= \db -> do
+        let matchingUids = maybeToList mMatchingConfirmedUid ++
+                           (mapMaybe unconfirmedUserMatches . Map.elems $ db ^. dbUnconfirmedUsers)
+        when (any ((mUid /=) . Just) matchingUids) $ throwT err
 
 -- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
 -- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
@@ -96,15 +140,15 @@ trans_lookupUserByName :: (db `Extends` DB) => UserName -> ThentosQuery db (User
 trans_lookupUserByName name = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
-    f db = maybeUserId >>= pureLookupUser db
-      where maybeUserId = Map.lookup name $ db ^. dbUserIdsByName
+    f db = mUserId >>= pureLookupUser db
+      where mUserId = Map.lookup name $ db ^. dbUserIdsByName
 
 trans_lookupUserByEmail :: (db `Extends` DB) => UserEmail -> ThentosQuery db (UserId, User)
 trans_lookupUserByEmail email = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
-    f db = maybeUserId >>= pureLookupUser db
-      where maybeUserId = Map.lookup email $ db ^. dbUserIdsByEmail
+    f db = mUserId >>= pureLookupUser db
+      where mUserId = Map.lookup email $ db ^. dbUserIdsByEmail
 
 -- | Actually add a new user who already has an ID.
 trans_addUserPrim :: (db `Extends` DB) => UserId -> User -> ThentosUpdate db ()
@@ -135,6 +179,20 @@ trans_addUnconfirmedUser now token user = polyUpdate $ do
     uid <- freshUserId
     modify $ dbUnconfirmedUsers %~ Map.insert token ((uid, user), now)
     return (uid, token)
+
+-- | Add a new unconfirmed user, assigning a specific ID to the new user. If the ID is already
+-- in use, an error is thrown. Calls 'assertUser' for name clash exceptions.
+--
+-- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend process
+-- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
+-- would leak information about the (non-)existence of IDs in our DB.
+trans_addUnconfirmedUserWithId :: (db `Extends` DB) =>
+    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosUpdate db ConfirmationToken
+trans_addUnconfirmedUserWithId now token user userId = polyUpdate $ do
+    liftThentosQuery $ userIdExists userId
+    liftThentosQuery $ assertUser Nothing user
+    modify $ dbUnconfirmedUsers %~ Map.insert token ((userId, user), now)
+    return token
 
 trans_finishUserRegistration :: (db `Extends` DB) =>
     Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate db UserId
@@ -537,7 +595,8 @@ $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
 
 transaction_names :: [Name]
 transaction_names =
-    [ 'trans_allUserIds
+    [ 'trans_assertUserIsNew
+    , 'trans_allUserIds
     , 'trans_lookupUser
     , 'trans_lookupUserByName
     , 'trans_lookupUserByEmail
@@ -545,6 +604,7 @@ transaction_names =
     , 'trans_addUser
     , 'trans_addUsers
     , 'trans_addUnconfirmedUser
+    , 'trans_addUnconfirmedUserWithId
     , 'trans_finishUserRegistration
     , 'trans_addPasswordResetToken
     , 'trans_resetPassword

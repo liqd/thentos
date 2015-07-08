@@ -23,7 +23,9 @@ module Thentos.Action
     , addUser
     , addUsers
     , deleteUser
+    , assertUserIsNew
     , addUnconfirmedUser
+    , addUnconfirmedUserWithId
     , confirmNewUser
     , addPasswordResetToken
     , resetPassword
@@ -68,7 +70,7 @@ module Thentos.Action
     )
 where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Lens ((^.))
 import Control.Monad (unless, void)
 import Control.Monad.Except (throwError, catchError)
@@ -181,6 +183,13 @@ deleteUser uid = do
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.DeleteUser uid
 
+-- | Assert that no user with the same name or email address already exists in the DB.
+-- Does not require any privileges.
+assertUserIsNew :: UserFormData -> Action DB ()
+assertUserIsNew userData = do
+    user <- makeUserFromFormData'P userData
+    query'P $ T.AssertUserIsNew user
+
 
 -- ** email confirmation
 
@@ -188,10 +197,20 @@ deleteUser uid = do
 -- 'confirmNewUser'.
 addUnconfirmedUser :: UserFormData -> Action DB (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    now <- getCurrentTime'P
-    tok <- freshConfirmationToken
-    user <- makeUserFromFormData'P userData
+    (now, tok, user) <- prepareUserData userData
     update'P $ T.AddUnconfirmedUser now tok user
+
+-- | Initiate email-verified user creation, assigning a specific ID to the new user.
+-- If the ID is already in use, an error is thrown. Does not require any privileges.
+addUnconfirmedUserWithId :: UserFormData -> UserId -> Action DB ConfirmationToken
+addUnconfirmedUserWithId userData userId = do
+    (now, tok, user) <- prepareUserData userData
+    update'P $ T.AddUnconfirmedUserWithId now tok user userId
+
+-- | Collect the data needed for the /addUnconfirmedUser.../ calls.
+prepareUserData :: UserFormData -> Action DB (Timestamp, ConfirmationToken, User)
+prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
+                                <*> makeUserFromFormData'P userData
 
 -- | Finish email-verified user creation.
 --

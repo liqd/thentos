@@ -422,6 +422,7 @@ data instance ThentosError DB =
     | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
+    | UserIdAlreadyExists
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
@@ -433,6 +434,7 @@ data instance ThentosError DB =
     | SsoErrorUnknownCsrfToken
     | SsoErrorCouldNotAccessUserInfo LBS
     | SsoErrorCouldNotGetAccessToken LBS
+    | A3BackendError ST
 
 deriving instance Eq (ThentosError DB)
 deriving instance Show (ThentosError DB)

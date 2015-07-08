@@ -38,7 +38,7 @@ import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody, responseServantErr)
-import System.Log.Logger (Priority(DEBUG, INFO, CRITICAL))
+import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString.Char8 as SBS
@@ -65,6 +65,16 @@ enterAction state mTok = Nat $ EitherT . run
 
 
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
+--
+-- If any logging is to take place, it should take place here, not near the place where the error is
+-- thrown.  The error constructors should take all the information in typed form.  Rendering
+-- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
+-- servant error is the sole responsibility of this function.
+--
+-- FIXME: this function is monomorphic by nature; rename it to 'actionErrorDBToServantErr' (or
+-- something similar), and drop the type variable in the signature.  Derived errors will provide
+-- their own function and call this one.  (Or maybe we should introduce a type class for this?  Or
+-- extend 'Extends' to cover this?)
 actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
@@ -85,6 +95,7 @@ actionErrorToServantErr e = do
     _thentos NotRegisteredWithService = pure $ err403 { errBody = "not registered with service" }
     _thentos UserEmailAlreadyExists = pure $ err403 { errBody = "email already in use" }
     _thentos UserNameAlreadyExists = pure $ err403 { errBody = "user name already in use" }
+    _thentos UserIdAlreadyExists = logger ERROR (ppShow e) >> pure err500
     _thentos BadCredentials = logger INFO (show e) >> pure (err401 { errBody = "unauthorized" })
     _thentos BadAuthenticationHeaders = pure $ err400 { errBody = "bad authentication headers" }
     _thentos ProxyNotAvailable = pure $ err404 { errBody = "proxying not activated" }
@@ -101,6 +112,7 @@ actionErrorToServantErr e = do
         { errBody = "error accessing user info" }
     _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
         { errBody = "error retrieving access token" }
+    _thentos (A3BackendError _) = logger ERROR (ppShow e) >> pure err500
 
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
