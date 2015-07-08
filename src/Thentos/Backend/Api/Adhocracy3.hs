@@ -371,11 +371,17 @@ createUserInA3'P user = do
 
 -- | Create a user creation request to be sent to the A3 backend. The actual user password is
 -- replaced by a dummy, as A3 doesn't have to know it.
+--
+-- Since the A3 frontend doesn't know about different services (i.e. never sends a
+-- @X-Thentos-Service@ header), we send the request to the default proxy which should be the A3
+-- backend.
 mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
 mkUserCreationRequestForA3 config user = do
     defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
     let target = extractTargetUrl defaultProxy
-        user'  = user { udPassword =  "dummypass" }
+        user'  = UserFormData { udName = udName user,
+                                udEmail = udEmail user,
+                                udPassword =  "dummypass" }
     initReq <- Client.parseUrl $ cs target <> "/principals/users"
     return initReq { Client.method = "POST",
         Client.requestHeaders = [("Content-Type", "application/json")],
