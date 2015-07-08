@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -17,8 +18,9 @@ module Test.Core
 where
 
 import Control.Applicative ((<*), (<$>))
-import Control.Concurrent.Async (async, cancel)
+import Control.Concurrent.Async (Async, async, cancel, poll)
 import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
@@ -30,16 +32,20 @@ import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.Typeable (Typeable)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
+import Network (HostName, PortID(PortNumber), connectTo)
 import Network.Wai (Application, StreamingBody, Request, requestMethod, requestBody, strictRequestBody, requestHeaders)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Network.Wai.Test (Session, SRequest(SRequest), runSession, setPath, defaultRequest)
 import System.Directory (removeDirectoryRecursive)
 import System.FilePath ((</>))
+import System.IO (hClose)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
+import System.Timeout (timeout)
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -183,6 +189,8 @@ setupTestServerFull = do
     backend  <- async $ runWarpWithCfg beConfig . tracifyApplication tcfg $ Simple.serveApi asg
     frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
 
+    assertResponsive 1.5 [(backend, beConfig), (frontend, feConfig)]
+
     let wdConfig = WD.defaultConfig
             { WD.wdHost = tcfg ^. tcfgWebdriverHost
             , WD.wdPort = tcfg ^. tcfgWebdriverPort
@@ -287,3 +295,41 @@ decodeLenient input = do
 -- want to do explicit type signatures to avoid type ambiguity.
 (..=) :: ST -> ST -> Aeson.Pair
 (..=) = (Aeson..=)
+
+
+-- | Take a timeout (in miliseconds) and a list of 'Async' threads with corresponding 'HttpConfig's.
+-- If a thread terminates, throw an error that contains either exception thrown by the thread or the
+-- result value.  If it does not, connect to the associated 'HttpConfig' URI.  If that works, remove
+-- thread from input list If it does not, append the thread to the end of the list.  Iterate.
+assertResponsive :: Double -> [(Async (), HttpConfig)] -> IO ()
+assertResponsive (round . (*1000) . (*1000) -> musecs) threads =
+    timeout musecs (f threads)
+        >>= maybe (throwIO $ AssertResponsiveTimeout musecs) return
+  where
+    f :: [(Async (), HttpConfig)] -> IO ()
+    f [] = return ()
+    f (x@(thread, cfg) : xs) = do
+        result :: Maybe (Either SomeException ()) <- poll thread
+
+        let h :: HostName = cs $ cfg >>. (Proxy :: Proxy '["bind_host"])
+            p = PortNumber . fromIntegral $ cfg >>. (Proxy :: Proxy '["bind_port"])
+
+        case result of
+            Nothing -> do
+                -- server thread is running --> attempt to connect
+                isUp <- (connectTo h p >>= hClose          >> return True)
+                            `catch` (\(_ :: SomeException) -> return False)
+                logger DEBUG $ show (h, p, isUp)
+                if isUp
+                    then f xs           -- success
+                    else f (xs ++ [x])  -- nothing yet, retry later
+            Just r -> do
+                -- server thread terminated --> crash
+                throwIO . AssertResponsiveThreadTerminated $ (cfg, r)
+
+data AssertResponsiveFailed =
+      AssertResponsiveTimeout Int
+    | AssertResponsiveThreadTerminated (HttpConfig, Either SomeException ())
+  deriving (Show, Typeable)
+
+instance Exception AssertResponsiveFailed

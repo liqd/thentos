@@ -210,5 +210,11 @@ runWarpWithCfg :: HttpConfig -> Application -> IO ()
 runWarpWithCfg cfg = runSettings settings
   where
     settings = setPort (cfg >>. (Proxy :: Proxy '["bind_port"]))
-             . setHost (fromString . cs $ cfg >>. (Proxy :: Proxy '["bind_host"]))
+             . setHost hostnameHack
              $ defaultSettings
+
+    -- FIXME: getAddrInfo somewhere behind warp is having difficulties resolving hostnames.  can't
+    -- get into this right now.
+    hostnameHack = fromString $ case cs $ cfg >>. (Proxy :: Proxy '["bind_host"]) of
+        "localhost" -> "127.0.0.1"
+        other       -> other

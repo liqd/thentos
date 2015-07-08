@@ -236,7 +236,7 @@ test-suite tests
     , containers
     , cryptonite
     , directory
-    , email-validate >= 2.1.3
+    , email-validate
     , filepath
     , functor-infix
     , hslogger
@@ -247,13 +247,14 @@ test-suite tests
     , lio
     , mime-mail
     , mtl
+    , network
     , pretty-show
     , process
     , QuickCheck
     , regex-easy
     , safecopy
     , scrypt
-    , servant-server >= 0.4.1 && < 0.5
+    , servant-server
     , snap
     , snap-core
     , string-conversions
@@ -275,7 +276,7 @@ benchmark load-test
   type:
       exitcode-stdio-1.0
   hs-source-dirs:
-      bench
+      bench tests
   main-is:
       Main.hs
   ghc-options:
@@ -283,14 +284,58 @@ benchmark load-test
   build-depends:
       base
     , thentos
+    , acid-state
     , aeson
+    , aeson-pretty
+    , async
+    , attoparsec
     , bytestring
+    , case-insensitive
+    , cereal
     , conduit
+    , configifier
+    , containers
+    , cryptonite
+    , directory
+    , email-validate
+    , filepath
+    , functor-infix
+    , hslogger
+    , hspec
     , http-conduit
     , http-types
-    , pronk
+    , lens
+    , lifted-base
+    , lio
+    , mime-mail
+    , mtl
+    , network
+    , pretty-show
+    , process
+    , pronk >= 0.1.1
+    -- (only available from https://github.com/liqd/pronk in branch thentos-patches)
+    , QuickCheck
     , random
+    , regex-easy
     , resourcet
+    , safe
+    , safecopy
+    , sandi
+    , scrypt
+    , servant-server
+    , snap
+    , snap-core
+    , string-conversions
+    , system-fileio
+    , temporary
     , text
     , text-format
+    , thyme
     , time
+    , transformers
+    , transformers-base
+    , unix
+    , unordered-containers
+    , wai
+    , wai-extra
+    , webdriver
