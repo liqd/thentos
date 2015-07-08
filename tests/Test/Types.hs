@@ -32,7 +32,15 @@ data TestConfig =
 $(makeLenses ''TestConfig)
 
 
--- DB-Only Test State
+-- | Basic Test State
+data TS = TS
+    { _tsCfg            :: TestConfig
+    }
+
+$(makeLenses ''TS)
+
+
+-- | DB-Only Test State
 data DBTS = DBTS
     { _dbtsCfg            :: TestConfig
     , _dbtsActionState    :: ActionState DB
@@ -41,7 +49,7 @@ data DBTS = DBTS
 $(makeLenses ''DBTS)
 
 
--- Backend Test State
+-- | Backend Test State
 data BTS = BTS
     { _btsCfg            :: TestConfig
     , _btsActionState    :: ActionState DB
@@ -53,7 +61,7 @@ data BTS = BTS
 $(makeLenses ''BTS)
 
 
--- Frontend Test State
+-- | Frontend Test State
 data FTS = FTS
     { _ftsCfg         :: TestConfig
     , _ftsActionState :: ActionState DB

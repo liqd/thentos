@@ -117,12 +117,25 @@ teardownLogger :: IO ()
 teardownLogger = removeAllHandlers
 
 
+-- * TS
+
+setupBare :: IO TS
+setupBare = do
+    tcfg <- testConfig
+    setupLogger tcfg
+    return $ TS tcfg
+
+teardownBare :: TS -> IO ()
+teardownBare (TS tcfg) = do
+    teardownLogger
+    removeDirectoryRecursive (tcfg ^. tcfgTmp)
+
+
 -- * DBTS
 
 setupDB :: IO DBTS
 setupDB = do
-    tcfg <- testConfig
-    setupLogger tcfg
+    TS tcfg <- setupBare
     st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
     createGod st
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
@@ -130,9 +143,8 @@ setupDB = do
 
 teardownDB :: DBTS -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
-    teardownLogger
     closeAcidState st
-    removeDirectoryRecursive (tcfg ^. tcfgTmp)
+    teardownBare (TS tcfg)
 
 
 -- * BTS

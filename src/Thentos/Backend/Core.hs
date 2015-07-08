@@ -75,7 +75,7 @@ enterAction state mTok = Nat $ EitherT . run
 -- something similar), and drop the type variable in the signature.  Derived errors will provide
 -- their own function and call this one.  (Or maybe we should introduce a type class for this?  Or
 -- extend 'Extends' to cover this?)
-actionErrorToServantErr :: forall db . (AsDB db, db ~ DB) => ActionError db -> IO ServantErr
+actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
