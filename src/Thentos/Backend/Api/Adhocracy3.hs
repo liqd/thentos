@@ -391,9 +391,9 @@ mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Requ
 mkUserCreationRequestForA3 config user = do
     defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
     let target = extractTargetUrl defaultProxy
-        user'  = UserFormData { udName = udName user,
-                                udEmail = udEmail user,
-                                udPassword =  "dummypass" }
+        user'  = UserFormData { udName     = udName user,
+                                udEmail    = udEmail user,
+                                udPassword = "dummypass" }
     initReq <- Client.parseUrl $ cs target <> "/principals/users"
     return initReq { Client.method = "POST",
         Client.requestHeaders = [("Content-Type", "application/json")],
