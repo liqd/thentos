@@ -194,7 +194,7 @@ spec_customDb = describe "custom db" . before setupBare . after teardownBare $ d
     it "works" $ \ (TS tcfg) -> do
         st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (CustomDB emptyDB 3)
         rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-        let sta= ActionState (st, rng, testThentosConfig tcfg)
+        let sta = ActionState (st, rng, testThentosConfig tcfg)
             user = head testUsers
 
         uid <- runActionWithPrivs [RoleAdmin] sta $ addUser (head testUserForms)
