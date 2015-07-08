@@ -42,7 +42,7 @@ import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
-import System.Log (Priority(DEBUG, INFO, WARNING))
+import System.Log (Priority(DEBUG, INFO))
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
@@ -371,9 +371,7 @@ createUserInA3'P user = do
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
-        AC.logger'P WARNING $ "A3 backend replied with status code " <> show (responseCode a3resp)
-                              <> ", response body: " <> cs (Client.responseBody a3resp)
-        throwError . A3BackendError $ "status code " <> cs (show $ responseCode a3resp)
+        throwError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
     extractUserId a3resp
   where
     sendRequest ::  Client.Request -> IO (Client.Response LBS)
@@ -404,7 +402,7 @@ mkUserCreationRequestForA3 config user = do
 -- | Extract the user ID from an A3 response received for a user creation request.
 extractUserId :: MonadError (ThentosError DB) m => Client.Response LBS -> m UserId
 extractUserId resp = do
-    resource <- either (\err -> throwError . A3BackendError . cs $ "invalid JSON: " <> err) return $
+    resource <- either (throwError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
     userIdFromPath $ tpPath resource
 
