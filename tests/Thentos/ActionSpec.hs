@@ -5,8 +5,11 @@
 module Thentos.ActionSpec where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent (MVar, newMVar)
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
+import Crypto.Random (ChaChaDRG, drgNew)
+import Data.Acid (openLocalStateFrom)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
@@ -16,6 +19,7 @@ import Test.Arbitrary ()
 import Test.Config
 import Test.Core
 import Test.Types
+import Test.CustomDB
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Types
@@ -25,11 +29,13 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "Thentos.Action" . before setupDB . after teardownDB $ do
-    spec_user
-    spec_service
-    spec_agentsAndRoles
-    spec_session
+spec = do
+    describe "Thentos.Action" . before setupDB . after teardownDB $ do
+        spec_user
+        spec_service
+        spec_agentsAndRoles
+        spec_session
+    spec_customDb
 
 
 spec_user :: SpecWith DBTS
@@ -181,3 +187,22 @@ spec_session = describe "session" $ do
             v4 <- runActionAsAgent (UserA bertId)  astate (existsThentosSession tok)
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
+
+-- create user on a custom db type, using Actions defined for our base DB type
+spec_customDb :: Spec
+spec_customDb = describe "custom db" . before setupBare . after teardownBare $ do
+    it "works" $ \ (TS tcfg) -> do
+        st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (CustomDB emptyDB 3)
+        rng :: MVar ChaChaDRG <- drgNew >>= newMVar
+        let sta= ActionState (st, rng, testThentosConfig tcfg)
+            user = head testUsers
+
+        uid <- runActionWithPrivs [RoleAdmin] sta $ addUser (head testUserForms)
+        (uid', user') <- runActionWithPrivs [RoleAdmin] sta $ lookupUser uid
+        uid `shouldBe` uid'
+        user' `shouldBe` (userPassword .~ (user' ^. userPassword) $ user)
+        void . runActionWithPrivs [RoleAdmin] sta $ deleteUser uid
+        Left (ActionErrorThentos e) <-
+            runActionWithClearanceE dcBottom sta $ lookupUser uid
+        e `shouldBe` asDBThentosError NoSuchUser
+        return ()
