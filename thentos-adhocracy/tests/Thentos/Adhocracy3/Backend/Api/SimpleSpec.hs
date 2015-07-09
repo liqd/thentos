@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
 
-module Thentos.Backend.Api.Adhocracy3Spec
+module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
 import Data.Aeson (object, (.=))
@@ -24,12 +24,16 @@ import Test.QuickCheck (property)
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
 
-import Thentos.Backend.Api.Adhocracy3
-import Thentos.Config
-import Thentos.Types
+import Thentos.Adhocracy3.Backend.Api.Simple
+import Thentos.Adhocracy3.Types
 
-import Test.Arbitrary ()
-import Test.Core
+import Thentos.Test.Arbitrary ()
+import Thentos.Test.Types
+import Thentos.Test.Core hiding (setupTestBackend)
+import qualified Thentos.Test.Core (setupTestBackend)
+
+setupTestBackend :: IO (BTS DB)
+setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
 
 
 tests :: IO ()
@@ -107,7 +111,7 @@ spec =
 -- import qualified Thentos.Transaction as T
 -- import Test.Types
 --
---      describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
+--      describe "create user" . before setupTestBackend . after teardownTestBackend $
 --          it "works" $
 --              \ bts@(BTS tcfg ast@(ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
 --
@@ -158,7 +162,7 @@ spec =
 --                  return ()
 
         -- FIXME currently not working because of Servant quirks on failures
-        --describe "create user errors" . before (setupTestBackend RunA3)
+        --describe "create user errors" . before setupTestBackend
         --                              . after teardownTestBackend $
         --    it "rejects users with short passwords" $
         --        \ bts@(BTS _ (ActionState (_, _, _)) _ _ _) -> runTestBackend bts $ do
@@ -172,7 +176,7 @@ spec =
         -- (1) An error is returned if the specified user name or email doesn't exist
         -- (2) An error is returned if the wrong password is specified
 
-        describe "login" . before (setupTestBackend RunA3) . after teardownTestBackend $
+        describe "login" . before setupTestBackend . after teardownTestBackend $
             it "works" $
                 \ _ -> pendingWith "test missing."
 
@@ -197,4 +201,3 @@ mkUserJson name email password = encodePretty . object $
       ]
   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
   ]
-

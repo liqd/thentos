@@ -15,7 +15,12 @@
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
-module Thentos.Adhocracy3.Types where
+module Thentos.Adhocracy3.Types
+    ( module Core
+    , DB(..)
+    , ThentosError(..)
+    )
+    where
 
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
@@ -26,14 +31,15 @@ import Data.String.Conversions (LBS)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
 
+import Thentos.Types as Core hiding (DB)
 import qualified Thentos.Types as Core
 
 
 newtype DB = DB { fromCoreDB :: Core.DB }
   deriving (Eq, Show, Typeable, Generic)
 
-emptyDB :: DB
-emptyDB = DB $ Core.emptyDB
+instance EmptyDB DB where
+    emptyDB = DB $ Core.emptyDB
 
 instance DB `Core.Extends` Core.DB where
     focus f (DB db) = DB <$> f db

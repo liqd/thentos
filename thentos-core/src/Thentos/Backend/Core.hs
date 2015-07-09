@@ -53,13 +53,16 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: ActionState DB -> Maybe ThentosSessionToken -> Action DB :~> EitherT ServantErr IO
+enterAction :: forall db . (db `Extends` DB, Show (ActionError db),
+                            db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
+                           ) =>
+    ActionState db -> Maybe ThentosSessionToken -> Action db :~> EitherT ServantErr IO
 enterAction state mTok = Nat $ EitherT . run
   where
-    run :: Action DB a -> IO (Either ServantErr a)
+    run :: Action db a -> IO (Either ServantErr a)
     run = (>>= fmapLM actionErrorToServantErr) . runActionE state . updatePrivs mTok
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action DB a -> Action DB a
+    updatePrivs :: Maybe ThentosSessionToken -> Action db a -> Action db a
     updatePrivs (Just tok) action = (accessRightsByThentosSession'P tok >>= grantAccessRights'P) >> action
     updatePrivs Nothing    action = action
 

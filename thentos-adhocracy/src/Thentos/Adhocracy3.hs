@@ -16,11 +16,10 @@
 module Thentos.Adhocracy3 (main, createDefaultUser) where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
-import Control.Monad (void, when, forever)
+import Control.Monad (when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
@@ -34,13 +33,11 @@ import System.Log.Missing (logger, announceAction)
 import Thentos.Action
 import Thentos.Action.Core (ActionState(..), runAction)
 import Thentos.Config
-import Thentos.Frontend (runFrontend)
 import Thentos.Types
 import Thentos.Util
 
-import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
-import qualified Thentos.Backend.Api.Adhocracy3Sso (runBackend)
-import qualified Thentos.Backend.Api.Simple (runApi)
+import qualified Thentos.Adhocracy3.Backend.Api.Simple as Simple (runBackend)
+import qualified Thentos.Adhocracy3.Backend.Api.Sso as Sso (runBackend)
 import qualified Thentos.Transaction as T
 
 
@@ -68,9 +65,6 @@ main =
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
 
-        mFeConfig :: Maybe HttpConfig
-        mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
-
     logger INFO "Press ^C to abort."
     let run = case config >>. (Proxy :: Proxy '["command"]) of
             ShowDB -> do
@@ -78,23 +72,13 @@ main =
                 query' st T.SnapShot >>= either (error "oops?") (logger INFO . ppShow)
 
             Run -> do
-                let backend = maybe (return ())
-                        (`Thentos.Backend.Api.Simple.runApi` actionState)
-                        mBeConfig
-                let frontend = maybe (return ())
-                        (`runFrontend` actionState)
-                        mFeConfig
-
-                void $ concurrently backend frontend
-
-            RunA3 -> do
-                maybe (error "command `runa3` requires backend")
-                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
+                maybe (error "command `run` requires backend")
+                    (`Simple.runBackend` actionState)
                     mBeConfig
 
-            RunA3Sso -> do
-                maybe (error "command `runa3sso` requires backend")
-                    (`Thentos.Backend.Api.Adhocracy3Sso.runBackend` actionState)
+            RunSso -> do
+                maybe (error "command `runSso` requires backend")
+                    (`Sso.runBackend` actionState)
                     mBeConfig
 
     let finalize = do

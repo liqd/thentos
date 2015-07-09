@@ -16,7 +16,7 @@ import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Types
 
-import qualified Thentos.Backend.Api.Adhocracy3 as Adhocracy3
+import qualified Thentos.Adhocracy3.Backend.Api.Simple as Adhocracy3
 
 
 instance ToSample Adhocracy3.A3UserNoPass Adhocracy3.A3UserNoPass where

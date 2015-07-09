@@ -189,7 +189,10 @@ deleteUser uid = do
 
 -- | Assert that no user with the same name or email address already exists in the DB.
 -- Does not require any privileges.
-assertUserIsNew :: UserFormData -> Action DB ()
+assertUserIsNew ::
+    ( db `Extends` DB
+    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
+    ) => UserFormData -> Action db ()
 assertUserIsNew userData = do
     user <- makeUserFromFormData'P userData
     query'P $ T.AssertUserIsNew user
@@ -207,7 +210,10 @@ addUnconfirmedUser userData = do
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
-addUnconfirmedUserWithId :: UserFormData -> UserId -> Action DB ConfirmationToken
+addUnconfirmedUserWithId ::
+    ( db `Extends` DB
+    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
+    ) => UserFormData -> UserId -> Action db ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
     (now, tok, user) <- prepareUserData userData
     update'P $ T.AddUnconfirmedUserWithId now tok user userId
@@ -265,9 +271,12 @@ resetPassword token password = do
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
 _lookupUserCheckPassword :: ( QueryEvent event
-                            , EventState event ~ DB
-                            , EventResult event ~ Either (ThentosError DB) (UserId, User)) =>
-    event -> UserPass -> Action DB (UserId, User)
+                            , EventState event ~ db
+                            , EventResult event ~ Either (ThentosError db) (UserId, User)
+                            , db `Extends` DB
+                            , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
+                            ) =>
+    event -> UserPass -> Action db (UserId, User)
 _lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
@@ -301,7 +310,10 @@ updateUserFields uid ops = do
 
 -- | Authenticate user against old password, and then change password to new password.  Requires
 -- 'RoleAdmin' or privs of user that owns the password.
-changePassword :: UserId -> UserPass -> UserPass -> Action DB ()
+changePassword ::
+    ( db `Extends` DB
+    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
+    ) => UserId -> UserPass -> UserPass -> Action db ()
 changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.LookupUser uid) old
     hashedPw <- hashUserPass'P new

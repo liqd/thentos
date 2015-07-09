@@ -89,7 +89,7 @@ import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
-import qualified Thentos.Backend.Api.Adhocracy3 as A3
+import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
 
 
 -- * main
