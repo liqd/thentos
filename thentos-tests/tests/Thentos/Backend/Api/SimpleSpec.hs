@@ -25,11 +25,15 @@ import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
 
 import Thentos.Types
-import Thentos.Config (Command(Run))
+import Thentos.Backend.Api.Simple (serveApi)
 
 import Thentos.Test.Config
 import Thentos.Test.Types
-import Thentos.Test.Core
+import Thentos.Test.Core hiding (setupTestBackend)
+import qualified Thentos.Test.Core (setupTestBackend)
+
+setupTestBackend :: IO BTS
+setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
 
 
 tests :: IO ()
@@ -39,12 +43,12 @@ spec :: Spec
 spec = do
     describe "Fixtures" $ do
         it "make sure backend is running at all." $
-            void $ setupTestBackend Run
+            void $ setupTestBackend
 
         it "tear it down again, too." $
-            void $ setupTestBackend Run >>= teardownTestBackend
+            void $ setupTestBackend >>= teardownTestBackend
 
-    describe "Thentos.Backend.Api.Simple" . before (setupTestBackend Run) . after teardownTestBackend $ do
+    describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
               \ (bts :: BTS) -> runTestBackend bts $ do

@@ -59,7 +59,6 @@ import qualified Test.WebDriver as WD
 import System.Log.Missing (logger, loggerName)
 import Thentos.Action
 import Thentos.Action.Core
-import Thentos.Backend.Api.Adhocracy3 as Adhocracy3
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
@@ -158,15 +157,11 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: Command -> IO BTS
-setupTestBackend cmd = do
+setupTestBackend :: (ActionState DB -> Application) -> IO BTS
+setupTestBackend testBackend = do
     DBTS tcfg asg <- setupDB
     (tok, headers) <- loginAsGod asg
-    let testBackend = case cmd of
-          Run   -> Simple.serveApi asg
-          RunA3 -> Adhocracy3.serveApi asg
-          bad -> error $ "setupTestBackend: bad command: " ++ show bad
-    return $ BTS tcfg asg (tracifyApplication tcfg testBackend) tok headers
+    return $ BTS tcfg asg (tracifyApplication tcfg $ testBackend asg) tok headers
 
 teardownTestBackend :: BTS -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
