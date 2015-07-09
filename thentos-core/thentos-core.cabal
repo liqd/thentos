@@ -96,21 +96,21 @@ library
     , digestive-functors
     , digestive-functors-blaze >= 0.6.0.5
     , digestive-functors-snap >= 0.6.1.1
+    , directory
     , either
     , email-validate >= 2.1.3
     , errors
     , filepath
     , functor-infix
     , generic-aeson
-    , hoauth2 >= 0.4.8 && < 0.5
     , hslogger
     , http-client
-    , http-conduit >= 2.1.5 && < 2.2
     , http-media
     , http-types
     , lens
     , lio
     , mime-mail >= 0.4.9
+    , MonadCatchIO-transformers
     , mtl
     , old-locale
     , pretty-show
@@ -135,10 +135,6 @@ library
     , vector-space
     , wai
     , warp
-
-    -- these are only used by some c&p'ed snap code in Frontend.Util
-    , directory
-    , MonadCatchIO-transformers
 
 executable thentos
   if flag(with-thentos-executable)

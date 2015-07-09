@@ -46,46 +46,30 @@ library
     , thentos-core
     , acid-state
     , aeson
-    , aeson-pretty
     , async
     , attoparsec
     , bytestring
     , case-insensitive
-    , cereal
     , configifier
     , containers
     , cryptonite
     , directory
-    , email-validate
     , filepath
-    , functor-infix
     , hslogger
-    , hspec
     , http-types
     , lens
     , lifted-base
     , lio
-    , mime-mail
     , mtl
     , network
     , pretty-show
-    , process
     , QuickCheck
-    , regex-easy
     , safecopy
     , scrypt
-    , servant-server
-    , snap
-    , snap-core
     , string-conversions
-    , system-fileio
     , temporary
-    , text
-    , thyme
     , transformers
     , transformers-base
-    , unix
-    , unordered-containers
     , wai
     , wai-extra
     , webdriver

@@ -20,14 +20,6 @@ clean:
 dist-clean: clean
 	cabal clean
 
-packunused:
-	packunused --help >/dev/null  # run `cabal install packunused` and make sure it is in your PATH if this fails
-	cabal clean
-	rm -f *.imports
-	cabal configure -O0 --disable-library-profiling
-	cabal build --ghc-option=-ddump-minimal-imports
-	packunused
-
 show-splices:
 	cabal install -j1 --ghc-options="-fforce-recomp -ddump-splices"
 
