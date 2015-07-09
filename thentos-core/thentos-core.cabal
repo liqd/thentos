@@ -53,6 +53,7 @@ library
     ghc-options: -w
   exposed-modules:
       LIO.Missing
+    , Snap.Inline
     , Snap.Missing
     , System.Log.Missing
     , Thentos
@@ -61,12 +62,12 @@ library
     , Thentos.Backend.Api.Adhocracy3
     , Thentos.Backend.Api.Adhocracy3Sso
     , Thentos.Backend.Api.Auth
-    , Thentos.Backend.Api.Proxy
-    , Thentos.Backend.Api.Simple
     , Thentos.Backend.Api.Docs.Adhocracy3
     , Thentos.Backend.Api.Docs.Common
     , Thentos.Backend.Api.Docs.Proxy
     , Thentos.Backend.Api.Docs.Simple
+    , Thentos.Backend.Api.Proxy
+    , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
     , Thentos.Config
     , Thentos.Frontend
@@ -81,8 +82,6 @@ library
     , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
-  other-modules:
-      Snap.Inline
   build-depends:
       base
     , acid-state
