@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators     #-}
 
 module Thentos.Test.Config
 where
 
 import Control.Applicative ((<$>))
+import Control.Exception (Exception)
 import Control.Lens ((^.))
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
@@ -87,7 +90,8 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: AcidState DB -> IO ()
+createGod :: (db `Extends` DB, Exception (ThentosError db), Eq (ThentosError db)) =>
+    AcidState db -> IO ()
 createGod st = createDefaultUser st
     (Just . Tagged $
           Id (fromUserName godName)

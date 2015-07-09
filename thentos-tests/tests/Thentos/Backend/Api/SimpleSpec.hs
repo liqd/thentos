@@ -32,7 +32,7 @@ import Thentos.Test.Types
 import Thentos.Test.Core hiding (setupTestBackend)
 import qualified Thentos.Test.Core (setupTestBackend)
 
-setupTestBackend :: IO BTS
+setupTestBackend :: IO (BTS DB)
 setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
 
 
@@ -51,7 +51,7 @@ spec = do
     describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
-              \ (bts :: BTS) -> runTestBackend bts $ do
+              \ (bts :: (BTS DB)) -> runTestBackend bts $ do
                 let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
                 resp <- srequest req
                 liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400

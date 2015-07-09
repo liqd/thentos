@@ -55,7 +55,7 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
                 db `shouldBe` g db
                 db `shouldBe` snd (i db)
 
-        test0 $ emptyDB
+        test0 $ (emptyDB :: DB)
         test0 $ CustomDB emptyDB 3
 
         let db = CustomDB emptyDB 3 in case i db of

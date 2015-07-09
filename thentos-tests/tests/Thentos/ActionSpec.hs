@@ -39,7 +39,7 @@ spec = do
     spec_customDb
 
 
-spec_user :: SpecWith DBTS
+spec_user :: SpecWith (DBTS DB)
 spec_user = describe "user" $ do
     describe "addUser, lookupUser, deleteUser" $ do
         it "works" $ \(DBTS _ sta) -> do
@@ -116,7 +116,7 @@ spec_user = describe "user" $ do
             void . runAction sta $ startThentosSessionByUserName godName godPass
 
 
-spec_service :: SpecWith DBTS
+spec_service :: SpecWith (DBTS DB)
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \(DBTS _ sta) -> do
@@ -133,7 +133,7 @@ spec_service = describe "service" $ do
             return ()
 
 
-spec_agentsAndRoles :: SpecWith DBTS
+spec_agentsAndRoles :: SpecWith (DBTS DB)
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
@@ -165,7 +165,7 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
                 result `shouldSatisfy` isLeft
 
 
-spec_session :: SpecWith DBTS
+spec_session :: SpecWith (DBTS DB)
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \ (DBTS _ sta) -> do
@@ -174,7 +174,7 @@ spec_session = describe "session" $ do
             return ()
 
     describe "lookupThentosSession" $ do
-        it "works" $ \ (DBTS _ astate :: DBTS) -> do
+        it "works" $ \ (DBTS _ astate :: (DBTS DB)) -> do
             ((ernieId, ernieF, _) : (bertId, _, _) : _)
                 <- runActionWithClearance dcTop astate initializeTestUsers
 

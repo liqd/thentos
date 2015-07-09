@@ -20,6 +20,7 @@
 module Thentos.Test.CustomDB where
 
 import Control.Applicative ((<$>))
+import Control.Exception (Exception)
 import Control.Monad.Reader (ask)
 import Data.SafeCopy (SafeCopy(..), deriveSafeCopy, base)
 import Data.Typeable (Typeable)
@@ -41,11 +42,16 @@ instance CustomDB `Extends` DB where
     asDBThentosError :: ThentosError DB -> ThentosError CustomDB
     asDBThentosError = CustomDBError
 
+instance EmptyDB CustomDB where
+    emptyDB = CustomDB emptyDB 0
+
 instance CustomDB `Extends` CustomDB where
     focus = id
     asDBThentosError = id
 
 data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
+
+instance Exception (ThentosError CustomDB)
 
 deriving instance Eq (ThentosError CustomDB)
 deriving instance Read (ThentosError CustomDB)

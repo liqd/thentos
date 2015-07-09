@@ -60,7 +60,7 @@ spec = describe "selenium grid" $ do
     spec_updateSelf
 
 
-spec_createUser :: SpecWith FTS
+spec_createUser :: SpecWith (FTS DB)
 spec_createUser = describe "create user" $ do
     let myUsername = "username"
         myPassword = "password"
@@ -106,11 +106,11 @@ spec_createUser = describe "create user" $ do
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 
 
-spec_resetPassword :: SpecWith FTS
-spec_resetPassword = it "reset password" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_resetPassword :: SpecWith (FTS DB)
+spec_resetPassword = it "reset password" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_updateSelf :: SpecWith FTS
+spec_updateSelf :: SpecWith (FTS DB)
 spec_updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
@@ -160,7 +160,7 @@ spec_updateSelf = describe "update self" $ do
     -- "create_user" and "reset_password" (make sure the check is in
     -- separate function, not inlined.)
 
-    it "email" $ \ (_ :: FTS) ->
+    it "email" $ \ (_ :: (FTS DB)) ->
         pendingWith "no test implemented."
 
         {-
@@ -203,11 +203,11 @@ spec_updateSelf = describe "update self" $ do
         -}
 
 
--- manageRoles :: SpecWith FTS
+-- manageRoles :: SpecWith (FTS DB)
 -- manageRoles = describe "manage roles" $ do ...
 
 
-spec_logIntoThentos :: SpecWith FTS
+spec_logIntoThentos :: SpecWith (FTS DB)
 spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
@@ -219,7 +219,7 @@ spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
     -- fact) that the lambda is polymorphic in all places where it
     -- takes '_'?)
 
-spec_logOutOfThentos :: SpecWith FTS
+spec_logOutOfThentos :: SpecWith (FTS DB)
 spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
@@ -232,7 +232,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
-spec_serviceCreate :: SpecWith FTS
+spec_serviceCreate :: SpecWith (FTS DB)
 spec_serviceCreate = it "service create" $ \ fts -> do
     let ActionState (st, _, _) = fts ^. ftsActionState
         feConfig = fts ^. ftsFrontendCfg
@@ -272,28 +272,28 @@ spec_serviceCreate = it "service create" $ \ fts -> do
     -- FIXME: test: if user is deleted, so are all their services.
 
 
-spec_serviceDelete :: SpecWith FTS
-spec_serviceDelete = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_serviceDelete :: SpecWith (FTS DB)
+spec_serviceDelete = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_serviceUpdateMetadata :: SpecWith FTS
-spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata :: SpecWith (FTS DB)
+spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_serviceGiveToOtherUser :: SpecWith FTS
-spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser :: SpecWith (FTS DB)
+spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_logIntoService :: SpecWith FTS
-spec_logIntoService = it "log into service" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_logIntoService :: SpecWith (FTS DB)
+spec_logIntoService = it "log into service" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_logOutOfService :: SpecWith FTS
-spec_logOutOfService = it "log out of service" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_logOutOfService :: SpecWith (FTS DB)
+spec_logOutOfService = it "log out of service" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
-spec_browseMyServices :: SpecWith FTS
-spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "no test implemented."
+spec_browseMyServices :: SpecWith (FTS DB)
+spec_browseMyServices = it "browse my services" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
 {-
       \ ((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do
@@ -306,7 +306,7 @@ spec_browseMyServices = it "browse my services" $ \ (_ :: FTS) -> pendingWith "n
 -}
 
 
-spec_failOnCsrf :: SpecWith FTS
+spec_failOnCsrf :: SpecWith (FTS DB)
 spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
     wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode

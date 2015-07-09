@@ -76,14 +76,14 @@ data DB =
       }
   deriving (Eq, Show, Typeable, Generic)
 
-emptyDB :: DB
-emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
-  where m = Map.empty
-
 -- | In order to use a derived db type @dbChild@ with transactions and actions
 -- defined for @dbParent@, instantiate this class.
-class (Typeable dbParent, Typeable dbChild, SafeCopy dbParent, SafeCopy dbChild,
-       SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)) =>
+class ( Typeable dbParent, Typeable dbChild
+      , SafeCopy dbParent, SafeCopy dbChild
+      , Exception (ThentosError dbParent), Exception (ThentosError dbChild)
+      , SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)
+      , EmptyDB dbChild
+      ) =>
         dbChild `Extends` dbParent where
 
     focus :: Lens' dbChild dbParent
@@ -97,6 +97,13 @@ class (Typeable dbParent, Typeable dbChild, SafeCopy dbParent, SafeCopy dbChild,
 instance DB `Extends` DB where
     focus = id
     asDBThentosError = id
+
+class EmptyDB db where
+    emptyDB :: db
+
+instance EmptyDB DB where
+    emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
+      where m = Map.empty
 
 
 -- * user

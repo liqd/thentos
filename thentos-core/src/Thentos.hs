@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
@@ -19,7 +20,7 @@ import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
-import Control.Exception (finally)
+import Control.Exception (Exception, finally)
 import Control.Monad (void, when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
@@ -108,7 +109,8 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: AcidState DB -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser :: (db `Extends` DB, Exception (ThentosError db), Eq (ThentosError db)) =>
+    AcidState db -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
     eq <- query' st $ T.LookupUser (UserId 0)

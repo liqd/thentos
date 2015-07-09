@@ -40,18 +40,18 @@ $(makeLenses ''TS)
 
 
 -- | DB-Only Test State
-data DBTS = DBTS
+data DBTS db = DBTS
     { _dbtsCfg            :: TestConfig
-    , _dbtsActionState    :: ActionState DB
+    , _dbtsActionState    :: ActionState db
     }
 
 $(makeLenses ''DBTS)
 
 
 -- | Backend Test State
-data BTS = BTS
+data BTS db = BTS
     { _btsCfg            :: TestConfig
-    , _btsActionState    :: ActionState DB
+    , _btsActionState    :: ActionState db
     , _btsWai            :: Application
     , _btsToken          :: ThentosSessionToken
     , _btsGodCredentials :: [Header]
@@ -61,9 +61,9 @@ $(makeLenses ''BTS)
 
 
 -- | Frontend Test State
-data FTS = FTS
+data FTS db = FTS
     { _ftsCfg         :: TestConfig
-    , _ftsActionState :: ActionState DB
+    , _ftsActionState :: ActionState db
     , _ftsBackend     :: Async ()  -- FIXME: capture stdout, stderr
     , _ftsBackendCfg  :: HttpConfig
     , _ftsFrontend    :: Async ()  -- FIXME: capture stdout, stderr

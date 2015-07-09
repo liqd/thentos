@@ -11,6 +11,7 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
@@ -24,7 +25,7 @@ import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (openLocalStateFrom, closeAcidState)
+import Data.Acid (IsAcidic, openLocalStateFrom, closeAcidState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -138,15 +139,15 @@ teardownBare (TS tcfg) = do
 
 -- * DBTS
 
-setupDB :: IO DBTS
+setupDB :: forall db . (db `Extends` DB, IsAcidic db, Eq (ThentosError db)) => IO (DBTS db)
 setupDB = do
     TS tcfg <- setupBare
-    st <- openLocalStateFrom (tcfg ^. tcfgDbPath) emptyDB
+    st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (emptyDB :: db)
     createGod st
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
 
-teardownDB :: DBTS -> IO ()
+teardownDB :: DBTS db -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
     closeAcidState st
     teardownBare (TS tcfg)
@@ -157,16 +158,20 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: (ActionState DB -> Application) -> IO BTS
+setupTestBackend :: forall db .
+        ( db `Extends` DB, IsAcidic db
+        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
+        , Eq (ThentosError db), Show (ActionError db)) =>
+    (ActionState db -> Application) -> IO (BTS db)
 setupTestBackend testBackend = do
     DBTS tcfg asg <- setupDB
     (tok, headers) <- loginAsGod asg
     return $ BTS tcfg asg (tracifyApplication tcfg $ testBackend asg) tok headers
 
-teardownTestBackend :: BTS -> IO ()
+teardownTestBackend :: BTS db -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
 
-runTestBackend :: BTS -> Session a -> IO a
+runTestBackend :: BTS db -> Session a -> IO a
 runTestBackend bts session = runSession session (bts ^. btsWai)
 
 
@@ -174,7 +179,11 @@ runTestBackend bts session = runSession session (bts ^. btsWai)
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
-setupTestServerFull :: IO FTS
+setupTestServerFull :: forall db .
+        ( db `Extends` DB, IsAcidic db, Eq (ThentosError db)
+        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
+        ) =>
+    IO (FTS db)
 setupTestServerFull = do
     DBTS tcfg asg <- setupDB
 
@@ -203,14 +212,19 @@ setupTestServerFull = do
 
     return $ FTS tcfg asg backend beConfig frontend feConfig wd
 
-teardownTestServerFull :: FTS -> IO ()
+teardownTestServerFull :: forall db . (db `Extends` DB, IsAcidic db, Eq (ThentosError db)) =>
+    FTS db -> IO ()
 teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
     teardownDB $ DBTS tcfg db
 
 
-loginAsGod :: ActionState DB -> IO (ThentosSessionToken, [Header])
+loginAsGod :: forall db .
+        ( db `Extends` DB , IsAcidic db
+        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
+        , Eq (ThentosError db), Show (ActionError db), Exception (ActionError db)) =>
+    ActionState db -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
     (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
