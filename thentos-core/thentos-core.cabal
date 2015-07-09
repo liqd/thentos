@@ -23,10 +23,10 @@ flag profiling
   default: False
 
 flag with-thentos-executable
-  default: True
+  default: False
 
 flag with-build-docs-executable
-  default: True
+  default: False
 
 -- snap-development mode seems to have issues:
 -- https://groups.google.com/forum/#!topic/snap_framework/7fWgxMxjNWE
