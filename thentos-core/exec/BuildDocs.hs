@@ -16,7 +16,6 @@ import qualified Servant.Docs as Docs
 
 import Thentos.Backend.Api.Docs.Common (prettyMimeRender)
 import qualified Thentos.Backend.Api.Docs.Simple as Simple
-import qualified Thentos.Backend.Api.Docs.Adhocracy3 as A3
 
 
 targetPath :: FilePath
@@ -53,9 +52,8 @@ xdocs api = prettyMimeRender docs
   where
     docs = case api of
         Api_Simple     -> Simple.docs
-        Api_Adhocracy3 -> A3.docs
 
-data ApiName = Api_Simple | Api_Adhocracy3
+data ApiName = Api_Simple
   deriving (Eq, Enum, Bounded, Read, Show)
 
 data FormatName = Format_Markdown | Format_Html | Format_Docx

@@ -59,10 +59,7 @@ library
     , Thentos
     , Thentos.Action
     , Thentos.Action.Core
-    , Thentos.Backend.Api.Adhocracy3
-    , Thentos.Backend.Api.Adhocracy3Sso
     , Thentos.Backend.Api.Auth
-    , Thentos.Backend.Api.Docs.Adhocracy3
     , Thentos.Backend.Api.Docs.Common
     , Thentos.Backend.Api.Docs.Proxy
     , Thentos.Backend.Api.Docs.Simple

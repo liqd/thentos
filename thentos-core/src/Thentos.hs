@@ -38,8 +38,6 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Types
 import Thentos.Util
 
-import qualified Thentos.Backend.Api.Adhocracy3 (runBackend)
-import qualified Thentos.Backend.Api.Adhocracy3Sso (runBackend)
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
 
@@ -87,15 +85,7 @@ main =
 
                 void $ concurrently backend frontend
 
-            RunA3 -> do
-                maybe (error "command `runa3` requires backend")
-                    (`Thentos.Backend.Api.Adhocracy3.runBackend` actionState)
-                    mBeConfig
-
-            RunA3Sso -> do
-                maybe (error "command `runa3sso` requires backend")
-                    (`Thentos.Backend.Api.Adhocracy3Sso.runBackend` actionState)
-                    mBeConfig
+            RunSso -> error "RunSso: not implemented."
 
     let finalize = do
             announceAction "creating checkpoint and shutting down acid-state" $

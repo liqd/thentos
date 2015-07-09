@@ -43,8 +43,7 @@ import Thentos.Types
 
 type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
-            ("command"      :> Command               :>:
-      "E.g. 'run', 'runA3', 'runA3Sso', 'showDB', ...")
+            ("command"      :> Command               :>: "'run', 'runSso', 'showDB'")
                -- FIXME: this doc string should really be generated from the 'Command' type.
   :*> Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
@@ -112,7 +111,7 @@ type DefaultUserConfig' =
 
 -- * leaf types
 
-data Command = Run | RunA3 | RunA3Sso | ShowDB
+data Command = Run | RunSso | ShowDB
   deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
