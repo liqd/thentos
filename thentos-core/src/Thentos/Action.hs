@@ -213,7 +213,8 @@ addUnconfirmedUserWithId userData userId = do
     update'P $ T.AddUnconfirmedUserWithId now tok user userId
 
 -- | Collect the data needed for the /addUnconfirmedUser.../ calls.
-prepareUserData :: UserFormData -> Action DB (Timestamp, ConfirmationToken, User)
+prepareUserData :: (db `Extends` DB, Exception (ActionError db)) =>
+    UserFormData -> Action db (Timestamp, ConfirmationToken, User)
 prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
                                 <*> makeUserFromFormData'P userData
 
