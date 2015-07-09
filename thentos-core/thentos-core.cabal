@@ -1,4 +1,4 @@
-name:                thentos
+name:                thentos-core
 version:             0.0.1.1
 synopsis:            The swiss army knife of privacy-preserving identity management
 description:
@@ -163,7 +163,7 @@ executable thentos
           -auto-all -caf-all -fforce-recomp
   build-depends:
       base
-    , thentos
+    , thentos-core
   if flag(snap-development)
     build-depends:
       snap-loader-dynamic == 0.10.*
@@ -186,7 +186,7 @@ executable build-docs
       -Wall -threaded -rtsopts
   build-depends:
       base
-    , thentos
+    , thentos-core
     , blaze-markup
     , bytestring
     , directory
@@ -223,7 +223,7 @@ test-suite tests
       -DGHC_GENERICS
   build-depends:
       base
-    , thentos
+    , thentos-core
     , acid-state
     , aeson
     , aeson-pretty
@@ -283,7 +283,7 @@ benchmark load-test
       -Wall -threaded
   build-depends:
       base
-    , thentos
+    , thentos-core
     , acid-state
     , aeson
     , aeson-pretty
