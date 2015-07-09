@@ -9,7 +9,7 @@ test-all:
 
 hlint:
 	$(HLINT) --version
-	find src tests exec -name '*.hs' | xargs $(HLINT)
+	find src exec -name '*.hs' | xargs $(HLINT)
 
 wc:
 	make -C .. wc

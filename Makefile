@@ -34,3 +34,8 @@ clean:
 	packunused
 
 packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.packunused
+
+%.hlint:
+	cd $* && make hlint
+
+hlint: thentos-core.hlint
