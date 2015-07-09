@@ -17,7 +17,7 @@
 
 -- | This defines a custom db type that extends the basic thentos DB. It is
 -- used by the tests in the Thentos.Transaction.CoreSpec module.
-module Test.CustomDB where
+module Thentos.Test.CustomDB where
 
 import Control.Applicative ((<$>))
 import Control.Monad.Reader (ask)

@@ -14,12 +14,13 @@ import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
 
+import Thentos.Test.Arbitrary ()
+import Thentos.Test.Config
+import Thentos.Test.Core
+import Thentos.Test.CustomDB
+import Thentos.Test.Types
+
 import LIO.Missing
-import Test.Arbitrary ()
-import Test.Config
-import Test.Core
-import Test.Types
-import Test.CustomDB
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Types

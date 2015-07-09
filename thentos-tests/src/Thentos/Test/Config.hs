@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Config
+module Thentos.Test.Config
 where
 
 import Control.Applicative ((<$>))
@@ -17,7 +17,7 @@ import Thentos.Types
 import Thentos.Config
 import Thentos (createDefaultUser)
 
-import Test.Types
+import Thentos.Test.Types
 
 
 testConfig :: IO TestConfig

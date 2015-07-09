@@ -33,8 +33,8 @@ import Thentos.Types
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
     )
 
-import Test.Core
-import Test.Types
+import Thentos.Test.Core
+import Thentos.Test.Types
 
 
 main :: IO ()

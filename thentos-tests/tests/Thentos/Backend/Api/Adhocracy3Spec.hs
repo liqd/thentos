@@ -28,8 +28,8 @@ import Thentos.Backend.Api.Adhocracy3
 import Thentos.Config
 import Thentos.Types
 
-import Test.Arbitrary ()
-import Test.Core
+import Thentos.Test.Arbitrary ()
+import Thentos.Test.Core
 
 
 tests :: IO ()
@@ -105,7 +105,7 @@ spec =
 -- import qualified Network.HTTP.Types.Status as C
 -- import Thentos.Action.Core
 -- import qualified Thentos.Transaction as T
--- import Test.Types
+-- import Thentos.Test.Types
 --
 --      describe "create user" . before (setupTestBackend RunA3) . after teardownTestBackend $
 --          it "works" $

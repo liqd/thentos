@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
-module Test.WebDriver.Missing where
+module Thentos.Test.WebDriver.Missing where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay)

@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE TemplateHaskell            #-}
 
-module Test.Types
+module Thentos.Test.Types
 where
 
 import Control.Concurrent.Async (Async)

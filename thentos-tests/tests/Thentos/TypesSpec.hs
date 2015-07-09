@@ -13,7 +13,7 @@ import Test.QuickCheck (property)
 
 import Thentos.Types
 
-import Test.Arbitrary ()
+import Thentos.Test.Arbitrary ()
 
 testSizeFactor :: Int
 testSizeFactor = 1

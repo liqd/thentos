@@ -1,0 +1,227 @@
+name:                thentos-tests
+version:             0.0.1
+synopsis:            Test infrastructure for thentos-*
+description:
+  See https://github.com/liqd/thentos.
+license:             AGPL-3
+license-file:        LICENSE
+homepage:            https://github.com/liqd/thentos
+author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
+maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net
+copyright:           liquid democracy e.V. (https://liqd.net/)
+category:            Authentication
+build-type:          Simple
+cabal-version:       >= 1.20
+
+Source-Repository head
+  type: git
+  location: https://github.com/liqd/thentos
+
+flag profiling
+  default: False
+
+library
+  default-language:
+      Haskell2010
+  hs-source-dirs:
+      src
+  ghc-options:
+      -Wall
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
+  exposed-modules:
+      Thentos.Test.Arbitrary
+    , Thentos.Test.Config
+    , Thentos.Test.Core
+    , Thentos.Test.CustomDB
+    , Thentos.Test.Types
+    , Thentos.Test.WebDriver.Missing
+  ghc-options:
+      -Wall -threaded -rtsopts
+  cpp-options:
+      -DGHC_GENERICS
+  build-depends:
+      base
+    , thentos-core
+    , acid-state
+    , aeson
+    , aeson-pretty
+    , async
+    , attoparsec
+    , bytestring
+    , case-insensitive
+    , cereal
+    , configifier
+    , containers
+    , cryptonite
+    , directory
+    , email-validate
+    , filepath
+    , functor-infix
+    , hslogger
+    , hspec
+    , http-types
+    , lens
+    , lifted-base
+    , lio
+    , mime-mail
+    , mtl
+    , network
+    , pretty-show
+    , process
+    , QuickCheck
+    , regex-easy
+    , safecopy
+    , scrypt
+    , servant-server
+    , snap
+    , snap-core
+    , string-conversions
+    , system-fileio
+    , temporary
+    , text
+    , thyme
+    , transformers
+    , transformers-base
+    , unix
+    , unordered-containers
+    , wai
+    , wai-extra
+    , webdriver
+
+test-suite tests
+  default-language:
+      Haskell2010
+  type:
+      exitcode-stdio-1.0
+  hs-source-dirs:
+      tests
+  main-is:
+      Spec.hs
+  other-modules:
+    -- (modules to be collected by hspec-discover are not to be mentioned here.)
+  ghc-options:
+      -Wall -threaded -rtsopts
+  cpp-options:
+      -DGHC_GENERICS
+  build-depends:
+      base
+    , thentos-core
+    , thentos-tests
+    , acid-state
+    , aeson
+    , aeson-pretty
+    , async
+    , attoparsec
+    , bytestring
+    , case-insensitive
+    , cereal
+    , configifier
+    , containers
+    , cryptonite
+    , directory
+    , email-validate
+    , filepath
+    , functor-infix
+    , hslogger
+    , hspec
+    , http-types
+    , lens
+    , lifted-base
+    , lio
+    , mime-mail
+    , mtl
+    , network
+    , pretty-show
+    , process
+    , QuickCheck
+    , regex-easy
+    , safecopy
+    , scrypt
+    , servant-server
+    , snap
+    , snap-core
+    , string-conversions
+    , system-fileio
+    , temporary
+    , text
+    , thyme
+    , transformers
+    , transformers-base
+    , unix
+    , unordered-containers
+    , wai
+    , wai-extra
+    , webdriver
+
+benchmark load-test
+  default-language:
+      Haskell2010
+  type:
+      exitcode-stdio-1.0
+  hs-source-dirs:
+      bench tests
+  main-is:
+      Main.hs
+  ghc-options:
+      -Wall -threaded
+  build-depends:
+      base
+    , thentos-core
+    , thentos-tests
+    , acid-state
+    , aeson
+    , aeson-pretty
+    , async
+    , attoparsec
+    , bytestring
+    , case-insensitive
+    , cereal
+    , conduit
+    , configifier
+    , containers
+    , cryptonite
+    , directory
+    , email-validate
+    , filepath
+    , functor-infix
+    , hslogger
+    , hspec
+    , http-conduit
+    , http-types
+    , lens
+    , lifted-base
+    , lio
+    , mime-mail
+    , mtl
+    , network
+    , pretty-show
+    , process
+    , pronk >= 0.1.1
+    -- (only available from https://github.com/liqd/pronk in branch thentos-patches)
+    , QuickCheck
+    , random
+    , regex-easy
+    , resourcet
+    , safe
+    , safecopy
+    , sandi
+    , scrypt
+    , servant-server
+    , snap
+    , snap-core
+    , string-conversions
+    , system-fileio
+    , temporary
+    , text
+    , text-format
+    , thyme
+    , time
+    , transformers
+    , transformers-base
+    , unix
+    , unordered-containers
+    , wai
+    , wai-extra
+    , webdriver

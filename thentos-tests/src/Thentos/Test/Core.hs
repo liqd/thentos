@@ -14,7 +14,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Test.Core
+module Thentos.Test.Core
 where
 
 import Control.Applicative ((<*), (<$>))
@@ -67,8 +67,8 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Types
 
-import Test.Config
-import Test.Types
+import Thentos.Test.Config
+import Thentos.Test.Types
 
 
 -- * test users

@@ -27,9 +27,9 @@ import qualified Network.HTTP.Types.Status as C
 import Thentos.Types
 import Thentos.Config (Command(Run))
 
-import Test.Config
-import Test.Types
-import Test.Core
+import Thentos.Test.Config
+import Thentos.Test.Types
+import Thentos.Test.Core
 
 
 tests :: IO ()

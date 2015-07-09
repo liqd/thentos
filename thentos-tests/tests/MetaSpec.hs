@@ -7,8 +7,8 @@ import System.Exit (ExitCode(ExitSuccess))
 import System.Process (system)
 import Test.Hspec (Spec, describe, it, before_, shouldBe, runIO, hspec)
 
-import Test.Core
-import Test.Types
+import Thentos.Test.Core
+import Thentos.Test.Types
 
 
 tests :: IO ()

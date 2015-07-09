@@ -29,10 +29,10 @@ import Thentos.Transaction
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
-import Test.WebDriver.Missing as WD
-import Test.Arbitrary ()
-import Test.Core
-import Test.Types
+import Thentos.Test.WebDriver.Missing as WD
+import Thentos.Test.Arbitrary ()
+import Thentos.Test.Core
+import Thentos.Test.Types
 
 
 tests :: IO ()

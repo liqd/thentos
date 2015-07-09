@@ -21,10 +21,10 @@ import Thentos.Transaction (AllUserIds(..))
 import Data.Acid (openLocalStateFrom)
 import Data.Acid.Advanced (query')
 
-import Test.Arbitrary ()
-import Test.Core
-import Test.CustomDB
-import Test.Types
+import Thentos.Test.Arbitrary ()
+import Thentos.Test.Core
+import Thentos.Test.CustomDB
+import Thentos.Test.Types
 
 
 tests :: IO ()

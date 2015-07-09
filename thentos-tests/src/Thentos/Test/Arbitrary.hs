@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Test.Arbitrary () where
+module Thentos.Test.Arbitrary () where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.String.Conversions (cs)
@@ -13,8 +13,8 @@ import qualified Data.ByteString as SBS
 import Thentos.Types
 -- import Thentos.Backend.Api.Adhocracy3
 
-import Test.Config
-import Test.Core
+import Thentos.Test.Config
+import Thentos.Test.Core
 
 
 instance Arbitrary (HashedSecret a) where
