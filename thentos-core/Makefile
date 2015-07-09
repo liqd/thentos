@@ -12,17 +12,10 @@ hlint:
 	find src tests exec -name '*.hs' | xargs $(HLINT)
 
 wc:
-	find src -name '*.hs' | xargs wc
-	find exec -name '*.hs' | xargs wc
-	find bench tests -name '*.hs' | xargs wc
-	find services/helloworld/src -name '*.hs' | xargs wc
+	make -C .. wc
 
 clean:
-	find . -name '*~' -exec rm -f {} \;
-	find ./src -name '*.o' -exec rm -f {} \;
-	find ./src -name '*.hi' -exec rm -f {} \;
-	find ./src -name '*.dyn_o' -exec rm -f {} \;
-	find ./src -name '*.dyn_hi' -exec rm -f {} \;
+	make -C .. clean
 
 dist-clean: clean
 	cabal clean
