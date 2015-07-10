@@ -43,7 +43,7 @@ hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
 install2:
 	cd thentos-core && \
 	  cabal sandbox init --sandbox=../.cabal-sandbox && \
-	  cabal install --dependencies-only --enable-tests --enable-bench
+	  cabal install -j1 --dependencies-only --enable-tests --enable-bench
 	cd thentos-tests && \
 	  cabal sandbox init --sandbox=../.cabal-sandbox && \
 	  cabal sandbox add-source ../thentos-core && \
