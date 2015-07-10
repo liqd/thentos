@@ -14,10 +14,9 @@ before_install:
     - make start
     - cd ../..
 install:
-    - "./.travis/install.sh"
-    - cabal install --dependencies-only --enable-tests
+#    - "./.travis/install.sh"
+    - make install2
     - cabal install hlint
-    - ./.cabal-sandbox/bin/hlint --version
-    - find src tests exec -name '*.hs' | xargs ./.cabal-sandbox/bin/hlint
+    - make hlint
 script:
-    - cabal configure --enable-tests --ghc-options="-Werror" && cabal build && cabal test
+    - make tests2
