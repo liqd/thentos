@@ -38,4 +38,4 @@ packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.p
 %.hlint:
 	cd $* && make hlint
 
-hlint: thentos-core.hlint
+hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint

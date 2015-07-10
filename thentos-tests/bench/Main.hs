@@ -12,8 +12,9 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (encodeUtf8)
-import Network.HTTP.Conduit (Request(..), parseUrl, RequestBody(RequestBodyLBS))
-import Network.HTTP.Conduit (Response(responseBody), withManager, httpLbs)
+import Network.HTTP.Conduit
+    ( Request(..), RequestBody(RequestBodyLBS), Response(responseBody)
+    , parseUrl, withManager, httpLbs )
 import Network.HTTP.LoadTest.Types (Config(..), Req(..))
 import Network.HTTP.Types.Method (methodPost, methodDelete)
 import Safe (fromJustNote)
@@ -111,7 +112,7 @@ makeRequest cfg mSession endpoint = req {requestHeaders = requestHeaders req ++ 
 
 -- signup
 
-signupGenTrans :: TestConfig -> ThentosSessionToken -> [Char] -> (Req, Response LBS.ByteString -> [Char])
+signupGenTrans :: TestConfig -> ThentosSessionToken -> String -> (Req, Response LBS.ByteString -> String)
 signupGenTrans cfg sessionToken charSource =
     let (cs . Base32.encode . cs -> name, remaining) = splitAt 30 charSource in
     let req = mkReq name in
