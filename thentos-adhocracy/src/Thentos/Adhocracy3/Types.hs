@@ -15,6 +15,39 @@
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
+
+module Thentos.Adhocracy3.Types
+  ( module Thentos.Types
+  , module Thentos.Adhocracy3.Types
+  )
+  where
+
+import Control.Monad.Except (MonadError, throwError)
+import Data.Data (Typeable)
+import Data.String.Conversions (LBS)
+
+import Thentos.Types
+
+
+-- FIXME: workaround implementation until #193 is fixed:
+
+data ThentosError' =
+      A3BackendErrorResponse Int LBS
+    | A3BackendInvalidJson String
+  deriving (Eq, Show, Typeable)
+
+throwA3Error :: ThentosError' -> a
+throwA3Error = error . show
+
+throwCoreError :: (e ~ ThentosError DB, MonadError e m) => e -> m a
+throwCoreError = throwError
+
+
+
+{-
+
+-- the following should work once #193 is fixed.
+
 module Thentos.Adhocracy3.Types
     ( module Core
     , DB(..)
@@ -72,3 +105,5 @@ throwCoreError = throwError . ThentosA3ErrorCore
 makeLenses ''DB
 
 $(deriveSafeCopy 0 'base ''DB)
+
+-}
