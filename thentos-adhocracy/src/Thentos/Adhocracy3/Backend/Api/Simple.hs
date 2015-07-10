@@ -22,7 +22,6 @@ module Thentos.Adhocracy3.Backend.Api.Simple where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad.Error.Class (MonadError)
-import Control.Monad.Except (throwError)
 import Control.Monad (when, unless, mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
 import Data.CaseInsensitive (mk)
@@ -371,7 +370,7 @@ createUserInA3'P user = do
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
-        throwErrorA3 . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
+        throwA3Error . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
     extractUserId a3resp
   where
     sendRequest ::  Client.Request -> IO (Client.Response LBS)
@@ -380,9 +379,6 @@ createUserInA3'P user = do
 
 
 -- * low-level helpers
-
-throwErrorA3 :: (e ~ ThentosError DB, MonadError e m) => e -> m a
-throwErrorA3 = throwError . ThentosA3ErrorCore
 
 -- | Create a user creation request to be sent to the A3 backend. The actual user password is
 -- replaced by a dummy, as A3 doesn't have to know it.
@@ -405,7 +401,7 @@ mkUserCreationRequestForA3 config user = do
 -- | Extract the user ID from an A3 response received for a user creation request.
 extractUserId :: MonadError (ThentosError DB) m => Client.Response LBS -> m UserId
 extractUserId resp = do
-    resource <- either (throwErrorA3 . A3BackendInvalidJson) return $
+    resource <- either (throwA3Error . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
     userIdFromPath $ tpPath resource
 
@@ -426,15 +422,15 @@ userIdToPath config (UserId i) = Path $ domain <> userpath
 
 userIdFromPath :: MonadError (ThentosError DB) m => Path -> m UserId
 userIdFromPath (Path s) = do
-    uri <- either (const . throwErrorA3 . MalformedUserPath $ s) return $
+    uri <- either (const . throwCoreError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
-    rawId <- maybe (throwErrorA3 $ MalformedUserPath s) return $
+    rawId <- maybe (throwCoreError $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
-    maybe (throwErrorA3 NoSuchUser) (return . UserId) $ readMay rawId
+    maybe (throwCoreError NoSuchUser) (return . UserId) $ readMay rawId
 
 confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
 confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
     (s, s') | s == prefix -> return $ ConfirmationToken s'
-    _ -> throwErrorA3 $ MalformedConfirmationToken p
+    _ -> throwCoreError $ MalformedConfirmationToken p
   where
     prefix = "/activate/"

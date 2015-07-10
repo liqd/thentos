@@ -19,11 +19,14 @@ module Thentos.Adhocracy3.Types
     ( module Core
     , DB(..)
     , ThentosError(..)
+    , throwA3Error
+    , throwCoreError
     )
     where
 
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
+import Control.Monad.Except (MonadError, throwError)
 import Data.Data (Typeable)
 import Data.Functor.Infix ((<$>))
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
@@ -33,7 +36,6 @@ import GHC.Generics (Generic)
 
 import Thentos.Types as Core hiding (DB)
 import qualified Thentos.Types as Core
-
 
 newtype DB = DB { fromCoreDB :: Core.DB }
   deriving (Eq, Show, Typeable, Generic)
@@ -61,8 +63,11 @@ instance SafeCopy (Core.ThentosError DB)
     putCopy = Core.putCopyViaShowRead
     getCopy = Core.getCopyViaShowRead
 
+throwA3Error :: (e ~ ThentosError DB, MonadError e m) => e -> m a
+throwA3Error = throwError
 
--- * boilerplate
+throwCoreError :: (e ~ ThentosError Core.DB, e' ~ ThentosError DB, MonadError e' m) => e -> m a
+throwCoreError = throwError . ThentosA3ErrorCore
 
 makeLenses ''DB
 
