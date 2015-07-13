@@ -91,7 +91,7 @@ deriving instance Typeable ActionError
 instance (db `Extends` DB, Show (ActionError db)) => Exception (ActionError db)
 
 asDBActionError :: (db `Extends` DB) => ActionError DB -> ActionError db
-asDBActionError (ActionErrorThentos e)  = ActionErrorThentos $ asDBThentosError e
+asDBActionError (ActionErrorThentos e)  = ActionErrorThentos $ thentosErrorFromParent e
 asDBActionError (ActionErrorAnyLabel e) = ActionErrorAnyLabel e
 asDBActionError (ActionErrorUnknown e)  = ActionErrorUnknown e
 

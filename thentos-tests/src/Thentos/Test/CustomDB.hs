@@ -39,15 +39,15 @@ data CustomDB = CustomDB DB Int
 instance CustomDB `Extends` DB where
     focus f (CustomDB db i) = (`CustomDB` i) <$> f db
 
-    asDBThentosError :: ThentosError DB -> ThentosError CustomDB
-    asDBThentosError = CustomDBError
+    thentosErrorFromParent :: ThentosError DB -> ThentosError CustomDB
+    thentosErrorFromParent = CustomDBError
 
 instance EmptyDB CustomDB where
     emptyDB = CustomDB emptyDB 0
 
 instance CustomDB `Extends` CustomDB where
     focus = id
-    asDBThentosError = id
+    thentosErrorFromParent = id
 
 data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
 

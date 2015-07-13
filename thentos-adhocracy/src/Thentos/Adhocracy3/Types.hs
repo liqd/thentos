@@ -72,7 +72,7 @@ instance EmptyDB DB where
 
 instance DB `Core.Extends` Core.DB where
     focus f (DB db) = DB <$> f db
-    asDBThentosError = ThentosA3ErrorCore
+    thentosErrorFromParent = ThentosA3ErrorCore
 
 data instance Core.ThentosError DB =
       ThentosA3ErrorCore (Core.ThentosError (Core.DB))
