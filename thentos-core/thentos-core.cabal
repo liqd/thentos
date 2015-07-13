@@ -57,6 +57,7 @@ library
     , Snap.Missing
     , System.Log.Missing
     , Thentos
+    , ThentosDocs
     , Thentos.Action
     , Thentos.Action.Core
     , Thentos.Backend.Api.Auth
@@ -179,15 +180,3 @@ executable build-docs
   build-depends:
       base
     , thentos-core
-    , blaze-markup
-    , bytestring
-    , directory
-    , filepath
-    , functor-infix
-    , lens
-    , pandoc
-    , process
-    , servant >= 0.4.1 && < 0.5
-    , servant-docs >= 0.4.1 && < 0.5
-    , servant-pandoc >= 0.4.1 && < 0.5
-    , thyme

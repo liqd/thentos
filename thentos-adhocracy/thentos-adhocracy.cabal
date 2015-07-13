@@ -140,18 +140,6 @@ executable build-docs
       base
     , thentos-core
     , thentos-adhocracy
-    , blaze-markup
-    , bytestring
-    , directory
-    , filepath
-    , functor-infix
-    , lens
-    , pandoc
-    , process
-    , servant >= 0.4.1 && < 0.5
-    , servant-docs >= 0.4.1 && < 0.5
-    , servant-pandoc >= 0.4.1 && < 0.5
-    , thyme
 
 test-suite tests
   default-language:
