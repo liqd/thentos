@@ -1,0 +1,3 @@
+[submodule "submodules/servant"]
+	path = submodules/servant
+	url = git@github.com:haskell-servant/servant.git
