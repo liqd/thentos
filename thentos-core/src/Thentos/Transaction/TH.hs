@@ -4,6 +4,9 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE ViewPatterns              #-}
 
+-- | This module allows you to generate code to make user-defined
+-- transactions work with acid-state.
+
 module Thentos.Transaction.TH
     ( makeThentosAcidicPhase1
     , makeThentosAcidicPhase2
@@ -26,41 +29,80 @@ import Thentos.Types (ThentosError, Extends)
 
 data TransactionType = TransQuery | TransUpdate
 
+-- | This function takes a database type and a list of user-defined transactions
+-- that may look like this:
+--
+-- > trans_foo :: (db `Extends` MyDB) => Bool -> ThentosQuery db Int
+--
+-- (where MyDB is the passed-in db type).
+-- and generates transactions of the form:
+-- 
+-- > (db `Extends` MyDB) => 
+-- >     Bool -> Data.Acid.Query db (Either (ThentosError db) Int)
+--
+-- by wrapping the user-defined function using `runThentosQuery` or
+-- `runThentosUpdate`.
+--
+-- Note: all transaction functions have to start with the prefix "trans_"
+-- followed by a name starting with a lower-case letter. The generated functions
+-- will have the same names, but without the "trans_" prefix.
+--
+-- === Example:
+--
+-- > $(makeThentosAcidicPhase1 ''MyDB ['trans_updateFoo, 'trans_getBar])
 makeThentosAcidicPhase1 :: Name -> [Name] -> Q [Dec]
 makeThentosAcidicPhase1 dbTypeName names =
     concat <$> mapM (processTransaction $ ConT dbTypeName) names
 
-{-
--- for every transaction, we need the following:
 
-data AgentRoles db = AgentRoles Agent
-    deriving Typeable
-
-instance SafeCopy (AgentRoles db) where
-    putCopy (AgentRoles a) = contain (do putCopy a; return ();)
-    getCopy = contain (pure AgentRoles <*> getCopy)
-
-instance (db `Extends` DB) => Method (AgentRoles db) where
-    type MethodResult (AgentRoles db) = Either (ThentosError db) (Set.Set Role)
-    type MethodState (AgentRoles db) = db
-
-instance (db `Extends` DB) => QueryEvent (AgentRoles db)
-    -- or UpdateEvent, as the case may be
-
--- and then a list of all events/transactions:
-dbEvents :: (db `Extends` DB) => [Event db]
-dbEvents =
-    [ QueryEvent (\(AgentRoles a) -> agentRoles a)
-    ..
-    ]
-
--- for db types that extend an existing db type, dbEvents will look like this:
-dbEvents :: (db `Extends` DB, db `Extends` CustomDB => [Event db]
-dbEvents = [...new events...] ++ ParentDb.dbEvents
-
-instance IsAcidic DB where
-    acidEvents = dbEvents
--}
+-- | This function is responsible for making a user-defined db type and a set
+-- of transactions (either user-defined or provided by Thentos) work with
+-- acid-state. For a detailed description of the problem and how we solve it,
+-- read the documentation at
+-- <https://github.com/liqd/thentos/blob/master/docs/concepts/AcidPoly.lhs>.
+--
+-- The first argument is the db type which we want to make acidic. The second
+-- argument is a list if all the new (i.e. not inherited) transactions on that
+-- db type.
+--
+-- The third argument is a list of all the db types that the new db inherits
+-- from.
+--
+-- The fourth argument is a list of those ancestor dbs' transactions, i.e.
+-- a list of transaction lists.
+--
+-- === Example:
+--
+-- > $(makeThentosAcidicPhase2 ''NewDB
+-- >                          ['trans_fooOnNewDB]
+-- >                          [''P.ParentDB]
+-- >                          ['P.dbEvents])
+-- where P is the module that ParentDB lives in.
+--
+-- === The gnarly details:
+-- For every transaction we need to generate a data type and some instance
+-- declarations as follows:
+-- 
+-- > data AgentRoles db = AgentRoles Agent
+-- >    deriving Typeable
+-- >
+-- > instance SafeCopy (AgentRoles db) where
+-- >    putCopy (AgentRoles a) = contain (do putCopy a; return ();)
+-- >    getCopy = contain (pure AgentRoles <*> getCopy)
+-- >
+-- > instance (db `Extends` DB) => Method (AgentRoles db) where
+-- >    type MethodResult (AgentRoles db) = Either (ThentosError db) (Set.Set Role)
+-- >    type MethodState (AgentRoles db) = db
+-- >
+-- > instance (db `Extends` DB) => QueryEvent (AgentRoles db)
+-- >    -- or UpdateEvent, as the case may be
+-- >
+-- > -- and then a list of all events/transactions:
+-- > dbEvents :: (db `Extends` DB) => [Event db]
+-- > dbEvents =
+-- >     [ QueryEvent (\(AgentRoles a) -> agentRoles a)
+-- >     ..
+-- >     ]
 
 makeThentosAcidicPhase2 :: Name -> [Name] -> [Name] -> [Name] -> Q [Dec]
 makeThentosAcidicPhase2 stateName transNames inheritedDbTypes inheritedEvents = do
@@ -260,9 +302,9 @@ dropPrefix (nameBase -> s)
 countArgs :: Type -> Int
 countArgs = length . fst . extractArgs
 
--- | Convert e.g. @a -> b -> ThentosUpdate Foo@ to
--- @a -> b -> Update DB (Either (ThentosError DB) Foo)@ and check whether it
--- is an Update or a Query.
+-- | Convert e.g. @(db `Extends` DB) a -> b -> ThentosUpdate db Foo@ to
+-- @ (db `Extends` DB) => a -> b -> Update DB (Either (ThentosError DB) Foo)@
+-- and check whether it is an Update or a Query.
 makeThentosType :: Type -> (Type, TransactionType)
 makeThentosType (AppT (AppT ArrowT arg) returnType) =
     let (rightOfArrow, transType) = makeThentosType returnType
