@@ -104,17 +104,30 @@ But it's best to use ghc 7.8.x, where x >= 4. ghc 7.10 is not yet
 supported. If your package manager doesn't have a suitable ghc version, you
 can download it manually from https://www.haskell.org/ghc/.
 
-Clone the Thentos repository from GitHub. Afterwards create a cabal sandbox
-in the same directory and install Thentos:
+Clone the Thentos repository from GitHub. There are several package in
+this repository:
+
+* `thentos-core`: the core package
+* `thentos-tests`: tests for `thentos-core`
+* `thentos-adhocracy`: integration with the Adhocracy software
+* ...
+
+You'll need to build `thentos-core` in any case. `thentos-tests` is only
+required if you want to run tests. Whether you need other packages will
+depends on your use case.
+
+We recommend building all required package into the same sandbox. To
+Install `thentos-core`, change into the `thentos-core` directory and
+execute the following commands:
 
 ```shell
-$ cabal sandbox init
-$ cabal install --enable-tests --enable-documentation --dependencies-only
+$ cabal sandbox init --sandbox=../.cabal-sandbox
+$ cabal install --enable-documentation
 ```
 
 This will take a while, as it will pull and build a lot of library
-dependencies.  `--enable-tests` and `--enable-documentation` are
-optional (but it will take a while to build no matter what).
+dependencies.  `--enable-documentation` is optional (but it will take a
+while to build no matter what).
 
 Start like this (in interpreted mode):
 
@@ -122,9 +135,19 @@ Start like this (in interpreted mode):
 $ cabal run thentos
 ```
 
+To build the tests, change into the `thentos-tests` directory and execute
+the following commands:
+
+```shell
+$ cabal sandbox init --sandbox=../.cabal-sandbox
+$ cabal sandbox add-source ../thentos-core
+$ cabal install --enable-tests --enable-documentation 
+```
+
 To run the tests:
 
 ```shell
+$ cd thentos-tests
 $ cabal test
 ```
 
@@ -134,6 +157,15 @@ details and links to the download page), or do without:
 
 ```shell
 $ cabal test --test-options="--skip selenium"
+```
+If you also want to install the Adhocracy integration, change into the
+`thentos-adhocracy` directory and execute the following commands:
+
+```shell
+$ cabal sandbox init --sandbox=../.cabal-sandbox
+$ cabal sandbox add-source ../thentos-core
+$ cabal sandbox add-source ../thentos-tests
+$ cabal install --enable-tests --enable-documentation
 ```
 
 Generated Thentos documentation (thentos-0.0.1) can be found online:
