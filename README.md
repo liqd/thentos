@@ -104,7 +104,7 @@ But it's best to use ghc 7.8.x, where x >= 4. ghc 7.10 is not yet
 supported. If your package manager doesn't have a suitable ghc version, you
 can download it manually from https://www.haskell.org/ghc/.
 
-Clone the Thentos repository from GitHub. There are several package in
+Clone the Thentos repository from GitHub. There are several packages in
 this repository:
 
 * `thentos-core`: the core package
@@ -114,7 +114,7 @@ this repository:
 
 You'll need to build `thentos-core` in any case. `thentos-tests` is only
 required if you want to run tests. Whether you need other packages will
-depends on your use case.
+depend on your use case.
 
 We recommend building all required package into the same sandbox. To
 Install `thentos-core`, change into the `thentos-core` directory and
@@ -147,7 +147,6 @@ $ cabal install --enable-tests --enable-documentation
 To run the tests:
 
 ```shell
-$ cd thentos-tests
 $ cabal test
 ```
 
