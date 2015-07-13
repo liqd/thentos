@@ -122,8 +122,7 @@ instance Aeson.FromJSON Command
   where
     parseJSON (Aeson.String t) = case ST.toCaseFold t `elemIndex` commands of
         Just idx -> return (toEnum idx :: Command)
-        Nothing  -> fail $ concat ["Unknown command: ", show t, ", expected one of ",
-                                   show ([minBound ..] :: [Command])]
+        Nothing  -> fail $ concat ["Unknown command: ", show t, ", expected one of ", show commands]
       where
         commands = map (ST.toCaseFold . cs . show) ([minBound ..] :: [Command])
     parseJSON bad = fail $ "Command is not a string: " ++ show bad
