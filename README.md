@@ -122,7 +122,7 @@ execute the following commands:
 
 ```shell
 $ cabal sandbox init --sandbox=../.cabal-sandbox
-$ cabal install --enable-documentation
+$ cabal install -fwith-thentos-executable --enable-documentation
 ```
 
 This will take a while, as it will pull and build a lot of library
