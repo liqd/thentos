@@ -13,13 +13,13 @@ module Thentos.Transaction.Transactions
 where
 
 import Control.Arrow (second)
+import Control.Applicative ((<$>))
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad (forM_, when, unless, void)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, gets, get)
 import Data.AffineSpace ((.+^))
 import Data.EitherR (catchT, throwT)
-import Data.Functor.Infix ((<$>))
 import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
 import Data.List (foldl')

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE MultiWayIf                #-}
 {-# LANGUAGE TemplateHaskell           #-}
@@ -140,7 +141,7 @@ acidifyTrans dbName eventName = do
     mkMethodInstance :: Type -> Q Dec
     mkMethodInstance returnType = do
         dbTypeVar <- VarT <$> newName "db"
-        let ctx = [ClassP ''Extends [dbTypeVar, ConT dbName]]
+        let ctx = [classPCompat ''Extends [dbTypeVar, ConT dbName]]
             fullType = AppT (ConT ''Method) (AppT (ConT acidTypeName) dbTypeVar)
         rDecl <- mkResultDecl (pure dbTypeVar) (pure returnType)
         sDecl <- mkStateDecl dbTypeVar
@@ -167,7 +168,7 @@ acidifyTrans dbName eventName = do
         let evName = case transType of
                 TransQuery -> ''QueryEvent
                 TransUpdate -> ''UpdateEvent
-            ctx = [ClassP ''Extends [dbTypeVar, ConT dbName]]
+            ctx = [classPCompat ''Extends [dbTypeVar, ConT dbName]]
         return $ InstanceD ctx
                            (AppT (ConT evName) (AppT (ConT acidTypeName) dbTypeVar))
                            []
@@ -289,7 +290,7 @@ makeThentosType t = error $ "not a thentos transaction type: " ++ ppprint t
 makeThentosType' :: Type -> Type -> (Type, TransactionType)
 makeThentosType' t dbType =
     let (typ, transTyp) = makeThentosType t
-    in (ForallT [PlainTV dbVarName] [ClassP ''Extends [VarT dbVarName, dbType]] typ, transTyp)
+    in (ForallT [PlainTV dbVarName] [classPCompat ''Extends [VarT dbVarName, dbType]] typ, transTyp)
   where
     dbVarName = mkName "db"
 
@@ -313,3 +314,11 @@ makeFunApp updateOrQuery funName argNames =
 
 ppprint :: (Ppr a, Show a) => a -> String
 ppprint t = "\n\n" ++ pprint t ++ "\n\n" ++ ppShow t ++ "\n"
+
+
+classPCompat :: Name -> [Type] -> Pred
+#if MIN_VERSION_template_haskell(2,10,0)
+classPCompat cla tys = foldl AppT (ConT cla) tys
+#else
+classPCompat = ClassP
+#endif
