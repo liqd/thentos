@@ -116,8 +116,8 @@ You'll need to build `thentos-core` in any case. `thentos-tests` is only
 required if you want to run tests. Whether you need other packages will
 depend on your use case.
 
-We recommend building all required package into the same sandbox. To
-Install `thentos-core`, change into the `thentos-core` directory and
+We recommend building all required packages into the same sandbox. To
+install `thentos-core`, change into the `thentos-core` directory and
 execute the following commands:
 
 ```shell
