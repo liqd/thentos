@@ -124,7 +124,11 @@ instance Aeson.FromJSON Command
         Just idx -> return (toEnum idx :: Command)
         Nothing  -> fail $ concat ["Unknown command: ", show t, ", expected one of ", show commands]
       where
-        commands = map (ST.toCaseFold . cs . show) ([minBound ..] :: [Command])
+        commands' = map (ST.toCaseFold . cs . show) ([minBound ..] :: [Command])
+        commands = if nub commands' == commands'
+            then commands'
+            else error "internal error: indistinguishable Command constructors (case-insensitive)"
+
     parseJSON bad = fail $ "Command is not a string: " ++ show bad
 
 data HttpSchema = Http | Https
