@@ -89,14 +89,8 @@ class ( Typeable dbParent, Typeable dbChild
     focus :: Lens' dbChild dbParent
     -- ^ Apply anything that is intended for @dbParent@ to @dbChild@.
 
-    asDBThentosError :: ThentosError dbParent -> ThentosError dbChild
-    -- ^ If a transaction or action associated with 'dbParent' throws an error, use
-    -- this function to convert it to an error that can be thrown by
-    -- transactions or actions associated with @dbChild@.
-
 instance DB `Extends` DB where
     focus = id
-    asDBThentosError = id
 
 class EmptyDB db where
     emptyDB :: db
@@ -415,9 +409,7 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * errors
 
-data family ThentosError (db :: *) :: *
-
-data instance ThentosError DB =
+data ThentosError a =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -441,18 +433,22 @@ data instance ThentosError DB =
     | SsoErrorUnknownCsrfToken
     | SsoErrorCouldNotAccessUserInfo LBS
     | SsoErrorCouldNotGetAccessToken LBS
+    | ThentosErrorOther a
+  deriving (Eq, Show, Read, Typeable)
 
-deriving instance Eq (ThentosError DB)
-deriving instance Show (ThentosError DB)
-deriving instance Read (ThentosError DB)
-deriving instance Typeable ThentosError
+instance (Show a, Typeable a) => Exception (ThentosError a)
 
-instance Exception (ThentosError DB)
+instance SafeCopy (ThentosError a)
+  where
+    putCopy = undefined
+    getCopy = undefined
 
-instance SafeCopy (ThentosError DB)
+{-
+instance (SafeCopy a, Show a, Read a, Typeable a) => SafeCopy (ThentosError a)
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
+-}
 
 
 -- * boilerplate
