@@ -17,11 +17,11 @@
 
 module Thentos.Types where
 
+import Control.Applicative ((<$>))
 import Control.Exception (Exception)
 import Control.Lens (makeLenses, Lens')
 import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Data (Typeable)
-import Data.Functor.Infix ((<$>))
 import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
