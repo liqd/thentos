@@ -94,9 +94,13 @@ class ( Typeable dbParent, Typeable dbChild
     -- this function to convert it to an error that can be thrown by
     -- transactions or actions associated with @dbChild@.
 
+    thentosErrorToParent :: ThentosError dbChild -> Maybe (ThentosError dbParent)
+    -- ^ Use this to catch an error thrown by a polymorphic transaction.
+
 instance DB `Extends` DB where
     focus = id
     thentosErrorFromParent = id
+    thentosErrorToParent = Just
 
 class EmptyDB db where
     emptyDB :: db
