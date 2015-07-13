@@ -6,7 +6,7 @@ wc:
 	find thentos-tests/{tests,bench} -name '*.hs' | xargs wc
 	find thentos-adhocracy/src -name '*.hs' | xargs wc
 	find thentos-adhocracy/exec -name '*.hs' | xargs wc
-	find thentos-adhocracy/{tests,bench} -name '*.hs' | xargs wc
+	find thentos-adhocracy/tests -name '*.hs' | xargs wc
 	find services/helloworld/src -name '*.hs' | xargs wc
 
 clean:
