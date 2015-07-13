@@ -1,53 +1,61 @@
 SHELL=/bin/bash
-HLINT=hlint
-
-test:
-	cabal test --test-options="--skip selenium"
-
-test-all:
-	cabal test
-
-hlint:
-	$(HLINT) --version
-	find src tests exec -name '*.hs' | xargs $(HLINT)
 
 wc:
-	find src -name '*.hs' | xargs wc
-	find exec -name '*.hs' | xargs wc
-	find bench tests -name '*.hs' | xargs wc
+	find thentos-core/src -name '*.hs' | xargs wc
+	find thentos-core/exec -name '*.hs' | xargs wc
+	find thentos-tests/{tests,bench} -name '*.hs' | xargs wc
+	find thentos-adhocracy/src -name '*.hs' | xargs wc
+	find thentos-adhocracy/exec -name '*.hs' | xargs wc
+	find thentos-adhocracy/{tests,bench} -name '*.hs' | xargs wc
 	find services/helloworld/src -name '*.hs' | xargs wc
 
 clean:
-	find . -name '*~' -exec rm -f {} \;
-	find ./src -name '*.o' -exec rm -f {} \;
-	find ./src -name '*.hi' -exec rm -f {} \;
-	find ./src -name '*.dyn_o' -exec rm -f {} \;
-	find ./src -name '*.dyn_hi' -exec rm -f {} \;
+	find thentos-*/ -name '*~' -exec rm -f {} \;
+	find thentos-*/ -name '*.o' -exec rm -f {} \;
+	find thentos-*/ -name '*.hi' -exec rm -f {} \;
+	find thentos-*/ -name '*.dyn_o' -exec rm -f {} \;
+	find thentos-*/ -name '*.dyn_hi' -exec rm -f {} \;
 
-dist-clean: clean
-	cabal clean
+%.packunused:
+	@echo
+	@echo NOTE: run 'cabal install packunused' and make sure it is in your
+	@echo       PATH if this fails.
+	@echo
+	@echo WARNING: packunused on hspec-discover tests cannot see Spec modules
+	@echo          and will issue spurious warnings about unused libs!
+	@echo
 
-packunused:
-	packunused --help >/dev/null  # run `cabal install packunused` and make sure it is in your PATH if this fails
-	cabal clean
-	rm -f *.imports
-	cabal configure -O0 --disable-library-profiling
-	cabal build --ghc-option=-ddump-minimal-imports
+	cd $* && \
+	packunused --help >/dev/null && \
+	cabal clean && \
+	rm -f *.imports && \
+	cabal configure -O0 --disable-library-profiling --enable-test --enable-bench && \
+	cabal build --ghc-option=-ddump-minimal-imports && \
 	packunused
 
-show-splices:
-	cabal install -j1 --ghc-options="-fforce-recomp -ddump-splices"
+packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.packunused
 
-update-stackage:
-#	wget https://www.stackage.org/lts/cabal.config
-	rm cabal.config
-	wget https://www.stackage.org/snapshot/nightly-`date +%F`/cabal.config
+%.hlint:
+	cd $* && make hlint
 
-freeze:
-	@cabal freeze --shadow-installed-packages  --enable-test --enable-bench\
-	  || ( echo -e "\n\nthere is a neat trick that may help you here:"\
-	     ; echo -e "cut&paste cabal.config to the existing dependencies"\
-	     ; echo -e "in lib target in thentos.cabal, then try again."\
-	     ; echo -e "this may not yield the most up-to-date solution, but"\
-	     ; echo -e "it is an easy way to get all dependencies of new libs"\
-	     ; echo -e "listed in cabal.config.")
+hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
+
+install2:
+	cd thentos-core && \
+	  cabal sandbox init --sandbox=../.cabal-sandbox && \
+	  cabal install --dependencies-only --enable-tests --enable-bench
+	cd thentos-tests && \
+	  cabal sandbox init --sandbox=../.cabal-sandbox && \
+	  cabal sandbox add-source ../thentos-core && \
+	  cabal install --dependencies-only --enable-tests --enable-bench
+	cd thentos-adhocracy && \
+	  cabal sandbox init --sandbox=../.cabal-sandbox && \
+	  cabal sandbox add-source ../thentos-core && \
+	  cabal sandbox add-source ../thentos-tests && \
+	  cabal install --dependencies-only --enable-tests --enable-bench
+
+tests2:
+	cd thentos-tests && \
+	  cabal configure --enable-tests --ghc-options="-Werror" && cabal build && cabal test
+	cd thentos-adhocracy && \
+	  cabal configure --enable-tests --ghc-options="-Werror" && cabal build && cabal test
