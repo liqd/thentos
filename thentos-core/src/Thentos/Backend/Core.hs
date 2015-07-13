@@ -31,11 +31,12 @@ import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import LIO.Error (AnyLabelError)
-import Network.HTTP.Types (Header, methodGet, methodHead)
+import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(..))
 import Servant.API ((:>))
+import Servant.API.ContentTypes (AllCTRender)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (RouteResult(RR))
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody, responseServantErr)
@@ -145,6 +146,18 @@ instance ThentosErrorToServantErr DB where
             (Just (ERROR, show e), err500 { errBody = "error accessing user info" })
         f (SsoErrorCouldNotGetAccessToken _) =
             (Just (ERROR, show e), err500 { errBody = "error retrieving access token" })
+
+-- * custom servers for servant
+
+-- FIXME doesn't work with 0.4.x, because of the methodRouter function
+
+data Post200 (contentTypes :: [*]) a
+    deriving Typeable
+
+instance ( AllCTRender ctypes a ) => HasServer (Post200 ctypes a) where
+
+    type ServerT (Post200 ctypes a) m = m a
+    route Proxy = methodRouter methodPost (Proxy :: Proxy ctypes) ok200
 
 
 -- * request headers
