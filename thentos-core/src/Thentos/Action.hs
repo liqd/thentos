@@ -157,7 +157,7 @@ _lookupUser transaction = do
     val@(uid, _) <- query'P transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
         (return val)
-        (\ (_ :: AnyLabelError) -> throwError $ asDBThentosError NoSuchUser)
+        (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchUser)
 
 -- | Like 'lookupUser', but based on 'UserName'.
 lookupUserByName :: (db `Extends` DB) => UserName -> Action db (UserId, User)
@@ -285,8 +285,8 @@ _lookupUserCheckPassword transaction password = a `catchError` h
             then return (uid, user)
             else throwError BadCredentials
 
-    h NoSuchUser = throwError $ asDBThentosError BadCredentials
-    h e          = throwError $ asDBThentosError e
+    h NoSuchUser = throwError $ thentosErrorFromParent BadCredentials
+    h e          = throwError $ thentosErrorFromParent e
 
 
 -- ** change user data
@@ -354,7 +354,7 @@ confirmUserEmailChange token = do
     ((uid, _), _) <- query'P $ T.LookupEmailChangeToken token
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
                   (void . update'P $ T.ConfirmUserEmailChange now expiryPeriod token)
-                  (\ (_ :: AnyLabelError) -> throwError $ asDBThentosError NoSuchToken)
+                  (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchToken)
 
 
 -- * service
@@ -413,7 +413,7 @@ lookupThentosSession tok = do
     session <- snd <$> update'P (T.LookupThentosSession now tok)
     tryTaint (session ^. thSessAgent %% False)
         (return session)
-        (\ (_ :: AnyLabelError) -> throwError $ asDBThentosError NoSuchThentosSession)
+        (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchThentosSession)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
@@ -449,7 +449,7 @@ startThentosSessionByServiceId sid key = a `catchError` h
         unless (verifyKey key service) $ throwError BadCredentials
         _startThentosSessionByAgent (ServiceA sid)
 
-    h NoSuchService = throwError (asDBThentosError BadCredentials)
+    h NoSuchService = throwError (thentosErrorFromParent BadCredentials)
     h e             = throwError e
 
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
@@ -503,7 +503,7 @@ lookupServiceSession tok = do
     let agent = ServiceA (session ^. srvSessService)
     tryTaint (RoleAdmin \/ agent %% False)
         (return session)
-        (\ (_ :: AnyLabelError) -> throwError $ asDBThentosError NoSuchServiceSession)
+        (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
 
 -- | Like 'existsThentosSession', but for 'ServiceSession's.
 existsServiceSession :: ServiceSessionToken -> Action DB Bool
@@ -518,7 +518,7 @@ _thentosSessionAndUserIdByToken tok = do
     session <- lookupThentosSession tok
     case session ^. thSessAgent of
         UserA uid -> return (session, uid)
-        ServiceA sid -> throwError . asDBThentosError $ NeedUserA tok sid
+        ServiceA sid -> throwError . thentosErrorFromParent $ NeedUserA tok sid
 
 _serviceSessionUser :: (db `Extends` DB, Exception (ActionError db)) =>
     ServiceSessionToken -> Action db UserId
@@ -528,7 +528,7 @@ _serviceSessionUser tok = do
     thentosSession <- lookupThentosSession thentosSessionToken
     case thentosSession ^. thSessAgent of
         UserA uid -> return uid
-        ServiceA sid -> throwError . asDBThentosError $ NeedUserA thentosSessionToken sid
+        ServiceA sid -> throwError . thentosErrorFromParent $ NeedUserA thentosSessionToken sid
 
 -- | Register a user with a service.  Requires 'RoleAdmin' or user privs.
 --
@@ -575,7 +575,7 @@ endServiceSession tok = do
     uid <- _serviceSessionUser tok
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
                   (update'P $ T.EndServiceSession tok)
-                  (\ (_ :: AnyLabelError) -> throwError $ asDBThentosError NoSuchServiceSession)
+                  (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
 
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: (db `Extends` DB, Exception (ActionError db)) =>

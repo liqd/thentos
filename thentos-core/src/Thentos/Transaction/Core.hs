@@ -69,9 +69,9 @@ polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> T
 polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
   where
     bare :: db1 -> (Either (ThentosError db2) a, db1)
-    bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
+    bare = runIdentity . runStateT (fmapL thentosErrorFromParent <$> runEitherT upd)
 
 -- | Turn a query transaction on a db on any extending db.  See also 'polyUpdate'.
 polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
 polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
-    fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. focus)
+    fmapL thentosErrorFromParent <$> runEitherT qry `runReaderT` (state ^. focus)

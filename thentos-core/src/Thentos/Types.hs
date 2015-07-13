@@ -89,14 +89,14 @@ class ( Typeable dbParent, Typeable dbChild
     focus :: Lens' dbChild dbParent
     -- ^ Apply anything that is intended for @dbParent@ to @dbChild@.
 
-    asDBThentosError :: ThentosError dbParent -> ThentosError dbChild
+    thentosErrorFromParent :: ThentosError dbParent -> ThentosError dbChild
     -- ^ If a transaction or action associated with 'dbParent' throws an error, use
     -- this function to convert it to an error that can be thrown by
     -- transactions or actions associated with @dbChild@.
 
 instance DB `Extends` DB where
     focus = id
-    asDBThentosError = id
+    thentosErrorFromParent = id
 
 class EmptyDB db where
     emptyDB :: db

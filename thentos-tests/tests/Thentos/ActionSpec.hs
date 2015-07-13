@@ -205,5 +205,5 @@ spec_customDb = describe "custom db" . before setupBare . after teardownBare $ d
         void . runActionWithPrivs [RoleAdmin] sta $ deleteUser uid
         Left (ActionErrorThentos e) <-
             runActionWithClearanceE dcBottom sta $ lookupUser uid
-        e `shouldBe` asDBThentosError NoSuchUser
+        e `shouldBe` thentosErrorFromParent NoSuchUser
         return ()
