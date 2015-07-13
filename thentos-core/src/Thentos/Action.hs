@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Action
     ( freshRandomName
@@ -187,12 +188,9 @@ deleteUser uid = do
     liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.DeleteUser uid
 
--- | Assert that no user with the same name or email address already exists in the DB.
+-- | Assert that no user with the same name or email address already exists in the db.
 -- Does not require any privileges.
-assertUserIsNew ::
-    ( db `Extends` DB
-    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
-    ) => UserFormData -> Action db ()
+assertUserIsNew :: (db `Extends` DB) => UserFormData -> Action db ()
 assertUserIsNew userData = do
     user <- makeUserFromFormData'P userData
     query'P $ T.AssertUserIsNew user
@@ -210,10 +208,8 @@ addUnconfirmedUser userData = do
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
-addUnconfirmedUserWithId ::
-    ( db `Extends` DB
-    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
-    ) => UserFormData -> UserId -> Action db ConfirmationToken
+addUnconfirmedUserWithId :: (db `Extends` DB, Show (ActionError db)) =>
+    UserFormData -> UserId -> Action db ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
     (now, tok, user) <- prepareUserData userData
     update'P $ T.AddUnconfirmedUserWithId now tok user userId
@@ -274,7 +270,6 @@ _lookupUserCheckPassword :: ( QueryEvent event
                             , EventState event ~ db
                             , EventResult event ~ Either (ThentosError db) (UserId, User)
                             , db `Extends` DB
-                            , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
                             ) =>
     event -> UserPass -> Action db (UserId, User)
 _lookupUserCheckPassword transaction password = a `catchError` h
@@ -283,10 +278,10 @@ _lookupUserCheckPassword transaction password = a `catchError` h
         (uid, user) <- query'P transaction
         if verifyPass password user
             then return (uid, user)
-            else throwError BadCredentials
+            else throwError $ thentosErrorFromParent BadCredentials
 
-    h NoSuchUser = throwError $ thentosErrorFromParent BadCredentials
-    h e          = throwError $ thentosErrorFromParent e
+    h (thentosErrorToParent -> Just NoSuchUser) = throwError $ thentosErrorFromParent BadCredentials
+    h e                                         = throwError e
 
 
 -- ** change user data
@@ -311,9 +306,7 @@ updateUserFields uid ops = do
 -- | Authenticate user against old password, and then change password to new password.  Requires
 -- 'RoleAdmin' or privs of user that owns the password.
 changePassword ::
-    ( db `Extends` DB
-    , db ~ DB -- FIXME https://github.com/liqd/thentos/issues/193
-    ) => UserId -> UserPass -> UserPass -> Action db ()
+    (db `Extends` DB, Show (ActionError db)) => UserId -> UserPass -> UserPass -> Action db ()
 changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.LookupUser uid) old
     hashedPw <- hashUserPass'P new
@@ -406,7 +399,7 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
 -- | Find 'ThentosSession' from token.  If 'ThentosSessionToken' does not exist or clearance does
 -- not allow access, throw 'NoSuchThentosSession'.
-lookupThentosSession :: (db `Extends` DB , Exception (ActionError db)) =>
+lookupThentosSession :: (db `Extends` DB, Exception (ActionError db)) =>
     ThentosSessionToken -> Action db ThentosSession
 lookupThentosSession tok = do
     now <- getCurrentTime'P
@@ -417,40 +410,47 @@ lookupThentosSession tok = do
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
-existsThentosSession :: ThentosSessionToken -> Action DB Bool
+existsThentosSession :: (db `Extends` DB, Show (ActionError db)) =>
+    ThentosSessionToken -> Action db Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
-    \case NoSuchThentosSession -> return False
-          e                    -> throwError e
+    \case (thentosErrorToParent -> Just NoSuchThentosSession) -> return False
+          e                                                   -> throwError e
 
 -- | Check user credentials and create a session for user.  Requires 'lub' or 'lookupUser' and
 -- '_startThentosSessionByAgent'.
-startThentosSessionByUserId :: UserId -> UserPass -> Action DB ThentosSessionToken
+startThentosSessionByUserId :: (db `Extends` DB, Show (ActionError db)) =>
+    UserId -> UserPass -> Action db ThentosSessionToken
 startThentosSessionByUserId uid pass = do
     _ <- _lookupUserCheckPassword (T.LookupUser uid) pass
     _startThentosSessionByAgent (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
-startThentosSessionByUserName :: UserName -> UserPass -> Action DB (UserId, ThentosSessionToken)
+startThentosSessionByUserName :: (db `Extends` DB, Show (ActionError db)) =>
+    UserName -> UserPass -> Action db (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- _lookupUserCheckPassword (T.LookupUserByName name) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
-startThentosSessionByUserEmail :: UserEmail -> UserPass -> Action DB (UserId, ThentosSessionToken)
+startThentosSessionByUserEmail :: (db `Extends` DB, Show (ActionError db)) =>
+    UserEmail -> UserPass -> Action db (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
     (uid, _) <- _lookupUserCheckPassword (T.LookupUserByEmail email) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.
-startThentosSessionByServiceId :: ServiceId -> ServiceKey -> Action DB ThentosSessionToken
+startThentosSessionByServiceId :: (db `Extends` DB, Show (ActionError db)) =>
+    ServiceId -> ServiceKey -> Action db ThentosSessionToken
 startThentosSessionByServiceId sid key = a `catchError` h
   where
     a = do
         (_, service) <- query'P (T.LookupService sid)
-        unless (verifyKey key service) $ throwError BadCredentials
+        unless (verifyKey key service) $ throwError $
+            thentosErrorFromParent BadCredentials
         _startThentosSessionByAgent (ServiceA sid)
 
-    h NoSuchService = throwError (thentosErrorFromParent BadCredentials)
-    h e             = throwError e
+    h (thentosErrorToParent -> Just NoSuchService) =
+        throwError $ thentosErrorFromParent BadCredentials
+    h e = throwError e
 
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
 -- token is enough authentication to terminate it.
@@ -506,13 +506,14 @@ lookupServiceSession tok = do
         (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
 
 -- | Like 'existsThentosSession', but for 'ServiceSession's.
-existsServiceSession :: ServiceSessionToken -> Action DB Bool
+existsServiceSession :: (db `Extends` DB, Show (ActionError db)) =>
+    ServiceSessionToken -> Action db Bool
 existsServiceSession tok = (lookupServiceSession tok >> return True) `catchError`
-    \case NoSuchServiceSession -> return False
-          e                    -> throwError e
+    \case (thentosErrorToParent -> Just NoSuchServiceSession) -> return False
+          e                                                   -> throwError e
 
 -- | (As soon as there is a good reason, we can export this.  just need to think about the label.)
-_thentosSessionAndUserIdByToken :: ( db `Extends` DB, Exception (ActionError db)) =>
+_thentosSessionAndUserIdByToken :: (db `Extends` DB, Exception (ActionError db)) =>
     ThentosSessionToken -> Action db (ThentosSession, UserId)
 _thentosSessionAndUserIdByToken tok = do
     session <- lookupThentosSession tok
