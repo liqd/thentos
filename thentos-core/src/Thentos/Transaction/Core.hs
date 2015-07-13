@@ -27,8 +27,8 @@ import Thentos.Types
 
 -- * types
 
-type ThentosUpdate db a = EitherT (ThentosError db) (StateT  db Identity) a
-type ThentosQuery  db a = EitherT (ThentosError db) (ReaderT db Identity) a
+type ThentosUpdate db e' a = EitherT (ThentosError e') (StateT  db Identity) a
+type ThentosQuery  db e' a = EitherT (ThentosError e') (ReaderT db Identity) a
 
 -- FUTURE WORK: make primed types newtypes rather than type synonyms, and provide a generic monad
 -- instance.  (how does that work?)
@@ -65,13 +65,13 @@ runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
 --
 -- FUTURE WORK: shouldn't there be a way to do both cases with one function @poly@?  (same goes for
 -- 'runThentos*' above, as a matter of fact).
-polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
+polyUpdate :: forall a e' db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
 polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
   where
-    bare :: db1 -> (Either (ThentosError db2) a, db1)
-    bare = runIdentity . runStateT (fmapL asDBThentosError <$> runEitherT upd)
+    bare :: db1 -> (Either (ThentosError e') a, db1)
+    bare = runIdentity . runStateT $ runEitherT upd
 
 -- | Turn a query transaction on a db on any extending db.  See also 'polyUpdate'.
 polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
 polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
-    fmapL asDBThentosError <$> runEitherT qry `runReaderT` (state ^. focus)
+    runEitherT qry `runReaderT` (state ^. focus)

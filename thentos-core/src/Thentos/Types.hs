@@ -80,8 +80,6 @@ data DB =
 -- defined for @dbParent@, instantiate this class.
 class ( Typeable dbParent, Typeable dbChild
       , SafeCopy dbParent, SafeCopy dbChild
-      , Exception (ThentosError dbParent), Exception (ThentosError dbChild)
-      , SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)
       , EmptyDB dbChild
       ) =>
         dbChild `Extends` dbParent where
@@ -438,17 +436,10 @@ data ThentosError a =
 
 instance (Show a, Typeable a) => Exception (ThentosError a)
 
-instance SafeCopy (ThentosError a)
-  where
-    putCopy = undefined
-    getCopy = undefined
-
-{-
-instance (SafeCopy a, Show a, Read a, Typeable a) => SafeCopy (ThentosError a)
-  where
-    putCopy = putCopyViaShowRead
-    getCopy = getCopyViaShowRead
--}
+--instance (SafeCopy a) => SafeCopy (ThentosError a)
+--  where
+--    putCopy = putCopyViaShowRead
+--    getCopy = getCopyViaShowRead
 
 
 -- * boilerplate
