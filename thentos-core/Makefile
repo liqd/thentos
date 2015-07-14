@@ -17,11 +17,6 @@ dist-clean: clean
 show-splices:
 	cabal install -j1 --ghc-options="-fforce-recomp -ddump-splices"
 
-update-stackage:
-#	wget https://www.stackage.org/lts/cabal.config
-	rm cabal.config
-	wget https://www.stackage.org/snapshot/nightly-`date +%F`/cabal.config
-
 freeze:
 	@cabal freeze --shadow-installed-packages  --enable-test --enable-bench\
 	  || ( echo -e "\n\nthere is a neat trick that may help you here:"\
