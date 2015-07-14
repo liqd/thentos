@@ -32,10 +32,12 @@ import Servant.Server.Internal.ServantErr (err500, errBody)
 import System.Log.Logger (Priority(ERROR))
 
 import Thentos.Backend.Core
+import Thentos.Transaction.TH
 import Thentos.Types hiding (DB)
 
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Types
+import qualified Thentos.Transaction as T
 
 
 newtype DB = DB { fromCoreDB :: Thentos.Types.DB }
@@ -49,6 +51,11 @@ instance DB `Thentos.Types.Extends` Thentos.Types.DB where
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
+
+instance DB `Thentos.Types.Extends` DB where
+    focus = id
+    thentosErrorFromParent = id
+    thentosErrorToParent = Just
 
 data instance Thentos.Types.ThentosError DB =
       ThentosA3ErrorCore (Thentos.Types.ThentosError (Thentos.Types.DB))
@@ -80,3 +87,5 @@ instance ThentosErrorToServantErr DB where
 makeLenses ''DB
 
 $(deriveSafeCopy 0 'base ''DB)
+$(makeThentosAcidicPhase1 ''DB [])
+$(makeThentosAcidicPhase2 ''DB [] [''Thentos.Types.DB] ['T.dbEvents])
