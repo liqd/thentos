@@ -17,6 +17,7 @@ import Data.Configifier
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
 import Data.Maybe (fromMaybe)
+import Data.List (elemIndex)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs, (<>))
 import Data.Typeable (Typeable)
@@ -33,6 +34,7 @@ import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
+import qualified Data.Text as ST
 import qualified Data.Text.IO as ST
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -115,7 +117,19 @@ data Command = Run | RunSso | ShowDB
   deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
-instance Aeson.FromJSON Command where parseJSON = Aeson.gparseJson
+
+instance Aeson.FromJSON Command
+  where
+    parseJSON (Aeson.String t) = case ST.toCaseFold t `elemIndex` commands of
+        Just idx -> return (toEnum idx :: Command)
+        Nothing  -> fail $ concat ["Unknown command: ", show t, ", expected one of ", show commands]
+      where
+        commands' = map (ST.toCaseFold . cs . show) ([minBound ..] :: [Command])
+        commands = if nub commands' == commands'
+            then commands'
+            else error "internal error: indistinguishable Command constructors (case-insensitive)"
+
+    parseJSON bad = fail $ "Command is not a string: " ++ show bad
 
 data HttpSchema = Http | Https
   deriving (Eq, Ord, Enum, Bounded, Typeable, Generic)
