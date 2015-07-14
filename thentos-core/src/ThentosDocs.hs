@@ -1,6 +1,5 @@
 module ThentosDocs (makeMain) where
 
-import Data.Thyme.Time ()
 import Servant.Docs (API, markdown)
 import System.Directory (createDirectoryIfMissing, setCurrentDirectory)
 import System.FilePath ((<.>))
