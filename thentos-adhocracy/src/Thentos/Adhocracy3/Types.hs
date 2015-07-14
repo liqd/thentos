@@ -96,6 +96,15 @@ throwA3Error = throwError
 throwCoreError :: (e ~ ThentosError Core.DB, e' ~ ThentosError DB, MonadError e' m) => e -> m a
 throwCoreError = throwError . ThentosA3ErrorCore
 
+instance ThentosErrorToServantErr DB where
+    thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
+    thentosErrorToServantErr e@(A3BackendErrorResponse code msg) = do
+        logger ERROR (show e) >> err500 { errBody = "exception in a3 backend" }
+
+  thentosErrorToServantErr e@(A3BackendInvalidJson json) = do
+        logger ERROR (show e) >> err500 { errBody = "exception in a3 backend: received bad json" }
+
+
 makeLenses ''DB
 
 $(deriveSafeCopy 0 'base ''DB)
