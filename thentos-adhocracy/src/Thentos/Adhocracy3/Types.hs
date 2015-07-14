@@ -14,7 +14,7 @@
 
 
 module Thentos.Adhocracy3.Types
-    ( module Core
+    ( module Thentos.Types
     , DB(..)
     , ThentosError(..)
     )
@@ -32,38 +32,41 @@ import Servant.Server.Internal.ServantErr (err500, errBody)
 import System.Log.Logger (Priority(ERROR))
 
 import Thentos.Backend.Core
-import Thentos.Types as Core hiding (DB)
+import Thentos.Types hiding (DB)
 
-import qualified Thentos.Types as Core
+import qualified Thentos.Action.Core as AC
+import qualified Thentos.Types
 
 
-newtype DB = DB { fromCoreDB :: Core.DB }
+newtype DB = DB { fromCoreDB :: Thentos.Types.DB }
   deriving (Eq, Show, Typeable, Generic)
 
 instance EmptyDB DB where
-    emptyDB = DB $ Core.emptyDB
+    emptyDB = DB $ Thentos.Types.emptyDB
 
-instance DB `Core.Extends` Core.DB where
+instance DB `Thentos.Types.Extends` Thentos.Types.DB where
     focus f (DB db) = DB <$> f db
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
 
-data instance Core.ThentosError DB =
-      ThentosA3ErrorCore (Core.ThentosError (Core.DB))
+data instance Thentos.Types.ThentosError DB =
+      ThentosA3ErrorCore (Thentos.Types.ThentosError (Thentos.Types.DB))
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
 
-deriving instance Eq (Core.ThentosError DB)
-deriving instance Show (Core.ThentosError DB)
-deriving instance Read (Core.ThentosError DB)
+deriving instance Eq (Thentos.Types.ThentosError DB)
+deriving instance Show (Thentos.Types.ThentosError DB)
+deriving instance Read (Thentos.Types.ThentosError DB)
 
-instance Exception (Core.ThentosError DB)
+instance Exception (Thentos.Types.ThentosError DB)
 
-instance SafeCopy (Core.ThentosError DB)
+deriving instance Show (AC.ActionError DB)
+
+instance SafeCopy (Thentos.Types.ThentosError DB)
   where
-    putCopy = Core.putCopyViaShowRead
-    getCopy = Core.getCopyViaShowRead
+    putCopy = Thentos.Types.putCopyViaShowRead
+    getCopy = Thentos.Types.getCopyViaShowRead
 
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
