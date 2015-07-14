@@ -62,7 +62,6 @@ import Thentos.Util
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
-import qualified Thentos.Types as Core
 
 
 -- * data types
