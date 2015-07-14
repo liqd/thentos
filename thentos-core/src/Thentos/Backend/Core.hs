@@ -73,20 +73,23 @@ enterAction state mTok = Nat $ EitherT . run
 -- thrown.  The error constructors should take all the information in typed form.  Rendering
 -- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
 -- servant error is the sole responsibility of this function.
---
--- FIXME: this function is monomorphic by nature; rename it to 'actionErrorDBToServantErr' (or
--- something similar), and drop the type variable in the signature.  Derived errors will provide
--- their own function and call this one.  (Or maybe we should introduce a type class for this?  Or
--- extend 'Extends' to cover this?)
 actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
-        (ActionErrorThentos  te) -> _thentos te
+        (ActionErrorThentos  te) -> thentosErrorToServantErr te
         (ActionErrorAnyLabel le) -> _permissions le
         (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
   where
-    _thentos :: ThentosError db -> IO ServantErr
+    _permissions :: AnyLabelError -> IO ServantErr
+    _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
+
+
+class ThentosErrorToServantErr db where
+    thentosErrorToServantErr :: ThentosError db -> IO ServantErr
+
+instance ThentosErrorToServantErr DB where
+  thentosErrorToServantErr e = _thentos e where
     _thentos NoSuchUser = pure $ err404 { errBody = "user not found" }
     _thentos NoSuchPendingUserConfirmation = pure $ err404 { errBody = "unconfirmed user not found" }
     _thentos (MalformedConfirmationToken path) = pure $ err400 { errBody = "malformed confirmation token: " <> cs (show path) }
@@ -115,9 +118,6 @@ actionErrorToServantErr e = do
         { errBody = "error accessing user info" }
     _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
         { errBody = "error retrieving access token" }
-
-    _permissions :: AnyLabelError -> IO ServantErr
-    _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
 -- * request headers
