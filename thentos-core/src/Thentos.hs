@@ -14,7 +14,11 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Thentos (main, createDefaultUser) where
+module Thentos
+    ( main
+    , makeMain
+    , createDefaultUser
+    ) where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
@@ -23,7 +27,7 @@ import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (Exception, finally)
 import Control.Monad (void, when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
-import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidState)
+import Data.Acid (AcidState, IsAcidic, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
@@ -33,7 +37,7 @@ import Text.Show.Pretty (ppShow)
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (ActionState(..), runAction)
+import Thentos.Action.Core (ActionState(..), ActionError(..), runAction)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Types
@@ -46,9 +50,39 @@ import qualified Thentos.Transaction as T
 -- * main
 
 main :: IO ()
-main =
+main = makeMain emptyDB $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFeConfig cmd ->
+    case cmd of
+        ShowDB -> do
+            logger INFO "database contents:"
+            query' st T.SnapShot >>= either (error "oops?") (logger INFO . ppShow)
+
+        Run -> do
+            let backend = maybe (return ())
+                    (`Thentos.Backend.Api.Simple.runApi` actionState)
+                    mBeConfig
+            let frontend = maybe (return ())
+                    (`runFrontend` actionState)
+                    mFeConfig
+
+            void $ concurrently backend frontend
+
+        RunSso -> error "RunSso: not implemented."
+
+
+-- * main with abstract commands
+
+makeMain :: forall db .
+    ( IsAcidic db
+    , db `Extends` DB
+    , Exception (ThentosError db), Eq (ThentosError db)
+    , Show (ActionError db)
+    ) => db
+      -> (ActionState db -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ())
+      -> IO ()
+makeMain initialDB commandSwitch =
   do
-    st :: AcidState DB <- announceAction "setting up acid-state" $ openLocalStateFrom ".acid-state/" emptyDB
+    st :: AcidState db
+        <- announceAction "setting up acid-state" $ openLocalStateFrom ".acid-state/" initialDB
         -- (opening acid-state can take rather long if a large
         -- changelog needs to be replayed.  use asci-progress here?
         -- even though that would probably require patching
@@ -71,24 +105,9 @@ main =
         mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
 
     logger INFO "Press ^C to abort."
-    let run = case config >>. (Proxy :: Proxy '["command"]) of
-            ShowDB -> do
-                logger INFO "database contents:"
-                query' st T.SnapShot >>= either (error "oops?") (logger INFO . ppShow)
-
-            Run -> do
-                let backend = maybe (return ())
-                        (`Thentos.Backend.Api.Simple.runApi` actionState)
-                        mBeConfig
-                let frontend = maybe (return ())
-                        (`runFrontend` actionState)
-                        mFeConfig
-
-                void $ concurrently backend frontend
-
-            RunSso -> error "RunSso: not implemented."
-
-    let finalize = do
+    let run = do
+            commandSwitch actionState mBeConfig mFeConfig $ config >>. (Proxy :: Proxy '["command"])
+        finalize = do
             announceAction "creating checkpoint and shutting down acid-state" $
                 createCheckpoint st >> closeAcidState st
             announceAction "shutting down hslogger" $
@@ -97,10 +116,12 @@ main =
     run `finally` finalize
 
 
+-- * helpers
+
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
-runGcLoop :: ActionState DB -> Maybe Int -> IO ThreadId
+runGcLoop :: (db `Extends` DB, Show (ActionError db)) => ActionState db -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     threadDelay $ interval * 1000 * 1000

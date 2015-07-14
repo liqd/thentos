@@ -1,13 +1,10 @@
 SHELL=/bin/bash
 
 wc:
-	find thentos-core/src -name '*.hs' | xargs wc
-	find thentos-core/exec -name '*.hs' | xargs wc
-	find thentos-tests/{tests,bench} -name '*.hs' | xargs wc
-	find thentos-adhocracy/src -name '*.hs' | xargs wc
-	find thentos-adhocracy/exec -name '*.hs' | xargs wc
-	find thentos-adhocracy/{tests,bench} -name '*.hs' | xargs wc
-	find services/helloworld/src -name '*.hs' | xargs wc
+	find thentos-core/{src,exec}            -name '*.hs' | xargs wc
+	find thentos-tests/{tests,bench}        -name '*.hs' | xargs wc
+	find thentos-adhocracy/{src,exec,tests} -name '*.hs' | xargs wc
+	find services/helloworld/src            -name '*.hs' | xargs wc
 
 clean:
 	find thentos-*/ -name '*~' -exec rm -f {} \;
