@@ -45,7 +45,7 @@ freshUserId = polyUpdate $ do
 -- | Assert that no confirmed or unconfirmed user with the same name or email adready exists
 -- (unless mUid Just matches).
 assertUser :: (db `Extends` DB) => Maybe UserId -> User -> ThentosQuery db ()
-assertUser mUid user = polyQuery $ do
+assertUser mUid user = do
     userNameExists mUid user
     userEmailExists mUid user
 
@@ -55,36 +55,36 @@ trans_assertUserIsNew = assertUser Nothing
 
 type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
 
--- | Throw 'UserNameAlreadyExists' if a user with the same name already exists in the DB
+-- | Throw 'UserNameAlreadyExists' if a user with the same name already exists in the db
 -- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
-userNameExists :: Maybe UserId -> User -> ThentosQuery DB ()
-userNameExists mUid user = ask >>= \db -> userFacetExists UserNameAlreadyExists
+userNameExists :: (db `Extends` DB) => Maybe UserId -> User -> ThentosQuery db ()
+userNameExists mUid user = polyQuery $ ask >>= \db -> userFacetExists UserNameAlreadyExists
     (Map.lookup name $ db ^. dbUserIdsByName) unconfirmedUserMatches mUid
   where
     name = user ^. userName
     unconfirmedUserMatches ((uid, user'), _) | user' ^. userName == name = Just uid
     unconfirmedUserMatches _                                             = Nothing
 
--- | Throw 'UserEmailAlreadyExists' if a user with the same email already exists in the DB
+-- | Throw 'UserEmailAlreadyExists' if a user with the same email already exists in the db
 -- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
-userEmailExists :: Maybe UserId -> User -> ThentosQuery DB ()
-userEmailExists mUid user = ask >>= \db -> userFacetExists UserEmailAlreadyExists
+userEmailExists :: (db `Extends` DB) => Maybe UserId -> User -> ThentosQuery db ()
+userEmailExists mUid user = polyQuery $ ask >>= \db -> userFacetExists UserEmailAlreadyExists
     (Map.lookup email $ db ^. dbUserIdsByEmail) unconfirmedUserMatches mUid
   where
     email = user ^. userEmail
     unconfirmedUserMatches ((uid, user'), _) | user' ^. userEmail == email = Just uid
     unconfirmedUserMatches _                                               = Nothing
 
--- | Throw 'UserIdAlreadyExists' if a user with the given ID already exists in the DB.
+-- | Throw 'UserIdAlreadyExists' if a user with the given ID already exists in the db.
 -- Both confirmed and unconfirmed users are checked.
-userIdExists :: UserId -> ThentosQuery DB ()
-userIdExists uid = ask >>= \db -> userFacetExists UserIdAlreadyExists
+userIdExists :: (db `Extends` DB) => UserId -> ThentosQuery db ()
+userIdExists uid = polyQuery $ ask >>= \db -> userFacetExists UserIdAlreadyExists
     (if Map.member uid $ db ^. dbUsers then Just uid else Nothing) unconfirmedUserMatches Nothing
   where
     unconfirmedUserMatches ((uid', _), _) | uid' == uid = Just uid
     unconfirmedUserMatches _                            = Nothing
 
--- Test whether a specific user facet (e.g. name, email, ID) already exists in the DB
+-- Test whether a specific user facet (e.g. name, email, ID) already exists in the db
 -- (unless mUid Just matches). Both confirmed and unconfirmed users are checked.
 -- This includes expired unconfirmed users, but as long as garbage collection is run frequently
 -- enough, that shouldn't be a problem.
@@ -185,7 +185,7 @@ trans_addUnconfirmedUser now token user = polyUpdate $ do
 --
 -- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend process
 -- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
--- would leak information about the (non-)existence of IDs in our DB.
+-- would leak information about the (non-)existence of IDs in our db.
 trans_addUnconfirmedUserWithId :: (db `Extends` DB) =>
     Timestamp -> ConfirmationToken -> User -> UserId -> ThentosUpdate db ConfirmationToken
 trans_addUnconfirmedUserWithId now token user userId = polyUpdate $ do
@@ -566,19 +566,19 @@ trans_doGarbageCollectServiceSessions :: (db `Extends` DB) =>
     [ServiceSessionToken] -> ThentosUpdate db ()
 trans_doGarbageCollectServiceSessions tokens = forM_ tokens trans_endServiceSession
 
--- | Remove all expired unconfirmed users from DB.
+-- | Remove all expired unconfirmed users from db.
 trans_doGarbageCollectUnconfirmedUsers :: (db `Extends` DB) =>
     Timestamp -> Timeout -> ThentosUpdate db ()
 trans_doGarbageCollectUnconfirmedUsers now expiry = polyUpdate $ do
     modify $ dbUnconfirmedUsers %~ removeExpireds now expiry
 
--- | Remove all expired password reset requests from DB.
+-- | Remove all expired password reset requests from db.
 trans_doGarbageCollectPasswordResetTokens :: (db `Extends` DB) =>
     Timestamp -> Timeout -> ThentosUpdate db ()
 trans_doGarbageCollectPasswordResetTokens now expiry = polyUpdate $ do
     modify $ dbPwResetTokens %~ removeExpireds now expiry
 
--- | Remove all expired email change requests from DB.
+-- | Remove all expired email change requests from db.
 trans_doGarbageCollectEmailChangeTokens :: (db `Extends` DB) =>
     Timestamp -> Timeout -> ThentosUpdate db ()
 trans_doGarbageCollectEmailChangeTokens now expiry = polyUpdate $ do

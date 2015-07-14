@@ -90,11 +90,6 @@ deriving instance Typeable ActionError
 
 instance (db `Extends` DB, Show (ActionError db)) => Exception (ActionError db)
 
-asDBActionError :: (db `Extends` DB) => ActionError DB -> ActionError db
-asDBActionError (ActionErrorThentos e)  = ActionErrorThentos $ asDBThentosError e
-asDBActionError (ActionErrorAnyLabel e) = ActionErrorAnyLabel e
-asDBActionError (ActionErrorUnknown e)  = ActionErrorUnknown e
-
 
 instance MonadLIO DCLabel (Action db) where
     liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)

@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE ViewPatterns                             #-}
 
 -- | This is a variant of "Thentos.Backend.Api.Adhocracy3" that throws errors on the old
 -- authentication end points and instead performs github authentication.  The intricacies of the
@@ -82,10 +83,10 @@ import qualified Data.Text.Encoding   as ST
 import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
+import Thentos.Adhocracy3.Types
+import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
 import Thentos.Config
-import Thentos.Types
-import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -188,15 +189,16 @@ githubRequest = do
 githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
 githubConfirm state code =
     go `catchError` \e ->
-        case e of
-            SsoErrorUnknownCsrfToken       ->
+        case thentosErrorToParent e of
+            Just SsoErrorUnknownCsrfToken ->
                 return $ A3.RequestError ["unknown sso csrf token"]
-            SsoErrorCouldNotAccessUserInfo msg ->
+            Just (SsoErrorCouldNotAccessUserInfo msg) ->
                 return $ A3.RequestError ["could not access github user info", cs msg]
-            SsoErrorCouldNotGetAccessToken msg ->
+            Just (SsoErrorCouldNotGetAccessToken msg) ->
                 return $ A3.RequestError ["could not obtain access token", cs msg]
-            otherError                     -> throwError otherError
+            _ -> throwError e
   where
+    go :: AC.Action DB A3.RequestResult
     go = do
         A.lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
@@ -208,13 +210,14 @@ githubConfirm state code =
             doJSONPostRequest mgr githubKey url (body ++ [("state", cs state)])
 
         case eToken of
-            Right token  -> do
+            Right token -> do
                 eGhUser :: OAuth2Result GithubUser
                     <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
                 case eGhUser of
                     Right ghUser -> loginGithubUser ghUser
-                    Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
-            Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
+                    Left e -> throwError . thentosErrorFromParent $ SsoErrorCouldNotAccessUserInfo e
+            Left e -> throwError . thentosErrorFromParent $ SsoErrorCouldNotGetAccessToken e
+
 
 -- | FIXME: document!
 loginGithubUser :: GithubUser -> AC.Action DB A3.RequestResult
@@ -222,8 +225,10 @@ loginGithubUser (GithubUser _ uname) = do
     let makeTok = A.startThentosSessionByUserName (UserName uname) (UserPass "")
 
     (_, tok) <- makeTok `catchError`
-        \case BadCredentials -> do
-                _ <- A.addUser $ UserFormData (UserName uname) (UserPass "") (UserEmail $ error "no email")
+        \case (thentosErrorToParent -> Just BadCredentials) -> do
+                _ <- A.addUser $ UserFormData (UserName uname)
+                                              (UserPass "")
+                                              (UserEmail $ error "no email")
                 makeTok
               e -> throwError e
 

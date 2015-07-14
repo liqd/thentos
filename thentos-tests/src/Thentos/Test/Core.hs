@@ -160,7 +160,6 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 -- headers for default god user.
 setupTestBackend :: forall db .
         ( db `Extends` DB, IsAcidic db
-        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
         , Eq (ThentosError db), Show (ActionError db)) =>
     (ActionState db -> Application) -> IO (BTS db)
 setupTestBackend testBackend = do
@@ -179,11 +178,7 @@ runTestBackend bts session = runSession session (bts ^. btsWai)
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
-setupTestServerFull :: forall db .
-        ( db `Extends` DB, IsAcidic db, Eq (ThentosError db)
-        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
-        ) =>
-    IO (FTS db)
+setupTestServerFull :: IO (FTS DB)
 setupTestServerFull = do
     DBTS tcfg asg <- setupDB
 
@@ -222,7 +217,6 @@ teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
 
 loginAsGod :: forall db .
         ( db `Extends` DB , IsAcidic db
-        , db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
         , Eq (ThentosError db), Show (ActionError db), Exception (ActionError db)) =>
     ActionState db -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
