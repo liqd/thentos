@@ -24,14 +24,13 @@ import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
-import Control.Exception (Exception, finally, ErrorCall(..), throwIO)
-import Control.Monad (void, when, unless, forever)
+import Control.Exception (Exception, finally)
+import Control.Monad (void, when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Acid (AcidState, IsAcidic, openLocalStateFrom, createCheckpoint, closeAcidState)
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
-import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
@@ -41,7 +40,7 @@ import Thentos.Action
 import Thentos.Action.Core (ActionState(..), ActionError(..), runAction)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
-import Thentos.Smtp (sendMail)
+import Thentos.Smtp (checkSendmail)
 import Thentos.Types
 import Thentos.Util
 
@@ -84,9 +83,7 @@ makeMain :: forall db .
 makeMain initialDB commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
-    sendmailWorks <- sendMailOk (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
-    unless sendmailWorks . throwIO $
-        ErrorCall "sendmail seems to not work. Maybe the sendmail path is misconfigured?"
+    checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
 
     st :: AcidState db
         <- announceAction "setting up acid-state" $ openLocalStateFrom ".acid-state/" initialDB
@@ -157,11 +154,3 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
         if all isRight result
             then logger DEBUG $ "[ok]"
             else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
-
-sendMailOk :: SmtpConfig -> IO Bool
-sendMailOk cfg = do
-    let address = fromJust $ parseUserEmail "user@example.com"
-    result <- sendMail cfg Nothing address "Test Mail" "This is a test"
-    return $ case result of
-        Right () -> True
-        Left _ -> False

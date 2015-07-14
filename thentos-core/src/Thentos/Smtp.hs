@@ -2,13 +2,14 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
-module Thentos.Smtp
+module Thentos.Smtp (sendMail, SendmailError(..), checkSendmail)
 where
 
 import Control.Applicative ((<$>))
-import Control.Exception (try, IOException)
+import Control.Exception (try, IOException, ErrorCall(..), throwIO)
 import Control.Monad (unless)
 import Data.Configifier ((>>.))
+import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Network.Mail.Mime (Mail, Address(Address), sendmailCustomCaptureOutput,
@@ -47,3 +48,14 @@ sendMail config mName address subject message = do
 
     sendmailPath :: String   = cs  $  config >>. (Proxy :: Proxy '["sendmail_path"])
     sendmailArgs :: [String] = cs <$> config >>. (Proxy :: Proxy '["sendmail_args"])
+
+-- | Run sendMail to check that we can send emails. Throw an error if sendmail
+-- is not available or doesn't work.
+checkSendmail :: SmtpConfig -> IO ()
+checkSendmail cfg = do
+    let address = fromJust $ parseUserEmail "user@example.com"
+    result <- sendMail cfg Nothing address "Test Mail" "This is a test"
+    case result of
+        Left _ -> throwIO $ ErrorCall "sendmail seems to not work.\
+                                        \ Maybe the sendmail path is misconfigured?"
+        Right () -> return ()
