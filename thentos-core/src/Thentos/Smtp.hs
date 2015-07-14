@@ -6,6 +6,7 @@ module Thentos.Smtp
 where
 
 import Control.Applicative ((<$>))
+import Control.Exception (try, ErrorCall(..))
 import Control.Monad (unless)
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
@@ -21,15 +22,21 @@ import System.Log.Missing
 import Thentos.Config
 import Thentos.Types
 
-sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> IO ()
+data SendmailError = SendmailError String
+
+sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> IO (Either SendmailError ())
 sendMail config mName address subject message = do
     logger DEBUG $ "sending email: " ++ ppShow (address, subject, message)
     renderedMail <- renderMail' mail
-    (out, err) <- sendmailCustomCaptureOutput sendmailPath sendmailArgs renderedMail
-    unless (SB.null out) .
-        logger WARNING $ "sendmail produced output on std out: " ++ cs out
-    unless (SB.null err) .
-        logger WARNING $ "sendmail produced output on std err: " ++ cs err
+    e <- try $ sendmailCustomCaptureOutput sendmailPath sendmailArgs renderedMail
+    case e of
+        Right (out, err) -> do
+            unless (SB.null out) .
+                logger WARNING $ "sendmail produced output on std out: " ++ cs out
+            unless (SB.null err) .
+                logger WARNING $ "sendmail produced output on std err: " ++ cs err
+            return $ Right ()
+        Left (ErrorCall msg) -> return . Left $ SendmailError msg
   where
     receiverAddress = Address (fromUserName <$> mName) (fromUserEmail $ address)
     sentFromAddress = buildEmailAddress config
