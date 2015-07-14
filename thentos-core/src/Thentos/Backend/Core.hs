@@ -53,9 +53,7 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: forall db . (db `Extends` DB, Show (ActionError db),
-                            db ~ DB  -- FIXME https://github.com/liqd/thentos/issues/193
-                           ) =>
+enterAction :: forall db . (db `Extends` DB, Show (ActionError db), ThentosErrorToServantErr db) =>
     ActionState db -> Maybe ThentosSessionToken -> Action db :~> EitherT ServantErr IO
 enterAction state mTok = Nat $ EitherT . run
   where
