@@ -45,7 +45,8 @@ instance HasServer ServiceProxy where
   type ServerT ServiceProxy m = S.Application
   route Proxy = route (Proxy :: Proxy Raw)
 
-serviceProxy :: RenderHeaderFun -> ActionState DB -> Server ServiceProxy
+serviceProxy :: (db `Extends` DB, Show (ActionError db), ThentosErrorToServantErr db)
+      => RenderHeaderFun -> ActionState db -> Server ServiceProxy
 serviceProxy renderHeaderFun state req cont = do
     eRqMod <- runActionE state $ getRqMod renderHeaderFun req
     case eRqMod of
@@ -92,7 +93,8 @@ data RqMod = RqMod String T.RequestHeaders
 --
 -- The first parameter is a function that can be used to rename the Thentos-specific headers.
 -- To stick with the default names, use 'Thentos.Backend.Core.renderThentosHeaderName'.
-getRqMod :: RenderHeaderFun -> S.Request -> Action DB RqMod
+getRqMod :: (db `Extends` DB, Show (ActionError db))
+      => RenderHeaderFun -> S.Request -> Action db RqMod
 getRqMod renderHeaderFun req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession renderHeaderFun req
@@ -109,26 +111,27 @@ getRqMod renderHeaderFun req = do
 -- | Look up the target URL for requests based on the given service ID. This requires a "proxies"
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
 -- For convenience, both service ID and target URL are returned.
-findTargetForServiceId :: ServiceId -> ThentosConfig -> Action DB (ServiceId, String)
+findTargetForServiceId :: (db `Extends` DB) =>
+    ServiceId -> ThentosConfig -> Action db (ServiceId, String)
 findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
-            Nothing    -> throwError $ ProxyNotConfiguredForService sid
+            Nothing    -> throwError . thentosErrorFromParent $ ProxyNotConfiguredForService sid
     return (sid, cs target)
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
-findDefaultServiceIdAndTarget :: ThentosConfig -> Action DB (ServiceId, String)
+findDefaultServiceIdAndTarget :: (db `Extends` DB) => ThentosConfig -> Action db (ServiceId, String)
 findDefaultServiceIdAndTarget conf = do
-    defaultProxy <- maybe (throwError MissingServiceHeader) return $
+    defaultProxy <- maybe (throwError . thentosErrorFromParent $ MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
     sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
     return (sid, cs $ extractTargetUrl defaultProxy)
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
-createCustomHeaders :: RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId
-                    -> Action DB T.RequestHeaders
+createCustomHeaders :: (db `Extends` DB, Show (ActionError db)) =>
+    RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId -> Action db T.RequestHeaders
 createCustomHeaders _ Nothing _                    = return []
 createCustomHeaders renderHeaderFun (Just tok) sid = do
     (uid, user) :: (UserId, User)
@@ -136,7 +139,7 @@ createCustomHeaders renderHeaderFun (Just tok) sid = do
             session <- lookupThentosSession tok
             case session ^. thSessAgent of
                 UserA uid  -> lookupUser uid
-                ServiceA servId -> throwError $ NeedUserA tok servId
+                ServiceA servId -> throwError . thentosErrorFromParent $ NeedUserA tok servId
 
     groups :: [Group] <- userGroups uid sid
 
