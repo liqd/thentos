@@ -38,7 +38,7 @@ data TransactionType = TransQuery | TransUpdate
 --
 -- (where MyDB is the passed-in db type).
 -- and generates transactions of the form:
--- 
+--
 -- > foo :: (db `Extends` MyDB) =>
 -- >        Bool -> Data.Acid.Query db (Either (ThentosError db) Int)
 --
@@ -84,7 +84,7 @@ makeThentosAcidicPhase1 dbTypeName names =
 -- === The gnarly details:
 -- For every transaction we need to generate a data type and some instance
 -- declarations as follows:
--- 
+--
 -- > data AgentRoles db = AgentRoles Agent
 -- >    deriving Typeable
 -- >
