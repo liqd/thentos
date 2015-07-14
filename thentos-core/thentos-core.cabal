@@ -86,6 +86,7 @@ library
     , aeson-pretty
     , aeson-utils
     , async
+    , blaze-builder
     , blaze-html
     , bytestring
     , case-insensitive

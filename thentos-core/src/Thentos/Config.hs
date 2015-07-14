@@ -28,7 +28,8 @@ import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
+import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
+                          setLevel, setHandlers)
 import System.Log.Missing (loggerName, logger)
 import Text.Show.Pretty (ppShow)
 
@@ -86,8 +87,7 @@ type HttpConfig' =
 type ProxyConfig = Tagged (ToConfigCode ProxyConfig')
 type ProxyConfig' =
             ("service_id" :> ST)
-  :*>       ("http"       :> HttpConfig')
-  :*> Maybe ("url_prefix" :> ST)
+  :*>       ("endpoint"   :> Uri)
 
 type SmtpConfig = Tagged (ToConfigCode SmtpConfig')
 type SmtpConfig' =
@@ -194,10 +194,7 @@ exposeUrl cfg = _renderUrl bs bh bp
     bp = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_port"])) (cfg >>. (Proxy :: Proxy '["expose_port"]))
 
 extractTargetUrl :: ProxyConfig -> ST
-extractTargetUrl proxy = exposeUrl http <> prefix
-  where
-    http :: HttpConfig = Tagged $ proxy >>. (Proxy :: Proxy '["http"])
-    prefix :: ST       = fromMaybe "" $ proxy >>. (Proxy :: Proxy '["url_prefix"])
+extractTargetUrl proxy = cs . renderUri $ proxy >>. (Proxy :: Proxy '["endpoint"])
 
 _renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
 _renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"
