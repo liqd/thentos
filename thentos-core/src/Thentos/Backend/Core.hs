@@ -77,69 +77,74 @@ actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
-        (ActionErrorThentos  te) -> thentosErrorToServantErr te
+        (ActionErrorThentos  te) -> _thentos te
         (ActionErrorAnyLabel le) -> _permissions le
         (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
   where
+    _thentos :: ThentosError db -> IO ServantErr
+    _thentos te = case thentosErrorToServantErr te of
+        (Just (level, msg), se) -> logger level msg >> pure se
+        (Nothing,           se) ->                     pure se
+
     _permissions :: AnyLabelError -> IO ServantErr
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
 class ThentosErrorToServantErr db where
-    thentosErrorToServantErr :: ThentosError db -> IO ServantErr
+    thentosErrorToServantErr :: ThentosError db -> (Maybe (Priority, String), ServantErr)
 
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr e = f e
       where
         f NoSuchUser =
-            pure err404 { errBody = "user not found" }
+            (Nothing, err404 { errBody = "user not found" })
         f NoSuchPendingUserConfirmation =
-            pure err404 { errBody = "unconfirmed user not found" }
+            (Nothing, err404 { errBody = "unconfirmed user not found" })
         f (MalformedConfirmationToken path) =
-            pure err400 { errBody = "malformed confirmation token: " <> cs (show path) }
+            (Nothing, err400 { errBody = "malformed confirmation token: " <> cs (show path) })
         f NoSuchService =
-            pure err404 { errBody = "service not found" }
+            (Nothing, err404 { errBody = "service not found" })
         f NoSuchThentosSession =
-            pure err404 { errBody = "thentos session not found" }
+            (Nothing, err404 { errBody = "thentos session not found" })
         f NoSuchServiceSession =
-            pure err404 { errBody = "service session not found" }
+            (Nothing, err404 { errBody = "service session not found" })
         f OperationNotPossibleInServiceSession =
-            pure err404 { errBody = "operation not possible in service session" }
+            (Nothing, err404 { errBody = "operation not possible in service session" })
         f ServiceAlreadyExists =
-            pure err403 { errBody = "service already exists" }
+            (Nothing, err403 { errBody = "service already exists" })
         f NotRegisteredWithService =
-            pure err403 { errBody = "not registered with service" }
+            (Nothing, err403 { errBody = "not registered with service" })
         f UserEmailAlreadyExists =
-            pure err403 { errBody = "email already in use" }
+            (Nothing, err403 { errBody = "email already in use" })
         f UserNameAlreadyExists =
-            pure err403 { errBody = "user name already in use" }
+            (Nothing, err403 { errBody = "user name already in use" })
         f UserIdAlreadyExists =
-            logger ERROR (ppShow e) >> pure err500
+            (Just (ERROR, ppShow e), err500)  -- (must be prevented earlier on.)
         f BadCredentials =
-            logger INFO (show e) >> pure (err401 { errBody = "unauthorized" })
+            (Just (INFO, show e), err401 { errBody = "unauthorized" })
         f BadAuthenticationHeaders =
-            pure err400 { errBody = "bad authentication headers" }
+            (Nothing, err400 { errBody = "bad authentication headers" })
         f ProxyNotAvailable =
-            pure err404 { errBody = "proxying not activated" }
+            (Nothing, err404 { errBody = "proxying not activated" })
         f MissingServiceHeader =
-            pure err404 { errBody = "headers do not contain service id" }
+            (Nothing, err404 { errBody = "headers do not contain service id" })
         f (ProxyNotConfiguredForService sid) =
-            pure err404 { errBody = "proxy not configured for service " <> cs (show sid) }
+            (Nothing, err404 { errBody = "proxy not configured for service " <> cs (show sid) })
         f (NoSuchToken) =
-            pure err404 { errBody = "no such token" }
+            (Nothing, err404 { errBody = "no such token" })
         f (NeedUserA _ _) =
-            pure err404 { errBody =
-                "thentos session belongs to service, cannot create service session" }
+            (Nothing, err404 { errBody =
+                "thentos session belongs to service, cannot create service session" })
         f (MalformedUserPath path) =
-            pure err400 { errBody = "malformed user path: " <> cs (show path) }
+            (Nothing, err400 { errBody = "malformed user path: " <> cs (show path) })
 
         -- the following shouldn't actually reach servant:
         f SsoErrorUnknownCsrfToken =
-            pure err500 { errBody = "invalid token returned during sso process" }
+            (Just (ERROR, show e), err500 { errBody = "invalid token returned during sso process" })
         f (SsoErrorCouldNotAccessUserInfo _) =
-            pure err500 { errBody = "error accessing user info" }
+            (Just (ERROR, show e), err500 { errBody = "error accessing user info" })
         f (SsoErrorCouldNotGetAccessToken _) =
-            pure err500 { errBody = "error retrieving access token" }
+            (Just (ERROR, show e), err500 { errBody = "error retrieving access token" })
 
 
 -- * request headers
