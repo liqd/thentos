@@ -73,7 +73,9 @@ enterAction state mTok = Nat $ EitherT . run
 -- thrown.  The error constructors should take all the information in typed form.  Rendering
 -- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
 -- servant error is the sole responsibility of this function.
-actionErrorToServantErr :: forall db . (db `Extends` DB, db ~ DB) => ActionError db -> IO ServantErr
+actionErrorToServantErr :: forall db
+       . (db `Extends` DB, Show (ActionError db), ThentosErrorToServantErr db)
+      => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
