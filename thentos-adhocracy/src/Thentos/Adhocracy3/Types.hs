@@ -1,46 +1,17 @@
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveDataTypeable          #-}
+{-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE StandaloneDeriving          #-}
+{-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
-
-module Thentos.Adhocracy3.Types
-  ( module Thentos.Types
-  , module Thentos.Adhocracy3.Types
-  )
-  where
-
-import Control.Monad.Except (MonadError, throwError)
-import Data.Data (Typeable)
-import Data.String.Conversions (LBS)
-
-import Thentos.Types
-
-
--- FIXME: workaround implementation until #193 is fixed:
-
-data ThentosError' =
-      A3BackendErrorResponse Int LBS
-    | A3BackendInvalidJson String
-  deriving (Eq, Show, Typeable)
-
-throwA3Error :: ThentosError' -> a
-throwA3Error = error . show
-
-throwCoreError :: (e ~ ThentosError DB, MonadError e m) => e -> m a
-throwCoreError = throwError
-
-
-
-{-
-
--- the following should work once #193 is fixed.
 
 module Thentos.Adhocracy3.Types
     ( module Core
@@ -60,9 +31,14 @@ import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
 import Data.String.Conversions (LBS)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
+import Servant.Server.Internal.ServantErr (err500, errBody)
+import System.Log.Logger (Priority(ERROR))
 
+import Thentos.Backend.Core
 import Thentos.Types as Core hiding (DB)
+
 import qualified Thentos.Types as Core
+
 
 newtype DB = DB { fromCoreDB :: Core.DB }
   deriving (Eq, Show, Typeable, Generic)
@@ -73,6 +49,8 @@ instance EmptyDB DB where
 instance DB `Core.Extends` Core.DB where
     focus f (DB db) = DB <$> f db
     thentosErrorFromParent = ThentosA3ErrorCore
+    thentosErrorToParent (ThentosA3ErrorCore e) = Just e
+    thentosErrorToParent _ = Nothing
 
 data instance Core.ThentosError DB =
       ThentosA3ErrorCore (Core.ThentosError (Core.DB))
@@ -98,15 +76,13 @@ throwCoreError = throwError . ThentosA3ErrorCore
 
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
-    thentosErrorToServantErr e@(A3BackendErrorResponse code msg) =
+    thentosErrorToServantErr e@(A3BackendErrorResponse _ _) =
         (Just (ERROR, show e), err500 { errBody = "exception in a3 backend" })
 
-  thentosErrorToServantErr e@(A3BackendInvalidJson json) = do
+    thentosErrorToServantErr e@(A3BackendInvalidJson _) = do
         (Just (ERROR, show e), err500 { errBody = "exception in a3 backend: received bad json" })
 
 
 makeLenses ''DB
 
 $(deriveSafeCopy 0 'base ''DB)
-
--}
