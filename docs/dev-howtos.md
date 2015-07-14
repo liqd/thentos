@@ -29,7 +29,7 @@ You'll also need the submodules that we use.
 ```shell
 git submodule update --init
 ```
-And (assuming you're using sandboxes):
+And (assuming you're using sandboxes, and not stack):
 
 ```shell
 cabal sandbox add-source submodules servant/servant

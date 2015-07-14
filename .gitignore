@@ -7,5 +7,9 @@
 .acid-state/
 .cabal-sandbox/
 cabal.sandbox.config
+*packages.conf.d/
+packages/
+.stack-work
+add-source-timestamps
 /misc/selenium/log
 /misc/selenium/*.jar

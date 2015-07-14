@@ -1,22 +1,37 @@
 language: haskell
-ghc: 7.8
+
+sudo: false
+
 before_install:
-    - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-    - travis_retry sudo apt-get update
-    - travis_retry sudo apt-get install --force-yes happy-1.19.3 alex-3.1.3 cabal-install-1.22
-    - export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:/opt/cabal/1.22/bin:$PATH
-    - travis_retry sudo apt-get install xvfb
-    - cd misc/selenium
-    - mkdir log
-    - "export DISPLAY=:1"
-    - make xvfb
-    - make init
-    - make start
-    - cd ../..
+  - export PATH=/opt/ghc/7.8.4/bin:$PATH
+  # stack
+  - mkdir -p ~/.local/bin
+  - export PATH=~/.local/bin:$PATH
+  - travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.2.0/stack-0.1.2.0-x86_64-linux.gz | gunzip > ~/.local/bin/stack
+  - chmod a+x ~/.local/bin/stack
+  # selenium
+  - cd misc/selenium
+  - mkdir log
+  - "export DISPLAY=:1"
+  - make xvfb
+  - make init
+  - make start
+  - cd ../..
+
 install:
-#    - "./.travis/install.sh"
-    - make install2
-    - cabal install hlint
-    - make hlint
+  - travis_wait stack setup
+
 script:
-    - make tests2
+  - travis_wait 45 stack test
+
+addons:
+  apt:
+    sources:
+    - hvr-ghc
+    packages:
+    - ghc-7.8.4
+    - xvfb
+
+cache:
+  directories:
+    - $HOME/.stack

@@ -116,6 +116,14 @@ You'll need to build `thentos-core` in any case. `thentos-tests` is only
 required if you want to run tests. Whether you need other packages will
 depend on your use case.
 
+### Stack
+
+Download [stack](https://github.com/commercialhaskell/stack/wiki/Downloads).
+Then run `stack build` to install and build all packages, and `stack test` to
+run the tests.
+
+### Cabal sandboxes
+
 We recommend building all required packages into the same sandbox. To
 install `thentos-core`, change into the `thentos-core` directory and
 execute the following commands:
@@ -141,7 +149,7 @@ the following commands:
 ```shell
 $ cabal sandbox init --sandbox=../.cabal-sandbox
 $ cabal sandbox add-source ../thentos-core
-$ cabal install --enable-tests --enable-documentation 
+$ cabal install --enable-tests --enable-documentation
 ```
 
 To run the tests:
