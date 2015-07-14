@@ -18,7 +18,7 @@ import Data.Aeson (object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
 import Data.String.Conversions (LBS, ST)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
+import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 import Test.QuickCheck (property)
 
 import qualified Data.Aeson as Aeson
@@ -176,13 +176,6 @@ spec =
         -- (1) An error is returned if the specified user name or email doesn't exist
         -- (2) An error is returned if the wrong password is specified
 
-        describe "login" . before setupTestBackend . after teardownTestBackend $
-            it "works" $
-                \ _ -> pendingWith "test missing."
-
-                -- (we need to close the previous session, probably
-                -- just by direct access to DB api because the a3 rest
-                -- api does not offer logout.)
 
 -- | Create a JSON object describing an user.
 -- Aeson.encode would strip the password, hence we do it by hand.
