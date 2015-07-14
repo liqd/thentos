@@ -89,35 +89,57 @@ class ThentosErrorToServantErr db where
     thentosErrorToServantErr :: ThentosError db -> IO ServantErr
 
 instance ThentosErrorToServantErr DB where
-  thentosErrorToServantErr e = _thentos e where
-    _thentos NoSuchUser = pure $ err404 { errBody = "user not found" }
-    _thentos NoSuchPendingUserConfirmation = pure $ err404 { errBody = "unconfirmed user not found" }
-    _thentos (MalformedConfirmationToken path) = pure $ err400 { errBody = "malformed confirmation token: " <> cs (show path) }
-    _thentos NoSuchService = pure $ err404 { errBody = "service not found" }
-    _thentos NoSuchThentosSession = pure $ err404 { errBody = "thentos session not found" }
-    _thentos NoSuchServiceSession = pure $ err404 { errBody = "service session not found" }
-    _thentos OperationNotPossibleInServiceSession = pure $ err404 { errBody = "operation not possible in service session" }
-    _thentos ServiceAlreadyExists = pure $ err403 { errBody = "service already exists" }
-    _thentos NotRegisteredWithService = pure $ err403 { errBody = "not registered with service" }
-    _thentos UserEmailAlreadyExists = pure $ err403 { errBody = "email already in use" }
-    _thentos UserNameAlreadyExists = pure $ err403 { errBody = "user name already in use" }
-    _thentos UserIdAlreadyExists = logger ERROR (ppShow e) >> pure err500
-    _thentos BadCredentials = logger INFO (show e) >> pure (err401 { errBody = "unauthorized" })
-    _thentos BadAuthenticationHeaders = pure $ err400 { errBody = "bad authentication headers" }
-    _thentos ProxyNotAvailable = pure $ err404 { errBody = "proxying not activated" }
-    _thentos MissingServiceHeader = pure $ err404 { errBody = "headers do not contain service id" }
-    _thentos (ProxyNotConfiguredForService sid) = pure $ err404 { errBody = "proxy not configured for service " <> cs (show sid) }
-    _thentos (NoSuchToken) = pure $ err404 { errBody = "no such token" }
-    _thentos (NeedUserA _ _) = pure $ err404 { errBody = "thentos session belongs to service, cannot create service session" }
-    _thentos (MalformedUserPath path) = pure $
-        err400 { errBody = "malformed user path: " <> cs (show path) }
-    -- the following shouldn't actually reach servant:
-    _thentos SsoErrorUnknownCsrfToken = pure $ err500
-        { errBody = "invalid token returned during sso process" }
-    _thentos (SsoErrorCouldNotAccessUserInfo _) = pure $ err500
-        { errBody = "error accessing user info" }
-    _thentos (SsoErrorCouldNotGetAccessToken _) = pure $ err500
-        { errBody = "error retrieving access token" }
+    thentosErrorToServantErr e = f e
+      where
+        f NoSuchUser =
+            pure err404 { errBody = "user not found" }
+        f NoSuchPendingUserConfirmation =
+            pure err404 { errBody = "unconfirmed user not found" }
+        f (MalformedConfirmationToken path) =
+            pure err400 { errBody = "malformed confirmation token: " <> cs (show path) }
+        f NoSuchService =
+            pure err404 { errBody = "service not found" }
+        f NoSuchThentosSession =
+            pure err404 { errBody = "thentos session not found" }
+        f NoSuchServiceSession =
+            pure err404 { errBody = "service session not found" }
+        f OperationNotPossibleInServiceSession =
+            pure err404 { errBody = "operation not possible in service session" }
+        f ServiceAlreadyExists =
+            pure err403 { errBody = "service already exists" }
+        f NotRegisteredWithService =
+            pure err403 { errBody = "not registered with service" }
+        f UserEmailAlreadyExists =
+            pure err403 { errBody = "email already in use" }
+        f UserNameAlreadyExists =
+            pure err403 { errBody = "user name already in use" }
+        f UserIdAlreadyExists =
+            logger ERROR (ppShow e) >> pure err500
+        f BadCredentials =
+            logger INFO (show e) >> pure (err401 { errBody = "unauthorized" })
+        f BadAuthenticationHeaders =
+            pure err400 { errBody = "bad authentication headers" }
+        f ProxyNotAvailable =
+            pure err404 { errBody = "proxying not activated" }
+        f MissingServiceHeader =
+            pure err404 { errBody = "headers do not contain service id" }
+        f (ProxyNotConfiguredForService sid) =
+            pure err404 { errBody = "proxy not configured for service " <> cs (show sid) }
+        f (NoSuchToken) =
+            pure err404 { errBody = "no such token" }
+        f (NeedUserA _ _) =
+            pure err404 { errBody =
+                "thentos session belongs to service, cannot create service session" }
+        f (MalformedUserPath path) =
+            pure err400 { errBody = "malformed user path: " <> cs (show path) }
+
+        -- the following shouldn't actually reach servant:
+        f SsoErrorUnknownCsrfToken =
+            pure err500 { errBody = "invalid token returned during sso process" }
+        f (SsoErrorCouldNotAccessUserInfo _) =
+            pure err500 { errBody = "error accessing user info" }
+        f (SsoErrorCouldNotGetAccessToken _) =
+            pure err500 { errBody = "error retrieving access token" }
 
 
 -- * request headers
