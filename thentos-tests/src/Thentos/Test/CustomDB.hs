@@ -42,12 +42,16 @@ instance CustomDB `Extends` DB where
     thentosErrorFromParent :: ThentosError DB -> ThentosError CustomDB
     thentosErrorFromParent = CustomDBError
 
+    thentosErrorToParent :: ThentosError CustomDB -> Maybe (ThentosError DB)
+    thentosErrorToParent = Just . fromCustomDBError
+
 instance EmptyDB CustomDB where
     emptyDB = CustomDB emptyDB 0
 
 instance CustomDB `Extends` CustomDB where
     focus = id
     thentosErrorFromParent = id
+    thentosErrorToParent = Just
 
 data instance (ThentosError CustomDB) = CustomDBError { fromCustomDBError :: ThentosError DB }
 
