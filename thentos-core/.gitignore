@@ -1,4 +1,5 @@
 /dist
+/docs
 /log/*.log
 /site_key.txt
 /TAGS

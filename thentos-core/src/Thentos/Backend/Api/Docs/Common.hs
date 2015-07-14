@@ -173,7 +173,7 @@ instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
     docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
-        text = "If a request has a headers starting with \"X-Thentos-*\" where\
+        text = "If a request has a headers starting with \"X-Thentos-\\*\" where\
                \ * is any string except \"Service\" or \"Session\", the request\
                \ will be rejected."
         title = "Request Headers"
