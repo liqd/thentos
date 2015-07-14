@@ -5,8 +5,9 @@
 {-# LANGUAGE TypeOperators             #-}
 {-# LANGUAGE ViewPatterns              #-}
 
--- | This module allows you to generate code to make user-defined
--- transactions work with acid-state.
+-- | This module allows you to generate code to make user-defined transactions work with acid-state.
+-- It is based on 'Data.Acid.makeAcidic', but works on 'ThentosQuery', 'ThentosUpdate' for pure
+-- exception handling and supports polymorphic databases via the 'Extends' class.
 
 module Thentos.Transaction.TH
     ( makeThentosAcidicPhase1
@@ -37,7 +38,7 @@ data TransactionType = TransQuery | TransUpdate
 --
 -- (where MyDB is the passed-in db type).
 -- and generates transactions of the form:
--- 
+--
 -- > foo :: (db `Extends` MyDB) =>
 -- >        Bool -> Data.Acid.Query db (Either (ThentosError db) Int)
 --
@@ -83,7 +84,7 @@ makeThentosAcidicPhase1 dbTypeName names =
 -- === The gnarly details:
 -- For every transaction we need to generate a data type and some instance
 -- declarations as follows:
--- 
+--
 -- > data AgentRoles db = AgentRoles Agent
 -- >    deriving Typeable
 -- >
