@@ -37,8 +37,8 @@ data TransactionType = TransQuery | TransUpdate
 -- (where MyDB is the passed-in db type).
 -- and generates transactions of the form:
 -- 
--- > (db `Extends` MyDB) => 
--- >     Bool -> Data.Acid.Query db (Either (ThentosError db) Int)
+-- > foo :: (db `Extends` MyDB) =>
+-- >        Bool -> Data.Acid.Query db (Either (ThentosError db) Int)
 --
 -- by wrapping the user-defined function using `runThentosQuery` or
 -- `runThentosUpdate`.
@@ -62,7 +62,7 @@ makeThentosAcidicPhase1 dbTypeName names =
 -- <https://github.com/liqd/thentos/blob/master/docs/concepts/AcidPoly.lhs>.
 --
 -- The first argument is the db type which we want to make acidic. The second
--- argument is a list if all the new (i.e. not inherited) transactions on that
+-- argument is a list of all the new (i.e. not inherited) transactions on that
 -- db type.
 --
 -- The third argument is a list of all the db types that the new db inherits
@@ -302,7 +302,7 @@ dropPrefix (nameBase -> s)
 countArgs :: Type -> Int
 countArgs = length . fst . extractArgs
 
--- | Convert e.g. @(db `Extends` DB) a -> b -> ThentosUpdate db Foo@ to
+-- | Convert e.g. @(db `Extends` DB) => a -> b -> ThentosUpdate db Foo@ to
 -- @ (db `Extends` DB) => a -> b -> Update DB (Either (ThentosError DB) Foo)@
 -- and check whether it is an Update or a Query.
 makeThentosType :: Type -> (Type, TransactionType)
