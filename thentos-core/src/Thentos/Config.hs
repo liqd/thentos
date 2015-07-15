@@ -115,8 +115,8 @@ type DefaultUserConfig' =
 
 type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
-        ("log_path" :> ST)
-    :*> ("log_level" :> Prio)
+        ("path" :> ST)
+    :*> ("level" :> Prio)
 
 defaultLogConfig :: ToConfig (ToConfigCode LogConfig') Maybe
 defaultLogConfig =
