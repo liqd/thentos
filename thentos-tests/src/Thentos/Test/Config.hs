@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -6,7 +7,6 @@ module Thentos.Test.Config
 where
 
 import Control.Applicative ((<$>))
-import Control.Exception (Exception)
 import Control.Lens ((^.))
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
@@ -20,6 +20,7 @@ import System.Log.Missing (Prio(Prio))
 
 import Thentos.Types
 import Thentos.Config
+import Thentos.Action.Core (Ex)
 import Thentos (createDefaultUser)
 
 import Thentos.Test.Types
@@ -98,8 +99,7 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: (db `Extends` DB, Exception (ThentosError db), Eq (ThentosError db)) =>
-    AcidState db -> IO ()
+createGod :: (db `Ex` DB) => AcidState db -> IO ()
 createGod st = createDefaultUser st
     (Just . Tagged $
           Id (fromUserName godName)

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE ExistentialQuantification  #-}
@@ -25,7 +26,7 @@ import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (IsAcidic, openLocalStateFrom, closeAcidState)
+import Data.Acid (openLocalStateFrom, closeAcidState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -139,7 +140,7 @@ teardownBare (TS tcfg) = do
 
 -- * DBTS
 
-setupDB :: forall db . (db `Extends` DB, IsAcidic db, Eq (ThentosError db)) => IO (DBTS db)
+setupDB :: forall db . (db `Ex` DB) => IO (DBTS db)
 setupDB = do
     TS tcfg <- setupBare
     st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (emptyDB :: db)
@@ -158,10 +159,7 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- headers for default god user.
-setupTestBackend :: forall db .
-        ( db `Extends` DB, IsAcidic db
-        , Eq (ThentosError db), Show (ActionError db)) =>
-    (ActionState db -> Application) -> IO (BTS db)
+setupTestBackend :: forall db . (db `Ex` DB) => (ActionState db -> Application) -> IO (BTS db)
 setupTestBackend testBackend = do
     DBTS tcfg asg <- setupDB
     (tok, headers) <- loginAsGod asg
@@ -207,18 +205,14 @@ setupTestServerFull = do
 
     return $ FTS tcfg asg backend beConfig frontend feConfig wd
 
-teardownTestServerFull :: forall db . (db `Extends` DB, IsAcidic db, Eq (ThentosError db)) =>
-    FTS db -> IO ()
+teardownTestServerFull :: forall db . (db `Ex` DB) => FTS db -> IO ()
 teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
     teardownDB $ DBTS tcfg db
 
 
-loginAsGod :: forall db .
-        ( db `Extends` DB , IsAcidic db
-        , Eq (ThentosError db), Show (ActionError db), Exception (ActionError db)) =>
-    ActionState db -> IO (ThentosSessionToken, [Header])
+loginAsGod :: forall db . (db `Ex` DB) => ActionState db -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
     (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]

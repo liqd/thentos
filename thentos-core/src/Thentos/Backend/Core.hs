@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds                          #-}
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE DeriveDataTypeable                       #-}
 {-# LANGUAGE ExistentialQuantification                #-}
@@ -53,7 +54,7 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: forall db . (db `Extends` DB, Show (ActionError db), ThentosErrorToServantErr db) =>
+enterAction :: forall db . (db `Ex` DB, ThentosErrorToServantErr db) =>
     ActionState db -> Maybe ThentosSessionToken -> Action db :~> EitherT ServantErr IO
 enterAction state mTok = Nat $ EitherT . run
   where
@@ -71,8 +72,7 @@ enterAction state mTok = Nat $ EitherT . run
 -- thrown.  The error constructors should take all the information in typed form.  Rendering
 -- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
 -- servant error is the sole responsibility of this function.
-actionErrorToServantErr :: forall db
-       . (db `Extends` DB, Show (ActionError db), ThentosErrorToServantErr db)
+actionErrorToServantErr :: forall db . (db `Ex` DB, ThentosErrorToServantErr db)
       => ActionError db -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e

@@ -84,7 +84,6 @@ class ( Typeable dbParent, Typeable dbChild
       , SafeCopy dbParent, SafeCopy dbChild
       , Exception (ThentosError dbParent), Exception (ThentosError dbChild)
       , SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)
-      , EmptyDB dbChild
       ) =>
         dbChild `Extends` dbParent where
 
