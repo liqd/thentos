@@ -59,4 +59,4 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-cabal install --enable-tests --max-backjumps -1 --reorder-goals $SOURCES_STR
+cabal install --enable-tests --max-backjumps -1 --reorder-goals -fwith-thentos-executable $SOURCES_STR
