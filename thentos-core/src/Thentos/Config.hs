@@ -75,7 +75,7 @@ defaultThentosConfig =
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
   :*> NothingO
-  :*> Just defaultLogConfig
+  :*> Nothing
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
@@ -117,11 +117,6 @@ type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
         ("path" :> ST)
     :*> ("level" :> Prio)
-
-defaultLogConfig :: ToConfig (ToConfigCode LogConfig') Maybe
-defaultLogConfig =
-        Just "./log/thentos.log"
-    :*> Just (Prio DEBUG)
 
 
 -- * leaf types
