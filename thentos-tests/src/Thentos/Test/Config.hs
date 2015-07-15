@@ -15,6 +15,8 @@ import Data.String.Conversions (ST)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory)
+import System.Log.Logger (Priority(DEBUG))
+import System.Log.Missing (Prio(Prio))
 
 import Thentos.Types
 import Thentos.Config
@@ -55,6 +57,7 @@ testThentosConfig tcfg = Tagged $
       :*> Id (Timeout 3600)
       :*> Id (Timeout 3600)
       :*> JustO (Id 1800)
+      :*> Id (fromTagged testLogConfig)
   where
     testFeConfig :: HttpConfig
     testFeConfig = Tagged $
@@ -80,6 +83,11 @@ testThentosConfig tcfg = Tagged $
       :*> Id "thentos@thentos.org"
       :*> Id "/bin/cat"
       :*> Id []
+
+    testLogConfig :: LogConfig
+    testLogConfig = Tagged $
+          Id "./log/thentos.log"
+      :*> Id (Prio DEBUG)
 
 godUid :: UserId
 godUid = UserId 0

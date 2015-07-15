@@ -30,7 +30,7 @@ import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
-import System.Log.Missing (loggerName, logger)
+import System.Log.Missing (loggerName, logger, Prio(..))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -60,6 +60,7 @@ type ThentosConfig' =
       "Password registration token expiration period")
   :*>       ("email_change_expiration" :> Timeout    :>: "Email-change-token expiration period")
   :*> Maybe ("gc_interval"             :> Int        :>: "Garbage collection interval (ms)")
+  :*>       ("log"          :> LogConfig'            :>: "Logging")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -74,6 +75,7 @@ defaultThentosConfig =
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
   :*> NothingO
+  :*> Nothing
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
@@ -109,6 +111,12 @@ type DefaultUserConfig' =
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> UserEmail)
   :*> Maybe ("roles"    :> [RoleBasic])
+
+
+type LogConfig = Tagged (ToConfigCode LogConfig')
+type LogConfig' =
+        ("path" :> ST)
+    :*> ("level" :> Prio)
 
 
 -- * leaf types
@@ -215,13 +223,12 @@ getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Prox
 
 -- * logging
 
--- FIXME: rewrite this, make properly configurable.
+-- FIXME: rewrite this
 
-configLogger :: IO ()
-configLogger = do
-    let loglevel = DEBUG
-        logfile = "./log/thentos.log"
-
+configLogger :: ST -> Prio -> IO ()
+configLogger path prio = do
+    let logfile = ST.unpack path
+        loglevel = fromPrio prio
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
@@ -233,5 +240,5 @@ configLogger = do
     -- line-buffered and works better that way.
 
     updateGlobalLogger loggerName $
-        System.Log.Logger.setLevel DEBUG .
+        System.Log.Logger.setLevel loglevel .
         setHandlers [sHandler, fHandler]

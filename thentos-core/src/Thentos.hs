@@ -94,8 +94,9 @@ makeMain initialDB commandSwitch =
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
     let actionState = ActionState (st, rng, config)
-
-    configLogger
+        log_path = config >>. (Proxy :: Proxy '["log", "path"])
+        log_level = config >>. (Proxy :: Proxy '["log", "level"])
+    configLogger log_path log_level
     _ <- createCheckpointLoop st 16000
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
