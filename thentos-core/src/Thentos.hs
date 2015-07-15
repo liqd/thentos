@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -37,7 +38,7 @@ import Text.Show.Pretty (ppShow)
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (ActionState(..), ActionError(..), runAction)
+import Thentos.Action.Core (ActionState(..), ActionError(..), runAction, Ex)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -72,14 +73,8 @@ main = makeMain emptyDB $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFe
 
 -- * main with abstract commands
 
-makeMain :: forall db .
-    ( IsAcidic db
-    , db `Extends` DB
-    , Exception (ThentosError db), Eq (ThentosError db)
-    , Show (ActionError db)
-    ) => db
-      -> (ActionState db -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ())
-      -> IO ()
+makeMain :: forall db . (db `Ex` DB) =>
+    db -> (ActionState db -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ()) -> IO ()
 makeMain initialDB commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
@@ -124,7 +119,7 @@ makeMain initialDB commandSwitch =
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
-runGcLoop :: (db `Extends` DB, Show (ActionError db)) => ActionState db -> Maybe Int -> IO ThreadId
+runGcLoop :: (db `Ex` DB) => ActionState db -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     threadDelay $ interval * 1000 * 1000
@@ -133,8 +128,7 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: (db `Extends` DB, Exception (ThentosError db), Eq (ThentosError db)) =>
-    AcidState db -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser :: (db `Ex` DB) => AcidState db -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
     eq <- query' st $ T.LookupUser (UserId 0)

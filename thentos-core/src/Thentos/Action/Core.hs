@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveDataTypeable          #-}
 {-# LANGUAGE DeriveFunctor               #-}
@@ -26,7 +27,7 @@ import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
-import Data.Acid (AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
+import Data.Acid (IsAcidic, AcidState, UpdateEvent, QueryEvent, EventState, EventResult)
 import Data.Acid.Advanced (query', update')
 import Data.EitherR (fmapL)
 import Data.List (foldl')
@@ -88,7 +89,22 @@ data ActionError db =
 deriving instance Show (ActionError DB)
 deriving instance Typeable ActionError
 
-instance (db `Extends` DB, Show (ActionError db)) => Exception (ActionError db)
+instance (db `Ex` DB) => Exception (ActionError db)
+
+
+-- | A comprehensive collection of constraints around the 'Extends' class.
+type dbChild `Ex` dbParent =
+    ( dbChild `Extends` dbParent
+    , IsAcidic dbChild,                 IsAcidic dbParent
+    , EmptyDB dbChild,                  EmptyDB dbParent
+
+    , Eq (ThentosError dbChild),        Eq (ThentosError dbParent)
+    , Show (ThentosError dbChild),      Show (ThentosError dbParent)
+    , Exception (ThentosError dbChild), Exception (ThentosError dbParent)
+
+    , Show (ActionError dbChild),       Show (ActionError dbParent)
+    , Exception (ActionError dbChild),  Exception (ActionError dbParent)
+    )
 
 
 instance MonadLIO DCLabel (Action db) where
@@ -98,29 +114,30 @@ instance MonadLIO DCLabel (Action db) where
 -- * running actions
 
 -- | Call 'runActionE' and throw 'Left' values.
-runAction :: forall db a . (Exception (ActionError db)) => ActionState db -> Action db a -> IO a
+runAction :: (db `Ex` DB) => ActionState db -> Action db a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
-runActionWithPrivs :: (ToCNF cnf, Exception (ActionError db)) =>
+runActionWithPrivs :: (db `Ex` DB, ToCNF cnf) =>
     [cnf] -> ActionState db -> Action db a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
 
-runActionWithClearance :: Exception (ActionError db) =>
+runActionWithClearance :: (db `Ex` DB) =>
     DCLabel -> ActionState db -> Action db a -> IO a
 runActionWithClearance label state action = runActionWithClearanceE label state action >>= either throwIO return
 
-runActionAsAgent :: (db `Extends` DB, Exception (ActionError db)) =>
+runActionAsAgent :: (db `Ex` DB) =>
     Agent -> ActionState db -> Action db a -> IO a
 runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
 
-runActionInThentosSession :: (db `Extends` DB, Exception (ActionError db)) =>
+runActionInThentosSession :: (db `Ex` DB) =>
     ThentosSessionToken -> ActionState db -> Action db a -> IO a
 runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
 
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
 -- executed, and the label has not been guarded by any action yet.
-runActionE :: forall a db . ActionState db -> Action db a -> IO (Either (ActionError db) a)
+runActionE :: forall a db . (db `Ex` DB) =>
+    ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionE state action = catchUnknown
   where
     inner :: IO (Either (ThentosError db) a)
@@ -134,17 +151,19 @@ runActionE state action = catchUnknown
     catchUnknown :: IO (Either (ActionError db) a)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
-runActionWithPrivsE :: ToCNF cnf => [cnf] -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
+runActionWithPrivsE :: (db `Ex` DB, ToCNF cnf) =>
+    [cnf] -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
-runActionWithClearanceE :: DCLabel -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
+runActionWithClearanceE :: (db `Ex` DB) =>
+    DCLabel -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
 
-runActionAsAgentE :: (db `Extends` DB) =>
+runActionAsAgentE :: (db `Ex` DB) =>
     Agent -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
-runActionInThentosSessionE :: (db `Extends` DB, Exception (ActionError db)) =>
+runActionInThentosSessionE :: (db `Ex` DB) =>
     ThentosSessionToken -> ActionState db -> Action db a -> IO (Either (ActionError db) a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
@@ -189,7 +208,7 @@ grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
 -- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
 -- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
 -- are finite and cycle-free.
-accessRightsByAgent'P :: (db `Extends` DB) => Agent -> Action db [CNF]
+accessRightsByAgent'P :: (db `Ex` DB) => Agent -> Action db [CNF]
 accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRoles agent)
   where
     makeAccessRights :: Set.Set Role -> Set.Set CNF
@@ -205,7 +224,7 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRo
         f acc (Roles rs) = foldl' f acc rs
         f acc (RoleBasic b) = Set.insert b acc
 
-accessRightsByThentosSession'P :: (db `Extends` DB, Exception (ActionError db)) => ThentosSessionToken -> Action db [CNF]
+accessRightsByThentosSession'P :: (db `Ex` DB) => ThentosSessionToken -> Action db [CNF]
 accessRightsByThentosSession'P tok = do
     now <- getCurrentTime'P
     (_, session) <- update'P (LookupThentosSession now tok)
