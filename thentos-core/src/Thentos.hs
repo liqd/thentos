@@ -92,8 +92,10 @@ makeMain initialDB commandSwitch =
     config :: ThentosConfig <- getConfig "devel.config"
 
     let actionState = ActionState (st, rng, config)
-
-    configLogger
+        log_config :: LogConfig = Tagged $ config >>. (Proxy :: Proxy '["log"])
+        log_path = log_config >>. (Proxy :: Proxy '["log_path"])
+        log_level = log_config >>. (Proxy :: Proxy '["log_level"])
+    configLogger log_path log_level
     _ <- createCheckpointLoop st 16000
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))

@@ -60,6 +60,7 @@ type ThentosConfig' =
       "Password registration token expiration period")
   :*>       ("email_change_expiration" :> Timeout    :>: "Email-change-token expiration period")
   :*> Maybe ("gc_interval"             :> Int        :>: "Garbage collection interval (ms)")
+  :*>       ("log"          :> LogConfig'            :>: "Logging")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -74,6 +75,7 @@ defaultThentosConfig =
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
   :*> NothingO
+  :*> Just defaultLogConfig
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
@@ -109,6 +111,17 @@ type DefaultUserConfig' =
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> UserEmail)
   :*> Maybe ("roles"    :> [RoleBasic])
+
+
+type LogConfig = Tagged (ToConfigCode LogConfig')
+type LogConfig' =
+        ("log_path" :> ST)
+    :*> ("log_level" :> Priority)
+
+defaultLogConfig :: ToConfig (ToConfigCode LogConfig') Maybe
+defaultLogConfig =
+        Just "./log/thentos.log"
+    :*> Just DEBUG
 
 
 -- * leaf types
@@ -215,13 +228,11 @@ getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Prox
 
 -- * logging
 
--- FIXME: rewrite this, make properly configurable.
+-- FIXME: rewrite this
 
-configLogger :: IO ()
-configLogger = do
-    let loglevel = DEBUG
-        logfile = "./log/thentos.log"
-
+configLogger :: ST -> Priority -> IO ()
+configLogger path loglevel = do
+    let logfile = ST.unpack path
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
@@ -233,5 +244,5 @@ configLogger = do
     -- line-buffered and works better that way.
 
     updateGlobalLogger loggerName $
-        System.Log.Logger.setLevel DEBUG .
+        System.Log.Logger.setLevel loglevel .
         setHandlers [sHandler, fHandler]
