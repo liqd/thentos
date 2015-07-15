@@ -24,6 +24,17 @@ selenium:
 $ mkdir misc/selenium/log
 ```
 
+You'll also need the submodules that we use.
+
+```shell
+git submodule update --init
+```
+And (assuming you're using sandboxes, and not stack):
+
+```shell
+misc/thentos-install.sh
+```
+
 ## Running Thentos
 
 To run Thentos locally, type

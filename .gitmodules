@@ -1,0 +1,7 @@
+[submodule "submodules/servant"]
+	path = submodules/servant
+	url = https://github.com/haskell-servant/servant
+[submodule "submodules/pronk"]
+	path = submodules/pronk
+	url = https://github.com/liqd/pronk.git
+	branch = thentos-patches

@@ -52,7 +52,8 @@ spec = do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
               \ (bts :: (BTS DB)) -> runTestBackend bts $ do
-                let req = makeSRequest "GET" "/" [("X-Thentos-No-Such-Header", "3")] ""
+                let headers = ("X-Thentos-No-Such-Header", "3"):(bts ^. btsGodCredentials)
+                let req = makeSRequest "GET" "/user" headers ""
                 resp <- srequest req
                 liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
 

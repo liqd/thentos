@@ -20,10 +20,10 @@ module Thentos.Adhocracy3.Types
     )
     where
 
+import Control.Applicative ((<$>))
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
-import Data.Functor.Infix ((<$>))
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
 import Data.String.Conversions (LBS)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance

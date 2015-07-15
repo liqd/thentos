@@ -13,7 +13,7 @@ maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
-cabal-version:       >= 1.20
+cabal-version:       >= 1.18
 
 Source-Repository head
   type: git
@@ -113,7 +113,8 @@ library
     , lio
     , mime-mail >= 0.4.9
     , MonadCatchIO-transformers
-    , mtl
+    , mtl > 2 && < 2.2
+    , mtl-compat
     , old-locale
     , pretty-show
     , safe

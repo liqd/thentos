@@ -35,7 +35,7 @@ default:
 	make kill start watch
 
 init:
-	curl http://selenium-release.storage.googleapis.com/2.45/selenium-server-standalone-2.45.0.jar > selenium-server-standalone-2.45.0.jar
+	curl https://selenium-release.storage.googleapis.com/2.45/selenium-server-standalone-2.45.0.jar > selenium-server-standalone-2.45.0.jar
 	mkdir -p log
 
 kill:
