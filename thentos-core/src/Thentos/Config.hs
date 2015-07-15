@@ -30,7 +30,7 @@ import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
-import System.Log.Missing (loggerName, logger)
+import System.Log.Missing (loggerName, logger, Prio(..))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
@@ -116,12 +116,12 @@ type DefaultUserConfig' =
 type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
         ("log_path" :> ST)
-    :*> ("log_level" :> Priority)
+    :*> ("log_level" :> Prio)
 
 defaultLogConfig :: ToConfig (ToConfigCode LogConfig') Maybe
 defaultLogConfig =
         Just "./log/thentos.log"
-    :*> Just DEBUG
+    :*> Just (Prio DEBUG)
 
 
 -- * leaf types
@@ -230,9 +230,10 @@ getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Prox
 
 -- FIXME: rewrite this
 
-configLogger :: ST -> Priority -> IO ()
-configLogger path loglevel = do
+configLogger :: ST -> Prio -> IO ()
+configLogger path prio = do
     let logfile = ST.unpack path
+        loglevel = fromPrio prio
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"

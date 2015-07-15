@@ -92,9 +92,8 @@ makeMain initialDB commandSwitch =
     config :: ThentosConfig <- getConfig "devel.config"
 
     let actionState = ActionState (st, rng, config)
-        log_config :: LogConfig = Tagged $ config >>. (Proxy :: Proxy '["log"])
-        log_path = log_config >>. (Proxy :: Proxy '["log_path"])
-        log_level = log_config >>. (Proxy :: Proxy '["log_level"])
+        log_path = config >>. (Proxy :: Proxy '["log", "log_path"])
+        log_level = config >>. (Proxy :: Proxy '["log", "log_level"])
     configLogger log_path log_level
     _ <- createCheckpointLoop st 16000
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
