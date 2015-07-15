@@ -1,5 +1,3 @@
-language: haskell
-
 sudo: false
 
 before_install:
@@ -12,17 +10,20 @@ before_install:
   # selenium
   - cd misc/selenium
   - mkdir log
-  - "export DISPLAY=:1"
-  - make xvfb
+  - "export DISPLAY=:99"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3
   - make init
   - make start
   - cd ../..
 
 install:
-  - travis_wait stack setup
+  - travis_wait stack --no-terminal --skip-ghc-check setup
+  - travis_wait stack --no-terminal --skip-ghc-check test --only-snapshot
+  - cat .stack-work/logs/thentos-*.log
 
 script:
-  - travis_wait 45 stack test
+  - travis_wait 20 stack --no-terminal test
 
 addons:
   apt:

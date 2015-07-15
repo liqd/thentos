@@ -32,13 +32,7 @@ git submodule update --init
 And (assuming you're using sandboxes, and not stack):
 
 ```shell
-cabal sandbox add-source submodules servant/servant
-cabal sandbox add-source submodules servant/servant-server
-cabal sandbox add-source submodules servant/servant-client
-cabal sandbox add-source submodules servant/servant-docs
-cabal sandbox add-source submodules servant/servant-jquery
-cabal sandbox add-source submodules servant/servant-blaze
-cabal sandbox add-source submodules servant/servant-lucid
+misc/thentos-install.sh
 ```
 
 ## Running Thentos

@@ -11,7 +11,7 @@ maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
-cabal-version:       >= 1.20
+cabal-version:       >= 1.18
 
 Source-Repository head
   type: git
