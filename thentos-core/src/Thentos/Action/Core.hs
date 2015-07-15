@@ -20,7 +20,7 @@ where
 
 import Control.Applicative (Applicative, (<$>))
 import Control.Concurrent (MVar, modifyMVar)
-import Control.Exception (Exception, SomeException, throwIO, catch)
+import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
@@ -39,7 +39,7 @@ import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 
-import System.Log (Priority(DEBUG))
+import System.Log (Priority(DEBUG, CRITICAL))
 
 import qualified Data.Set as Set
 import qualified Data.Thyme as Thyme
@@ -262,7 +262,13 @@ hashServiceKey'P :: ServiceKey -> Action db (HashedSecret ServiceKey)
 hashServiceKey'P = liftLIO . ioTCB . hashServiceKey
 
 sendMail'P :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> Action db ()
-sendMail'P config mName address subject = liftLIO . ioTCB . sendMail config mName address subject
+sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
+    result <- sendMail config mName address subject msg
+    case result of
+        Right () -> return ()
+        Left (SendmailError s) -> do
+            logger CRITICAL $ "error sending mail: " ++ s
+            throwIO $ ErrorCall "error sending email"
 
 logger'P :: Priority -> String -> Action db ()
 logger'P prio = liftLIO . ioTCB . logger prio

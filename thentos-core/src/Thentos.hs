@@ -40,6 +40,7 @@ import Thentos.Action
 import Thentos.Action.Core (ActionState(..), ActionError(..), runAction)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
+import Thentos.Smtp (checkSendmail)
 import Thentos.Types
 import Thentos.Util
 
@@ -81,6 +82,9 @@ makeMain :: forall db .
       -> IO ()
 makeMain initialDB commandSwitch =
   do
+    config :: ThentosConfig <- getConfig "devel.config"
+    checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
+
     st :: AcidState db
         <- announceAction "setting up acid-state" $ openLocalStateFrom ".acid-state/" initialDB
         -- (opening acid-state can take rather long if a large
@@ -89,8 +93,6 @@ makeMain initialDB commandSwitch =
         -- acid-state.)
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
-    config :: ThentosConfig <- getConfig "devel.config"
-
     let actionState = ActionState (st, rng, config)
 
     configLogger
