@@ -44,36 +44,36 @@ newtype DB = DB { fromCoreDB :: Thentos.Types.DB }
   deriving (Eq, Show, Typeable, Generic)
 
 instance EmptyDB DB where
-    emptyDB = DB $ Thentos.Types.emptyDB
+    emptyDB = DB emptyDB
 
-instance DB `Thentos.Types.Extends` Thentos.Types.DB where
+instance DB `Extends` Thentos.Types.DB where
     focus f (DB db) = DB <$> f db
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
 
-instance DB `Thentos.Types.Extends` DB where
+instance DB `Extends` DB where
     focus = id
     thentosErrorFromParent = id
     thentosErrorToParent = Just
 
-data instance Thentos.Types.ThentosError DB =
-      ThentosA3ErrorCore (Thentos.Types.ThentosError (Thentos.Types.DB))
+data instance ThentosError DB =
+      ThentosA3ErrorCore (ThentosError Thentos.Types.DB)
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
 
-deriving instance Eq (Thentos.Types.ThentosError DB)
-deriving instance Show (Thentos.Types.ThentosError DB)
-deriving instance Read (Thentos.Types.ThentosError DB)
+deriving instance Eq (ThentosError DB)
+deriving instance Show (ThentosError DB)
+deriving instance Read (ThentosError DB)
 
-instance Exception (Thentos.Types.ThentosError DB)
+instance Exception (ThentosError DB)
 
 deriving instance Show (AC.ActionError DB)
 
-instance SafeCopy (Thentos.Types.ThentosError DB)
+instance SafeCopy (ThentosError DB)
   where
-    putCopy = Thentos.Types.putCopyViaShowRead
-    getCopy = Thentos.Types.getCopyViaShowRead
+    putCopy = putCopyViaShowRead
+    getCopy = getCopyViaShowRead
 
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
