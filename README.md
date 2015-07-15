@@ -124,35 +124,20 @@ run the tests.
 
 ### Cabal sandboxes
 
-We recommend building all required packages into the same sandbox. To
-install `thentos-core`, change into the `thentos-core` directory and
-execute the following commands:
+We recommend building all required packages into the same sandbox using the
+provided script.
 
 ```shell
-$ cabal sandbox init --sandbox=../.cabal-sandbox
-$ cabal install -fwith-thentos-executable --enable-documentation
+$ misc/thentos-install.sh
 ```
 
 This will take a while, as it will pull and build a lot of library
-dependencies.  `--enable-documentation` is optional (but it will take a
-while to build no matter what).
+dependencies.
 
-Start like this (in interpreted mode):
+The executable will be created as `.cabal-sandbox/bin/thentos`.
 
-```shell
-$ cabal run thentos
-```
-
-To build the tests, change into the `thentos-tests` directory and execute
-the following commands:
-
-```shell
-$ cabal sandbox init --sandbox=../.cabal-sandbox
-$ cabal sandbox add-source ../thentos-core
-$ cabal install --enable-tests --enable-documentation
-```
-
-To run the tests:
+To run the tests, change into the `thentos-tests` directory and execute
+the following command:
 
 ```shell
 $ cabal test
@@ -164,15 +149,6 @@ details and links to the download page), or do without:
 
 ```shell
 $ cabal test --test-options="--skip selenium"
-```
-If you also want to install the Adhocracy integration, change into the
-`thentos-adhocracy` directory and execute the following commands:
-
-```shell
-$ cabal sandbox init --sandbox=../.cabal-sandbox
-$ cabal sandbox add-source ../thentos-core
-$ cabal sandbox add-source ../thentos-tests
-$ cabal install --enable-tests --enable-documentation
 ```
 
 Generated Thentos documentation (thentos-0.0.1) can be found online:
