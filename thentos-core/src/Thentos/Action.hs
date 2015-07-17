@@ -84,7 +84,6 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import GHC.Exception (Exception)
-import LIO.Core (liftLIO)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
 
@@ -553,7 +552,7 @@ startServiceSession ttok sid = do
 endServiceSession :: (db `Ex` DB) => ServiceSessionToken -> Action db ()
 endServiceSession tok = do
     uid <- _serviceSessionUser tok
-    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
+    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
                   (update'P $ T.EndServiceSession tok)
                   (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
 
