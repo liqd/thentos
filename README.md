@@ -119,8 +119,9 @@ depend on your use case.
 ### Stack
 
 Download [stack](https://github.com/commercialhaskell/stack/wiki/Downloads).
-Then run `stack build` to install and build all packages, and `stack test` to
-run the tests.
+Then run `stack setup` to install the right ghc version, `stack build` to
+install and build all packages, and `stack test` to run the tests, all from
+this directory.
 
 ### Cabal sandboxes
 
