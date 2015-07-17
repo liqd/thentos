@@ -84,7 +84,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import GHC.Exception (Exception)
-import LIO.Core (liftLIO, guardWrite, taint)
+import LIO.Core (liftLIO)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
 
@@ -141,7 +141,7 @@ freshSsoToken = SsoToken <$> freshRandomName
 -- | Return a list of all 'UserId's.  Requires 'RoleAdmin'.
 allUserIds :: (db `Ex` DB) => Action db [UserId]
 allUserIds = do
-    liftLIO $ taint (RoleAdmin %% False)
+    taintMsg "allUserIds" (RoleAdmin %% False)
     query'P T.AllUserIds
 
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
@@ -173,12 +173,12 @@ lookupUserByEmail email = _lookupUser $ T.LookupUserByEmail email
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
 addUser :: (db `Ex` DB) => UserFormData -> Action db UserId
 addUser userData = do
-    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= update'P . T.AddUser
 
 addUsers :: (db `Ex` DB) => [UserFormData] -> Action db [UserId]
 addUsers userData = do
-    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "addUsers" (RoleAdmin %% RoleAdmin)
     users <- mapM makeUserFromFormData'P userData
     update'P $ T.AddUsers users
 
@@ -186,7 +186,7 @@ addUsers userData = do
 -- found or access is not granted, throw 'NoSuchUser'.
 deleteUser :: (db `Ex` DB) => UserId -> Action db ()
 deleteUser uid = do
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.DeleteUser uid
 
 -- | Assert that no user with the same name or email address already exists in the db.
@@ -287,13 +287,13 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 -- login.  See also 'updateUserFields'.
 updateUserField :: (db `Ex` DB) => UserId -> T.UpdateUserFieldOp -> Action db ()
 updateUserField uid op = do
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "updateUserField" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserField uid op
 
 -- | See 'updateUserField'.
 updateUserFields :: (db `Ex` DB) => UserId -> [T.UpdateUserFieldOp] -> Action db ()
 updateUserFields uid ops = do
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "updateUserFields" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserFields uid ops
 
 -- | Authenticate user against old password, and then change password to new password.  Requires
@@ -302,7 +302,7 @@ changePassword :: (db `Ex` DB) => UserId -> UserPass -> UserPass -> Action db ()
 changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.LookupUser uid) old
     hashedPw <- hashUserPass'P new
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
@@ -311,7 +311,7 @@ changePassword uid old new = do
 requestUserEmailChange :: (db `Ex` DB) =>
     UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action db ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "requestUserEmailChange" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
 
     tok <- freshConfirmationToken
     now <- getCurrentTime'P
@@ -345,18 +345,18 @@ confirmUserEmailChange token = do
 
 allServiceIds :: (db `Ex` DB) => Action db [ServiceId]
 allServiceIds = do
-    liftLIO $ taint (RoleAdmin %% False)
+    taintMsg "allServiceIds" (RoleAdmin %% False)
     query'P T.AllServiceIds
 
 lookupService :: (db `Ex` DB) => ServiceId -> Action db (ServiceId, Service)
 lookupService sid = do
-    liftLIO $ taint (RoleAdmin \/ ServiceA sid %% False)
+    taintMsg "lookupService" (RoleAdmin \/ ServiceA sid %% False)
     query'P $ T.LookupService sid
 
 addService :: (db `Ex` DB) =>
     Agent -> ServiceName -> ServiceDescription -> Action db (ServiceId, ServiceKey)
 addService owner name desc = do
-    liftLIO $ guardWrite (RoleAdmin \/ owner %% RoleAdmin /\ owner)
+    guardWriteMsg "addService" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
     sid <- freshServiceId
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
@@ -365,13 +365,13 @@ addService owner name desc = do
 
 deleteService :: (db `Ex` DB) => ServiceId -> Action db ()
 deleteService sid = do
-    liftLIO $ guardWrite (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
+    guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
     update'P $ T.DeleteService sid
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: (db `Ex` DB) => UserId -> ServiceId -> Action db [Group]
 userGroups uid sid = do
-    liftLIO $ taint (UserA uid \/ ServiceA sid %% False)
+    taintMsg "userGroups" (UserA uid \/ ServiceA sid %% False)
     (_, service) <- query'P $ T.LookupService sid
     return $ T.flattenGroups service uid
 
@@ -470,7 +470,8 @@ serviceNamesFromThentosSession tok = do
     xs :: [(ServiceId, Service)]
         <- mapM (\ s -> query'P $ T.LookupService (s ^. srvSessService)) ss
 
-    liftLIO $ guardWrite (RoleAdmin \/ ts ^. thSessAgent %% RoleAdmin /\ ts ^. thSessAgent)
+    guardWriteMsg "serviceNamesFromThentosSession"
+        (RoleAdmin \/ ts ^. thSessAgent %% RoleAdmin /\ ts ^. thSessAgent)
 
     return $ (^. serviceName) . snd <$> xs
 
@@ -520,7 +521,7 @@ _serviceSessionUser tok = do
 addServiceRegistration :: (db `Ex` DB) => ThentosSessionToken -> ServiceId -> Action db ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
-    -- FIXME: the following makes helloworld fail: liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
+    -- FIXME: the following makes helloworld fail: guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
@@ -529,7 +530,8 @@ addServiceRegistration tok sid = do
 dropServiceRegistration :: (db `Ex` DB) => ThentosSessionToken -> ServiceId -> Action db ()
 dropServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
-    liftLIO $ guardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
+    guardWriteMsg "dropServiceRegistration"
+        (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldDropService sid)
 
 -- | Login user running the current thentos session into service.  If user is not registered with
@@ -564,17 +566,17 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 
 assignRole :: (db `Ex` DB) => Agent -> Role -> Action db ()
 assignRole agent role = do
-    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "assignRole" (RoleAdmin %% RoleAdmin)
     update'P $ T.AssignRole agent role
 
 unassignRole :: (db `Ex` DB) => Agent -> Role -> Action db ()
 unassignRole agent role = do
-    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "unassignRole" (RoleAdmin %% RoleAdmin)
     update'P $ T.UnassignRole agent role
 
 agentRoles :: (db `Ex` DB) => Agent -> Action db [Role]
 agentRoles agent = do
-    liftLIO $ guardWrite (RoleAdmin \/ agent %% RoleAdmin /\ agent)
+    taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     Set.toList <$> query'P (T.AgentRoles agent)
 
 
@@ -599,7 +601,7 @@ lookupAndRemoveSsoToken tok = update'P $ T.LookupAndRemoveSsoToken tok
 
 collectGarbage :: (db `Ex` DB, Exception (ActionError db)) => Action db ()
 collectGarbage = do
-    liftLIO $ guardWrite (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
     now <- getCurrentTime'P
     query'P (T.GarbageCollectThentosSessions now) >>= update'P . T.DoGarbageCollectThentosSessions
