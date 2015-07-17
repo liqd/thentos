@@ -123,6 +123,14 @@ Then run `stack setup` to install the right ghc version, `stack build` to
 install and build all packages, and `stack test` to run the tests, all from
 this directory.
 
+To build the `thentos-core` executable, build with
+
+```shell
+$ stack build --flag thentos-core:with-thentos-executable
+```
+
+which will drop it in `.stack-work/install/.../bin/thentos-core`.
+
 ### Cabal sandboxes
 
 We recommend building all required packages into the same sandbox using the
