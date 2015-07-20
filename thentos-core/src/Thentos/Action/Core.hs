@@ -34,7 +34,7 @@ import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP)
+import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
 import LIO.Label (lub)
 import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
@@ -301,3 +301,19 @@ logIfError'P = (`catchError` f)
     f e = do
         logger'P DEBUG $ "*** error: " ++ show e
         throwError e
+
+
+-- * better label errors
+
+-- | Call 'taint', but log a more informative error in case of fail.
+taintMsg :: String -> DCLabel -> Action db ()
+taintMsg msg l = do
+    tryTaint l (return ()) $ \ (e :: AnyLabelError) -> do
+        logger'P DEBUG $ ("taintMsg:\n    " ++ msg ++ "\n    " ++ show e)
+        liftLIO $ taint l
+
+guardWriteMsg :: String -> DCLabel -> Action db ()
+guardWriteMsg msg l = do
+    tryGuardWrite l (return ()) $ \ (e :: AnyLabelError) -> do
+        logger'P DEBUG $ "guardWrite:\n    " ++ msg ++ "\n    " ++ show e
+        liftLIO $ guardWrite l
