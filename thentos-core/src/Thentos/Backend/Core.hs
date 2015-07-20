@@ -41,8 +41,8 @@ import Servant.Docs.Internal (HasDocs(..), sampleByteStrings, response, respType
 import Servant.API ((:>))
 import Servant.API.ContentTypes (AllCTRender, AllMimeRender, IsNonEmpty)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
-import Servant.Server.Internal (RouteResult(RR), methodRouter, Router(..), RouteMismatch(HttpError), failWith)
-import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody, responseServantErr)
+import Servant.Server.Internal (methodRouter, Router(..), RouteMismatch(HttpError), failWith)
+import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
@@ -241,19 +241,24 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 httpCachePolicy :: HttpTypes.ResponseHeaders
 httpCachePolicy = [("Cache-Control", "no-cache, no-store, must-revalidate"), ("Expires", "0")]
 
--- | Add suitable headers to HTTP responses. For now, this just prevents caching of all GET/HEAD
--- requests (other HTTP methods are considered uncacheable by default). In the future we may use
--- more refined caching strategies.
-addResponseHeaders :: Middleware
-addResponseHeaders app req respond
-  | requestMethod req `elem` [methodGet, methodHead] = app req $ respond . updR
+-- | Add suitable cache-control headers to HTTP responses. For now, this just prevents caching of
+-- all GET/HEAD requests (other HTTP methods are considered uncacheable by default). In the future
+-- we may use more refined caching strategies.
+addCacheControlHeaders :: Middleware
+addCacheControlHeaders app req respond
+  | requestMethod req `elem` [methodGet, methodHead] = app req $
+        respond . addHeadersToResponse httpCachePolicy
   | otherwise                                        = app req respond
+
+addHeadersToResponse ::  HttpTypes.ResponseHeaders -> Response -> Response
+addHeadersToResponse extraHeaders resp = case resp of
+    ResponseFile status hdrs filepath part -> ResponseFile status (updH hdrs) filepath part
+    ResponseBuilder status hdrs builder    -> ResponseBuilder status (updH hdrs) builder
+    ResponseStream status hdrs body        -> ResponseStream status (updH hdrs) body
+    ResponseRaw action resp'               -> ResponseRaw action $
+                                                  addHeadersToResponse extraHeaders resp'
   where
-    updR (ResponseFile status hdrs filepath part) = ResponseFile status (updH hdrs) filepath part
-    updR (ResponseBuilder status hdrs builder)    = ResponseBuilder status (updH hdrs) builder
-    updR (ResponseStream status hdrs body)        = ResponseStream status (updH hdrs) body
-    updR (ResponseRaw action resp')               = ResponseRaw action (updR resp')
-    updH hdrs = nubBy ((==) `on` fst) $ httpCachePolicy ++ hdrs
+    updH hdrs = nubBy ((==) `on` fst) $ extraHeaders ++ hdrs
 
 
 -- * warp

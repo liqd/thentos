@@ -41,7 +41,7 @@ runApi cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
