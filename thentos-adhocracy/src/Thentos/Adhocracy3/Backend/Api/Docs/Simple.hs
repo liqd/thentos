@@ -16,41 +16,46 @@ import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Types
 
-import qualified Thentos.Adhocracy3.Backend.Api.Simple as Adhocracy3
+import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
 
 
-instance ToSample Adhocracy3.A3UserNoPass Adhocracy3.A3UserNoPass where
-    toSample _ = Adhocracy3.A3UserNoPass <$> toSample (Proxy :: Proxy UserFormData)
+instance ToSample A3.A3UserNoPass A3.A3UserNoPass where
+    toSample _ = A3.A3UserNoPass <$> toSample (Proxy :: Proxy UserFormData)
 
-instance ToSample Adhocracy3.A3UserWithPass Adhocracy3.A3UserWithPass where
-    toSample _ = Adhocracy3.A3UserWithPass <$> toSample (Proxy :: Proxy UserFormData)
+instance ToSample A3.A3UserWithPass A3.A3UserWithPass where
+    toSample _ = A3.A3UserWithPass <$> toSample (Proxy :: Proxy UserFormData)
 
-instance ToSample a a => ToSample (Adhocracy3.A3Resource a) (Adhocracy3.A3Resource a) where
-    toSample _ = Adhocracy3.A3Resource
-                    <$> (Just <$> toSample (Proxy :: Proxy Adhocracy3.Path))
-                    <*> (Just <$> toSample (Proxy :: Proxy Adhocracy3.ContentType))
+instance ToSample a a => ToSample (A3.A3Resource a) (A3.A3Resource a) where
+    toSample _ = A3.A3Resource
+                    <$> (Just <$> toSample (Proxy :: Proxy A3.Path))
+                    <*> (Just <$> toSample (Proxy :: Proxy A3.ContentType))
                     <*> (Just <$> toSample (Proxy :: Proxy a))
 
-instance ToSample Adhocracy3.Path Adhocracy3.Path where
-    toSample _ = pure $ Adhocracy3.Path "/proposals/environment"
+instance ToSample A3.TypedPath A3.TypedPath where
+    toSample _ = A3.TypedPath
+                    <$> (toSample (Proxy :: Proxy A3.Path))
+                    <*> (toSample (Proxy :: Proxy A3.ContentType))
 
-instance ToSample Adhocracy3.ActivationRequest Adhocracy3.ActivationRequest where
-    toSample _ = Adhocracy3.ActivationRequest <$> toSample (Proxy :: Proxy Adhocracy3.Path)
+instance ToSample A3.Path A3.Path where
+    toSample _ = pure $ A3.Path "/proposals/environment"
+
+instance ToSample A3.ActivationRequest A3.ActivationRequest where
+    toSample _ = A3.ActivationRequest <$> toSample (Proxy :: Proxy A3.Path)
 
 -- FIXME: split up LoginRequest into two separate types for login by email
 -- and login by user name, in order to provide a correct example for
 -- login_email request body
-instance ToSample Adhocracy3.LoginRequest Adhocracy3.LoginRequest where
-    toSample _ = Adhocracy3.LoginByName <$> toSample (Proxy :: Proxy UserName)
+instance ToSample A3.LoginRequest A3.LoginRequest where
+    toSample _ = A3.LoginByName <$> toSample (Proxy :: Proxy UserName)
                                         <*> toSample (Proxy :: Proxy UserPass)
 
-instance ToSample Adhocracy3.RequestResult Adhocracy3.RequestResult where
-    toSample _ = Adhocracy3.RequestSuccess
-                    <$> toSample (Proxy :: Proxy Adhocracy3.Path)
+instance ToSample A3.RequestResult A3.RequestResult where
+    toSample _ = A3.RequestSuccess
+                    <$> toSample (Proxy :: Proxy A3.Path)
                     <*> toSample (Proxy :: Proxy ThentosSessionToken)
 
-instance ToSample Adhocracy3.ContentType Adhocracy3.ContentType where
-    toSample _ = pure Adhocracy3.CTUser
+instance ToSample A3.ContentType A3.ContentType where
+    toSample _ = pure A3.CTUser
 
 docs :: Docs.API
-docs = Docs.docs (Proxy :: Proxy Adhocracy3.Api)
+docs = Docs.docs (Proxy :: Proxy A3.Api)
