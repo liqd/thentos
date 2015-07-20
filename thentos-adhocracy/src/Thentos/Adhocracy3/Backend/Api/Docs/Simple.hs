@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE OverloadedStrings                        #-}
@@ -7,6 +8,7 @@
 module Thentos.Adhocracy3.Backend.Api.Docs.Simple where
 
 import Control.Applicative (pure, (<$>), (<*>))
+import Data.Maybe (maybeToList)
 import Data.Proxy (Proxy(Proxy))
 import Servant.Docs (ToSample(toSample))
 
@@ -33,11 +35,22 @@ instance ToSample a a => ToSample (A3.A3Resource a) (A3.A3Resource a) where
 
 instance ToSample A3.TypedPath A3.TypedPath where
     toSample _ = A3.TypedPath
-                    <$> (toSample (Proxy :: Proxy A3.Path))
-                    <*> (toSample (Proxy :: Proxy A3.ContentType))
+                    <$> toSample (Proxy :: Proxy A3.Path)
+                    <*> toSample (Proxy :: Proxy A3.ContentType)
 
 instance ToSample A3.Path A3.Path where
     toSample _ = pure $ A3.Path "/proposals/environment"
+
+instance ToSample [A3.Path] [A3.Path] where
+    toSample _ = pure . maybeToList $ toSample (Proxy :: Proxy A3.Path)
+
+instance ToSample A3.TypedPathWithCacheControl A3.TypedPathWithCacheControl where
+    toSample _ = A3.TypedPathWithCacheControl
+                     <$> toSample (Proxy :: Proxy A3.TypedPath)
+                     <*> toSample (Proxy :: Proxy [A3.Path])
+                     <*> toSample (Proxy :: Proxy [A3.Path])
+                     <*> toSample (Proxy :: Proxy [A3.Path])
+                     <*> toSample (Proxy :: Proxy [A3.Path])
 
 instance ToSample A3.ActivationRequest A3.ActivationRequest where
     toSample _ = A3.ActivationRequest <$> toSample (Proxy :: Proxy A3.Path)
@@ -47,7 +60,7 @@ instance ToSample A3.ActivationRequest A3.ActivationRequest where
 -- login_email request body
 instance ToSample A3.LoginRequest A3.LoginRequest where
     toSample _ = A3.LoginByName <$> toSample (Proxy :: Proxy UserName)
-                                        <*> toSample (Proxy :: Proxy UserPass)
+                                <*> toSample (Proxy :: Proxy UserPass)
 
 instance ToSample A3.RequestResult A3.RequestResult where
     toSample _ = A3.RequestSuccess
