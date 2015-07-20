@@ -101,7 +101,7 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = A3.addAccessControlHeaders . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 
 -- * api

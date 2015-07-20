@@ -34,7 +34,7 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai (Application)
+import Network.Wai (Application, Middleware)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Safe (readMay)
@@ -306,7 +306,7 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = addAccessControlHeaders . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 
 -- * api
@@ -411,6 +411,20 @@ createUserInA3'P user = do
     sendRequest ::  Client.Request -> IO (Client.Response LBS)
     sendRequest req = Client.withManager Client.defaultManagerSettings $ Client.httpLbs req
     responseCode = Status.statusCode . Client.responseStatus
+
+
+-- * response headers
+
+-- | A3 needs these headers for embedding.
+addAccessControlHeaders :: Middleware
+addAccessControlHeaders app req respond = app req $
+        respond . addHeadersToResponse accessControlHeaders
+  where
+    accessControlHeaders =
+       [ ("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, X-User-Path, X-User-Token")
+       , ("Access-Control-Allow-Methods", "POST,GET,DELETE,PUT,OPTIONS")
+       , ("Access-Control-Allow-Origin", "*")
+       ]
 
 
 -- * low-level helpers
