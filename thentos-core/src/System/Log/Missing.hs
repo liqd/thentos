@@ -13,12 +13,14 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Exception (bracket_)
-import System.Log.Logger
 import Control.Monad.IO.Class (MonadIO, liftIO)
-
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(String))
 import Data.Data (Typeable)
+import Data.String.Conversions (cs)
 import Data.Text (toUpper, pack)
+import Safe (readMay)
+
+import System.Log.Logger
 
 -- | 'logM' has two drawbacks: (1) It asks for a hierarchical logger
 -- (aka component or module) name, but we don't want to bother with
@@ -40,16 +42,8 @@ announceAction msg = bracket_ (logger INFO msg) (logger INFO $ msg ++ ": [ok]")
 deriving instance Typeable Prio
 
 instance FromJSON Prio where
-    parseJSON (String s) = Prio <$> case toUpper s of
-        "DEBUG"     -> return DEBUG
-        "INFO"      -> return INFO
-        "NOTICE"    -> return NOTICE
-        "WARNING"   -> return WARNING
-        "ERROR"     -> return ERROR
-        "CRITICAL"  -> return CRITICAL
-        "ALERT"     -> return ALERT
-        "EMERGENCY" -> return EMERGENCY
-        _           -> fail "not a valid log priority"
+    parseJSON (String s) = Prio <$> maybe (fail $ "not a valid log priority: " ++ cs s) return
+                                          (readMay . cs . toUpper $ s)
     parseJSON _ = fail "expected a string representing log priority"
 
 instance ToJSON Prio where
