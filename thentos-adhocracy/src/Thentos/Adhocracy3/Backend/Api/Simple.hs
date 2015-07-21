@@ -34,7 +34,7 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai (Application, Middleware)
+import Network.Wai (Application)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Safe (readMay)
@@ -306,7 +306,7 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addAccessControlHeaders . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 
 -- * api
@@ -413,18 +413,14 @@ createUserInA3'P user = do
     responseCode = Status.statusCode . Client.responseStatus
 
 
--- * response headers
+-- * policy
 
--- | A3 needs these headers for embedding.
-addAccessControlHeaders :: Middleware
-addAccessControlHeaders app req respond = app req $
-        respond . addHeadersToResponse accessControlHeaders
-  where
-    accessControlHeaders =
-       [ ("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, X-User-Path, X-User-Token")
-       , ("Access-Control-Allow-Methods", "POST,GET,DELETE,PUT,OPTIONS")
-       , ("Access-Control-Allow-Origin", "*")
-       ]
+a3corsPolicy :: CorsPolicy
+a3corsPolicy = CorsPolicy
+    { corsHeaders = "Origin, Content-Type, Accept, X-User-Path, X-User-Token"
+    , corsMethods = "POST,GET,DELETE,PUT,OPTIONS"
+    , corsOrigin  =  "*"
+    }
 
 
 -- * low-level helpers

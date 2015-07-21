@@ -260,6 +260,19 @@ addHeadersToResponse extraHeaders resp = case resp of
   where
     updH hdrs = nubBy ((==) `on` fst) $ extraHeaders ++ hdrs
 
+-- | Policy for Cross-origin Resource Sharing (CORS).
+data CorsPolicy = CorsPolicy { corsHeaders :: SBS, corsMethods :: SBS, corsOrigin :: SBS }
+
+-- | Add "Access-Control-Allow-..." headers based on a 'CorsPolicy'.
+addCorsHeaders :: CorsPolicy -> Middleware
+addCorsHeaders policy app req respond = app req $
+        respond . addHeadersToResponse accessControlHeaders
+  where
+    accessControlHeaders =
+       [ ("Access-Control-Allow-Headers", corsHeaders policy)
+       , ("Access-Control-Allow-Methods", corsMethods policy)
+       , ("Access-Control-Allow-Origin", corsOrigin policy)
+       ]
 
 -- * warp
 
