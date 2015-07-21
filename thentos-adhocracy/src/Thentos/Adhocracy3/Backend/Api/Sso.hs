@@ -101,7 +101,8 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) .
+           api
 
 
 -- * api
@@ -137,7 +138,7 @@ api actionState =
 
 -- * handler
 
-addUser :: A3.A3UserWithPass -> AC.Action DB (A3.A3Resource A3.A3UserNoPass)
+addUser :: A3.A3UserWithPass -> AC.Action DB A3.TypedPathWithCacheControl
 addUser _ = error "404"  -- FIXME: respond with a non-internal error
 
 activate :: A3.ActivationRequest -> AC.Action DB A3.RequestResult

@@ -38,7 +38,7 @@ import Network.Wai (Application)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Safe (readMay)
-import Servant.API ((:<|>)((:<|>)), (:>), Post, ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
@@ -136,6 +136,27 @@ instance FromJSON TypedPath where
     parseJSON = withObject "resource object" $ \v -> TypedPath
         <$> (v .: "path") <*> (v .: "content_type")
 
+-- | The A3 backend replies to POST request not just with a typed path, but also sends a listing
+-- of created/modified etc. resources along to allow the A3 frontend to update its cache.
+data TypedPathWithCacheControl = TypedPathWithCacheControl
+    { tpccTypedPath :: TypedPath
+    , tpccChangedDescendants :: [Path]
+    , tpccCreated :: [Path]
+    , tpccModified :: [Path]
+    , tpccRemoved :: [Path]
+    } deriving (Eq, Show)
+
+instance ToJSON TypedPathWithCacheControl where
+    toJSON t = object
+        [ "path"              .= tpPath (tpccTypedPath t)
+        , "content_type"      .= tpContentType (tpccTypedPath t)
+        , "updated_resources" .= object
+            [ "changed_descendants" .= tpccChangedDescendants t
+            , "created"             .= tpccCreated t
+            , "modified"            .= tpccModified t
+            , "removed"             .= tpccRemoved t
+            ]
+        ]
 
 -- ** individual resources
 
@@ -285,7 +306,7 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: AC.ActionState DB -> Application
-serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
+serveApi = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 
 -- * api
@@ -295,10 +316,11 @@ serveApi = addResponseHeaders . serve (Proxy :: Proxy Api) . api
 -- @/login_email@.  This makes implementing all sides of the protocol
 -- a lot easier without sacrificing security.
 type ThentosApi =
-       "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass :> Post '[JSON] (A3Resource A3UserNoPass)
-  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post '[JSON] RequestResult
-  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post '[JSON] RequestResult
+       "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass
+                               :> Post200 '[JSON] TypedPathWithCacheControl
+  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post200 '[JSON] RequestResult
+  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
+  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
 
 type Api =
        ThentosApi
@@ -321,19 +343,32 @@ api actionState =
 
 -- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
 -- If A3 reponds with a error, user creation is aborted.
-addUser :: A3UserWithPass -> AC.Action DB (A3Resource A3UserNoPass)
+addUser :: A3UserWithPass -> AC.Action DB TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
     A.assertUserIsNew user
-    config <- AC.getConfig'P
+    cfg <- AC.getConfig'P
     uid <- createUserInA3'P user
     tok <- A.addUnconfirmedUserWithId user uid
     let activationUrl = cs (exposeUrl feHttp) <> "activate/" <> cs (fromConfirmationToken tok)
-        feHttp :: HttpConfig = case config >>. (Proxy :: Proxy '["frontend"]) of
+        feHttp :: HttpConfig = case cfg >>. (Proxy :: Proxy '["frontend"]) of
               Nothing -> error "addUser: frontend not configured!"
               Just v -> Tagged v
-    sendUserConfirmationMail (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user activationUrl
-    return $ A3Resource (Just $ userIdToPath config uid) (Just CTUser) (Just $ A3UserNoPass user)
+    sendUserConfirmationMail (Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])) user activationUrl
+    let userPath = userIdToPath cfg uid
+        typedPath          = TypedPath userPath CTUser
+        -- Mimic cache-control info returned form the A3 backend
+        changedDescendants = [ a3backendPath cfg ""
+                             , a3backendPath cfg "principals/"
+                             , a3backendPath cfg "principals/users/"
+                             , a3backendPath cfg "principals/groups/"
+                             ]
+        created            = [userPath]
+        modified           = [ a3backendPath cfg "principals/users/"
+                             , a3backendPath cfg "principals/groups/authenticated/"
+                             ]
+        removed            = []
+    return $ TypedPathWithCacheControl typedPath changedDescendants created modified removed
 
 sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> AC.Action DB ()
 sendUserConfirmationMail smtpConfig user callbackUrl =
@@ -378,6 +413,16 @@ createUserInA3'P user = do
     responseCode = Status.statusCode . Client.responseStatus
 
 
+-- * policy
+
+a3corsPolicy :: CorsPolicy
+a3corsPolicy = CorsPolicy
+    { corsHeaders = "Origin, Content-Type, Accept, X-User-Path, X-User-Token"
+    , corsMethods = "POST,GET,DELETE,PUT,OPTIONS"
+    , corsOrigin  =  "*"
+    }
+
+
 -- * low-level helpers
 
 -- | Create a user creation request to be sent to the A3 backend. The actual user password is
@@ -412,13 +457,16 @@ renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
 userIdToPath :: ThentosConfig -> UserId -> Path
-userIdToPath config (UserId i) = Path $ domain <> userpath
+userIdToPath config (UserId i) = a3backendPath config $
+    cs (printf "principals/users/%7.7i" i :: String)
+
+-- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
+a3backendPath :: ThentosConfig -> ST -> Path
+a3backendPath config localPath = Path $ (cs $ exposeUrl beHttp) <> localPath
   where
-    domain   = cs $ exposeUrl beHttp
-    userpath = cs (printf "principals/users/%7.7i" i :: String)
-    beHttp   = case config >>. (Proxy :: Proxy '["backend"]) of
-                    Nothing -> error "userIdToPath: backend not configured!"
-                    Just v -> Tagged v
+    beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
+                     Nothing -> error "a3backendPath: backend not configured!"
+                     Just v -> Tagged v
 
 userIdFromPath :: MonadError (ThentosError DB) m => Path -> m UserId
 userIdFromPath (Path s) = do
