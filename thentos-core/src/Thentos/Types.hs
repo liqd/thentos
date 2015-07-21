@@ -274,10 +274,7 @@ instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
-
-instance Aeson.FromJSON ThentosSessionToken where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ThentosSessionToken where toJSON = Aeson.gtoJson
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromJSON, ToJSON)
 
 data ThentosSession =
     ThentosSession
