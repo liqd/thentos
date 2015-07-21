@@ -303,10 +303,11 @@ instance FromJSON RequestResult where
 runBackend :: HttpConfig -> AC.ActionState DB -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg
+    manager <- Client.newManager Client.defaultManagerSettings
+    runWarpWithCfg cfg $ serveApi manager asg
 
-serveApi :: AC.ActionState DB -> Application
-serveApi = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
+serveApi :: Client.Manager -> AC.ActionState DB -> Application
+serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api manager
 
 
 -- * api
@@ -333,10 +334,10 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
   :<|> login
   :<|> login
 
-api :: AC.ActionState DB -> Server Api
-api actionState =
+api :: Client.Manager -> AC.ActionState DB -> Server Api
+api manager actionState =
        thentosApi actionState
-  :<|> serviceProxy renderA3HeaderName actionState
+  :<|> serviceProxy manager renderA3HeaderName actionState
 
 
 -- * handler
@@ -438,7 +439,7 @@ mkUserCreationRequestForA3 config user = do
         user'  = UserFormData { udName     = udName user,
                                 udEmail    = udEmail user,
                                 udPassword = "dummypass" }
-    initReq <- Client.parseUrl $ cs target <> "/principals/users"
+    initReq <- Client.parseUrl $ cs $ show target <> "/principals/users"
     return initReq { Client.method = "POST",
         Client.requestHeaders = [("Content-Type", "application/json")],
         Client.requestBody = Client.RequestBodyLBS . Aeson.encode . A3UserWithPass $ user' }

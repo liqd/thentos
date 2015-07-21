@@ -80,6 +80,7 @@ import System.Log (Priority(INFO))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding   as ST
+import qualified Network.HTTP.Client  as Client
 import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
@@ -98,11 +99,12 @@ import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
 runBackend :: HttpConfig -> AC.ActionState DB -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style with SSO) on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg
+    manager <- Client.newManager Client.defaultManagerSettings
+    runWarpWithCfg cfg $ serveApi manager asg
 
-serveApi :: AC.ActionState DB -> Application
-serveApi = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) .
-           api
+serveApi :: Client.Manager -> AC.ActionState DB -> Application
+serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) .
+           api manager
 
 
 -- * api
@@ -129,11 +131,11 @@ thentosApi404 actionState = enter (enterAction actionState Nothing) $
   :<|> login
   :<|> login
 
-api :: AC.ActionState DB -> Server Api
-api actionState =
+api :: Client.Manager -> AC.ActionState DB -> Server Api
+api manager actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
-  :<|> serviceProxy A3.renderA3HeaderName actionState
+  :<|> serviceProxy manager A3.renderA3HeaderName actionState
 
 
 -- * handler

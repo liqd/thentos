@@ -56,6 +56,7 @@ library
     , directory
     , filepath
     , hslogger
+    , http-client
     , http-types
     , lens
     , lifted-base

@@ -108,6 +108,7 @@ library
     , hslogger
     , http-client
     , http-media
+    , http-reverse-proxy
     , http-types
     , lens
     , lio

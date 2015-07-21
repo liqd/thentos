@@ -21,13 +21,16 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, cs)
+import Data.String.Conversions (cs)
+import Network.HTTP.ReverseProxy
 import Servant.API (Raw)
-import Servant.Server (Server, HasServer(..))
 import Servant.Server.Internal.ServantErr (responseServantErr)
+import Servant.Server (Server, HasServer(..))
 import System.Log.Logger (Priority(DEBUG))
+import URI.ByteString (authorityHost, hostBS, portNumber, uriAuthority, authorityPort)
 
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C
@@ -43,41 +46,36 @@ import Thentos.Types
 data ServiceProxy
 
 instance HasServer ServiceProxy where
-  type ServerT ServiceProxy m = S.Application
-  route Proxy = route (Proxy :: Proxy Raw)
+    type ServerT ServiceProxy m = S.Application
+    route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => RenderHeaderFun -> ActionState db -> Server ServiceProxy
-serviceProxy renderHeaderFun state req cont = do
+      => C.Manager -> RenderHeaderFun -> ActionState db -> Server ServiceProxy
+serviceProxy manager renderHeaderFun state
+    = waiProxyTo (reverseProxyHandler renderHeaderFun state)
+                 defaultOnExc
+                 manager
+
+-- | Proxy or respond based on request headers.
+reverseProxyHandler :: (db `Ex` DB, ThentosErrorToServantErr db)
+      => RenderHeaderFun -> ActionState db -> S.Request -> IO WaiProxyResponse
+reverseProxyHandler renderHeaderFun state req = do
     eRqMod <- runActionE state $ getRqMod renderHeaderFun req
     case eRqMod of
-        Right rqMod -> do
-            C.withManager C.defaultManagerSettings $ \ manager ->
-                prepareReq renderHeaderFun rqMod req >>=
-                (`C.httpLbs` manager) >>=
-                cont . prepareResp
-        Left e -> do
-            servantError <- actionErrorToServantErr e
-            cont $ responseServantErr servantError
+        Right (RqMod uri headers) -> do
+          let proxyDest = ProxyDest { pdHost = cs $ proxyHost uri
+                                    , pdPort = proxyPort uri }
+          return $ WPRModifiedRequest (prepareReq renderHeaderFun headers req) proxyDest
+        Left e -> actionErrorToServantErr e >>= \x -> return . WPRResponse $ responseServantErr x
 
-prepareReq :: RenderHeaderFun -> RqMod -> S.Request -> IO C.Request
-prepareReq renderHeaderFun (RqMod target proxyHdrs) req = do
-    body <- S.strictRequestBody req
-    req' <- C.parseUrl $ target ++ (cs $ S.rawPathInfo req)
-    return . C.setQueryString (S.queryString req) $ req'
-        { C.method         = S.requestMethod req
-        , C.checkStatus    = \ _ _ _ -> Nothing
-        , C.requestBody    = C.RequestBodyLBS body
-        , C.requestHeaders = proxyHdrs <> clearCustomHeaders renderHeaderFun (S.requestHeaders req)
-        }
-
-prepareResp :: C.Response LBS -> S.Response
-prepareResp res = S.responseLBS (C.responseStatus res) (C.responseHeaders res) (C.responseBody res)
+prepareReq :: RenderHeaderFun -> T.RequestHeaders -> S.Request -> S.Request
+prepareReq renderHeaderFun proxyHdrs req
+    = req { S.requestHeaders = proxyHdrs <> clearCustomHeaders renderHeaderFun (S.requestHeaders req) }
 
 
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.
-data RqMod = RqMod String T.RequestHeaders
+data RqMod = RqMod ProxyUri T.RequestHeaders
   deriving (Eq, Show)
 
 -- | Create request modifier with custom headers to add to it and the target URL of the
@@ -112,21 +110,21 @@ getRqMod renderHeaderFun req = do
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
 -- For convenience, both service ID and target URL are returned.
 findTargetForServiceId :: (db `Ex` DB) =>
-    ServiceId -> ThentosConfig -> Action db (ServiceId, String)
+    ServiceId -> ThentosConfig -> Action db (ServiceId, ProxyUri)
 findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
             Nothing    -> throwError . thentosErrorFromParent $ ProxyNotConfiguredForService sid
-    return (sid, cs target)
+    return (sid, target)
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
-findDefaultServiceIdAndTarget :: (db `Ex` DB) => ThentosConfig -> Action db (ServiceId, String)
+findDefaultServiceIdAndTarget :: (db `Ex` DB) => ThentosConfig -> Action db (ServiceId, ProxyUri)
 findDefaultServiceIdAndTarget conf = do
     defaultProxy <- maybe (throwError . thentosErrorFromParent $ MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
     sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
-    return (sid, cs $ extractTargetUrl defaultProxy)
+    return (sid, extractTargetUrl defaultProxy)
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.

@@ -55,6 +55,7 @@ data BTS db = BTS
     , _btsWai            :: Application
     , _btsToken          :: ThentosSessionToken
     , _btsGodCredentials :: [Header]
+    , _btsServiceId      :: ServiceId
     }
 
 $(makeLenses ''BTS)
