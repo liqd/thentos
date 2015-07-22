@@ -7,7 +7,7 @@ module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent (forkIO, killThread, ThreadId)
-import Control.Concurrent (MVar, newEmptyMVar, readMVar, putMVar)
+import Control.Concurrent.MVar (MVar, newEmptyMVar, readMVar, putMVar)
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
 import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
