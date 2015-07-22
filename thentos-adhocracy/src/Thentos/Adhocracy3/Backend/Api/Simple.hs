@@ -282,7 +282,7 @@ instance ToJSON RequestResult where
     toJSON (RequestSuccess p t) = object $
         "status" .= ("success" :: ST) :
         "user_path" .= p :
-        "token" .= t :
+        "user_token" .= t :
         []
     toJSON (RequestError es) = object $
         "status" .= ("error" :: ST) :
@@ -293,7 +293,7 @@ instance FromJSON RequestResult where
     parseJSON = withObject "request result" $ \ v -> do
         n :: ST <- v .: "status"
         case n of
-            "success" -> RequestSuccess <$> v .: "user_path" <*> v .: "token"
+            "success" -> RequestSuccess <$> v .: "user_path" <*> v .: "user_token"
             "error" -> RequestError <$> v .: "errors"
             _ -> mzero
 
