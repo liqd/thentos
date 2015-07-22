@@ -21,7 +21,6 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
@@ -30,7 +29,6 @@ import Servant.API (Raw)
 import Servant.Server.Internal.ServantErr (responseServantErr)
 import Servant.Server (Server, HasServer(..))
 import System.Log.Logger (Priority(DEBUG))
-import URI.ByteString (authorityHost, hostBS, portNumber, uriAuthority, authorityPort)
 
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C
