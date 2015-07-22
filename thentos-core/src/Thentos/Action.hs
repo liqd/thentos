@@ -53,6 +53,7 @@ module Thentos.Action
     , startThentosSessionByUserEmail
     , startThentosSessionByServiceId
     , endThentosSession
+    , validateThentosUserSession
     , serviceNamesFromThentosSession
 
     , lookupServiceSession
@@ -389,11 +390,16 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 -- not allow access, throw 'NoSuchThentosSession'.
 lookupThentosSession :: (db `Ex` DB) => ThentosSessionToken -> Action db ThentosSession
 lookupThentosSession tok = do
-    now <- getCurrentTime'P
-    session <- snd <$> update'P (T.LookupThentosSession now tok)
+    session <- _lookupThentosSession tok
     tryTaint (session ^. thSessAgent %% False)
         (return session)
         (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchThentosSession)
+
+-- | Find 'ThentosSession' from token, without clearance check.
+_lookupThentosSession :: (db `Ex` DB) => ThentosSessionToken -> Action db ThentosSession
+_lookupThentosSession tok = do
+    now <- getCurrentTime'P
+    snd <$> update'P (T.LookupThentosSession now tok)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
@@ -442,6 +448,18 @@ startThentosSessionByServiceId sid key = a `catchError` h
 endThentosSession :: (db `Ex` DB) => ThentosSessionToken -> Action db ()
 endThentosSession = update'P . T.EndThentosSession
 
+-- | Check that a Thentos session exists, is not expired, and belongs to a user (rather than a
+-- service). Returns information on the user if that's the case. Throws 'NoSuchThentosSession'
+-- otherwise.
+--
+-- We assume that the ThentosSessionToken is a secret that nobody except the session owner can
+-- know, therefore no special clearance is required.
+validateThentosUserSession :: (db `Ex` DB) => ThentosSessionToken -> Action db (UserId, User)
+validateThentosUserSession tok = do
+    session <- _lookupThentosSession tok
+    case session ^. thSessAgent of
+        UserA uid  -> query'P $ T.LookupUser uid
+        ServiceA _ -> throwError $ thentosErrorFromParent NoSuchThentosSession
 
 -- | Open a session for any agent.
 -- NOTE: This should only be called after verifying the agent's credentials

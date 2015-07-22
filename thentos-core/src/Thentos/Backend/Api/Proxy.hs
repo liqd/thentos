@@ -134,15 +134,9 @@ createCustomHeaders :: (db `Ex` DB) =>
     RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId -> Action db T.RequestHeaders
 createCustomHeaders _ Nothing _                    = return []
 createCustomHeaders renderHeaderFun (Just tok) sid = do
-    (uid, user) :: (UserId, User)
-        <- do
-            session <- lookupThentosSession tok
-            case session ^. thSessAgent of
-                UserA uid  -> lookupUser uid
-                ServiceA servId -> throwError . thentosErrorFromParent $ NeedUserA tok servId
-
-    groups :: [Group] <- userGroups uid sid
-
+    (uid, user) <- validateThentosUserSession tok
+    grantAccessRights'P [UserA uid]
+    groups <- userGroups uid sid
     return [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
            , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
            ]
