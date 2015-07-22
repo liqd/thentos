@@ -35,6 +35,7 @@ import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
+import Network.HTTP.Client (Manager, newManager, defaultManagerSettings)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network (HostName, PortID(PortNumber), connectTo)
@@ -65,7 +66,7 @@ import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
-import Thentos.Transaction
+import Thentos.Transaction hiding (addService)
 import Thentos.Types
 
 import Thentos.Test.Config
@@ -158,12 +159,19 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
--- headers for default god user.
-setupTestBackend :: forall db . (db `Ex` DB) => (ActionState db -> Application) -> IO (BTS db)
+-- for default god user.
+setupTestBackend :: forall db . (db `Ex` DB) => (Manager -> ActionState db -> Application) -> IO (BTS db)
 setupTestBackend testBackend = do
+    manager <- newManager defaultManagerSettings
     DBTS tcfg asg <- setupDB
     (tok, headers) <- loginAsGod asg
-    return $ BTS tcfg asg (tracifyApplication tcfg $ testBackend asg) tok headers
+    return $ BTS {
+        _btsCfg = tcfg
+      , _btsActionState = asg
+      , _btsWai = tracifyApplication tcfg $ testBackend manager asg
+      , _btsToken = tok
+      , _btsGodCredentials = headers
+    }
 
 teardownTestBackend :: BTS db -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)

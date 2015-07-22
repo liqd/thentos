@@ -50,7 +50,7 @@ testThentosConfig tcfg = Tagged $
           Id Run
       :*> JustO (Id (fromTagged testFeConfig))
       :*> JustO (Id (fromTagged testBeConfig))
-      :*> NothingO
+      :*> JustO (Id (fromTagged testProxyConfig))
       :*> NothingO
       :*> Id (fromTagged testSmtpConfig)
       :*> NothingO
@@ -89,6 +89,11 @@ testThentosConfig tcfg = Tagged $
     testLogConfig = Tagged $
           Id "./log/thentos.log"
       :*> Id (Prio DEBUG)
+
+    testProxyConfig :: ProxyConfig
+    testProxyConfig = Tagged $
+          Id "someid"
+      :*> Id (ProxyUri "localhost" 8001)
 
 godUid :: UserId
 godUid = UserId 0

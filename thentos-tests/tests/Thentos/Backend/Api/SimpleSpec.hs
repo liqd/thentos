@@ -33,7 +33,7 @@ import Thentos.Test.Core hiding (setupTestBackend)
 import qualified Thentos.Test.Core (setupTestBackend)
 
 setupTestBackend :: IO (BTS DB)
-setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
+setupTestBackend = Thentos.Test.Core.setupTestBackend (const serveApi)
 
 
 tests :: IO ()

@@ -26,7 +26,7 @@ import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -37,9 +37,7 @@ import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
-import URI.ByteString (URI, laxURIParserOptions, parseURI, serializeURI)
 
-import qualified Blaze.ByteString.Builder as Builder
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
@@ -420,21 +418,18 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * uri
 
-newtype Uri = Uri { rawURI :: URI }
-    deriving (Eq, Show, Typeable)
+data ProxyUri = ProxyUri { proxyHost :: String
+                         , proxyPort :: Int
+                         }
+    deriving (Eq, Typeable, Generic)
 
-renderUri :: Uri -> SBS
-renderUri = Builder.toByteString . serializeURI . rawURI
+instance Aeson.FromJSON ProxyUri
+instance Aeson.ToJSON ProxyUri
 
-instance Aeson.FromJSON Uri
-  where
-    parseJSON (String t) = case parseURI laxURIParserOptions $ cs t of
-        Right uri -> return $ Uri uri
-        Left err  -> fail $ concat ["Not a valid URI -- ",  show err, ": ", cs t]
-    parseJSON bad        = fail $ "Not a valid URI (expected string): " ++ show bad
-
-instance Aeson.ToJSON Uri where toJSON = Aeson.String . cs . renderUri
-
+instance Show ProxyUri where
+    show (ProxyUri host port) = case reverse host of
+        ('/':xs) -> reverse xs ++ (':' : show port)
+        _        -> host ++ (':' : show port)
 
 -- * errors
 

@@ -89,7 +89,7 @@ type HttpConfig' =
 type ProxyConfig = Tagged (ToConfigCode ProxyConfig')
 type ProxyConfig' =
             ("service_id" :> ST)
-  :*>       ("endpoint"   :> Uri)
+  :*>       ("endpoint"   :> ProxyUri)
 
 type SmtpConfig = Tagged (ToConfigCode SmtpConfig')
 type SmtpConfig' =
@@ -201,8 +201,8 @@ exposeUrl cfg = _renderUrl bs bh bp
     bh = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_host"])) (cfg >>. (Proxy :: Proxy '["expose_host"]))
     bp = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_port"])) (cfg >>. (Proxy :: Proxy '["expose_port"]))
 
-extractTargetUrl :: ProxyConfig -> ST
-extractTargetUrl proxy = cs . renderUri $ proxy >>. (Proxy :: Proxy '["endpoint"])
+extractTargetUrl :: ProxyConfig -> ProxyUri
+extractTargetUrl proxy = proxy >>. (Proxy :: Proxy '["endpoint"])
 
 _renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
 _renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"

@@ -180,7 +180,9 @@ test-suite tests
     , hslogger
     , hspec
     , http-types
+    , HTTP
     , lens
+    , lens-aeson
     , lifted-base
     , lio
     , mime-mail
@@ -206,4 +208,6 @@ test-suite tests
     , unordered-containers
     , wai
     , wai-extra
+    , warp
     , webdriver
+    , wreq
