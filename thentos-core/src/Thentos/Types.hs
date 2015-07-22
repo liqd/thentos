@@ -19,10 +19,14 @@ module Thentos.Types where
 
 import Control.Applicative ((<$>))
 import Control.Exception (Exception)
+import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses, Lens')
 import Data.Aeson (FromJSON, ToJSON, Value(String))
+import Data.ByteString (ByteString)
 import Data.Data (Typeable)
 import Data.Map (Map)
+import Data.Maybe (isNothing, fromMaybe, fromJust)
+import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
@@ -37,6 +41,9 @@ import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
+import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
+                       queryPairs, parseURI, laxURIParserOptions, authorityHost,
+                       authorityPort, portNumber, hostBS, uriPath)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
@@ -418,18 +425,47 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * uri
 
-data ProxyUri = ProxyUri { proxyHost :: String
+data ProxyUri = ProxyUri { proxyHost :: ByteString
                          , proxyPort :: Int
+                         , proxyPath :: ByteString
                          }
     deriving (Eq, Typeable, Generic)
 
+
 instance Aeson.FromJSON ProxyUri
-instance Aeson.ToJSON ProxyUri
+  where
+    parseJSON (String t) = case parseURI laxURIParserOptions $ cs t of
+        Right uri -> do
+            when (schemeBS (uriScheme uri) /= "http") mzero
+            when (isNothing $ uriAuthority uri) mzero
+            unless (null . queryPairs $ uriQuery uri) mzero
+            unless (isNothing $ uriFragment uri) mzero
+            let auth = fromJust $ uriAuthority uri
+            let host = authorityHost auth
+                port = fromMaybe 80 $ portNumber <$> authorityPort auth
+            return $ ProxyUri { proxyHost = hostBS host
+                              , proxyPort = port
+                              , proxyPath = uriPath uri
+                              }
+        Left _ -> mzero
+    parseJSON bad        = fail $ "Not a valid URI (expected string): " ++ show bad
+
+instance Aeson.ToJSON ProxyUri where
+    toJSON (ProxyUri host port path) = Aeson.String $ cs host
+                                                   <> cs (show port)
+                                                   <> cs path
 
 instance Show ProxyUri where
-    show (ProxyUri host port) = case reverse host of
-        ('/':xs) -> reverse xs ++ (':' : show port)
-        _        -> host ++ (':' : show port)
+    show (ProxyUri host port path) = "http://" ++ host' ++ port' ++ path'
+        where
+            path' = case cs path of
+                a@('/' : r) -> a
+                a           -> '/' : a
+            port' = ':' : show port
+            host' = case reverse (cs host) of
+                ('/':xs) -> reverse xs
+                _        -> cs host
+
 
 -- * errors
 
