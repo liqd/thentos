@@ -1,14 +1,20 @@
+{-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 
 module Thentos.TypesSpec where
 
+import Control.Applicative ((<$>))
+import Data.Aeson (decode, FromJSON)
 import Data.SafeCopy (safeGet, safePut)
 import Data.Serialize.Get (runGet)
 import Data.Serialize.Put (runPut)
+import Data.String.Conversions (cs)
+import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, describe, it, shouldBe, hspec)
+import Test.Hspec (Spec, context, describe, it, shouldBe, hspec)
 import Test.QuickCheck (property)
 
 import Thentos.Types
@@ -84,3 +90,48 @@ spec = modifyMaxSize (* testSizeFactor) $ do
       it "satisfies: l >>> c && l >>> c' <==> l >>> glb c c'" . property $
           \ l c c' ->
               l >>> c && l >>> c' <==> l >>> glb c c'
+
+    describe "ProxyUri" $ do
+
+        context "its Show instance" $ do
+
+            it "is a right inverse of decode" $ do
+                let example = ProxyUri { proxyHost = "example.com"
+                                       , proxyPort = 80
+                                       , proxyPath = "/path"
+                                       }
+                decodeLenient (show example) `shouldBe` Just example
+
+        context "its FromJSON instance" $ do
+
+            it "allows simple http domains" $ do
+                let correct = ProxyUri "something.com" 80 "/"
+                decodeLenient "http://something.com/" `shouldBe` Just correct
+
+            it "allows ports" $ do
+                let correct = ProxyUri "something.com" 799 "/"
+                decodeLenient "http://something.com:799/" `shouldBe` Just correct
+
+            it "decodes paths" $ do
+                let correct = ProxyUri "something.com" 799 "/path"
+                decodeLenient "http://something.com:799/path" `shouldBe` Just correct
+
+            it "only allows http" $ do
+                decodeLenient "https://something.com" `shouldBe` Nothing
+                decodeLenient "ftp://something.com" `shouldBe` Nothing
+
+            it "does not allow query strings" $ do
+                decodeLenient "http://something.com?hi" `shouldBe` Nothing
+
+            it "does not allow fragments" $ do
+                decodeLenient "http://something.com/t#hi" `shouldBe` Nothing
+
+decodeLenient :: String -> Maybe ProxyUri
+decodeLenient str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
+
+-- @Wrapper@ is used to get around the restriction from top-level strings in
+-- pre 0.9 versions of @aeson@
+data Wrapper = Wrapper { val :: ProxyUri }
+    deriving (Eq, Show, Generic)
+
+instance FromJSON Wrapper

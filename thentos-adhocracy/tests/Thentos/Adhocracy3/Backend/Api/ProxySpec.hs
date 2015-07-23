@@ -33,7 +33,6 @@ import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
 import Thentos.Test.Core (setupTestBackend)
 import Thentos.Test.Types (btsWai)
 
-
 spec :: Spec
 spec = do
     beforeAll setup (afterAll_ teardown tests)
@@ -71,12 +70,12 @@ spec = do
                         req ^? Wreq.responseBody . key "body"
                             `shouldBe` Just (String $ cs rBody)
 
-                it "gets an unchanged path" $ do
+                it "gets the proxy path added" $ do
                     property $ \rPath -> hitsProxy rPath ==> do
                         let url = "http://localhost:7118/" ++ urlEncode rPath
                         req <- Wreq.get url
                         req ^? Wreq.responseBody . key "path"
-                            `shouldBe` Just (String $ cs $ "/" ++ urlEncode rPath)
+                            `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
 
 -- Check that a path should hit the proxy
 hitsProxy :: String -> Bool
@@ -86,8 +85,8 @@ hitsProxy = not . or . sequence [ ("principals/users" `isPrefixOf`)
                                 , ("login_email" `isPrefixOf`)
                                 ]
 
--- * Backend behind proxy
 
+-- * Backend behind proxy
 
 -- Simple server that echoes back all the request it received as a JSON object.
 proxyDestServer :: Application

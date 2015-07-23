@@ -30,7 +30,9 @@ import Servant.Server.Internal.ServantErr (responseServantErr)
 import Servant.Server (Server, HasServer(..))
 import System.Log.Logger (Priority(DEBUG))
 
+import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
+import qualified Data.Text as ST
 import qualified Network.HTTP.Client as C
 import qualified Network.HTTP.Types.Header as T
 import qualified Network.Wai as S
@@ -40,6 +42,7 @@ import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
+
 
 data ServiceProxy
 
@@ -63,13 +66,21 @@ reverseProxyHandler renderHeaderFun state req = do
         Right (RqMod uri headers) -> do
           let proxyDest = ProxyDest { pdHost = cs $ proxyHost uri
                                     , pdPort = proxyPort uri }
-          return $ WPRModifiedRequest (prepareReq renderHeaderFun headers req) proxyDest
-        Left e -> actionErrorToServantErr e >>= \x -> return . WPRResponse $ responseServantErr x
 
-prepareReq :: RenderHeaderFun -> T.RequestHeaders -> S.Request -> S.Request
-prepareReq renderHeaderFun proxyHdrs req
-    = req { S.requestHeaders = proxyHdrs <> clearCustomHeaders renderHeaderFun (S.requestHeaders req) }
+          let pReq = prepareReq renderHeaderFun headers (proxyPath uri) req
+          return $ WPRModifiedRequest pReq proxyDest
+        Left e -> WPRResponse . responseServantErr <$> actionErrorToServantErr e
 
+prepareReq :: RenderHeaderFun -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
+prepareReq renderHeaderFun proxyHdrs pathPrefix req
+    = req { S.requestHeaders = proxyHdrs <> newHdrs
+          , S.rawPathInfo = newPath
+          }
+    where
+        newHdrs = clearCustomHeaders renderHeaderFun (S.requestHeaders req)
+        dropLeading = BSC.dropWhile (== '/')
+        pathPrefix' = BSC.reverse . dropLeading $ BSC.reverse pathPrefix
+        newPath = BSC.concat [ pathPrefix', "/", dropLeading $ S.rawPathInfo req]
 
 -- | Request modifier that contains all information that is needed to
 -- alter and forward an incoming request.

@@ -93,7 +93,7 @@ testThentosConfig tcfg = Tagged $
     testProxyConfig :: ProxyConfig
     testProxyConfig = Tagged $
           Id "someid"
-      :*> Id (ProxyUri "localhost" 8001)
+      :*> Id (ProxyUri "localhost" 8001 "path")
 
 godUid :: UserId
 godUid = UserId 0
