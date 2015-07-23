@@ -85,8 +85,8 @@ hitsProxy = not . or . sequence [ ("principals/users" `isPrefixOf`)
                                 , ("login_email" `isPrefixOf`)
                                 ]
 
--- * Backend behind proxy
 
+-- * Backend behind proxy
 
 -- Simple server that echoes back all the request it received as a JSON object.
 proxyDestServer :: Application
