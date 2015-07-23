@@ -437,10 +437,9 @@ instance Aeson.FromJSON ProxyUri
     parseJSON (String t) = case parseURI laxURIParserOptions $ cs t of
         Right uri -> do
             when (schemeBS (uriScheme uri) /= "http") mzero
-            when (isNothing $ uriAuthority uri) mzero
             unless (null . queryPairs $ uriQuery uri) mzero
             unless (isNothing $ uriFragment uri) mzero
-            let auth = fromJust $ uriAuthority uri
+            auth <- maybe mzero return $ uriAuthority uri
             let host = authorityHost auth
                 port = fromMaybe 80 $ portNumber <$> authorityPort auth
             return $ ProxyUri { proxyHost = hostBS host
