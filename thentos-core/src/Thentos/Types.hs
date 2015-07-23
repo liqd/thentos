@@ -22,7 +22,6 @@ import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses, Lens')
 import Data.Aeson (FromJSON, ToJSON, Value(String))
-import Data.ByteString (ByteString)
 import Data.Data (Typeable)
 import Data.Map (Map)
 import Data.Maybe (isNothing, fromMaybe, fromJust)
@@ -30,7 +29,7 @@ import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (LBS, ST, cs)
+import Data.String.Conversions (SBS, LBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -425,9 +424,9 @@ instance ToCNF RoleBasic where toCNF = toCNF . show
 
 -- * uri
 
-data ProxyUri = ProxyUri { proxyHost :: ByteString
+data ProxyUri = ProxyUri { proxyHost :: SBS
                          , proxyPort :: Int
-                         , proxyPath :: ByteString
+                         , proxyPath :: SBS
                          }
     deriving (Eq, Typeable, Generic)
 
