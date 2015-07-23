@@ -122,8 +122,8 @@ makeMain initialDB commandSwitch =
 runGcLoop :: (db `Ex` DB) => ActionState db -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    threadDelay $ interval * 1000 * 1000
     runAction actionState collectGarbage
+    threadDelay $ interval * 1000 * 1000
 
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
