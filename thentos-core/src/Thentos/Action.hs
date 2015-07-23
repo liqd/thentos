@@ -87,6 +87,7 @@ import Data.String.Conversions (ST, cs)
 import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
+import System.Log.Logger (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Set as Set
@@ -618,6 +619,7 @@ lookupAndRemoveSsoToken tok = update'P $ T.LookupAndRemoveSsoToken tok
 
 collectGarbage :: (db `Ex` DB, Exception (ActionError db)) => Action db ()
 collectGarbage = do
+    logger'P DEBUG "starting garbage collection."
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
     now <- getCurrentTime'P
@@ -631,3 +633,5 @@ collectGarbage = do
     update'P $ T.DoGarbageCollectUnconfirmedUsers now userExpiry
     update'P $ T.DoGarbageCollectEmailChangeTokens now emailExpiry
     update'P $ T.DoGarbageCollectPasswordResetTokens now passwordExpiry
+
+    logger'P DEBUG "garbage collection complete!"
