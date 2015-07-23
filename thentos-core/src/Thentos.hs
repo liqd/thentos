@@ -38,7 +38,7 @@ import Text.Show.Pretty (ppShow)
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (ActionState(..), runAction, Ex)
+import Thentos.Action.Core (ActionState(..), runActionWithPrivs, Ex)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -122,7 +122,7 @@ makeMain initialDB commandSwitch =
 runGcLoop :: (db `Ex` DB) => ActionState db -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    runAction actionState collectGarbage
+    runActionWithPrivs [RoleAdmin] actionState collectGarbage
     threadDelay $ interval * 1000 * 1000
 
 
