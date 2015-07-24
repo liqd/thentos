@@ -276,7 +276,7 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \ fts -> do
     oneSessionCookie _   = False
 
 
--- This is a a webdriver meta-test, as a base case for the csrf test below.
+-- This is a a webdriver meta-test, as a base case for 'spec_failOnCsrf'.
 spec_restoringCookieRestoresSession :: SpecWith (FTS DB)
 spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \ fts -> do
     let feConfig = fts ^. ftsFrontendCfg
