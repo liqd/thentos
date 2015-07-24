@@ -16,7 +16,7 @@ import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, should
 
 import qualified Data.Map as Map
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text as T
+import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
@@ -86,7 +86,7 @@ spec_createUser = describe "create user" $ do
             fill "/user/register.email" myEmail
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
-            WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Please check your email"
+            WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
@@ -97,7 +97,7 @@ spec_createUser = describe "create user" $ do
         case Map.toList $ db1 ^. dbUnconfirmedUsers of
               [(tok, _)] -> wd $ do
                   WD.openPageSync . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
-                  WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Registration complete"
+                  WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Registration complete"
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
         -- check that user is in db
@@ -214,7 +214,7 @@ spec_logIntoThentos = it "log into thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Login successful"
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Login successful"
 
 
 spec_logOutOfThentos :: SpecWith (FTS DB)
@@ -224,7 +224,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
     -- logout when logged in
     wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "You have been logged out"
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "You have been logged out"
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
@@ -298,9 +298,9 @@ spec_serviceCreate = it "service create" $ \fts -> do
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
         pat = "Service id: "
-        extractId s = case snd . T.breakOn "Service id: " $ s of
+        extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
-            m  -> Just . ServiceId . T.take 24 . T.drop (T.length pat) $ m
+            m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
     serviceId <- wd $ do
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
@@ -377,7 +377,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
     fill "/dashboard/ownservices.name" "this is a service name"
     fill "/dashboard/ownservices.description" "this is a service description"
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "csrf badness"
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "csrf badness"
 
 
 -- * wd actions
@@ -412,12 +412,12 @@ wdLogout feConfig = do
 isLoggedIn :: HttpConfig -> WD.WD ()
 isLoggedIn cfg = do
         WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
-        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Thentos Dashboard"
+        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Thentos Dashboard"
 
 isNotLoggedIn :: HttpConfig -> WD.WD ()
 isNotLoggedIn cfg = do
         WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
-        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Thentos Login"
+        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Thentos Login"
 
 
 -- | Fill a labeled text field.
