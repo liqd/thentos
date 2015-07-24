@@ -80,9 +80,6 @@ spec_createUser = describe "create user" $ do
             WD.openPageSync (cs $ exposeUrl feConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
-            let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-                fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-
             fill "/user/register.name" myUsername
             fill "/user/register.password1" myPassword
             fill "/user/register.password2" myPassword
@@ -304,9 +301,6 @@ spec_serviceCreate = it "service create" $ \fts -> do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
-        let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-            fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-
         fill "/dashboard/ownservices.name" sname
         fill "/dashboard/ownservices.description" sdescr
 
@@ -375,9 +369,6 @@ spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
     WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
     WD.deleteVisibleCookies -- delete before restore to work around phantomjs domain wonkiness
     mapM_ WD.setCookie storedCookies
-    let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-        fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-
     fill "/dashboard/ownservices.name" "this is a service name"
     fill "/dashboard/ownservices.description" "this is a service description"
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
@@ -391,8 +382,6 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
     WD.setImplicitWait 200
     WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/login")
 
-    let fill :: WD.WebDriver wd => ST -> ST -> wd ()
-        fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
     fill "/user/login.name" uname
     fill "/user/login.password" upass
 
@@ -424,3 +413,8 @@ isNotLoggedIn :: HttpConfig -> WD.WD ()
 isNotLoggedIn cfg = do
         WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
         WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+
+
+-- | Fill a labeled text field.
+fill :: WD.WebDriver wd => ST -> ST -> wd ()
+fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
