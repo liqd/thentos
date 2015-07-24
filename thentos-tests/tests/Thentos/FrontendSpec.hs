@@ -45,6 +45,8 @@ spec = describe "selenium grid" $ do
     spec_resetPassword
     spec_logIntoThentos
     spec_logOutOfThentos
+    spec_redirectWhenNotLoggedIn
+    spec_dontRedirectWhenLoggedIn
     spec_serviceCreate
     spec_serviceDelete
     spec_serviceUpdateMetadata
@@ -226,6 +228,25 @@ spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
+
+
+spec_redirectWhenNotLoggedIn :: SpecWith (FTS DB)
+spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \ fts -> do
+    let feConfig = fts ^. ftsFrontendCfg
+        wd = fts ^. ftsRunWD
+    wd $ do
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
+        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+
+
+spec_dontRedirectWhenLoggedIn :: SpecWith (FTS DB)
+spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \ fts -> do
+    let feConfig = fts ^. ftsFrontendCfg
+        wd = fts ^. ftsRunWD
+    wd $ do
+        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
+        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
