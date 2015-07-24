@@ -214,10 +214,6 @@ spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Login successful")
 
-    -- (out of curiousity: why do we need the type signature in the
-    -- lambda parameter?  shouldn't ghc infer (and be happy with the
-    -- fact) that the lambda is polymorphic in all places where it
-    -- takes '_'?)
 
 spec_logOutOfThentos :: SpecWith (FTS DB)
 spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
