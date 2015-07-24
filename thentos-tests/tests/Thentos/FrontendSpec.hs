@@ -15,7 +15,6 @@ import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 
 import qualified Data.Map as Map
-import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
