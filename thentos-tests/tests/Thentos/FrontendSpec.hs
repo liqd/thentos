@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 
@@ -11,7 +10,7 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
-import Data.Maybe (listToMaybe)
+import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 import Text.Regex.Easy ((=~-))
@@ -298,7 +297,11 @@ spec_serviceCreate = it "service create" $ \fts -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
-    serviceId :: ServiceId <- wd $ do
+        extractId :: ST -> Maybe ServiceId
+        extractId s = case cs s =~- "Service id: (.+)\"" of
+            [_, sid]  -> Just . ServiceId . cs . LBS.take 24 $ sid
+            _         -> Nothing
+    serviceId <- wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
@@ -306,8 +309,9 @@ spec_serviceCreate = it "service create" $ \fts -> do
         fill "/dashboard/ownservices.description" sdescr
 
         WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-
-        (\ ((=~- "Service id: (.+)\"") . cs -> [_, sid]) -> ServiceId $ cs (LBS.take 24 sid)) <$> WD.getSource
+        extractId <$> WD.getSource >>= \sid -> do
+            liftIO $ sid `shouldSatisfy` isJust
+            return (fromJust sid)
 
     -- db: check that
     --   1. service has been created;
