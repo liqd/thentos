@@ -48,6 +48,7 @@ spec = describe "selenium grid" $ do
     spec_redirectWhenNotLoggedIn
     spec_dontRedirectWhenLoggedIn
     spec_deletingCookiesLogsOut
+    spec_logInSetsSessionCookie
     spec_serviceCreate
     spec_serviceDelete
     spec_serviceUpdateMetadata
@@ -259,6 +260,19 @@ spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \ fts -> do
         WD.deleteVisibleCookies
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
         WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+
+
+spec_logInSetsSessionCookie :: SpecWith (FTS DB)
+spec_logInSetsSessionCookie = it "set cookie on login" $ \ fts -> do
+    let feConfig = fts ^. ftsFrontendCfg
+        wd = fts ^. ftsRunWD
+    wd $ do
+        WD.cookies >>= \ cs -> liftIO $ cs `shouldBe` []
+        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.cookies >>= \ cs -> liftIO $ cs `shouldSatisfy` oneSessionCookie
+  where
+    oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
+    oneSessionCookie _   = False
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
