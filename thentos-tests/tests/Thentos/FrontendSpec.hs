@@ -378,6 +378,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     WD.deleteVisibleCookies
     wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
+    WD.deleteVisibleCookies -- delete before restore to work around phantomjs domain wonkiness
     mapM_ WD.setCookie storedCookies
     let fill :: WD.WebDriver wd => ST -> ST -> wd ()
         fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
