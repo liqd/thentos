@@ -13,7 +13,6 @@ import Data.Acid.Advanced (query')
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
-import Text.Regex.Easy ((=~-))
 
 import qualified Data.Map as Map
 import qualified Data.ByteString.Lazy as LBS
@@ -297,10 +296,10 @@ spec_serviceCreate = it "service create" $ \fts -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
-        extractId :: ST -> Maybe ServiceId
-        extractId s = case cs s =~- "Service id: (.+)\"" of
-            [_, sid]  -> Just . ServiceId . cs . LBS.take 24 $ sid
-            _         -> Nothing
+        pat = "Service id: "
+        extractId s = case snd . T.breakOn "Service id: " $ s of
+            "" -> Nothing
+            m  -> Just . ServiceId . T.take 24 . T.drop (T.length pat) $ m
     serviceId <- wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
