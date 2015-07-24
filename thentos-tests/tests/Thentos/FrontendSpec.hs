@@ -69,8 +69,12 @@ spec_createUser = describe "create user" $ do
         myEmail    = "email@example.com"
 
     it "fill out form." $ \ fts -> do
-        (fts ^. ftsRunWD) $ do
-            WD.openPageSync (cs $ exposeUrl (fts ^. ftsFrontendCfg))
+        let ActionState (st, _, _) = fts ^. ftsActionState
+            feConfig = fts ^. ftsFrontendCfg
+            wd = fts ^. ftsRunWD
+
+        wd $ do
+            WD.openPageSync (cs $ exposeUrl feConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
             let fill :: WD.WebDriver wd => ST -> ST -> wd ()
@@ -83,10 +87,6 @@ spec_createUser = describe "create user" $ do
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
             WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Please check your email")
-
-        let ActionState (st, _, _) = fts ^. ftsActionState
-            feConfig = fts ^. ftsFrontendCfg
-            wd = fts ^. ftsRunWD
 
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
