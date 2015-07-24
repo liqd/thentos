@@ -418,7 +418,7 @@ unknownPath = do
 
 -- * Cache control
 
--- | Disable response caching. The wrapped handled can overwrite this by
+-- | Disable response caching. The wrapped handler can overwrite this by
 -- setting its own cache control headers.
 --
 -- Cache-control headers are only added to GET and HEAD responses since other request methods
