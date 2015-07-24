@@ -30,6 +30,7 @@ import Thentos.Util ((<//>), verifyPass)
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
+import Thentos.Test.Config (godUid, godName, godPass)
 import Thentos.Test.Core
 import Thentos.Test.Types
 
@@ -122,23 +123,23 @@ spec_updateSelf = describe "update self" $ do
         _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
         _check st f = liftIO $ query' st SnapShot >>=
                         maybe (error "no such user") f .
-                        either (error "could not take db snapshot") (Map.lookup (UserId selfId) . (^. dbUsers))
+                        either (error "could not take db snapshot") (Map.lookup selfId . (^. dbUsers))
 
         -- FIXME: test with ordinary user (not god).
-        selfId   :: Integer = 0
-        selfName :: ST      = "god"
-        selfPass :: ST      = "god"
+        selfId   = godUid
+        selfName = godName
+        selfPass = godPass
 
     it "username" $ \fts -> (fts ^. ftsRunWD) $ do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
 
-        let newSelfName :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
+        let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update")
-        _fill "/user/update.name" newSelfName
+        _fill "/user/update.name" $ fromUserName newSelfName
         _click "update_user_submit"
-        _check st ((`shouldBe` UserName newSelfName) . (^. userName))
+        _check st ((`shouldBe` newSelfName) . (^. userName))
 
     -- FIXME: test with new user name that is already in use.
     -- FIXME: test with unauthenticated user.
@@ -148,14 +149,14 @@ spec_updateSelf = describe "update self" $ do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
 
-        let newSelfPass :: ST = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin feConfig (UserName selfName) (UserPass selfPass) >>= liftIO . (`shouldBe` 200) . C.statusCode
+        let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update_password")
-        _fill "/user/update_password.old_password" selfPass
-        _fill "/user/update_password.new_password1" newSelfPass
-        _fill "/user/update_password.new_password2" newSelfPass
+        _fill "/user/update_password.old_password"  $ fromUserPass selfPass
+        _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
+        _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
         _click "update_password_submit"
-        _check st (`shouldSatisfy` verifyPass (UserPass newSelfPass))
+        _check st (`shouldSatisfy` verifyPass newSelfPass)
 
     -- FIXME: test failure cases.  same restrictions apply as in
     -- "create_user" and "reset_password" (make sure the check is in
@@ -212,7 +213,7 @@ spec_logIntoThentos :: SpecWith (FTS DB)
 spec_logIntoThentos = it "log into thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
-    wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Login successful"
 
 
@@ -221,7 +222,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     -- logout when logged in
-    wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "You have been logged out"
 
@@ -241,7 +242,7 @@ spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
-        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         isLoggedIn feConfig
 
 
@@ -250,7 +251,7 @@ spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
-        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
         isNotLoggedIn feConfig
 
@@ -261,7 +262,7 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \fts -> do
         wd = fts ^. ftsRunWD
     wd $ do
         WD.cookies >>= \cs -> liftIO $ cs `shouldBe` []
-        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.cookies >>= \cs -> liftIO $ cs `shouldSatisfy` oneSessionCookie
   where
     oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
@@ -274,7 +275,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
-        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         cookies <- WD.cookies
         WD.deleteVisibleCookies
         mapM_ WD.setCookie cookies
@@ -301,7 +302,7 @@ spec_serviceCreate = it "service create" $ \fts -> do
             "" -> Nothing
             m  -> Just . ServiceId . T.take 24 . T.drop (T.length pat) $ m
     serviceId <- wd $ do
-        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
         fill "/dashboard/ownservices.name" sname
@@ -354,7 +355,7 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWit
 {-
       \((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do
-        wdLogin "god" "god" >>= liftIO . (`shouldBe` 200)
+        wdLogin godName godPass >>= liftIO . (`shouldBe` 200)
 
         -- FIXME:
         -- go to "/user/dashboard"
@@ -366,10 +367,10 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWit
 spec_failOnCsrf :: SpecWith (FTS DB)
 spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
-    wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies
-    wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
     WD.deleteVisibleCookies -- delete before restore to work around phantomjs domain wonkiness
     mapM_ WD.setCookie storedCookies
