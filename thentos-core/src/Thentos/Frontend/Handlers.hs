@@ -177,7 +177,7 @@ resetPasswordConfirm = do
             eResult <- snapRunActionE $ A.resetPassword token password
             case eResult of
                 Right () -> do
-                    sendFrontendMsg $ FrontendMsgSuccess "Password changed succesfully.  Welcome back to Thentos!"
+                    sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
 
                     -- FIXME: what we would like to do here is login
                     -- the user right away:
