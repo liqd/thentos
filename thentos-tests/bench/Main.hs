@@ -34,6 +34,7 @@ import Thentos.Types
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
     )
 
+import Thentos.Test.Config (godUid, godPass)
 import Thentos.Test.Core
 import Thentos.Test.Types
 
@@ -86,7 +87,7 @@ getThentosSessionToken :: TestConfig -> IO (Maybe ThentosSessionToken)
 getThentosSessionToken cfg = do
     let (Just req_) = makeEndpoint cfg "/thentos_session"
         req = req_
-                { requestBody = RequestBodyLBS $ encode (UserId 0, UserPass "god")
+                { requestBody = RequestBodyLBS $ encode (godUid, godPass)
                 , method = methodPost
                 }
     withManager $ \m -> do
