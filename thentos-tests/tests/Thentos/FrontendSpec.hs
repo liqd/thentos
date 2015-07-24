@@ -71,7 +71,7 @@ spec_createUser = describe "create user" $ do
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ \ fts -> do
+    it "fill out form." $ \fts -> do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
             wd = fts ^. ftsRunWD
@@ -89,7 +89,7 @@ spec_createUser = describe "create user" $ do
             fill "/user/register.email" myEmail
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
-            WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Please check your email")
+            WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Please check your email")
 
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
@@ -100,7 +100,7 @@ spec_createUser = describe "create user" $ do
         case Map.toList $ db1 ^. dbUnconfirmedUsers of
               [(tok, _)] -> wd $ do
                   WD.openPageSync . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
-                  WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
+                  WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
         -- check that user is in db
@@ -112,7 +112,7 @@ spec_createUser = describe "create user" $ do
 
 
 spec_resetPassword :: SpecWith (FTS DB)
-spec_resetPassword = it "reset password" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_resetPassword = it "reset password" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_updateSelf :: SpecWith (FTS DB)
@@ -133,7 +133,7 @@ spec_updateSelf = describe "update self" $ do
         selfName :: ST      = "god"
         selfPass :: ST      = "god"
 
-    it "username" $ \ fts -> (fts ^. ftsRunWD) $ do
+    it "username" $ \fts -> (fts ^. ftsRunWD) $ do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
 
@@ -148,7 +148,7 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \ fts -> fts ^. ftsRunWD $ do
+    it "password" $ \fts -> fts ^. ftsRunWD $ do
         let ActionState (st, _, _) = fts ^. ftsActionState
             feConfig = fts ^. ftsFrontendCfg
 
@@ -165,7 +165,7 @@ spec_updateSelf = describe "update self" $ do
     -- "create_user" and "reset_password" (make sure the check is in
     -- separate function, not inlined.)
 
-    it "email" $ \ (_ :: (FTS DB)) ->
+    it "email" $ \(_ :: (FTS DB)) ->
         pendingWith "no test implemented."
 
         {-
@@ -213,64 +213,60 @@ spec_updateSelf = describe "update self" $ do
 
 
 spec_logIntoThentos :: SpecWith (FTS DB)
-spec_logIntoThentos = it "log into thentos" $ \ fts -> fts ^. ftsRunWD $ do
+spec_logIntoThentos = it "log into thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Login successful")
+    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Login successful")
 
 
 spec_logOutOfThentos :: SpecWith (FTS DB)
-spec_logOutOfThentos = it "log out of thentos" $ \ fts -> fts ^. ftsRunWD $ do
+spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "You have been logged out")
+    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "You have been logged out")
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
 spec_redirectWhenNotLoggedIn :: SpecWith (FTS DB)
-spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \ fts -> do
+spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
-    wd $ do
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
-        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+    wd $ isNotLoggedIn feConfig
 
 
 spec_dontRedirectWhenLoggedIn :: SpecWith (FTS DB)
-spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \ fts -> do
+spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
-        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+        isLoggedIn feConfig
 
 
 spec_deletingCookiesLogsOut :: SpecWith (FTS DB)
-spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \ fts -> do
+spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
-        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+        isNotLoggedIn feConfig
 
 
 spec_logInSetsSessionCookie :: SpecWith (FTS DB)
-spec_logInSetsSessionCookie = it "set cookie on login" $ \ fts -> do
+spec_logInSetsSessionCookie = it "set cookie on login" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
-        WD.cookies >>= \ cs -> liftIO $ cs `shouldBe` []
+        WD.cookies >>= \cs -> liftIO $ cs `shouldBe` []
         wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.cookies >>= \ cs -> liftIO $ cs `shouldSatisfy` oneSessionCookie
+        WD.cookies >>= \cs -> liftIO $ cs `shouldSatisfy` oneSessionCookie
   where
     oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
     oneSessionCookie _   = False
@@ -278,7 +274,7 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \ fts -> do
 
 -- This is a a webdriver meta-test, as a base case for 'spec_failOnCsrf'.
 spec_restoringCookieRestoresSession :: SpecWith (FTS DB)
-spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \ fts -> do
+spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
@@ -297,7 +293,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
-spec_serviceCreate = it "service create" $ \ fts -> do
+spec_serviceCreate = it "service create" $ \fts -> do
     let ActionState (st, _, _) = fts ^. ftsActionState
         feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
@@ -337,29 +333,29 @@ spec_serviceCreate = it "service create" $ \ fts -> do
 
 
 spec_serviceDelete :: SpecWith (FTS DB)
-spec_serviceDelete = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceDelete = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_serviceUpdateMetadata :: SpecWith (FTS DB)
-spec_serviceUpdateMetadata = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_serviceGiveToOtherUser :: SpecWith (FTS DB)
-spec_serviceGiveToOtherUser = it "service delete" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_logIntoService :: SpecWith (FTS DB)
-spec_logIntoService = it "log into service" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_logIntoService = it "log into service" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_logOutOfService :: SpecWith (FTS DB)
-spec_logOutOfService = it "log out of service" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_logOutOfService = it "log out of service" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 
 
 spec_browseMyServices :: SpecWith (FTS DB)
-spec_browseMyServices = it "browse my services" $ \ (_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
 {-
-      \ ((st, _, _), _, (_, feConfig), wd) -> do
+      \((st, _, _), _, (_, feConfig), wd) -> do
     wd $ do
         wdLogin "god" "god" >>= liftIO . (`shouldBe` 200)
 
@@ -371,7 +367,7 @@ spec_browseMyServices = it "browse my services" $ \ (_ :: (FTS DB)) -> pendingWi
 
 
 spec_failOnCsrf :: SpecWith (FTS DB)
-spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
+spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
     wdLogin feConfig (UserName "god") (UserPass "god") >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
@@ -386,7 +382,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \ fts -> fts ^. ftsRunWD $ do
     fill "/dashboard/ownservices.name" "this is a service name"
     fill "/dashboard/ownservices.description" "this is a service description"
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-    WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "csrf badness")
+    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "csrf badness")
 
 
 -- * wd actions
