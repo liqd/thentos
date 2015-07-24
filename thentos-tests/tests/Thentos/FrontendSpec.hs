@@ -49,6 +49,7 @@ spec = describe "selenium grid" $ do
     spec_dontRedirectWhenLoggedIn
     spec_deletingCookiesLogsOut
     spec_logInSetsSessionCookie
+    spec_restoringCookieRestoresSession
     spec_serviceCreate
     spec_serviceDelete
     spec_serviceUpdateMetadata
@@ -273,6 +274,26 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \ fts -> do
   where
     oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
     oneSessionCookie _   = False
+
+
+-- This is a a webdriver meta-test, as a base case for the csrf test below.
+spec_restoringCookieRestoresSession :: SpecWith (FTS DB)
+spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \ fts -> do
+    let feConfig = fts ^. ftsFrontendCfg
+        wd = fts ^. ftsRunWD
+    wd $ do
+        wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
+        cookies <- WD.cookies
+        WD.deleteVisibleCookies
+        mapM_ WD.setCookie cookies
+
+        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
+        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+
+        -- With phantomjs, the store/delete/set cycle adds a leading dot to the cookie
+        -- domain, and the dashboard request above sets the updated cookie, so we
+        -- end up with two cookies.
+        -- WD.cookies >>= \ cs -> liftIO $ length cs `shouldBe` 1
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
