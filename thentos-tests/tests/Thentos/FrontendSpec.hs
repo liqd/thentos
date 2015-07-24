@@ -14,10 +14,11 @@ import Data.Acid.Advanced (query')
 import Data.Maybe (listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
-import Text.Regex.Easy ((=~#), (=~-))
+import Text.Regex.Easy ((=~-))
 
 import qualified Data.Map as Map
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
@@ -86,7 +87,7 @@ spec_createUser = describe "create user" $ do
             fill "/user/register.email" myEmail
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
-            WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Please check your email")
+            WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Please check your email"
 
         -- check confirmation token in DB.
         Right (db1 :: DB) <- query' st $ SnapShot
@@ -97,7 +98,7 @@ spec_createUser = describe "create user" $ do
         case Map.toList $ db1 ^. dbUnconfirmedUsers of
               [(tok, _)] -> wd $ do
                   WD.openPageSync . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
-                  WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Registration complete")
+                  WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Registration complete"
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
         -- check that user is in db
@@ -214,7 +215,7 @@ spec_logIntoThentos = it "log into thentos" $ \fts -> fts ^. ftsRunWD $ do
     let feConfig = fts ^. ftsFrontendCfg
 
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Login successful")
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Login successful"
 
 
 spec_logOutOfThentos :: SpecWith (FTS DB)
@@ -224,7 +225,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
     -- logout when logged in
     wdLogin feConfig "god" "god" >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "You have been logged out")
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "You have been logged out"
 
     -- logout when already logged out
     wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
@@ -372,7 +373,7 @@ spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
     fill "/dashboard/ownservices.name" "this is a service name"
     fill "/dashboard/ownservices.description" "this is a service description"
     WD.findElem (WD.ById "create_service_submit") >>= WD.clickSync
-    WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "csrf badness")
+    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "csrf badness"
 
 
 -- * wd actions
@@ -407,12 +408,12 @@ wdLogout feConfig = do
 isLoggedIn :: HttpConfig -> WD.WD ()
 isLoggedIn cfg = do
         WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
-        WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Thentos Dashboard"
 
 isNotLoggedIn :: HttpConfig -> WD.WD ()
 isNotLoggedIn cfg = do
         WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
-        WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
+        WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` T.isInfixOf "Thentos Login"
 
 
 -- | Fill a labeled text field.
