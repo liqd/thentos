@@ -260,9 +260,9 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \fts -> do
     let feConfig = fts ^. ftsFrontendCfg
         wd = fts ^. ftsRunWD
     wd $ do
-        WD.cookies >>= \cs -> liftIO $ cs `shouldBe` []
+        WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.cookies >>= \cs -> liftIO $ cs `shouldSatisfy` oneSessionCookie
+        WD.cookies >>= \cc -> liftIO $ cc `shouldSatisfy` oneSessionCookie
   where
     oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
     oneSessionCookie _   = False
@@ -284,7 +284,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
         -- With phantomjs, the store/delete/set cycle adds a leading dot to the cookie
         -- domain, and the dashboard request inside 'isLoggedin' above sets
         -- the updated cookie, so we end up with two cookies.
-        -- WD.cookies >>= \cs -> liftIO $ length cs `shouldBe` 1
+        -- WD.cookies >>= \cc -> liftIO $ length cc `shouldBe` 1
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
