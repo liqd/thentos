@@ -283,13 +283,12 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
         WD.deleteVisibleCookies
         mapM_ WD.setCookie cookies
 
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/details")
-        WD.getSource >>= \ s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+        isLoggedIn feConfig
 
         -- With phantomjs, the store/delete/set cycle adds a leading dot to the cookie
-        -- domain, and the dashboard request above sets the updated cookie, so we
-        -- end up with two cookies.
-        -- WD.cookies >>= \ cs -> liftIO $ length cs `shouldBe` 1
+        -- domain, and the dashboard request inside 'isLoggedin' above sets
+        -- the updated cookie, so we end up with two cookies.
+        -- WD.cookies >>= \cs -> liftIO $ length cs `shouldBe` 1
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
@@ -414,3 +413,14 @@ wdLogout feConfig = do
     buttonIsThere el = do
         WD.clickSync el
         return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin
+
+
+isLoggedIn :: HttpConfig -> WD.WD ()
+isLoggedIn cfg = do
+        WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
+        WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Dashboard")
+
+isNotLoggedIn :: HttpConfig -> WD.WD ()
+isNotLoggedIn cfg = do
+        WD.openPageSync (cs $ exposeUrl cfg <//> "/dashboard/details")
+        WD.getSource >>= \s -> liftIO $ cs s `shouldSatisfy` (=~# "Thentos Login")
