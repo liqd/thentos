@@ -177,7 +177,7 @@ resetPasswordConfirm = do
             eResult <- snapRunActionE $ A.resetPassword token password
             case eResult of
                 Right () -> do
-                    sendFrontendMsg $ FrontendMsgSuccess "Password changed succesfully.  Welcome back to Thentos!"
+                    sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
 
                     -- FIXME: what we would like to do here is login
                     -- the user right away:
@@ -418,7 +418,7 @@ unknownPath = do
 
 -- * Cache control
 
--- | Disable response caching. The wrapped handled can overwrite this by
+-- | Disable response caching. The wrapped handler can overwrite this by
 -- setting its own cache control headers.
 --
 -- Cache-control headers are only added to GET and HEAD responses since other request methods
