@@ -24,7 +24,7 @@ import Control.Lens (makeLenses, Lens')
 import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Data (Typeable)
 import Data.Map (Map)
-import Data.Maybe (isNothing, fromMaybe, fromJust)
+import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
@@ -454,7 +454,7 @@ instance Show ProxyUri where
     show (ProxyUri host port path) = "http://" ++ host' ++ port' ++ path'
         where
             path' = case cs path of
-                a@('/' : r) -> a
+                a@('/' : _) -> a
                 a           -> '/' : a
             port' = ':' : show port
             host' = case reverse (cs host) of
