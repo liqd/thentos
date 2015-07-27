@@ -43,6 +43,7 @@ module Thentos.Action
     , lookupService
     , addService
     , deleteService
+    , autocreateServiceIfMissing'P
     , userGroups
 
     , defaultSessionTimeout
@@ -357,8 +358,13 @@ lookupService sid = do
 addService :: (db `Ex` DB) =>
     Agent -> ServiceName -> ServiceDescription -> Action db (ServiceId, ServiceKey)
 addService owner name desc = do
-    guardWriteMsg "addService" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
     sid <- freshServiceId
+    addServicePrim owner sid name desc
+
+addServicePrim :: (db `Ex` DB) =>
+    Agent -> ServiceId -> ServiceName -> ServiceDescription -> Action db (ServiceId, ServiceKey)
+addServicePrim owner sid name desc = do
+    guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
     update'P $ T.AddService owner sid hashedKey name desc
@@ -368,6 +374,17 @@ deleteService :: (db `Ex` DB) => ServiceId -> Action db ()
 deleteService sid = do
     guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
     update'P $ T.DeleteService sid
+
+-- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
+-- to the config which will automatically spring into life if the config is read.
+autocreateServiceIfMissing'P :: (db `Ex` DB) =>
+    Agent -> ServiceId -> Action db ()
+autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
+    \case (thentosErrorToParent -> Just NoSuchService) -> do
+            logger'P DEBUG $ "autocreating service with ID " ++ show sid
+            void $ addServicePrim owner sid (ServiceName "autocreated")
+                                  (ServiceDescription "autocreated")
+          e                                            -> throwError e
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: (db `Ex` DB) => UserId -> ServiceId -> Action db [Group]

@@ -32,13 +32,16 @@ import Data.Acid (AcidState, openLocalStateFrom, createCheckpoint, closeAcidStat
 import Data.Acid.Advanced (query', update')
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
+import Data.Maybe (maybeToList)
 import Data.Proxy (Proxy(Proxy))
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
+import qualified Data.Map as Map
+
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (ActionState(..), runActionWithPrivs, Ex)
+import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs, Ex)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -95,6 +98,7 @@ makeMain initialDB commandSwitch =
     _ <- createCheckpointLoop st 16000
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser st (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
+    runActionWithPrivs [RoleAdmin] actionState $ autocreateMissingServices config
 
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
@@ -149,3 +153,18 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
         if all isRight result
             then logger DEBUG $ "[ok]"
             else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
+
+-- | Autocreate any services that are listed in the config but don't exist in the DB.
+autocreateMissingServices :: (db `Ex` DB) => ThentosConfig -> Action db ()
+autocreateMissingServices cfg = do
+    dieOnDuplicates
+    mapM_ (autocreateServiceIfMissing'P agent) allSids
+  where
+    -- Die with an error if the default "proxy" service ID is repeated in the "proxies" section
+    dieOnDuplicates  = case mDefaultProxySid of
+        Just sid -> when (sid `elem` proxySids) . error $ show sid ++ " mentioned twice in config"
+        Nothing  -> return ()
+    allSids          = maybeToList mDefaultProxySid ++ proxySids
+    mDefaultProxySid = ServiceId <$> cfg >>. (Proxy :: Proxy '["proxy", "service_id"])
+    proxySids        = Map.keys $ getProxyConfigMap cfg
+    agent            = UserA $ UserId 0
