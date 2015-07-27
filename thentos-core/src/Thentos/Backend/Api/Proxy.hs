@@ -32,7 +32,6 @@ import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
-import qualified Data.Text as ST
 import qualified Network.HTTP.Client as C
 import qualified Network.HTTP.Types.Header as T
 import qualified Network.Wai as S
