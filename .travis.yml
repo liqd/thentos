@@ -19,5 +19,5 @@ install:
     - ./misc/thentos-install.sh
 script:
     - make hlint
-    - cd thentos-tests && cabal test && cd ..
-    - cd thentos-adhocracy && cabal test && cd ..
+    - cd thentos-tests && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
+    - cd thentos-adhocracy && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
