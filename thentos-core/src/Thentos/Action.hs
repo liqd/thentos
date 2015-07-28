@@ -18,7 +18,6 @@ module Thentos.Action
     , freshServiceKey
     , freshSessionToken
     , freshServiceSessionToken
-    , freshSsoToken
 
     , allUserIds
     , lookupUser
@@ -67,9 +66,6 @@ module Thentos.Action
     , assignRole
     , unassignRole
     , agentRoles
-
-    , addNewSsoToken
-    , lookupAndRemoveSsoToken
 
     , collectGarbage
     )
@@ -132,10 +128,6 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: Action db ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
-
-freshSsoToken :: Action db SsoToken
-freshSsoToken = SsoToken <$> freshRandomName
-
 
 -- * user
 
@@ -596,23 +588,6 @@ agentRoles :: (db `Ex` DB) => Agent -> Action db [Role]
 agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     Set.toList <$> query'P (T.AgentRoles agent)
-
-
--- * SSO
-
--- | This doesn't check any labels because it needs to be called as part of the
--- authentication process.
-addNewSsoToken :: (db `Ex` DB, Exception (ActionError db)) => Action db SsoToken
-addNewSsoToken = do
-    tok <- freshSsoToken
-    update'P $ T.AddSsoToken tok
-    return tok
-
--- | This doesn't check any labels because it needs to be called as part of the
--- authentication process.
-lookupAndRemoveSsoToken :: (db `Ex` DB, Exception (ActionError db)) =>
-    SsoToken -> Action db ()
-lookupAndRemoveSsoToken tok = update'P $ T.LookupAndRemoveSsoToken tok
 
 
 -- * garbage collection

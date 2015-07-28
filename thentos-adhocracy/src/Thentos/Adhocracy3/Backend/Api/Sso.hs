@@ -67,6 +67,7 @@ import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
+import GHC.Exception (Exception)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.OAuth.OAuth2
@@ -92,6 +93,7 @@ import Thentos.Config
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
+import qualified Thentos.Adhocracy3.Transactions as T
 
 
 -- * main
@@ -183,7 +185,7 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
 -- | FIXME: document!
 githubRequest :: AC.Action DB AuthRequest
 githubRequest = do
-    state <- A.addNewSsoToken
+    state <- addNewSsoToken
     return . AuthRequest . cs $
         authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
@@ -203,7 +205,7 @@ githubConfirm state code =
   where
     go :: AC.Action DB A3.RequestResult
     go = do
-        A.lookupAndRemoveSsoToken (SsoToken state)
+        lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
         confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
 
@@ -236,3 +238,21 @@ loginGithubUser (GithubUser _ uname) = do
               e -> throwError e
 
     return $ A3.RequestSuccess (A3.Path "/dashboard") tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+addNewSsoToken :: (db `Extends` DB, Exception (AC.ActionError db)) => AC.Action db SsoToken
+addNewSsoToken = do
+    tok <- freshSsoToken
+    AC.update'P $ T.AddSsoToken tok
+    return tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+lookupAndRemoveSsoToken :: (db `Extends` DB, Exception (AC.ActionError db)) =>
+    SsoToken -> AC.Action db ()
+lookupAndRemoveSsoToken tok = AC.update'P $ T.LookupAndRemoveSsoToken tok
+
+
+freshSsoToken :: AC.Action db SsoToken
+freshSsoToken = SsoToken <$> A.freshRandomName

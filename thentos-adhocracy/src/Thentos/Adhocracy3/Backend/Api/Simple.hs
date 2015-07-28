@@ -59,6 +59,7 @@ import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
+import Thentos.Adhocracy3.Transactions ()
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC

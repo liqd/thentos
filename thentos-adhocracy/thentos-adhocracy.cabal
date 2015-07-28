@@ -41,6 +41,7 @@ library
     , Thentos.Adhocracy3.Backend.Api.Docs.Simple
     , Thentos.Adhocracy3.Backend.Api.Simple
     , Thentos.Adhocracy3.Backend.Api.Sso
+    , Thentos.Adhocracy3.Transactions
     , Thentos.Adhocracy3.Types
   build-depends:
       base
