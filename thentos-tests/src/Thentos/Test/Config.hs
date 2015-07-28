@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
 
@@ -9,7 +10,8 @@ where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Acid (AcidState)
-import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
+import Data.Configifier ((:*>)((:*>)), configify, Id(Id), Tagged(Tagged),
+                         MaybeO(JustO, NothingO), Source(YamlString), fromTagged)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
 import System.Environment (getEnvironment)
@@ -24,76 +26,53 @@ import Thentos.Action.Core (Ex)
 import Thentos (createDefaultUser)
 
 import Thentos.Test.Types
+import Thentos.Test.Utils
 
-
-testConfig :: IO TestConfig
-testConfig = do
-    tmp <- thentosCreateTempDirectory
-    let cfg = TestConfig
-          { _tcfgTmp                    = tmp
-          , _tcfgDbPath                 = tmp </> "test-db/"
-          , _tcfgServerFullBackendPort  = 7118
-          , _tcfgServerFullFrontendPort = 7119
-          , _tcfgWebdriverHost          = "localhost"
-          , _tcfgWebdriverPort          = 4451
-          , _tcfgTraceHttp              = True
-          }
-    return cfg
 
 thentosCreateTempDirectory :: IO FilePath
 thentosCreateTempDirectory = do
     tmp <- fromMaybe "/tmp/" . lookup "TMP" <$> getEnvironment
     createTempDirectory tmp "_thentos_test_"
 
-testThentosConfig :: TestConfig -> ThentosConfig
-testThentosConfig tcfg = Tagged $
-          Id Run
-      :*> JustO (Id (fromTagged testFeConfig))
-      :*> JustO (Id (fromTagged testBeConfig))
-      :*> JustO (Id (fromTagged testProxyConfig))
-      :*> NothingO
-      :*> Id (fromTagged testSmtpConfig)
-      :*> NothingO
-      :*> Id (Timeout 3600)
-      :*> Id (Timeout 3600)
-      :*> Id (Timeout 3600)
-      :*> JustO (Id 1800)
-      :*> Id (fromTagged testLogConfig)
-  where
-    testFeConfig :: HttpConfig
-    testFeConfig = Tagged $
-          NothingO
-      :*> Id "localhost"
-      :*> Id (tcfg ^. tcfgServerFullFrontendPort)
-      :*> NothingO
-      :*> NothingO
-      :*> NothingO
+thentosTestConfig :: IO ThentosConfig
+thentosTestConfig = configify [YamlString [strLit|
 
-    testBeConfig :: HttpConfig
-    testBeConfig = Tagged $
-          NothingO
-      :*> Id "localhost"
-      :*> Id (tcfg ^. tcfgServerFullBackendPort)
-      :*> NothingO
-      :*> NothingO
-      :*> NothingO
+command: "run"
 
-    testSmtpConfig :: SmtpConfig
-    testSmtpConfig = Tagged $
-          JustO (Id "Thentos")
-      :*> Id "thentos@thentos.org"
-      :*> Id "/bin/cat"
-      :*> Id []
+backend:
+    bind_port: 7118
+    bind_host: "127.0.0.1"
 
-    testLogConfig :: LogConfig
-    testLogConfig = Tagged $
-          Id "./log/thentos.log"
-      :*> Id (Prio DEBUG)
+frontend:
+    bind_port: 7119
+    bind_host: "127.0.0.1"
 
-    testProxyConfig :: ProxyConfig
-    testProxyConfig = Tagged $
-          Id "someid"
-      :*> Id (ProxyUri "localhost" 8001 "path")
+smtp:
+    sender_name: "Thentos"
+    sender_address: "thentos@thentos.org"
+    sendmail_path: "/bin/cat"
+    sendmail_args: []
+
+proxy:
+    service_id: "someid"
+    endpoint: http://127.0.0.1:6541
+
+default_user:
+    name: "god"
+    password: "god"
+    email: "postmaster@localhost"
+    roles: ["roleAdmin", "roleUser", "roleServiceAdmin", "roleUserAdmin"]
+
+user_reg_expiration: "1800"
+pw_reset_expiration: "1800"
+email_change_expiration: "1800"
+gc_interval: 1800
+
+log:
+    path: ./log/thentos.log
+    level: DEBUG
+|]]
+
 
 godUid :: UserId
 godUid = UserId 0

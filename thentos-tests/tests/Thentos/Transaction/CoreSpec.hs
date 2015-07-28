@@ -13,18 +13,18 @@
 module Thentos.Transaction.CoreSpec where
 
 import Control.Lens ((%~), (%%~), (^.))
-import Test.Hspec (Spec, describe, it, shouldBe, hspec, before, after)
+import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 
 import Thentos.Types
 import Thentos.Transaction (AllUserIds(..))
 
-import Data.Acid (openLocalStateFrom)
+import Data.Acid.Memory (openMemoryState)
 import Data.Acid.Advanced (query')
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Core
 import Thentos.Test.CustomDB
-import Thentos.Test.Types
+import Thentos.Test.Types ()
 
 
 tests :: IO ()
@@ -65,9 +65,9 @@ spec_polyQU = describe "asDB, polyQuery, polyUpdate" $ do
                   x `shouldBe` 3
 
 spec_useCustomDB :: Spec
-spec_useCustomDB = describe "custom db" . before setupBare . after teardownBare $ do
-    it "works" $ \ (TS tcfg) -> do
-        st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (CustomDB emptyDB 3)
+spec_useCustomDB = describe "custom db" $ do
+    it "works" $ do
+        st <- openMemoryState (CustomDB emptyDB 3)
         u <- query' st AllUserIds
         u `shouldBe` Right []
 

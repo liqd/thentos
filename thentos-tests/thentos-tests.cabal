@@ -78,6 +78,7 @@ library
     , safecopy
     , scrypt
     , string-conversions
+    , template-haskell
     , temporary
     , transformers
     , transformers-base

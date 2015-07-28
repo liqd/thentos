@@ -26,7 +26,8 @@ import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (openLocalStateFrom, closeAcidState)
+import Data.Acid (openLocalStateFrom, IsAcidic, closeAcidState)
+import Data.Acid.Memory (openMemoryState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -109,81 +110,65 @@ encryptTestSecret pw =
 
 -- * test logger
 
--- | Log everything with 'DEBUG' level to @[tmp].../everything.log@.
-setupLogger :: TestConfig -> IO ()
-setupLogger tcfg = do
+-- | Run an action, logging everything with 'DEBUG' level to the specified file.
+withLogger :: FilePath -> IO a -> IO a
+withLogger logfile action = do
     let loglevel = DEBUG
-        logfile = tcfg ^. tcfgTmp </> "everything.log"
-
+        fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     removeAllHandlers
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
-    updateGlobalLogger loggerName $
-        setLevel DEBUG . setHandlers [fHandler]
+    updateGlobalLogger loggerName $ setLevel DEBUG . setHandlers [fHandler]
+    result <- action
+    removeAllHandlers
+    return result
 
-teardownLogger :: IO ()
-teardownLogger = removeAllHandlers
+-- | Start and shutdown webdriver on localhost:4451, running the action in between.
+withWebDriver :: WD.WD r -> IO r
+withWebDriver = withWebDriver' "localhost" 4451
 
+-- | Start and shutdown webdriver on the specified host and port, running the
+-- action in between.
+withWebDriver' :: String -> Int -> WD.WD r -> IO r
+withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
+     -- running `WD.closeOnException` here is not
+     -- recommended, as it hides all hspec errors behind an
+     -- uninformative java exception.
+    WD.setImplicitWait 1000
+    WD.setScriptTimeout 1000
+    WD.setPageLoadTimeout 1000
+    action
 
--- * TS
+    where wdConfig = WD.defaultConfig
+            { WD.wdHost = host
+            , WD.wdPort = port
+            }
 
-setupBare :: IO TS
-setupBare = do
-    tcfg <- testConfig
-    setupLogger tcfg
-    return $ TS tcfg
+{-
+withFrontend :: HttpConfig -> ActionState DB -> IO r -> IO r
 
-teardownBare :: TS -> IO ()
-teardownBare (TS tcfg) = do
-    teardownLogger
-    removeDirectoryRecursive (tcfg ^. tcfgTmp)
+withBackend  :: Application -> IO r -> IO r
 
+-- | Run an action with a database, frontend and backend servers, in the way it
+-- would be run given the specified config file.
+withConfigured :: String -> IO r -> IO r
+-}
 
--- * DBTS
-
-setupDB :: forall db . (db `Ex` DB) => IO (DBTS db)
-setupDB = do
-    TS tcfg <- setupBare
-    st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (emptyDB :: db)
-    createGod st
+-- | Create an @ActionState@ with an empty in-memory DB and the specified
+-- config.
+createActionState :: (EmptyDB db, IsAcidic db) => ThentosConfig -> IO (ActionState db)
+createActionState config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
-
-teardownDB :: DBTS db -> IO ()
-teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
-    closeAcidState st
-    teardownBare (TS tcfg)
+    st <- openMemoryState emptyDB
+    return $ ActionState (st, rng, config)
 
 
--- * BTS
-
--- | Test backend does not open a tcp socket, but uses hspec-wai
--- instead.  Comes with a session token and authentication headers
--- for default god user.
-setupTestBackend :: forall db . (db `Ex` DB) => (Manager -> ActionState db -> Application) -> IO (BTS db)
-setupTestBackend testBackend = do
-    manager <- newManager defaultManagerSettings
-    DBTS tcfg asg <- setupDB
-    (tok, headers) <- loginAsGod asg
-    return $ BTS {
-        _btsCfg = tcfg
-      , _btsActionState = asg
-      , _btsWai = tracifyApplication tcfg $ testBackend manager asg
-      , _btsToken = tok
-      , _btsGodCredentials = headers
-    }
-
-teardownTestBackend :: BTS db -> IO ()
-teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
-
-runTestBackend :: BTS db -> Session a -> IO a
-runTestBackend bts session = runSession session (bts ^. btsWai)
 
 
 -- * FTS
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
+{-
 setupTestServerFull :: IO (FTS DB)
 setupTestServerFull = do
     DBTS tcfg asg <- setupDB
@@ -213,12 +198,13 @@ setupTestServerFull = do
 
     return $ FTS tcfg asg backend beConfig frontend feConfig wd
 
+
 teardownTestServerFull :: forall db . (db `Ex` DB) => FTS db -> IO ()
 teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
     cancel backend
     cancel frontend
     teardownDB $ DBTS tcfg db
-
+-}
 
 loginAsGod :: forall db . (db `Ex` DB) => ActionState db -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
@@ -237,11 +223,9 @@ makeSRequest method path headers = SRequest req
 
 
 
--- | Log all requests and responses to log file (unless 'tcfgTraceApplication' of current config is
--- 'False').
-tracifyApplication :: TestConfig -> Application -> Application
-tracifyApplication ((^. tcfgTraceHttp) -> False) application = application
-tracifyApplication _ application = application'
+-- | Log all requests and responses to log file.
+tracifyApplication :: Application -> Application
+tracifyApplication application = application'
   where
     application' :: Application
     application' req respond = do

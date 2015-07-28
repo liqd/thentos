@@ -39,6 +39,8 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "selenium grid" $ do
+  let feConfig = _
+      st = _
   describe "many tests" . before setupTestServerFull . after teardownTestServerFull $ do
     spec_createUser
     spec_resetPassword
@@ -70,12 +72,8 @@ spec_createUser = describe "create user" $ do
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ \fts -> do
-        let ActionState (st, _, _) = fts ^. ftsActionState
-            feConfig = fts ^. ftsFrontendCfg
-            wd = fts ^. ftsRunWD
-
-        wd $ do
+    it "fill out form." $ do
+        withWebDriver $ do
             WD.openPageSync (cs $ exposeUrl feConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
@@ -108,7 +106,7 @@ spec_createUser = describe "create user" $ do
 
 
 spec_resetPassword :: SpecWith (FTS DB)
-spec_resetPassword = it "reset password" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_resetPassword = it "reset password" $ pendingWith "no test implemented."
 
 
 spec_updateSelf :: SpecWith (FTS DB)
@@ -129,10 +127,7 @@ spec_updateSelf = describe "update self" $ do
         selfName = godName
         selfPass = godPass
 
-    it "username" $ \fts -> (fts ^. ftsRunWD) $ do
-        let ActionState (st, _, _) = fts ^. ftsActionState
-            feConfig = fts ^. ftsFrontendCfg
-
+    it "username" $ withWebDriver $ do
         let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update")
@@ -144,10 +139,7 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \fts -> fts ^. ftsRunWD $ do
-        let ActionState (st, _, _) = fts ^. ftsActionState
-            feConfig = fts ^. ftsFrontendCfg
-
+    it "password" $ withWebDriver $ do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update_password")
@@ -209,17 +201,13 @@ spec_updateSelf = describe "update self" $ do
 
 
 spec_logIntoThentos :: SpecWith (FTS DB)
-spec_logIntoThentos = it "log into thentos" $ \fts -> fts ^. ftsRunWD $ do
-    let feConfig = fts ^. ftsFrontendCfg
-
+spec_logIntoThentos = it "log into thentos" $ withWebDriver $ do
     wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Login successful"
 
 
 spec_logOutOfThentos :: SpecWith (FTS DB)
-spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
-    let feConfig = fts ^. ftsFrontendCfg
-
+spec_logOutOfThentos = it "log out of thentos" $ withWebDriver $ do
     -- logout when logged in
     wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -230,36 +218,28 @@ spec_logOutOfThentos = it "log out of thentos" $ \fts -> fts ^. ftsRunWD $ do
 
 
 spec_redirectWhenNotLoggedIn :: SpecWith (FTS DB)
-spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \fts -> do
-    let feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
-    wd $ isNotLoggedIn feConfig
+spec_redirectWhenNotLoggedIn = it "redirect to login page" $ do
+    withWebDriver $ isNotLoggedIn feConfig
 
 
 spec_dontRedirectWhenLoggedIn :: SpecWith (FTS DB)
-spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \fts -> do
-    let feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
-    wd $ do
+spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ do
+    withWebDriver $ do
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         isLoggedIn feConfig
 
 
 spec_deletingCookiesLogsOut :: SpecWith (FTS DB)
-spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \fts -> do
-    let feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
-    wd $ do
+spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ do
+    withWebDriver $ do
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
         isNotLoggedIn feConfig
 
 
 spec_logInSetsSessionCookie :: SpecWith (FTS DB)
-spec_logInSetsSessionCookie = it "set cookie on login" $ \fts -> do
-    let feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
-    wd $ do
+spec_logInSetsSessionCookie = it "set cookie on login" $ do
+    withWebDriver $ do
         WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.cookies >>= \cc -> liftIO $ cc `shouldSatisfy` oneSessionCookie
@@ -270,10 +250,8 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \fts -> do
 
 -- This is a a webdriver meta-test, as a base case for 'spec_failOnCsrf'.
 spec_restoringCookieRestoresSession :: SpecWith (FTS DB)
-spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \fts -> do
-    let feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
-    wd $ do
+spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ do
+    withWebDriver $ do
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         cookies <- WD.cookies
         WD.deleteVisibleCookies
@@ -288,10 +266,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
 
 
 spec_serviceCreate :: SpecWith (FTS DB)
-spec_serviceCreate = it "service create" $ \fts -> do
-    let ActionState (st, _, _) = fts ^. ftsActionState
-        feConfig = fts ^. ftsFrontendCfg
-        wd = fts ^. ftsRunWD
+spec_serviceCreate = it "service create" $ do
 
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
@@ -300,7 +275,7 @@ spec_serviceCreate = it "service create" $ \fts -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
-    serviceId <- wd $ do
+    serviceId <- withWebDriver $ do
         wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
 
@@ -364,8 +339,7 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWit
 
 
 spec_failOnCsrf :: SpecWith (FTS DB)
-spec_failOnCsrf =  it "fails on csrf" $ \fts -> fts ^. ftsRunWD $ do
-    let feConfig = fts ^. ftsFrontendCfg
+spec_failOnCsrf =  it "fails on csrf" $ withWebDriver $ do
     wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies
