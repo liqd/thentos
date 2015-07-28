@@ -24,6 +24,9 @@ extra-deps:
 - email-validate-2.1.3
 - functor-infix-0.0.3
 - hspec-2.1.8
+- hspec-core-2.1.8
+- hspec-discover-2.1.8
+- hspec-expectations-0.7.0
 - lio-0.11.5.0
 - regex-easy-0.1.0.0
 - regex-pcre-0.94.4
