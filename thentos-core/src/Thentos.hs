@@ -155,12 +155,12 @@ createDefaultUser st (Just (getDefaultUser -> (userData, roles))) = do
             else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
+-- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
 autocreateMissingServices :: (db `Ex` DB) => ThentosConfig -> Action db ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing'P agent) allSids
   where
-    -- Die with an error if the default "proxy" service ID is repeated in the "proxies" section
     dieOnDuplicates  = case mDefaultProxySid of
         Just sid -> when (sid `elem` proxySids) . error $ show sid ++ " mentioned twice in config"
         Nothing  -> return ()
