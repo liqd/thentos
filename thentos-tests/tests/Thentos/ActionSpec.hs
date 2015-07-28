@@ -12,7 +12,8 @@ import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Acid (openLocalStateFrom)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
-import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldContain,
+                   shouldNotContain, shouldSatisfy, hspec)
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
@@ -120,7 +121,8 @@ spec_service :: SpecWith (DBTS DB)
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \(DBTS _ sta) -> do
-            let addsvc name desc = runActionWithClearanceE (UserA godUid %% UserA godUid) sta $ addService (UserA (UserId 0)) name desc
+            let addsvc name desc = runActionWithClearanceE (UserA godUid %% UserA godUid) sta
+                    $ addService (UserA (UserId 0)) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
             Right (service2_id, _s2_key) <- addsvc "different name" "different description"
             service1 <- runActionWithPrivs [RoleAdmin] sta $ lookupService service1_id
@@ -132,6 +134,24 @@ spec_service = describe "service" $ do
                 runActionWithPrivsE [RoleAdmin] sta $ lookupService service1_id
             return ()
 
+    describe "autocreateServiceIfMissing" $ do
+        it "adds service if missing" $ \(DBTS _ sta) -> do
+            let owner = UserA $ UserId 0
+            sid <- runActionWithPrivs [RoleAdmin] sta $ freshServiceId
+            allSids <- runActionWithPrivs [RoleAdmin] sta allServiceIds
+            allSids `shouldNotContain` [sid]
+            runActionWithPrivs [RoleAdmin] sta $ autocreateServiceIfMissing'P owner sid
+            allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
+            allSids' `shouldContain` [sid]
+
+        it "does nothing if service exists" $ \(DBTS _ sta) -> do
+            let owner = UserA $ UserId 0
+            (sid, _) <- runActionWithPrivs [RoleAdmin] sta
+                            $ addService owner "fake name" "fake description"
+            allSids <- runActionWithPrivs [RoleAdmin] sta allServiceIds
+            runActionWithPrivs [RoleAdmin] sta $ autocreateServiceIfMissing'P owner sid
+            allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
+            allSids `shouldBe` allSids'
 
 spec_agentsAndRoles :: SpecWith (DBTS DB)
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
