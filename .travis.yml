@@ -16,8 +16,12 @@ before_install:
     - cd ../..
 install:
     - cabal install hlint
+    - ./misc/get-cabal-config.sh stack.yaml cabal.config
+    - cp cabal.config thentos-core/cabal.config
+    - cp cabal.config thentos-tests/cabal.config
+    - cp cabal.config thentos-adhocracy/cabal.config
     - ./misc/thentos-install.sh
 script:
     - make hlint
-    - cd thentos-tests && cabal test && cd ..
-    - cd thentos-adhocracy && cabal test && cd ..
+    - cd thentos-tests && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
+    - cd thentos-adhocracy && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
