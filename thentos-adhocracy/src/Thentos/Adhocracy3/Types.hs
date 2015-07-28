@@ -16,6 +16,9 @@
 module Thentos.Adhocracy3.Types
     ( module Thentos.Types
     , DB(..)
+    , dbCoreDB
+    , dbSsoTokens
+    , SsoToken(..)
     , ThentosError(..)
     )
     where
@@ -25,29 +28,30 @@ import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
-import Data.String.Conversions (LBS)
+import Data.Set (Set)
+import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
 import Servant.Server.Internal.ServantErr (err500, errBody)
 import System.Log.Logger (Priority(ERROR))
 
 import Thentos.Backend.Core
-import Thentos.Transaction.TH
 import Thentos.Types hiding (DB)
 
+import qualified Data.Set as Set
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Types
-import qualified Thentos.Transaction as T
 
-
-newtype DB = DB { fromCoreDB :: Thentos.Types.DB }
-  deriving (Eq, Show, Typeable, Generic)
+data DB = DB
+    { _dbCoreDB    :: !Thentos.Types.DB
+    , _dbSsoTokens :: !(Set SsoToken)
+    } deriving (Eq, Show, Typeable, Generic)
 
 instance EmptyDB DB where
-    emptyDB = DB emptyDB
+    emptyDB = DB emptyDB Set.empty
 
 instance DB `Extends` Thentos.Types.DB where
-    focus f (DB db) = DB <$> f db
+    focus f (DB db ssoTokens) = flip DB ssoTokens <$> f db
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
@@ -61,6 +65,9 @@ data instance ThentosError DB =
       ThentosA3ErrorCore (ThentosError Thentos.Types.DB)
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
+    | SsoErrorUnknownCsrfToken
+    | SsoErrorCouldNotAccessUserInfo LBS
+    | SsoErrorCouldNotGetAccessToken LBS
 
 deriving instance Eq (ThentosError DB)
 deriving instance Show (ThentosError DB)
@@ -82,10 +89,18 @@ instance ThentosErrorToServantErr DB where
 
     thentosErrorToServantErr e@(A3BackendInvalidJson _) = do
         (Just (ERROR, show e), err500 { errBody = "exception in a3 backend: received bad json" })
+    -- the following shouldn't actually reach servant:
+    thentosErrorToServantErr e@SsoErrorUnknownCsrfToken =
+        (Just (ERROR, show e), err500 { errBody = "invalid token returned during sso process" })
+    thentosErrorToServantErr e@(SsoErrorCouldNotAccessUserInfo _) =
+        (Just (ERROR, show e), err500 { errBody = "error accessing user info" })
+    thentosErrorToServantErr e@(SsoErrorCouldNotGetAccessToken _) =
+        (Just (ERROR, show e), err500 { errBody = "error retrieving access token" })
 
+newtype SsoToken = SsoToken { fromSsoToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 makeLenses ''DB
 
+$(deriveSafeCopy 0 'base ''SsoToken)
 $(deriveSafeCopy 0 'base ''DB)
-$(makeThentosAcidicPhase1 ''DB [])
-$(makeThentosAcidicPhase2 ''DB [] [''Thentos.Types.DB] ['T.dbEvents])

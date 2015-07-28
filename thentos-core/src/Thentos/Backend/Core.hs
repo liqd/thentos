@@ -142,13 +142,6 @@ instance ThentosErrorToServantErr DB where
         f (MalformedUserPath path) =
             (Nothing, err400 { errBody = "malformed user path: " <> cs (show path) })
 
-        -- the following shouldn't actually reach servant:
-        f SsoErrorUnknownCsrfToken =
-            (Just (ERROR, show e), err500 { errBody = "invalid token returned during sso process" })
-        f (SsoErrorCouldNotAccessUserInfo _) =
-            (Just (ERROR, show e), err500 { errBody = "error accessing user info" })
-        f (SsoErrorCouldNotGetAccessToken _) =
-            (Just (ERROR, show e), err500 { errBody = "error retrieving access token" })
 
 -- * custom servers for servant
 

@@ -77,7 +77,6 @@ data DB =
       , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
       , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
       , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
-      , _dbSsoTokens         :: !(Set SsoToken)
       , _dbFreshUserId       :: !UserId
       }
   deriving (Eq, Show, Typeable, Generic)
@@ -111,7 +110,7 @@ class EmptyDB db where
     emptyDB :: db
 
 instance EmptyDB DB where
-    emptyDB = DB m m m m m m m m m m Set.empty (UserId 0)
+    emptyDB = DB m m m m m m m m m m (UserId 0)
       where m = Map.empty
 
 
@@ -202,10 +201,6 @@ newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
-newtype SsoToken = SsoToken { fromSsoToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
 
 -- | Information required to create a new User
 data UserFormData =
@@ -487,9 +482,6 @@ data instance ThentosError DB =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
-    | SsoErrorUnknownCsrfToken
-    | SsoErrorCouldNotAccessUserInfo LBS
-    | SsoErrorCouldNotGetAccessToken LBS
 
 deriving instance Eq (ThentosError DB)
 deriving instance Show (ThentosError DB)
@@ -535,4 +527,3 @@ $(deriveSafeCopy 0 'base ''ThentosSessionToken)
 $(deriveSafeCopy 0 'base ''User)
 $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserName)
-$(deriveSafeCopy 0 'base ''SsoToken)

@@ -519,20 +519,6 @@ trans_agentRoles :: (db `Extends` DB) => Agent -> ThentosQuery db (Set.Set Role)
 trans_agentRoles agent = polyQuery $ fromMaybe Set.empty . Map.lookup agent . (^. dbRoles) <$> ask
 
 
--- * SSO
-
--- | Add an SSO token to the database
-trans_addSsoToken :: (db `Extends` DB) => SsoToken -> ThentosUpdate db ()
-trans_addSsoToken tok = polyUpdate . modify $ dbSsoTokens %~ Set.insert tok
-
--- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
-trans_lookupAndRemoveSsoToken :: (db `Extends` DB) => SsoToken -> ThentosUpdate db ()
-trans_lookupAndRemoveSsoToken tok = polyUpdate $ do
-    exists <- Set.member tok . (^. dbSsoTokens) <$> get
-    unless exists $ throwT SsoErrorUnknownCsrfToken
-    modify $ dbSsoTokens %~ Set.delete tok
-
-
 -- * misc
 
 trans_snapShot :: (db `Extends` DB) => ThentosQuery db DB
@@ -628,8 +614,6 @@ transaction_names =
     , 'trans_assignRole
     , 'trans_unassignRole
     , 'trans_agentRoles
-    , 'trans_addSsoToken
-    , 'trans_lookupAndRemoveSsoToken
     , 'trans_snapShot
     , 'trans_garbageCollectThentosSessions
     , 'trans_doGarbageCollectThentosSessions
