@@ -364,7 +364,8 @@ addService owner name desc = do
 addServicePrim :: (db `Ex` DB) =>
     Agent -> ServiceId -> ServiceName -> ServiceDescription -> Action db (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
-    guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
+    -- FIXME LIO
+    --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
     update'P $ T.AddService owner sid hashedKey name desc
