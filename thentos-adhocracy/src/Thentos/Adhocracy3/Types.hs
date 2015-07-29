@@ -109,6 +109,9 @@ instance SafeCopy (ThentosError DB)
     getCopy = getCopyViaShowRead
 
 
+-- FIXME: we never used `PW` before, but rather `Pass` or `Password` (perhaps not consistently
+-- enough).  align the `HashedPW` constructor more closely with what's already there?  (actually,
+-- i'm not sure which of pass, password, pw we are using most.  anyway, it should just be one.)
 data A3Auth = HashedPW !(HashedSecret UserPass) | GithubId !Integer
     deriving (Eq, Show)
 
