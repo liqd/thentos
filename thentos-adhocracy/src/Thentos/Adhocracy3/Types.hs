@@ -18,6 +18,7 @@ module Thentos.Adhocracy3.Types
     , DB(..)
     , dbCoreDB
     , dbSsoTokens
+    , dbA3Users
     , SsoToken(..)
     , ThentosError(..)
     )
@@ -27,6 +28,7 @@ import Control.Applicative ((<$>))
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
+import Data.Map (Map)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
 import Data.Set (Set)
 import Data.String.Conversions (LBS, ST)
@@ -38,6 +40,7 @@ import System.Log.Logger (Priority(ERROR))
 import Thentos.Backend.Core
 import Thentos.Types hiding (DB)
 
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Types
@@ -45,13 +48,14 @@ import qualified Thentos.Types
 data DB = DB
     { _dbCoreDB    :: !Thentos.Types.DB
     , _dbSsoTokens :: !(Set SsoToken)
+    , _dbA3Users   :: !(Map UserId A3User)
     } deriving (Eq, Show, Typeable, Generic)
 
 instance EmptyDB DB where
-    emptyDB = DB emptyDB Set.empty
+    emptyDB = DB emptyDB Set.empty Map.empty
 
 instance DB `Extends` Thentos.Types.DB where
-    focus f (DB db ssoTokens) = flip DB ssoTokens <$> f db
+    focus f (DB db ssoTokens users) = (\db' -> DB db' ssoTokens users) <$> f db
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
@@ -82,6 +86,23 @@ instance SafeCopy (ThentosError DB)
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
 
+
+data A3Auth = HashedPW !(HashedSecret UserPass) | GithubId !Integer
+    deriving (Eq, Show)
+
+data A3User =
+    A3User
+      { _userName            :: !UserName
+      , _userAuth            :: !A3Auth
+      , _userEmail           :: !UserEmail
+      , _userThentosSessions :: !(Set ThentosSessionToken)
+          -- ^ (service sessions are stored in the resp. value in @DB ^. dbSessions@)
+      , _userServices        :: !(Map ServiceId ServiceAccount)
+          -- ^ services (with session account information)
+      }
+   deriving (Eq, Show, Typeable, Generic)
+
+
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
     thentosErrorToServantErr e@(A3BackendErrorResponse _ _) =
@@ -103,4 +124,6 @@ newtype SsoToken = SsoToken { fromSsoToken :: ST }
 makeLenses ''DB
 
 $(deriveSafeCopy 0 'base ''SsoToken)
+$(deriveSafeCopy 0 'base ''A3User)
+$(deriveSafeCopy 0 'base ''A3Auth)
 $(deriveSafeCopy 0 'base ''DB)
