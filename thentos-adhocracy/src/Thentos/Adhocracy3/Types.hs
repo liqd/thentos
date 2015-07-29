@@ -26,6 +26,7 @@ module Thentos.Adhocracy3.Types
 
 import Control.Applicative ((<$>))
 import Control.Exception (Exception)
+import Control.Lens ((.~), (^.))
 import Control.Lens (makeLenses)
 import Data.Data (Typeable)
 import Data.Map (Map)
@@ -55,7 +56,28 @@ instance EmptyDB DB where
     emptyDB = DB emptyDB Set.empty Map.empty
 
 instance DB `Extends` Thentos.Types.DB where
-    focus f (DB db ssoTokens users) = (\db' -> DB db' ssoTokens users) <$> f db
+    focus f (DB db ssoTokens a3users) = q <$> f (p db a3users)
+      where
+        -- move users from the a3 map back into core type.
+        q :: Thentos.Types.DB -> DB
+        q db' = DB (dbUsers .~ Map.empty $ db') ssoTokens (Map.map extendUser $ db' ^. dbUsers)
+
+        -- move users from the core type back out to the a3 map.
+        p :: Thentos.Types.DB -> Map UserId A3User -> Thentos.Types.DB
+        p db' a3users' = dbUsers .~ Map.map reduceUser a3users' $ db'
+
+        -- FIXME: github users are not covered by this, but somehow need to be mapped as well, or
+        -- things will start to surprise everybody later on.  one way to make this total is to make
+        -- the password field `Maybe` in core and make `A3User` a proper extension of `User`.  this
+        -- also means that every time we lens from child db into parent db, on the way back we have
+        -- to look up every github id from the user in the original child user table before we can
+        -- reconstruct the user from the the parent user.
+        reduceUser :: A3User -> User
+        reduceUser (A3User name (HashedPW pass) email sessions services) = User name pass email sessions services
+
+        extendUser :: User -> A3User
+        extendUser (User name pass email sessions services) = A3User name (HashedPW pass) email sessions services
+
     thentosErrorFromParent = ThentosA3ErrorCore
     thentosErrorToParent (ThentosA3ErrorCore e) = Just e
     thentosErrorToParent _ = Nothing
