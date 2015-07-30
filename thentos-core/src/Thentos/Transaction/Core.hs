@@ -54,7 +54,7 @@ runThentosUpdate action = do
     state <- get
     case runIdentity $ runStateT (runEitherT action) state of
         (Left err,     _)      ->                return $ Left  err
-        (Right result, state') -> put state' >> (return $ Right result)
+        (Right result, state') -> put state' >> return (Right result)
 
 -- | Like 'runThentosUpdate', but for 'ThentosQuery' and 'ThentosQuery''.
 runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)

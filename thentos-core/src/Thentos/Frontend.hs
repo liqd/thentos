@@ -50,11 +50,11 @@ frontendApp (ActionState (st, rn, _cfg)) feConf =
         wrapSite csrfify
         addRoutes routes
         FrontendApp <$>
-            (nestSnaplet "acid" db $ acidInitManual st) <*>
+            nestSnaplet "acid" db (acidInitManual st) <*>
             return rn <*>
             return _cfg <*>
-            (nestSnaplet "sess" sess $
-               initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
+            nestSnaplet "sess" sess
+               (initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
             pure feConf
 
 routes :: [(ByteString, FH ())]
