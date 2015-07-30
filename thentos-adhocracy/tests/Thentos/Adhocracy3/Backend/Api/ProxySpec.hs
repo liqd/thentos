@@ -21,7 +21,7 @@ import GHC.Generics (Generic)
 import Network.HTTP.Base (urlEncode)
 import Network.HTTP.Types (Header, mkStatus)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec (Spec, describe, context, shouldBe, it, afterAll_, beforeAll)
 import Test.QuickCheck (Arbitrary(..), property, Gen, NonEmptyList(..), (==>))
@@ -40,10 +40,12 @@ spec = do
   where
     setup :: IO ()
     setup = do
-        destThread <- forkIO $ run 8001 proxyDestServer
+        let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
+        destThread <- forkIO $ runSettings settings proxyDestServer
         bts <- setupTestBackend serveApi
         let application = bts ^. btsWai
-        proxyThread <- forkIO $ run 7118 application
+        let proxySettings = setHost "127.0.0.1" . setPort 7118 $ defaultSettings
+        proxyThread <- forkIO $ runSettings proxySettings application
         putMVar threadsMVar (destThread, proxyThread)
 
     teardown :: IO ()
