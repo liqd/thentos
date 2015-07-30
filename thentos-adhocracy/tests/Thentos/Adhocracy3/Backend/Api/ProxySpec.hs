@@ -6,8 +6,9 @@
 module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (forkIO, killThread, ThreadId)
+import Control.Concurrent.Async (Async, async, cancel, wait, link)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, readMVar, putMVar)
+import Control.Exception (catch, AsyncException(ThreadKilled))
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
 import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
@@ -41,18 +42,21 @@ spec = do
     setup :: IO ()
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
-        destThread <- forkIO $ runSettings settings proxyDestServer
+        dest <- async $ runSettings settings proxyDestServer
+        link dest
         bts <- setupTestBackend serveApi
         let application = bts ^. btsWai
-        let proxySettings = setHost "127.0.0.1" . setPort 7118 $ defaultSettings
-        proxyThread <- forkIO $ runSettings proxySettings application
-        putMVar threadsMVar (destThread, proxyThread)
+        let settings2 = setHost "127.0.0.1" . setPort 7118 $ defaultSettings
+        proxy <- async $ runSettings settings2 application
+        putMVar threadsMVar (dest, proxy)
 
     teardown :: IO ()
     teardown = do
-        (destThread, proxyThread) <- readMVar threadsMVar
-        killThread destThread
-        killThread proxyThread
+        (dest, proxy) <- readMVar threadsMVar
+        cancel proxy
+        catch (wait proxy) (\ThreadKilled -> return ())
+        cancel dest
+        catch (wait dest) (\ThreadKilled -> return ())
 
     tests :: Spec
     tests = describe "Thentos.Backend.Api.Proxy" $ do
@@ -127,7 +131,7 @@ instance FromJSON ByteString where
     parseJSON s@(String _) = cs <$> (parseJSON s :: Parser String)
     parseJSON _            = mzero
 
-threadsMVar :: MVar (ThreadId, ThreadId)
+threadsMVar :: MVar (Async (), Async ())
 threadsMVar = unsafePerformIO $ newEmptyMVar
 {-# NOINLINE threadsMVar #-}
 
