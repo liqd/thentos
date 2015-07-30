@@ -464,7 +464,7 @@ userIdToPath config (UserId i) = a3backendPath config $
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
 a3backendPath :: ThentosConfig -> ST -> Path
-a3backendPath config localPath = Path $ (cs $ exposeUrl beHttp) <> localPath
+a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <> localPath
   where
     beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
                      Nothing -> error "a3backendPath: backend not configured!"
