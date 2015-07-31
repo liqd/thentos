@@ -44,21 +44,17 @@ spec = do
     setup :: IO Env
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
-        dest <- async $ runSettings settings proxyDestServer
-        link dest
+        dest <- startDaemon $ runSettings settings proxyDestServer
         bts <- setupTestBackend serveApi
         let application = bts ^. btsWai
         (proxyPort, proxySocket) <- openTestSocket
-        proxy <- async $ runSettingsSocket defaultSettings proxySocket application
-        link proxy
+        proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application
         return (proxyPort, dest, proxy)
 
     teardown :: Env -> IO ()
     teardown (_, dest, proxy) = do
-        cancel proxy
-        catch (wait proxy) (\ThreadKilled -> return ())
-        cancel dest
-        catch (wait dest) (\ThreadKilled -> return ())
+        stopDaemon proxy
+        stopDaemon dest
 
     tests :: SpecWith Env
     tests = describe "Thentos.Backend.Api.Proxy" $ do
@@ -136,3 +132,16 @@ instance FromJSON ByteString where
 
 instance Arbitrary Text.Text where
     arbitrary = cs <$> (arbitrary :: Gen String)
+
+-- * Starting and stopping background processes
+
+startDaemon :: IO () -> IO (Async ())
+startDaemon x = do
+    a <- async x
+    link a
+    return a
+
+stopDaemon :: Async () -> IO ()
+stopDaemon a = do
+    cancel a
+    catch (wait a) (\ThreadKilled -> return ())
