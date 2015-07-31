@@ -50,6 +50,7 @@ spec = do
         let application = bts ^. btsWai
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- async $ runSettingsSocket defaultSettings proxySocket application
+        link proxy
         return (proxyPort, dest, proxy)
 
     teardown :: Env -> IO ()
