@@ -7,7 +7,6 @@ module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Applicative ((<$>))
 import Control.Concurrent.Async (Async, async, cancel, wait, link)
-import Control.Concurrent.MVar (MVar, newEmptyMVar, readMVar, putMVar)
 import Control.Exception (catch, AsyncException(ThreadKilled))
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
@@ -24,8 +23,7 @@ import Network.HTTP.Types (Header, mkStatus)
 import Network.Socket (PortNumber)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings, runSettingsSocket)
-import System.IO.Unsafe (unsafePerformIO)
-import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll_, beforeAll)
+import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll, beforeAll)
 import Test.QuickCheck (Arbitrary(..), property, Gen, NonEmptyList(..), (==>))
 
 import qualified Data.Text as Text
@@ -36,13 +34,14 @@ import Thentos.Test.Core (setupTestBackend)
 import Thentos.Test.Network (openTestSocket)
 import Thentos.Test.Types (btsWai)
 
+type Env = (PortNumber, Async (), Async ())
 
 spec :: Spec
 spec = do
-    beforeAll setup (afterAll_ teardown tests)
+    beforeAll setup (afterAll teardown tests)
 
   where
-    setup :: IO PortNumber
+    setup :: IO Env
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- async $ runSettings settings proxyDestServer
@@ -51,39 +50,37 @@ spec = do
         let application = bts ^. btsWai
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- async $ runSettingsSocket defaultSettings proxySocket application
-        putMVar threadsMVar (dest, proxy)
-        return proxyPort
+        return (proxyPort, dest, proxy)
 
-    teardown :: IO ()
-    teardown = do
-        (dest, proxy) <- readMVar threadsMVar
+    teardown :: Env -> IO ()
+    teardown (_, dest, proxy) = do
         cancel proxy
         catch (wait proxy) (\ThreadKilled -> return ())
         cancel dest
         catch (wait dest) (\ThreadKilled -> return ())
 
-    tests :: SpecWith PortNumber
+    tests :: SpecWith Env
     tests = describe "Thentos.Backend.Api.Proxy" $ do
         describe "serviceProxy" $ do
             context "an authenticated request" $ do
-                it "is proxied" $ \port -> do
+                it "is proxied" $ \env -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        resp <- Wreq.get $ url port rPath
+                        resp <- Wreq.get $ url env rPath
                         resp ^. Wreq.responseStatus . Wreq.statusCode `shouldBe` 299
 
-                it "gets an unchanged body" $ \port -> do
+                it "gets an unchanged body" $ \env -> do
                     property $ \rPath (NonEmpty rBody :: NonEmptyList Char) -> hitsProxy rPath ==> do
-                        req <- Wreq.post (url port rPath) (cs rBody :: ByteString)
+                        req <- Wreq.post (url env rPath) (cs rBody :: ByteString)
                         req ^? Wreq.responseBody . key "body"
                             `shouldBe` Just (String $ cs rBody)
 
-                it "gets the proxy path added" $ \port -> do
+                it "gets the proxy path added" $ \env -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        req <- Wreq.get (url port rPath)
+                        req <- Wreq.get (url env rPath)
                         req ^? Wreq.responseBody . key "path"
                             `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
       where
-        url port rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
+        url (port, _, _) rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
 
 
 -- Check that a path should hit the proxy
@@ -133,10 +130,6 @@ instance ToJSON ByteString where
 instance FromJSON ByteString where
     parseJSON s@(String _) = cs <$> (parseJSON s :: Parser String)
     parseJSON _            = mzero
-
-threadsMVar :: MVar (Async (), Async ())
-threadsMVar = unsafePerformIO $ newEmptyMVar
-{-# NOINLINE threadsMVar #-}
 
 -- * Arbitrary instances
 
