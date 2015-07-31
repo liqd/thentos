@@ -21,10 +21,11 @@ import Data.String.Conversions (cs)
 import GHC.Generics (Generic)
 import Network.HTTP.Base (urlEncode)
 import Network.HTTP.Types (Header, mkStatus)
+import Network.Socket (PortNumber)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
-import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings, runSettingsSocket)
 import System.IO.Unsafe (unsafePerformIO)
-import Test.Hspec (Spec, describe, context, shouldBe, it, afterAll_, beforeAll)
+import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll_, beforeAll)
 import Test.QuickCheck (Arbitrary(..), property, Gen, NonEmptyList(..), (==>))
 
 import qualified Data.Text as Text
@@ -32,23 +33,26 @@ import qualified Network.Wreq as Wreq
 
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
 import Thentos.Test.Core (setupTestBackend)
+import Thentos.Test.Network (openTestSocket)
 import Thentos.Test.Types (btsWai)
+
 
 spec :: Spec
 spec = do
     beforeAll setup (afterAll_ teardown tests)
 
   where
-    setup :: IO ()
+    setup :: IO PortNumber
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- async $ runSettings settings proxyDestServer
         link dest
         bts <- setupTestBackend serveApi
         let application = bts ^. btsWai
-        let settings2 = setHost "127.0.0.1" . setPort 7118 $ defaultSettings
-        proxy <- async $ runSettings settings2 application
+        (proxyPort, proxySocket) <- openTestSocket
+        proxy <- async $ runSettingsSocket defaultSettings proxySocket application
         putMVar threadsMVar (dest, proxy)
+        return proxyPort
 
     teardown :: IO ()
     teardown = do
@@ -58,30 +62,29 @@ spec = do
         cancel dest
         catch (wait dest) (\ThreadKilled -> return ())
 
-    tests :: Spec
+    tests :: SpecWith PortNumber
     tests = describe "Thentos.Backend.Api.Proxy" $ do
         describe "serviceProxy" $ do
-
             context "an authenticated request" $ do
-                it "is proxied" $ do
+                it "is proxied" $ \port -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        resp <- Wreq.get url
+                        resp <- Wreq.get $ url port rPath
                         resp ^. Wreq.responseStatus . Wreq.statusCode `shouldBe` 299
 
-                it "gets an unchanged body" $ do
+                it "gets an unchanged body" $ \port -> do
                     property $ \rPath (NonEmpty rBody :: NonEmptyList Char) -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        req <- Wreq.post url (cs rBody :: ByteString)
+                        req <- Wreq.post (url port rPath) (cs rBody :: ByteString)
                         req ^? Wreq.responseBody . key "body"
                             `shouldBe` Just (String $ cs rBody)
 
-                it "gets the proxy path added" $ do
+                it "gets the proxy path added" $ \port -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        req <- Wreq.get url
+                        req <- Wreq.get (url port rPath)
                         req ^? Wreq.responseBody . key "path"
                             `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
+      where
+        url port rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
+
 
 -- Check that a path should hit the proxy
 hitsProxy :: String -> Bool
