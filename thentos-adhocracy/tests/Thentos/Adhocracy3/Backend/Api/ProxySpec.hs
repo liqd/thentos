@@ -6,8 +6,8 @@
 module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (forkIO, killThread, ThreadId)
-import Control.Concurrent.MVar (MVar, newEmptyMVar, readMVar, putMVar)
+import Control.Concurrent.Async (Async, async, cancel, wait, link)
+import Control.Exception (catch, AsyncException(ThreadKilled))
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
 import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
@@ -20,10 +20,10 @@ import Data.String.Conversions (cs)
 import GHC.Generics (Generic)
 import Network.HTTP.Base (urlEncode)
 import Network.HTTP.Types (Header, mkStatus)
+import Network.Socket (PortNumber)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
-import Network.Wai.Handler.Warp (run)
-import System.IO.Unsafe (unsafePerformIO)
-import Test.Hspec (Spec, describe, context, shouldBe, it, afterAll_, beforeAll)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings, runSettingsSocket)
+import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll, beforeAll)
 import Test.QuickCheck (Arbitrary(..), property, Gen, NonEmptyList(..), (==>))
 
 import qualified Data.Text as Text
@@ -31,51 +31,54 @@ import qualified Network.Wreq as Wreq
 
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
 import Thentos.Test.Core (setupTestBackend)
+import Thentos.Test.Network (openTestSocket)
 import Thentos.Test.Types (btsWai)
+
+type Env = (PortNumber, Async (), Async ())
 
 spec :: Spec
 spec = do
-    beforeAll setup (afterAll_ teardown tests)
+    beforeAll setup (afterAll teardown tests)
 
   where
-    setup :: IO ()
+    setup :: IO Env
     setup = do
-        destThread <- forkIO $ run 8001 proxyDestServer
+        let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
+        dest <- startDaemon $ runSettings settings proxyDestServer
         bts <- setupTestBackend serveApi
         let application = bts ^. btsWai
-        proxyThread <- forkIO $ run 7118 application
-        putMVar threadsMVar (destThread, proxyThread)
+        (proxyPort, proxySocket) <- openTestSocket
+        proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application
+        return (proxyPort, dest, proxy)
 
-    teardown :: IO ()
-    teardown = do
-        (destThread, proxyThread) <- readMVar threadsMVar
-        killThread destThread
-        killThread proxyThread
+    teardown :: Env -> IO ()
+    teardown (_, dest, proxy) = do
+        stopDaemon proxy
+        stopDaemon dest
 
-    tests :: Spec
+    tests :: SpecWith Env
     tests = describe "Thentos.Backend.Api.Proxy" $ do
         describe "serviceProxy" $ do
-
             context "an authenticated request" $ do
-                it "is proxied" $ do
+                it "is proxied" $ \env -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        resp <- Wreq.get url
+                        resp <- Wreq.get $ url env rPath
                         resp ^. Wreq.responseStatus . Wreq.statusCode `shouldBe` 299
 
-                it "gets an unchanged body" $ do
+                it "gets an unchanged body" $ \env -> do
                     property $ \rPath (NonEmpty rBody :: NonEmptyList Char) -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        req <- Wreq.post url (cs rBody :: ByteString)
+                        req <- Wreq.post (url env rPath) (cs rBody :: ByteString)
                         req ^? Wreq.responseBody . key "body"
                             `shouldBe` Just (String $ cs rBody)
 
-                it "gets the proxy path added" $ do
+                it "gets the proxy path added" $ \env -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        let url = "http://localhost:7118/" ++ urlEncode rPath
-                        req <- Wreq.get url
+                        req <- Wreq.get (url env rPath)
                         req ^? Wreq.responseBody . key "path"
                             `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
+      where
+        url (port, _, _) rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
+
 
 -- Check that a path should hit the proxy
 hitsProxy :: String -> Bool
@@ -125,11 +128,20 @@ instance FromJSON ByteString where
     parseJSON s@(String _) = cs <$> (parseJSON s :: Parser String)
     parseJSON _            = mzero
 
-threadsMVar :: MVar (ThreadId, ThreadId)
-threadsMVar = unsafePerformIO $ newEmptyMVar
-{-# NOINLINE threadsMVar #-}
-
 -- * Arbitrary instances
 
 instance Arbitrary Text.Text where
     arbitrary = cs <$> (arbitrary :: Gen String)
+
+-- * Starting and stopping background processes
+
+startDaemon :: IO () -> IO (Async ())
+startDaemon x = do
+    a <- async x
+    link a
+    return a
+
+stopDaemon :: Async () -> IO ()
+stopDaemon a = do
+    cancel a
+    catch (wait a) (\ThreadKilled -> return ())
