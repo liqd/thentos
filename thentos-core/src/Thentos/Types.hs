@@ -29,7 +29,7 @@ import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
-import Data.String.Conversions (SBS, LBS, ST, cs)
+import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -47,7 +47,6 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
