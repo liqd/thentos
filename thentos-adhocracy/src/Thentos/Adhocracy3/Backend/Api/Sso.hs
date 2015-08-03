@@ -137,7 +137,7 @@ api :: Client.Manager -> AC.ActionState DB -> Server Api
 api manager actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
-  :<|> serviceProxy manager A3.renderA3HeaderName actionState
+  :<|> serviceProxy manager A3.a3ProxyAdapter actionState
 
 
 -- * handler

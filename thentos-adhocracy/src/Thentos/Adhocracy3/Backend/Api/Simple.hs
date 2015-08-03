@@ -31,7 +31,7 @@ import Data.List (dropWhileEnd, stripPrefix)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, ST, cs)
+import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Wai (Application)
@@ -55,7 +55,7 @@ import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Types
-import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
+import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
@@ -338,7 +338,7 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
 api :: Client.Manager -> AC.ActionState DB -> Server Api
 api manager actionState =
        thentosApi actionState
-  :<|> serviceProxy manager renderA3HeaderName actionState
+  :<|> serviceProxy manager a3ProxyAdapter actionState
 
 
 -- * handler
@@ -452,11 +452,22 @@ extractUserId resp = do
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
     userIdFromPath $ tpPath resource
 
+-- | A3-specific ProxyAdapter.
+a3ProxyAdapter :: ProxyAdapter
+a3ProxyAdapter = ProxyAdapter
+  { renderHeader = renderA3HeaderName
+  , renderUser   = a3RenderUser
+  }
+
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
 renderA3HeaderName :: RenderHeaderFun
 renderA3HeaderName ThentosHeaderSession = mk "X-User-Token"
 renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
+
+-- | Render the user as A3 expects it.
+a3RenderUser :: ThentosConfig -> UserId -> User -> SBS
+a3RenderUser cfg uid _ = cs . fromPath $ userIdToPath cfg uid
 
 userIdToPath :: ThentosConfig -> UserId -> Path
 userIdToPath config (UserId i) = a3backendPath config $
