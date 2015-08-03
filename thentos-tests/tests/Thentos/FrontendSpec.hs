@@ -12,7 +12,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
+import Test.Hspec (Spec, SpecWith, around, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
 
 import qualified Data.Map as Map
 import qualified Data.Text as ST
@@ -39,9 +39,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "selenium grid" $ do
-  let feConfig = _
-      st = _
-  describe "many tests" . before setupTestServerFull . after teardownTestServerFull $ do
+  describe "many tests" . around withFrontendAndBackend $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos
@@ -62,19 +60,19 @@ spec = describe "selenium grid" $ do
 
   -- (this is a separate top-level test case because it changes the DB
   -- state and gets the other tests confused.)
-  describe "update user" . before setupTestServerFull . after teardownTestServerFull $ do
+  describe "update user" . around withFrontendAndBackend $ do
     spec_updateSelf
 
 
-spec_createUser :: SpecWith (FTS DB)
+spec_createUser :: SpecWith (ActionState DB)
 spec_createUser = describe "create user" $ do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ do
+    it "fill out form." $ \(ActionState (st, _, _)) -> do
         withWebDriver $ do
-            WD.openPageSync (cs $ exposeUrl feConfig)
+            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
             fill "/user/register.name" myUsername
@@ -86,14 +84,14 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check confirmation token in DB.
-        Right (db1 :: DB) <- query' st $ SnapShot
+        Right (db1 :: DB) <- query' st SnapShot
         Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
 
         -- (it would be nice if we somehow had access to the email here to extract the link from
         -- there.  not yet...)
         case Map.toList $ db1 ^. dbUnconfirmedUsers of
-              [(tok, _)] -> wd $ do
-                  WD.openPageSync . cs $ urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken tok)
+              [(tok, _)] -> withWebDriver $ do
+                  WD.openPageSync . cs $ urlConfirm defaultFrontendConfig "/user/register_confirm" (fromConfirmationToken tok)
                   WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Registration complete"
               bad -> error $ "dbUnconfirmedUsers: " ++ show bad
 
@@ -105,11 +103,11 @@ spec_createUser = describe "create user" $ do
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 
 
-spec_resetPassword :: SpecWith (FTS DB)
-spec_resetPassword = it "reset password" $ pendingWith "no test implemented."
+spec_resetPassword :: SpecWith (ActionState DB)
+spec_resetPassword = it "reset password" $ \_ -> pendingWith "no test implemented."
 
 
-spec_updateSelf :: SpecWith (FTS DB)
+spec_updateSelf :: SpecWith (ActionState DB)
 spec_updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
@@ -127,10 +125,10 @@ spec_updateSelf = describe "update self" $ do
         selfName = godName
         selfPass = godPass
 
-    it "username" $ withWebDriver $ do
+    it "username" $ \(ActionState (st, _, _)) -> withWebDriver $ do
         let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update")
+        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
         _fill "/user/update.name" $ fromUserName newSelfName
         _click "update_user_submit"
         _check st ((`shouldBe` newSelfName) . (^. userName))
@@ -139,10 +137,10 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ withWebDriver $ do
+    it "password" $ \(ActionState (st, _, _)) -> withWebDriver $ do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin feConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/update_password")
+        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
         _fill "/user/update_password.old_password"  $ fromUserPass selfPass
         _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
         _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
@@ -153,7 +151,7 @@ spec_updateSelf = describe "update self" $ do
     -- "create_user" and "reset_password" (make sure the check is in
     -- separate function, not inlined.)
 
-    it "email" $ \(_ :: (FTS DB)) ->
+    it "email" $ \st ->
         pendingWith "no test implemented."
 
         {-
@@ -196,52 +194,52 @@ spec_updateSelf = describe "update self" $ do
         -}
 
 
--- manageRoles :: SpecWith (FTS DB)
+-- manageRoles :: SpecWith (ActionState DB)
 -- manageRoles = describe "manage roles" $ do ...
 
 
-spec_logIntoThentos :: SpecWith (FTS DB)
-spec_logIntoThentos = it "log into thentos" $ withWebDriver $ do
-    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+spec_logIntoThentos :: SpecWith (ActionState DB)
+spec_logIntoThentos = it "log into thentos" $ \_ -> withWebDriver $ do
+    wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Login successful"
 
 
-spec_logOutOfThentos :: SpecWith (FTS DB)
-spec_logOutOfThentos = it "log out of thentos" $ withWebDriver $ do
+spec_logOutOfThentos :: SpecWith (ActionState DB)
+spec_logOutOfThentos = it "log out of thentos" $ \_ -> withWebDriver $ do
     -- logout when logged in
-    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-    wdLogout feConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+    wdLogout defaultFrontendConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "You have been logged out"
 
     -- logout when already logged out
-    wdLogout feConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
+    wdLogout defaultFrontendConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
-spec_redirectWhenNotLoggedIn :: SpecWith (FTS DB)
-spec_redirectWhenNotLoggedIn = it "redirect to login page" $ do
-    withWebDriver $ isNotLoggedIn feConfig
+spec_redirectWhenNotLoggedIn :: SpecWith (ActionState DB)
+spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \_ -> do
+    withWebDriver $ isNotLoggedIn defaultFrontendConfig
 
 
-spec_dontRedirectWhenLoggedIn :: SpecWith (FTS DB)
-spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ do
+spec_dontRedirectWhenLoggedIn :: SpecWith (ActionState DB)
+spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \_ -> do
     withWebDriver $ do
-        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        isLoggedIn feConfig
+        wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        isLoggedIn defaultFrontendConfig
 
 
-spec_deletingCookiesLogsOut :: SpecWith (FTS DB)
-spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ do
+spec_deletingCookiesLogsOut :: SpecWith (ActionState DB)
+spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \_ -> do
     withWebDriver $ do
-        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
-        isNotLoggedIn feConfig
+        isNotLoggedIn defaultFrontendConfig
 
 
-spec_logInSetsSessionCookie :: SpecWith (FTS DB)
-spec_logInSetsSessionCookie = it "set cookie on login" $ do
+spec_logInSetsSessionCookie :: SpecWith (ActionState DB)
+spec_logInSetsSessionCookie = it "set cookie on login" $ \_ -> do
     withWebDriver $ do
         WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
-        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.cookies >>= \cc -> liftIO $ cc `shouldSatisfy` oneSessionCookie
   where
     oneSessionCookie [c] = WD.cookName c == "sess" && WD.cookPath c == Just "/"
@@ -249,15 +247,15 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ do
 
 
 -- This is a a webdriver meta-test, as a base case for 'spec_failOnCsrf'.
-spec_restoringCookieRestoresSession :: SpecWith (FTS DB)
-spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ do
+spec_restoringCookieRestoresSession :: SpecWith (ActionState DB)
+spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \_ -> do
     withWebDriver $ do
-        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         cookies <- WD.cookies
         WD.deleteVisibleCookies
         mapM_ WD.setCookie cookies
 
-        isLoggedIn feConfig
+        isLoggedIn defaultFrontendConfig
 
         -- With phantomjs, the store/delete/set cycle adds a leading dot to the cookie
         -- domain, and the dashboard request inside 'isLoggedin' above sets
@@ -265,8 +263,8 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
         -- WD.cookies >>= \cc -> liftIO $ length cc `shouldBe` 1
 
 
-spec_serviceCreate :: SpecWith (FTS DB)
-spec_serviceCreate = it "service create" $ do
+spec_serviceCreate :: SpecWith (ActionState DB)
+spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
 
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
@@ -276,8 +274,8 @@ spec_serviceCreate = it "service create" $ do
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
     serviceId <- withWebDriver $ do
-        wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
+        wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/dashboard/ownservices")
 
         fill "/dashboard/ownservices.name" sname
         fill "/dashboard/ownservices.description" sdescr
@@ -304,30 +302,30 @@ spec_serviceCreate = it "service create" $ do
     -- FIXME: test: if user is deleted, so are all their services.
 
 
-spec_serviceDelete :: SpecWith (FTS DB)
-spec_serviceDelete = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceDelete :: SpecWith (ActionState DB)
+spec_serviceDelete = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 
 
-spec_serviceUpdateMetadata :: SpecWith (FTS DB)
-spec_serviceUpdateMetadata = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata :: SpecWith (ActionState DB)
+spec_serviceUpdateMetadata = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 
 
-spec_serviceGiveToOtherUser :: SpecWith (FTS DB)
-spec_serviceGiveToOtherUser = it "service delete" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser :: SpecWith (ActionState DB)
+spec_serviceGiveToOtherUser = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 
 
-spec_logIntoService :: SpecWith (FTS DB)
-spec_logIntoService = it "log into service" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_logIntoService :: SpecWith (ActionState DB)
+spec_logIntoService = it "log into service" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 
 
-spec_logOutOfService :: SpecWith (FTS DB)
-spec_logOutOfService = it "log out of service" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_logOutOfService :: SpecWith (ActionState DB)
+spec_logOutOfService = it "log out of service" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 
 
-spec_browseMyServices :: SpecWith (FTS DB)
-spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWith "no test implemented."
+spec_browseMyServices :: SpecWith (ActionState DB)
+spec_browseMyServices = it "browse my services" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
 {-
-      \((st, _, _), _, (_, feConfig), wd) -> do
+      \((st, _, _), _, (_, defaultFrontendConfig), wd) -> do
     wd $ do
         wdLogin godName godPass >>= liftIO . (`shouldBe` 200)
 
@@ -338,13 +336,13 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (FTS DB)) -> pendingWit
 -}
 
 
-spec_failOnCsrf :: SpecWith (FTS DB)
-spec_failOnCsrf =  it "fails on csrf" $ withWebDriver $ do
-    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+spec_failOnCsrf :: SpecWith (ActionState DB)
+spec_failOnCsrf =  it "fails on csrf" $ \st -> withWebDriver $ do
+    wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies
-    wdLogin feConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.openPageSync (cs $ exposeUrl feConfig <//> "/dashboard/ownservices")
+    wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+    WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/dashboard/ownservices")
     WD.deleteVisibleCookies -- delete before restore to work around phantomjs domain wonkiness
     mapM_ WD.setCookie storedCookies
     fill "/dashboard/ownservices.name" "this is a service name"
@@ -356,9 +354,9 @@ spec_failOnCsrf =  it "fails on csrf" $ withWebDriver $ do
 -- * wd actions
 
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
-wdLogin feConfig (UserName uname) (UserPass upass) = do
+wdLogin defaultFrontendConfig (UserName uname) (UserPass upass) = do
     WD.setImplicitWait 200
-    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/login")
+    WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/login")
 
     fill "/user/login.name" uname
     fill "/user/login.password" upass
@@ -371,8 +369,8 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
                                  -- selenium doesn't allow that.
 
 wdLogout :: HttpConfig -> WD.WD C.Status
-wdLogout feConfig = do
-    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/logout")
+wdLogout defaultFrontendConfig = do
+    WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/logout")
     WD.findElems (WD.ById "logout_submit") >>= maybe noButton buttonIsThere . listToMaybe
   where
     noButton = do

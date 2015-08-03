@@ -1,0 +1,26 @@
+Generally:
+  - "works" isn't a very useful description for tests. Hopefully all of them
+  are in some way testing that things work...
+  - "pending" - shouldn't the person who implements a feature be responsible
+  for testing it? If s/he doesn't, can we realistically expect anyone else to?
+  (Or would it even be fair?)
+
+Specifically:
+
+* Is any of MetaSpec.hs useful?
+  - We're testing hspec in specFoo
+  - We're testing our tests in setupTestServerFullSpec
+
+* What is ThentosSpec.hs about?
+  - spec = return () ?
+
+* Thentos/Transaction/CoreSpec.hs spec_polyQU
+  - mentions three functions that are never actually used in the tests
+  - seems to be basically just testing that id == id
+
+* Thentos/TypesSpec.hs "ThentosLabel,.."
+  - It looks to me like we're testing another library, and not our own?
+
+* Thentos/Test/CustomDB.hs
+  - Why are we extending the DB in the tests? Anything that uses that won't be
+  testing the real DB

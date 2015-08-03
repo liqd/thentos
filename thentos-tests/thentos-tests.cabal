@@ -122,6 +122,8 @@ test-suite tests
     , functor-infix
     , hslogger
     , hspec >= 2.1.8 && < 3.0
+    , hspec-wai
+    , http-client
     , http-types
     , lens
     , lifted-base

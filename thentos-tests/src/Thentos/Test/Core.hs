@@ -23,28 +23,25 @@ import Control.Applicative ((<*), (<$>))
 import Control.Concurrent.Async (Async, async, cancel, poll)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch)
-import Control.Lens ((^.))
+import Control.Monad.IO.Class (MonadIO(liftIO))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (openLocalStateFrom, IsAcidic, closeAcidState)
+import Data.Acid (IsAcidic)
 import Data.Acid.Memory (openMemoryState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
-import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Configifier ((>>.))
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
-import Network.HTTP.Client (Manager, newManager, defaultManagerSettings)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network (HostName, PortID(PortNumber), connectTo)
 import Network.Wai (Application, StreamingBody, Request, requestMethod, requestBody, strictRequestBody, requestHeaders)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
-import Network.Wai.Test (Session, SRequest(SRequest), runSession, setPath, defaultRequest)
-import System.Directory (removeDirectoryRecursive)
-import System.FilePath ((</>))
+import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
 import System.IO (hClose)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
@@ -71,7 +68,6 @@ import Thentos.Transaction hiding (addService)
 import Thentos.Types
 
 import Thentos.Test.Config
-import Thentos.Test.Types
 
 
 -- * test users
@@ -143,9 +139,42 @@ withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
             , WD.wdPort = port
             }
 
-{-
-withFrontend :: HttpConfig -> ActionState DB -> IO r -> IO r
+-- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
+-- specified DB, running an action in between.
+withFrontend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
+withFrontend feConfig as action = do
+    fe <- liftIO . async $ Thentos.Frontend.runFrontend feConfig as
+    liftIO $ assertResponsive 1.5 [(fe, feConfig)]
+    result <- action
+    liftIO $ cancel fe
+    return result
 
+defaultFrontendConfig :: HttpConfig
+defaultFrontendConfig = undefined -- [NOPUSH]
+
+defaultBackendConfig :: HttpConfig
+defaultBackendConfig = undefined -- [NOPUSH]
+
+-- | Sets up DB, frontend and backend, runs an action that takes a DB, and
+-- tears down everything, returning the result of the action.
+withFrontendAndBackend :: MonadIO m => (ActionState DB -> m r) -> m r
+withFrontendAndBackend test = do
+    st <- liftIO $ createActionState undefined -- [NOPUSH]
+    withFrontend defaultFrontendConfig st
+       $ withBackend defaultBackendConfig st
+       $ test st
+
+-- | Run a @hspec-wai@ @Session@ with the backend @Application@.
+withBackend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
+withBackend beConfig as action = do
+    backend <- liftIO . async $ runWarpWithCfg beConfig $ Simple.serveApi as
+    liftIO $ assertResponsive 1.5 [(backend, beConfig)]
+    result <- action
+    liftIO $ cancel backend
+    return result
+
+
+{-
 withBackend  :: Application -> IO r -> IO r
 
 -- | Run an action with a database, frontend and backend servers, in the way it
@@ -160,8 +189,6 @@ createActionState config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     st <- openMemoryState emptyDB
     return $ ActionState (st, rng, config)
-
-
 
 
 -- * FTS
@@ -322,3 +349,4 @@ data AssertResponsiveFailed =
   deriving (Show, Typeable)
 
 instance Exception AssertResponsiveFailed
+

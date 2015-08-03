@@ -18,9 +18,6 @@ spec :: Spec
 spec = hooks >> setupTestServerFullSpec
 
 
--- `before` and `after` hooks are run before and after each spec item (see
--- http://hspec.github.io/writing-specs.html). Illustrative example:
-
 hooks :: Spec
 hooks = do
     ref <- runIO (newIORef 123)
