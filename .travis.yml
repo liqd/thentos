@@ -26,5 +26,6 @@ install:
     - cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlint-1.9.21/
 script:
     - make hlint
+    - cd thentos-core && cabal configure --ghc-options="-Werror" && cabal build && cd ..
     - cd thentos-tests && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
     - cd thentos-adhocracy && cabal configure --ghc-options="-Werror" && cabal build && cabal test && cd ..
