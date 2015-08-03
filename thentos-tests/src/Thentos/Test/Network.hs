@@ -1,7 +1,9 @@
 module Thentos.Test.Network
 where
 
-import Network.Socket --(bind, listen, socket, Family(AF_INET), SocketType(Stream))
+import Network.Socket (bind, listen, socket, Family(AF_INET),
+    SocketType(Stream), PortNumber, Socket, defaultProtocol, socketPort,
+    aNY_PORT, SockAddr(SockAddrInet), inet_addr)
 
 
 openTestSocket :: IO (PortNumber, Socket)
