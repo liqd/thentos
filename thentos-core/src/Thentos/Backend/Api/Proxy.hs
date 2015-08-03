@@ -23,7 +23,7 @@ import Control.Monad.Except (throwError)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (SBS, cs)
 import Network.HTTP.ReverseProxy
 import Servant.API (Raw)
 import Servant.Server.Internal.ServantErr (responseServantErr)
@@ -50,33 +50,49 @@ instance HasServer ServiceProxy where
     route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => C.Manager -> RenderHeaderFun -> ActionState db -> Server ServiceProxy
-serviceProxy manager renderHeaderFun state
-    = waiProxyTo (reverseProxyHandler renderHeaderFun state)
+      => C.Manager -> ProxyAdapter -> ActionState db -> Server ServiceProxy
+serviceProxy manager adapter state
+    = waiProxyTo (reverseProxyHandler adapter state)
                  defaultOnExc
                  manager
 
 -- | Proxy or respond based on request headers.
 reverseProxyHandler :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => RenderHeaderFun -> ActionState db -> S.Request -> IO WaiProxyResponse
-reverseProxyHandler renderHeaderFun state req = do
-    eRqMod <- runActionE state $ getRqMod renderHeaderFun req
+      => ProxyAdapter -> ActionState db -> S.Request -> IO WaiProxyResponse
+reverseProxyHandler adapter state req = do
+    eRqMod <- runActionE state $ getRqMod adapter req
     case eRqMod of
         Right (RqMod uri headers) -> do
           let proxyDest = ProxyDest { pdHost = cs $ proxyHost uri
                                     , pdPort = proxyPort uri }
 
-          let pReq = prepareReq renderHeaderFun headers (proxyPath uri) req
+          let pReq = prepareReq adapter headers (proxyPath uri) req
           return $ WPRModifiedRequest pReq proxyDest
         Left e -> WPRResponse . responseServantErr <$> actionErrorToServantErr e
 
-prepareReq :: RenderHeaderFun -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
-prepareReq renderHeaderFun proxyHdrs pathPrefix req
+-- | Allows adapting a proxy for a specific use case.
+data ProxyAdapter = ProxyAdapter
+  { renderHeader :: RenderHeaderFun
+  , renderUser   :: ThentosConfig -> UserId -> User -> SBS
+  }
+
+defaultProxyAdapter :: ProxyAdapter
+defaultProxyAdapter = ProxyAdapter
+  { renderHeader = renderThentosHeaderName
+  , renderUser   = defaultRenderUser
+  }
+
+-- | Render the user by showing their name.
+defaultRenderUser :: ThentosConfig -> UserId -> User -> SBS
+defaultRenderUser _ _ user = cs . fromUserName $ user ^. userName
+
+prepareReq :: ProxyAdapter -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
+prepareReq adapter proxyHdrs pathPrefix req
     = req { S.requestHeaders = proxyHdrs <> newHdrs
           , S.rawPathInfo = newPath
           }
     where
-        newHdrs = clearCustomHeaders renderHeaderFun (S.requestHeaders req)
+        newHdrs = clearCustomHeaders (renderHeader adapter) (S.requestHeaders req)
         dropLeading = BSC.dropWhile (== '/')
         pathPrefix' = BSC.reverse . dropLeading $ BSC.reverse pathPrefix
         newPath = BSC.concat [ pathPrefix', "/", dropLeading $ S.rawPathInfo req]
@@ -98,18 +114,18 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 -- @X-Thentos-User@ and @X-Thentos-Groups@ headers accordingly. Otherwise the request is
 -- forwarded as an anonymous request (no user logged in).
 --
--- The first parameter is a function that can be used to rename the Thentos-specific headers.
--- To stick with the default names, use 'Thentos.Backend.Core.renderThentosHeaderName'.
-getRqMod :: (db `Ex` DB) => RenderHeaderFun -> S.Request -> Action db RqMod
-getRqMod renderHeaderFun req = do
+-- The first parameter allows adapting a proxy for a specific use case.
+-- To get the default behavior, use 'defaultProxyAdapter'.
+getRqMod :: (db `Ex` DB) => ProxyAdapter -> S.Request -> Action db RqMod
+getRqMod adapter req = do
     thentosConfig <- getConfig'P
-    let mTok = lookupThentosHeaderSession renderHeaderFun req
+    let mTok = lookupThentosHeaderSession (renderHeader adapter) req
 
-    (sid, target) <- case lookupThentosHeaderService renderHeaderFun req of
+    (sid, target) <- case lookupThentosHeaderService (renderHeader adapter) req of
         Just s  -> findTargetForServiceId s thentosConfig
         Nothing -> findDefaultServiceIdAndTarget thentosConfig
 
-    hdrs <- createCustomHeaders renderHeaderFun mTok sid
+    hdrs <- createCustomHeaders adapter mTok sid
     let rqMod = RqMod target hdrs
     logger'P DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
     return rqMod
@@ -137,12 +153,13 @@ findDefaultServiceIdAndTarget conf = do
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
 createCustomHeaders :: (db `Ex` DB) =>
-    RenderHeaderFun -> Maybe ThentosSessionToken -> ServiceId -> Action db T.RequestHeaders
-createCustomHeaders _ Nothing _                    = return []
-createCustomHeaders renderHeaderFun (Just tok) sid = do
+    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action db T.RequestHeaders
+createCustomHeaders _ Nothing _         = return []
+createCustomHeaders adapter (Just tok) sid = do
+    cfg <- getConfig'P
     (uid, user) <- validateThentosUserSession tok
     grantAccessRights'P [UserA uid]
     groups <- userGroups uid sid
-    return [ (renderHeaderFun ThentosHeaderUser, cs . fromUserName $ user ^. userName)
-           , (renderHeaderFun ThentosHeaderGroups, cs $ show groups)
+    return [ (renderHeader adapter ThentosHeaderUser, renderUser adapter cfg uid user)
+           , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
