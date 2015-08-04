@@ -19,7 +19,6 @@ import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.CustomDB
-import Thentos.Test.Types
 
 import LIO.Missing
 import Thentos.Action

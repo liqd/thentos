@@ -12,7 +12,7 @@
 
 module Thentos.Transaction.CoreSpec where
 
-import Control.Lens ((%~), (%%~), (^.))
+import Control.Lens ((%~), (%%~))
 import Test.Hspec (Spec, describe, it, shouldBe, hspec)
 
 import Thentos.Types
@@ -22,9 +22,7 @@ import Data.Acid.Memory (openMemoryState)
 import Data.Acid.Advanced (query')
 
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Core
 import Thentos.Test.CustomDB
-import Thentos.Test.Types ()
 
 
 tests :: IO ()

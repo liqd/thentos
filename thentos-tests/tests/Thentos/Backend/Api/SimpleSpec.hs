@@ -13,28 +13,23 @@
 module Thentos.Backend.Api.SimpleSpec
 where
 
-import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
-import Control.Monad (void)
-import Data.Acid.Memory (openMemoryState)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
-import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.Wai.Test (simpleStatus, simpleBody)
 import Network.HTTP.Types.Header (Header)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, with, get, post, request)
+import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
+import Test.Hspec.Wai (shouldRespondWith, with, get, request)
 
 import qualified Data.Aeson as Aeson
-import qualified Network.HTTP.Types.Status as C
+import Network.HTTP.Types.Status ()
 
-import Thentos.Types
 import Thentos.Backend.Api.Simple (serveApi)
+import Thentos.Types
 
 import Thentos.Test.Core
 import Thentos.Test.Config
-import Thentos.Test.Types
 
 defaultApp :: IO ([Header], Application)
 defaultApp = do

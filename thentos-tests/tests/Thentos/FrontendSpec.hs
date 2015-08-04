@@ -12,7 +12,7 @@ import Data.Acid (AcidState)
 import Data.Acid.Advanced (query')
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, SpecWith, around, describe, it, before, after, shouldBe, shouldSatisfy, hspec, pendingWith)
+import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
 
 import qualified Data.Map as Map
 import qualified Data.Text as ST
@@ -31,7 +31,6 @@ import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config (godUid, godName, godPass)
 import Thentos.Test.Core
-import Thentos.Test.Types
 
 
 tests :: IO ()
@@ -151,7 +150,7 @@ spec_updateSelf = describe "update self" $ do
     -- "create_user" and "reset_password" (make sure the check is in
     -- separate function, not inlined.)
 
-    it "email" $ \st ->
+    it "email" $ \_ ->
         pendingWith "no test implemented."
 
         {-
@@ -337,7 +336,7 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (ActionState DB)) -> pe
 
 
 spec_failOnCsrf :: SpecWith (ActionState DB)
-spec_failOnCsrf =  it "fails on csrf" $ \st -> withWebDriver $ do
+spec_failOnCsrf =  it "fails on csrf" $ \_ -> withWebDriver $ do
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies
@@ -354,9 +353,9 @@ spec_failOnCsrf =  it "fails on csrf" $ \st -> withWebDriver $ do
 -- * wd actions
 
 wdLogin :: HttpConfig -> UserName -> UserPass -> WD.WD C.Status
-wdLogin defaultFrontendConfig (UserName uname) (UserPass upass) = do
+wdLogin feConfig (UserName uname) (UserPass upass) = do
     WD.setImplicitWait 200
-    WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/login")
+    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/login")
 
     fill "/user/login.name" uname
     fill "/user/login.password" upass
@@ -369,8 +368,8 @@ wdLogin defaultFrontendConfig (UserName uname) (UserPass upass) = do
                                  -- selenium doesn't allow that.
 
 wdLogout :: HttpConfig -> WD.WD C.Status
-wdLogout defaultFrontendConfig = do
-    WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/logout")
+wdLogout feConfig = do
+    WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/logout")
     WD.findElems (WD.ById "logout_submit") >>= maybe noButton buttonIsThere . listToMaybe
   where
     noButton = do
