@@ -7,32 +7,19 @@
 module Thentos.Test.Config
 where
 
-import Control.Applicative ((<$>))
-import Control.Lens ((^.))
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), configify, Id(Id), Tagged(Tagged),
                          MaybeO(JustO, NothingO), Source(YamlString), fromTagged)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
-import System.Environment (getEnvironment)
-import System.FilePath ((</>))
-import System.IO.Temp (createTempDirectory)
-import System.Log.Logger (Priority(DEBUG))
-import System.Log.Missing (Prio(Prio))
 
 import Thentos.Types
 import Thentos.Config
 import Thentos.Action.Core (Ex)
 import Thentos (createDefaultUser)
 
-import Thentos.Test.Types
 import Thentos.Test.Utils
 
-
-thentosCreateTempDirectory :: IO FilePath
-thentosCreateTempDirectory = do
-    tmp <- fromMaybe "/tmp/" . lookup "TMP" <$> getEnvironment
-    createTempDirectory tmp "_thentos_test_"
 
 thentosTestConfig :: IO ThentosConfig
 thentosTestConfig = configify [YamlString [strLit|

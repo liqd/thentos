@@ -20,11 +20,11 @@ import Data.Acid.Memory (openMemoryState)
 import Data.Monoid ((<>))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
-import Network.Wai.Test (srequest, request, simpleStatus, simpleBody)
+import Network.Wai.Test (srequest, simpleStatus, simpleBody)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types.Header (Header)
 import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, with)
+import Test.Hspec.Wai (shouldRespondWith, with, get, post, request)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Types.Status as C
@@ -38,11 +38,14 @@ import Thentos.Test.Types
 
 defaultApp :: IO ([Header], Application)
 defaultApp = do
-    manager <- newManager defaultManagerSettings
     db <- createActionState undefined -- [NOPUSH]
     (_, hdrs) <- loginAsGod db
-    app <- serveApi manager db
+    let app = serveApi db
     return (hdrs, app)
+
+t :: IO Application
+t = undefined
+
 
 tests :: IO ()
 tests = hspec spec
@@ -50,7 +53,8 @@ tests = hspec spec
 spec :: Spec
 spec = do
 
-    with defaultApp $ curry $ \(hdr :: [Header]) -> describe "Thentos.Backend.Api.Simple" $ do
+    with t $ {- curry $ \(hdr :: [Header]) -> -} describe "Thentos.Backend.Api.Simple" $ do
+        let hdr = undefined -- [NOPUSH]
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
                 let headers = ("X-Thentos-No-Such-Header", "3"):hdr
@@ -60,10 +64,11 @@ spec = do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $ do
                     request "GET" "/user" hdr "" `shouldRespondWith` 200
+                    -- [NOPUSH]
                     {-liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0]-}
 
                 it "is not accessible for users without 'Admin' role" $ do
-                    request "GET" "/user" [] "" `shouldRespondWith` 401
+                    get "/user" `shouldRespondWith` 401
 
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
@@ -91,17 +96,13 @@ spec = do
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $ do
                     let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    response1 <- srequest $ makeSRequest "POST" "/user" hdr (Aeson.encode userData)
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
-                    let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
-                          Right v -> v
-                          Left e -> error $ show (e, response1)
-                    response2 <- srequest $ makeSRequest "GET"
-                                    ("/user/" <> (cs . show . fromUserId $ uid) <> "/name")
-                                    hdr ""
-                    let name = case decodeLenient $ simpleBody response2 of
-                          Right v -> v
-                          Left e -> error $ show ("/user/" ++ show uid, e, response1)
+                    response1 <- request "POST" "/user" hdr $ Aeson.encode userData
+                    liftIO $ simpleStatus response1 `shouldBe` toEnum 201
+
+                    let Right uid = decodeLenient $ simpleBody response1
+                    response2 <- request "GET" ("/user" <> (cs . show $ fromUserId uid) <> "/name") hdr ""
+
+                    let Right name = decodeLenient $ simpleBody response2
                     liftIO $ name `shouldBe` udName userData
 
                 it "can only be called by admins" $

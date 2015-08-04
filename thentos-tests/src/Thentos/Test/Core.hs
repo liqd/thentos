@@ -31,7 +31,6 @@ import Data.Acid.Memory (openMemoryState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.))
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
@@ -39,15 +38,13 @@ import Data.Typeable (Typeable)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network (HostName, PortID(PortNumber), connectTo)
-import Network.Wai (Application, StreamingBody, Request, requestMethod, requestBody, strictRequestBody, requestHeaders)
-import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
+import Network.Wai (requestMethod, requestHeaders)
 import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
 import System.IO (hClose)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
 import System.Timeout (timeout)
-import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -174,14 +171,6 @@ withBackend beConfig as action = do
     return result
 
 
-{-
-withBackend  :: Application -> IO r -> IO r
-
--- | Run an action with a database, frontend and backend servers, in the way it
--- would be run given the specified config file.
-withConfigured :: String -> IO r -> IO r
--}
-
 -- | Create an @ActionState@ with an empty in-memory DB and the specified
 -- config.
 createActionState :: (EmptyDB db, IsAcidic db) => ThentosConfig -> IO (ActionState db)
@@ -190,48 +179,6 @@ createActionState config = do
     st <- openMemoryState emptyDB
     return $ ActionState (st, rng, config)
 
-
--- * FTS
-
--- | Set up both frontend and backend on real tcp sockets (introduced
--- for webdriver testing, but may be used elsewhere).
-{-
-setupTestServerFull :: IO (FTS DB)
-setupTestServerFull = do
-    DBTS tcfg asg <- setupDB
-
-    let Just (beConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["backend"])
-        Just (feConfig :: HttpConfig) = Tagged <$> testThentosConfig tcfg >>. (Proxy :: Proxy '["frontend"])
-
-    backend  <- async $ runWarpWithCfg beConfig . tracifyApplication tcfg $ Simple.serveApi asg
-    frontend <- async $ Thentos.Frontend.runFrontend feConfig asg
-
-    assertResponsive 1.5 [(backend, beConfig), (frontend, feConfig)]
-
-    let wdConfig = WD.defaultConfig
-            { WD.wdHost = tcfg ^. tcfgWebdriverHost
-            , WD.wdPort = tcfg ^. tcfgWebdriverPort
-            }
-
-        wd :: forall a . WD.WD a -> IO a
-        wd action = WD.runSession wdConfig . WD.finallyClose $ do
-             -- running `WD.closeOnException` here is not
-             -- recommended, as it hides all hspec errors behind an
-             -- uninformative java exception.
-            WD.setImplicitWait 1000
-            WD.setScriptTimeout 1000
-            WD.setPageLoadTimeout 1000
-            action
-
-    return $ FTS tcfg asg backend beConfig frontend feConfig wd
-
-
-teardownTestServerFull :: forall db . (db `Ex` DB) => FTS db -> IO ()
-teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
-    cancel backend
-    cancel frontend
-    teardownDB $ DBTS tcfg db
--}
 
 loginAsGod :: forall db . (db `Ex` DB) => ActionState db -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
@@ -242,56 +189,12 @@ loginAsGod actionState = do
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
+-- [NOPUSH: Remove]
 makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
 makeSRequest method path headers = SRequest req
   where
     req = setPath defaultRequest { requestMethod = method, requestHeaders = headers ++ defaultHeaders } path
     defaultHeaders = [("Content-Type", "application/json")]
-
-
-
--- | Log all requests and responses to log file.
-tracifyApplication :: Application -> Application
-tracifyApplication application = application'
-  where
-    application' :: Application
-    application' req respond = do
-        req' <- logRq req
-        application req' $ \ rsp -> logRsp rsp >> respond rsp
-
-    logRq :: Request -> IO Request
-    logRq req = do
-        bodyRef :: IORef Bool <- newIORef False
-        body :: LBS <- strictRequestBody req
-
-        logger DEBUG $ unlines
-            [ ""
-            , "=== REQUEST =========================================================="
-            , ppShow req
-            , "body:"
-            , cs body
-            ]
-
-        -- It is a bit tricky to force the 'LBS' body builder without falling into a black hole.
-        let memoBody = do
-              toggle <- readIORef bodyRef
-              writeIORef bodyRef $ not toggle
-              return $ if toggle then "" else cs body
-
-        return $ req { requestBody = memoBody }
-
-    logRsp :: Response -> IO ()
-    logRsp rsp = logger DEBUG $ unlines
-        [ ""
-        , "=== RESPONSE ========================================================="
-        , show_ rsp
-        ]
-      where
-        show_ :: Response -> String
-        show_ (ResponseFile _ _ _ _) = "ResponseFile"
-        show_ (ResponseBuilder status headers _) = "ResponseBuilder " ++ ppShow (status, headers)
-        show_ (ResponseStream status headers (_ :: StreamingBody)) = "ResponseStream " ++ ppShow (status, headers)
-        show_ (ResponseRaw _ _) = "ResponseRaw"
 
 
 -- * misc
