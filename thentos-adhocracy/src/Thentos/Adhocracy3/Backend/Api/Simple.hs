@@ -471,7 +471,7 @@ a3RenderUser cfg uid _ = cs . fromPath $ userIdToPath cfg uid
 
 userIdToPath :: ThentosConfig -> UserId -> Path
 userIdToPath config (UserId i) = a3backendPath config $
-    cs (printf "principals/users/%7.7i" i :: String)
+    cs (printf "principals/users/%7.7i/" i :: String)
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
 a3backendPath :: ThentosConfig -> ST -> Path
