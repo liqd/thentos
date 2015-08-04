@@ -360,9 +360,7 @@ allServiceIds = do
     query'P T.AllServiceIds
 
 lookupService :: (db `Ex` DB) => ServiceId -> Action db (ServiceId, Service)
-lookupService sid = do
-    taintMsg "lookupService" (RoleAdmin \/ ServiceA sid %% False)
-    query'P $ T.LookupService sid
+lookupService sid = query'P $ T.LookupService sid
 
 addService :: (db `Ex` DB) =>
     Agent -> ServiceName -> ServiceDescription -> Action db (ServiceId, ServiceKey)
@@ -527,11 +525,7 @@ serviceNamesFromThentosSession tok = do
 lookupServiceSession :: (db `Ex` DB) => ServiceSessionToken -> Action db ServiceSession
 lookupServiceSession tok = do
     now <- getCurrentTime'P
-    session <- snd <$> update'P (T.LookupServiceSession now tok)
-    let agent = ServiceA (session ^. srvSessService)
-    tryTaint (RoleAdmin \/ agent %% False)
-        (return session)
-        (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
+    snd <$> update'P (T.LookupServiceSession now tok)
 
 -- | Like 'existsThentosSession', but for 'ServiceSession's.
 existsServiceSession :: (db `Ex` DB) => ServiceSessionToken -> Action db Bool
@@ -552,7 +546,7 @@ _serviceSessionUser :: (db `Ex` DB) => ServiceSessionToken -> Action db UserId
 _serviceSessionUser tok = do
     serviceSession <- lookupServiceSession tok
     let thentosSessionToken = serviceSession ^. srvSessThentosSession
-    thentosSession <- lookupThentosSession thentosSessionToken
+    thentosSession <- _lookupThentosSession thentosSessionToken
     case thentosSession ^. thSessAgent of
         UserA uid -> return uid
         ServiceA sid -> throwError . thentosErrorFromParent $ NeedUserA thentosSessionToken sid
@@ -566,7 +560,6 @@ _serviceSessionUser tok = do
 addServiceRegistration :: (db `Ex` DB) => ThentosSessionToken -> ServiceId -> Action db ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
-    guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
     update'P $ T.UpdateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
@@ -596,11 +589,7 @@ startServiceSession ttok sid = do
 -- | Terminate service session. Throws NoSuchServiceSession if the user does not
 -- own the session.
 endServiceSession :: (db `Ex` DB) => ServiceSessionToken -> Action db ()
-endServiceSession tok = do
-    uid <- _serviceSessionUser tok
-    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (update'P $ T.EndServiceSession tok)
-                  (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchServiceSession)
+endServiceSession tok = update'P $ T.EndServiceSession tok
 
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: (db `Ex` DB) => ServiceSessionToken -> Action db ServiceSessionMetadata
