@@ -33,9 +33,18 @@ import qualified Data.Set as Set
 import Thentos.Transaction.Core
 import Thentos.Types
 
+data UpdateUserFieldOp =
+    UpdateUserFieldName UserName
+  | UpdateUserFieldEmail UserEmail
+  | UpdateUserFieldInsertService ServiceIdent ServiceAccount
+  | UpdateUserFieldDropService ServiceIdent
+  | UpdateUserFieldPassword (HashedSecret UserPass)
+  deriving (Eq)
+
+
 
 -- * user
-
+{-
 freshUserId :: (db `Extends` DB) => ThentosUpdate db UserId
 freshUserId = polyUpdate $ do
     uid <- gets (^. focus . dbFreshUserId)
@@ -250,14 +259,6 @@ trans_lookupEmailChangeToken tok = polyQuery $ do
         Just result -> return result
         Nothing     -> throwT NoSuchToken
 
-data UpdateUserFieldOp =
-    UpdateUserFieldName UserName
-  | UpdateUserFieldEmail UserEmail
-  | UpdateUserFieldInsertService ServiceId ServiceAccount
-  | UpdateUserFieldDropService ServiceId
-  | UpdateUserFieldPassword (HashedSecret UserPass)
-  deriving (Eq)
-
 -- | Turn 'UpdateUserFieldOp' into an actual action.  The boolean states whether 'assertUser' should
 -- be run after the update to maintain consistency.
 runUpdateUserFieldOp :: UpdateUserFieldOp -> (User -> User, Bool)
@@ -344,7 +345,7 @@ flattenGroups ((^. serviceGroups) -> groupMap) = Set.toList . f . GroupU
 
     r :: GroupNode -> Set Group
     r g = unionz $ Set.map (f . GroupG) (memberships g)
-
+-}
 
 -- * thentos and service session
 
@@ -370,7 +371,7 @@ trans_lookupThentosSession now tok = polyUpdate $ do
 
     modify $ dbThentosSessions %~ Map.insert tok session'
     return (tok, session')
-
+{-
 -- | Start a new thentos session.  Start and end time have to be passed explicitly.  Call
 -- 'trans_assertAgent' on session owner.  If the agent is a user, this new session is added to their
 -- existing sessions.  If the agent is a service with an existing session, its session is replaced.
@@ -574,13 +575,14 @@ removeExpireds :: Timestamp -> Timeout -> Map k (v, Timestamp) -> Map k (v, Time
 removeExpireds now expiry = Map.filter f
   where f (_, created) = fromTimestamp created .+^ fromTimeout expiry >= fromTimestamp now
 
-
+-}
 -- * wrap-up
 
 $(deriveSafeCopy 0 'base ''UpdateUserFieldOp)
 
 transaction_names :: [Name]
 transaction_names =
+    {-
     [ 'trans_assertUserIsNew
     , 'trans_allUserIds
     , 'trans_lookupUser
@@ -604,7 +606,9 @@ transaction_names =
     , 'trans_lookupService
     , 'trans_addService
     , 'trans_deleteService
-    , 'trans_lookupThentosSession
+    -}
+    [ 'trans_lookupThentosSession ]
+    {-
     , 'trans_startThentosSession
     , 'trans_endThentosSession
     , 'trans_lookupServiceSession
@@ -623,3 +627,4 @@ transaction_names =
     , 'trans_doGarbageCollectEmailChangeTokens
     , 'trans_doGarbageCollectPasswordResetTokens
     ]
+-}

@@ -180,12 +180,12 @@ getConfig configFile = do
 -- the supported leaf types in the config structure.  we hope it'll
 -- get smaller over time.
 
-getProxyConfigMap :: ThentosConfig -> Map.Map ServiceId ProxyConfig
+getProxyConfigMap :: ThentosConfig -> Map.Map ServiceIdent ProxyConfig
 getProxyConfigMap cfg = fromMaybe Map.empty $ (Map.fromList . fmap (exposeKey . Tagged)) <$>
       cfg >>. (Proxy :: Proxy '["proxies"])
   where
-    exposeKey :: ProxyConfig -> (ServiceId, ProxyConfig)
-    exposeKey w = (ServiceId (w >>. (Proxy :: Proxy '["service_id"])), w)
+    exposeKey :: ProxyConfig -> (ServiceIdent, ProxyConfig)
+    exposeKey w = (ServiceIdent (w >>. (Proxy :: Proxy '["service_id"])), w)
 
 bindUrl :: HttpConfig -> ST
 bindUrl cfg = _renderUrl bs bh bp
@@ -213,7 +213,7 @@ buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
 
 getUserData :: DefaultUserConfig -> UserFormData
 getUserData cfg = UserFormData
-    (UserName  (cfg >>. (Proxy :: Proxy '["name"])))
+    (UserName (cfg >>. (Proxy :: Proxy '["name"])))
     (UserPass  (cfg >>. (Proxy :: Proxy '["password"])))
     (cfg >>. (Proxy :: Proxy '["email"]))
 

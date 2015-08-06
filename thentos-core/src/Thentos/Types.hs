@@ -15,7 +15,15 @@
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
-module Thentos.Types where
+
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Thentos.Types (module Thentos.Types, module Thentos.TypesPrev) where
 
 import Control.Applicative ((<$>))
 import Control.Exception (Exception)
@@ -44,12 +52,23 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 
+import Crypto.Scrypt -- FIXME
+
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
+
+import Database.Persist hiding ((==.))
+import Database.Persist.Sqlite (runSqlite)
+import Database.Persist.TH
+import Database.Persist.Sql
+import Data.Text (Text)
+import Data.ByteString (ByteString)
+
+import Thentos.TypesPrev
 
 -- * aux
 
@@ -61,22 +80,56 @@ getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . r
   where
     _fail raw = fail $ "getCopyViaShowRead: no parse for " ++ show (raw, typeOf (Proxy :: Proxy a))
 
+newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+newtype OldServiceKey = OldServiceKey { fromServiceKey :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+
+
+newtype UserPass = UserPass { fromUserPass :: ST }
+    deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
+
+
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+    User
+        uname UserName
+        password (HashedSecret UserPass)
+        mail UserEmail
+      deriving Show Eq
+
+    Service
+        sident ServiceIdent
+        owner UserId
+        secretKey (HashedSecret OldServiceKey)
+        sname ServiceName
+        description Text
+      deriving Show Eq
+
+    PasswordResetTokens
+        token Text
+        user UserId
+        expires Int -- TODO: should be Timestamp
+      deriving Show Eq
+
+    EmailChangeTokens
+        token Text
+        user UserId
+        expires Int
+      deriving Show Eq
+  |]
+
 
 -- * db
 
 data DB =
     DB
-      { _dbUsers             :: !(Map UserId User)
-      , _dbUserIdsByName     :: !(Map UserName UserId)
-      , _dbUserIdsByEmail    :: !(Map UserEmail UserId)
-      , _dbServices          :: !(Map ServiceId Service)
-      , _dbThentosSessions   :: !(Map ThentosSessionToken ThentosSession)
+      { _dbThentosSessions   :: !(Map ThentosSessionToken ThentosSession)
       , _dbServiceSessions   :: !(Map ServiceSessionToken ServiceSession)
-      , _dbRoles             :: !(Map Agent (Set Role))
-      , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
-      , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
-      , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
-      , _dbFreshUserId       :: !UserId
+      -- , _dbRoles             :: !(Map Agent (Set Role))
+      -- , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
+      -- , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
+      -- , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, Text), Timestamp))
       }
   deriving (Eq, Show, Typeable, Generic)
 
@@ -109,7 +162,7 @@ class EmptyDB db where
     emptyDB :: db
 
 instance EmptyDB DB where
-    emptyDB = DB m m m m m m m m m m (UserId 0)
+    emptyDB = DB m m
       where m = Map.empty
 
 
@@ -118,6 +171,7 @@ instance EmptyDB DB where
 -- | (user groups (the data that services want to store and retrieve in thentos) and session tokens
 -- of all active sessions are stored in assoc lists rather than maps.  this saves us explicit json
 -- instances for now.)
+{-
 data User =
     User
       { _userName            :: !UserName
@@ -129,7 +183,7 @@ data User =
           -- ^ services (with session account information)
       }
   deriving (Eq, Show, Typeable, Generic)
-
+-}
 -- | the data a user maintains about a service they are signed up
 -- with.
 data ServiceAccount =
@@ -149,28 +203,17 @@ data ServiceAccount =
 
 newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
-
+{-
 newtype UserId = UserId { fromUserId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
 
-newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
-
+-}
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
 -- circumstances render to something like "[password hidden]".  Causes a lot of confusion.)
-newtype UserPass = UserPass { fromUserPass :: ST }
-    deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
-
-newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
-    deriving (Eq, Show, Typeable, Generic)
-
 instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
     getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
-
-newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 parseUserEmail :: ST -> Maybe UserEmail
 parseUserEmail t = do
@@ -215,7 +258,7 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 
 -- * service
-
+{-
 -- | (Service owner is an 'Agent', not a 'User', so that services can (but do not have to) be owned
 -- by their parent services in a service hierarchy.)
 data Service =
@@ -229,22 +272,14 @@ data Service =
       , _serviceGroups         :: !(Map GroupNode (Set Group))
       }
   deriving (Eq, Show, Typeable, Generic)
+-}
 
-newtype ServiceId = ServiceId { fromServiceId :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+instance Aeson.FromJSON ServiceIdent where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON ServiceIdent where toJSON = Aeson.gtoJson
 
-instance Aeson.FromJSON ServiceId where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceId where toJSON = Aeson.gtoJson
-
-newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
-
-instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
-
-newtype ServiceName = ServiceName { fromServiceName :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
-
+instance Aeson.FromJSON OldServiceKey where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON OldServiceKey where toJSON = Aeson.gtoJson
+{-
 instance Aeson.FromJSON ServiceName where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceName where toJSON = Aeson.gtoJson
 
@@ -253,7 +288,7 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
-
+-}
 newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
@@ -276,7 +311,7 @@ newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: S
 
 data ThentosSession =
     ThentosSession
-      { _thSessAgent           :: !Agent
+      { _thSessAgent           :: !Int -- should be Agent
       , _thSessStart           :: !Timestamp
       , _thSessEnd             :: !Timestamp
       , _thSessExpirePeriod    :: !Timeout
@@ -292,7 +327,7 @@ instance Aeson.ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
 
 data ServiceSession =
     ServiceSession
-      { _srvSessService        :: !ServiceId
+      { _srvSessService        :: !Int -- should be serviceID
       , _srvSessStart          :: !Timestamp
       , _srvSessEnd            :: !Timestamp
       , _srvSessExpirePeriod   :: !Timeout
@@ -306,7 +341,7 @@ instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
 data ServiceSessionMetadata =
     ServiceSessionMetadata
-      { _srvSessMdUser :: !UserName
+      { _srvSessMdUser :: !Text
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -316,8 +351,8 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
 -- * timestamp, timeout
 
-newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+--newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
+--  deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -504,25 +539,26 @@ makeLenses ''ServiceSession
 makeLenses ''ThentosSession
 makeLenses ''User
 
-$(deriveSafeCopy 0 'base ''Agent)
+-- $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
 $(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''Group)
-$(deriveSafeCopy 0 'base ''GroupNode)
+-- $(deriveSafeCopy 0 'base ''GroupNode)
 $(deriveSafeCopy 0 'base ''PasswordResetToken)
 $(deriveSafeCopy 0 'base ''Role)
 $(deriveSafeCopy 0 'base ''RoleBasic)
-$(deriveSafeCopy 0 'base ''Service)
+-- $(deriveSafeCopy 0 'base ''Service)
 $(deriveSafeCopy 0 'base ''ServiceAccount)
-$(deriveSafeCopy 0 'base ''ServiceDescription)
-$(deriveSafeCopy 0 'base ''ServiceId)
-$(deriveSafeCopy 0 'base ''ServiceKey)
+-- $(deriveSafeCopy 0 'base ''ServiceDescription)
+-- $(deriveSafeCopy 0 'base ''ServiceId)
+-- $(deriveSafeCopy 0 'base ''ServiceKey)
+$(deriveSafeCopy 0 'base ''ServiceIdent)
 $(deriveSafeCopy 0 'base ''ServiceName)
 $(deriveSafeCopy 0 'base ''ServiceSession)
 $(deriveSafeCopy 0 'base ''ServiceSessionMetadata)
 $(deriveSafeCopy 0 'base ''ServiceSessionToken)
 $(deriveSafeCopy 0 'base ''ThentosSession)
 $(deriveSafeCopy 0 'base ''ThentosSessionToken)
-$(deriveSafeCopy 0 'base ''User)
-$(deriveSafeCopy 0 'base ''UserId)
+-- $(deriveSafeCopy 0 'base ''User)
+-- $(deriveSafeCopy 0 'base ''UserId)
 $(deriveSafeCopy 0 'base ''UserName)

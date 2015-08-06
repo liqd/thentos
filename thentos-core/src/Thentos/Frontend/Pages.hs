@@ -305,10 +305,10 @@ userDisplayPagelet user _ = do
     H.table $ do
         H.tr $ do
             H.td . H.text $ "name"
-            H.td . H.text $ fromUserName (user ^. userName)
+            H.td . H.text $ fromUserName (userUname user)
         H.tr $ do
             H.td . H.text $ "email"
-            H.td . H.text $ fromUserEmail (user ^. userEmail)
+            H.td . H.text $ fromUserEmail (userMail user)
         H.tr $ do
             H.td . H.text $ "street"
             H.td . H.text $ "n/a"
@@ -428,25 +428,25 @@ serviceCreatePagelet csrfToken formAction v _ _ = basePagelet "Create Service" $
             inputText "description" v
         inputSubmit "Create Service" ! A.id "create_service_submit"
 
-serviceCreateForm :: Monad m => Form Html m (ServiceName, ServiceDescription)
+serviceCreateForm :: Monad m => Form Html m (ServiceName, ST)
 serviceCreateForm =
     (,) <$>
         (ServiceName        <$> "name"        .: validateNonEmpty "name" (text Nothing)) <*>
-        (ServiceDescription <$> "description" .:                          text Nothing)
+        ("description" .:                          text Nothing)
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
-serviceRegisterPage :: ST -> ST -> View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage :: ST -> ST -> View Html -> ServiceIdent -> Service -> User -> Html
 serviceRegisterPage csrfToken formAction v sid service user = basePagelet "Register with Service" $ do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.hr
-        H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
-        H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
+        H.p $ "Your name: " <> H.text (fromUserName $ userUname user)
+        H.p $ "Your email: " <> H.text (fromUserEmail $ userMail user)
         H.hr
-        H.p $ "Service id: " <> H.text (fromServiceId sid)
-        H.p $ "Service name: " <> H.text (fromServiceName $ service ^. serviceName)
-        H.p $ "Service description: " <> H.text (fromServiceDescription $ service ^. serviceDescription)
+        H.p $ "Service id: " <> H.text (fromServiceIdent sid)
+        H.p $ "Service name: " <> H.text (fromServiceName $ serviceSname service)
+        H.p $ "Service description: " <> H.text (serviceDescription service)
         H.hr
         inputSubmit "Register!"
 

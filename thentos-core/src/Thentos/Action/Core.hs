@@ -227,7 +227,8 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (AgentRo
 accessRightsByThentosSession'P :: (db `Ex` DB) => ThentosSessionToken -> Action db [CNF]
 accessRightsByThentosSession'P tok = do
     now <- getCurrentTime'P
-    (_, session) <- update'P (LookupThentosSession now tok)
+    -- (_, session) <- update'P (LookupThentosSession now tok)
+    (_, session) <- lookupThentosSession now tok
     accessRightsByAgent'P $ session ^. thSessAgent
 
 

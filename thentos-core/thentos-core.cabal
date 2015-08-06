@@ -79,6 +79,7 @@ library
     , Thentos.Transaction.TH
     , Thentos.Transaction.Transactions
     , Thentos.Types
+    , Thentos.TypesPrev
     , Thentos.Util
   build-depends:
       base
@@ -117,6 +118,9 @@ library
     , mtl > 2 && < 2.2
     , mtl-compat
     , old-locale
+    , persistent
+    , persistent-sqlite
+    , persistent-template
     , pretty-show
     , safe
     , safecopy

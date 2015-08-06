@@ -35,6 +35,7 @@ import qualified Data.Text as ST
 
 import Thentos.Types
 
+import Crypto.Scrypt (EncryptedPass)
 
 -- * crypto
 
@@ -47,7 +48,7 @@ thentosScryptParams = Scrypt.defaultParams
 hashUserPass :: (Functor m, MonadIO m) => UserPass -> m (HashedSecret UserPass)
 hashUserPass = hashSecret fromUserPass
 
-hashServiceKey :: (Functor m, MonadIO m) => ServiceKey -> m (HashedSecret ServiceKey)
+hashServiceKey :: (Functor m, MonadIO m) => OldServiceKey -> m (HashedSecret OldServiceKey)
 hashServiceKey = hashSecret fromServiceKey
 
 -- | 'encryptPassIO'' gets its entropy from /dev/urandom
@@ -61,11 +62,11 @@ secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
 
 verifyPass :: UserPass -> User -> Bool
 verifyPass pass user = secretMatches (fromUserPass pass)
-                                     (user ^. userPassword)
+                                     (userPassword user)
 
-verifyKey :: ServiceKey -> Service -> Bool
+verifyKey :: OldServiceKey -> Service -> Bool
 verifyKey key service = secretMatches (fromServiceKey key)
-                                      (service ^. serviceKey)
+                                      (serviceSecretKey service)
 
 makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
 makeUserFromFormData userData = do
@@ -73,8 +74,8 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
-                  Set.empty
-                  Map.empty
+                  -- Set.empty
+                  -- Map.empty
 
 
 -- * acid-state business
