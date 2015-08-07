@@ -13,6 +13,15 @@ category:            Authentication
 build-type:          Simple
 cabal-version:       >= 1.18
 
+extra-source-files:
+  tests/MetaSpec.hs
+  tests/Thentos/ActionSpec.hs
+  tests/Thentos/Backend/Api/SimpleSpec.hs
+  tests/Thentos/FrontendSpec.hs
+  tests/Thentos/Transaction/CoreSpec.hs
+  tests/Thentos/TypesSpec.hs
+  tests/ThentosSpec.hs
+
 Source-Repository head
   type: git
   location: https://github.com/liqd/thentos
