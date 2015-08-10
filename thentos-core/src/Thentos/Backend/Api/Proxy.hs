@@ -127,8 +127,11 @@ getRqMod adapter req = do
 
     hdrs <- createCustomHeaders adapter mTok sid
     let rqMod = RqMod target hdrs
-    logger'P DEBUG $ "forwarding proxy request with modifier: " ++ show rqMod
+    logger'P DEBUG $ concat
+        ["forwarding proxy request ", cs showReqInfo, " with modifier: ", show rqMod]
     return rqMod
+  where
+    showReqInfo = BSC.concat [S.requestMethod req, " ", S.rawPathInfo req, S.rawQueryString req]
 
 -- | Look up the target URL for requests based on the given service ID. This requires a "proxies"
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
