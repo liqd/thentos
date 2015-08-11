@@ -12,7 +12,7 @@ import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Acid.Memory (openMemoryState)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
-import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldContain,
+import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
 
 import Thentos.Test.Arbitrary ()
@@ -139,7 +139,7 @@ spec_service = describe "service" $ do
             return ()
 
     describe "autocreateServiceIfMissing" $ do
-        it "adds service if missing" $ \(DBTS _ sta) -> do
+        it "adds service if missing" $ \ sta -> do
             let owner = UserA $ UserId 0
             sid <- runActionWithPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runActionWithPrivs [RoleAdmin] sta allServiceIds
@@ -148,7 +148,7 @@ spec_service = describe "service" $ do
             allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
-        it "does nothing if service exists" $ \(DBTS _ sta) -> do
+        it "does nothing if service exists" $ \ sta -> do
             let owner = UserA $ UserId 0
             (sid, _) <- runActionWithPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"

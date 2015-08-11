@@ -9,6 +9,7 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -65,6 +66,7 @@ import Thentos.Transaction hiding (addService)
 import Thentos.Types
 
 import Thentos.Test.Config
+import Thentos.Test.Utils
 
 
 -- * test users
@@ -147,19 +149,29 @@ withFrontend feConfig as action = do
     return result
 
 defaultFrontendConfig :: HttpConfig
-defaultFrontendConfig = undefined -- [NOPUSH]
+defaultFrontendConfig = [cfgify|
+
+backend:
+    bind_port: 7118
+    bind_host: "127.0.0.1"
+|]
 
 defaultBackendConfig :: HttpConfig
-defaultBackendConfig = undefined -- [NOPUSH]
+defaultBackendConfig = [cfgify|
+
+frontend:
+    bind_port: 7119
+    bind_host: "127.0.0.1"
+|]
 
 -- | Sets up DB, frontend and backend, runs an action that takes a DB, and
 -- tears down everything, returning the result of the action.
 withFrontendAndBackend :: MonadIO m => (ActionState DB -> m r) -> m r
 withFrontendAndBackend test = do
-    st <- liftIO $ createActionState undefined -- [NOPUSH]
+    st <- liftIO $ createActionState =<< thentosTestConfig
     withFrontend defaultFrontendConfig st
-       $ withBackend defaultBackendConfig st
-       $ test st
+        $ withBackend defaultBackendConfig st
+        $ test st
 
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
 withBackend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
@@ -252,4 +264,3 @@ data AssertResponsiveFailed =
   deriving (Show, Typeable)
 
 instance Exception AssertResponsiveFailed
-
