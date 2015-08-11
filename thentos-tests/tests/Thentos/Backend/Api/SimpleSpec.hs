@@ -155,11 +155,6 @@ spec = do
                 it "does not accept the empty string (trailing '/') as session id." $
                         \ _ -> pendingWith "not implemented"
 
-                    -- (currently, GET /session and GET /session/
-                    -- produce different error messages.  this is just
-                    -- a matter of error reporting, though; the
-                    -- behaviour in the context of correct requests is
-                    -- as we want it.)
 
 postUser :: WaiSession SResponse
 postUser = do

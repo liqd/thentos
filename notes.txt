@@ -4,6 +4,8 @@ Generally:
   - "pending" - shouldn't the person who implements a feature be responsible
   for testing it? If s/he doesn't, can we realistically expect anyone else to?
   (Or would it even be fair?)
+  - Many tests say they're testing one thing, but really only check status
+  codes.
 
 Specifically:
 
@@ -31,6 +33,8 @@ Specifically:
   - Some tests don't even say what the test is supposed to be, and I can't
   figure it out. Since if we want to know what's not being tested we have the
   more reliable method of using coverage reports, I'm removing these.
+  - Some comments mention distinctions between "/session" and "/session/".
+  Those endpoints don't exist. I'm removing the comment.
 
 
 Non-tests:
