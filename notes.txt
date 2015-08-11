@@ -28,3 +28,19 @@ Specifically:
 * Thentos/Backend/Api/SimpleSpec.hs
   - Some endpoints that have been commented out don't seem to exist. I'm
   removing those tests.
+  - Some tests don't even say what the test is supposed to be, and I can't
+  figure it out. Since if we want to know what's not being tested we have the
+  more reliable method of using coverage reports, I'm removing these.
+
+
+Non-tests:
+
+  - Lots of endpoints return and expect top-level balues.
+  - Some endpoints in ThentosThentosSession and ThentosServiceSession return a
+  bool (boolean blindness).
+  - I don't see the point of endpoints that return whether a user is logged in.
+  - Having multiple endpoints with the same method and same url but different
+  request body types is bad for error messages.
+  - The API is not at all self-descriptive in terms of indicating what an
+  endpoint does from the URL (esp. ThentosThentosSession and
+  ThentosServiceSession).

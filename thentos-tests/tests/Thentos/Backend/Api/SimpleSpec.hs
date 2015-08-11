@@ -13,6 +13,7 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
+import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.IORef
@@ -21,7 +22,7 @@ import Network.Wai (Application)
 import Network.Wai.Test (simpleStatus, simpleBody)
 import Network.HTTP.Types.Header (Header)
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, with, get, request)
+import Test.Hspec.Wai (shouldRespondWith, with, get, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
 import System.IO.Unsafe (unsafePerformIO)
@@ -124,47 +125,30 @@ spec = do
                     let (uid :: Int) = read . cs $ simpleBody response1
                     request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
                         `shouldRespondWith` 200
-                    request "DELETE" ("/user/" <> cs (show uid)) hdr ""
+                    void $ request "DELETE" ("/user/" <> cs (show uid)) hdr ""
                     request "GET" ("/user/" <> cs (show uid) <> "/name") hdr ""
                         `shouldRespondWith` 404
 
                 it "can only be called by admins and the user herself" $
                         \ _ -> pendingWith "test missing."
 
-                it "if user does not exist, responds with an error" $
-                        \ _ -> pendingWith "test missing."
+                it "if user does not exist, responds with a 404" $ do
+                    hdr <- liftIO $ readIORef godHeaders
+                    request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
 
-        describe "service" $ do
+        describe "thentos_session" $ do
 
-            describe "Get [ServiceId]" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Capture \"sid\" ServiceId :> Get (ServiceId, Service)" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Post (ServiceId, ServiceKey)" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-
-        describe "session" $ do
-
-            describe "ReqBody (UserId, ServiceId) :> Post SessionToken" $ do
-                it "starts a new session and returns the session token" $
-                        \ _ -> pendingWith "no tests yet"
-
-                it "sends a meaningful error message if request body is empty" $
-                        \ _ -> pendingWith "no tests yet"
-
-            describe "ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Capture \"token\" SessionToken :> Delete" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Capture \"token\" SessionToken :> Get Bool" $ do
-                it "returns true if session is active" $
-                        \ _ -> pendingWith "no tests yet"
+            describe "Capture \"token\" ThentosSessionToken :> Get Bool" $ do
+                it "returns true if session is active" $ do
+                    hdr <- liftIO $ readIORef godHeaders
+                    let hdr' = ("Content-Type", "application/json"):hdr
+                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
+                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    response2 <- request "POST" "/thentos_session" hdr' (Aeson.encode (uid, udPassword userData))
+                    request "GET" "/thentos_session/" hdr' (simpleBody response2)
+                        `shouldRespondWith` "true" { matchStatus = 200 }
 
                 it "returns false if session is not active (or does not exist)" $
                         \ _ -> pendingWith "no tests yet"
