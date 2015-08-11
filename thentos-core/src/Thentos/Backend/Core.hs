@@ -120,17 +120,17 @@ instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr e = f e
       where
         f NoSuchUser =
-            (Nothing, mkServantErr err404 "user not found")
+            (Nothing, mkServantErr err400 "user not found")
         f NoSuchPendingUserConfirmation =
-            (Nothing, mkServantErr err404 "unconfirmed user not found")
+            (Nothing, mkServantErr err400 "unconfirmed user not found")
         f (MalformedConfirmationToken path) =
             (Nothing, mkServantErr err400 $ "malformed confirmation token: " <> cs (show path))
         f NoSuchService =
-            (Nothing, mkServantErr err404 "service not found")
+            (Nothing, mkServantErr err400 "service not found")
         f NoSuchThentosSession =
-            (Nothing, mkServantErr err404 "thentos session not found")
+            (Nothing, mkServantErr err400 "thentos session not found")
         f NoSuchServiceSession =
-            (Nothing, mkServantErr err404 "service session not found")
+            (Nothing, mkServantErr err400 "service session not found")
         f OperationNotPossibleInServiceSession =
             (Nothing, mkServantErr err404 "operation not possible in service session")
         f ServiceAlreadyExists =
@@ -154,7 +154,7 @@ instance ThentosErrorToServantErr DB where
         f (ProxyNotConfiguredForService sid) =
             (Nothing, mkServantErr err404 $ "proxy not configured for service " <> cs (show sid))
         f (NoSuchToken) =
-            (Nothing, mkServantErr err404 "no such token")
+            (Nothing, mkServantErr err400 "no such token")
         f (NeedUserA _ _) =
             (Nothing, mkServantErr err404
                 "thentos session belongs to service, cannot create service session")
