@@ -19,7 +19,7 @@ import Data.List (isPrefixOf)
 import Data.String.Conversions (cs)
 import GHC.Generics (Generic)
 import Network.HTTP.Base (urlEncode)
-import Network.HTTP.Client (Manager, newManager, defaultManagerSettings)
+import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Header, mkStatus)
 import Network.Socket (PortNumber)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
@@ -31,9 +31,9 @@ import qualified Data.Text as Text
 import qualified Network.Wreq as Wreq
 
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
-import Thentos.Test.Core (setupTestBackend)
+import Thentos.Test.Core
+import Thentos.Test.Config
 import Thentos.Test.Network (openTestSocket)
-import Thentos.Test.Types (btsWai)
 
 type Env = (PortNumber, Async (), Async ())
 
@@ -46,8 +46,9 @@ spec = do
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- startDaemon $ runSettings settings proxyDestServer
-        bts <- setupTestBackend serveApi
-        let application = bts ^. btsWai
+        mgr <- newManager defaultManagerSettings
+        db <- createActionState =<< thentosTestConfig
+        let application = serveApi mgr db
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application
         return (proxyPort, dest, proxy)

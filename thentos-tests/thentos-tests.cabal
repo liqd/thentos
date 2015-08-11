@@ -45,7 +45,6 @@ library
     , Thentos.Test.Core
     , Thentos.Test.CustomDB
     , Thentos.Test.Network
-    , Thentos.Test.Types
     , Thentos.Test.WebDriver.Missing
   ghc-options:
       -Wall -threaded -rtsopts
