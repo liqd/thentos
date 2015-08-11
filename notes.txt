@@ -35,6 +35,8 @@ Specifically:
   more reliable method of using coverage reports, I'm removing these.
   - Some comments mention distinctions between "/session" and "/session/".
   Those endpoints don't exist. I'm removing the comment.
+  - "responds with an error if password is wrong" - I don't see which password
+  would be wrong. Removing.
 
 
 Non-tests:

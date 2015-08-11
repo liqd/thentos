@@ -77,18 +77,16 @@ spec = do
                 let resource = "/user/0/name"
                 it "yields a name" $ do
                     hdr <- liftIO ctHeader
-                    request "GET" resource hdr "" `shouldRespondWith` 200
+                    request "GET" resource hdr "" `shouldRespondWith` "\"god\""
 
                 it "can be called by user herself" $
                         \ _ -> pendingWith "test missing."
 
-                it "can be called by admin" $
-                        \ _ -> pendingWith "test missing."
+                it "can be called by admin" $ do
+                    hdr <- liftIO ctHeader
+                    request "GET" resource hdr "" `shouldRespondWith` 200
 
-                it "can not be callbed by other (non-admin) users" $
-                        \ _ -> pendingWith "test missing."
-
-                it "responds with an error if password is wrong" $
+                it "can not be called by other (non-admin) users" $
                         \ _ -> pendingWith "test missing."
 
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
