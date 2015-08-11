@@ -402,7 +402,7 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 lookupThentosSession :: (db `Ex` DB) => ThentosSessionToken -> Action db ThentosSession
 lookupThentosSession tok = do
     session <- _lookupThentosSession tok
-    tryTaint (session ^. thSessAgent %% False)
+    tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
         (return session)
         (\ (_ :: AnyLabelError) -> throwError $ thentosErrorFromParent NoSuchThentosSession)
 

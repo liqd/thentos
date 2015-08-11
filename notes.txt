@@ -48,3 +48,6 @@ Non-tests:
   - The API is not at all self-descriptive in terms of indicating what an
   endpoint does from the URL (esp. ThentosThentosSession and
   ThentosServiceSession).
+  - IMPORTANT! I modified lookupThentosSession in Thentos.Action since it
+  seemed to me like Admin should be allowed to check whether sessions exist
+  (well, modulo the question of why anyone would need that in the first place).

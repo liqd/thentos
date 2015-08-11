@@ -101,7 +101,7 @@ spec = do
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $ do
                     hdr <- liftIO ctHeader
-                    response1 <- postUser
+                    response1 <- postDefaultUser
                     return response1 `shouldRespondWith` 201
 
                     let (uid :: Int) = read . cs $ simpleBody response1
@@ -117,9 +117,7 @@ spec = do
             describe "Capture \"userid\" UserId :> Delete" $ do
                 it "removes an existing user from the database" $ do
                     hdr <- liftIO ctHeader
-                    let hdr' = ("Content-Type", "application/json"):hdr
-                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    response1 <- postDefaultUser
                     let (uid :: Int) = read . cs $ simpleBody response1
                     request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
                         `shouldRespondWith` 200
@@ -140,27 +138,26 @@ spec = do
             describe "Capture \"token\" ThentosSessionToken :> Get Bool" $ do
                 it "returns true if session is active" $ do
                     hdr <- liftIO ctHeader
-                    response1 <- postUser
+                    response1 <- postDefaultUser
                     let (uid :: Int) = read . cs $ simpleBody response1
-                    response2 <- request "POST" "/thentos_session" hdr (Aeson.encode (uid, udPassword defaultUserData))
+                    response2 <- request "POST" "/thentos_session" hdr $
+                        Aeson.encode (uid, udPassword defaultUserData)
                     request "GET" "/thentos_session/" hdr (simpleBody response2)
                         `shouldRespondWith` "true" { matchStatus = 200 }
 
                 it "returns false if session is does not exist" $ do
-                    postUser
+                    void postDefaultUser
                     hdr <- liftIO ctHeader
                     request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
                         `shouldRespondWith` "false" { matchStatus = 200 }
 
-                it "does not accept the empty string (trailing '/') as session id." $
-                        \ _ -> pendingWith "not implemented"
 
-
-postUser :: WaiSession SResponse
-postUser = do
+postDefaultUser :: WaiSession SResponse
+postDefaultUser = do
     hdr <- liftIO ctHeader
     request "POST" "/user" hdr (Aeson.encode defaultUserData)
 
+-- | God Headers plus content-type = json
 ctHeader :: IO [Header]
 ctHeader = (("Content-Type", "application/json") :) <$> readIORef godHeaders
 
