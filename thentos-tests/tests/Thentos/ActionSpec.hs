@@ -31,7 +31,12 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    describe "Thentos.Action" . before (thentosTestConfig >>= createActionState) $ do
+    let b = do
+          db@(ActionState (adb, _, _)) <- thentosTestConfig >>= createActionState
+          createGod adb
+          return db
+
+    describe "Thentos.Action" . before b $ do
         spec_user
         spec_service
         spec_agentsAndRoles

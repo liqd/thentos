@@ -9,7 +9,7 @@ where
 
 import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), configify, Id(Id), Tagged(Tagged),
-                         MaybeO(JustO, NothingO), Source(YamlString), fromTagged)
+                         MaybeO(JustO), Source(YamlString))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
 
@@ -38,7 +38,7 @@ smtp:
     sender_name: "Thentos"
     sender_address: "thentos@thentos.org"
     sendmail_path: "/bin/cat"
-    sendmail_args: []
+    sendmail_args: ["-t"]
 
 proxy:
     service_id: "someid"
