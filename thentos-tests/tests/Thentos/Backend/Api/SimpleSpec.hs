@@ -102,11 +102,11 @@ spec = do
                     hdr <- liftIO $ readIORef godHeaders
                     let hdr' = ("Content-Type", "application/json"):hdr
                     let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    request "POST" "/user" hdr' (Aeson.encode userData)
-                        `shouldRespondWith` 201
+                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    return response1 `shouldRespondWith` 201
 
-                    let Right uid = decodeLenient $ simpleBody response1
-                    response2 <- request "GET" ("/user" <> (cs . show $ fromUserId uid) <> "/name") hdr ""
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
                     let Right name = decodeLenient $ simpleBody response2
                     liftIO $ name `shouldBe` udName userData
@@ -114,22 +114,19 @@ spec = do
                 it "can only be called by admins" $
                         \ _ -> pendingWith "test missing."
 
-            describe "Capture \"userid\" UserId :> ReqBody User :> Put ()" $ do
-                it "writes an *existing* user to the database" $
-                        \ _ -> pendingWith "test missing."
-                    -- put user' with user' /= user
-                    -- lookup user id
-                    -- compare sent and received
-
-                it "can only be called by admins and the user herself" $
-                        \ _ -> pendingWith "test missing."
-
-                it "if user does not exist, responds with an error" $
-                        \ _ -> pendingWith "test missing."
 
             describe "Capture \"userid\" UserId :> Delete" $ do
-                it "removes an existing user from the database" $
-                        \ _ -> pendingWith "test missing."
+                it "removes an existing user from the database" $ do
+                    hdr <- liftIO $ readIORef godHeaders
+                    let hdr' = ("Content-Type", "application/json"):hdr
+                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
+                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
+                        `shouldRespondWith` 200
+                    request "DELETE" ("/user/" <> cs (show uid)) hdr ""
+                    request "GET" ("/user/" <> cs (show uid) <> "/name") hdr ""
+                        `shouldRespondWith` 404
 
                 it "can only be called by admins and the user herself" $
                         \ _ -> pendingWith "test missing."

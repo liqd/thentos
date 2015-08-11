@@ -24,3 +24,7 @@ Specifically:
 * Thentos/Test/CustomDB.hs
   - Why are we extending the DB in the tests? Anything that uses that won't be
   testing the real DB
+
+* Thentos/Backend/Api/SimpleSpec.hs
+  - Some endpoints that have been commented out don't seem to exist. I'm
+  removing those tests.
