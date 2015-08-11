@@ -41,7 +41,7 @@ Specifically:
 
 Non-tests:
 
-  - Lots of endpoints return and expect top-level balues.
+  - Lots of endpoints return and expect top-level values.
   - Some endpoints in ThentosThentosSession and ThentosServiceSession return a
   bool (boolean blindness).
   - I don't see the point of endpoints that return whether a user is logged in.

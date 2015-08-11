@@ -32,12 +32,7 @@ import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
 
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Types
-import Thentos.Test.Core hiding (setupTestBackend)
-import qualified Thentos.Test.Core (setupTestBackend)
-
-setupTestBackend :: IO (BTS DB)
-setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
+import Thentos.Test.Core
 
 
 tests :: IO ()

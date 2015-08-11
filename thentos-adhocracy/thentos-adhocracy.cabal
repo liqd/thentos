@@ -185,6 +185,7 @@ test-suite tests
     , hslogger
     , hspec
     , http-types
+    , http-client
     , HTTP
     , lens
     , lens-aeson
