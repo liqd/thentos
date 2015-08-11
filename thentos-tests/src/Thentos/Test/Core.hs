@@ -168,7 +168,7 @@ frontend:
 -- tears down everything, returning the result of the action.
 withFrontendAndBackend :: MonadIO m => (ActionState DB -> m r) -> m r
 withFrontendAndBackend test = do
-    st <- liftIO $ createActionState =<< thentosTestConfig
+    st <- liftIO $ createActionState thentosTestConfig
     withFrontend defaultFrontendConfig st
         $ withBackend defaultBackendConfig st
         $ test st

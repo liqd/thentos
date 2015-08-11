@@ -8,8 +8,7 @@ module Thentos.Test.Config
 where
 
 import Data.Acid (AcidState)
-import Data.Configifier ((:*>)((:*>)), configify, Id(Id), Tagged(Tagged),
-                         MaybeO(JustO), Source(YamlString))
+import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
 
@@ -21,8 +20,8 @@ import Thentos (createDefaultUser)
 import Thentos.Test.Utils
 
 
-thentosTestConfig :: IO ThentosConfig
-thentosTestConfig = configify [YamlString [strLit|
+thentosTestConfig :: ThentosConfig
+thentosTestConfig = [cfgify|
 
 command: "run"
 
@@ -58,7 +57,7 @@ gc_interval: 1800
 log:
     path: ./log/thentos.log
     level: DEBUG
-|]]
+|]
 
 
 godUid :: UserId

@@ -32,7 +32,7 @@ tests = hspec spec
 spec :: Spec
 spec = do
     let b = do
-          db@(ActionState (adb, _, _)) <- thentosTestConfig >>= createActionState
+          db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
           createGod adb
           return db
 
@@ -215,11 +215,11 @@ spec_session = describe "session" $ do
 
 -- create user on a custom db type, using Actions defined for our base DB type
 spec_customDb :: Spec
-spec_customDb = describe "custom db" . before thentosTestConfig $ do
-    it "works" $ \ tcfg -> do
+spec_customDb = describe "custom db" $ do
+    it "works" $ do
         st <- openMemoryState (CustomDB emptyDB 3)
         rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-        let sta = ActionState (st, rng, tcfg)
+        let sta = ActionState (st, rng, thentosTestConfig)
             user = head testUsers
 
         uid <- runActionWithPrivs [RoleAdmin] sta $ addUser (head testUserForms)

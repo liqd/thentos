@@ -39,7 +39,7 @@ import Thentos.Test.Config
 
 defaultApp :: IO Application
 defaultApp = do
-    db@(ActionState (adb, _, _)) <- createActionState =<< thentosTestConfig
+    db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
     createGod adb
     writeIORef godHeaders . snd =<< loginAsGod db
     let app = serveApi db
