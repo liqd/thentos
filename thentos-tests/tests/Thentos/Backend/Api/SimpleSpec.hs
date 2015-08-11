@@ -13,16 +13,17 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
+import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.IORef
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleStatus, simpleBody)
+import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, with, get, request, matchStatus)
+import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, get, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
 import System.IO.Unsafe (unsafePerformIO)
@@ -35,7 +36,6 @@ import Thentos.Action.Core
 import Thentos.Test.Core
 import Thentos.Test.Config
 
-import Debug.Trace
 
 defaultApp :: IO Application
 defaultApp = do
@@ -58,14 +58,14 @@ spec = do
     with defaultApp  $ describe "Thentos.Backend.Api.Simple" $  do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
-                hdr <- liftIO $ readIORef godHeaders
+                hdr <- liftIO ctHeader
                 let headers = ("X-Thentos-No-Such-Header", "3"):hdr
                 request "GET" "/user" headers "" `shouldRespondWith` 400
 
         describe "user" $ do
             describe "Get [UserId]" $ do
                 it "returns the list of users" $ do
-                    hdr <- liftIO $ readIORef godHeaders
+                    hdr <- liftIO ctHeader
                     response <- request "GET" "/user" hdr ""
                     return response `shouldRespondWith` 200
                     liftIO $ Aeson.decode' (simpleBody response) `shouldBe` Just [UserId 0]
@@ -76,7 +76,7 @@ spec = do
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $ do
-                    hdr <- liftIO $ readIORef godHeaders
+                    hdr <- liftIO ctHeader
                     request "GET" resource hdr "" `shouldRespondWith` 200
 
                 it "can be called by user herself" $
@@ -94,23 +94,21 @@ spec = do
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
                 it "yields an email address" $ do
-                    hdr <- liftIO $ readIORef godHeaders
+                    hdr <- liftIO ctHeader
                     request "GET" resource hdr "" `shouldRespondWith` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $ do
-                    hdr <- liftIO $ readIORef godHeaders
-                    let hdr' = ("Content-Type", "application/json"):hdr
-                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    hdr <- liftIO ctHeader
+                    response1 <- postUser
                     return response1 `shouldRespondWith` 201
 
                     let (uid :: Int) = read . cs $ simpleBody response1
                     response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
                     let Right name = decodeLenient $ simpleBody response2
-                    liftIO $ name `shouldBe` udName userData
+                    liftIO $ name `shouldBe` udName defaultUserData
 
                 it "can only be called by admins" $
                         \ _ -> pendingWith "test missing."
@@ -118,7 +116,7 @@ spec = do
 
             describe "Capture \"userid\" UserId :> Delete" $ do
                 it "removes an existing user from the database" $ do
-                    hdr <- liftIO $ readIORef godHeaders
+                    hdr <- liftIO ctHeader
                     let hdr' = ("Content-Type", "application/json"):hdr
                     let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
                     response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
@@ -133,7 +131,7 @@ spec = do
                         \ _ -> pendingWith "test missing."
 
                 it "if user does not exist, responds with a 404" $ do
-                    hdr <- liftIO $ readIORef godHeaders
+                    hdr <- liftIO ctHeader
                     request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
 
@@ -141,13 +139,11 @@ spec = do
 
             describe "Capture \"token\" ThentosSessionToken :> Get Bool" $ do
                 it "returns true if session is active" $ do
-                    hdr <- liftIO $ readIORef godHeaders
-                    let hdr' = ("Content-Type", "application/json"):hdr
-                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    response1 <- request "POST" "/user" hdr' (Aeson.encode userData)
+                    hdr <- liftIO ctHeader
+                    response1 <- postUser
                     let (uid :: Int) = read . cs $ simpleBody response1
-                    response2 <- request "POST" "/thentos_session" hdr' (Aeson.encode (uid, udPassword userData))
-                    request "GET" "/thentos_session/" hdr' (simpleBody response2)
+                    response2 <- request "POST" "/thentos_session" hdr (Aeson.encode (uid, udPassword defaultUserData))
+                    request "GET" "/thentos_session/" hdr (simpleBody response2)
                         `shouldRespondWith` "true" { matchStatus = 200 }
 
                 it "returns false if session is not active (or does not exist)" $
@@ -161,3 +157,14 @@ spec = do
                     -- a matter of error reporting, though; the
                     -- behaviour in the context of correct requests is
                     -- as we want it.)
+
+postUser :: WaiSession SResponse
+postUser = do
+    hdr <- liftIO ctHeader
+    request "POST" "/user" hdr (Aeson.encode defaultUserData)
+
+ctHeader :: IO [Header]
+ctHeader = (("Content-Type", "application/json") :) <$> readIORef godHeaders
+
+defaultUserData :: UserFormData
+defaultUserData = UserFormData "name" "pwd" $ forceUserEmail "somebody@example.org"
