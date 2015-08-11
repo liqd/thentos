@@ -13,7 +13,6 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Snap.Core (ifTop, redirect')
 import Snap.Http.Server (defaultConfig, setBind, setPort, setVerbose)
-import Snap.Snaplet.AcidState (acidInitManual)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
 import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, wrapSite)
 import Snap.Util.FileServe (serveDirectory)
@@ -31,7 +30,7 @@ import Thentos.Frontend.Types
 import Thentos.Types
 
 
-runFrontend :: HttpConfig -> ActionState DB -> IO ()
+runFrontend :: HttpConfig -> ActionState -> IO ()
 runFrontend config asg = do
     logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
     serveSnaplet snapConfig (frontendApp asg config)
@@ -43,14 +42,14 @@ runFrontend config asg = do
                . setVerbose False
                $ defaultConfig
 
-frontendApp :: ActionState DB -> HttpConfig -> SnapletInit FrontendApp FrontendApp
+frontendApp :: ActionState -> HttpConfig -> SnapletInit FrontendApp FrontendApp
 frontendApp (ActionState (st, rn, _cfg)) feConf =
     makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
         wrapSite H.disableCaching
         wrapSite csrfify
         addRoutes routes
         FrontendApp <$>
-            nestSnaplet "acid" db (acidInitManual st) <*>
+            return () <*>
             return rn <*>
             return _cfg <*>
             nestSnaplet "sess" sess

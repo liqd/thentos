@@ -15,7 +15,6 @@ import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (ST, cs)
 import GHC.Generics (Generic)
-import Snap.Snaplet.AcidState (Acid, HasAcid(getAcidStore))
 import Snap.Snaplet.Session.SessionManager (SessionManager)
 import Snap.Snaplet (Snaplet, Handler, snapletValue)
 import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
@@ -28,7 +27,7 @@ import Thentos.Types
 
 data FrontendApp =
     FrontendApp
-      { _db :: Snaplet (Acid DB)
+      { _db :: ()
       , _rng :: MVar ChaChaDRG
       , _cfg :: ThentosConfig
       , _sess :: Snaplet SessionManager
@@ -36,9 +35,6 @@ data FrontendApp =
       }
 
 makeLenses ''FrontendApp
-
-instance HasAcid FrontendApp DB where
-    getAcidStore = view (db . snapletValue)
 
 type FH = Handler FrontendApp FrontendApp
 

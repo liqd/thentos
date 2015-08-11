@@ -20,15 +20,8 @@
 -- easy enough using pattern matching, but in some cases it is useful to have it.
 
 module Thentos.Transaction
-    ( module Thentos.Transaction
-    , module Thentos.Transaction.Transactions
+    ( module Thentos.Transaction.Transactions
     )
 where
 
-import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
 import Thentos.Transaction.Transactions
-import Thentos.Transaction.TH
-import Thentos.Types
-
-$(makeThentosAcidicPhase1 ''DB transaction_names)
-$(makeThentosAcidicPhase2 ''DB transaction_names [] [])

@@ -49,16 +49,16 @@ instance HasServer ServiceProxy where
     type ServerT ServiceProxy m = S.Application
     route Proxy = route (Proxy :: Proxy Raw)
 
-serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => C.Manager -> ProxyAdapter -> ActionState db -> Server ServiceProxy
+serviceProxy ::
+      C.Manager -> ProxyAdapter -> ActionState -> Server ServiceProxy
 serviceProxy manager adapter state
     = waiProxyTo (reverseProxyHandler adapter state)
                  defaultOnExc
                  manager
 
 -- | Proxy or respond based on request headers.
-reverseProxyHandler :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => ProxyAdapter -> ActionState db -> S.Request -> IO WaiProxyResponse
+reverseProxyHandler ::
+      ProxyAdapter -> ActionState -> S.Request -> IO WaiProxyResponse
 reverseProxyHandler adapter state req = do
     eRqMod <- runActionE state $ getRqMod adapter req
     case eRqMod of
@@ -116,7 +116,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 --
 -- The first parameter allows adapting a proxy for a specific use case.
 -- To get the default behavior, use 'defaultProxyAdapter'.
-getRqMod :: (db `Ex` DB) => ProxyAdapter -> S.Request -> Action db RqMod
+getRqMod :: ProxyAdapter -> S.Request -> Action RqMod
 getRqMod adapter req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
@@ -136,27 +136,27 @@ getRqMod adapter req = do
 -- | Look up the target URL for requests based on the given service ID. This requires a "proxies"
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
 -- For convenience, both service ID and target URL are returned.
-findTargetForServiceId :: (db `Ex` DB) =>
-    ServiceId -> ThentosConfig -> Action db (ServiceId, ProxyUri)
+findTargetForServiceId ::
+    ServiceId -> ThentosConfig -> Action (ServiceId, ProxyUri)
 findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
-            Nothing    -> throwError . thentosErrorFromParent $ ProxyNotConfiguredForService sid
+            Nothing    -> throwError $ ProxyNotConfiguredForService sid
     return (sid, target)
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
-findDefaultServiceIdAndTarget :: (db `Ex` DB) => ThentosConfig -> Action db (ServiceId, ProxyUri)
+findDefaultServiceIdAndTarget :: ThentosConfig -> Action (ServiceId, ProxyUri)
 findDefaultServiceIdAndTarget conf = do
-    defaultProxy <- maybe (throwError . thentosErrorFromParent $ MissingServiceHeader) return $
+    defaultProxy <- maybe (throwError $ MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
     sid <- return . ServiceId $ defaultProxy >>. (Proxy :: Proxy '["service_id"])
     return (sid, extractTargetUrl defaultProxy)
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
-createCustomHeaders :: (db `Ex` DB) =>
-    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action db T.RequestHeaders
+createCustomHeaders ::
+    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) sid = do
     cfg <- getConfig'P

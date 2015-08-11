@@ -20,10 +20,9 @@ module Thentos.Types where
 import Control.Applicative ((<$>))
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
-import Control.Lens (makeLenses, Lens')
+import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Data (Typeable)
-import Data.Map (Map)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
@@ -46,7 +45,7 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
-import qualified Data.Map as Map
+import Data.Map (Map)
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -60,57 +59,6 @@ getCopyViaShowRead :: forall a . (Typeable a, Read a) => Contained (Cereal.Get a
 getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . readMay $ raw
   where
     _fail raw = fail $ "getCopyViaShowRead: no parse for " ++ show (raw, typeOf (Proxy :: Proxy a))
-
-
--- * db
-
-data DB =
-    DB
-      { _dbUsers             :: !(Map UserId User)
-      , _dbUserIdsByName     :: !(Map UserName UserId)
-      , _dbUserIdsByEmail    :: !(Map UserEmail UserId)
-      , _dbServices          :: !(Map ServiceId Service)
-      , _dbThentosSessions   :: !(Map ThentosSessionToken ThentosSession)
-      , _dbServiceSessions   :: !(Map ServiceSessionToken ServiceSession)
-      , _dbRoles             :: !(Map Agent (Set Role))
-      , _dbUnconfirmedUsers  :: !(Map ConfirmationToken  ((UserId, User),      Timestamp))
-      , _dbPwResetTokens     :: !(Map PasswordResetToken ( UserId,             Timestamp))
-      , _dbEmailChangeTokens :: !(Map ConfirmationToken  ((UserId, UserEmail), Timestamp))
-      , _dbFreshUserId       :: !UserId
-      }
-  deriving (Eq, Show, Typeable, Generic)
-
--- | In order to use a derived db type @dbChild@ with transactions and actions
--- defined for @dbParent@, instantiate this class.
-class ( Typeable dbParent, Typeable dbChild
-      , SafeCopy dbParent, SafeCopy dbChild
-      , Exception (ThentosError dbParent), Exception (ThentosError dbChild)
-      , SafeCopy (ThentosError dbParent), SafeCopy (ThentosError dbChild)
-      ) =>
-        dbChild `Extends` dbParent where
-
-    focus :: Lens' dbChild dbParent
-    -- ^ Apply anything that is intended for @dbParent@ to @dbChild@.
-
-    thentosErrorFromParent :: ThentosError dbParent -> ThentosError dbChild
-    -- ^ If a transaction or action associated with 'dbParent' throws an error, use
-    -- this function to convert it to an error that can be thrown by
-    -- transactions or actions associated with @dbChild@.
-
-    thentosErrorToParent :: ThentosError dbChild -> Maybe (ThentosError dbParent)
-    -- ^ Use this to catch an error thrown by a polymorphic transaction.
-
-instance DB `Extends` DB where
-    focus = id
-    thentosErrorFromParent = id
-    thentosErrorToParent = Just
-
-class EmptyDB db where
-    emptyDB :: db
-
-instance EmptyDB DB where
-    emptyDB = DB m m m m m m m m m m (UserId 0)
-      where m = Map.empty
 
 
 -- * user
@@ -458,9 +406,7 @@ instance Show ProxyUri where
 
 -- * errors
 
-data family ThentosError (db :: *) :: *
-
-data instance ThentosError DB =
+data ThentosError =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -482,14 +428,14 @@ data instance ThentosError DB =
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
 
-deriving instance Eq (ThentosError DB)
-deriving instance Show (ThentosError DB)
-deriving instance Read (ThentosError DB)
+deriving instance Eq ThentosError
+deriving instance Show ThentosError
+deriving instance Read ThentosError
 deriving instance Typeable ThentosError
 
-instance Exception (ThentosError DB)
+instance Exception ThentosError
 
-instance SafeCopy (ThentosError DB)
+instance SafeCopy ThentosError
   where
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
@@ -497,7 +443,6 @@ instance SafeCopy (ThentosError DB)
 
 -- * boilerplate
 
-makeLenses ''DB
 makeLenses ''Service
 makeLenses ''ServiceAccount
 makeLenses ''ServiceSession
@@ -506,7 +451,6 @@ makeLenses ''User
 
 $(deriveSafeCopy 0 'base ''Agent)
 $(deriveSafeCopy 0 'base ''ConfirmationToken)
-$(deriveSafeCopy 0 'base ''DB)
 $(deriveSafeCopy 0 'base ''Group)
 $(deriveSafeCopy 0 'base ''GroupNode)
 $(deriveSafeCopy 0 'base ''PasswordResetToken)

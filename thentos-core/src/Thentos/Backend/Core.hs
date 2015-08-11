@@ -58,14 +58,14 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: forall db . (db `Ex` DB, ThentosErrorToServantErr db) =>
-    ActionState db -> Maybe ThentosSessionToken -> Action db :~> EitherT ServantErr IO
+enterAction :: 
+    ActionState -> Maybe ThentosSessionToken -> Action :~> EitherT ServantErr IO
 enterAction state mTok = Nat $ EitherT . run
   where
-    run :: Action db a -> IO (Either ServantErr a)
+    run :: Action a -> IO (Either ServantErr a)
     run = (>>= fmapLM actionErrorToServantErr) . runActionE state . updatePrivs mTok
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action db a -> Action db a
+    updatePrivs :: Maybe ThentosSessionToken -> Action a -> Action a
     updatePrivs (Just tok) action = (accessRightsByThentosSession'P tok >>= grantAccessRights'P) >> action
     updatePrivs Nothing    action = action
 
@@ -76,8 +76,7 @@ enterAction state mTok = Nat $ EitherT . run
 -- thrown.  The error constructors should take all the information in typed form.  Rendering
 -- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
 -- servant error is the sole responsibility of this function.
-actionErrorToServantErr :: forall db . (db `Ex` DB, ThentosErrorToServantErr db)
-      => ActionError db -> IO ServantErr
+actionErrorToServantErr :: ActionError -> IO ServantErr
 actionErrorToServantErr e = do
     logger DEBUG $ ppShow e
     case e of
@@ -85,7 +84,7 @@ actionErrorToServantErr e = do
         (ActionErrorAnyLabel le) -> _permissions le
         (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
   where
-    _thentos :: ThentosError db -> IO ServantErr
+    _thentos :: ThentosError -> IO ServantErr
     _thentos te = case thentosErrorToServantErr te of
         (Just (level, msg), se) -> logger level msg >> pure se
         (Nothing,           se) ->                     pure se
@@ -94,53 +93,50 @@ actionErrorToServantErr e = do
     _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
 
 
-class ThentosErrorToServantErr db where
-    thentosErrorToServantErr :: ThentosError db -> (Maybe (Priority, String), ServantErr)
-
-instance ThentosErrorToServantErr DB where
-    thentosErrorToServantErr e = f e
-      where
-        f NoSuchUser =
-            (Nothing, err404 { errBody = "user not found" })
-        f NoSuchPendingUserConfirmation =
-            (Nothing, err404 { errBody = "unconfirmed user not found" })
-        f (MalformedConfirmationToken path) =
-            (Nothing, err400 { errBody = "malformed confirmation token: " <> cs (show path) })
-        f NoSuchService =
-            (Nothing, err404 { errBody = "service not found" })
-        f NoSuchThentosSession =
-            (Nothing, err404 { errBody = "thentos session not found" })
-        f NoSuchServiceSession =
-            (Nothing, err404 { errBody = "service session not found" })
-        f OperationNotPossibleInServiceSession =
-            (Nothing, err404 { errBody = "operation not possible in service session" })
-        f ServiceAlreadyExists =
-            (Nothing, err403 { errBody = "service already exists" })
-        f NotRegisteredWithService =
-            (Nothing, err403 { errBody = "not registered with service" })
-        f UserEmailAlreadyExists =
-            (Nothing, err403 { errBody = "email already in use" })
-        f UserNameAlreadyExists =
-            (Nothing, err403 { errBody = "user name already in use" })
-        f UserIdAlreadyExists =
-            (Just (ERROR, ppShow e), err500)  -- (must be prevented earlier on.)
-        f BadCredentials =
-            (Just (INFO, show e), err401 { errBody = "unauthorized" })
-        f BadAuthenticationHeaders =
-            (Nothing, err400 { errBody = "bad authentication headers" })
-        f ProxyNotAvailable =
-            (Nothing, err404 { errBody = "proxying not activated" })
-        f MissingServiceHeader =
-            (Nothing, err404 { errBody = "headers do not contain service id" })
-        f (ProxyNotConfiguredForService sid) =
-            (Nothing, err404 { errBody = "proxy not configured for service " <> cs (show sid) })
-        f (NoSuchToken) =
-            (Nothing, err404 { errBody = "no such token" })
-        f (NeedUserA _ _) =
-            (Nothing, err404 { errBody =
-                "thentos session belongs to service, cannot create service session" })
-        f (MalformedUserPath path) =
-            (Nothing, err400 { errBody = "malformed user path: " <> cs (show path) })
+thentosErrorToServantErr :: ThentosError -> (Maybe (Priority, String), ServantErr)
+thentosErrorToServantErr e = f e
+  where
+    f NoSuchUser =
+        (Nothing, err404 { errBody = "user not found" })
+    f NoSuchPendingUserConfirmation =
+        (Nothing, err404 { errBody = "unconfirmed user not found" })
+    f (MalformedConfirmationToken path) =
+        (Nothing, err400 { errBody = "malformed confirmation token: " <> cs (show path) })
+    f NoSuchService =
+        (Nothing, err404 { errBody = "service not found" })
+    f NoSuchThentosSession =
+        (Nothing, err404 { errBody = "thentos session not found" })
+    f NoSuchServiceSession =
+        (Nothing, err404 { errBody = "service session not found" })
+    f OperationNotPossibleInServiceSession =
+        (Nothing, err404 { errBody = "operation not possible in service session" })
+    f ServiceAlreadyExists =
+        (Nothing, err403 { errBody = "service already exists" })
+    f NotRegisteredWithService =
+        (Nothing, err403 { errBody = "not registered with service" })
+    f UserEmailAlreadyExists =
+        (Nothing, err403 { errBody = "email already in use" })
+    f UserNameAlreadyExists =
+        (Nothing, err403 { errBody = "user name already in use" })
+    f UserIdAlreadyExists =
+        (Just (ERROR, ppShow e), err500)  -- (must be prevented earlier on.)
+    f BadCredentials =
+        (Just (INFO, show e), err401 { errBody = "unauthorized" })
+    f BadAuthenticationHeaders =
+        (Nothing, err400 { errBody = "bad authentication headers" })
+    f ProxyNotAvailable =
+        (Nothing, err404 { errBody = "proxying not activated" })
+    f MissingServiceHeader =
+        (Nothing, err404 { errBody = "headers do not contain service id" })
+    f (ProxyNotConfiguredForService sid) =
+        (Nothing, err404 { errBody = "proxy not configured for service " <> cs (show sid) })
+    f (NoSuchToken) =
+        (Nothing, err404 { errBody = "no such token" })
+    f (NeedUserA _ _) =
+        (Nothing, err404 { errBody =
+            "thentos session belongs to service, cannot create service session" })
+    f (MalformedUserPath path) =
+        (Nothing, err400 { errBody = "malformed user path: " <> cs (show path) })
 
 
 -- * custom servers for servant
