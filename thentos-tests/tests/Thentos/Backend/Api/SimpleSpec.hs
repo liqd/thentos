@@ -146,8 +146,11 @@ spec = do
                     request "GET" "/thentos_session/" hdr (simpleBody response2)
                         `shouldRespondWith` "true" { matchStatus = 200 }
 
-                it "returns false if session is not active (or does not exist)" $
-                        \ _ -> pendingWith "no tests yet"
+                it "returns false if session is does not exist" $ do
+                    postUser
+                    hdr <- liftIO ctHeader
+                    request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
+                        `shouldRespondWith` "false" { matchStatus = 200 }
 
                 it "does not accept the empty string (trailing '/') as session id." $
                         \ _ -> pendingWith "not implemented"
