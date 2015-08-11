@@ -32,7 +32,7 @@ import Data.Set (Set)
 import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
-import Servant.Server.Internal.ServantErr (err500, errBody)
+import Servant.Server.Internal.ServantErr (err500)
 import System.Log.Logger (Priority(ERROR))
 
 import Thentos.Backend.Core
@@ -85,17 +85,17 @@ instance SafeCopy (ThentosError DB)
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr (ThentosA3ErrorCore e) = thentosErrorToServantErr e
     thentosErrorToServantErr e@(A3BackendErrorResponse _ _) =
-        (Just (ERROR, show e), err500 { errBody = "exception in a3 backend" })
+        (Just (ERROR, show e), mkServantErr err500 "exception in a3 backend")
 
     thentosErrorToServantErr e@(A3BackendInvalidJson _) = do
-        (Just (ERROR, show e), err500 { errBody = "exception in a3 backend: received bad json" })
+        (Just (ERROR, show e), mkServantErr err500 "exception in a3 backend: received bad json")
     -- the following shouldn't actually reach servant:
     thentosErrorToServantErr e@SsoErrorUnknownCsrfToken =
-        (Just (ERROR, show e), err500 { errBody = "invalid token returned during sso process" })
+        (Just (ERROR, show e), mkServantErr err500 "invalid token returned during sso process")
     thentosErrorToServantErr e@(SsoErrorCouldNotAccessUserInfo _) =
-        (Just (ERROR, show e), err500 { errBody = "error accessing user info" })
+        (Just (ERROR, show e), mkServantErr err500 "error accessing user info")
     thentosErrorToServantErr e@(SsoErrorCouldNotGetAccessToken _) =
-        (Just (ERROR, show e), err500 { errBody = "error retrieving access token" })
+        (Just (ERROR, show e), mkServantErr err500 "error retrieving access token")
 
 newtype SsoToken = SsoToken { fromSsoToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)

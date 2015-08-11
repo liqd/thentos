@@ -359,7 +359,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     sendUserConfirmationMail (Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])) user activationUrl
     let userPath = userIdToPath cfg uid
         typedPath          = TypedPath userPath CTUser
-        -- Mimic cache-control info returned form the A3 backend
+        -- Mimic cache-control info returned from the A3 backend
         changedDescendants = [ a3backendPath cfg ""
                              , a3backendPath cfg "principals/"
                              , a3backendPath cfg "principals/users/"
