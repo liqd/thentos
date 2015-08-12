@@ -129,7 +129,7 @@ instance ThentosErrorToServantErr DB where
       where
         mkErr = fromMaybe mkServantErr mMkErr
         f NoSuchUser =
-            (Nothing, mkErr err400 "user not found")
+            (Nothing, mkErr err404 "user not found")
         f NoSuchPendingUserConfirmation =
             (Nothing, mkErr err400 "unconfirmed user not found")
         f (MalformedConfirmationToken path) =
