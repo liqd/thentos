@@ -84,9 +84,10 @@ data ActionError =
     ActionErrorThentos ThentosError
   | ActionErrorAnyLabel AnyLabelError
   | ActionErrorUnknown SomeException
+  deriving ( Show
+           , Typeable
+           )
 
-deriving instance Show ActionError
-deriving instance Typeable ActionError
 instance Exception ActionError
 
 instance MonadLIO DCLabel Action where

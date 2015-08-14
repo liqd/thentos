@@ -18,7 +18,6 @@ extra-source-files:
   tests/Thentos/ActionSpec.hs
   tests/Thentos/Backend/Api/SimpleSpec.hs
   tests/Thentos/FrontendSpec.hs
-  tests/Thentos/Transaction/CoreSpec.hs
   tests/Thentos/TypesSpec.hs
   tests/ThentosSpec.hs
 

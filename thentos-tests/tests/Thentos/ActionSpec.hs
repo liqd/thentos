@@ -5,11 +5,8 @@
 module Thentos.ActionSpec where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (MVar, newMVar)
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
-import Crypto.Random (ChaChaDRG, drgNew)
-import Data.Acid (openLocalStateFrom)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldContain,
@@ -18,7 +15,6 @@ import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, should
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
-import Thentos.Test.CustomDB
 import Thentos.Test.Types
 
 import LIO.Missing
@@ -37,10 +33,9 @@ spec = do
         spec_service
         spec_agentsAndRoles
         spec_session
-    spec_customDb
 
 
-spec_user :: SpecWith (DBTS DB)
+spec_user :: SpecWith DBTS
 spec_user = describe "user" $ do
     describe "addUser, lookupUser, deleteUser" $ do
         it "works" $ \(DBTS _ sta) -> do
@@ -117,7 +112,7 @@ spec_user = describe "user" $ do
             void . runAction sta $ startThentosSessionByUserName godName godPass
 
 
-spec_service :: SpecWith (DBTS DB)
+spec_service :: SpecWith DBTS
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \(DBTS _ sta) -> do
@@ -153,7 +148,7 @@ spec_service = describe "service" $ do
             allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
-spec_agentsAndRoles :: SpecWith (DBTS DB)
+spec_agentsAndRoles :: SpecWith DBTS
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
@@ -185,7 +180,7 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
                 result `shouldSatisfy` isLeft
 
 
-spec_session :: SpecWith (DBTS DB)
+spec_session :: SpecWith DBTS
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \ (DBTS _ sta) -> do
@@ -194,7 +189,7 @@ spec_session = describe "session" $ do
             return ()
 
     describe "lookupThentosSession" $ do
-        it "works" $ \ (DBTS _ astate :: (DBTS DB)) -> do
+        it "works" $ \ (DBTS _ astate :: DBTS) -> do
             ((ernieId, ernieF, _) : (bertId, _, _) : _)
                 <- runActionWithClearance dcTop astate initializeTestUsers
 
@@ -208,22 +203,3 @@ spec_session = describe "session" $ do
             v4 <- runActionAsAgent (UserA bertId)  astate (existsThentosSession tok)
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
-
--- create user on a custom db type, using Actions defined for our base DB type
-spec_customDb :: Spec
-spec_customDb = describe "custom db" . before setupBare . after teardownBare $ do
-    it "works" $ \ (TS tcfg) -> do
-        st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (CustomDB emptyDB 3)
-        rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-        let sta = ActionState (st, rng, testThentosConfig tcfg)
-            user = head testUsers
-
-        uid <- runActionWithPrivs [RoleAdmin] sta $ addUser (head testUserForms)
-        (uid', user') <- runActionWithPrivs [RoleAdmin] sta $ lookupUser uid
-        uid `shouldBe` uid'
-        user' `shouldBe` (userPassword .~ (user' ^. userPassword) $ user)
-        void . runActionWithPrivs [RoleAdmin] sta $ deleteUser uid
-        Left (ActionErrorThentos e) <-
-            runActionWithClearanceE dcBottom sta $ lookupUser uid
-        e `shouldBe` thentosErrorFromParent NoSuchUser
-        return ()
