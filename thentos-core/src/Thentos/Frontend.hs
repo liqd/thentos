@@ -48,10 +48,7 @@ frontendApp (ActionState (st, rn, _cfg)) feConf =
         wrapSite H.disableCaching
         wrapSite csrfify
         addRoutes routes
-        FrontendApp <$>
-            return () <*>
-            return rn <*>
-            return _cfg <*>
+        FrontendApp st rn _cfg <$>
             nestSnaplet "sess" sess
                (initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
             pure feConf

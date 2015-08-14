@@ -8,7 +8,7 @@
 module Thentos.Frontend.Types where
 
 import Control.Concurrent.MVar (MVar)
-import Control.Lens (makeLenses, view)
+import Control.Lens (makeLenses)
 import Control.Monad (mzero)
 import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.Aeson (FromJSON, ToJSON)
@@ -16,8 +16,9 @@ import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (ST, cs)
 import GHC.Generics (Generic)
 import Snap.Snaplet.Session.SessionManager (SessionManager)
-import Snap.Snaplet (Snaplet, Handler, snapletValue)
+import Snap.Snaplet (Snaplet, Handler)
 import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
+import Database.PostgreSQL.Simple (Connection)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
@@ -27,7 +28,7 @@ import Thentos.Types
 
 data FrontendApp =
     FrontendApp
-      { _db :: ()
+      { _dbc :: Connection
       , _rng :: MVar ChaChaDRG
       , _cfg :: ThentosConfig
       , _sess :: Snaplet SessionManager

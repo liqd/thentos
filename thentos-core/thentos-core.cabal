@@ -116,6 +116,7 @@ library
     , mtl > 2 && < 2.2
     , mtl-compat
     , old-locale
+    , postgresql-simple
     , pretty-show
     , safe
     , safecopy

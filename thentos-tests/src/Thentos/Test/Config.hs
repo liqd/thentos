@@ -11,6 +11,7 @@ import Control.Lens ((^.))
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
+import Database.PostgreSQL.Simple (Connection)
 import System.Environment (getEnvironment)
 import System.FilePath ((</>))
 import System.IO.Temp (createTempDirectory)
@@ -102,8 +103,8 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: () -> IO ()
-createGod st = createDefaultUser st
+createGod :: Connection -> IO ()
+createGod conn = createDefaultUser conn
     (Just . Tagged $
           Id (fromUserName godName)
       :*> Id (fromUserPass godPass)

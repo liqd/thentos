@@ -315,16 +315,17 @@ snapHandleAllErrors eth = do
         Right val -> return val
         Left err -> crash500 err
 
-getActionState :: FH (ActionState)
+getActionState :: FH ActionState
 getActionState = do
+    db <- gets (^. dbc)
     rn :: MVar ChaChaDRG <- gets (^. rng)
     cf :: ThentosConfig  <- gets (^. cfg)
-    return $ ActionState ((), rn, cf)
+    return $ ActionState (db, rn, cf)
 
 -- | Run action with the clearance derived from thentos session token.
 snapRunActionE :: Action a -> FH (Either ActionError a)
 snapRunActionE action = do
-    st :: ActionState      <- getActionState
+    st :: ActionState         <- getActionState
     fs :: FrontendSessionData <- getSessionData
 
     result <- case (^. fslToken) <$> fs ^. fsdLogin of

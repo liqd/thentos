@@ -34,6 +34,7 @@ import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
+import Database.PostgreSQL.Simple (connectPostgreSQL)
 import Network.HTTP.Client (Manager, newManager, defaultManagerSettings)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
@@ -140,13 +141,16 @@ teardownBare (TS tcfg) = do
 
 -- * DBTS
 
+testDBName :: String
+testDBName = "test_thentosdb"
+
 setupDB :: IO DBTS
 setupDB = do
     TS tcfg <- setupBare
-    let st = ()
-    createGod st
+    conn <- connectPostgreSQL (cs $ "dbname=" ++ testDBName)
+    createGod conn
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
+    return $ DBTS tcfg (ActionState (conn, rng, testThentosConfig tcfg))
 
 teardownDB :: DBTS -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do

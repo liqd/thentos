@@ -37,6 +37,7 @@ import LIO.Label (lub)
 import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
+import Database.PostgreSQL.Simple (Connection)
 
 import System.Log (Priority(DEBUG, CRITICAL))
 
@@ -57,7 +58,7 @@ import Thentos.Util
 
 newtype ActionState =
     ActionState
-      { fromActionState :: ((), MVar ChaChaDRG, ThentosConfig)
+      { fromActionState :: (Connection, MVar ChaChaDRG, ThentosConfig)
       }
   deriving (Typeable, Generic)
 

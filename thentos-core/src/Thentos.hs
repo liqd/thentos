@@ -32,6 +32,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Maybe (maybeToList)
 import Data.Proxy (Proxy(Proxy))
+import Database.PostgreSQL.Simple (Connection)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -53,10 +54,8 @@ import qualified Thentos.Transaction as T
 -- * main
 
 main :: IO ()
-main = makeMain () $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFeConfig cmd ->
+main = makeMain $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFeConfig cmd ->
     case cmd of
-        ShowDB -> undefined
-
         Run -> do
             let backend = maybe (return ())
                     (`Thentos.Backend.Api.Simple.runApi` actionState)
@@ -67,20 +66,18 @@ main = makeMain () $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFeConfi
 
             void $ concurrently backend frontend
 
-        RunSso -> error "RunSso: not implemented."
-
 
 -- * main with abstract commands
 
 makeMain ::
-    () -> (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ()) -> IO ()
-makeMain initialDB commandSwitch =
+    (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ()) -> IO ()
+makeMain commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
     checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
-    let actionState = ActionState (initialDB, rng, config)
+    let actionState = ActionState (undefined, rng, config)
         log_path = config >>. (Proxy :: Proxy '["log", "path"])
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
@@ -117,7 +114,7 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: () -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser = undefined
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
