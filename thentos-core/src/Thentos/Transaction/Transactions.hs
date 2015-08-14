@@ -7,85 +7,85 @@ import Thentos.Types
 import Thentos.Transaction.Core
 
 flattenGroups :: Service -> UserId -> [Group]
-flattenGroups = undefined
+flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
 
 freshUserId :: ThentosUpdate UserId
-freshUserId = undefined
+freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
 
 assertUser :: Maybe UserId -> User -> ThentosQuery ()
-assertUser = undefined
+assertUser = error "src/Thentos/Transaction/Transactions.hs:16"
 
 assertUserIsNew :: User -> ThentosQuery ()
-assertUserIsNew = undefined
+assertUserIsNew = error "src/Thentos/Transaction/Transactions.hs:19"
 
 type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
 
 userNameExists :: Maybe UserId -> User -> ThentosQuery ()
-userNameExists = undefined
+userNameExists = error "src/Thentos/Transaction/Transactions.hs:24"
 
 userEmailExists :: Maybe UserId -> User -> ThentosQuery ()
-userEmailExists = undefined
+userEmailExists = error "src/Thentos/Transaction/Transactions.hs:27"
 
 userIdExists :: UserId -> ThentosQuery ()
-userIdExists = undefined
+userIdExists = error "src/Thentos/Transaction/Transactions.hs:30"
 
 userFacetExists ::
     ThentosError -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery ()
-userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = undefined
+userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = error "src/Thentos/Transaction/Transactions.hs:34"
 
 allUserIds :: ThentosQuery [UserId]
-allUserIds = undefined
+allUserIds = error "src/Thentos/Transaction/Transactions.hs:37"
 
 lookupUser :: UserId -> ThentosQuery (UserId, User)
-lookupUser = undefined
+lookupUser = error "src/Thentos/Transaction/Transactions.hs:40"
 
 lookupUserByName :: UserName -> ThentosQuery (UserId, User)
-lookupUserByName = undefined
+lookupUserByName = error "src/Thentos/Transaction/Transactions.hs:43"
 
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
-lookupUserByEmail = undefined
+lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
 
 addUserPrim :: UserId -> User -> ThentosUpdate ()
-addUserPrim = undefined
+addUserPrim = error "src/Thentos/Transaction/Transactions.hs:49"
 
 addUser :: User -> ThentosUpdate UserId
-addUser = undefined
+addUser = error "src/Thentos/Transaction/Transactions.hs:52"
 
 addUsers :: [User] -> ThentosUpdate [UserId]
-addUsers = undefined
+addUsers = error "src/Thentos/Transaction/Transactions.hs:55"
 
 addUnconfirmedUser ::
     Timestamp -> ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
-addUnconfirmedUser = undefined
+addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
 
 addUnconfirmedUserWithId ::
     Timestamp -> ConfirmationToken -> User -> UserId -> ThentosUpdate ConfirmationToken
-addUnconfirmedUserWithId = undefined
+addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
 
 finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
-finishUserRegistration = undefined
+finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
 
 addPasswordResetToken ::
     Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User
-addPasswordResetToken = undefined
+addPasswordResetToken = error "src/Thentos/Transaction/Transactions.hs:71"
 
 resetPassword ::
     Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
-resetPassword = undefined
+resetPassword = error "src/Thentos/Transaction/Transactions.hs:75"
 
 addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail
                                              -> ConfirmationToken
                                              -> ThentosUpdate ()
-addUserEmailChangeRequest = undefined
+addUserEmailChangeRequest = error "src/Thentos/Transaction/Transactions.hs:80"
 
 confirmUserEmailChange ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
-confirmUserEmailChange = undefined
+confirmUserEmailChange = error "src/Thentos/Transaction/Transactions.hs:84"
 
 lookupEmailChangeToken ::
     ConfirmationToken -> ThentosQuery ((UserId, UserEmail), Timestamp)
-lookupEmailChangeToken = undefined
+lookupEmailChangeToken = error "src/Thentos/Transaction/Transactions.hs:88"
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -96,86 +96,86 @@ data UpdateUserFieldOp =
   deriving (Eq)
 
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
-updateUserField = undefined
+updateUserField = error "src/Thentos/Transaction/Transactions.hs:99"
 
 updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosUpdate ()
-updateUserFields = undefined
+updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
 
 deleteUser :: UserId -> ThentosUpdate ()
-deleteUser = undefined
+deleteUser = error "src/Thentos/Transaction/Transactions.hs:105"
 
 allServiceIds :: ThentosQuery [ServiceId]
-allServiceIds = undefined
+allServiceIds = error "src/Thentos/Transaction/Transactions.hs:108"
 
 lookupService :: ServiceId -> ThentosQuery (ServiceId, Service)
-lookupService = undefined
+lookupService = error "src/Thentos/Transaction/Transactions.hs:111"
 
 addService ::
     Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
     -> ServiceDescription -> ThentosUpdate ()
-addService = undefined
+addService = error "src/Thentos/Transaction/Transactions.hs:116"
 
 deleteService :: ServiceId -> ThentosUpdate ()
-deleteService = undefined
+deleteService = error "src/Thentos/Transaction/Transactions.hs:119"
 
 lookupThentosSession ::
     Timestamp -> ThentosSessionToken -> ThentosUpdate (ThentosSessionToken, ThentosSession)
-lookupThentosSession = undefined
+lookupThentosSession = error "src/Thentos/Transaction/Transactions.hs:123"
 
 startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout
                                        -> ThentosUpdate ()
-startThentosSession = undefined
+startThentosSession = error "src/Thentos/Transaction/Transactions.hs:127"
 
 endThentosSession :: ThentosSessionToken -> ThentosUpdate ()
-endThentosSession = undefined
+endThentosSession = error "src/Thentos/Transaction/Transactions.hs:130"
 
 lookupServiceSession :: Timestamp -> ServiceSessionToken
                                         -> ThentosUpdate (ServiceSessionToken, ServiceSession)
-lookupServiceSession = undefined
+lookupServiceSession = error "src/Thentos/Transaction/Transactions.hs:134"
 
 startServiceSession ::
     ThentosSessionToken -> ServiceSessionToken -> ServiceId
     -> Timestamp -> Timeout -> ThentosUpdate ()
-startServiceSession = undefined
+startServiceSession = error "src/Thentos/Transaction/Transactions.hs:139"
 
 endServiceSession :: ServiceSessionToken -> ThentosUpdate ()
-endServiceSession = undefined
+endServiceSession = error "src/Thentos/Transaction/Transactions.hs:142"
 
 assertAgent :: Agent -> ThentosQuery ()
-assertAgent = undefined
+assertAgent = error "src/Thentos/Transaction/Transactions.hs:145"
 
 assignRole :: Agent -> Role -> ThentosUpdate ()
-assignRole = undefined
+assignRole = error "src/Thentos/Transaction/Transactions.hs:148"
 
 unassignRole :: Agent -> Role -> ThentosUpdate ()
-unassignRole = undefined
+unassignRole = error "src/Thentos/Transaction/Transactions.hs:151"
 
 agentRoles :: Agent -> ThentosQuery (Set.Set Role)
-agentRoles = undefined
+agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
 
 garbageCollectThentosSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
-garbageCollectThentosSessions = undefined
+garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:157"
 
 doGarbageCollectThentosSessions ::
     [ThentosSessionToken] -> ThentosUpdate ()
-doGarbageCollectThentosSessions = undefined
+doGarbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
 
 garbageCollectServiceSessions ::
     Timestamp -> ThentosQuery [ServiceSessionToken]
-garbageCollectServiceSessions = undefined
+garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:165"
 
 doGarbageCollectServiceSessions ::
     [ServiceSessionToken] -> ThentosUpdate ()
-doGarbageCollectServiceSessions = undefined
+doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
 doGarbageCollectUnconfirmedUsers ::
     Timestamp -> Timeout -> ThentosUpdate ()
-doGarbageCollectUnconfirmedUsers = undefined
+doGarbageCollectUnconfirmedUsers = error "src/Thentos/Transaction/Transactions.hs:173"
 
 doGarbageCollectPasswordResetTokens ::
     Timestamp -> Timeout -> ThentosUpdate ()
-doGarbageCollectPasswordResetTokens = undefined
+doGarbageCollectPasswordResetTokens = error "src/Thentos/Transaction/Transactions.hs:177"
 
 doGarbageCollectEmailChangeTokens ::
     Timestamp -> Timeout -> ThentosUpdate ()
-doGarbageCollectEmailChangeTokens = undefined
+doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"

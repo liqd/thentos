@@ -220,11 +220,11 @@ accessRightsByThentosSession'P tok = do
 -- | Call 'update'' on the 'ActionState' and re-throw the exception that has been turned into an
 -- 'Either' on the border between acid-state and the real world.
 update'P :: ThentosUpdate v -> Action v
-update'P = undefined
+update'P = error "./src/Thentos/Action/Core.hs:223"
 
 -- | See 'update'P'.
 query'P :: ThentosQuery v -> Action v
-query'P = undefined
+query'P = error "./src/Thentos/Action/Core.hs:227"
 
 getConfig'P :: Action ThentosConfig
 getConfig'P = (\ (ActionState (_, _, c)) -> c) <$> Action ask

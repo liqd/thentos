@@ -77,7 +77,7 @@ makeMain commandSwitch =
     checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
-    let actionState = ActionState (undefined, rng, config)
+    let actionState = ActionState (error "./src/Thentos.hs:80", rng, config)
         log_path = config >>. (Proxy :: Proxy '["log", "path"])
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
@@ -115,7 +115,7 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
-createDefaultUser = undefined
+createDefaultUser = error "./src/Thentos.hs:118"
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
