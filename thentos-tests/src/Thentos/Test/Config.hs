@@ -8,7 +8,6 @@ where
 
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
-import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO, NothingO), fromTagged)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
@@ -20,7 +19,6 @@ import System.Log.Missing (Prio(Prio))
 
 import Thentos.Types
 import Thentos.Config
-import Thentos.Action.Core (Ex)
 import Thentos (createDefaultUser)
 
 import Thentos.Test.Types
@@ -104,7 +102,7 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: (db `Ex` DB) => AcidState db -> IO ()
+createGod :: () -> IO ()
 createGod st = createDefaultUser st
     (Just . Tagged $
           Id (fromUserName godName)

@@ -26,7 +26,6 @@ import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Lens ((^.))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (openLocalStateFrom, closeAcidState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -60,7 +59,7 @@ import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (logger, loggerName)
-import Thentos.Action
+import Thentos.Action hiding (addUser)
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
@@ -91,14 +90,14 @@ testUsers = (\ (UserFormData name pass email) ->
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
-addTestUser :: Int -> Action DB (UserId, UserFormData, User)
+addTestUser :: Int -> Action (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
-    uid <- update'P $ AddUser user
+    uid <- update'P $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
 -- them for use in test cases.
-initializeTestUsers :: Action DB [(UserId, UserFormData, User)]
+initializeTestUsers :: Action [(UserId, UserFormData, User)]
 initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
@@ -141,17 +140,16 @@ teardownBare (TS tcfg) = do
 
 -- * DBTS
 
-setupDB :: forall db . (db `Ex` DB) => IO (DBTS db)
+setupDB :: IO DBTS
 setupDB = do
     TS tcfg <- setupBare
-    st <- openLocalStateFrom (tcfg ^. tcfgDbPath) (emptyDB :: db)
+    let st = ()
     createGod st
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     return $ DBTS tcfg (ActionState (st, rng, testThentosConfig tcfg))
 
-teardownDB :: DBTS db -> IO ()
+teardownDB :: DBTS -> IO ()
 teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
-    closeAcidState st
     teardownBare (TS tcfg)
 
 
@@ -160,7 +158,7 @@ teardownDB (DBTS tcfg (ActionState (st, _, _))) = do
 -- | Test backend does not open a tcp socket, but uses hspec-wai
 -- instead.  Comes with a session token and authentication headers
 -- for default god user.
-setupTestBackend :: forall db . (db `Ex` DB) => (Manager -> ActionState db -> Application) -> IO (BTS db)
+setupTestBackend :: (Manager -> ActionState -> Application) -> IO BTS
 setupTestBackend testBackend = do
     manager <- newManager defaultManagerSettings
     DBTS tcfg asg <- setupDB
@@ -173,10 +171,10 @@ setupTestBackend testBackend = do
       , _btsGodCredentials = headers
     }
 
-teardownTestBackend :: BTS db -> IO ()
+teardownTestBackend :: BTS -> IO ()
 teardownTestBackend bts = teardownDB $ DBTS (bts ^. btsCfg) (bts ^. btsActionState)
 
-runTestBackend :: BTS db -> Session a -> IO a
+runTestBackend :: BTS -> Session a -> IO a
 runTestBackend bts session = runSession session (bts ^. btsWai)
 
 
@@ -184,7 +182,7 @@ runTestBackend bts session = runSession session (bts ^. btsWai)
 
 -- | Set up both frontend and backend on real tcp sockets (introduced
 -- for webdriver testing, but may be used elsewhere).
-setupTestServerFull :: IO (FTS DB)
+setupTestServerFull :: IO FTS
 setupTestServerFull = do
     DBTS tcfg asg <- setupDB
 
@@ -213,14 +211,14 @@ setupTestServerFull = do
 
     return $ FTS tcfg asg backend beConfig frontend feConfig wd
 
-teardownTestServerFull :: forall db . (db `Ex` DB) => FTS db -> IO ()
-teardownTestServerFull (FTS tcfg db backend _ frontend _ _) = do
+teardownTestServerFull :: FTS -> IO ()
+teardownTestServerFull (FTS tcfg st backend _ frontend _ _) = do
     cancel backend
     cancel frontend
-    teardownDB $ DBTS tcfg db
+    teardownDB $ DBTS tcfg st
 
 
-loginAsGod :: forall db . (db `Ex` DB) => ActionState db -> IO (ThentosSessionToken, [Header])
+loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
     (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
