@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -9,7 +8,6 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -21,9 +19,8 @@ module Thentos.Test.Core
 where
 
 import Control.Applicative ((<*), (<$>))
-import Control.Concurrent.Async (Async, async, cancel, poll)
+import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (Exception, SomeException, throwIO, catch)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
@@ -35,17 +32,13 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
-import Data.Typeable (Typeable)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
-import Network (HostName, PortID(PortNumber), connectTo)
 import Network.Wai (requestMethod, requestHeaders)
 import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
-import System.IO (hClose)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
-import System.Timeout (timeout)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -55,7 +48,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
-import System.Log.Missing (logger, loggerName)
+import System.Log.Missing (loggerName)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
@@ -66,7 +59,6 @@ import Thentos.Transaction hiding (addService)
 import Thentos.Types
 
 import Thentos.Test.Config
-import Thentos.Test.Utils
 
 
 -- * test users
@@ -142,18 +134,18 @@ withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
 -- specified DB, running an action in between.
 withFrontend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
 withFrontend feConfig as action = do
-    fe <- liftIO . async $ Thentos.Frontend.runFrontend feConfig as
-    liftIO $ assertResponsive 1.5 [(fe, feConfig)]
+    fe <- liftIO . forkIO $ Thentos.Frontend.runFrontend feConfig as
     result <- action
-    liftIO $ cancel fe
+    liftIO $ killThread fe
     return result
 
-defaultBackendConfig :: HttpConfig
-defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
-
-defaultFrontendConfig :: HttpConfig
-defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
-
+-- | Run a @hspec-wai@ @Session@ with the backend @Application@.
+withBackend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
+withBackend beConfig as action = do
+    backend <- liftIO . forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as
+    result <- action
+    liftIO $ killThread backend
+    return result
 
 -- | Sets up DB, frontend and backend, runs an action that takes a DB, and
 -- tears down everything, returning the result of the action.
@@ -164,15 +156,11 @@ withFrontendAndBackend test = do
         $ withBackend defaultBackendConfig st
         $ test st
 
--- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
-withBackend beConfig as action = do
-    backend <- liftIO . async $ runWarpWithCfg beConfig $ Simple.serveApi as
-    liftIO $ assertResponsive 1.5 [(backend, beConfig)]
-    result <- action
-    liftIO $ cancel backend
-    return result
+defaultBackendConfig :: HttpConfig
+defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
 
+defaultFrontendConfig :: HttpConfig
+defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
 
 -- | Create an @ActionState@ with an empty in-memory DB and the specified
 -- config.
@@ -217,41 +205,3 @@ decodeLenient input = do
 -- want to do explicit type signatures to avoid type ambiguity.
 (..=) :: ST -> ST -> Aeson.Pair
 (..=) = (Aeson..=)
-
-
--- | Take a timeout (in miliseconds) and a list of 'Async' threads with corresponding 'HttpConfig's.
--- If a thread terminates, throw an error that contains either exception thrown by the thread or the
--- result value.  If it does not, connect to the associated 'HttpConfig' URI.  If that works, remove
--- thread from input list If it does not, append the thread to the end of the list.  Iterate.
-assertResponsive :: Double -> [(Async (), HttpConfig)] -> IO ()
-assertResponsive (round . (*1000) . (*1000) -> musecs) threads =
-    timeout musecs (f threads)
-        >>= maybe (throwIO $ AssertResponsiveTimeout musecs) return
-  where
-    f :: [(Async (), HttpConfig)] -> IO ()
-    f [] = return ()
-    f (x@(thread, cfg) : xs) = do
-        result :: Maybe (Either SomeException ()) <- poll thread
-
-        let h :: HostName = cs $ cfg >>. (Proxy :: Proxy '["bind_host"])
-            p = PortNumber . fromIntegral $ cfg >>. (Proxy :: Proxy '["bind_port"])
-
-        case result of
-            Nothing -> do
-                -- server thread is running --> attempt to connect
-                isUp <- (connectTo h p >>= hClose          >> return True)
-                            `catch` (\(_ :: SomeException) -> return False)
-                logger DEBUG $ show (h, p, isUp)
-                if isUp
-                    then f xs           -- success
-                    else f (xs ++ [x])  -- nothing yet, retry later
-            Just r -> do
-                -- server thread terminated --> crash
-                throwIO . AssertResponsiveThreadTerminated $ (cfg, r)
-
-data AssertResponsiveFailed =
-      AssertResponsiveTimeout Int
-    | AssertResponsiveThreadTerminated (HttpConfig, Either SomeException ())
-  deriving (Show, Typeable)
-
-instance Exception AssertResponsiveFailed

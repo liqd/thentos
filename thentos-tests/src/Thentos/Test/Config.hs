@@ -41,7 +41,7 @@ smtp:
 
 proxy:
     service_id: "someid"
-    endpoint: http://127.0.0.1:6541
+    endpoint: http://127.0.0.1:8001/path
 
 default_user:
     name: "god"
