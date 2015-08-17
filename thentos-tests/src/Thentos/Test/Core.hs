@@ -31,7 +31,7 @@ import Data.Acid (IsAcidic)
 import Data.Acid.Memory (openMemoryState)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
-import Data.Configifier ((>>.))
+import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
@@ -148,21 +148,12 @@ withFrontend feConfig as action = do
     liftIO $ cancel fe
     return result
 
-defaultFrontendConfig :: HttpConfig
-defaultFrontendConfig = [cfgify|
-
-backend:
-    bind_port: 7118
-    bind_host: "127.0.0.1"
-|]
-
 defaultBackendConfig :: HttpConfig
-defaultBackendConfig = [cfgify|
+defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
 
-frontend:
-    bind_port: 7119
-    bind_host: "127.0.0.1"
-|]
+defaultFrontendConfig :: HttpConfig
+defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
+
 
 -- | Sets up DB, frontend and backend, runs an action that takes a DB, and
 -- tears down everything, returning the result of the action.

@@ -35,6 +35,7 @@ import Thentos.Test.Core
 import Thentos.Test.Config
 import Thentos.Test.Network (openTestSocket)
 
+
 type Env = (PortNumber, Async (), Async ())
 
 spec :: Spec
