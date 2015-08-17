@@ -151,10 +151,9 @@ withBackend beConfig as action = do
 -- tears down everything, returning the result of the action.
 withFrontendAndBackend :: MonadIO m => (ActionState DB -> m r) -> m r
 withFrontendAndBackend test = do
-    st <- liftIO $ createActionState thentosTestConfig
+    st@(ActionState (adb, _, _)) <- liftIO $ createActionState thentosTestConfig
     withFrontend defaultFrontendConfig st
-        $ withBackend defaultBackendConfig st
-        $ test st
+        $ withBackend defaultBackendConfig st $ liftIO (createGod adb) >> test st
 
 defaultBackendConfig :: HttpConfig
 defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
