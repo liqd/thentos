@@ -182,7 +182,6 @@ loginAsGod actionState = do
 
 -- | Cloned from hspec-wai's 'request'.  (We don't want to use the
 -- return type from there.)
--- [NOPUSH: Remove]
 makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
 makeSRequest method path headers = SRequest req
   where
