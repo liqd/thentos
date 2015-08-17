@@ -16,6 +16,10 @@ Specifically:
 * What is ThentosSpec.hs about?
   - spec = return () ?
 
+* Thentos/Test/Core.hs
+  - Is there any use to logging if we remove the entire directory (along with
+  log files) afterwards? I'm leaving the test logs in the temp dir.
+
 * Thentos/Transaction/CoreSpec.hs spec_polyQU
   - mentions three functions that are never actually used in the tests
   - seems to be basically just testing that id == id

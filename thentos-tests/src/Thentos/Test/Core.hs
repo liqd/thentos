@@ -37,9 +37,12 @@ import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.Wai (requestMethod, requestHeaders)
 import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
+import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
+import System.IO.Temp (createTempDirectory)
+
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -98,13 +101,14 @@ encryptTestSecret pw =
 
 -- * test logger
 
--- | Run an action, logging everything with 'DEBUG' level to the specified file.
-withLogger :: FilePath -> IO a -> IO a
-withLogger logfile action = do
+-- | Run an action, logging everything with 'DEBUG' level to a temp file.
+withLogger :: IO a -> IO a
+withLogger action = do
     let loglevel = DEBUG
         fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     removeAllHandlers
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
+    tmp <- createTempDirectory "/tmp/" "_thentos_test_"
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler (tmp </> "everything.log")  loglevel
     updateGlobalLogger loggerName $ setLevel DEBUG . setHandlers [fHandler]
     result <- action
     removeAllHandlers
@@ -146,8 +150,8 @@ withBackend beConfig as action =
             killThread
             (const action)
 
--- | Sets up DB, frontend and backend, runs an action that takes a DB, and
--- tears down everything, returning the result of the action.
+-- | Sets up DB, frontend and backend, creates god user, runs an action that
+-- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend ::  (ActionState DB -> IO r) -> IO r
 withFrontendAndBackend test = do
     st@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
