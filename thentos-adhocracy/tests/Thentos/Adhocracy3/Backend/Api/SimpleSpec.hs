@@ -14,15 +14,19 @@
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
-import Data.Aeson (object, (.=))
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
-import Data.String.Conversions (LBS, ST)
-import Test.Hspec (Spec, describe, it, shouldBe, hspec)
+import Data.Maybe (isJust)
+import Data.String.Conversions (LBS, ST, cs)
+import Network.Wai.Test (srequest, simpleBody, simpleStatus)
+import Test.Hspec (Spec, after, before, describe, hspec, it, shouldBe, shouldSatisfy)
 import Test.QuickCheck (property)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
+import qualified Network.HTTP.Types.Status as Status
 
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
@@ -90,6 +94,40 @@ spec =
                  fromA3UserWithPass <$>
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
+
+        describe "login" . before setupTestBackend . after teardownTestBackend $
+            it "rejects bad credentials mimicking A3" $
+                \bts -> runTestBackend bts $ do
+
+                    let reqBody = encodePretty . object $
+                            [ "name"     .= String "Anna Müller"
+                            , "password" .= String "this-is-wrong"
+                            ]
+
+                    rsp <- srequest $ makeSRequest "POST" "login_username" [] reqBody
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "\"User doesn't exist or password is wrong\""
+
+        describe "activate_account" . before setupTestBackend . after teardownTestBackend $
+            it "rejects bad path mimicking A3" $
+                \bts -> runTestBackend bts $ do
+
+                    let reqBody = encodePretty . object $
+                            [ "path" .= String "/activate/no-such-path" ]
+
+                    rsp <- srequest $ makeSRequest "POST" "activate_account" [] reqBody
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "\"Unknown or expired activation path\""
+  where
+    shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
+    shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
+        liftIO $ Status.statusCode rstStatus `shouldBe` 400
+        -- Response body should be parseable as JSON
+        liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
+        let rspText = cs rspBody :: ST
+        -- It should contain the quoted string "error" as well as the customMessage
+        liftIO $ rspText `shouldSatisfy` ST.isInfixOf "\"error\""
+        liftIO $ rspText `shouldSatisfy` ST.isInfixOf customMessage
 
 -- FIXME Disabled since user creation now requires a running A3 backend and we don't have
 -- that in the tests.

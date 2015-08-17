@@ -27,6 +27,7 @@ import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
@@ -80,13 +81,15 @@ newtype ErrorMessage = ErrorMessage { fromErrorMessage :: ST }
 instance ToJSON ErrorMessage where
     toJSON (ErrorMessage msg) = object ["status" .= String "error", "error" .= msg]
 
+-- |Type of functions that transform a base error and an error message into a ServantErr.
+type MkServantErrFun = ServantErr -> ST -> ServantErr
+
 -- | Construct a ServantErr that looks as our errors should.
 -- Status code and reason phrase are taken from the base error given as first argument.
 -- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
-mkServantErr :: ServantErr -> ST -> ServantErr
-mkServantErr baseErr msg = baseErr { errBody = encode $ ErrorMessage msg
-    , errHeaders = [("Content-Type", "application/json; charset=UTF-8")]
-    }
+mkServantErr :: MkServantErrFun
+mkServantErr baseErr msg = baseErr
+    {errBody = encode $ ErrorMessage msg, errHeaders = [contentTypeJsonHeader]}
 
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
 --
@@ -105,7 +108,7 @@ actionErrorToServantErr e = do
                                     pure (mkServantErr err500 "internal error")
   where
     _thentos :: ThentosError db -> IO ServantErr
-    _thentos te = case thentosErrorToServantErr te of
+    _thentos te = case thentosErrorToServantErr Nothing te of
         (Just (level, msg), se) -> logger level msg >> pure se
         (Nothing,           se) ->                     pure se
 
@@ -114,52 +117,58 @@ actionErrorToServantErr e = do
 
 
 class ThentosErrorToServantErr db where
-    thentosErrorToServantErr :: ThentosError db -> (Maybe (Priority, String), ServantErr)
+    -- | Convert a 'ThentosError' into a 'ServantErr'. If the first argument is 'Just' provided,
+    -- it must be invoked to create the returned error, otherwise a suitable default implementation
+    -- must be used for that purpose. This allows derived db's to adapt the details of the error
+    -- actually returned.
+    thentosErrorToServantErr :: Maybe MkServantErrFun -> ThentosError db
+                             -> (Maybe (Priority, String), ServantErr)
 
 instance ThentosErrorToServantErr DB where
-    thentosErrorToServantErr e = f e
+    thentosErrorToServantErr mMkErr e = f e
       where
+        mkErr = fromMaybe mkServantErr mMkErr
         f NoSuchUser =
-            (Nothing, mkServantErr err400 "user not found")
+            (Nothing, mkErr err400 "user not found")
         f NoSuchPendingUserConfirmation =
-            (Nothing, mkServantErr err400 "unconfirmed user not found")
+            (Nothing, mkErr err400 "unconfirmed user not found")
         f (MalformedConfirmationToken path) =
-            (Nothing, mkServantErr err400 $ "malformed confirmation token: " <> cs (show path))
+            (Nothing, mkErr err400 $ "malformed confirmation token: " <> cs (show path))
         f NoSuchService =
-            (Nothing, mkServantErr err400 "service not found")
+            (Nothing, mkErr err400 "service not found")
         f NoSuchThentosSession =
-            (Nothing, mkServantErr err400 "thentos session not found")
+            (Nothing, mkErr err400 "thentos session not found")
         f NoSuchServiceSession =
-            (Nothing, mkServantErr err400 "service session not found")
+            (Nothing, mkErr err400 "service session not found")
         f OperationNotPossibleInServiceSession =
-            (Nothing, mkServantErr err404 "operation not possible in service session")
+            (Nothing, mkErr err404 "operation not possible in service session")
         f ServiceAlreadyExists =
-            (Nothing, mkServantErr err403 "service already exists")
+            (Nothing, mkErr err403 "service already exists")
         f NotRegisteredWithService =
-            (Nothing, mkServantErr err403 "not registered with service")
+            (Nothing, mkErr err403 "not registered with service")
         f UserEmailAlreadyExists =
-            (Nothing, mkServantErr err403 "email already in use")
+            (Nothing, mkErr err403 "email already in use")
         f UserNameAlreadyExists =
-            (Nothing, mkServantErr err403 "user name already in use")
+            (Nothing, mkErr err403 "user name already in use")
         f UserIdAlreadyExists =    -- must be prevented earlier on
-            (Just (ERROR, ppShow e), mkServantErr err500 "internal error")
+            (Just (ERROR, ppShow e), mkErr err500 "internal error")
         f BadCredentials =
-            (Just (INFO, show e), mkServantErr err401 "unauthorized")
+            (Just (INFO, show e), mkErr err401 "unauthorized")
         f BadAuthenticationHeaders =
-            (Nothing, mkServantErr err400 "bad authentication headers")
+            (Nothing, mkErr err400 "bad authentication headers")
         f ProxyNotAvailable =
-            (Nothing, mkServantErr err404 "proxying not activated")
+            (Nothing, mkErr err404 "proxying not activated")
         f MissingServiceHeader =
-            (Nothing, mkServantErr err404 "headers do not contain service id")
+            (Nothing, mkErr err404 "headers do not contain service id")
         f (ProxyNotConfiguredForService sid) =
-            (Nothing, mkServantErr err404 $ "proxy not configured for service " <> cs (show sid))
+            (Nothing, mkErr err404 $ "proxy not configured for service " <> cs (show sid))
         f (NoSuchToken) =
-            (Nothing, mkServantErr err400 "no such token")
+            (Nothing, mkErr err400 "no such token")
         f (NeedUserA _ _) =
-            (Nothing, mkServantErr err404
+            (Nothing, mkErr err404
                 "thentos session belongs to service, cannot create service session")
         f (MalformedUserPath path) =
-            (Nothing, mkServantErr err400 $ "malformed user path: " <> cs (show path))
+            (Nothing, mkErr err400 $ "malformed user path: " <> cs (show path))
 
 
 -- * custom servers for servant
@@ -244,6 +253,10 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 
 
 -- * response headers
+
+-- | header setting the Content-Type to JSON.
+contentTypeJsonHeader ::  Header
+contentTypeJsonHeader = ("Content-Type", "application/json; charset=UTF-8")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --
