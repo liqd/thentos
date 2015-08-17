@@ -21,6 +21,7 @@ where
 import Control.Applicative ((<*), (<$>))
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
@@ -55,7 +56,7 @@ import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
-import Thentos.Transaction hiding (addService)
+import Thentos.Transaction
 import Thentos.Types
 
 import Thentos.Test.Config
@@ -132,26 +133,24 @@ withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
 
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
-withFrontend feConfig as action = do
-    fe <- liftIO . forkIO $ Thentos.Frontend.runFrontend feConfig as
-    result <- action
-    liftIO $ killThread fe
-    return result
+withFrontend :: HttpConfig -> ActionState DB -> IO r -> IO r
+withFrontend feConfig as action =
+    bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
+            killThread
+            (const action)
 
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend :: MonadIO m => HttpConfig -> ActionState DB -> m r -> m r
-withBackend beConfig as action = do
-    backend <- liftIO . forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as
-    result <- action
-    liftIO $ killThread backend
-    return result
+withBackend :: HttpConfig -> ActionState DB -> IO r -> IO r
+withBackend beConfig as action =
+    bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
+            killThread
+            (const action)
 
 -- | Sets up DB, frontend and backend, runs an action that takes a DB, and
 -- tears down everything, returning the result of the action.
-withFrontendAndBackend :: MonadIO m => (ActionState DB -> m r) -> m r
+withFrontendAndBackend ::  (ActionState DB -> IO r) -> IO r
 withFrontendAndBackend test = do
-    st@(ActionState (adb, _, _)) <- liftIO $ createActionState thentosTestConfig
+    st@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
     withFrontend defaultFrontendConfig st
         $ withBackend defaultBackendConfig st $ liftIO (createGod adb) >> test st
 
