@@ -1,7 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+
 module Thentos.Transaction.Transactions
 where
 
 import qualified Data.Set as Set
+
+import Control.Monad.Except (throwError)
+import Database.PostgreSQL.Simple       (Only(..), query)
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 
 import Thentos.Types
 import Thentos.Transaction.Core
@@ -37,7 +44,14 @@ allUserIds :: ThentosQuery [UserId]
 allUserIds = error "src/Thentos/Transaction/Transactions.hs:37"
 
 lookupUser :: UserId -> ThentosQuery (UserId, User)
-lookupUser = error "src/Thentos/Transaction/Transactions.hs:40"
+lookupUser uid = do
+    users <- queryT [sql| SELECT name, password, email
+                          FROM users
+                          WHERE id = ? |] (Only uid)
+    user <- case users of
+      [user] -> return user
+      _      -> throwError NoSuchUser
+    return (uid, user)
 
 lookupUserByName :: UserName -> ThentosQuery (UserId, User)
 lookupUserByName = error "src/Thentos/Transaction/Transactions.hs:43"

@@ -17,7 +17,7 @@
 
 module Thentos.Types where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>), pure)
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
@@ -28,6 +28,7 @@ import Data.Monoid ((<>))
 import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
                       safePut, safeGet)
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
@@ -42,10 +43,14 @@ import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
+import Database.PostgreSQL.Simple.FromRow (FromRow, fromRow, field)
+import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError)
+import Database.PostgreSQL.Simple.ToField (ToField, toField)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -78,6 +83,9 @@ data User =
       }
   deriving (Eq, Show, Typeable, Generic)
 
+instance FromRow User where
+    fromRow = User <$> field <*> field <*> field <*> pure Set.empty <*> pure Map.empty
+
 -- | the data a user maintains about a service they are signed up
 -- with.
 data ServiceAccount =
@@ -101,8 +109,14 @@ newServiceAccount = ServiceAccount False
 newtype UserId = UserId { fromUserId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
 
+instance ToField UserId where
+    toField = toField . fromUserId
+
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
+
+instance FromField UserName where
+    fromField f dat = UserName <$> fromField f dat
 
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
@@ -113,12 +127,21 @@ newtype UserPass = UserPass { fromUserPass :: ST }
 newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
     deriving (Eq, Show, Typeable, Generic)
 
+instance FromField (HashedSecret a) where
+    fromField f dat = HashedSecret . Scrypt.EncryptedPass <$> fromField f dat
+
 instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
     getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
 
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance FromField UserEmail where
+    fromField f Nothing = returnError UnexpectedNull f ""
+    fromField f (Just bs) = case parseUserEmail (cs bs) of
+                              Nothing -> returnError ConversionFailed f ""
+                              Just e  -> return e
 
 parseUserEmail :: ST -> Maybe UserEmail
 parseUserEmail t = do

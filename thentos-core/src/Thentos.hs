@@ -49,6 +49,7 @@ import Thentos.Util
 
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
+import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
 
 
 -- * main
@@ -115,7 +116,26 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
-createDefaultUser = error "./src/Thentos.hs:118"
+createDefaultUser _ Nothing = return ()
+createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
+    eq <- runThentosQuery conn $ T.lookupUser (UserId 0)
+    when (isLeft eq) $ do
+        -- user
+        user <- makeUserFromFormData userData
+        logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
+        eu <- runThentosUpdate conn $ T.addUser user
+
+        if eu == Right (UserId 0)
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
+
+        -- roles
+        logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+        result <- mapM (runThentosUpdate conn . T.assignRole (UserA . UserId $ 0)) roles
+
+        if all isRight result
+            then logger DEBUG $ "[ok]"
+            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
