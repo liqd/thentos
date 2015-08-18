@@ -60,10 +60,16 @@ lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
 lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
 
 addUserPrim :: UserId -> User -> ThentosUpdate ()
-addUserPrim = error "src/Thentos/Transaction/Transactions.hs:49"
+addUserPrim = do
+    queryT [sql| INSERT INTO users (id, name, password, email)
+                        VALUES (?, ?, ?, ?) |] (Only ( uid
+                                                     , user ^. userName
+                                                     , user ^. userPassword
+                                                     , user ^. userEmail
+                                                     ))
 
 addUser :: User -> ThentosUpdate UserId
-addUser = error "src/Thentos/Transaction/Transactions.hs:52"
+addUser user = error "src/Thentos/Transaction/Transactions.hs:52"
 
 addUsers :: [User] -> ThentosUpdate [UserId]
 addUsers = error "src/Thentos/Transaction/Transactions.hs:55"
