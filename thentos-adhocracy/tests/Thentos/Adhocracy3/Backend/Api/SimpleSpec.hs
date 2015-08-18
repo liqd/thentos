@@ -20,18 +20,24 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (LBS, ST, cs)
-import Network.Wai.Test (srequest, simpleBody, simpleStatus)
-import Test.Hspec (Spec, after, before, describe, hspec, it, shouldBe, shouldSatisfy)
+import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.Wai (Application)
+import Network.Wai.Test (simpleBody, simpleStatus)
+import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (property)
+
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as Status
 
+import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
 
 import Thentos.Test.Arbitrary ()
+import Thentos.Test.Config
 import Thentos.Test.Core
 
 
@@ -90,30 +96,37 @@ spec =
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
 
-        describe "login" . before setupTestBackend . after teardownTestBackend $
-            it "rejects bad credentials mimicking A3" $
-                \bts -> runTestBackend bts $ do
+        describe "login" $ with setupBackend $
+            it "rejects bad credentials mimicking A3" $ do
 
-                    let reqBody = encodePretty . object $
-                            [ "name"     .= String "Anna Müller"
-                            , "password" .= String "this-is-wrong"
-                            ]
+                let reqBody = encodePretty . object $
+                        [ "name"     .= String "Anna Müller"
+                        , "password" .= String "this-is-wrong"
+                        ]
 
-                    rsp <- srequest $ makeSRequest "POST" "login_username" [] reqBody
-                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                        "\"User doesn't exist or password is wrong\""
+                rsp <- request "POST" "login_username" [ctJSON] reqBody
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"User doesn't exist or password is wrong\""
 
-        describe "activate_account" . before setupTestBackend . after teardownTestBackend $
-            it "rejects bad path mimicking A3" $
-                \bts -> runTestBackend bts $ do
+        describe "activate_account" $ with setupBackend $
+            it "rejects bad path mimicking A3" $ do
 
-                    let reqBody = encodePretty . object $
-                            [ "path" .= String "/activate/no-such-path" ]
+                let reqBody = encodePretty . object $
+                        [ "path" .= String "/activate/no-such-path" ]
 
-                    rsp <- srequest $ makeSRequest "POST" "activate_account" [] reqBody
-                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                        "\"Unknown or expired activation path\""
+                rsp <- request "POST" "activate_account" [ctJSON] reqBody
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"Unknown or expired activation path\""
   where
+    setupBackend :: IO Application
+    setupBackend = do
+        db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+        mgr <- newManager defaultManagerSettings
+        createGod adb
+        return $! serveApi mgr db
+
+    ctJSON = ("Content-Type", "application/json")
+
     shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
     shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
         liftIO $ Status.statusCode rstStatus `shouldBe` 400

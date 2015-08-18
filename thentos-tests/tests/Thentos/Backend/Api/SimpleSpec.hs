@@ -42,8 +42,7 @@ defaultApp = do
     db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
     createGod adb
     writeIORef godHeaders . snd =<< loginAsGod db
-    let app = serveApi db
-    return app
+    return $! serveApi db
 
 tests :: IO ()
 tests = hspec spec
