@@ -49,7 +49,7 @@ import System.Log.Missing (logger)
 import Thentos.Config
 import Thentos.Smtp
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (ThentosQuery(..), ThentosUpdate(..))
+import Thentos.Transaction.Core (ThentosQuery(..), ThentosUpdate, runThentosUpdate)
 import Thentos.Types
 import Thentos.Util
 
@@ -220,7 +220,10 @@ accessRightsByThentosSession'P tok = do
 -- | Call 'update'' on the 'ActionState' and re-throw the exception that has been turned into an
 -- 'Either' on the border between acid-state and the real world.
 update'P :: ThentosUpdate v -> Action v
-update'P = error "./src/Thentos/Action/Core.hs:223"
+update'P u = do
+    ActionState (conn, _, _) <- Action ask
+    result <- liftLIO . ioTCB . runThentosUpdate conn $ u
+    either throwError return result
 
 -- | See 'update'P'.
 query'P :: ThentosQuery v -> Action v
