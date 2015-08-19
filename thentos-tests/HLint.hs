@@ -9,7 +9,7 @@ import "hint" HLint.HLint
 -- >>> module  ::= 'Thentos.Backend.Api.Adhocracy3'
 -- >>> pattern ::= '"' string '"'
 
-ignore "Reduce duplication" = Thentos.FrontendSpec
+ignore "Reduce duplication"
 ignore "Redundant $"
 ignore "Redundant do"
 ignore "Use ."
