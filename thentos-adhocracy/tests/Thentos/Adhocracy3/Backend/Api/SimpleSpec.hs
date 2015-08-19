@@ -108,16 +108,26 @@ spec =
                     shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                         "\"User doesn't exist or password is wrong\""
 
-        describe "activate_account" . before setupTestBackend . after teardownTestBackend $
-            it "rejects bad path mimicking A3" $
+        describe "arbitrary requests" . before setupTestBackend . after teardownTestBackend $
+            it "rejects bad session token mimicking A3" $
                 \bts -> runTestBackend bts $ do
 
-                    let reqBody = encodePretty . object $
-                            [ "path" .= String "/activate/no-such-path" ]
-
-                    rsp <- srequest $ makeSRequest "POST" "activate_account" [] reqBody
+                    let headers = [("X-User-Token", "invalid-token")]
+                    rsp <- srequest $ makeSRequest "POST" "dummy/endpoint" headers ""
                     shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                        "\"Unknown or expired activation path\""
+                        "\"Invalid user token\""
+
+-- Disabled because account activation now requires the A3 backend to run
+--        describe "activate_account" . before setupTestBackend . after teardownTestBackend $
+--            it "rejects bad path mimicking A3" $
+--                \bts -> runTestBackend bts $ do
+--
+--                    let reqBody = encodePretty . object $
+--                            [ "path" .= String "/activate/no-such-path" ]
+--
+--                    rsp <- srequest $ makeSRequest "POST" "activate_account" [] reqBody
+--                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+--                        "\"Unknown or expired activation path\""
   where
     shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
     shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
