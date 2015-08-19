@@ -16,10 +16,10 @@ import Control.Arrow (second)
 import Control.Applicative ((<$>))
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad (forM_, when, unless, void)
+import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, gets, get)
 import Data.AffineSpace ((.+^))
-import Data.EitherR (catchT, throwT)
 import Data.Monoid ((<>))
 import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
@@ -33,7 +33,6 @@ import qualified Data.Set as Set
 
 import Thentos.Transaction.Core
 import Thentos.Types
-
 
 -- * user
 
@@ -95,7 +94,7 @@ userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = polyQuer
     ask >>= \db -> do
         let matchingUids = maybeToList mMatchingConfirmedUid ++
                            (mapMaybe unconfirmedUserMatches . Map.elems $ db ^. dbUnconfirmedUsers)
-        when (any ((mUid /=) . Just) matchingUids) $ throwT err
+        when (any ((mUid /=) . Just) matchingUids) $ throwError err
 
 -- | Handle expiry dates: call a transaction that returns a pair of value and creation 'Timestamp',
 -- and test timestamp against current time and timeout value.  If the action's value is 'Nothing' or
@@ -123,29 +122,29 @@ withExpiryT now expiry thentosError f action = do
     let isActive crt = fromTimestamp crt .+^ fromTimeout expiry < fromTimestamp now
     mResult <- f <$> action
     case mResult of
-        Nothing -> throwT thentosError
+        Nothing -> throwError thentosError
         Just (result, tokenCreationTime) -> if isActive tokenCreationTime
-            then throwT thentosError
+            then throwError thentosError
             else return result
 
 trans_allUserIds :: (db `Extends` DB) => ThentosQuery db [UserId]
 trans_allUserIds = polyQuery $ Map.keys . (^. dbUsers) <$> ask
 
 trans_lookupUser :: (db `Extends` DB) => UserId -> ThentosQuery db (UserId, User)
-trans_lookupUser uid = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . (`pureLookupUser` uid)
+trans_lookupUser uid = polyQuery $ ask >>= maybe (throwError NoSuchUser) return . (`pureLookupUser` uid)
 
 pureLookupUser :: DB -> UserId -> Maybe (UserId, User)
 pureLookupUser db uid = fmap (uid,) . Map.lookup uid $ db ^. dbUsers
 
 trans_lookupUserByName :: (db `Extends` DB) => UserName -> ThentosQuery db (UserId, User)
-trans_lookupUserByName name = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
+trans_lookupUserByName name = polyQuery $ ask >>= maybe (throwError NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
     f db = mUserId >>= pureLookupUser db
       where mUserId = Map.lookup name $ db ^. dbUserIdsByName
 
 trans_lookupUserByEmail :: (db `Extends` DB) => UserEmail -> ThentosQuery db (UserId, User)
-trans_lookupUserByEmail email = polyQuery $ ask >>= maybe (throwT NoSuchUser) return . f
+trans_lookupUserByEmail email = polyQuery $ ask >>= maybe (throwError NoSuchUser) return . f
   where
     f :: DB -> Maybe (UserId, User)
     f db = mUserId >>= pureLookupUser db
@@ -263,7 +262,7 @@ trans_lookupEmailChangeToken tok = polyQuery $ do
     emailTokens <- (^. dbEmailChangeTokens) <$> ask
     case Map.lookup tok emailTokens of
         Just result -> return result
-        Nothing     -> throwT NoSuchToken
+        Nothing     -> throwError NoSuchToken
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -321,7 +320,7 @@ trans_allServiceIds :: (db `Extends` DB) => ThentosQuery db [ServiceId]
 trans_allServiceIds = polyQuery $ Map.keys . (^. dbServices) <$> ask
 
 trans_lookupService :: (db `Extends` DB) => ServiceId -> ThentosQuery db (ServiceId, Service)
-trans_lookupService sid = polyQuery $ ask >>= maybe (throwT NoSuchService) return . f
+trans_lookupService sid = polyQuery $ ask >>= maybe (throwError NoSuchService) return . f
   where
     f :: DB -> Maybe (ServiceId, Service)
     f db = (sid,) <$> Map.lookup sid (db ^. dbServices)
@@ -375,10 +374,10 @@ trans_lookupThentosSession :: (db `Extends` DB) =>
 trans_lookupThentosSession now tok = polyUpdate $ do
     session <- Map.lookup tok . (^. dbThentosSessions) <$> get
            >>= \case Just s  -> return s
-                     Nothing -> throwT NoSuchThentosSession
+                     Nothing -> throwError NoSuchThentosSession
 
     unless (thentosSessionNowActive now session) $
-        throwT NoSuchThentosSession
+        throwError NoSuchThentosSession
 
     let session' = thSessEnd .~ end' $ session
         end' = Timestamp $ fromTimestamp now .+^ fromTimeout (session ^. thSessExpirePeriod)
@@ -451,16 +450,16 @@ trans_lookupServiceSession :: (db `Extends` DB) => Timestamp -> ServiceSessionTo
 trans_lookupServiceSession now tok = polyUpdate $ do
     session <- Map.lookup tok . (^. dbServiceSessions) <$> get
            >>= \case Just s  -> return s
-                     Nothing -> throwT NoSuchServiceSession
+                     Nothing -> throwError NoSuchServiceSession
 
     unless (serviceSessionNowActive now session) $
-        throwT NoSuchServiceSession
+        throwError NoSuchServiceSession
 
-    _ <- catchT (trans_lookupThentosSession now (session ^. srvSessThentosSession)) $
+    _ <- catchError (trans_lookupThentosSession now (session ^. srvSessThentosSession)) $
         \ e -> do
             when (e == NoSuchThentosSession) $
                 trans_endServiceSession tok
-            throwT e
+            throwError e
 
     let session' = srvSessEnd .~ end' $ session
         end' = Timestamp $ fromTimestamp now .+^ fromTimeout (session ^. srvSessExpirePeriod)
@@ -477,9 +476,9 @@ trans_startServiceSession ttok stok sid start expiry = polyUpdate $ do
     (_, tsession) <- trans_lookupThentosSession start ttok
 
     (_, user) <- case tsession ^. thSessAgent of
-        ServiceA s -> throwT $ NeedUserA ttok s
+        ServiceA s -> throwError $ NeedUserA ttok s
         UserA u    -> liftThentosQuery $ trans_lookupUser u
-    unless (sid `Map.member` (user ^. userServices)) $ throwT NotRegisteredWithService
+    unless (sid `Map.member` (user ^. userServices)) $ throwError NotRegisteredWithService
 
     let ssession :: ServiceSession
         ssession = ServiceSession sid start end expiry ttok meta
