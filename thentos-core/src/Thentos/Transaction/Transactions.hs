@@ -211,7 +211,7 @@ trans_finishUserRegistrationById now expiry uid = polyUpdate $ do
     matchingUnconfirmedUsers <- Map.filter unconfirmedUserMatches <$> gets (^. dbUnconfirmedUsers)
     case Map.keys matchingUnconfirmedUsers of
         [tok] -> void $ trans_finishUserRegistration now expiry tok
-        []    -> throwT NoSuchUser
+        []    -> throwError NoSuchUser
         _     -> error $ "Multiple unconfirmed users with " <> show uid
   where
     unconfirmedUserMatches :: ((UserId, User), Timestamp) -> Bool
