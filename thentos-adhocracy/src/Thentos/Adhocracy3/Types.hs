@@ -20,13 +20,16 @@ module Thentos.Adhocracy3.Types
     , dbSsoTokens
     , SsoToken(..)
     , ThentosError(..)
+    , A3ErrorMessage(..)
+    , mkSimpleA3Error
     )
     where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
-import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
+import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.:), encode,
+                   object, withObject)
 import Data.Data (Typeable)
 import Data.Maybe (fromMaybe)
 import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
@@ -66,6 +69,7 @@ instance DB `Extends` DB where
 
 data instance ThentosError DB =
       ThentosA3ErrorCore (ThentosError Thentos.Types.DB)
+    | GenericA3Error A3ErrorMessage
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
     | SsoErrorUnknownCsrfToken
@@ -85,39 +89,55 @@ instance SafeCopy (ThentosError DB)
     putCopy = putCopyViaShowRead
     getCopy = getCopyViaShowRead
 
-data A3ErrorInfo = A3ErrorInfo
+-- | Wraps the error details reported by A3.
+data A3Error = A3Error
     { aeName        :: ST
     , aeLocation    :: ST
     , aeDescription :: ST
-    } deriving (Eq, Show)
+    } deriving (Eq, Read, Show)
 
-instance ToJSON A3ErrorInfo where
+instance ToJSON A3Error where
     toJSON err = object
-        [ "status" .= String "error"
-        , "errors" .= [ object
             [ "name"        .= aeName err
             , "location"    .= aeLocation err
             , "description" .= aeDescription err
-            ]]
+            ]
+
+instance FromJSON A3Error where
+    parseJSON = withObject "A3-style error description" $ \v -> A3Error
+        <$> (v .: "name")
+        <*> (v .: "location")
+        <*> (v .: "description")
+
+-- | An A3-style error message contains a list of errors.
+newtype A3ErrorMessage = A3ErrorMessage { a3errors :: [A3Error] }
+    deriving (Eq, Read, Show)
+
+instance ToJSON A3ErrorMessage where
+    toJSON (A3ErrorMessage es) = object
+        [ "status" .= String "error"
+        , "errors" .= es
         ]
 
--- Construct a simple A3-style error, with 'aeName' set to "thentos" and 'aeLocation' set to "body".
--- Useful for cases where all we really have is a description.
-mkSimpleA3ErrorInfo :: ST -> A3ErrorInfo
-mkSimpleA3ErrorInfo desc = A3ErrorInfo
-    {aeName = "thentos", aeLocation = "body", aeDescription = desc}
+instance FromJSON A3ErrorMessage where
+    parseJSON = withObject "A3-style error message" $ \v -> A3ErrorMessage <$> (v .: "errors")
+
+-- Construct a simple A3-style error wrapping a single error. 'aeName' is set to "thentos" and
+-- 'aeLocation' to "body". Useful for cases where all we really have is a description.
+mkSimpleA3Error :: ST -> A3Error
+mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescription = desc}
 
 -- | Construct a ServantErr that looks like those reponrted by the A3 backend.
 -- The backend returns a list of errors but we always use a single-element list, as Thentos
 -- aborts at the first detected error.
-mkA3StyleServantErr :: ServantErr -> A3ErrorInfo -> ServantErr
-mkA3StyleServantErr baseErr errorInfo = baseErr
-    {errBody = encode errorInfo, errHeaders = [contentTypeJsonHeader]}
+mkA3StyleServantErr :: ServantErr -> A3Error -> ServantErr
+mkA3StyleServantErr baseErr err = baseErr
+    {errBody = encode $ A3ErrorMessage [err], errHeaders = [contentTypeJsonHeader]}
 
 -- | Construct a simple A3-style 'ServantErr' from only a base error and a message, setting the
 -- other A3-specific fields to default values.
 mkSimpleA3StyleServantErr :: MkServantErrFun
-mkSimpleA3StyleServantErr baseErr msg = mkA3StyleServantErr baseErr $ mkSimpleA3ErrorInfo msg
+mkSimpleA3StyleServantErr baseErr msg = mkA3StyleServantErr baseErr $ mkSimpleA3Error msg
 
 instance ThentosErrorToServantErr DB where
     thentosErrorToServantErr mMkErr = f
@@ -127,28 +147,30 @@ instance ThentosErrorToServantErr DB where
         -- For errors specifically relevant to the A3 frontend we mirror the A3 backend errors
         -- exactly so that the frontend recognizes them
         f (ThentosA3ErrorCore e) = case e of
-            BadCredentials -> (Nothing, mkA3StyleServantErr err400 $ A3ErrorInfo
+            BadCredentials -> (Nothing, mkA3StyleServantErr err400 $ A3Error
                 "password"
                 "body"
                 "User doesn't exist or password is wrong")
-            UserEmailAlreadyExists -> (Nothing, mkA3StyleServantErr err400 $ A3ErrorInfo
+            UserEmailAlreadyExists -> (Nothing, mkA3StyleServantErr err400 $ A3Error
                 "data.adhocracy_core.sheets.principal.IUserExtended.email"
                 "body"
                 "The user login email is not unique")
-            UserNameAlreadyExists -> (Nothing, mkA3StyleServantErr err400 $ A3ErrorInfo
+            UserNameAlreadyExists -> (Nothing, mkA3StyleServantErr err400 $ A3Error
                 "data.adhocracy_core.sheets.principal.IUserBasic.name"
                 "body"
                 "The user login name is not unique")
-            NoSuchPendingUserConfirmation -> (Nothing, mkA3StyleServantErr err400 $ A3ErrorInfo
+            NoSuchPendingUserConfirmation -> (Nothing, mkA3StyleServantErr err400 $ A3Error
                 "path"
                 "body"
                 "Unknown or expired activation path")
-            NoSuchThentosSession -> (Nothing, mkA3StyleServantErr err400 $ A3ErrorInfo
+            NoSuchThentosSession -> (Nothing, mkA3StyleServantErr err400 $ A3Error
                 "X-User-Token"
                 "header"
                 "Invalid user token")
             _ -> thentosErrorToServantErr (Just mkErr) e
 
+        f (GenericA3Error errMsg) =
+            (Nothing, err400 {errBody = encode errMsg, errHeaders = [contentTypeJsonHeader]} )
         f e@(A3BackendErrorResponse _ _) =
             (Just (ERROR, show e), mkErr err500 "exception in a3 backend")
         f e@(A3BackendInvalidJson _) =
