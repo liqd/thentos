@@ -20,6 +20,7 @@ import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Reader (ask)
 import Control.Monad.State (modify, gets, get)
 import Data.AffineSpace ((.+^))
+import Data.Monoid ((<>))
 import Data.Set (Set)
 import Language.Haskell.TH.Syntax (Name)
 import Data.List (foldl')
@@ -201,6 +202,20 @@ trans_finishUserRegistration now expiry token = polyUpdate $ do
     modify $ dbUnconfirmedUsers %~ Map.delete token
     trans_addUserPrim uid user
     return uid
+
+-- | Confirm a user based on the 'UserId' rather than the 'ConfirmationToken.'
+trans_finishUserRegistrationById :: (db `Extends` DB) =>
+    Timestamp -> Timeout -> UserId -> ThentosUpdate db ()
+trans_finishUserRegistrationById now expiry uid = polyUpdate $ do
+    matchingUnconfirmedUsers <- Map.filter unconfirmedUserMatches <$> gets (^. dbUnconfirmedUsers)
+    case Map.keys matchingUnconfirmedUsers of
+        [tok] -> void $ trans_finishUserRegistration now expiry tok
+        []    -> throwError NoSuchUser
+        _     -> error $ "Multiple unconfirmed users with " <> show uid
+  where
+    unconfirmedUserMatches :: ((UserId, User), Timestamp) -> Bool
+    unconfirmedUserMatches ((uid', _), _) | uid' == uid = True
+    unconfirmedUserMatches _                            = False
 
 -- | Add a password reset token.  Return the user whose password this token can change.
 trans_addPasswordResetToken :: (db `Extends` DB) =>
@@ -591,6 +606,7 @@ transaction_names =
     , 'trans_addUnconfirmedUser
     , 'trans_addUnconfirmedUserWithId
     , 'trans_finishUserRegistration
+    , 'trans_finishUserRegistrationById
     , 'trans_addPasswordResetToken
     , 'trans_resetPassword
     , 'trans_addUserEmailChangeRequest
