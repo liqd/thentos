@@ -6,6 +6,7 @@ where
 
 import qualified Data.Set as Set
 
+import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple       (Only(..), query)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -60,16 +61,16 @@ lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
 lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
 
 addUserPrim :: UserId -> User -> ThentosUpdate ()
-addUserPrim = do
-    queryT [sql| INSERT INTO users (id, name, password, email)
-                        VALUES (?, ?, ?, ?) |] (Only ( uid
-                                                     , user ^. userName
-                                                     , user ^. userPassword
-                                                     , user ^. userEmail
-                                                     ))
+addUserPrim uid user =
+    execT [sql| INSERT INTO users (id, name, password, email)
+                       VALUES (?, ?, ?, ?) |] ( uid
+                                              , user ^. userName
+                                              , user ^. userPassword
+                                              , user ^. userEmail
+                                              )
 
 addUser :: User -> ThentosUpdate UserId
-addUser user = error "src/Thentos/Transaction/Transactions.hs:52"
+addUser = error "src/Thentos/Transaction/Transactions.hs:52"
 
 addUsers :: [User] -> ThentosUpdate [UserId]
 addUsers = error "src/Thentos/Transaction/Transactions.hs:55"
@@ -85,6 +86,10 @@ addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
 finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
 finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
+
+finishUserRegistrationById ::
+    Timestamp -> Timeout -> UserId -> ThentosUpdate ()
+finishUserRegistrationById = error "finishUserRegistrationById"
 
 addPasswordResetToken ::
     Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User

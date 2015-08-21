@@ -10,176 +10,153 @@
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
-module Thentos.Backend.Api.SimpleSpec
+module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
-import Control.Lens ((^.))
-import Control.Monad.State (liftIO)
+import Control.Applicative ((<$>))
 import Control.Monad (void)
+import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
+import Data.IORef
 import Data.String.Conversions (cs)
-import Network.Wai.Test (srequest, simpleStatus, simpleBody)
-import Test.Hspec (Spec, describe, it, before, after, shouldBe, pendingWith, hspec)
+import Network.Wai (Application)
+import Network.Wai.Test (simpleBody, SResponse)
+import Network.HTTP.Types.Header (Header)
+import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
+import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, get, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
-import qualified Network.HTTP.Types.Status as C
+import System.IO.Unsafe (unsafePerformIO)
+import Network.HTTP.Types.Status ()
 
-import Thentos.Types
 import Thentos.Backend.Api.Simple (serveApi)
+import Thentos.Types
+import Thentos.Action.Core
 
+import Thentos.Test.Core
 import Thentos.Test.Config
-import Thentos.Test.Types
-import Thentos.Test.Core hiding (setupTestBackend)
-import qualified Thentos.Test.Core (setupTestBackend)
 
-setupTestBackend :: IO BTS
-setupTestBackend = Thentos.Test.Core.setupTestBackend (const serveApi)
 
+defaultApp :: IO Application
+defaultApp = do
+    db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+    createGod adb
+    writeIORef godHeaders . snd =<< loginAsGod db
+    return $! serveApi db
 
 tests :: IO ()
 tests = hspec spec
 
+godHeaders :: IORef [Header]
+godHeaders = unsafePerformIO $ newIORef []
+{-# NOINLINE godHeaders #-}
+
 spec :: Spec
 spec = do
-    describe "Fixtures" $ do
-        it "make sure backend is running at all." $
-            void $ setupTestBackend
 
-        it "tear it down again, too." $
-            void $ setupTestBackend >>= teardownTestBackend
-
-    describe "Thentos.Backend.Api.Simple" . before setupTestBackend . after teardownTestBackend $ do
+    with defaultApp  $ describe "Thentos.Backend.Api.Simple" $  do
         describe "headers" $ do
-            it "bad unknown headers matching /X-Thentos-*/ yields an error response." $
-              \ (bts :: BTS) -> runTestBackend bts $ do
-                let headers = ("X-Thentos-No-Such-Header", "3"):(bts ^. btsGodCredentials)
-                let req = makeSRequest "GET" "/user" headers ""
-                resp <- srequest req
-                liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 400
+            it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
+                hdr <- liftIO ctHeader
+                let headers = ("X-Thentos-No-Such-Header", "3"):hdr
+                request "GET" "/user" headers "" `shouldRespondWith` 400
 
         describe "user" $ do
             describe "Get [UserId]" $ do
-                it "returns the list of users" $
-                  \ bts -> runTestBackend bts $ do
-                    response1 <- srequest $ makeSRequest "GET" "/user" (bts ^. btsGodCredentials) ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
-                    liftIO $ Aeson.decode' (simpleBody response1) `shouldBe` Just [UserId 0]
+                it "returns the list of users" $ do
+                    hdr <- liftIO ctHeader
+                    response <- request "GET" "/user" hdr ""
+                    return response `shouldRespondWith` 200
+                    liftIO $ Aeson.decode' (simpleBody response) `shouldBe` Just [UserId 0]
 
-                it "is not accessible for users without 'Admin' role" $
-                  \ bts -> runTestBackend bts $ do
-                    response1 <- srequest $ makeSRequest "GET" "/user" [] ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 401
+                it "is not accessible for users without 'Admin' role" $ do
+                    get "/user" `shouldRespondWith` 401
 
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
-                it "yields a name" $
-                  \ bts -> runTestBackend bts $ do
-                    response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
+                it "yields a name" $ do
+                    hdr <- liftIO ctHeader
+                    request "GET" resource hdr "" `shouldRespondWith` "\"god\""
 
                 it "can be called by user herself" $
                         \ _ -> pendingWith "test missing."
 
-                it "can be called by admin" $
-                        \ _ -> pendingWith "test missing."
+                it "can be called by admin" $ do
+                    hdr <- liftIO ctHeader
+                    request "GET" resource hdr "" `shouldRespondWith` 200
 
-                it "can not be callbed by other (non-admin) users" $
-                        \ _ -> pendingWith "test missing."
-
-                it "responds with an error if password is wrong" $
+                it "can not be called by other (non-admin) users" $
                         \ _ -> pendingWith "test missing."
 
             describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
                 let resource = "/user/0/email"
-                it "yields an email address" $
-                  \ bts -> runTestBackend bts $ do
-                    response1 <- srequest $ makeSRequest "GET" resource (bts ^. btsGodCredentials) ""
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 200
+                it "yields an email address" $ do
+                    hdr <- liftIO ctHeader
+                    request "GET" resource hdr "" `shouldRespondWith` 200
 
 
             describe "ReqBody UserFormData :> Post UserId" $ do
-                it "writes a new user to the database" $
-                  \ bts -> runTestBackend bts $ do
-                    let userData = UserFormData "1" "2" $ forceUserEmail "somebody@example.org"
-                    response1 <- srequest $ makeSRequest "POST" "/user" (bts ^. btsGodCredentials) (Aeson.encode userData)
-                    liftIO $ C.statusCode (simpleStatus response1) `shouldBe` 201
-                    let uid = case fmap UserId . decodeLenient $ simpleBody response1 of
-                          Right v -> v
-                          Left e -> error $ show (e, response1)
-                    response2 <- srequest $ makeSRequest "GET"
-                                    ("/user/" <> (cs . show . fromUserId $ uid) <> "/name")
-                                    (bts ^. btsGodCredentials) ""
-                    let name = case decodeLenient $ simpleBody response2 of
-                          Right v -> v
-                          Left e -> error $ show ("/user/" ++ show uid, e, response1)
-                    liftIO $ name `shouldBe` udName userData
+                it "writes a new user to the database" $ do
+                    hdr <- liftIO ctHeader
+                    response1 <- postDefaultUser
+                    return response1 `shouldRespondWith` 201
+
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
+
+                    let Right name = decodeLenient $ simpleBody response2
+                    liftIO $ name `shouldBe` udName defaultUserData
 
                 it "can only be called by admins" $
                         \ _ -> pendingWith "test missing."
 
-            describe "Capture \"userid\" UserId :> ReqBody User :> Put ()" $ do
-                it "writes an *existing* user to the database" $
-                        \ _ -> pendingWith "test missing."
-                    -- put user' with user' /= user
-                    -- lookup user id
-                    -- compare sent and received
-
-                it "can only be called by admins and the user herself" $
-                        \ _ -> pendingWith "test missing."
-
-                it "if user does not exist, responds with an error" $
-                        \ _ -> pendingWith "test missing."
 
             describe "Capture \"userid\" UserId :> Delete" $ do
-                it "removes an existing user from the database" $
-                        \ _ -> pendingWith "test missing."
+                it "removes an existing user from the database" $ do
+                    hdr <- liftIO ctHeader
+                    response1 <- postDefaultUser
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
+                        `shouldRespondWith` 200
+                    void $ request "DELETE" ("/user/" <> cs (show uid)) hdr ""
+                    request "GET" ("/user/" <> cs (show uid) <> "/name") hdr ""
+                        `shouldRespondWith` 404
 
                 it "can only be called by admins and the user herself" $
                         \ _ -> pendingWith "test missing."
 
-                it "if user does not exist, responds with an error" $
-                        \ _ -> pendingWith "test missing."
+                it "if user does not exist, responds with a 404" $ do
+                    hdr <- liftIO ctHeader
+                    request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
 
-        describe "service" $ do
+        describe "thentos_session" $ do
 
-            describe "Get [ServiceId]" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
+            describe "Capture \"token\" ThentosSessionToken :> Get Bool" $ do
+                it "returns true if session is active" $ do
+                    hdr <- liftIO ctHeader
+                    response1 <- postDefaultUser
+                    let (uid :: Int) = read . cs $ simpleBody response1
+                    response2 <- request "POST" "/thentos_session" hdr $
+                        Aeson.encode (uid, udPassword defaultUserData)
+                    request "GET" "/thentos_session/" hdr (simpleBody response2)
+                        `shouldRespondWith` "true" { matchStatus = 200 }
 
-            describe "Capture \"sid\" ServiceId :> Get (ServiceId, Service)" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
+                it "returns false if session is does not exist" $ do
+                    void postDefaultUser
+                    hdr <- liftIO ctHeader
+                    request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
+                        `shouldRespondWith` "false" { matchStatus = 200 }
 
-            describe "Post (ServiceId, ServiceKey)" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
 
+postDefaultUser :: WaiSession SResponse
+postDefaultUser = do
+    hdr <- liftIO ctHeader
+    request "POST" "/user" hdr (Aeson.encode defaultUserData)
 
-        describe "session" $ do
+-- | God Headers plus content-type = json
+ctHeader :: IO [Header]
+ctHeader = (("Content-Type", "application/json") :) <$> readIORef godHeaders
 
-            describe "ReqBody (UserId, ServiceId) :> Post SessionToken" $ do
-                it "starts a new session and returns the session token" $
-                        \ _ -> pendingWith "no tests yet"
-
-                it "sends a meaningful error message if request body is empty" $
-                        \ _ -> pendingWith "no tests yet"
-
-            describe "ReqBody (UserId, ServiceId, Timeout) :> Post SessionToken" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Capture \"token\" SessionToken :> Delete" $ do
-                it "..." $ \ _ -> pendingWith "no tests yet"
-
-            describe "Capture \"token\" SessionToken :> Get Bool" $ do
-                it "returns true if session is active" $
-                        \ _ -> pendingWith "no tests yet"
-
-                it "returns false if session is not active (or does not exist)" $
-                        \ _ -> pendingWith "no tests yet"
-
-                it "does not accept the empty string (trailing '/') as session id." $
-                        \ _ -> pendingWith "not implemented"
-
-                    -- (currently, GET /session and GET /session/
-                    -- produce different error messages.  this is just
-                    -- a matter of error reporting, though; the
-                    -- behaviour in the context of correct requests is
-                    -- as we want it.)
+defaultUserData :: UserFormData
+defaultUserData = UserFormData "name" "pwd" $ forceUserEmail "somebody@example.org"

@@ -14,26 +14,31 @@
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
-import Data.Aeson (object, (.=))
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
-import Data.String.Conversions (LBS, ST)
-import Test.Hspec (Spec, describe, it, shouldBe, hspec)
+import Data.Maybe (isJust)
+import Data.String.Conversions (LBS, ST, cs)
+import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.Wai (Application)
+import Network.Wai.Test (simpleBody, simpleStatus)
+import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (property)
+
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
+import qualified Network.HTTP.Types.Status as Status
 
+import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
 
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Types
-import Thentos.Test.Core hiding (setupTestBackend)
-import qualified Thentos.Test.Core (setupTestBackend)
-
-setupTestBackend :: IO (BTS DB)
-setupTestBackend = Thentos.Test.Core.setupTestBackend serveApi
+import Thentos.Test.Config
+import Thentos.Test.Core
 
 
 tests :: IO ()
@@ -90,6 +95,56 @@ spec =
                  fromA3UserWithPass <$>
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
+
+        describe "login" $ with setupBackend $
+            it "rejects bad credentials mimicking A3" $ do
+
+                let reqBody = encodePretty . object $
+                        [ "name"     .= String "Anna Müller"
+                        , "password" .= String "this-is-wrong"
+                        ]
+
+                rsp <- request "POST" "login_username" [ctJSON] reqBody
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"User doesn't exist or password is wrong\""
+
+        describe "arbitrary requests" $ with setupBackend $
+            it "rejects bad session token mimicking A3" $ do
+                let headers = [("X-User-Token", "invalid-token")]
+                rsp <- request "POST" "dummy/endpoint" headers ""
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"Invalid user token\""
+
+-- Disabled because account activation now requires the A3 backend to run
+--        describe "activate_account" $ with setupBackend $
+--            it "rejects bad path mimicking A3" $ do
+--
+--                let reqBody = encodePretty . object $
+--                        [ "path" .= String "/activate/no-such-path" ]
+--
+--                rsp <- request "POST" "activate_account" [ctJSON] reqBody
+--                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+--                    "\"Unknown or expired activation path\""
+
+  where
+    setupBackend :: IO Application
+    setupBackend = do
+        db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+        mgr <- newManager defaultManagerSettings
+        createGod adb
+        return $! serveApi mgr db
+
+    ctJSON = ("Content-Type", "application/json")
+
+    shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
+    shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
+        liftIO $ Status.statusCode rstStatus `shouldBe` 400
+        -- Response body should be parseable as JSON
+        liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
+        let rspText = cs rspBody :: ST
+        -- It should contain the quoted string "error" as well as the customMessage
+        liftIO $ rspText `shouldSatisfy` ST.isInfixOf "\"error\""
+        liftIO $ rspText `shouldSatisfy` ST.isInfixOf customMessage
 
 -- FIXME Disabled since user creation now requires a running A3 backend and we don't have
 -- that in the tests.

@@ -5,17 +5,18 @@
 module Thentos.ActionSpec where
 
 import Control.Applicative ((<$>))
+import Control.Concurrent (MVar, newMVar)
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
+import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
-import Test.Hspec (Spec, SpecWith, describe, it, before, after, shouldBe, shouldContain,
+import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
-import Thentos.Test.Types
 
 import LIO.Missing
 import Thentos.Action
@@ -28,17 +29,22 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    describe "Thentos.Action" . before setupDB . after teardownDB $ do
+    let b = do
+          db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+          createGod adb
+          return db
+
+    describe "Thentos.Action" . before b $ do
         spec_user
         spec_service
         spec_agentsAndRoles
         spec_session
 
 
-spec_user :: SpecWith DBTS
+spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
     describe "addUser, lookupUser, deleteUser" $ do
-        it "works" $ \(DBTS _ sta) -> do
+        it "works" $ \ sta -> do
             let user = testUsers !! 0
             uid <- runActionWithPrivs [RoleAdmin] sta $ addUser (head testUserForms)
             (uid', user') <- runActionWithPrivs [RoleAdmin] sta $ lookupUser uid
@@ -49,7 +55,7 @@ spec_user = describe "user" $ do
                 runActionWithClearanceE dcBottom sta $ lookupUser uid
             return ()
 
-        it "guarantee that user names are unique" $ \ (DBTS _ sta) -> do
+        it "guarantee that user names are unique" $ \ sta -> do
             (_, _, user) <- runActionWithClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (user ^. userName)
                                             (UserPass "foo")
@@ -58,7 +64,7 @@ spec_user = describe "user" $ do
                 addUser userFormData
             e `shouldBe` UserNameAlreadyExists
 
-        it "guarantee that user email addresses are unique" $ \(DBTS _ sta) -> do
+        it "guarantee that user email addresses are unique" $ \ sta -> do
             (_, _, user) <- runActionWithClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (UserName "newOne")
                                             (UserPass "foo")
@@ -67,12 +73,12 @@ spec_user = describe "user" $ do
             e `shouldBe` UserEmailAlreadyExists
 
     describe "addUsers" $ do
-        it "works" $ \(DBTS _ sta) -> do
+        it "works" $ \ sta -> do
             result <- runActionWithPrivs [RoleAdmin] sta $
                 addUsers ((testUserForms !!) <$> [2..4])
             result `shouldBe` (UserId <$> [1..3])
 
-        it "rolls back in case of error (adds all or nothing)" $ \(DBTS _ sta) -> do
+        it "rolls back in case of error (adds all or nothing)" $ \ sta -> do
             _ <- runActionWithPrivs [RoleAdmin] sta $ addUser (testUserForms !! 4)
             Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta
                 $ addUsers ((testUserForms !!) <$> [2..4])
@@ -81,19 +87,19 @@ spec_user = describe "user" $ do
             result `shouldBe` (UserId <$> [0..1])
 
     describe "DeleteUser" $ do
-        it "user can delete herself, even if not admin" $ \(DBTS _ sta) -> do
+        it "user can delete herself, even if not admin" $ \ sta -> do
             (uid, _, _) <- runActionWithClearance dcBottom sta $ addTestUser 3
             result <- runActionWithPrivsE [UserA uid] sta $ deleteUser uid
             result `shouldSatisfy` isRight
 
-        it "nobody else but the deleted user and admin can do this" $ \ (DBTS _ sta) -> do
+        it "nobody else but the deleted user and admin can do this" $ \ sta -> do
             (uid,  _, _) <- runActionWithClearance dcBottom sta $ addTestUser 3
             (uid', _, _) <- runActionWithClearance dcBottom sta $ addTestUser 4
             result <- runActionWithPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
     describe "UpdateUser" $ do
-        it "changes user if it exists" $ \(DBTS _ sta) -> do
+        it "changes user if it exists" $ \ sta -> do
             (uid, _, user) <- runActionWithClearance dcBottom sta $ addTestUser 1
             runActionWithPrivs [UserA uid] sta $
                 updateUserField uid (UpdateUserFieldName "fka_user1")
@@ -101,21 +107,21 @@ spec_user = describe "user" $ do
             result <- runActionWithPrivs [UserA uid] sta $ lookupUser uid
             result `shouldBe` (UserId 1, userName .~ "fka_user1" $ user)
 
-        it "throws an error if user does not exist" $ \(DBTS _ sta) -> do
+        it "throws an error if user does not exist" $ \ sta -> do
             Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $
                 updateUserField (UserId 391) (UpdateUserFieldName "moo")
             e `shouldBe` NoSuchUser
 
     describe "checkPassword" $ do
-        it "works" $ \(DBTS _ sta) -> do
+        it "works" $ \ sta -> do
             void . runAction sta $ startThentosSessionByUserId godUid godPass
             void . runAction sta $ startThentosSessionByUserName godName godPass
 
 
-spec_service :: SpecWith DBTS
+spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
-        it "works" $ \(DBTS _ sta) -> do
+        it "works" $ \ sta -> do
             let addsvc name desc = runActionWithClearanceE (UserA godUid %% UserA godUid) sta
                     $ addService (UserA (UserId 0)) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
@@ -130,7 +136,7 @@ spec_service = describe "service" $ do
             return ()
 
     describe "autocreateServiceIfMissing" $ do
-        it "adds service if missing" $ \(DBTS _ sta) -> do
+        it "adds service if missing" $ \ sta -> do
             let owner = UserA $ UserId 0
             sid <- runActionWithPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runActionWithPrivs [RoleAdmin] sta allServiceIds
@@ -139,7 +145,7 @@ spec_service = describe "service" $ do
             allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
-        it "does nothing if service exists" $ \(DBTS _ sta) -> do
+        it "does nothing if service exists" $ \ sta -> do
             let owner = UserA $ UserId 0
             (sid, _) <- runActionWithPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"
@@ -148,58 +154,58 @@ spec_service = describe "service" $ do
             allSids' <- runActionWithPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
-spec_agentsAndRoles :: SpecWith DBTS
+spec_agentsAndRoles :: SpecWith ActionState
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
-            it "can be called by admins" $ \ (DBTS _ sta) -> do
+            it "can be called by admins" $ \ sta -> do
                 (UserA -> targetAgent, _, _) <- runActionWithClearance dcBottom sta $ addTestUser 1
                 result <- runActionWithPrivsE [RoleAdmin] sta $ assignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by any non-admin agents" $ \ (DBTS _ sta) -> do
+            it "can NOT be called by any non-admin agents" $ \ sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runActionWithPrivsE [targetAgent] sta $ assignRole targetAgent (RoleBasic RoleAdmin)
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
-            it "can be called by admins" $ \ (DBTS _ sta) -> do
+            it "can be called by admins" $ \ sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runActionWithPrivsE [RoleAdmin] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can be called by user for her own roles" $ \ (DBTS _ sta) -> do
+            it "can be called by user for her own roles" $ \ sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runActionWithPrivsE [targetAgent] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by other users" $ \ (DBTS _ sta) -> do
+            it "can NOT be called by other users" $ \ sta -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
                 result <- runActionWithPrivsE [askingAgent] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isLeft
 
 
-spec_session :: SpecWith DBTS
+spec_session :: SpecWith ActionState
 spec_session = describe "session" $ do
     describe "StartSession" $ do
-        it "works" $ \ (DBTS _ sta) -> do
+        it "works" $ \ sta -> do
             result <- runActionE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()
 
     describe "lookupThentosSession" $ do
-        it "works" $ \ (DBTS _ astate :: DBTS) -> do
+        it "works" $ \ sta -> do
             ((ernieId, ernieF, _) : (bertId, _, _) : _)
-                <- runActionWithClearance dcTop astate initializeTestUsers
+                <- runActionWithClearance dcTop sta initializeTestUsers
 
-            tok <- runActionWithClearance dcTop astate $
+            tok <- runActionWithClearance dcTop sta $
                     startThentosSessionByUserId ernieId (udPassword ernieF)
-            v1 <- runActionAsAgent (UserA ernieId) astate (existsThentosSession tok)
-            v2 <- runActionAsAgent (UserA bertId)  astate (existsThentosSession tok)
+            v1 <- runActionAsAgent (UserA ernieId) sta (existsThentosSession tok)
+            v2 <- runActionAsAgent (UserA bertId)  sta (existsThentosSession tok)
 
-            runActionWithClearance dcTop astate $ endThentosSession tok
-            v3 <- runActionAsAgent (UserA ernieId) astate (existsThentosSession tok)
-            v4 <- runActionAsAgent (UserA bertId)  astate (existsThentosSession tok)
+            runActionWithClearance dcTop sta $ endThentosSession tok
+            v3 <- runActionAsAgent (UserA ernieId) sta (existsThentosSession tok)
+            v4 <- runActionAsAgent (UserA bertId)  sta (existsThentosSession tok)
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)

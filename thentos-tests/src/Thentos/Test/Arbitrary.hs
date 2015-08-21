@@ -11,7 +11,6 @@ import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 import qualified Data.ByteString as SBS
 
 import Thentos.Types
--- import Thentos.Backend.Api.Adhocracy3
 
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -78,4 +77,3 @@ instance Arbitrary UserFormData where
 -- here.
 deriving instance Show UserPass
 deriving instance Show UserFormData
--- deriving instance Show A3UserNoPass

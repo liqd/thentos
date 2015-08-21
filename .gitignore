@@ -4,6 +4,7 @@
 *.dyn_o
 *.dyn_hi
 *.swp
+*.tix
 .acid-state/
 .cabal-sandbox/
 cabal.sandbox.config

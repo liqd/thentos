@@ -184,7 +184,9 @@ test-suite tests
     , functor-infix
     , hslogger
     , hspec
+    , hspec-wai
     , http-types
+    , http-client
     , HTTP
     , lens
     , lens-aeson

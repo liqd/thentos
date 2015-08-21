@@ -118,6 +118,9 @@ newtype UserName = UserName { fromUserName :: ST }
 instance FromField UserName where
     fromField f dat = UserName <$> fromField f dat
 
+instance ToField UserName where
+    toField = toField . fromUserName
+
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
 -- circumstances render to something like "[password hidden]".  Causes a lot of confusion.)
@@ -129,6 +132,9 @@ newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass
 
 instance FromField (HashedSecret a) where
     fromField f dat = HashedSecret . Scrypt.EncryptedPass <$> fromField f dat
+
+instance ToField (HashedSecret a) where
+    toField = toField . Scrypt.getEncryptedPass . fromHashedSecret
 
 instance SafeCopy (HashedSecret a) where
     putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
@@ -142,6 +148,9 @@ instance FromField UserEmail where
     fromField f (Just bs) = case parseUserEmail (cs bs) of
                               Nothing -> returnError ConversionFailed f ""
                               Just e  -> return e
+
+instance ToField UserEmail where
+    toField = toField . fromUserEmail
 
 parseUserEmail :: ST -> Maybe UserEmail
 parseUserEmail t = do

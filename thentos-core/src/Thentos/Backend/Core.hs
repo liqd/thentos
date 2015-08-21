@@ -22,10 +22,12 @@ where
 import Control.Applicative ((<$>), pure)
 import Control.Lens ((&), (.~))
 import Control.Monad.Trans.Either (EitherT(EitherT))
+import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
@@ -42,7 +44,8 @@ import Servant.API ((:>))
 import Servant.API.ContentTypes (AllCTRender, AllMimeRender, IsNonEmpty)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (methodRouter, Router(..), RouteMismatch(HttpError), failWith)
-import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody)
+import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
+        errHeaders)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
@@ -70,6 +73,24 @@ enterAction state mTok = Nat $ EitherT . run
     updatePrivs Nothing    action = action
 
 
+-- * error handling
+
+newtype ErrorMessage = ErrorMessage { fromErrorMessage :: ST }
+    deriving (Eq, Show)
+
+instance ToJSON ErrorMessage where
+    toJSON (ErrorMessage msg) = object ["status" .= String "error", "error" .= msg]
+
+-- |Type of functions that transform a base error and an error message into a ServantErr.
+type MkServantErrFun = ServantErr -> ST -> ServantErr
+
+-- | Construct a ServantErr that looks as our errors should.
+-- Status code and reason phrase are taken from the base error given as first argument.
+-- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
+mkServantErr :: MkServantErrFun
+mkServantErr baseErr msg = baseErr
+    {errBody = encode $ ErrorMessage msg, errHeaders = [contentTypeJsonHeader]}
+
 -- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
 --
 -- If any logging is to take place, it should take place here, not near the place where the error is
@@ -82,61 +103,64 @@ actionErrorToServantErr e = do
     case e of
         (ActionErrorThentos  te) -> _thentos te
         (ActionErrorAnyLabel le) -> _permissions le
-        (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >> pure err500
+        (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >>
+                                    pure (mkServantErr err500 "internal error")
   where
     _thentos :: ThentosError -> IO ServantErr
-    _thentos te = case thentosErrorToServantErr te of
+    _thentos te = case thentosErrorToServantErr Nothing te of
         (Just (level, msg), se) -> logger level msg >> pure se
         (Nothing,           se) ->                     pure se
 
     _permissions :: AnyLabelError -> IO ServantErr
-    _permissions _ = logger DEBUG (ppShow e) >> pure (err401 { errBody = "unauthorized" })
+    _permissions _ = logger DEBUG (ppShow e) >> pure (mkServantErr err401 "unauthorized")
 
 
-thentosErrorToServantErr :: ThentosError -> (Maybe (Priority, String), ServantErr)
-thentosErrorToServantErr e = f e
+thentosErrorToServantErr :: Maybe MkServantErrFun -> ThentosError
+                         -> (Maybe (Priority, String), ServantErr)
+thentosErrorToServantErr mMkErr e = f e
   where
+    mkErr = fromMaybe mkServantErr mMkErr
     f NoSuchUser =
-        (Nothing, err404 { errBody = "user not found" })
+        (Nothing, mkErr err404 "user not found")
     f NoSuchPendingUserConfirmation =
-        (Nothing, err404 { errBody = "unconfirmed user not found" })
+        (Nothing, mkErr err400 "unconfirmed user not found")
     f (MalformedConfirmationToken path) =
-        (Nothing, err400 { errBody = "malformed confirmation token: " <> cs (show path) })
+        (Nothing, mkErr err400 $ "malformed confirmation token: " <> cs (show path))
     f NoSuchService =
-        (Nothing, err404 { errBody = "service not found" })
+        (Nothing, mkErr err400 "service not found")
     f NoSuchThentosSession =
-        (Nothing, err404 { errBody = "thentos session not found" })
+        (Nothing, mkErr err400 "thentos session not found")
     f NoSuchServiceSession =
-        (Nothing, err404 { errBody = "service session not found" })
+        (Nothing, mkErr err400 "service session not found")
     f OperationNotPossibleInServiceSession =
-        (Nothing, err404 { errBody = "operation not possible in service session" })
+        (Nothing, mkErr err404 "operation not possible in service session")
     f ServiceAlreadyExists =
-        (Nothing, err403 { errBody = "service already exists" })
+        (Nothing, mkErr err403 "service already exists")
     f NotRegisteredWithService =
-        (Nothing, err403 { errBody = "not registered with service" })
+        (Nothing, mkErr err403 "not registered with service")
     f UserEmailAlreadyExists =
-        (Nothing, err403 { errBody = "email already in use" })
+        (Nothing, mkErr err403 "email already in use")
     f UserNameAlreadyExists =
-        (Nothing, err403 { errBody = "user name already in use" })
-    f UserIdAlreadyExists =
-        (Just (ERROR, ppShow e), err500)  -- (must be prevented earlier on.)
+        (Nothing, mkErr err403 "user name already in use")
+    f UserIdAlreadyExists =    -- must be prevented earlier on
+        (Just (ERROR, ppShow e), mkErr err500 "internal error")
     f BadCredentials =
-        (Just (INFO, show e), err401 { errBody = "unauthorized" })
+        (Just (INFO, show e), mkErr err401 "unauthorized")
     f BadAuthenticationHeaders =
-        (Nothing, err400 { errBody = "bad authentication headers" })
+        (Nothing, mkErr err400 "bad authentication headers")
     f ProxyNotAvailable =
-        (Nothing, err404 { errBody = "proxying not activated" })
+        (Nothing, mkErr err404 "proxying not activated")
     f MissingServiceHeader =
-        (Nothing, err404 { errBody = "headers do not contain service id" })
+        (Nothing, mkErr err404 "headers do not contain service id")
     f (ProxyNotConfiguredForService sid) =
-        (Nothing, err404 { errBody = "proxy not configured for service " <> cs (show sid) })
+        (Nothing, mkErr err404 $ "proxy not configured for service " <> cs (show sid))
     f (NoSuchToken) =
-        (Nothing, err404 { errBody = "no such token" })
+        (Nothing, mkErr err400 "no such token")
     f (NeedUserA _ _) =
-        (Nothing, err404 { errBody =
-            "thentos session belongs to service, cannot create service session" })
+        (Nothing, mkErr err404
+            "thentos session belongs to service, cannot create service session")
     f (MalformedUserPath path) =
-        (Nothing, err400 { errBody = "malformed user path: " <> cs (show path) })
+        (Nothing, mkErr err400 $ "malformed user path: " <> cs (show path))
 
 
 -- * custom servers for servant
@@ -221,6 +245,10 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 
 
 -- * response headers
+
+-- | header setting the Content-Type to JSON.
+contentTypeJsonHeader ::  Header
+contentTypeJsonHeader = ("Content-Type", "application/json; charset=UTF-8")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --

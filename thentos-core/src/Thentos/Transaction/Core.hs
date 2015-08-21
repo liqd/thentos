@@ -4,13 +4,15 @@ module Thentos.Transaction.Core
     , runThentosQuery
     , runThentosUpdate
     , queryT
+    , execT
     )
 where
 
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
-import Database.PostgreSQL.Simple (Connection, ToRow, FromRow, Query, query)
+import Database.PostgreSQL.Simple (Connection, ToRow, FromRow, Query, query, execute)
 
 import Thentos.Types
 
@@ -27,3 +29,8 @@ queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery [r]
 queryT q x = do
     conn <- ask
     liftIO $ query conn q x
+
+execT :: ToRow q => Query -> q -> ThentosUpdate ()
+execT q x = do
+    conn <- ask
+    void $ liftIO $ execute conn q x

@@ -192,23 +192,11 @@ githubRequest = do
 
 -- | FIXME: document!
 githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
-githubConfirm state code =
-    go `catchError` \e ->
-        case thentosErrorToParent e of
-            Just SsoErrorUnknownCsrfToken ->
-                return $ A3.RequestError ["unknown sso csrf token"]
-            Just (SsoErrorCouldNotAccessUserInfo msg) ->
-                return $ A3.RequestError ["could not access github user info", cs msg]
-            Just (SsoErrorCouldNotGetAccessToken msg) ->
-                return $ A3.RequestError ["could not obtain access token", cs msg]
-            _ -> throwError e
-  where
-    go :: AC.Action DB A3.RequestResult
-    go = do
+githubConfirm state code = do
         lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
         confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
-
+  where
     confirm mgr = do
         eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
             let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code

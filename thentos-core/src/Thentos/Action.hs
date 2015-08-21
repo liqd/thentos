@@ -30,6 +30,7 @@ module Thentos.Action
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
     , confirmNewUser
+    , confirmNewUserById
     , addPasswordResetToken
     , resetPassword
     , changePassword
@@ -224,6 +225,22 @@ confirmNewUser token = do
     return (uid, sessionToken)
 
 
+-- | Finish email-verified user creation, identifying the user by their 'UserId' and ignoring the
+-- 'ConfirmationToken'.
+--
+-- SECURITY: As a caller, you have to make sure that the user credentials have indeed been properly
+-- verified before calling this function. This function accepts that as a fact, but cannot in any
+-- way check it.
+--
+-- See also: 'addUnconfirmedUser'.
+confirmNewUserById :: UserId -> Action ThentosSessionToken
+confirmNewUserById uid = do
+    expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
+    now <- getCurrentTime'P
+    update'P $ T.finishUserRegistrationById now expiryPeriod uid
+    _startThentosSessionByAgent (UserA uid)
+
+
 -- ** password reset
 
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
@@ -394,7 +411,7 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 lookupThentosSession :: ThentosSessionToken -> Action ThentosSession
 lookupThentosSession tok = do
     session <- _lookupThentosSession tok
-    tryTaint (session ^. thSessAgent %% False)
+    tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
         (return session)
         (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
 

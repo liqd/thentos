@@ -18,12 +18,31 @@
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
-module Thentos.Adhocracy3.Backend.Api.Simple where
+module Thentos.Adhocracy3.Backend.Api.Simple
+    ( A3Resource(..)
+    , A3UserNoPass(..)
+    , A3UserWithPass(..)
+    , ActivationRequest(..)
+    , Api
+    , ContentType(..)
+    , LoginRequest(..)
+    , Path(..)
+    , RequestResult(..)
+    , ThentosApi
+    , TypedPath(..)
+    , TypedPathWithCacheControl(..)
+    , a3corsPolicy
+    , a3ProxyAdapter
+    , runBackend
+    , serveApi
+    , thentosApi
+    ) where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad (when, unless, mzero)
-import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.:?), (.=), object, withObject)
+import Control.Monad (when, unless, mzero, void)
+import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
+                   withObject)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
@@ -250,9 +269,14 @@ data LoginRequest =
   | LoginByEmail UserEmail UserPass
   deriving (Eq, Typeable, Generic)
 
+-- | Reponse to a login or activation request.
+--
+-- Note: this generic form is useful for parsing a result from A3, but you should never *return* a
+-- 'RequestError' because then the status code won't be set correctly. Instead, throw a
+-- 'GenericA3Error' or, even better, define and throw a custom error.
 data RequestResult =
     RequestSuccess Path ThentosSessionToken
-  | RequestError [ST]
+  | RequestError A3ErrorMessage
   deriving (Eq, Show, Typeable, Generic)
 
 instance ToJSON ActivationRequest where
@@ -285,17 +309,14 @@ instance ToJSON RequestResult where
         "user_path" .= p :
         "user_token" .= t :
         []
-    toJSON (RequestError es) = object $
-        "status" .= ("error" :: ST) :
-        "errors" .= map (\ d -> object ["description" .= d, "location" .= (), "name" .= ()]) es :
-        []
+    toJSON (RequestError errMsg) = toJSON errMsg
 
 instance FromJSON RequestResult where
     parseJSON = withObject "request result" $ \ v -> do
         n :: ST <- v .: "status"
         case n of
             "success" -> RequestSuccess <$> v .: "user_path" <*> v .: "user_token"
-            "error" -> RequestError <$> v .: "errors"
+            "error" -> RequestError <$> parseJSON (Object v)
             _ -> mzero
 
 
@@ -351,15 +372,10 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     A.assertUserIsNew user
     cfg <- AC.getConfig'P
     uid <- createUserInA3'P user
-    tok <- A.addUnconfirmedUserWithId user uid
-    let activationUrl = cs (exposeUrl feHttp) <> "activate/" <> cs (fromConfirmationToken tok)
-        feHttp :: HttpConfig = case cfg >>. (Proxy :: Proxy '["frontend"]) of
-              Nothing -> error "addUser: frontend not configured!"
-              Just v -> Tagged v
-    sendUserConfirmationMail (Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])) user activationUrl
+    void $ A.addUnconfirmedUserWithId user uid
     let userPath = userIdToPath cfg uid
         typedPath          = TypedPath userPath CTUser
-        -- Mimic cache-control info returned form the A3 backend
+        -- Mimic cache-control info returned from the A3 backend
         changedDescendants = [ a3backendPath cfg ""
                              , a3backendPath cfg "principals/"
                              , a3backendPath cfg "principals/users/"
@@ -372,20 +388,18 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
         removed            = []
     return $ TypedPathWithCacheControl typedPath changedDescendants created modified removed
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> AC.Action DB ()
-sendUserConfirmationMail smtpConfig user callbackUrl =
-    AC.sendMail'P smtpConfig (Just $ udName user) (udEmail user) subject message
-  where
-    message = "Please go to " <> callbackUrl <> " to confirm your account."
-    subject = "Thentos account creation confirmation"
-
+-- | Activate a new user. The activation request is first sent to the A3 backend.
+-- If the backend successfully activates the user, we then activate them also in Thentos.
 activate :: ActivationRequest -> AC.Action DB RequestResult
-activate (ActivationRequest p) = AC.logIfError'P $ do
+activate ar@(ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
-    config <- AC.getConfig'P
-    ctok        :: ConfirmationToken             <- confirmationTokenFromPath p
-    (uid, stok) :: (UserId, ThentosSessionToken) <- A.confirmNewUser ctok
-    return $ RequestSuccess (userIdToPath config uid) stok
+    reqResult <- activateUserInA3'P ar
+    case reqResult of
+        RequestSuccess path _a3tok -> do
+            uid  <- userIdFromPath path
+            stok <- A.confirmNewUserById uid
+            return $ RequestSuccess path stok
+        RequestError errMsg        -> throwError $ GenericA3Error errMsg
 
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
@@ -403,16 +417,25 @@ login r = AC.logIfError'P $ do
 createUserInA3'P :: UserFormData -> AC.Action DB UserId
 createUserInA3'P user = do
     config <- AC.getConfig'P
-    let a3req = fromMaybe (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
+    let a3req = fromMaybe
+                (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
         throwError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
     extractUserId a3resp
   where
-    sendRequest ::  Client.Request -> IO (Client.Response LBS)
-    sendRequest req = Client.withManager Client.defaultManagerSettings $ Client.httpLbs req
     responseCode = Status.statusCode . Client.responseStatus
+
+-- | Activate a user in A3 and return the response received from A3.
+activateUserInA3'P :: ActivationRequest -> AC.Action DB RequestResult
+activateUserInA3'P actReq = do
+    config <- AC.getConfig'P
+    let a3req = fromMaybe (error "activateUserInA3'P: mkRequestForA3 failed, check config!") $
+                mkRequestForA3 config "/activate_account" actReq
+    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
+    either (throwError . A3BackendInvalidJson) return $
+        (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
 
 
 -- * policy
@@ -429,21 +452,32 @@ a3corsPolicy = CorsPolicy
 
 -- | Create a user creation request to be sent to the A3 backend. The actual user password is
 -- replaced by a dummy, as A3 doesn't have to know it.
+mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
+mkUserCreationRequestForA3 config user = do
+    let user'  = UserFormData { udName     = udName user,
+                                udEmail    = udEmail user,
+                                udPassword = "dummypass" }
+    mkRequestForA3 config "/principals/users" $ A3UserWithPass user'
+
+-- | Make a POST request to be sent to the A3 backend. Returns 'Nothing' if the 'ThentosConfig'
+-- lacks a correctly configured proxy.
+--
+-- Note that the request is configured to NOT thrown an exception even if the response status code
+-- indicates an error (400 or higher). Properly dealing with error replies is left to the caller.
 --
 -- Since the A3 frontend doesn't know about different services (i.e. never sends a
 -- @X-Thentos-Service@ header), we send the request to the default proxy which should be the A3
 -- backend.
-mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
-mkUserCreationRequestForA3 config user = do
+mkRequestForA3 :: ToJSON a => ThentosConfig -> String -> a -> Maybe Client.Request
+mkRequestForA3 config route dat = do
     defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
     let target = extractTargetUrl defaultProxy
-        user'  = UserFormData { udName     = udName user,
-                                udEmail    = udEmail user,
-                                udPassword = "dummypass" }
-    initReq <- Client.parseUrl $ cs $ show target <> "/principals/users"
-    return initReq { Client.method = "POST",
-        Client.requestHeaders = [("Content-Type", "application/json")],
-        Client.requestBody = Client.RequestBodyLBS . Aeson.encode . A3UserWithPass $ user' }
+    initReq <- Client.parseUrl $ cs $ show target <> route
+    return initReq { Client.method = "POST"
+        , Client.requestHeaders = [("Content-Type", "application/json")]
+        , Client.requestBody = Client.RequestBodyLBS . Aeson.encode $ dat
+        , Client.checkStatus = \_ _ _ -> Nothing
+        }
 
 -- | Extract the user ID from an A3 response received for a user creation request.
 extractUserId :: (MonadError (ThentosError DB) m) => Client.Response LBS -> m UserId
@@ -451,6 +485,9 @@ extractUserId resp = do
     resource <- either (throwError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
     userIdFromPath $ tpPath resource
+
+sendRequest :: Client.Request -> IO (Client.Response LBS)
+sendRequest req = Client.withManager Client.defaultManagerSettings $ Client.httpLbs req
 
 -- | A3-specific ProxyAdapter.
 a3ProxyAdapter :: ProxyAdapter
@@ -488,10 +525,3 @@ userIdFromPath (Path s) = do
     rawId <- maybe (throwError . ThentosA3ErrorCore $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError . ThentosA3ErrorCore $ NoSuchUser) (return . UserId) $ readMay rawId
-
-confirmationTokenFromPath :: Path -> AC.Action DB ConfirmationToken
-confirmationTokenFromPath (Path p) = case ST.splitAt (ST.length prefix) p of
-    (s, s') | s == prefix -> return $ ConfirmationToken s'
-    _ -> throwError . ThentosA3ErrorCore $ MalformedConfirmationToken p
-  where
-    prefix = "/activate/"
