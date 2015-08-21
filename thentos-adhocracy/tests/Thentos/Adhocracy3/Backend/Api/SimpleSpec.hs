@@ -108,15 +108,24 @@ spec =
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
 
-        describe "activate_account" $ with setupBackend $
-            it "rejects bad path mimicking A3" $ do
-
-                let reqBody = encodePretty . object $
-                        [ "path" .= String "/activate/no-such-path" ]
-
-                rsp <- request "POST" "activate_account" [ctJSON] reqBody
+        describe "arbitrary requests" $ with setupBackend $
+            it "rejects bad session token mimicking A3" $ do
+                let headers = [("X-User-Token", "invalid-token")]
+                rsp <- request "POST" "dummy/endpoint" headers ""
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                    "\"Unknown or expired activation path\""
+                    "\"Invalid user token\""
+
+-- Disabled because account activation now requires the A3 backend to run
+--        describe "activate_account" $ with setupBackend $
+--            it "rejects bad path mimicking A3" $ do
+--
+--                let reqBody = encodePretty . object $
+--                        [ "path" .= String "/activate/no-such-path" ]
+--
+--                rsp <- request "POST" "activate_account" [ctJSON] reqBody
+--                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+--                    "\"Unknown or expired activation path\""
+
   where
     setupBackend :: IO Application
     setupBackend = do
