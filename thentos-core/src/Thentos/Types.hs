@@ -22,18 +22,15 @@ import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String))
-import Data.Data (Typeable)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
-import Data.SafeCopy (SafeCopy, Contained, deriveSafeCopy, base, contain, putCopy, getCopy,
-                      safePut, safeGet)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
-import Data.Typeable (Proxy(Proxy), typeOf)
+import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
@@ -51,19 +48,7 @@ import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Data.Serialize as Cereal
 import qualified Generics.Generic.Aeson as Aeson
-
-
--- * aux
-
-putCopyViaShowRead :: (Show a) => a -> Contained Cereal.Put
-putCopyViaShowRead = contain . safePut . show
-
-getCopyViaShowRead :: forall a . (Typeable a, Read a) => Contained (Cereal.Get a)
-getCopyViaShowRead = contain $ safeGet >>= \ raw -> maybe (_fail raw) return . readMay $ raw
-  where
-    _fail raw = fail $ "getCopyViaShowRead: no parse for " ++ show (raw, typeOf (Proxy :: Proxy a))
 
 
 -- * user
@@ -136,10 +121,6 @@ instance FromField (HashedSecret a) where
 instance ToField (HashedSecret a) where
     toField = toField . Scrypt.getEncryptedPass . fromHashedSecret
 
-instance SafeCopy (HashedSecret a) where
-    putCopy = contain . safePut . Scrypt.getEncryptedPass . fromHashedSecret
-    getCopy = contain $ HashedSecret . Scrypt.EncryptedPass <$> safeGet
-
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -169,11 +150,6 @@ instance Aeson.FromJSON UserEmail
 
 instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
-
-instance SafeCopy UserEmail
-  where
-    putCopy = putCopyViaShowRead
-    getCopy = getCopyViaShowRead
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -309,11 +285,6 @@ timeStampFromString :: Monad m => String -> m Timestamp
 timeStampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
   Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
 
-instance SafeCopy Timestamp
-  where
-    putCopy = contain . safePut . timeStampToString
-    getCopy = contain $ safeGet >>= timeStampFromString
-
 instance Aeson.FromJSON Timestamp
   where
     parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
@@ -328,11 +299,6 @@ timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
 timeoutFromString :: Monad m => String -> m Timeout
 timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
   Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
-
-instance SafeCopy Timeout
-  where
-    putCopy = contain . safePut . timeoutToString
-    getCopy = contain $ safeGet >>= timeoutFromString
 
 instance Aeson.FromJSON Timeout
   where
@@ -412,10 +378,10 @@ instance Aeson.FromJSON ProxyUri
             auth <- maybe mzero return $ uriAuthority uri
             let host = authorityHost auth
                 port = fromMaybe 80 $ portNumber <$> authorityPort auth
-            return $ ProxyUri { proxyHost = hostBS host
-                              , proxyPort = port
-                              , proxyPath = uriPath uri
-                              }
+            return ProxyUri { proxyHost = hostBS host
+                            , proxyPort = port
+                            , proxyPath = uriPath uri
+                            }
         Left _ -> mzero
     parseJSON bad        = fail $ "Not a valid URI (expected string): " ++ show bad
 
@@ -459,18 +425,10 @@ data ThentosError =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
+    deriving (Eq, Read, Show, Typeable)
 
-deriving instance Eq ThentosError
-deriving instance Show ThentosError
-deriving instance Read ThentosError
-deriving instance Typeable ThentosError
 
 instance Exception ThentosError
-
-instance SafeCopy ThentosError
-  where
-    putCopy = putCopyViaShowRead
-    getCopy = getCopyViaShowRead
 
 
 -- * boilerplate
@@ -480,25 +438,3 @@ makeLenses ''ServiceAccount
 makeLenses ''ServiceSession
 makeLenses ''ThentosSession
 makeLenses ''User
-
-$(deriveSafeCopy 0 'base ''Agent)
-$(deriveSafeCopy 0 'base ''ConfirmationToken)
-$(deriveSafeCopy 0 'base ''Group)
-$(deriveSafeCopy 0 'base ''GroupNode)
-$(deriveSafeCopy 0 'base ''PasswordResetToken)
-$(deriveSafeCopy 0 'base ''Role)
-$(deriveSafeCopy 0 'base ''RoleBasic)
-$(deriveSafeCopy 0 'base ''Service)
-$(deriveSafeCopy 0 'base ''ServiceAccount)
-$(deriveSafeCopy 0 'base ''ServiceDescription)
-$(deriveSafeCopy 0 'base ''ServiceId)
-$(deriveSafeCopy 0 'base ''ServiceKey)
-$(deriveSafeCopy 0 'base ''ServiceName)
-$(deriveSafeCopy 0 'base ''ServiceSession)
-$(deriveSafeCopy 0 'base ''ServiceSessionMetadata)
-$(deriveSafeCopy 0 'base ''ServiceSessionToken)
-$(deriveSafeCopy 0 'base ''ThentosSession)
-$(deriveSafeCopy 0 'base ''ThentosSessionToken)
-$(deriveSafeCopy 0 'base ''User)
-$(deriveSafeCopy 0 'base ''UserId)
-$(deriveSafeCopy 0 'base ''UserName)

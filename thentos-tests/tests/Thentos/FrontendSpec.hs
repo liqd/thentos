@@ -12,7 +12,6 @@ import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
 
-import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
@@ -20,11 +19,10 @@ import qualified Test.WebDriver.Class as WD
 
 import Thentos.Action.Core
 import Thentos.Config
-import Thentos.Frontend.Handlers.Combinators (urlConfirm)
 import qualified Thentos.Transaction.Transactions as T
 import Thentos.Transaction.Core (runThentosQuery)
 import Thentos.Types
-import Thentos.Util ((<//>), verifyPass)
+import Thentos.Util ((<//>))
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()

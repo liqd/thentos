@@ -5,19 +5,29 @@ module Thentos.Transaction.Core
     , runThentosUpdate
     , queryT
     , execT
+    , createDB
     )
 where
 
+import Control.Exception (catch)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
-import Database.PostgreSQL.Simple (Connection, ToRow, FromRow, Query, query, execute)
+import Data.String (fromString)
+import Database.PostgreSQL.Simple (Connection, ToRow, FromRow, Query, query, execute, execute_, sqlExecStatus)
+import Paths_thentos_core
 
 import Thentos.Types
 
 type ThentosQuery  a = EitherT ThentosError (ReaderT Connection IO) a
 type ThentosUpdate a = EitherT ThentosError (ReaderT Connection IO) a
+
+-- | Creates the database schema if it does not already exist.
+createDB :: Connection -> IO ()
+createDB conn = do
+    schema <- readFile =<< getDataFileName "schema.sql"
+    void $ execute_ conn (fromString schema)
 
 runThentosUpdate :: Connection -> ThentosUpdate a -> IO (Either ThentosError a)
 runThentosUpdate conn = flip runReaderT conn . runEitherT

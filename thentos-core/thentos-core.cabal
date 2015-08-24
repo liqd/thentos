@@ -14,6 +14,7 @@ copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
 cabal-version:       >= 1.18
+data-files:          schema/schema.sql
 
 Source-Repository head
   type: git
@@ -79,6 +80,8 @@ library
     , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
+  other-modules:
+      Paths_thentos_core
   build-depends:
       base
     , acid-state

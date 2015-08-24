@@ -11,7 +11,6 @@
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}

@@ -31,7 +31,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
-import Database.PostgreSQL.Simple (connectPostgreSQL)
+import Database.PostgreSQL.Simple (connectPostgreSQL, connect, defaultConnectInfo, ConnectInfo(connectDatabase))
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.Wai (requestMethod, requestHeaders)
@@ -59,6 +59,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
+import Thentos.Transaction.Core
 import Thentos.Types
 
 import Thentos.Test.Config
@@ -168,7 +169,8 @@ defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pr
 createActionState :: ThentosConfig -> IO ActionState
 createActionState config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    conn <- undefined
+    conn <- connect defaultConnectInfo { connectDatabase = "thentos_test" }
+    createDB conn
     return $ ActionState (conn, rng, config)
 
 

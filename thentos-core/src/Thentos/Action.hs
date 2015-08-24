@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Action
     ( freshRandomName

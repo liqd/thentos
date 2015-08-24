@@ -5,10 +5,8 @@
 module Thentos.ActionSpec where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (MVar, newMVar)
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
-import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Either (isLeft, isRight)
 import LIO.DCLabel ((%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
