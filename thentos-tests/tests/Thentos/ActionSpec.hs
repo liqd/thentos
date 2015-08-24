@@ -70,6 +70,7 @@ spec_user = describe "user" $ do
             Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
 
+
     describe "addUsers" $ do
         it "works" $ \ sta -> do
             result <- runActionWithPrivs [RoleAdmin] sta $
