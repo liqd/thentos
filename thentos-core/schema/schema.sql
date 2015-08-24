@@ -1,7 +1,7 @@
 -- All statements in this file should be idempotent.
-CREATE TABLE IF NOT EXISTS "account" (
-    id         text   NOT NULL,
-    name       text   NOT NULL,
+CREATE TABLE IF NOT EXISTS "users" (
+    id         integer   UNIQUE NOT NULL,
+    name       text      UNIQUE NOT NULL,
     password   text,
-    email      text   NOT NULL
+    email      text      UNIQUE NOT NULL
 );

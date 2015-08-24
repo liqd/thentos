@@ -26,7 +26,7 @@ type ThentosUpdate a = EitherT ThentosError (ReaderT Connection IO) a
 -- | Creates the database schema if it does not already exist.
 createDB :: Connection -> IO ()
 createDB conn = do
-    schema <- readFile =<< getDataFileName "schema.sql"
+    schema <- readFile =<< getDataFileName "schema/schema.sql"
     void $ execute_ conn (fromString schema)
 
 runThentosUpdate :: Connection -> ThentosUpdate a -> IO (Either ThentosError a)

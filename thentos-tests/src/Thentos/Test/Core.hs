@@ -31,7 +31,8 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
-import Database.PostgreSQL.Simple (connectPostgreSQL, connect, defaultConnectInfo, ConnectInfo(connectDatabase))
+import Database.PostgreSQL.Simple (connect, defaultConnectInfo,
+                                   ConnectInfo(connectDatabase, connectPassword, connectUser))
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.Wai (requestMethod, requestHeaders)
@@ -169,7 +170,10 @@ defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pr
 createActionState :: ThentosConfig -> IO ActionState
 createActionState config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    conn <- connect defaultConnectInfo { connectDatabase = "thentos_test" }
+    conn <- connect defaultConnectInfo { connectDatabase = "test_thentos"
+                                       , connectPassword = "test"
+                                       , connectUser     = "test_thentos"
+                                       }
     createDB conn
     return $ ActionState (conn, rng, config)
 
