@@ -6,6 +6,7 @@ module Thentos.Transaction.Core
     , queryT
     , execT
     , createDB
+    , schemaFile
     )
 where
 
@@ -23,10 +24,13 @@ import Thentos.Types
 type ThentosQuery  a = EitherT ThentosError (ReaderT Connection IO) a
 type ThentosUpdate a = EitherT ThentosError (ReaderT Connection IO) a
 
+schemaFile :: IO FilePath
+schemaFile = getDataFileName "schema/schema.sql"
+
 -- | Creates the database schema if it does not already exist.
 createDB :: Connection -> IO ()
 createDB conn = do
-    schema <- readFile =<< getDataFileName "schema/schema.sql"
+    schema <- readFile =<< schemaFile
     void $ execute_ conn (fromString schema)
 
 runThentosUpdate :: Connection -> ThentosUpdate a -> IO (Either ThentosError a)

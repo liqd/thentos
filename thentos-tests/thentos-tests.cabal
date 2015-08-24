@@ -71,6 +71,7 @@ library
     , mtl
     , network
     , postgresql-simple
+    , process
     , pretty-show
     , QuickCheck
     , safecopy
