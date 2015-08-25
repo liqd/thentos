@@ -407,7 +407,7 @@ instance Show ProxyUri where
 
 -- * errors
 
-data ThentosError =
+data ThentosError e =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
@@ -428,10 +428,11 @@ data ThentosError =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
+    | OtherError e
     deriving (Eq, Read, Show, Typeable)
 
 
-instance Exception ThentosError
+instance (Show e, Typeable e) => Exception (ThentosError e)
 
 
 -- * boilerplate

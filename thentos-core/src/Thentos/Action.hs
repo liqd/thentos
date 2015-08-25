@@ -109,31 +109,31 @@ import Thentos.Transaction.Core (ThentosQuery)
 -- RFC 4648 also has a "URL Safe Alphabet" which additionally replaces @+@ by @-@. But that's
 -- problematic, since @-@ at the end of URLs is not recognized as part of the URL by some programs
 -- such as Thunderbird.
-freshRandomName :: Action ST
+freshRandomName :: Action e ST
 freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> genRandomBytes'P 18
 
-freshConfirmationToken :: Action ConfirmationToken
+freshConfirmationToken :: Action e ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
-freshPasswordResetToken :: Action PasswordResetToken
+freshPasswordResetToken :: Action e PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
-freshServiceId :: Action ServiceId
+freshServiceId :: Action e ServiceId
 freshServiceId = ServiceId <$> freshRandomName
 
-freshServiceKey :: Action ServiceKey
+freshServiceKey :: Action e ServiceKey
 freshServiceKey = ServiceKey <$> freshRandomName
 
-freshSessionToken :: Action ThentosSessionToken
+freshSessionToken :: Action e ThentosSessionToken
 freshSessionToken = ThentosSessionToken <$> freshRandomName
 
-freshServiceSessionToken :: Action ServiceSessionToken
+freshServiceSessionToken :: Action e ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 -- * user
 
 -- | Return a list of all 'UserId's.  Requires 'RoleAdmin'.
-allUserIds :: Action [UserId]
+allUserIds :: Action e [UserId]
 allUserIds = do
     taintMsg "allUserIds" (RoleAdmin %% False)
     query'P T.allUserIds
@@ -141,10 +141,10 @@ allUserIds = do
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
 -- user lookup prior to authentication.
-lookupUser :: UserId -> Action (UserId, User)
+lookupUser :: UserId -> Action e (UserId, User)
 lookupUser uid = _lookupUser $ T.lookupUser uid
 
-_lookupUser :: ThentosQuery (UserId, User) -> Action (UserId, User)
+_lookupUser :: ThentosQuery e (UserId, User) -> Action e (UserId, User)
 _lookupUser transaction = do
     val@(uid, _) <- query'P transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
@@ -152,21 +152,21 @@ _lookupUser transaction = do
         (\ (_ :: AnyLabelError) -> throwError NoSuchUser)
 
 -- | Like 'lookupUser', but based on 'UserName'.
-lookupUserByName :: UserName -> Action (UserId, User)
+lookupUserByName :: UserName -> Action e (UserId, User)
 lookupUserByName name = _lookupUser $ T.lookupUserByName name
 
 -- | Like 'lookupUser', but based on 'UserEmail'.
-lookupUserByEmail :: UserEmail -> Action (UserId, User)
+lookupUserByEmail :: UserEmail -> Action e (UserId, User)
 lookupUserByEmail email = _lookupUser $ T.lookupUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
-addUser :: UserFormData -> Action UserId
+addUser :: UserFormData -> Action e UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= update'P . T.addUser
 
-addUsers :: [UserFormData] -> Action [UserId]
+addUsers :: [UserFormData] -> Action e [UserId]
 addUsers userData = do
     guardWriteMsg "addUsers" (RoleAdmin %% RoleAdmin)
     users <- mapM makeUserFromFormData'P userData
@@ -174,14 +174,14 @@ addUsers userData = do
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
-deleteUser :: UserId -> Action ()
+deleteUser :: UserId -> Action e ()
 deleteUser uid = do
     guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.deleteUser uid
 
 -- | Assert that no user with the same name or email address already exists in the db.
 -- Does not require any privileges.
-assertUserIsNew :: UserFormData -> Action ()
+assertUserIsNew :: UserFormData -> Action e ()
 assertUserIsNew userData = do
     user <- makeUserFromFormData'P userData
     query'P $ T.assertUserIsNew user
@@ -191,20 +191,20 @@ assertUserIsNew userData = do
 
 -- | Initiate email-verified user creation.  Does not require any privileges.  See also:
 -- 'confirmNewUser'.
-addUnconfirmedUser :: UserFormData -> Action (UserId, ConfirmationToken)
+addUnconfirmedUser :: UserFormData -> Action e (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
     (now, tok, user) <- prepareUserData userData
     update'P $ T.addUnconfirmedUser now tok user
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
-addUnconfirmedUserWithId :: UserFormData -> UserId -> Action ConfirmationToken
+addUnconfirmedUserWithId :: UserFormData -> UserId -> Action e ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
     (now, tok, user) <- prepareUserData userData
     update'P $ T.addUnconfirmedUserWithId now tok user userId
 
 -- | Collect the data needed for the /addUnconfirmedUser.../ calls.
-prepareUserData :: UserFormData -> Action (Timestamp, ConfirmationToken, User)
+prepareUserData :: UserFormData -> Action e (Timestamp, ConfirmationToken, User)
 prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
                                 <*> makeUserFromFormData'P userData
 
@@ -215,7 +215,7 @@ prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
 -- user has been created by calling this function.
 --
 -- See also: 'addUnconfirmedUser'.
-confirmNewUser :: ConfirmationToken -> Action (UserId, ThentosSessionToken)
+confirmNewUser :: ConfirmationToken -> Action e (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
@@ -232,7 +232,7 @@ confirmNewUser token = do
 -- way check it.
 --
 -- See also: 'addUnconfirmedUser'.
-confirmNewUserById :: UserId -> Action ThentosSessionToken
+confirmNewUserById :: UserId -> Action e ThentosSessionToken
 confirmNewUserById uid = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
@@ -243,7 +243,7 @@ confirmNewUserById uid = do
 -- ** password reset
 
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
-addPasswordResetToken :: UserEmail -> Action (User, PasswordResetToken)
+addPasswordResetToken :: UserEmail -> Action e (User, PasswordResetToken)
 addPasswordResetToken email = do
     now <- getCurrentTime'P
     tok <- freshPasswordResetToken
@@ -253,7 +253,7 @@ addPasswordResetToken email = do
 -- | Finish password reset with email confirmation.
 --
 -- SECURITY: See 'confirmNewUser'.
-resetPassword :: PasswordResetToken -> UserPass -> Action ()
+resetPassword :: PasswordResetToken -> UserPass -> Action e ()
 resetPassword token password = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> getConfig'P
@@ -268,7 +268,7 @@ resetPassword token password = do
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
 _lookupUserCheckPassword ::
-    ThentosQuery (UserId, User) -> UserPass -> Action (UserId, User)
+    ThentosQuery e (UserId, User) -> UserPass -> Action e (UserId, User)
 _lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
@@ -287,20 +287,20 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 -- an integrity breach: If a service does not authorize registration of a user with a service, that
 -- user may be able to login without consent of the service, especially once we have anonymous
 -- login.  See also 'updateUserFields'.
-updateUserField :: UserId -> T.UpdateUserFieldOp -> Action ()
+updateUserField :: UserId -> T.UpdateUserFieldOp -> Action e ()
 updateUserField uid op = do
     guardWriteMsg "updateUserField" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.updateUserField uid op
 
 -- | See 'updateUserField'.
-updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action ()
+updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action e ()
 updateUserFields uid ops = do
     guardWriteMsg "updateUserFields" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.updateUserFields uid ops
 
 -- | Authenticate user against old password, and then change password to new password.  Requires
 -- 'RoleAdmin' or privs of user that owns the password.
-changePassword :: UserId -> UserPass -> UserPass -> Action ()
+changePassword :: UserId -> UserPass -> UserPass -> Action e ()
 changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.lookupUser uid) old
     hashedPw <- hashUserPass'P new
@@ -311,7 +311,7 @@ changePassword uid old new = do
 -- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address
 -- is only changed after a call to 'confirmUserEmailChange' with the correct token.
 requestUserEmailChange ::
-    UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action ()
+    UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action e ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
     guardWriteMsg "requestUserEmailChange" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
 
@@ -333,7 +333,7 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- SECURITY: The security information from 'confirmNewUser' does not directly apply here: the
 -- attacker needs to fulfil **all** three conditions mentioned above for a successful attack, not
 -- only token secrecy.
-confirmUserEmailChange :: ConfirmationToken -> Action ()
+confirmUserEmailChange :: ConfirmationToken -> Action e ()
 confirmUserEmailChange token = do
     now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
@@ -345,24 +345,24 @@ confirmUserEmailChange token = do
 
 -- * service
 
-allServiceIds :: Action [ServiceId]
+allServiceIds :: Action e [ServiceId]
 allServiceIds = do
     taintMsg "allServiceIds" (RoleAdmin %% False)
     query'P T.allServiceIds
 
-lookupService :: ServiceId -> Action (ServiceId, Service)
+lookupService :: ServiceId -> Action e (ServiceId, Service)
 lookupService sid = do
     taintMsg "lookupService" (RoleAdmin \/ ServiceA sid %% False)
     query'P $ T.lookupService sid
 
 addService ::
-    Agent -> ServiceName -> ServiceDescription -> Action (ServiceId, ServiceKey)
+    Agent -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addService owner name desc = do
     sid <- freshServiceId
     addServicePrim owner sid name desc
 
 addServicePrim ::
-    Agent -> ServiceId -> ServiceName -> ServiceDescription -> Action (ServiceId, ServiceKey)
+    Agent -> ServiceId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
     -- FIXME LIO
     --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
@@ -371,7 +371,7 @@ addServicePrim owner sid name desc = do
     update'P $ T.addService owner sid hashedKey name desc
     return (sid, key)
 
-deleteService :: ServiceId -> Action ()
+deleteService :: ServiceId -> Action e ()
 deleteService sid = do
     guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
     update'P $ T.deleteService sid
@@ -379,7 +379,7 @@ deleteService sid = do
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
 -- to the config which will automatically spring into life if the config is read.
 autocreateServiceIfMissing'P ::
-    Agent -> ServiceId -> Action ()
+    Agent -> ServiceId -> Action e ()
 autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
     \case NoSuchService -> do
             logger'P DEBUG $ "autocreating service with ID " ++ show sid
@@ -388,7 +388,7 @@ autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
           e                                            -> throwError e
 
 -- | List all group leafs a user is member in on some service.
-userGroups :: UserId -> ServiceId -> Action [Group]
+userGroups :: UserId -> ServiceId -> Action e [Group]
 userGroups uid sid = do
     taintMsg "userGroups" (UserA uid \/ ServiceA sid %% False)
     (_, service) <- query'P $ T.lookupService sid
@@ -407,7 +407,7 @@ defaultSessionTimeout = Timeout $ 14 * 24 * 3600
 
 -- | Find 'ThentosSession' from token.  If 'ThentosSessionToken' does not exist or clearance does
 -- not allow access, throw 'NoSuchThentosSession'.
-lookupThentosSession :: ThentosSessionToken -> Action ThentosSession
+lookupThentosSession :: ThentosSessionToken -> Action e ThentosSession
 lookupThentosSession tok = do
     session <- _lookupThentosSession tok
     tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
@@ -415,41 +415,41 @@ lookupThentosSession tok = do
         (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
 
 -- | Find 'ThentosSession' from token, without clearance check.
-_lookupThentosSession :: ThentosSessionToken -> Action ThentosSession
+_lookupThentosSession :: ThentosSessionToken -> Action e ThentosSession
 _lookupThentosSession tok = do
     now <- getCurrentTime'P
     snd <$> update'P (T.lookupThentosSession now tok)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
-existsThentosSession :: ThentosSessionToken -> Action Bool
+existsThentosSession :: ThentosSessionToken -> Action e Bool
 existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError`
     \case NoSuchThentosSession -> return False
           e                    -> throwError e
 
 -- | Check user credentials and create a session for user.  Requires 'lub' or 'lookupUser' and
 -- '_startThentosSessionByAgent'.
-startThentosSessionByUserId :: UserId -> UserPass -> Action ThentosSessionToken
+startThentosSessionByUserId :: UserId -> UserPass -> Action e ThentosSessionToken
 startThentosSessionByUserId uid pass = do
     _ <- _lookupUserCheckPassword (T.lookupUser uid) pass
     _startThentosSessionByAgent (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
 startThentosSessionByUserName ::
-    UserName -> UserPass -> Action (UserId, ThentosSessionToken)
+    UserName -> UserPass -> Action e (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupUserByName name) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 startThentosSessionByUserEmail ::
-    UserEmail -> UserPass -> Action (UserId, ThentosSessionToken)
+    UserEmail -> UserPass -> Action e (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupUserByEmail email) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId ::
-    ServiceId -> ServiceKey -> Action ThentosSessionToken
+    ServiceId -> ServiceKey -> Action e ThentosSessionToken
 startThentosSessionByServiceId sid key = a `catchError` h
   where
     a = do
@@ -463,7 +463,7 @@ startThentosSessionByServiceId sid key = a `catchError` h
 
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
 -- token is enough authentication to terminate it.
-endThentosSession :: ThentosSessionToken -> Action ()
+endThentosSession :: ThentosSessionToken -> Action e ()
 endThentosSession = update'P . T.endThentosSession
 
 -- | Check that a Thentos session exists, is not expired, and belongs to a user (rather than a
@@ -472,7 +472,7 @@ endThentosSession = update'P . T.endThentosSession
 --
 -- We assume that the ThentosSessionToken is a secret that nobody except the session owner can
 -- know, therefore no special clearance is required.
-validateThentosUserSession :: ThentosSessionToken -> Action (UserId, User)
+validateThentosUserSession :: ThentosSessionToken -> Action e (UserId, User)
 validateThentosUserSession tok = do
     session <- _lookupThentosSession tok
     case session ^. thSessAgent of
@@ -481,7 +481,7 @@ validateThentosUserSession tok = do
 
 -- | Open a session for any agent.
 -- NOTE: This should only be called after verifying the agent's credentials
-_startThentosSessionByAgent :: Agent -> Action ThentosSessionToken
+_startThentosSessionByAgent :: Agent -> Action e ThentosSessionToken
 _startThentosSessionByAgent agent = do
     now <- getCurrentTime'P
     tok <- freshSessionToken
@@ -491,7 +491,7 @@ _startThentosSessionByAgent agent = do
 
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
 -- 'RoleAdmin', service, or user privs.
-serviceNamesFromThentosSession :: ThentosSessionToken -> Action [ServiceName]
+serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
 serviceNamesFromThentosSession tok = do
     now <- getCurrentTime'P
 
@@ -514,7 +514,7 @@ serviceNamesFromThentosSession tok = do
 -- * service session
 
 -- | Like 'lookupThentosSession', but for 'ServiceSession's.
-lookupServiceSession :: ServiceSessionToken -> Action ServiceSession
+lookupServiceSession :: ServiceSessionToken -> Action e ServiceSession
 lookupServiceSession tok = do
     now <- getCurrentTime'P
     session <- snd <$> update'P (T.lookupServiceSession now tok)
@@ -524,21 +524,21 @@ lookupServiceSession tok = do
         (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
 
 -- | Like 'existsThentosSession', but for 'ServiceSession's.
-existsServiceSession :: ServiceSessionToken -> Action Bool
+existsServiceSession :: ServiceSessionToken -> Action e Bool
 existsServiceSession tok = (lookupServiceSession tok >> return True) `catchError`
     \case NoSuchServiceSession -> return False
           e                    -> throwError e
 
 -- | (As soon as there is a good reason, we can export this.  just need to think about the label.)
 _thentosSessionAndUserIdByToken ::
-    ThentosSessionToken -> Action (ThentosSession, UserId)
+    ThentosSessionToken -> Action e (ThentosSession, UserId)
 _thentosSessionAndUserIdByToken tok = do
     session <- lookupThentosSession tok
     case session ^. thSessAgent of
         UserA uid -> return (session, uid)
         ServiceA sid -> throwError $ NeedUserA tok sid
 
-_serviceSessionUser :: ServiceSessionToken -> Action UserId
+_serviceSessionUser :: ServiceSessionToken -> Action e UserId
 _serviceSessionUser tok = do
     serviceSession <- lookupServiceSession tok
     let thentosSessionToken = serviceSession ^. srvSessThentosSession
@@ -553,7 +553,7 @@ _serviceSessionUser tok = do
 -- 'ServiceId' to register with the resp. service.  This probably violates integrity of the view of
 -- the service.  Fixing this may require credentials handling.  Before we do that, we should take a
 -- better look at oauth.
-addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action ()
+addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
@@ -562,7 +562,7 @@ addServiceRegistration tok sid = do
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
 --
 -- See FIXME in 'addServiceRegistration'.
-dropServiceRegistration :: ThentosSessionToken -> ServiceId -> Action ()
+dropServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e ()
 dropServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "dropServiceRegistration"
@@ -575,7 +575,7 @@ dropServiceRegistration tok sid = do
 -- Inherits label and exception behavor from 'lookupThentosSession' and write-guards for thentos
 -- session owner.
 startServiceSession ::
-    ThentosSessionToken -> ServiceId -> Action ServiceSessionToken
+    ThentosSessionToken -> ServiceId -> Action e ServiceSessionToken
 startServiceSession ttok sid = do
     now <- getCurrentTime'P
     _ <- lookupThentosSession ttok
@@ -585,7 +585,7 @@ startServiceSession ttok sid = do
 
 -- | Terminate service session. Throws NoSuchServiceSession if the user does not
 -- own the session.
-endServiceSession :: ServiceSessionToken -> Action ()
+endServiceSession :: ServiceSessionToken -> Action e ()
 endServiceSession tok = do
     uid <- _serviceSessionUser tok
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
@@ -593,23 +593,23 @@ endServiceSession tok = do
                   (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
 
 -- | Inherits label from 'lookupServiceSession'.
-getServiceSessionMetadata :: ServiceSessionToken -> Action ServiceSessionMetadata
+getServiceSessionMetadata :: ServiceSessionToken -> Action e ServiceSessionMetadata
 getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
 
 
 -- * agents and roles
 
-assignRole :: Agent -> Role -> Action ()
+assignRole :: Agent -> Role -> Action e ()
 assignRole agent role = do
     guardWriteMsg "assignRole" (RoleAdmin %% RoleAdmin)
     update'P $ T.assignRole agent role
 
-unassignRole :: Agent -> Role -> Action ()
+unassignRole :: Agent -> Role -> Action e ()
 unassignRole agent role = do
     guardWriteMsg "unassignRole" (RoleAdmin %% RoleAdmin)
     update'P $ T.unassignRole agent role
 
-agentRoles :: Agent -> Action [Role]
+agentRoles :: Agent -> Action e [Role]
 agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     Set.toList <$> query'P (T.agentRoles agent)
@@ -617,7 +617,7 @@ agentRoles agent = do
 
 -- * garbage collection
 
-collectGarbage :: Exception ActionError => Action ()
+collectGarbage :: Exception (ActionError e) => Action e ()
 collectGarbage = do
     logger'P DEBUG "starting garbage collection."
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)

@@ -12,19 +12,19 @@ where
 
 import Control.Monad.Except (throwError)
 import Control.Exception.Lifted (catch, throwIO)
-import Control.Monad (void, mzero)
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.String (fromString)
-import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_, sqlExecStatus)
+import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_)
 import Database.PostgreSQL.Simple.Errors (constraintViolation, ConstraintViolation(UniqueViolation))
 import Paths_thentos_core
 
 import Thentos.Types
 
-type ThentosQuery a = EitherT ThentosError (ReaderT Connection IO) a
+type ThentosQuery e a = EitherT (ThentosError e) (ReaderT Connection IO) a
 
 schemaFile :: IO FilePath
 schemaFile = getDataFileName "schema/schema.sql"
@@ -35,15 +35,15 @@ createDB conn = do
     schema <- readFile =<< schemaFile
     void $ execute_ conn (fromString schema)
 
-runThentosQuery :: Connection -> ThentosQuery a -> IO (Either ThentosError a)
+runThentosQuery :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
 runThentosQuery conn = flip runReaderT conn . runEitherT
 
-queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery [r]
+queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
 queryT q x = do
     conn <- ask
     liftIO $ query conn q x
 
-execT :: ToRow q => Query -> q -> ThentosQuery ()
+execT :: ToRow q => Query -> q -> ThentosQuery e ()
 execT q x = do
     conn <- ask
     e <- catchViolation catcher . liftIO $ execute conn q x >> return Nothing
@@ -53,7 +53,7 @@ execT q x = do
 
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
-catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Maybe ThentosError)
+catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Maybe (ThentosError e))
 catcher _ (UniqueViolation "users_id_key")    = return $ Just UserIdAlreadyExists
 catcher _ (UniqueViolation "users_name_key")  = return $ Just UserNameAlreadyExists
 catcher _ (UniqueViolation "users_email_key") = return $ Just UserEmailAlreadyExists

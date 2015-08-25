@@ -86,14 +86,14 @@ testUsers = (\ (UserFormData name pass email) ->
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
-addTestUser :: Int -> Action (UserId, UserFormData, User)
+addTestUser :: Int -> Action () (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
     uid <- update'P $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
 -- them for use in test cases.
-initializeTestUsers :: Action [(UserId, UserFormData, User)]
+initializeTestUsers :: Action () [(UserId, UserFormData, User)]
 initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
@@ -183,7 +183,7 @@ createActionState config = do
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
-    (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
+    (_, tok) <- runAction actionState $ (startThentosSessionByUserName godName godPass :: Action () (UserId, ThentosSessionToken))
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
     return (tok, credentials)
 

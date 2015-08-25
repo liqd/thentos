@@ -59,14 +59,14 @@ userRegister = do
                 blaze userRegisterRequestedPage
             Left e -> logger INFO (show e) >> crash 400 "Registration failed."
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action ()
+sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action () ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
-sendUserExistsMail :: SmtpConfig -> UserEmail -> Action ()
+sendUserExistsMail :: SmtpConfig -> UserEmail -> Action () ()
 sendUserExistsMail smtpConfig address = do
     sendMail'P smtpConfig Nothing address subject message
   where
@@ -117,7 +117,7 @@ userLogin = do
 
 -- | If user name and password match, login.  Otherwise, redirect to
 -- login page with a message that asks to try again.
-userLoginCallAction :: Action (UserId, ThentosSessionToken) -> FH ()
+userLoginCallAction :: Action () (UserId, ThentosSessionToken) -> FH ()
 userLoginCallAction action = do
     eResult <- snapRunActionE action
       -- FIXME[mf]: See 'runThentosQueryWithLabel' in
@@ -159,7 +159,7 @@ resetPassword = do
             Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
             Left e -> crash500 ("resetPassword" :: ST, e)
 
-sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action ()
+sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action () ()
 sendPasswordResetMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (user ^. userEmail) subject message
   where
@@ -364,7 +364,7 @@ serviceLogin = do
         loggedIn :: FrontendSessionLoginData -> FH ()
         loggedIn fsl = do
             let tok = fsl ^. fslToken
-            eSessionToken :: Either ActionError ServiceSessionToken
+            eSessionToken :: Either (ActionError ()) ServiceSessionToken
                 <- snapRunActionE $ startServiceSession tok sid
 
             case eSessionToken of

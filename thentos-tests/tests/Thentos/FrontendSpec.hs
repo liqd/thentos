@@ -80,7 +80,7 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        eUser <- runThentosQuery st $ T.lookupUserByName (UserName myUsername)
+        (eUser :: Either (ThentosError ()) (UserId, User)) <- runThentosQuery st $ T.lookupUserByName (UserName myUsername)
         fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 

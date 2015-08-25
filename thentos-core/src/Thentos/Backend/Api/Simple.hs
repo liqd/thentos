@@ -46,7 +46,7 @@ serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
 api :: ActionState -> Server Api
-api actionState mTok = enter (enterAction actionState mTok) thentosBasic
+api actionState mTok = enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic
 
 
 -- * combinators
@@ -57,7 +57,7 @@ type ThentosBasic =
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
 
-thentosBasic :: ServerT ThentosBasic Action
+thentosBasic :: ServerT ThentosBasic (Action ())
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -76,7 +76,7 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
   :<|> Get '[JSON] [UserId]
 
-thentosUser :: ServerT ThentosUser Action
+thentosUser :: ServerT ThentosUser (Action ())
 thentosUser =
        addUser
   :<|> deleteUser
@@ -99,7 +99,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService Action
+thentosService :: ServerT ThentosService (Action ())
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
     :<|> deleteService
@@ -114,7 +114,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession Action
+thentosThentosSession :: ServerT ThentosThentosSession (Action ())
 thentosThentosSession =
        uncurry startThentosSessionByUserId
   :<|> uncurry startThentosSessionByServiceId
@@ -129,7 +129,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession Action
+thentosServiceSession :: ServerT ThentosServiceSession (Action ())
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata

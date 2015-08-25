@@ -55,7 +55,7 @@ import Thentos.Transaction.Core (runThentosQuery)
 -- * main
 
 main :: IO ()
-main = makeMain $ \ (actionState@(ActionState (st, _, _))) mBeConfig mFeConfig cmd ->
+main = makeMain $ \ actionState mBeConfig mFeConfig cmd ->
     case cmd of
         Run -> do
             let backend = maybe (return ())
@@ -83,7 +83,7 @@ makeMain commandSwitch =
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
-    runActionWithPrivs [RoleAdmin] actionState $ autocreateMissingServices config
+    runActionWithPrivs [RoleAdmin] actionState $ (autocreateMissingServices config :: Action () ())
 
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
@@ -109,7 +109,7 @@ makeMain commandSwitch =
 runGcLoop :: ActionState -> Maybe Int -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    runActionWithPrivs [RoleAdmin] actionState collectGarbage
+    runActionWithPrivs [RoleAdmin] actionState (collectGarbage :: Action () ())
     threadDelay $ interval * 1000 * 1000
 
 
@@ -123,7 +123,7 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
         -- user
         user <- makeUserFromFormData userData
         logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
-        eu <- runThentosQuery conn $ T.addUser user
+        (eu :: Either (ThentosError ()) UserId) <- runThentosQuery conn $ T.addUser user
 
         if eu == Right (UserId 0)
             then logger DEBUG $ "[ok]"
@@ -131,7 +131,8 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-        result <- mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
+        (result :: [Either (ThentosError ()) ()]) <-
+            mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
 
         if all isRight result
             then logger DEBUG $ "[ok]"
@@ -139,7 +140,7 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
-autocreateMissingServices :: ThentosConfig -> Action ()
+autocreateMissingServices :: ThentosConfig -> Action () ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing'P agent) allSids

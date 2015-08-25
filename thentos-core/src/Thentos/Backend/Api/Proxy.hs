@@ -68,7 +68,7 @@ reverseProxyHandler adapter state req = do
 
           let pReq = prepareReq adapter headers (proxyPath uri) req
           return $ WPRModifiedRequest pReq proxyDest
-        Left e -> WPRResponse . responseServantErr <$> actionErrorToServantErr e
+        Left e -> WPRResponse . responseServantErr <$> baseActionErrorToServantErr e
 
 -- | Allows adapting a proxy for a specific use case.
 data ProxyAdapter = ProxyAdapter
@@ -116,7 +116,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 --
 -- The first parameter allows adapting a proxy for a specific use case.
 -- To get the default behavior, use 'defaultProxyAdapter'.
-getRqMod :: ProxyAdapter -> S.Request -> Action RqMod
+getRqMod :: ProxyAdapter -> S.Request -> Action e RqMod
 getRqMod adapter req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
@@ -137,7 +137,7 @@ getRqMod adapter req = do
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
 -- For convenience, both service ID and target URL are returned.
 findTargetForServiceId ::
-    ServiceId -> ThentosConfig -> Action (ServiceId, ProxyUri)
+    ServiceId -> ThentosConfig -> Action e (ServiceId, ProxyUri)
 findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
@@ -146,7 +146,7 @@ findTargetForServiceId sid conf = do
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
-findDefaultServiceIdAndTarget :: ThentosConfig -> Action (ServiceId, ProxyUri)
+findDefaultServiceIdAndTarget :: ThentosConfig -> Action e (ServiceId, ProxyUri)
 findDefaultServiceIdAndTarget conf = do
     defaultProxy <- maybe (throwError $ MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
@@ -156,7 +156,7 @@ findDefaultServiceIdAndTarget conf = do
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
 createCustomHeaders ::
-    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action T.RequestHeaders
+    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) sid = do
     cfg <- getConfig'P

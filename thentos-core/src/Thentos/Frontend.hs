@@ -27,7 +27,6 @@ import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Types
-import Thentos.Types
 
 
 runFrontend :: HttpConfig -> ActionState -> IO ()

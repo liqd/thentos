@@ -131,6 +131,7 @@ test-suite tests
     , mime-mail
     , mtl
     , network
+    , postgresql-simple
     , pretty-show
     , process
     , QuickCheck
