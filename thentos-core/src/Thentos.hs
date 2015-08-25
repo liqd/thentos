@@ -49,7 +49,7 @@ import Thentos.Util
 
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (runThentosQuery, runThentosQuery)
+import Thentos.Transaction.Core (runThentosQuery)
 
 
 -- * main
