@@ -22,12 +22,12 @@ addUserPrimSpec = describe "addUserPrim" $ do
     it "adds a user to the database" $ \ (ActionState (conn, _, _)) -> do
         let user   = testUsers !! 2
             userId = UserId 289
-        void $ runThentosUpdate conn $ addUserPrim userId user
+        void $ runThentosQuery conn $ addUserPrim userId user
         Right (_, res) <- runThentosQuery conn $ lookupUser userId
         liftIO $ res `shouldBe` user
 
     it "fails if the id is not unique" $ \ (ActionState (conn, _, _)) -> do
         let userId = UserId 289
-        void $ runThentosUpdate conn $ addUserPrim userId (testUsers !! 2)
-        x <- runThentosUpdate conn $ addUserPrim userId (testUsers !! 3)
+        void $ runThentosQuery conn $ addUserPrim userId (testUsers !! 2)
+        x <- runThentosQuery conn $ addUserPrim userId (testUsers !! 3)
         x `shouldBe` Left UserIdAlreadyExists

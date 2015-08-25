@@ -49,7 +49,7 @@ import Thentos.Util
 
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (runThentosUpdate, runThentosQuery)
+import Thentos.Transaction.Core (runThentosQuery, runThentosQuery)
 
 
 -- * main
@@ -123,7 +123,7 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
         -- user
         user <- makeUserFromFormData userData
         logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
-        eu <- runThentosUpdate conn $ T.addUser user
+        eu <- runThentosQuery conn $ T.addUser user
 
         if eu == Right (UserId 0)
             then logger DEBUG $ "[ok]"
@@ -131,7 +131,7 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
 
         -- roles
         logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-        result <- mapM (runThentosUpdate conn . T.assignRole (UserA . UserId $ 0)) roles
+        result <- mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
 
         if all isRight result
             then logger DEBUG $ "[ok]"

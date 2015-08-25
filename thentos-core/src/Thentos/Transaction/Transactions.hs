@@ -17,7 +17,7 @@ import Thentos.Transaction.Core
 flattenGroups :: Service -> UserId -> [Group]
 flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
 
-freshUserId :: ThentosUpdate UserId
+freshUserId :: ThentosQuery UserId
 freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
 
 assertUser :: Maybe UserId -> User -> ThentosQuery ()
@@ -60,7 +60,7 @@ lookupUserByName = error "src/Thentos/Transaction/Transactions.hs:43"
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
 lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
 
-addUserPrim :: UserId -> User -> ThentosUpdate ()
+addUserPrim :: UserId -> User -> ThentosQuery ()
 addUserPrim uid user =
     execT [sql| INSERT INTO users (id, name, password, email)
                        VALUES (?, ?, ?, ?) |] ( uid
@@ -69,43 +69,43 @@ addUserPrim uid user =
                                               , user ^. userEmail
                                               )
 
-addUser :: User -> ThentosUpdate UserId
+addUser :: User -> ThentosQuery UserId
 addUser = error "src/Thentos/Transaction/Transactions.hs:52"
 
-addUsers :: [User] -> ThentosUpdate [UserId]
+addUsers :: [User] -> ThentosQuery [UserId]
 addUsers = error "src/Thentos/Transaction/Transactions.hs:55"
 
 addUnconfirmedUser ::
-    Timestamp -> ConfirmationToken -> User -> ThentosUpdate (UserId, ConfirmationToken)
+    Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
 addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
 
 addUnconfirmedUserWithId ::
-    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosUpdate ConfirmationToken
+    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosQuery ConfirmationToken
 addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
 
 finishUserRegistration ::
-    Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
+    Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId
 finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
 
 finishUserRegistrationById ::
-    Timestamp -> Timeout -> UserId -> ThentosUpdate ()
+    Timestamp -> Timeout -> UserId -> ThentosQuery ()
 finishUserRegistrationById = error "finishUserRegistrationById"
 
 addPasswordResetToken ::
-    Timestamp -> UserEmail -> PasswordResetToken -> ThentosUpdate User
+    Timestamp -> UserEmail -> PasswordResetToken -> ThentosQuery User
 addPasswordResetToken = error "src/Thentos/Transaction/Transactions.hs:71"
 
 resetPassword ::
-    Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosUpdate ()
+    Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery ()
 resetPassword = error "src/Thentos/Transaction/Transactions.hs:75"
 
 addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail
                                              -> ConfirmationToken
-                                             -> ThentosUpdate ()
+                                             -> ThentosQuery ()
 addUserEmailChangeRequest = error "src/Thentos/Transaction/Transactions.hs:80"
 
 confirmUserEmailChange ::
-    Timestamp -> Timeout -> ConfirmationToken -> ThentosUpdate UserId
+    Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId
 confirmUserEmailChange = error "src/Thentos/Transaction/Transactions.hs:84"
 
 lookupEmailChangeToken ::
@@ -120,13 +120,13 @@ data UpdateUserFieldOp =
   | UpdateUserFieldPassword (HashedSecret UserPass)
   deriving (Eq)
 
-updateUserField :: UserId -> UpdateUserFieldOp -> ThentosUpdate ()
+updateUserField :: UserId -> UpdateUserFieldOp -> ThentosQuery ()
 updateUserField = error "src/Thentos/Transaction/Transactions.hs:99"
 
-updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosUpdate ()
+updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery ()
 updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
 
-deleteUser :: UserId -> ThentosUpdate ()
+deleteUser :: UserId -> ThentosQuery ()
 deleteUser = error "src/Thentos/Transaction/Transactions.hs:105"
 
 allServiceIds :: ThentosQuery [ServiceId]
@@ -137,42 +137,42 @@ lookupService = error "src/Thentos/Transaction/Transactions.hs:111"
 
 addService ::
     Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
-    -> ServiceDescription -> ThentosUpdate ()
+    -> ServiceDescription -> ThentosQuery ()
 addService = error "src/Thentos/Transaction/Transactions.hs:116"
 
-deleteService :: ServiceId -> ThentosUpdate ()
+deleteService :: ServiceId -> ThentosQuery ()
 deleteService = error "src/Thentos/Transaction/Transactions.hs:119"
 
 lookupThentosSession ::
-    Timestamp -> ThentosSessionToken -> ThentosUpdate (ThentosSessionToken, ThentosSession)
+    Timestamp -> ThentosSessionToken -> ThentosQuery (ThentosSessionToken, ThentosSession)
 lookupThentosSession = error "src/Thentos/Transaction/Transactions.hs:123"
 
 startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout
-                                       -> ThentosUpdate ()
+                                       -> ThentosQuery ()
 startThentosSession = error "src/Thentos/Transaction/Transactions.hs:127"
 
-endThentosSession :: ThentosSessionToken -> ThentosUpdate ()
+endThentosSession :: ThentosSessionToken -> ThentosQuery ()
 endThentosSession = error "src/Thentos/Transaction/Transactions.hs:130"
 
 lookupServiceSession :: Timestamp -> ServiceSessionToken
-                                        -> ThentosUpdate (ServiceSessionToken, ServiceSession)
+                                        -> ThentosQuery (ServiceSessionToken, ServiceSession)
 lookupServiceSession = error "src/Thentos/Transaction/Transactions.hs:134"
 
 startServiceSession ::
     ThentosSessionToken -> ServiceSessionToken -> ServiceId
-    -> Timestamp -> Timeout -> ThentosUpdate ()
+    -> Timestamp -> Timeout -> ThentosQuery ()
 startServiceSession = error "src/Thentos/Transaction/Transactions.hs:139"
 
-endServiceSession :: ServiceSessionToken -> ThentosUpdate ()
+endServiceSession :: ServiceSessionToken -> ThentosQuery ()
 endServiceSession = error "src/Thentos/Transaction/Transactions.hs:142"
 
 assertAgent :: Agent -> ThentosQuery ()
 assertAgent = error "src/Thentos/Transaction/Transactions.hs:145"
 
-assignRole :: Agent -> Role -> ThentosUpdate ()
+assignRole :: Agent -> Role -> ThentosQuery ()
 assignRole = error "src/Thentos/Transaction/Transactions.hs:148"
 
-unassignRole :: Agent -> Role -> ThentosUpdate ()
+unassignRole :: Agent -> Role -> ThentosQuery ()
 unassignRole = error "src/Thentos/Transaction/Transactions.hs:151"
 
 agentRoles :: Agent -> ThentosQuery (Set.Set Role)
@@ -182,7 +182,7 @@ garbageCollectThentosSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
 garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:157"
 
 doGarbageCollectThentosSessions ::
-    [ThentosSessionToken] -> ThentosUpdate ()
+    [ThentosSessionToken] -> ThentosQuery ()
 doGarbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
 
 garbageCollectServiceSessions ::
@@ -190,17 +190,17 @@ garbageCollectServiceSessions ::
 garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:165"
 
 doGarbageCollectServiceSessions ::
-    [ServiceSessionToken] -> ThentosUpdate ()
+    [ServiceSessionToken] -> ThentosQuery ()
 doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
 doGarbageCollectUnconfirmedUsers ::
-    Timestamp -> Timeout -> ThentosUpdate ()
+    Timestamp -> Timeout -> ThentosQuery ()
 doGarbageCollectUnconfirmedUsers = error "src/Thentos/Transaction/Transactions.hs:173"
 
 doGarbageCollectPasswordResetTokens ::
-    Timestamp -> Timeout -> ThentosUpdate ()
+    Timestamp -> Timeout -> ThentosQuery ()
 doGarbageCollectPasswordResetTokens = error "src/Thentos/Transaction/Transactions.hs:177"
 
 doGarbageCollectEmailChangeTokens ::
-    Timestamp -> Timeout -> ThentosUpdate ()
+    Timestamp -> Timeout -> ThentosQuery ()
 doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"

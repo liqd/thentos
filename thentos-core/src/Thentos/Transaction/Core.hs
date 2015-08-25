@@ -1,8 +1,6 @@
 module Thentos.Transaction.Core
     ( ThentosQuery
-    , ThentosUpdate
     , runThentosQuery
-    , runThentosUpdate
     , queryT
     , execT
     , createDB
@@ -21,8 +19,7 @@ import Paths_thentos_core
 
 import Thentos.Types
 
-type ThentosQuery  a = EitherT ThentosError (ReaderT Connection IO) a
-type ThentosUpdate a = EitherT ThentosError (ReaderT Connection IO) a
+type ThentosQuery a = EitherT ThentosError (ReaderT Connection IO) a
 
 schemaFile :: IO FilePath
 schemaFile = getDataFileName "schema/schema.sql"
@@ -33,18 +30,15 @@ createDB conn = do
     schema <- readFile =<< schemaFile
     void $ execute_ conn (fromString schema)
 
-runThentosUpdate :: Connection -> ThentosUpdate a -> IO (Either ThentosError a)
-runThentosUpdate conn = flip runReaderT conn . runEitherT
-
 runThentosQuery :: Connection -> ThentosQuery a -> IO (Either ThentosError a)
-runThentosQuery = runThentosUpdate
+runThentosQuery conn = flip runReaderT conn . runEitherT
 
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery [r]
 queryT q x = do
     conn <- ask
     liftIO $ query conn q x
 
-execT :: ToRow q => Query -> q -> ThentosUpdate ()
+execT :: ToRow q => Query -> q -> ThentosQuery ()
 execT q x = do
     conn <- ask
     void $ liftIO $ execute conn q x

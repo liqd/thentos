@@ -120,7 +120,7 @@ userLogin = do
 userLoginCallAction :: Action (UserId, ThentosSessionToken) -> FH ()
 userLoginCallAction action = do
     eResult <- snapRunActionE action
-      -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
+      -- FIXME[mf]: See 'runThentosQueryWithLabel' in
       -- "Thentos.DB.Core".  Use that to create transaction
       -- 'CheckPasswordWithLabel', then call that with
       -- 'allowNothing' and 'thentosPublic'.
