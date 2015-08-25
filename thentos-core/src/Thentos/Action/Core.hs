@@ -123,15 +123,10 @@ runActionE ::
     ActionState -> Action a -> IO (Either ActionError a)
 runActionE state action = catchUnknown
   where
---    inner :: IO (Either ThentosError a)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
           . eitherT (return . Left) (return . Right)
           $ fromAction action `runReaderT` state
-
---    catchAnyLabelError :: IO (Either ActionError a)
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
-
---    catchUnknown :: IO (Either ActionError a)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
 runActionWithPrivsE :: ToCNF cnf =>
