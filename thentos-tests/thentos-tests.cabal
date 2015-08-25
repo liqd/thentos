@@ -18,6 +18,7 @@ extra-source-files:
   tests/Thentos/Backend/Api/SimpleSpec.hs
   tests/Thentos/FrontendSpec.hs
   tests/Thentos/TypesSpec.hs
+  tests/Thentos/TransactionSpec.hs
   tests/ThentosSpec.hs
 
 Source-Repository head

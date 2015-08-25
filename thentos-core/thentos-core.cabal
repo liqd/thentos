@@ -114,8 +114,10 @@ library
     , http-types
     , lens
     , lio
+    , lifted-base
     , mime-mail >= 0.4.9
     , MonadCatchIO-transformers
+    , monad-control
     , mtl > 2 && < 2.2
     , mtl-compat
     , old-locale

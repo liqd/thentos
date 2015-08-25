@@ -8,7 +8,9 @@ import qualified Data.Set as Set
 
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
+import Control.Exception (throwIO)
 import Database.PostgreSQL.Simple       (Only(..), query)
+import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 
 import Thentos.Types
@@ -61,13 +63,12 @@ lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
 lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
 
 addUserPrim :: UserId -> User -> ThentosQuery ()
-addUserPrim uid user =
-    execT [sql| INSERT INTO users (id, name, password, email)
-                       VALUES (?, ?, ?, ?) |] ( uid
-                                              , user ^. userName
-                                              , user ^. userPassword
-                                              , user ^. userEmail
-                                              )
+addUserPrim uid user = execT [sql| INSERT INTO users (id, name, password, email)
+                                   VALUES (?, ?, ?, ?) |] ( uid
+                                                          , user ^. userName
+                                                          , user ^. userPassword
+                                                          , user ^. userEmail
+                                                          )
 
 addUser :: User -> ThentosQuery UserId
 addUser = error "src/Thentos/Transaction/Transactions.hs:52"
