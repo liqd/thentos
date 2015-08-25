@@ -1,5 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Thentos.TransactionSpec (spec) where
 
+import Data.Monoid (mempty)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, before)
@@ -31,3 +33,21 @@ addUserPrimSpec = describe "addUserPrim" $ do
         void $ runThentosQuery conn $ addUserPrim userId (testUsers !! 2)
         x <- runThentosQuery conn $ addUserPrim userId (testUsers !! 3)
         x `shouldBe` Left UserIdAlreadyExists
+
+    it "fails if the username is not unique" $ \ (ActionState (conn, _, _)) -> do
+        let user1 = User { _userName = "name"
+                         , _userPassword = encryptTestSecret "pass1"
+                         , _userEmail = forceUserEmail "email1@email.com"
+                         , _userThentosSessions = mempty
+                         , _userServices = mempty
+                         }
+            user2 = User { _userName = "name"
+                         , _userPassword = encryptTestSecret "pass2"
+                         , _userEmail = forceUserEmail "email2@email.com"
+                         , _userThentosSessions = mempty
+                         , _userServices = mempty
+                         }
+
+        void $ runThentosQuery conn $ addUserPrim (UserId 372) user1
+        x <- runThentosQuery conn $ addUserPrim (UserId 482) user2
+        x `shouldBe` Left UserNameAlreadyExists

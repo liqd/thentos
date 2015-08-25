@@ -55,6 +55,7 @@ execT q x = do
 -- ones.
 catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Maybe ThentosError)
 catcher _ (UniqueViolation "users_id_key") = return $ Just UserIdAlreadyExists
+catcher _ (UniqueViolation "users_name_key") = return $ Just UserNameAlreadyExists
 catcher e _                                = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to
