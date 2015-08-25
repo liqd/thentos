@@ -52,8 +52,9 @@ lookupUser uid = do
                           FROM users
                           WHERE id = ? |] (Only uid)
     user <- case users of
+      []     -> throwError NoSuchUser
       [user] -> return user
-      _      -> throwError NoSuchUser
+      _      -> error "lookupUser: multiple results"
     return (uid, user)
 
 lookupUserByName :: UserName -> ThentosQuery (UserId, User)
