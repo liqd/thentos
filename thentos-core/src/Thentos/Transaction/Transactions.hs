@@ -6,6 +6,7 @@ where
 
 import qualified Data.Set as Set
 
+import Data.Monoid (mempty)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
 import Control.Exception (throwIO)
@@ -58,7 +59,15 @@ lookupUser uid = do
     return (uid, user)
 
 lookupUserByName :: UserName -> ThentosQuery (UserId, User)
-lookupUserByName = error "src/Thentos/Transaction/Transactions.hs:43"
+lookupUserByName name = do
+    users <- queryT [sql| SELECT id, name, password, email
+                          FROM users
+                          WHERE name = ? |] (Only name)
+    case users of
+      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
+      []                       -> throwError NoSuchUser
+      _                        -> impossible "lookupUserByName: multiple users"
+
 
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
 lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
@@ -206,3 +215,6 @@ doGarbageCollectPasswordResetTokens = error "src/Thentos/Transaction/Transaction
 doGarbageCollectEmailChangeTokens ::
     Timestamp -> Timeout -> ThentosQuery ()
 doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"
+
+impossible :: String -> a
+impossible = error

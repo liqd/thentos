@@ -97,6 +97,9 @@ newtype UserId = UserId { fromUserId :: Integer }
 instance ToField UserId where
     toField = toField . fromUserId
 
+instance FromField UserId where
+    fromField f dat = UserId <$> fromField f dat
+
 newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
 

@@ -54,10 +54,10 @@ execT q x = do
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
 catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Maybe ThentosError)
-catcher _ (UniqueViolation "users_id_key") = return $ Just UserIdAlreadyExists
-catcher _ (UniqueViolation "users_name_key") = return $ Just UserNameAlreadyExists
+catcher _ (UniqueViolation "users_id_key")    = return $ Just UserIdAlreadyExists
+catcher _ (UniqueViolation "users_name_key")  = return $ Just UserNameAlreadyExists
 catcher _ (UniqueViolation "users_email_key") = return $ Just UserEmailAlreadyExists
-catcher e _                                = throwIO e
+catcher e _                                   = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to
 -- @MonadBaseControl IO m@
