@@ -70,7 +70,14 @@ lookupUserByName name = do
 
 
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
-lookupUserByEmail = error "src/Thentos/Transaction/Transactions.hs:46"
+lookupUserByEmail email = do
+    users <- queryT [sql| SELECT id, name, password, email
+                          FROM users
+                          WHERE email = ? |] (Only email)
+    case users of
+      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
+      []                       -> throwError NoSuchUser
+      _                        -> impossible "lookupUserByEmail: multiple users"
 
 addUserPrim :: UserId -> User -> ThentosQuery ()
 addUserPrim uid user = execT [sql| INSERT INTO users (id, name, password, email)

@@ -19,6 +19,7 @@ spec :: Spec
 spec = describe "Thentos.Transaction" . before (createActionState thentosTestConfig) $ do
     addUserPrimSpec
     lookupUserByNameSpec
+    lookupUserByEmailSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -62,6 +63,18 @@ lookupUserByNameSpec = describe "lookupUserByName" $ do
     it "returns NoSuchUser if no user has the name" $ \ (ActionState (conn, _, _)) -> do
         runThentosQuery conn (lookupUserByName "name") `shouldReturn` Left NoSuchUser
 
+lookupUserByEmailSpec :: SpecWith ActionState
+lookupUserByEmailSpec = describe "lookupUserByEmail" $ do
+
+    it "returns a user if one exists" $ \ (ActionState (conn, _, _)) -> do
+        let user = mkUser "name" "pass" "email@email.com"
+            userid = UserId 437
+        void $ runThentosQuery conn $ addUserPrim userid user
+        runThentosQuery conn (lookupUserByEmail $ forceUserEmail "email@email.com")
+            `shouldReturn` Right (userid, user)
+
+    it "returns NoSuchUser if no user has the email" $ \ (ActionState (conn, _, _)) -> do
+        runThentosQuery conn (lookupUserByName "name") `shouldReturn` Left NoSuchUser
 
 mkUser :: UserName -> SBS -> ST -> User
 mkUser name pass email = User { _userName = name
@@ -70,4 +83,3 @@ mkUser name pass email = User { _userName = name
                               , _userThentosSessions = mempty
                               , _userServices = mempty
                               }
-
