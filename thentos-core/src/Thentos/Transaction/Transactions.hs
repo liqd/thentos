@@ -90,9 +90,6 @@ addUserPrim uid user = execT [sql| INSERT INTO users (id, name, password, email)
 addUser :: User -> ThentosQuery UserId
 addUser = error "src/Thentos/Transaction/Transactions.hs:52"
 
-addUsers :: [User] -> ThentosQuery [UserId]
-addUsers = error "src/Thentos/Transaction/Transactions.hs:55"
-
 addUnconfirmedUser ::
     Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
 addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"

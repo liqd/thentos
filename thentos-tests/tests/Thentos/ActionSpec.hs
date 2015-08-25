@@ -4,7 +4,6 @@
 
 module Thentos.ActionSpec where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
 import Data.Either (isLeft, isRight)
@@ -70,20 +69,6 @@ spec_user = describe "user" $ do
             Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
 
-
-    describe "addUsers" $ do
-        it "works" $ \ sta -> do
-            result <- runActionWithPrivs [RoleAdmin] sta $
-                addUsers ((testUserForms !!) <$> [2..4])
-            result `shouldBe` (UserId <$> [1..3])
-
-        it "rolls back in case of error (adds all or nothing)" $ \ sta -> do
-            _ <- runActionWithPrivs [RoleAdmin] sta $ addUser (testUserForms !! 4)
-            Left (ActionErrorThentos e) <- runActionWithPrivsE [RoleAdmin] sta
-                $ addUsers ((testUserForms !!) <$> [2..4])
-            e `shouldBe` UserNameAlreadyExists
-            result <- runActionWithPrivs [RoleAdmin] sta allUserIds
-            result `shouldBe` (UserId <$> [0..1])
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \ sta -> do

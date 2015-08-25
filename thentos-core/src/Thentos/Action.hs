@@ -23,7 +23,6 @@ module Thentos.Action
     , lookupUserByName
     , lookupUserByEmail
     , addUser
-    , addUsers
     , deleteUser
     , assertUserIsNew
     , addUnconfirmedUser
@@ -165,12 +164,6 @@ addUser :: UserFormData -> Action UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= update'P . T.addUser
-
-addUsers :: [UserFormData] -> Action [UserId]
-addUsers userData = do
-    guardWriteMsg "addUsers" (RoleAdmin %% RoleAdmin)
-    users <- mapM makeUserFromFormData'P userData
-    update'P $ T.addUsers users
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
