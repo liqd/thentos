@@ -4,6 +4,7 @@ module Thentos.TransactionSpec (spec) where
 import Data.Monoid (mempty)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
+import Data.String.Conversions (ST, SBS)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, before)
 
 import Thentos.Action.Core
@@ -35,19 +36,26 @@ addUserPrimSpec = describe "addUserPrim" $ do
         x `shouldBe` Left UserIdAlreadyExists
 
     it "fails if the username is not unique" $ \ (ActionState (conn, _, _)) -> do
-        let user1 = User { _userName = "name"
-                         , _userPassword = encryptTestSecret "pass1"
-                         , _userEmail = forceUserEmail "email1@email.com"
-                         , _userThentosSessions = mempty
-                         , _userServices = mempty
-                         }
-            user2 = User { _userName = "name"
-                         , _userPassword = encryptTestSecret "pass2"
-                         , _userEmail = forceUserEmail "email2@email.com"
-                         , _userThentosSessions = mempty
-                         , _userServices = mempty
-                         }
+        let user1 = mkUser "name" "pass1" "email1@email.com"
+            user2 = mkUser "name" "pass2" "email2@email.com"
 
         void $ runThentosQuery conn $ addUserPrim (UserId 372) user1
         x <- runThentosQuery conn $ addUserPrim (UserId 482) user2
         x `shouldBe` Left UserNameAlreadyExists
+
+    it "fails if the email is not unique" $  \ (ActionState (conn, _, _)) -> do
+        let user1 = mkUser "name1" "pass1" "email@email.com"
+            user2 = mkUser "name2" "pass2" "email@email.com"
+        void $ runThentosQuery conn $ addUserPrim (UserId 372) user1
+        x <- runThentosQuery conn $ addUserPrim (UserId 482) user2
+        x `shouldBe` Left UserEmailAlreadyExists
+
+
+mkUser :: UserName -> SBS -> ST -> User
+mkUser name pass email = User { _userName = name
+                              , _userPassword = encryptTestSecret pass
+                              , _userEmail = forceUserEmail email
+                              , _userThentosSessions = mempty
+                              , _userServices = mempty
+                              }
+
