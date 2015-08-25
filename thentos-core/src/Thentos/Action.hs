@@ -245,9 +245,8 @@ confirmNewUserById uid = do
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
 addPasswordResetToken :: UserEmail -> Action (User, PasswordResetToken)
 addPasswordResetToken email = do
-    now <- getCurrentTime'P
     tok <- freshPasswordResetToken
-    user <- update'P $ T.addPasswordResetToken now email tok
+    user <- update'P $ T.addPasswordResetToken email tok
     return (user, tok)
 
 -- | Finish password reset with email confirmation.
@@ -255,10 +254,9 @@ addPasswordResetToken email = do
 -- SECURITY: See 'confirmNewUser'.
 resetPassword :: PasswordResetToken -> UserPass -> Action ()
 resetPassword token password = do
-    now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> getConfig'P
     hashedPassword <- hashUserPass'P password
-    update'P $ T.resetPassword now expiryPeriod token hashedPassword
+    update'P $ T.resetPassword expiryPeriod token hashedPassword
 
 
 -- ** login

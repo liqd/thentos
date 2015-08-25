@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 import Data.Monoid (mempty)
 import Control.Lens ((^.))
+import Control.Monad (void)
 import Control.Monad.Except (throwError)
 import Control.Exception (throwIO)
 import Database.PostgreSQL.Simple       (Only(..), query)
@@ -80,12 +81,14 @@ lookupUserByEmail email = do
       _                        -> impossible "lookupUserByEmail: multiple users"
 
 addUserPrim :: UserId -> User -> ThentosQuery ()
-addUserPrim uid user = execT [sql| INSERT INTO users (id, name, password, email)
-                                   VALUES (?, ?, ?, ?) |] ( uid
-                                                          , user ^. userName
-                                                          , user ^. userPassword
-                                                          , user ^. userEmail
-                                                          )
+addUserPrim uid user = do
+    void $ execT [sql| INSERT INTO users (id, name, password, email)
+                       VALUES (?, ?, ?, ?) |] ( uid
+                                              , user ^. userName
+                                              , user ^. userPassword
+                                              , user ^. userEmail
+                                              )
+    return ()
 
 addUser :: User -> ThentosQuery UserId
 addUser = error "src/Thentos/Transaction/Transactions.hs:52"
@@ -109,13 +112,27 @@ finishUserRegistrationById ::
     Timestamp -> Timeout -> UserId -> ThentosQuery ()
 finishUserRegistrationById = error "finishUserRegistrationById"
 
-addPasswordResetToken ::
-    Timestamp -> UserEmail -> PasswordResetToken -> ThentosQuery User
-addPasswordResetToken = error "src/Thentos/Transaction/Transactions.hs:71"
+addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery User
+addPasswordResetToken email token = do
+    (uid, user) <- lookupUserByEmail email
+    void $ execT [sql| INSERT INTO password_reset_tokens (token, uid)
+                VALUES (?, ?) |] (token, uid)
+    return user
 
 resetPassword ::
-    Timestamp -> Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery ()
-resetPassword = error "src/Thentos/Transaction/Transactions.hs:75"
+    Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery ()
+resetPassword timeout token newPassword = do
+    modified <- execT [sql| UPDATE users
+                            SET password = ?
+                            FROM password_reset_tokens
+                            WHERE timstamp + ? < now
+                            AND users.id = password_reset_tokens.user_id
+                            AND password_reset_tokens.token = ?
+                      |] (newPassword, timeout, token)
+    case modified of
+        1 -> return ()
+        0 -> throwError NoSuchToken
+        _ -> impossible "password reset token exists multiple times"
 
 addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail
                                              -> ConfirmationToken
