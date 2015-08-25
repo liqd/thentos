@@ -160,6 +160,9 @@ newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+instance ToField PasswordResetToken where
+    toField = toField . fromPasswordResetToken
+
 -- | Information required to create a new User
 data UserFormData =
     UserFormData
@@ -280,6 +283,10 @@ newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
 
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+instance ToField Timeout where
+    toField = toField . timeoutToString
+    -- TODO: is this actually the right format?
 
 timeStampToString :: Timestamp -> String
 timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp

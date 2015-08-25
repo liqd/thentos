@@ -17,6 +17,7 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad.Trans.Control (MonadBaseControl)
+import Data.Int (Int64)
 import Data.String (fromString)
 import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_)
 import Database.PostgreSQL.Simple.Errors (constraintViolation, ConstraintViolation(UniqueViolation))
@@ -43,20 +44,20 @@ queryT q x = do
     conn <- ask
     liftIO $ query conn q x
 
-execT :: ToRow q => Query -> q -> ThentosQuery e ()
+execT :: ToRow q => Query -> q -> ThentosQuery e Int64
 execT q x = do
     conn <- ask
-    e <- catchViolation catcher . liftIO $ execute conn q x >> return Nothing
+    e <- catchViolation catcher . liftIO $ execute conn q x >>= return . Right
     case e of
-        Just err -> throwError err
-        Nothing -> return ()
+        Left err -> throwError err
+        Right n -> return n
 
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
-catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Maybe (ThentosError e))
-catcher _ (UniqueViolation "users_id_key")    = return $ Just UserIdAlreadyExists
-catcher _ (UniqueViolation "users_name_key")  = return $ Just UserNameAlreadyExists
-catcher _ (UniqueViolation "users_email_key") = return $ Just UserEmailAlreadyExists
+catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Either (ThentosError e) a)
+catcher _ (UniqueViolation "users_id_key")    = return $ Left UserIdAlreadyExists
+catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
+catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
 catcher e _                                   = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to

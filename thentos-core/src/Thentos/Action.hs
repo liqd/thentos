@@ -23,7 +23,6 @@ module Thentos.Action
     , lookupUserByName
     , lookupUserByEmail
     , addUser
-    , addUsers
     , deleteUser
     , assertUserIsNew
     , addUnconfirmedUser
@@ -166,12 +165,6 @@ addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= update'P . T.addUser
 
-addUsers :: [UserFormData] -> Action e [UserId]
-addUsers userData = do
-    guardWriteMsg "addUsers" (RoleAdmin %% RoleAdmin)
-    users <- mapM makeUserFromFormData'P userData
-    update'P $ T.addUsers users
-
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
 deleteUser :: UserId -> Action e ()
@@ -245,9 +238,8 @@ confirmNewUserById uid = do
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
 addPasswordResetToken :: UserEmail -> Action e (User, PasswordResetToken)
 addPasswordResetToken email = do
-    now <- getCurrentTime'P
     tok <- freshPasswordResetToken
-    user <- update'P $ T.addPasswordResetToken now email tok
+    user <- update'P $ T.addPasswordResetToken email tok
     return (user, tok)
 
 -- | Finish password reset with email confirmation.
@@ -255,10 +247,9 @@ addPasswordResetToken email = do
 -- SECURITY: See 'confirmNewUser'.
 resetPassword :: PasswordResetToken -> UserPass -> Action e ()
 resetPassword token password = do
-    now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> getConfig'P
     hashedPassword <- hashUserPass'P password
-    update'P $ T.resetPassword now expiryPeriod token hashedPassword
+    update'P $ T.resetPassword expiryPeriod token hashedPassword
 
 
 -- ** login
