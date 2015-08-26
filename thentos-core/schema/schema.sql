@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS "users" (
     id         bigint    UNIQUE NOT NULL,
     name       text      UNIQUE NOT NULL,
-    password   text,
+    password   text      NOT NULL,
     email      text      UNIQUE NOT NULL
 );
 
