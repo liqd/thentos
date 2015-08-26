@@ -91,7 +91,6 @@ addUserPrim uid user = do
                                               , user ^. userPassword
                                               , user ^. userEmail
                                               )
-    return ()
 
 -- | Add a user with a random ID.
 addUser :: User -> ThentosQuery UserId
