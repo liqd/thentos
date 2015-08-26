@@ -9,14 +9,14 @@ CREATE TABLE IF NOT EXISTS "users" (
 );
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
-    id         bigint   REFERENCES users (id),
-    token      text     UNIQUE NOT NULL
+    id         bigint      REFERENCES users (id),
+    token      text        UNIQUE NOT NULL
 );
 
 
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     token      text      NOT NULL,
-    uid        bigint    REFERENCES users (id),
+    uid        bigint    REFERENCES users (id) ON DELETE CASCADE,
     timestamp  timestamp DEFAULT now()
 );
 

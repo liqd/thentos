@@ -24,6 +24,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     addUserSpec
     addUnconfirmedUserSpec
     addUnconfirmedUserWithIdSpec
+    finishUserRegistrationByIdSpec
     lookupUserByNameSpec
     lookupUserByEmailSpec
     deleteUserSpec
@@ -101,6 +102,28 @@ addUnconfirmedUserWithIdSpec = describe "addUnconfirmedUserWithId" $ do
         Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
         Left err <- runThentosQuery conn $ addUnconfirmedUserWithId token user2 userid2
         err `shouldBe` ConfirmationTokenAlreadyExists
+
+finishUserRegistrationByIdSpec :: SpecWith ActionState
+finishUserRegistrationByIdSpec = describe "finishUserRegistrationById" $ do
+    let user   = mkUser "name" "pass" "email@email.com"
+        userid = UserId 321
+        token  = "sometoken"
+
+    it "makes the user be confirmed" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        [Only res1] <- query conn [sql|
+            SELECT confirmed FROM "users"
+            WHERE id = ? |] (Only userid)
+        res1 `shouldBe` False
+        Right () <- runThentosQuery conn $ finishUserRegistrationById userid
+        [Only res2] <- query conn [sql|
+            SELECT confirmed FROM "users"
+            WHERE id = ? |] (Only userid)
+        res2 `shouldBe` True
+
+    {-it "removes the confirmation token" $ \ (ActionState (conn, _, _)) -> do-}
+    {-it "fails if the user is already confirmed" $ \ (ActionState (conn, _, _)) -> do-}
+    {-it "fails if the user doesn't exist" $ \ (ActionState (conn, _, _)) -> do-}
 
 
 lookupUserByNameSpec :: SpecWith ActionState

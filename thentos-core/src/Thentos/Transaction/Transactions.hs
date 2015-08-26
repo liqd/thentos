@@ -88,14 +88,11 @@ addUnconfirmedUser token user = go (5 :: Int)
 
 
 addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery ()
-addUnconfirmedUserWithId token user uid =
-    void $ execT [sql|
-    BEGIN;
-        INSERT INTO users (id, name, password, email, confirmed)
-        VALUES (?, ?, ?, ?, false);
-        INSERT INTO user_confirmation_tokens (id, token)
-        VALUES (?, ?);
-    COMMIT;
+addUnconfirmedUserWithId token user uid = void $ execT [sql|
+    INSERT INTO users (id, name, password, email, confirmed)
+    VALUES (?, ?, ?, ?, false);
+    INSERT INTO user_confirmation_tokens (id, token)
+    VALUES (?, ?);
     |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
        , uid, token )
 
@@ -103,9 +100,16 @@ finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId
 finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
 
-finishUserRegistrationById ::
-    Timestamp -> Timeout -> UserId -> ThentosQuery ()
-finishUserRegistrationById = error "finishUserRegistrationById"
+finishUserRegistrationById :: UserId -> ThentosQuery ()
+finishUserRegistrationById uid = do
+    c <- execT [sql|
+    UPDATE users SET confirmed = true WHERE id = ?;
+    DELETE FROM user_confirmation_tokens WHERE id = ?;
+    |] (uid, uid)
+    case c of
+        1 -> return ()
+        0 -> throwError NoSuchPendingUserConfirmation
+        _ -> impossible "finishUserRegistrationById: id uniqueness violation"
 
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery User
 addPasswordResetToken email token = do
