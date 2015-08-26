@@ -172,7 +172,12 @@ updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery ()
 updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
 
 deleteUser :: UserId -> ThentosQuery ()
-deleteUser = error "src/Thentos/Transaction/Transactions.hs:105"
+deleteUser uid
+    = execT [sql| DELETE FROM users WHERE id = ? |] (Only uid) >>= \ x -> case x of
+      1 -> return ()
+      0 -> throwError NoSuchUser
+      _ -> impossible "deleteUser: unique constraint on id violated"
+
 
 allServiceIds :: ThentosQuery [ServiceId]
 allServiceIds = error "src/Thentos/Transaction/Transactions.hs:108"
