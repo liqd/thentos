@@ -51,9 +51,6 @@ userFacetExists ::
     ThentosError -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery ()
 userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = error "src/Thentos/Transaction/Transactions.hs:34"
 
-allUserIds :: ThentosQuery [UserId]
-allUserIds = error "src/Thentos/Transaction/Transactions.hs:37"
-
 lookupUser :: UserId -> ThentosQuery (UserId, User)
 lookupUser uid = do
     users <- queryT [sql| SELECT name, password, email

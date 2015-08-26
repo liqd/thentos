@@ -18,7 +18,6 @@ module Thentos.Action
     , freshSessionToken
     , freshServiceSessionToken
 
-    , allUserIds
     , lookupUser
     , lookupUserByName
     , lookupUserByEmail
@@ -131,11 +130,6 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 -- * user
 
--- | Return a list of all 'UserId's.  Requires 'RoleAdmin'.
-allUserIds :: Action [UserId]
-allUserIds = do
-    taintMsg "allUserIds" (RoleAdmin %% False)
-    query'P T.allUserIds
 
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
