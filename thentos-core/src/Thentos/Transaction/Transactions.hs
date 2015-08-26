@@ -30,22 +30,7 @@ flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
 freshUserId :: ThentosQuery UserId
 freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
 
-assertUser :: Maybe UserId -> User -> ThentosQuery ()
-assertUser = error "src/Thentos/Transaction/Transactions.hs:16"
-
-assertUserIsNew :: User -> ThentosQuery ()
-assertUserIsNew = error "src/Thentos/Transaction/Transactions.hs:19"
-
 type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
-
-userNameExists :: Maybe UserId -> User -> ThentosQuery ()
-userNameExists = error "src/Thentos/Transaction/Transactions.hs:24"
-
-userEmailExists :: Maybe UserId -> User -> ThentosQuery ()
-userEmailExists = error "src/Thentos/Transaction/Transactions.hs:27"
-
-userIdExists :: UserId -> ThentosQuery ()
-userIdExists = error "src/Thentos/Transaction/Transactions.hs:30"
 
 userFacetExists ::
     ThentosError -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery ()

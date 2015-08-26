@@ -23,7 +23,6 @@ module Thentos.Action
     , lookupUserByEmail
     , addUser
     , deleteUser
-    , assertUserIsNew
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
     , confirmNewUser
@@ -165,13 +164,6 @@ deleteUser :: UserId -> Action ()
 deleteUser uid = do
     guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.deleteUser uid
-
--- | Assert that no user with the same name or email address already exists in the db.
--- Does not require any privileges.
-assertUserIsNew :: UserFormData -> Action ()
-assertUserIsNew userData = do
-    user <- makeUserFromFormData'P userData
-    query'P $ T.assertUserIsNew user
 
 
 -- ** email confirmation
