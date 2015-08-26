@@ -132,7 +132,7 @@ resetPassword timeout token newPassword = do
     modified <- execT [sql| UPDATE users
                             SET password = ?
                             FROM password_reset_tokens
-                            WHERE timstamp + ? < now
+                            WHERE timestamp + ? < now
                             AND users.id = password_reset_tokens.user_id
                             AND password_reset_tokens.token = ?
                       |] (newPassword, timeout, token)
@@ -141,18 +141,37 @@ resetPassword timeout token newPassword = do
         0 -> throwError NoSuchToken
         _ -> impossible "password reset token exists multiple times"
 
-addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail
-                                             -> ConfirmationToken
-                                             -> ThentosQuery ()
-addUserEmailChangeRequest = error "src/Thentos/Transaction/Transactions.hs:80"
+addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery ()
+addUserEmailChangeRequest uid newEmail token = do
+    void $ execT [sql| INSERT INTO email_change_tokens (token, uid, new_email)
+                VALUES (?, ?) |] (token, uid, newEmail)
 
 confirmUserEmailChange ::
-    Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId
-confirmUserEmailChange = error "src/Thentos/Transaction/Transactions.hs:84"
+    Timeout -> ConfirmationToken -> ThentosQuery ()
+confirmUserEmailChange timeout token = do
+    modified <- execT [sql| UPDATE users
+                            SET email = email_change_tokens.new_email
+                            FROM email_change_tokens
+                            WHERE timestamp + ? < now
+                            AND users.id = email_change_tokens.user_id
+                            AND password_reset_tokens.token = ?
+                      |] (timeout, token)
+    case modified of
+        1 -> return ()
+        0 -> throwError NoSuchToken
+        _ -> impossible "email change token exists multiple times"
 
 lookupEmailChangeToken ::
     ConfirmationToken -> ThentosQuery ((UserId, UserEmail), Timestamp)
-lookupEmailChangeToken = error "src/Thentos/Transaction/Transactions.hs:88"
+lookupEmailChangeToken token = do
+    rs <- queryT [sql| SELECT uid, new_email, timestamp
+                       FROM email_change_tokens
+                       WHERE token = ? |] (Only token)
+    case rs of
+        [(uid, email, ts)] -> return ((uid, email), ts)
+        []                 -> throwError NoSuchToken
+        _                  -> impossible "repeated email change token"
+
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName

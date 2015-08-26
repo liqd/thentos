@@ -8,6 +8,13 @@ CREATE TABLE IF NOT EXISTS "users" (
 
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     token      text      NOT NULL,
-    uid        integer   REFERENCES users (id),
+    uid        bigint    REFERENCES users (id),
     timestamp  timestamp DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "email_change_tokens" (
+    token      text      NOT NULL,
+    uid        bigint    REFERENCES users (id),
+    timestamp  timestamp DEFAULT now(),
+    new_email  text      NOT NULL
 );

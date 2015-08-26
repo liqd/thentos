@@ -29,6 +29,7 @@ import qualified Data.Set as Set
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
+import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
@@ -158,6 +159,9 @@ instance Aeson.ToJSON UserEmail
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+instance ToField ConfirmationToken where
+    toField = toField . fromConfirmationToken
+
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
@@ -282,27 +286,33 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
+instance ToField Timestamp where
+    toField = toField . fromThyme . fromTimestamp
+
+instance FromField Timestamp where
+    fromField f dat = Timestamp . toThyme <$> fromField f dat
+
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 instance ToField Timeout where
-    toField = toField . timeoutToString
+    toField = toField . fromThyme . fromTimeout
     -- TODO: is this actually the right format?
 
-timeStampToString :: Timestamp -> String
-timeStampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
+timestampToString :: Timestamp -> String
+timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
 
-timeStampFromString :: Monad m => String -> m Timestamp
-timeStampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
+timestampFromString :: Monad m => String -> m Timestamp
+timestampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
   Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
 
 instance Aeson.FromJSON Timestamp
   where
-    parseJSON = (>>= timeStampFromString) . Aeson.parseJSON
+    parseJSON = (>>= timestampFromString) . Aeson.parseJSON
 
 instance Aeson.ToJSON Timestamp
   where
-    toJSON = Aeson.toJSON . timeStampToString
+    toJSON = Aeson.toJSON . timestampToString
 
 timeoutToString :: Timeout -> String
 timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout

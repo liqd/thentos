@@ -301,10 +301,9 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
     guardWriteMsg "requestUserEmailChange" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
 
     tok <- freshConfirmationToken
-    now <- getCurrentTime'P
     smtpConfig <- (Tagged . (>>. (Proxy :: Proxy '["smtp"]))) <$> getConfig'P
 
-    update'P $ T.addUserEmailChangeRequest now uid newEmail tok
+    update'P $ T.addUserEmailChangeRequest uid newEmail tok
 
     let message = "Please go to " <> callbackUrlBuilder tok <> " to confirm your change of email address."
         subject = "Thentos email address change"
@@ -320,11 +319,10 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- only token secrecy.
 confirmUserEmailChange :: ConfirmationToken -> Action ()
 confirmUserEmailChange token = do
-    now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     ((uid, _), _) <- query'P $ T.lookupEmailChangeToken token
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (void . update'P $ T.confirmUserEmailChange now expiryPeriod token)
+                  (void . update'P $ T.confirmUserEmailChange expiryPeriod token)
                   (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
 
 
