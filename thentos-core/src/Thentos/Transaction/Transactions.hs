@@ -64,12 +64,12 @@ lookupUserByEmail email = do
 
 addUserPrim :: UserId -> User -> ThentosQuery ()
 addUserPrim uid user = do
-    void $ execT [sql| INSERT INTO users (id, name, password, email)
-                       VALUES (?, ?, ?, ?) |] ( uid
-                                              , user ^. userName
-                                              , user ^. userPassword
-                                              , user ^. userEmail
-                                              )
+    void $ execT [sql| INSERT INTO users (id, name, password, email, confirmed)
+                       VALUES (?, ?, ?, ?, true) |] ( uid
+                                                    , user ^. userName
+                                                    , user ^. userPassword
+                                                    , user ^. userEmail
+                                                    )
 
 -- | Add a user with a random ID.
 addUser :: User -> ThentosQuery UserId
@@ -85,9 +85,17 @@ addUnconfirmedUser ::
     Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
 addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
 
-addUnconfirmedUserWithId ::
-    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosQuery ConfirmationToken
-addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
+addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery ()
+addUnconfirmedUserWithId token user uid =
+    void $ execT [sql|
+    BEGIN;
+        INSERT INTO users (id, name, password, email, confirmed)
+        VALUES (?, ?, ?, ?, false);
+        INSERT INTO user_confirmation_tokens (id, token)
+        VALUES (?, ?);
+    COMMIT;
+    |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
+       , uid, token )
 
 finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId

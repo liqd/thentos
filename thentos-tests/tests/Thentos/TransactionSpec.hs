@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
@@ -6,6 +7,8 @@ import Data.Monoid (mempty)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.String.Conversions (ST, SBS)
+import Database.PostgreSQL.Simple (Only(..), query)
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, before)
 
 import Thentos.Action.Core
@@ -20,6 +23,7 @@ spec :: Spec
 spec = describe "Thentos.Transaction" . before (createActionState thentosTestConfig) $ do
     addUserPrimSpec
     addUserSpec
+    addUnconfirmedUserWithIdSpec
     lookupUserByNameSpec
     lookupUserByEmailSpec
     deleteUserSpec
@@ -62,6 +66,31 @@ addUserSpec = describe "addUser" $ do
         let names = _userName <$> testUsers
         Right res <- runThentosQuery conn $ mapM lookupUserByName names
         liftIO $ (snd <$> res) `shouldBe` testUsers
+
+addUnconfirmedUserWithIdSpec :: SpecWith ActionState
+addUnconfirmedUserWithIdSpec = describe "addUnconfirmedUserWithId" $ do
+    let user   = mkUser "name" "pass" "email@email.com"
+        userid = UserId 321
+        token  = "sometoken"
+
+    it "adds an unconfirmed user to the DB" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        Right res <- runThentosQuery conn $ lookupUserByName "name"
+        liftIO $ snd res `shouldBe` user
+
+    it "adds the token for the user to the DB" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        [res] <- query conn [sql|
+            SELECT token FROM user_confirmation_tokens
+            WHERE id = ? |] (Only userid)
+        liftIO $ res `shouldBe` token
+
+    it "fails if the token is not unique" $ \ (ActionState (conn, _, _)) -> do
+        let user2 = mkUser "name2" "pass" "email2@email.com"
+            userid2 = UserId 322
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        Left err <- runThentosQuery conn $ addUnconfirmedUserWithId token user2 userid2
+        err `shouldBe` ConfirmationTokenAlreadyExists
 
 
 lookupUserByNameSpec :: SpecWith ActionState

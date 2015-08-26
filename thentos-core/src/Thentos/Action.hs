@@ -179,8 +179,9 @@ addUnconfirmedUser userData = do
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
 addUnconfirmedUserWithId :: UserFormData -> UserId -> Action ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
-    (now, tok, user) <- prepareUserData userData
-    update'P $ T.addUnconfirmedUserWithId now tok user userId
+    (_, tok, user) <- prepareUserData userData
+    update'P $ T.addUnconfirmedUserWithId tok user userId
+    return tok
 
 -- | Collect the data needed for the /addUnconfirmedUser.../ calls.
 prepareUserData :: UserFormData -> Action (Timestamp, ConfirmationToken, User)
