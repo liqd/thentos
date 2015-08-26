@@ -23,7 +23,6 @@ module Thentos.Action
     , lookupUserByEmail
     , addUser
     , deleteUser
-    , assertUserIsNew
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
     , confirmNewUser
@@ -166,13 +165,6 @@ deleteUser uid = do
     guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.deleteUser uid
 
--- | Assert that no user with the same name or email address already exists in the db.
--- Does not require any privileges.
-assertUserIsNew :: UserFormData -> Action ()
-assertUserIsNew userData = do
-    user <- makeUserFromFormData'P userData
-    query'P $ T.assertUserIsNew user
-
 
 -- ** email confirmation
 
@@ -180,20 +172,19 @@ assertUserIsNew userData = do
 -- 'confirmNewUser'.
 addUnconfirmedUser :: UserFormData -> Action (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    (now, tok, user) <- prepareUserData userData
-    update'P $ T.addUnconfirmedUser now tok user
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
+    uid  <- update'P $ T.addUnconfirmedUser tok user
+    return (uid, tok)
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
 addUnconfirmedUserWithId :: UserFormData -> UserId -> Action ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
-    (now, tok, user) <- prepareUserData userData
-    update'P $ T.addUnconfirmedUserWithId now tok user userId
-
--- | Collect the data needed for the /addUnconfirmedUser.../ calls.
-prepareUserData :: UserFormData -> Action (Timestamp, ConfirmationToken, User)
-prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
-                                <*> makeUserFromFormData'P userData
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
+    update'P $ T.addUnconfirmedUserWithId tok user userId
+    return tok
 
 -- | Finish email-verified user creation.
 --

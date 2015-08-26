@@ -369,7 +369,6 @@ api manager actionState =
 addUser :: A3UserWithPass -> AC.Action DB TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    A.assertUserIsNew user
     cfg <- AC.getConfig'P
     uid <- createUserInA3'P user
     void $ A.addUnconfirmedUserWithId user uid

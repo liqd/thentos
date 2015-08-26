@@ -12,12 +12,8 @@ import Control.Lens ((^.))
 import Control.Monad (void)
 import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
-import Control.Monad.Trans.Either (eitherT)
-import Control.Monad.Reader.Class (ask)
 import Control.Monad.IO.Class (liftIO)
-import Control.Exception (throwIO)
-import Database.PostgreSQL.Simple       (Only(..), query)
-import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
+import Database.PostgreSQL.Simple       (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import System.Random (randomIO)
 
@@ -29,27 +25,6 @@ flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
 
 freshUserId :: ThentosQuery UserId
 freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
-
-assertUser :: Maybe UserId -> User -> ThentosQuery ()
-assertUser = error "src/Thentos/Transaction/Transactions.hs:16"
-
-assertUserIsNew :: User -> ThentosQuery ()
-assertUserIsNew = error "src/Thentos/Transaction/Transactions.hs:19"
-
-type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
-
-userNameExists :: Maybe UserId -> User -> ThentosQuery ()
-userNameExists = error "src/Thentos/Transaction/Transactions.hs:24"
-
-userEmailExists :: Maybe UserId -> User -> ThentosQuery ()
-userEmailExists = error "src/Thentos/Transaction/Transactions.hs:27"
-
-userIdExists :: UserId -> ThentosQuery ()
-userIdExists = error "src/Thentos/Transaction/Transactions.hs:30"
-
-userFacetExists ::
-    ThentosError -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery ()
-userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = error "src/Thentos/Transaction/Transactions.hs:34"
 
 lookupUser :: UserId -> ThentosQuery (UserId, User)
 lookupUser uid = do
@@ -68,9 +43,9 @@ lookupUserByName name = do
                           FROM users
                           WHERE name = ? |] (Only name)
     case users of
-      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
-      []                       -> throwError NoSuchUser
-      _                        -> impossible "lookupUserByName: multiple users"
+      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email mempty mempty)
+      []                        -> throwError NoSuchUser
+      _                         -> impossible "lookupUserByName: multiple users"
 
 
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
@@ -85,17 +60,16 @@ lookupUserByEmail email = do
 
 addUserPrim :: UserId -> User -> ThentosQuery ()
 addUserPrim uid user = do
-    void $ execT [sql| INSERT INTO users (id, name, password, email)
-                       VALUES (?, ?, ?, ?) |] ( uid
-                                              , user ^. userName
-                                              , user ^. userPassword
-                                              , user ^. userEmail
-                                              )
-    return ()
+    void $ execT [sql| INSERT INTO users (id, name, password, email, confirmed)
+                       VALUES (?, ?, ?, ?, true) |] ( uid
+                                                    , user ^. userName
+                                                    , user ^. userPassword
+                                                    , user ^. userEmail
+                                                    )
 
 -- | Add a user with a random ID.
 addUser :: User -> ThentosQuery UserId
-addUser user = go 5
+addUser user = go (5 :: Int)
   where
     go 0 = error "addUser: could not generate unique id"
     go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
@@ -103,13 +77,27 @@ addUser user = go 5
             f e                   = throwError e
 
 
-addUnconfirmedUser ::
-    Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
-addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosQuery UserId
+addUnconfirmedUser token user = go (5 :: Int)
+  where
+    go 0 = error "addUnconfirmedUser: could not generate unique id"
+    go n = liftIO randomIO >>= \uid -> (addUnconfirmedUserWithId token user uid
+                                        >> return uid) `catch` f
+      where f UserIdAlreadyExists = go (n - 1)
+            f e                   = throwError e
 
-addUnconfirmedUserWithId ::
-    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosQuery ConfirmationToken
-addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
+
+addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery ()
+addUnconfirmedUserWithId token user uid =
+    void $ execT [sql|
+    BEGIN;
+        INSERT INTO users (id, name, password, email, confirmed)
+        VALUES (?, ?, ?, ?, false);
+        INSERT INTO user_confirmation_tokens (id, token)
+        VALUES (?, ?);
+    COMMIT;
+    |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
+       , uid, token )
 
 finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery UserId

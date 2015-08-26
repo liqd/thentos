@@ -21,9 +21,10 @@ import Data.Int (Int64)
 import Data.String (fromString)
 import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_, sqlExecStatus)
 import Database.PostgreSQL.Simple.Errors (constraintViolation, ConstraintViolation(UniqueViolation))
-import Paths_thentos_core
 
+import Paths_thentos_core
 import Thentos.Types
+
 
 type ThentosQuery a = EitherT ThentosError (ReaderT Connection IO) a
 
@@ -58,6 +59,8 @@ catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Either
 catcher _ (UniqueViolation "users_id_key")    = return $ Left UserIdAlreadyExists
 catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
 catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
+catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
+    = return $ Left ConfirmationTokenAlreadyExists
 catcher e _                                   = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to

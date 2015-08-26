@@ -157,7 +157,10 @@ instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, IsString)
+
+instance FromRow ConfirmationToken where
+    fromRow = ConfirmationToken <$> field
 
 instance ToField ConfirmationToken where
     toField = toField . fromConfirmationToken
@@ -429,6 +432,7 @@ data ThentosError =
       NoSuchUser
     | NoSuchPendingUserConfirmation
     | MalformedConfirmationToken ST
+    | ConfirmationTokenAlreadyExists
     | NoSuchService
     | NoSuchThentosSession
     | NoSuchServiceSession
