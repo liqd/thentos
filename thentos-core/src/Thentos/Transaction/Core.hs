@@ -12,7 +12,7 @@ where
 
 import Control.Monad.Except (throwError)
 import Control.Exception.Lifted (catch, throwIO)
-import Control.Monad (void, mzero)
+import Control.Monad (void, mzero, liftM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
@@ -47,7 +47,7 @@ queryT q x = do
 execT :: ToRow q => Query -> q -> ThentosQuery Int64
 execT q x = do
     conn <- ask
-    e <- catchViolation catcher . liftIO $ execute conn q x >>= return . Right
+    e <- catchViolation catcher . liftIO . liftM Right $ execute conn q x
     case e of
         Left err -> throwError err
         Right n -> return n

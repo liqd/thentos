@@ -36,6 +36,7 @@ import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.Common.Text (FromText)
 import System.Locale (defaultTimeLocale)
+import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
@@ -92,7 +93,7 @@ newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, FromJSON, ToJSON, Typeable, Generic, FromText)
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText)
 
 instance ToField UserId where
     toField = toField . fromUserId

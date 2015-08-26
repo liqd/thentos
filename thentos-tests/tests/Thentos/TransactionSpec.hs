@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Thentos.TransactionSpec (spec) where
 
+import Control.Applicative ((<$>))
 import Data.Monoid (mempty)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
@@ -18,6 +19,7 @@ import Thentos.Test.Config
 spec :: Spec
 spec = describe "Thentos.Transaction" . before (createActionState thentosTestConfig) $ do
     addUserPrimSpec
+    addUserSpec
     lookupUserByNameSpec
     lookupUserByEmailSpec
 
@@ -50,6 +52,16 @@ addUserPrimSpec = describe "addUserPrim" $ do
         void $ runThentosQuery conn $ addUserPrim (UserId 372) user1
         x <- runThentosQuery conn $ addUserPrim (UserId 482) user2
         x `shouldBe` Left UserEmailAlreadyExists
+
+addUserSpec :: SpecWith ActionState
+addUserSpec = describe "addUser" $ do
+
+    it "adds a user to the database" $ \ (ActionState (conn, _, _)) -> do
+        void $ runThentosQuery conn $ mapM_ addUser testUsers
+        let names = _userName <$> testUsers
+        Right res <- runThentosQuery conn $ mapM lookupUserByName names
+        liftIO $ (snd <$> res) `shouldBe` testUsers
+
 
 lookupUserByNameSpec :: SpecWith ActionState
 lookupUserByNameSpec = describe "lookupUserByName" $ do

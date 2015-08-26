@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Thentos.Transaction.Transactions
@@ -9,11 +10,16 @@ import qualified Data.Set as Set
 import Data.Monoid (mempty)
 import Control.Lens ((^.))
 import Control.Monad (void)
+import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
+import Control.Monad.Trans.Either (eitherT)
+import Control.Monad.Reader.Class (ask)
+import Control.Monad.IO.Class (liftIO)
 import Control.Exception (throwIO)
 import Database.PostgreSQL.Simple       (Only(..), query)
 import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import System.Random (randomIO)
 
 import Thentos.Types
 import Thentos.Transaction.Core
@@ -90,8 +96,15 @@ addUserPrim uid user = do
                                               )
     return ()
 
+-- | Add a user with a random ID.
 addUser :: User -> ThentosQuery UserId
-addUser = error "src/Thentos/Transaction/Transactions.hs:52"
+addUser user = go 5
+  where
+    go 0 = error "addUser: could not generate unique id"
+    go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
+      where f UserIdAlreadyExists = go (n - 1)
+            f e                   = throwError e
+
 
 addUnconfirmedUser ::
     Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
