@@ -12,12 +12,8 @@ import Control.Lens ((^.))
 import Control.Monad (void)
 import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
-import Control.Monad.Trans.Either (eitherT)
-import Control.Monad.Reader.Class (ask)
 import Control.Monad.IO.Class (liftIO)
-import Control.Exception (throwIO)
-import Database.PostgreSQL.Simple       (Only(..), query)
-import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
+import Database.PostgreSQL.Simple       (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import System.Random (randomIO)
 
@@ -47,9 +43,9 @@ lookupUserByName name = do
                           FROM users
                           WHERE name = ? |] (Only name)
     case users of
-      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
-      []                       -> throwError NoSuchUser
-      _                        -> impossible "lookupUserByName: multiple users"
+      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email mempty mempty)
+      []                        -> throwError NoSuchUser
+      _                         -> impossible "lookupUserByName: multiple users"
 
 
 lookupUserByEmail :: UserEmail -> ThentosQuery (UserId, User)
@@ -73,7 +69,7 @@ addUserPrim uid user = do
 
 -- | Add a user with a random ID.
 addUser :: User -> ThentosQuery UserId
-addUser user = go 5
+addUser user = go (5 :: Int)
   where
     go 0 = error "addUser: could not generate unique id"
     go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
@@ -81,9 +77,15 @@ addUser user = go 5
             f e                   = throwError e
 
 
-addUnconfirmedUser ::
-    Timestamp -> ConfirmationToken -> User -> ThentosQuery (UserId, ConfirmationToken)
-addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosQuery UserId
+addUnconfirmedUser token user = go (5 :: Int)
+  where
+    go 0 = error "addUnconfirmedUser: could not generate unique id"
+    go n = liftIO randomIO >>= \uid -> (addUnconfirmedUserWithId token user uid
+                                        >> return uid) `catch` f
+      where f UserIdAlreadyExists = go (n - 1)
+            f e                   = throwError e
+
 
 addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery ()
 addUnconfirmedUserWithId token user uid =
