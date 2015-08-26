@@ -172,22 +172,19 @@ deleteUser uid = do
 -- 'confirmNewUser'.
 addUnconfirmedUser :: UserFormData -> Action (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    (tok, user) <- prepareUserData userData
-    uid <- update'P $ T.addUnconfirmedUser tok user
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
+    uid  <- update'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
 addUnconfirmedUserWithId :: UserFormData -> UserId -> Action ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
-    (tok, user) <- prepareUserData userData
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
     update'P $ T.addUnconfirmedUserWithId tok user userId
     return tok
-
--- | Collect the data needed for the /addUnconfirmedUser.../ calls.
-prepareUserData :: UserFormData -> Action (ConfirmationToken, User)
-prepareUserData userData = (,) <$> freshConfirmationToken
-                               <*> makeUserFromFormData'P userData
 
 -- | Finish email-verified user creation.
 --
