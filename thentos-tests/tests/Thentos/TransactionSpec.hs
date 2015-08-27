@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty)
+import Control.Lens ((^.))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
 import Database.PostgreSQL.Simple (Only(..), query)
@@ -14,6 +16,7 @@ import Thentos.Action.Core
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
+import Thentos.Util (hashUserPass)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
@@ -28,6 +31,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     lookupUserByNameSpec
     lookupUserByEmailSpec
     deleteUserSpec
+    passwordResetTokenSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -178,6 +182,33 @@ deleteUserSpec = describe "deleteUser" $ do
 
     it "throws NoSuchUser if the id does not exist" $ \ (ActionState (conn, _, _)) -> do
         runThentosQuery conn (deleteUser $ UserId 210) `shouldReturn` Left NoSuchUser
+
+passwordResetTokenSpec :: SpecWith ActionState
+passwordResetTokenSpec = describe "addPasswordResetToken" $ do
+    it "adds a password reset to the db" $ \(ActionState (conn, _, _)) -> do
+        let user = mkUser "name" "super secret" "me@example.com"
+            userId = UserId 584
+            testToken = PasswordResetToken "asgbagbaosubgoas"
+        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $
+            addPasswordResetToken (user ^. userEmail) testToken
+        [Only token_in_db] <- query conn
+            [sql| SELECT token FROM password_reset_tokens |] ()
+        token_in_db `shouldBe` testToken
+
+    it "resets a password when the given token exists" $ \(ActionState (conn, _, _)) -> do
+        let user = mkUser "name" "super secret" "me@example.com"
+            userId = UserId 594
+            testToken = PasswordResetToken "asgbagbaosubgoas"
+        newEncryptedPass <- hashUserPass "newSecretP4ssw0rd"
+        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $
+            addPasswordResetToken (user ^. userEmail) testToken
+        Right _ <- runThentosQuery conn $
+            resetPassword (Timeout 3600) testToken newEncryptedPass
+        [Only newPassInDB] <- query conn
+            [sql| SELECT password FROM users WHERE id = ?|] (Only userId)
+        newPassInDB `shouldBe` newEncryptedPass
 
 
 -- * Utils

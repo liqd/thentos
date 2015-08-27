@@ -16,13 +16,13 @@ CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
 
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     token      text      NOT NULL,
-    uid        bigint    REFERENCES users (id) ON DELETE CASCADE,
+    uid        bigint    NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     timestamp  timestamp DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "email_change_tokens" (
     token      text      NOT NULL,
-    uid        bigint    REFERENCES users (id),
+    uid        bigint    NOT NULL REFERENCES users (id),
     timestamp  timestamp DEFAULT now(),
     new_email  text      NOT NULL
 );

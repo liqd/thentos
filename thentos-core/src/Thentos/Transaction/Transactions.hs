@@ -124,8 +124,8 @@ resetPassword timeout token newPassword = do
     modified <- execT [sql| UPDATE users
                             SET password = ?
                             FROM password_reset_tokens
-                            WHERE timestamp + ? < now
-                            AND users.id = password_reset_tokens.user_id
+                            WHERE password_reset_tokens.timestamp + ? > now()
+                            AND users.id = password_reset_tokens.uid
                             AND password_reset_tokens.token = ?
                       |] (newPassword, timeout, token)
     case modified of
@@ -144,8 +144,8 @@ confirmUserEmailChange timeout token = do
     modified <- execT [sql| UPDATE users
                             SET email = email_change_tokens.new_email
                             FROM email_change_tokens
-                            WHERE timestamp + ? < now
-                            AND users.id = email_change_tokens.user_id
+                            WHERE timestamp + ? < now()
+                            AND users.id = email_change_tokens.uid
                             AND password_reset_tokens.token = ?
                       |] (timeout, token)
     case modified of

@@ -167,6 +167,9 @@ newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
 instance ToField PasswordResetToken where
     toField = toField . fromPasswordResetToken
 
+instance FromField PasswordResetToken where
+    fromField f dat = PasswordResetToken <$> fromField f dat
+
 -- | Information required to create a new User
 data UserFormData =
     UserFormData
