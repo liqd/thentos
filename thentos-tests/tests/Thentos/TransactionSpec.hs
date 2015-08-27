@@ -121,9 +121,23 @@ finishUserRegistrationByIdSpec = describe "finishUserRegistrationById" $ do
             WHERE id = ? |] (Only userid)
         res2 `shouldBe` True
 
-    {-it "removes the confirmation token" $ \ (ActionState (conn, _, _)) -> do-}
-    {-it "fails if the user is already confirmed" $ \ (ActionState (conn, _, _)) -> do-}
-    {-it "fails if the user doesn't exist" $ \ (ActionState (conn, _, _)) -> do-}
+    it "removes the confirmation token" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        Right () <- runThentosQuery conn $ finishUserRegistrationById userid
+        res <- query conn [sql|
+            SELECT token FROM user_confirmation_tokens
+            WHERE id = ? |] (Only userid)
+        res `shouldBe` ([] :: [ConfirmationToken])
+
+    it "fails if the user is already confirmed" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token user userid
+        Right () <- runThentosQuery conn $ finishUserRegistrationById userid
+        Left err <- runThentosQuery conn $ finishUserRegistrationById userid
+        err `shouldBe` NoSuchPendingUserConfirmation
+
+    it "fails if the user doesn't exist" $ \ (ActionState (conn, _, _)) -> do
+        Left err <- runThentosQuery conn $ finishUserRegistrationById userid
+        err `shouldBe` NoSuchPendingUserConfirmation
 
 
 lookupUserByNameSpec :: SpecWith ActionState

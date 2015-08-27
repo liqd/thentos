@@ -28,7 +28,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
-import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
 import Data.Typeable (Typeable)
