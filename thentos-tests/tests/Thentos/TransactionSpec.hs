@@ -33,6 +33,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     deleteUserSpec
     passwordResetTokenSpec
     doGarbageCollectUnconfirmedUsersSpec
+    doGarbageCollectPasswordResetTokensSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -239,6 +240,30 @@ doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUser
         [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (1 :: Int)
         usrs `shouldBe` (1 :: Int)
+
+
+doGarbageCollectPasswordResetTokensSpec :: SpecWith ActionState
+doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
+    let user   = mkUser "name1" "pass" "email1@email.com"
+        userid = UserId 321
+        email = forceUserEmail "email1@email.com"
+        passToken = "sometoken2"
+
+    it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        void $ runThentosQuery conn $ addUserPrim userid user
+        void $ runThentosQuery conn $ addPasswordResetToken email passToken
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns `shouldBe` (1 :: Int)
+        Right () <- runThentosQuery conn $ doGarbageCollectPasswordResetTokens 0
+        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns' `shouldBe` (0 :: Int)
+
+    it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        void $ runThentosQuery conn $ addUserPrim userid user
+        void $ runThentosQuery conn $ addPasswordResetToken email passToken
+        void $ runThentosQuery conn $ doGarbageCollectPasswordResetTokens 1000000
+        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns' `shouldBe` (1 :: Int)
 
 
 -- * Utils
