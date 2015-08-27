@@ -251,9 +251,10 @@ doGarbageCollectServiceSessions ::
     [ServiceSessionToken] -> ThentosQuery ()
 doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
-doGarbageCollectUnconfirmedUsers ::
-    Timestamp -> Timeout -> ThentosQuery ()
-doGarbageCollectUnconfirmedUsers = error "src/Thentos/Transaction/Transactions.hs:173"
+doGarbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery ()
+doGarbageCollectUnconfirmedUsers timeout = void $ execT [sql|
+    DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
+    |] (Only (round timeout :: Integer))
 
 doGarbageCollectPasswordResetTokens ::
     Timestamp -> Timeout -> ThentosQuery ()

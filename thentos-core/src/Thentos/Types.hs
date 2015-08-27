@@ -292,7 +292,7 @@ instance FromField Timestamp where
     fromField f dat = Timestamp . toThyme <$> fromField f dat
 
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+  deriving (Eq, Ord, Show, Read, Num, Real, Fractional, RealFrac, Bounded, Typeable, Generic)
 
 instance ToField Timeout where
     toField = toField . fromThyme . fromTimeout

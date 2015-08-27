@@ -602,7 +602,7 @@ collectGarbage = do
     let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
         passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
         emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
-    update'P $ T.doGarbageCollectUnconfirmedUsers now userExpiry
+    update'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
     update'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
     update'P $ T.doGarbageCollectPasswordResetTokens now passwordExpiry
 

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS "users" (
 );
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
-    id         bigint      REFERENCES users (id),
+    id         bigint      REFERENCES users (id) ON DELETE CASCADE,
     token      text        UNIQUE NOT NULL
 );
 

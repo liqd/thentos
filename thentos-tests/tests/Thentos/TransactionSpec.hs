@@ -6,7 +6,7 @@ import Control.Applicative ((<$>))
 import Data.Monoid (mempty)
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
-import Database.PostgreSQL.Simple (Only(..), query)
+import Database.PostgreSQL.Simple (Only(..), query, query_, execute)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, before)
 
@@ -28,6 +28,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     lookupUserByNameSpec
     lookupUserByEmailSpec
     deleteUserSpec
+    doGarbageCollectUnconfirmedUsersSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -178,6 +179,35 @@ deleteUserSpec = describe "deleteUser" $ do
 
     it "throws NoSuchUser if the id does not exist" $ \ (ActionState (conn, _, _)) -> do
         runThentosQuery conn (deleteUser $ UserId 210) `shouldReturn` Left NoSuchUser
+
+-- * Garbage collection
+
+doGarbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
+doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUsers" $ do
+    let user1   = mkUser "name1" "pass" "email1@email.com"
+        userid1 = UserId 321
+        token1  = "sometoken1"
+        user2   = mkUser "name2" "pass" "email2@email.com"
+        userid2 = UserId 322
+        token2  = "sometoken2"
+
+    it "deletes all expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token2 user2 userid2
+        Right () <- runThentosQuery conn $ doGarbageCollectUnconfirmedUsers 0
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
+        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
+        tkns `shouldBe` (0 :: Int)
+        usrs `shouldBe` (0 :: Int)
+
+    it "only deletes expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runThentosQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
+        Right () <- runThentosQuery conn $ doGarbageCollectUnconfirmedUsers 100000
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
+        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
+        tkns `shouldBe` (1 :: Int)
+        usrs `shouldBe` (1 :: Int)
+
 
 
 -- * Utils
