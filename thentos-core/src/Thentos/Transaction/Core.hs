@@ -38,7 +38,7 @@ createDB conn = do
     void $ execute_ conn (fromString schema)
 
 runThentosQuery :: Connection -> ThentosQuery a -> IO (Either ThentosError a)
-runThentosQuery conn = flip runReaderT conn . runEitherT
+runThentosQuery conn query = runReaderT (runEitherT query) conn
 
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery [r]
 queryT q x = do
@@ -56,7 +56,7 @@ execT q x = do
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
 catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Either ThentosError a)
-catcher _ (UniqueViolation "users_id_key")    = return $ Left UserIdAlreadyExists
+catcher _ (UniqueViolation "users_pkey")      = return $ Left UserIdAlreadyExists
 catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
 catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
 catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
