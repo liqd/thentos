@@ -236,19 +236,19 @@ unassignRole = error "src/Thentos/Transaction/Transactions.hs:151"
 agentRoles :: Agent -> ThentosQuery (Set.Set Role)
 agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
 
+
+-- * Garbage collection
+
 garbageCollectThentosSessions :: Timestamp -> ThentosQuery [ThentosSessionToken]
 garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:157"
 
-doGarbageCollectThentosSessions ::
-    [ThentosSessionToken] -> ThentosQuery ()
+doGarbageCollectThentosSessions :: [ThentosSessionToken] -> ThentosQuery ()
 doGarbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
 
-garbageCollectServiceSessions ::
-    Timestamp -> ThentosQuery [ServiceSessionToken]
+garbageCollectServiceSessions :: Timestamp -> ThentosQuery [ServiceSessionToken]
 garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:165"
 
-doGarbageCollectServiceSessions ::
-    [ServiceSessionToken] -> ThentosQuery ()
+doGarbageCollectServiceSessions :: [ServiceSessionToken] -> ThentosQuery ()
 doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
 doGarbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery ()
@@ -261,9 +261,7 @@ doGarbageCollectPasswordResetTokens timeout = void $ execT [sql|
     DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
     |] (Only (round timeout :: Integer))
 
-
-doGarbageCollectEmailChangeTokens ::
-    Timestamp -> Timeout -> ThentosQuery ()
+doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosQuery ()
 doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"
 
 impossible :: String -> a
