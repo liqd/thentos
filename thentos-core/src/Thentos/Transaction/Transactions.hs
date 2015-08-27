@@ -256,9 +256,11 @@ doGarbageCollectUnconfirmedUsers timeout = void $ execT [sql|
     DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
     |] (Only (round timeout :: Integer))
 
-doGarbageCollectPasswordResetTokens ::
-    Timestamp -> Timeout -> ThentosQuery ()
-doGarbageCollectPasswordResetTokens = error "src/Thentos/Transaction/Transactions.hs:177"
+doGarbageCollectPasswordResetTokens :: Timeout -> ThentosQuery ()
+doGarbageCollectPasswordResetTokens timeout = void $ execT [sql|
+    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
+    |] (Only (round timeout :: Integer))
+
 
 doGarbageCollectEmailChangeTokens ::
     Timestamp -> Timeout -> ThentosQuery ()

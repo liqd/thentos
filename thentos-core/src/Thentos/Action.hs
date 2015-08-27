@@ -604,6 +604,6 @@ collectGarbage = do
         emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
     update'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
     update'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
-    update'P $ T.doGarbageCollectPasswordResetTokens now passwordExpiry
+    update'P $ T.doGarbageCollectPasswordResetTokens passwordExpiry
 
     logger'P DEBUG "garbage collection complete!"

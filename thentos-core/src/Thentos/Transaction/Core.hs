@@ -12,14 +12,14 @@ where
 
 import Control.Monad.Except (throwError)
 import Control.Exception.Lifted (catch, throwIO)
-import Control.Monad (void, mzero, liftM)
+import Control.Monad (void, liftM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Int (Int64)
 import Data.String (fromString)
-import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_, sqlExecStatus)
+import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute, execute_)
 import Database.PostgreSQL.Simple.Errors (constraintViolation, ConstraintViolation(UniqueViolation))
 
 import Paths_thentos_core

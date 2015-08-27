@@ -162,7 +162,7 @@ instance FromRow ConfirmationToken where
     fromRow = ConfirmationToken <$> field
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
 instance ToField PasswordResetToken where
     toField = toField . fromPasswordResetToken
