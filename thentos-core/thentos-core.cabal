@@ -14,7 +14,7 @@ copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
 cabal-version:       >= 1.18
-data-files:          schema/schema.sql
+data-files:          schema/schema.sql schema/wipe.sql
 
 Source-Repository head
   type: git

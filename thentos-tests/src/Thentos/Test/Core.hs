@@ -172,10 +172,9 @@ defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pr
 createActionState :: ThentosConfig -> IO ActionState
 createActionState config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    schema <- schemaFile
-    callCommand $ "dropdb --if-exists test_thentos || true "
-               <> "&& createdb test_thentos "
-               <> "&& psql --quiet --file=" <> schema <> " test_thentos"
+    wipe <- wipeFile
+    callCommand $ "createdb test_thentos 2>/dev/null || true"
+               <> " && psql --quiet --file=" <> wipe <> " test_thentos >/dev/null 2>&1"
     conn <- connectPostgreSQL "dbname=test_thentos"
     createDB conn
     return $ ActionState (conn, rng, config)

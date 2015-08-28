@@ -7,6 +7,7 @@ module Thentos.Transaction.Core
     , execT
     , createDB
     , schemaFile
+    , wipeFile
     )
 where
 
@@ -30,6 +31,9 @@ type ThentosQuery a = EitherT ThentosError (ReaderT Connection IO) a
 
 schemaFile :: IO FilePath
 schemaFile = getDataFileName "schema/schema.sql"
+
+wipeFile :: IO FilePath
+wipeFile = getDataFileName "schema/wipe.sql"
 
 -- | Creates the database schema if it does not already exist.
 createDB :: Connection -> IO ()
