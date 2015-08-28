@@ -10,6 +10,7 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
+import Data.Void (Void)
 import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
 
 import qualified Data.Text as ST
@@ -80,7 +81,7 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        (eUser :: Either (ThentosError ()) (UserId, User)) <- runThentosQuery st $ T.lookupUserByName (UserName myUsername)
+        (eUser :: Either (ThentosError Void) (UserId, User)) <- runThentosQuery st $ T.lookupUserByName (UserName myUsername)
         fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
         fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
 

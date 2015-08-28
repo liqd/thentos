@@ -19,6 +19,7 @@ module Thentos.Backend.Api.Simple where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
+import Data.Void (Void)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
@@ -57,7 +58,7 @@ type ThentosBasic =
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
 
-thentosBasic :: ServerT ThentosBasic (Action ())
+thentosBasic :: ServerT ThentosBasic (Action Void)
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -76,7 +77,7 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
   :<|> Get '[JSON] [UserId]
 
-thentosUser :: ServerT ThentosUser (Action ())
+thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
   :<|> deleteUser
@@ -99,7 +100,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService (Action ())
+thentosService :: ServerT ThentosService (Action Void)
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
     :<|> deleteService
@@ -114,7 +115,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession (Action ())
+thentosThentosSession :: ServerT ThentosThentosSession (Action Void)
 thentosThentosSession =
        uncurry startThentosSessionByUserId
   :<|> uncurry startThentosSessionByServiceId
@@ -129,7 +130,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession (Action ())
+thentosServiceSession :: ServerT ThentosServiceSession (Action Void)
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata

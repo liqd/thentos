@@ -7,6 +7,7 @@ module Thentos.ActionSpec where
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
 import Data.Either (isLeft, isRight)
+import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
@@ -193,25 +194,25 @@ spec_session = describe "session" $ do
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
 
--- specialize to error type ()
-runA :: ActionState -> Action () a -> IO a
+-- specialize to error type Void
+runA :: ActionState -> Action Void a -> IO a
 runA = runAction
 
-runAE :: ActionState -> Action () a -> IO (Either (ActionError ()) a)
+runAE :: ActionState -> Action Void a -> IO (Either (ActionError Void) a)
 runAE = runActionE
 
-runAsAgent :: Agent -> ActionState -> Action () a -> IO a
+runAsAgent :: Agent -> ActionState -> Action Void a -> IO a
 runAsAgent = runActionAsAgent
 
-runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action () a -> IO a
+runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO a
 runPrivs = runPrivs
 
-runPrivsE :: ToCNF cnf => [cnf] -> ActionState -> Action () a -> IO (Either (ActionError ()) a)
+runPrivsE :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
 runPrivsE = runPrivsE
 
-runClearanceE :: DCLabel -> ActionState -> Action () a -> IO (Either (ActionError ()) a)
+runClearanceE :: DCLabel -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
 runClearanceE = runActionWithClearanceE
 
-runClearance :: DCLabel -> ActionState -> Action () a -> IO a
+runClearance :: DCLabel -> ActionState -> Action Void a -> IO a
 runClearance = runActionWithClearance
 

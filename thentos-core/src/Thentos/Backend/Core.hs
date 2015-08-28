@@ -32,6 +32,7 @@ import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
+import Data.Void (Void, absurd)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, status400)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -106,8 +107,8 @@ actionErrorToServantErr otherInfo mkServant e = do
     maybe (return ()) (uncurry logger) l
     return $ mkServant se m
 
-baseActionErrorToServantErr :: ActionError () -> IO ServantErr
-baseActionErrorToServantErr = actionErrorToServantErr baseErrorInfo mkServantErr
+baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
+baseActionErrorToServantErr = actionErrorToServantErr absurd mkServantErr
 
 actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo) -> ActionError e -> ErrorInfo
 actionErrorInfo thentosInfo e =
@@ -115,10 +116,6 @@ actionErrorInfo thentosInfo e =
         (ActionErrorThentos  te) -> thentosInfo te
         (ActionErrorAnyLabel _)  -> (Just (DEBUG, ppShow e), err401, "unauthorized")
         (ActionErrorUnknown  _)  -> (Just (CRITICAL, ppShow e), err500, "internal error")
-
-baseErrorInfo :: () -> (Maybe (Priority, String), ServantErr, ST)
-baseErrorInfo = const $
-    (Just (ERROR, "other error"), err500, "internal error")
 
 thentosErrorInfo :: Show e
                  => (e -> ErrorInfo)

@@ -5,6 +5,7 @@ import Data.Monoid (mempty)
 import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Data.String.Conversions (ST, SBS)
+import Data.Void (Void)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, before)
 import Database.PostgreSQL.Simple (Connection)
 
@@ -86,6 +87,6 @@ mkUser name pass email = User { _userName = name
                               }
 
 
--- specialize error type to ()
-runQuery :: Connection -> ThentosQuery () a -> IO (Either (ThentosError ()) a)
+-- specialize error type to Void
+runQuery :: Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
 runQuery = runThentosQuery

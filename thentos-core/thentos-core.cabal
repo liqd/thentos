@@ -142,6 +142,7 @@ library
     , unordered-containers
     , uri-bytestring
     , vector-space
+    , void
     , wai
     , warp
 

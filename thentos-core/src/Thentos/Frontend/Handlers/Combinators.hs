@@ -18,6 +18,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
+import Data.Void (Void)
 import LIO.Error (AnyLabelError)
 import Snap.Core
     ( getResponse, finishWith, urlEncode, getParam
@@ -301,14 +302,14 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 
 -- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
 -- left value.
-snapRunAction :: Action () a -> FH a
+snapRunAction :: Action Void a -> FH a
 snapRunAction = (>>= snapHandleAllErrors) . snapRunActionE
 
-snapRunAction'P :: Action () a -> FH a
+snapRunAction'P :: Action Void a -> FH a
 snapRunAction'P = (>>= snapHandleAllErrors) . snapRunActionE'P
 
 -- | Call 'snapHandleSomeErrors', and if error is still unhandled, call 'crash500'.
-snapHandleAllErrors :: Either (ActionError ()) a -> FH a
+snapHandleAllErrors :: Either (ActionError Void) a -> FH a
 snapHandleAllErrors eth = do
     result <- snapHandleSomeErrors eth
     case result of
@@ -323,7 +324,7 @@ getActionState = do
     return $ ActionState (db, rn, cf)
 
 -- | Run action with the clearance derived from thentos session token.
-snapRunActionE :: Action () a -> FH (Either (ActionError ()) a)
+snapRunActionE :: Action Void a -> FH (Either (ActionError Void) a)
 snapRunActionE action = do
     st :: ActionState         <- getActionState
     fs :: FrontendSessionData <- getSessionData
@@ -334,7 +335,7 @@ snapRunActionE action = do
     snapHandleSomeErrors result
 
 -- | Call action with top clearance.
-snapRunActionE'P :: Action () a -> FH (Either (ActionError ()) a)
+snapRunActionE'P :: Action Void a -> FH (Either (ActionError Void) a)
 snapRunActionE'P action = do
     st :: ActionState <- getActionState
     result <- liftIO $ runActionWithClearanceE dcTop st action
@@ -342,7 +343,7 @@ snapRunActionE'P action = do
 
 -- | This function handles particular error cases for the frontend and propagates others in 'Left'
 -- values.
-snapHandleSomeErrors :: Either (ActionError ()) a -> FH (Either (ActionError ()) a)
+snapHandleSomeErrors :: Either (ActionError Void) a -> FH (Either (ActionError Void) a)
 snapHandleSomeErrors (Right v) = return $ Right v
 snapHandleSomeErrors (Left e) = case e of
     ActionErrorAnyLabel labelError -> permissionDenied labelError
