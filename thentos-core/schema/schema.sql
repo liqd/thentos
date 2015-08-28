@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     password   text        NOT NULL,
     email      text        UNIQUE NOT NULL,
     confirmed  bool        NOT NULL,
-    created    timestamp   NOT NULL DEFAULT now()
+    created    timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
@@ -15,14 +15,14 @@ CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
 
 
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
-    token      text      NOT NULL,
-    uid        bigint    NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    timestamp  timestamp DEFAULT now()
+    token      text        NOT NULL,
+    uid        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    timestamp  timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "email_change_tokens" (
-    token      text      NOT NULL,
-    uid        bigint    NOT NULL REFERENCES users (id),
-    timestamp  timestamp DEFAULT now(),
-    new_email  text      NOT NULL
+    token      text        NOT NULL,
+    uid        bigint      NOT NULL REFERENCES users (id),
+    timestamp  timestamptz DEFAULT now(),
+    new_email  text        NOT NULL
 );
