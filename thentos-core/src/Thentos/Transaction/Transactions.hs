@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
 
 module Thentos.Transaction.Transactions
@@ -7,13 +8,15 @@ where
 import qualified Data.Set as Set
 
 import Data.Monoid (mempty)
+import Data.Typeable (Typeable)
 import Control.Lens ((^.))
 import Control.Monad (void)
+import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
-import Control.Exception (throwIO)
-import Database.PostgreSQL.Simple       (Only(..), query)
-import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
+import Control.Monad.IO.Class (liftIO)
+import Database.PostgreSQL.Simple       (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import System.Random (randomIO)
 
 import Thentos.Types
 import Thentos.Transaction.Core
@@ -23,30 +26,6 @@ flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
 
 freshUserId :: ThentosQuery e UserId
 freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
-
-assertUser :: Maybe UserId -> User -> ThentosQuery e ()
-assertUser = error "src/Thentos/Transaction/Transactions.hs:16"
-
-assertUserIsNew :: User -> ThentosQuery e ()
-assertUserIsNew = error "src/Thentos/Transaction/Transactions.hs:19"
-
-type MatchUnconfirmedUserFun = ((UserId, User), Timestamp) -> Maybe UserId
-
-userNameExists :: Maybe UserId -> User -> ThentosQuery e ()
-userNameExists = error "src/Thentos/Transaction/Transactions.hs:24"
-
-userEmailExists :: Maybe UserId -> User -> ThentosQuery e ()
-userEmailExists = error "src/Thentos/Transaction/Transactions.hs:27"
-
-userIdExists :: UserId -> ThentosQuery e ()
-userIdExists = error "src/Thentos/Transaction/Transactions.hs:30"
-
-userFacetExists ::
-    ThentosError e -> Maybe UserId -> MatchUnconfirmedUserFun -> Maybe UserId -> ThentosQuery e ()
-userFacetExists err mMatchingConfirmedUid unconfirmedUserMatches mUid = error "src/Thentos/Transaction/Transactions.hs:34"
-
-allUserIds :: ThentosQuery e [UserId]
-allUserIds = error "src/Thentos/Transaction/Transactions.hs:37"
 
 lookupUser :: UserId -> ThentosQuery e (UserId, User)
 lookupUser uid = do
@@ -65,9 +44,9 @@ lookupUserByName name = do
                           FROM users
                           WHERE name = ? |] (Only name)
     case users of
-      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
-      []                       -> throwError NoSuchUser
-      _                        -> impossible "lookupUserByName: multiple users"
+      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email mempty mempty)
+      []                        -> throwError NoSuchUser
+      _                         -> impossible "lookupUserByName: multiple users"
 
 
 lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
@@ -82,32 +61,56 @@ lookupUserByEmail email = do
 
 addUserPrim :: UserId -> User -> ThentosQuery e ()
 addUserPrim uid user = do
-    void $ execT [sql| INSERT INTO users (id, name, password, email)
-                       VALUES (?, ?, ?, ?) |] ( uid
-                                              , user ^. userName
-                                              , user ^. userPassword
-                                              , user ^. userEmail
-                                              )
-    return ()
+    void $ execT [sql| INSERT INTO users (id, name, password, email, confirmed)
+                       VALUES (?, ?, ?, ?, true) |] ( uid
+                                                    , user ^. userName
+                                                    , user ^. userPassword
+                                                    , user ^. userEmail
+                                                    )
 
-addUser :: User -> ThentosQuery e UserId
-addUser = error "src/Thentos/Transaction/Transactions.hs:52"
+-- | Add a user with a random ID.
+addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
+addUser user = go (5 :: Int)
+  where
+    go 0 = error "addUser: could not generate unique id"
+    go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
+      where f UserIdAlreadyExists = go (n - 1)
+            f e                   = throwError e
 
-addUnconfirmedUser ::
-    Timestamp -> ConfirmationToken -> User -> ThentosQuery e (UserId, ConfirmationToken)
-addUnconfirmedUser = error "src/Thentos/Transaction/Transactions.hs:59"
 
-addUnconfirmedUserWithId ::
-    Timestamp -> ConfirmationToken -> User -> UserId -> ThentosQuery e ConfirmationToken
-addUnconfirmedUserWithId = error "src/Thentos/Transaction/Transactions.hs:63"
+addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
+addUnconfirmedUser token user = go (5 :: Int)
+  where
+    go 0 = error "addUnconfirmedUser: could not generate unique id"
+    go n = liftIO randomIO >>= \uid -> (addUnconfirmedUserWithId token user uid
+                                        >> return uid) `catch` f
+      where f UserIdAlreadyExists = go (n - 1)
+            f e                   = throwError e
+
+
+addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
+addUnconfirmedUserWithId token user uid = void $ execT [sql|
+    INSERT INTO users (id, name, password, email, confirmed)
+    VALUES (?, ?, ?, ?, false);
+    INSERT INTO user_confirmation_tokens (id, token)
+    VALUES (?, ?);
+    |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
+       , uid, token )
 
 finishUserRegistration ::
     Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
 
-finishUserRegistrationById ::
-    Timestamp -> Timeout -> UserId -> ThentosQuery e ()
-finishUserRegistrationById = error "finishUserRegistrationById"
+finishUserRegistrationById :: UserId -> ThentosQuery e ()
+finishUserRegistrationById uid = do
+    c <- execT [sql|
+    UPDATE users SET confirmed = true WHERE id = ?;
+    DELETE FROM user_confirmation_tokens WHERE id = ?;
+    |] (uid, uid)
+    case c of
+        1 -> return ()
+        0 -> throwError NoSuchPendingUserConfirmation
+        _ -> impossible "finishUserRegistrationById: id uniqueness violation"
 
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
 addPasswordResetToken email token = do
@@ -122,8 +125,8 @@ resetPassword timeout token newPassword = do
     modified <- execT [sql| UPDATE users
                             SET password = ?
                             FROM password_reset_tokens
-                            WHERE timstamp + ? < now
-                            AND users.id = password_reset_tokens.user_id
+                            WHERE password_reset_tokens.timestamp + ? > now()
+                            AND users.id = password_reset_tokens.uid
                             AND password_reset_tokens.token = ?
                       |] (newPassword, timeout, token)
     case modified of
@@ -131,18 +134,37 @@ resetPassword timeout token newPassword = do
         0 -> throwError NoSuchToken
         _ -> impossible "password reset token exists multiple times"
 
-addUserEmailChangeRequest :: Timestamp -> UserId -> UserEmail
-                                             -> ConfirmationToken
-                                             -> ThentosQuery e ()
-addUserEmailChangeRequest = error "src/Thentos/Transaction/Transactions.hs:80"
+addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
+addUserEmailChangeRequest uid newEmail token = do
+    void $ execT [sql| INSERT INTO email_change_tokens (token, uid, new_email)
+                VALUES (?, ?) |] (token, uid, newEmail)
 
 confirmUserEmailChange ::
-    Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery e UserId
-confirmUserEmailChange = error "src/Thentos/Transaction/Transactions.hs:84"
+    Timeout -> ConfirmationToken -> ThentosQuery e ()
+confirmUserEmailChange timeout token = do
+    modified <- execT [sql| UPDATE users
+                            SET email = email_change_tokens.new_email
+                            FROM email_change_tokens
+                            WHERE timestamp + ? < now()
+                            AND users.id = email_change_tokens.uid
+                            AND password_reset_tokens.token = ?
+                      |] (timeout, token)
+    case modified of
+        1 -> return ()
+        0 -> throwError NoSuchToken
+        _ -> impossible "email change token exists multiple times"
 
 lookupEmailChangeToken ::
     ConfirmationToken -> ThentosQuery e ((UserId, UserEmail), Timestamp)
-lookupEmailChangeToken = error "src/Thentos/Transaction/Transactions.hs:88"
+lookupEmailChangeToken token = do
+    rs <- queryT [sql| SELECT uid, new_email, timestamp
+                       FROM email_change_tokens
+                       WHERE token = ? |] (Only token)
+    case rs of
+        [(uid, email, ts)] -> return ((uid, email), ts)
+        []                 -> throwError NoSuchToken
+        _                  -> impossible "repeated email change token"
+
 
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
@@ -159,7 +181,11 @@ updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
 updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
 
 deleteUser :: UserId -> ThentosQuery e ()
-deleteUser = error "src/Thentos/Transaction/Transactions.hs:105"
+deleteUser uid
+    = execT [sql| DELETE FROM users WHERE id = ? |] (Only uid) >>= \ x -> case x of
+      1 -> return ()
+      0 -> throwError NoSuchUser
+      _ -> impossible "deleteUser: unique constraint on id violated"
 
 allServiceIds :: ThentosQuery e [ServiceId]
 allServiceIds = error "src/Thentos/Transaction/Transactions.hs:108"
@@ -210,31 +236,31 @@ unassignRole = error "src/Thentos/Transaction/Transactions.hs:151"
 agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
 agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
 
+-- * Garbage collection
+
 garbageCollectThentosSessions :: Timestamp -> ThentosQuery e [ThentosSessionToken]
 garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:157"
 
-doGarbageCollectThentosSessions ::
-    [ThentosSessionToken] -> ThentosQuery e ()
+doGarbageCollectThentosSessions :: [ThentosSessionToken] -> ThentosQuery e ()
 doGarbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
 
-garbageCollectServiceSessions ::
-    Timestamp -> ThentosQuery e [ServiceSessionToken]
+garbageCollectServiceSessions :: Timestamp -> ThentosQuery e [ServiceSessionToken]
 garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:165"
 
-doGarbageCollectServiceSessions ::
-    [ServiceSessionToken] -> ThentosQuery e ()
+doGarbageCollectServiceSessions :: [ServiceSessionToken] -> ThentosQuery e ()
 doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
-doGarbageCollectUnconfirmedUsers ::
-    Timestamp -> Timeout -> ThentosQuery e ()
-doGarbageCollectUnconfirmedUsers = error "src/Thentos/Transaction/Transactions.hs:173"
+doGarbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()
+doGarbageCollectUnconfirmedUsers timeout = void $ execT [sql|
+    DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
+    |] (Only (round timeout :: Integer))
 
-doGarbageCollectPasswordResetTokens ::
-    Timestamp -> Timeout -> ThentosQuery e ()
-doGarbageCollectPasswordResetTokens = error "src/Thentos/Transaction/Transactions.hs:177"
+doGarbageCollectPasswordResetTokens :: Timeout -> ThentosQuery e ()
+doGarbageCollectPasswordResetTokens timeout = void $ execT [sql|
+    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
+    |] (Only (round timeout :: Integer))
 
-doGarbageCollectEmailChangeTokens ::
-    Timestamp -> Timeout -> ThentosQuery e ()
+doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosQuery e ()
 doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"
 
 impossible :: String -> a

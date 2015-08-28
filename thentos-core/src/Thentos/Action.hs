@@ -18,13 +18,11 @@ module Thentos.Action
     , freshSessionToken
     , freshServiceSessionToken
 
-    , allUserIds
     , lookupUser
     , lookupUserByName
     , lookupUserByEmail
     , addUser
     , deleteUser
-    , assertUserIsNew
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
     , confirmNewUser
@@ -79,6 +77,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
+import Data.Typeable (Typeable)
 import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
@@ -131,12 +130,6 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
 -- * user
 
--- | Return a list of all 'UserId's.  Requires 'RoleAdmin'.
-allUserIds :: Action e [UserId]
-allUserIds = do
-    taintMsg "allUserIds" (RoleAdmin %% False)
-    query'P T.allUserIds
-
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
 -- user lookup prior to authentication.
@@ -160,7 +153,7 @@ lookupUserByEmail email = _lookupUser $ T.lookupUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
-addUser :: UserFormData -> Action e UserId
+addUser :: (Show e, Typeable e) => UserFormData -> Action e UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= update'P . T.addUser
@@ -172,34 +165,26 @@ deleteUser uid = do
     guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     update'P $ T.deleteUser uid
 
--- | Assert that no user with the same name or email address already exists in the db.
--- Does not require any privileges.
-assertUserIsNew :: UserFormData -> Action e ()
-assertUserIsNew userData = do
-    user <- makeUserFromFormData'P userData
-    query'P $ T.assertUserIsNew user
-
 
 -- ** email confirmation
 
 -- | Initiate email-verified user creation.  Does not require any privileges.  See also:
 -- 'confirmNewUser'.
-addUnconfirmedUser :: UserFormData -> Action e (UserId, ConfirmationToken)
+addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
-    (now, tok, user) <- prepareUserData userData
-    update'P $ T.addUnconfirmedUser now tok user
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
+    uid  <- update'P $ T.addUnconfirmedUser tok user
+    return (uid, tok)
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
 -- If the ID is already in use, an error is thrown. Does not require any privileges.
 addUnconfirmedUserWithId :: UserFormData -> UserId -> Action e ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
-    (now, tok, user) <- prepareUserData userData
-    update'P $ T.addUnconfirmedUserWithId now tok user userId
-
--- | Collect the data needed for the /addUnconfirmedUser.../ calls.
-prepareUserData :: UserFormData -> Action e (Timestamp, ConfirmationToken, User)
-prepareUserData userData = (,,) <$> getCurrentTime'P <*> freshConfirmationToken
-                                <*> makeUserFromFormData'P userData
+    tok  <- freshConfirmationToken
+    user <- makeUserFromFormData'P userData
+    update'P $ T.addUnconfirmedUserWithId tok user userId
+    return tok
 
 -- | Finish email-verified user creation.
 --
@@ -227,9 +212,7 @@ confirmNewUser token = do
 -- See also: 'addUnconfirmedUser'.
 confirmNewUserById :: UserId -> Action e ThentosSessionToken
 confirmNewUserById uid = do
-    expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
-    now <- getCurrentTime'P
-    update'P $ T.finishUserRegistrationById now expiryPeriod uid
+    update'P $ T.finishUserRegistrationById uid
     _startThentosSessionByAgent (UserA uid)
 
 
@@ -307,10 +290,9 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
     guardWriteMsg "requestUserEmailChange" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
 
     tok <- freshConfirmationToken
-    now <- getCurrentTime'P
     smtpConfig <- (Tagged . (>>. (Proxy :: Proxy '["smtp"]))) <$> getConfig'P
 
-    update'P $ T.addUserEmailChangeRequest now uid newEmail tok
+    update'P $ T.addUserEmailChangeRequest uid newEmail tok
 
     let message = "Please go to " <> callbackUrlBuilder tok <> " to confirm your change of email address."
         subject = "Thentos email address change"
@@ -326,11 +308,10 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 -- only token secrecy.
 confirmUserEmailChange :: ConfirmationToken -> Action e ()
 confirmUserEmailChange token = do
-    now <- getCurrentTime'P
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     ((uid, _), _) <- query'P $ T.lookupEmailChangeToken token
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (void . update'P $ T.confirmUserEmailChange now expiryPeriod token)
+                  (void . update'P $ T.confirmUserEmailChange expiryPeriod token)
                   (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
 
 
@@ -621,8 +602,8 @@ collectGarbage = do
     let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
         passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
         emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
-    update'P $ T.doGarbageCollectUnconfirmedUsers now userExpiry
+    update'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
     update'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
-    update'P $ T.doGarbageCollectPasswordResetTokens now passwordExpiry
+    update'P $ T.doGarbageCollectPasswordResetTokens passwordExpiry
 
     logger'P DEBUG "garbage collection complete!"

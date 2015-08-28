@@ -75,7 +75,6 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
-  :<|> Get '[JSON] [UserId]
 
 thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
@@ -85,7 +84,6 @@ thentosUser =
   :<|> (((^. userName) . snd) <$>) . lookupUser
   :<|> (\ uid email -> updateUserField uid (UpdateUserFieldEmail email))
   :<|> (((^. userEmail) . snd) <$>) . lookupUser
-  :<|> allUserIds
 
 
 -- * service
