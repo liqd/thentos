@@ -374,6 +374,13 @@ instance ToCNF Role where toCNF = toCNF . show
 instance ToField Role where
     toField = toField . show
 
+instance FromField Role where
+    fromField f dat = do
+        s <- fromField f dat
+        case readMay s of
+            Just r  -> return r
+            Nothing -> returnError ConversionFailed f ""
+
 -- * uri
 
 data ProxyUri = ProxyUri { proxyHost :: SBS
