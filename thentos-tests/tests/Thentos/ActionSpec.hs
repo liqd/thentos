@@ -42,7 +42,7 @@ spec = do
 spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
     describe "addUser, lookupUser, deleteUser" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             let user = testUsers !! 0
             uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
             (uid', user') <- runPrivs [RoleAdmin] sta $ lookupUser uid
