@@ -231,13 +231,13 @@ loginGithubUser (GithubUser _ uname) = do
 addNewSsoToken :: Action' SsoToken
 addNewSsoToken = do
     tok <- freshSsoToken
-    AC.update'P $ T.addSsoToken tok
+    AC.query'P $ T.addSsoToken tok
     return tok
 
 -- | This doesn't check any labels because it needs to be called as part of the
 -- authentication process.
 lookupAndRemoveSsoToken :: SsoToken -> Action' ()
-lookupAndRemoveSsoToken tok = AC.update'P $ T.lookupAndRemoveSsoToken tok
+lookupAndRemoveSsoToken tok = AC.query'P $ T.lookupAndRemoveSsoToken tok
 
 
 freshSsoToken :: Action' SsoToken

@@ -156,14 +156,14 @@ lookupUserByEmail email = _lookupUser $ T.lookupUserByEmail email
 addUser :: (Show e, Typeable e) => UserFormData -> Action e UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
-    makeUserFromFormData'P userData >>= update'P . T.addUser
+    makeUserFromFormData'P userData >>= query'P . T.addUser
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
 deleteUser :: UserId -> Action e ()
 deleteUser uid = do
     guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    update'P $ T.deleteUser uid
+    query'P $ T.deleteUser uid
 
 
 -- ** email confirmation
@@ -174,7 +174,7 @@ addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e (UserId, 
 addUnconfirmedUser userData = do
     tok  <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
-    uid  <- update'P $ T.addUnconfirmedUser tok user
+    uid  <- query'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
 
 -- | Initiate email-verified user creation, assigning a specific ID to the new user.
@@ -183,7 +183,7 @@ addUnconfirmedUserWithId :: UserFormData -> UserId -> Action e ConfirmationToken
 addUnconfirmedUserWithId userData userId = do
     tok  <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
-    update'P $ T.addUnconfirmedUserWithId tok user userId
+    query'P $ T.addUnconfirmedUserWithId tok user userId
     return tok
 
 -- | Finish email-verified user creation.
@@ -197,7 +197,7 @@ confirmNewUser :: ConfirmationToken -> Action e (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
     now <- getCurrentTime'P
-    uid <- update'P $ T.finishUserRegistration now expiryPeriod token
+    uid <- query'P $ T.finishUserRegistration now expiryPeriod token
     sessionToken <- _startThentosSessionByAgent (UserA uid)
     return (uid, sessionToken)
 
@@ -212,7 +212,7 @@ confirmNewUser token = do
 -- See also: 'addUnconfirmedUser'.
 confirmNewUserById :: UserId -> Action e ThentosSessionToken
 confirmNewUserById uid = do
-    update'P $ T.finishUserRegistrationById uid
+    query'P $ T.finishUserRegistrationById uid
     _startThentosSessionByAgent (UserA uid)
 
 
@@ -222,7 +222,7 @@ confirmNewUserById uid = do
 addPasswordResetToken :: UserEmail -> Action e (User, PasswordResetToken)
 addPasswordResetToken email = do
     tok <- freshPasswordResetToken
-    user <- update'P $ T.addPasswordResetToken email tok
+    user <- query'P $ T.addPasswordResetToken email tok
     return (user, tok)
 
 -- | Finish password reset with email confirmation.
@@ -232,7 +232,7 @@ resetPassword :: PasswordResetToken -> UserPass -> Action e ()
 resetPassword token password = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> getConfig'P
     hashedPassword <- hashUserPass'P password
-    update'P $ T.resetPassword expiryPeriod token hashedPassword
+    query'P $ T.resetPassword expiryPeriod token hashedPassword
 
 
 -- ** login
@@ -264,13 +264,13 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 updateUserField :: UserId -> T.UpdateUserFieldOp -> Action e ()
 updateUserField uid op = do
     guardWriteMsg "updateUserField" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    update'P $ T.updateUserField uid op
+    query'P $ T.updateUserField uid op
 
 -- | See 'updateUserField'.
 updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action e ()
 updateUserFields uid ops = do
     guardWriteMsg "updateUserFields" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    update'P $ T.updateUserFields uid ops
+    query'P $ T.updateUserFields uid ops
 
 -- | Authenticate user against old password, and then change password to new password.  Requires
 -- 'RoleAdmin' or privs of user that owns the password.
@@ -279,7 +279,7 @@ changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.lookupUser uid) old
     hashedPw <- hashUserPass'P new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    update'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
+    query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
 -- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address
@@ -292,7 +292,7 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
     tok <- freshConfirmationToken
     smtpConfig <- (Tagged . (>>. (Proxy :: Proxy '["smtp"]))) <$> getConfig'P
 
-    update'P $ T.addUserEmailChangeRequest uid newEmail tok
+    query'P $ T.addUserEmailChangeRequest uid newEmail tok
 
     let message = "Please go to " <> callbackUrlBuilder tok <> " to confirm your change of email address."
         subject = "Thentos email address change"
@@ -311,7 +311,7 @@ confirmUserEmailChange token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
     ((uid, _), _) <- query'P $ T.lookupEmailChangeToken token
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (void . update'P $ T.confirmUserEmailChange expiryPeriod token)
+                  (void . query'P $ T.confirmUserEmailChange expiryPeriod token)
                   (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
 
 
@@ -340,13 +340,13 @@ addServicePrim owner sid name desc = do
     --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
-    update'P $ T.addService owner sid hashedKey name desc
+    query'P $ T.addService owner sid hashedKey name desc
     return (sid, key)
 
 deleteService :: ServiceId -> Action e ()
 deleteService sid = do
     guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
-    update'P $ T.deleteService sid
+    query'P $ T.deleteService sid
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
 -- to the config which will automatically spring into life if the config is read.
@@ -390,7 +390,7 @@ lookupThentosSession tok = do
 _lookupThentosSession :: ThentosSessionToken -> Action e ThentosSession
 _lookupThentosSession tok = do
     now <- getCurrentTime'P
-    snd <$> update'P (T.lookupThentosSession now tok)
+    snd <$> query'P (T.lookupThentosSession now tok)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
@@ -436,7 +436,7 @@ startThentosSessionByServiceId sid key = a `catchError` h
 -- | Terminate 'ThentosSession'.  Does not require any label; being in possession of the session
 -- token is enough authentication to terminate it.
 endThentosSession :: ThentosSessionToken -> Action e ()
-endThentosSession = update'P . T.endThentosSession
+endThentosSession = query'P . T.endThentosSession
 
 -- | Check that a Thentos session exists, is not expired, and belongs to a user (rather than a
 -- service). Returns information on the user if that's the case. Throws 'NoSuchThentosSession'
@@ -457,7 +457,7 @@ _startThentosSessionByAgent :: Agent -> Action e ThentosSessionToken
 _startThentosSessionByAgent agent = do
     now <- getCurrentTime'P
     tok <- freshSessionToken
-    update'P $ T.startThentosSession tok agent now defaultSessionTimeout
+    query'P $ T.startThentosSession tok agent now defaultSessionTimeout
     return tok
 
 
@@ -468,10 +468,10 @@ serviceNamesFromThentosSession tok = do
     now <- getCurrentTime'P
 
     ts :: ThentosSession
-        <- snd <$> update'P (T.lookupThentosSession now tok)
+        <- snd <$> query'P (T.lookupThentosSession now tok)
 
     ss :: [ServiceSession]
-        <- mapM (fmap snd . update'P . T.lookupServiceSession now) $
+        <- mapM (fmap snd . query'P . T.lookupServiceSession now) $
              Set.toList (ts ^. thSessServiceSessions)
 
     xs :: [(ServiceId, Service)]
@@ -489,7 +489,7 @@ serviceNamesFromThentosSession tok = do
 lookupServiceSession :: ServiceSessionToken -> Action e ServiceSession
 lookupServiceSession tok = do
     now <- getCurrentTime'P
-    session <- snd <$> update'P (T.lookupServiceSession now tok)
+    session <- snd <$> query'P (T.lookupServiceSession now tok)
     let agent = ServiceA (session ^. srvSessService)
     tryTaint (RoleAdmin \/ agent %% False)
         (return session)
@@ -529,7 +529,7 @@ addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
-    update'P $ T.updateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
+    query'P $ T.updateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
 --
@@ -539,7 +539,7 @@ dropServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "dropServiceRegistration"
         (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    update'P $ T.updateUserField uid (T.UpdateUserFieldDropService sid)
+    query'P $ T.updateUserField uid (T.UpdateUserFieldDropService sid)
 
 -- | Login user running the current thentos session into service.  If user is not registered with
 -- service, throw an error.
@@ -552,7 +552,7 @@ startServiceSession ttok sid = do
     now <- getCurrentTime'P
     _ <- lookupThentosSession ttok
     stok <- freshServiceSessionToken
-    update'P $ T.startServiceSession ttok stok sid now defaultSessionTimeout
+    query'P $ T.startServiceSession ttok stok sid now defaultSessionTimeout
     return stok
 
 -- | Terminate service session. Throws NoSuchServiceSession if the user does not
@@ -561,7 +561,7 @@ endServiceSession :: ServiceSessionToken -> Action e ()
 endServiceSession tok = do
     uid <- _serviceSessionUser tok
     tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (update'P $ T.endServiceSession tok)
+                  (query'P $ T.endServiceSession tok)
                   (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
 
 -- | Inherits label from 'lookupServiceSession'.
@@ -574,12 +574,12 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 assignRole :: Agent -> Role -> Action e ()
 assignRole agent role = do
     guardWriteMsg "assignRole" (RoleAdmin %% RoleAdmin)
-    update'P $ T.assignRole agent role
+    query'P $ T.assignRole agent role
 
 unassignRole :: Agent -> Role -> Action e ()
 unassignRole agent role = do
     guardWriteMsg "unassignRole" (RoleAdmin %% RoleAdmin)
-    update'P $ T.unassignRole agent role
+    query'P $ T.unassignRole agent role
 
 agentRoles :: Agent -> Action e [Role]
 agentRoles agent = do
@@ -595,15 +595,15 @@ collectGarbage = do
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
     now <- getCurrentTime'P
-    query'P (T.garbageCollectThentosSessions now) >>= update'P . T.doGarbageCollectThentosSessions
-    query'P (T.garbageCollectServiceSessions now) >>= update'P . T.doGarbageCollectServiceSessions
+    query'P (T.garbageCollectThentosSessions now) >>= query'P . T.doGarbageCollectThentosSessions
+    query'P (T.garbageCollectServiceSessions now) >>= query'P . T.doGarbageCollectServiceSessions
 
     config <- getConfig'P
     let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
         passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
         emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
-    update'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
-    update'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
-    update'P $ T.doGarbageCollectPasswordResetTokens passwordExpiry
+    query'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
+    query'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
+    query'P $ T.doGarbageCollectPasswordResetTokens passwordExpiry
 
     logger'P DEBUG "garbage collection complete!"

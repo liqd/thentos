@@ -89,7 +89,7 @@ testUsers = (\ (UserFormData name pass email) ->
 -- it.
 addTestUser :: Int -> Action Void (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
-    uid <- update'P $ addUser user
+    uid <- query'P $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return

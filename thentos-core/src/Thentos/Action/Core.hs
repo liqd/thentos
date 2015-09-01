@@ -205,23 +205,17 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (T.agent
 accessRightsByThentosSession'P :: ThentosSessionToken -> Action e [CNF]
 accessRightsByThentosSession'P tok = do
     now <- getCurrentTime'P
-    (_, session) <- update'P (T.lookupThentosSession now tok)
+    (_, session) <- query'P (T.lookupThentosSession now tok)
     accessRightsByAgent'P $ session ^. thSessAgent
 
 
 -- * TCB business
 
--- | Call 'update'' on the 'ActionState' and re-throw the exception that has been turned into an
--- 'Either' on the border between acid-state and the real world.
-update'P :: ThentosQuery e v -> Action e v
-update'P u = do
+query'P :: ThentosQuery e v -> Action e v
+query'P u = do
     ActionState (conn, _, _) <- Action ask
     result <- liftLIO . ioTCB . runThentosQuery conn $ u
     either throwError return result
-
--- | See 'update'P'.
-query'P :: ThentosQuery e v -> Action e v
-query'P = error "./src/Thentos/Action/Core.hs:227"
 
 getConfig'P :: Action e ThentosConfig
 getConfig'P = (\ (ActionState (_, _, c)) -> c) <$> Action ask
