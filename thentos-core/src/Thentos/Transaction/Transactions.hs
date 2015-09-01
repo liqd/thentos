@@ -228,10 +228,10 @@ assertAgent :: Agent -> ThentosQuery e ()
 assertAgent = error "src/Thentos/Transaction/Transactions.hs:145"
 
 assignRole :: Agent -> Role -> ThentosQuery e ()
-assignRole = error "src/Thentos/Transaction/Transactions.hs:148"
+assignRole _ _ = return ()
 
 unassignRole :: Agent -> Role -> ThentosQuery e ()
-unassignRole = error "src/Thentos/Transaction/Transactions.hs:151"
+unassignRole _ _ = return ()
 
 agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
 agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
