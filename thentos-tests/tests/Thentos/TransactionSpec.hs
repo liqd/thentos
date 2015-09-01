@@ -38,6 +38,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     updateUserFieldSpec
     agentRolesSpec
     assignRoleSpec
+    unassignRoleSpec
     doGarbageCollectUnconfirmedUsersSpec
     doGarbageCollectPasswordResetTokensSpec
 
@@ -291,11 +292,38 @@ assignRoleSpec = describe "assignRole" $ do
         Right roles <- runQuery conn $ agentRoles (UserA userId)
         roles `shouldBe` Set.fromList [RoleAdmin]
 
-    it "silently allows adding a duplicte role" $ \(ActionState (conn, _, _)) -> do
+    it "silently allows adding a duplicate role" $ \(ActionState (conn, _, _)) -> do
         Right _ <- runQuery conn $ addUserPrim userId user
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         x <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         x `shouldBe` Right ()
+        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        roles `shouldBe` Set.fromList [RoleAdmin]
+
+    it "adds a second role" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
+        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+
+unassignRoleSpec :: SpecWith ActionState
+unassignRoleSpec = describe "unassignRole" $ do
+    let user = mkUser "name" "super secret" "me@example.com"
+        userId = UserId 111
+
+    it "silently allows removing a non-assigned role" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim userId user
+        x <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
+        x `shouldBe` Right ()
+
+    it "removes the specified role" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
+        Right _ <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
+        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        roles `shouldBe` Set.fromList [RoleUser]
 
 -- * Garbage collection
 
