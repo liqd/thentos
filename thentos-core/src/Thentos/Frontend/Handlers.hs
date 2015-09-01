@@ -80,7 +80,7 @@ sendUserExistsMail smtpConfig address = do
 
 
 defaultUserRoles :: [Role]
-defaultUserRoles = RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin]
+defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
 
 userRegisterConfirm :: FH ()
 userRegisterConfirm = do

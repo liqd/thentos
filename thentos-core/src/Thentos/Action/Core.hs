@@ -193,14 +193,7 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (T.agent
     makeAccessRights roles = Set.fold Set.insert agent' roles'
       where
         agent' = Set.singleton $ toCNF agent
-        roles' = Set.map toCNF $ flatten roles
-
-    flatten :: Set.Set Role -> Set.Set RoleBasic
-    flatten = Set.fold (flip f) Set.empty
-      where
-        f :: Set.Set RoleBasic -> Role -> Set.Set RoleBasic
-        f acc (Roles rs) = foldl' f acc rs
-        f acc (RoleBasic b) = Set.insert b acc
+        roles' = Set.map toCNF $ roles
 
 accessRightsByThentosSession'P :: ThentosSessionToken -> Action e [CNF]
 accessRightsByThentosSession'P tok = do

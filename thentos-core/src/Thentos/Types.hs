@@ -343,7 +343,7 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
-data RoleBasic =
+data Role =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
@@ -365,22 +365,11 @@ data RoleBasic =
     -- ^ Can create (and manage her own) services
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
-instance Aeson.FromJSON RoleBasic where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON RoleBasic where toJSON = Aeson.gtoJson
-
--- | Recursive role hierarchies.
-data Role =
-    Roles [Role]
-  | RoleBasic RoleBasic
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
 instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
-instance ToCNF RoleBasic where toCNF = toCNF . show
--- (No CNF instance for Role for now.  We unravel role hierarchies during label construction.)
-
+instance ToCNF Role where toCNF = toCNF . show
 
 -- * uri
 
