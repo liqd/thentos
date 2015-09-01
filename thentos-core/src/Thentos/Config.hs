@@ -121,7 +121,7 @@ type LogConfig' =
 
 -- * leaf types
 
-data Command = Run
+data Command = Run | RunSso
   deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
