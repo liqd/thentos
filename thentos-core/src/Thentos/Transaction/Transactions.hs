@@ -249,7 +249,11 @@ assignRole agent role = case agent of
                            VALUES (?, ?) |] (uid, role)
 
 unassignRole :: Agent -> Role -> ThentosQuery e ()
-unassignRole _ _ = return ()
+unassignRole agent role = case agent of
+    ServiceA _ -> error "unassignRole not implemented for services"
+    UserA uid  -> do
+        void $ execT [sql| DELETE FROM user_roles WHERE uid = ? AND role = ? |]
+                           (uid, role)
 
 agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
 agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
