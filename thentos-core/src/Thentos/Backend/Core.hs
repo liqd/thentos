@@ -91,26 +91,24 @@ mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
     {errBody = encode $ ErrorMessage msg, errHeaders = [contentTypeJsonHeader]}
 
-type ErrorInfo = (Maybe (Priority, String), ServantErr, ST)
+type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 
--- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
+-- | Log things, and construct a 'ServantErr'.
 --
 -- If any logging is to take place, it should take place here, not near the place where the error is
--- thrown.  The error constructors should take all the information in typed form.  Rendering
--- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
--- servant error is the sole responsibility of this function.
-actionErrorToServantErr :: Show e
-                        => (e -> ErrorInfo) -> (ServantErr -> ST -> ServantErr)
-                        -> ActionError e -> IO ServantErr
-actionErrorToServantErr otherInfo mkServant e = do
-    let (l, se, m) = actionErrorInfo (thentosErrorInfo otherInfo) e
-    maybe (return ()) (uncurry logger) l
-    return $ mkServant se m
+-- thrown.
+errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
+errorInfoToServantErr mkServant (l, se, x) = do
+    case l of
+        Just (prio, msg) -> logger prio msg
+        Nothing          -> return ()
+    return $ mkServant se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
-baseActionErrorToServantErr = actionErrorToServantErr absurd mkServantErr
+baseActionErrorToServantErr ae = errorInfoToServantErr mkServantErr .
+                                     actionErrorInfo (thentosErrorInfo absurd) $ ae
 
-actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo) -> ActionError e -> ErrorInfo
+actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
 actionErrorInfo thentosInfo e =
     case e of
         (ActionErrorThentos  te) -> thentosInfo te
@@ -118,9 +116,9 @@ actionErrorInfo thentosInfo e =
         (ActionErrorUnknown  _)  -> (Just (CRITICAL, ppShow e), err500, "internal error")
 
 thentosErrorInfo :: Show e
-                 => (e -> ErrorInfo)
+                 => (e -> ErrorInfo ST)
                  -> ThentosError e
-                 -> ErrorInfo
+                 -> ErrorInfo ST
 thentosErrorInfo other e = f e
   where
     f NoSuchUser =
