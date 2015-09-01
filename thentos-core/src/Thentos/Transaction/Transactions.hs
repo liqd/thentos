@@ -7,6 +7,7 @@ where
 
 import qualified Data.Set as Set
 
+import Control.Exception.Lifted (throwIO)
 import Data.Monoid (mempty)
 import Data.Typeable (Typeable)
 import Control.Lens ((^.))
@@ -14,8 +15,9 @@ import Control.Monad (void)
 import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
-import Database.PostgreSQL.Simple       (Only(..))
-import Database.PostgreSQL.Simple.SqlQQ (sql)
+import Database.PostgreSQL.Simple        (Only(..))
+import Database.PostgreSQL.Simple.SqlQQ  (sql)
+import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
 import System.Random (randomIO)
 
 import Thentos.Types
@@ -245,8 +247,12 @@ assignRole :: Agent -> Role -> ThentosQuery e ()
 assignRole agent role = case agent of
     ServiceA _ -> error "assignRole not implemented for services"
     UserA uid  -> do
-        void $ execT [sql| INSERT INTO user_roles (uid, role)
-                           VALUES (?, ?) |] (uid, role)
+        catchViolation catcher $ void $
+            execT [sql| INSERT INTO user_roles (uid, role)
+                        VALUES (?, ?) |] (uid, role)
+  where
+    catcher _ (UniqueViolation "user_roles_uid_role_key") = return ()
+    catcher e _                                           = throwIO e
 
 unassignRole :: Agent -> Role -> ThentosQuery e ()
 unassignRole agent role = case agent of
