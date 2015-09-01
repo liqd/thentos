@@ -381,6 +381,9 @@ instance FromField Role where
             Just r  -> return r
             Nothing -> returnError ConversionFailed f ""
 
+instance FromRow Role where
+    fromRow = field
+
 -- * uri
 
 data ProxyUri = ProxyUri { proxyHost :: SBS

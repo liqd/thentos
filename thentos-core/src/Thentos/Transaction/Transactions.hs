@@ -256,7 +256,11 @@ unassignRole agent role = case agent of
                            (uid, role)
 
 agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
-agentRoles = error "src/Thentos/Transaction/Transactions.hs:154"
+agentRoles agent = case agent of
+    ServiceA _ -> error "agentRoles not implemented for services"
+    UserA uid  -> do
+        roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
+        return $ Set.fromList roles
 
 -- * Garbage collection
 
