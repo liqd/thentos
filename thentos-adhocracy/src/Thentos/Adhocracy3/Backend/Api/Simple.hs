@@ -472,7 +472,7 @@ mkRequestForA3 :: ToJSON a => ThentosConfig -> String -> a -> Maybe Client.Reque
 mkRequestForA3 config route dat = do
     defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
     let target = extractTargetUrl defaultProxy
-    initReq <- Client.parseUrl $ cs $ show target <> route
+    initReq <- Client.parseUrl $ cs $ show target <//> route
     return initReq { Client.method = "POST"
         , Client.requestHeaders = [("Content-Type", "application/json")]
         , Client.requestBody = Client.RequestBodyLBS . Aeson.encode $ dat
@@ -512,7 +512,7 @@ userIdToPath config (UserId i) = a3backendPath config $
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
 a3backendPath :: ThentosConfig -> ST -> Path
-a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <> localPath
+a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
   where
     beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
                      Nothing -> error "a3backendPath: backend not configured!"
