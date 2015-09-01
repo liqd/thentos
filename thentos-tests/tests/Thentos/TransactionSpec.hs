@@ -264,6 +264,10 @@ updateUserFieldSpec = describe "updateUserField" $ do
         runQuery conn (lookupUser userId) `shouldReturn` Right (userId, user)
         runQuery conn (lookupUser user2Id) `shouldReturn` Right (user2Id, user2)
 
+    it "fails if the user doesn't exist" $ \(ActionState (conn, _, _)) -> do
+        x <- runQuery conn $ updateUserField userId $ UpdateUserFieldName $ UserName "nobody"
+        x `shouldBe` Left NoSuchUser
+
 
 -- * Garbage collection
 
