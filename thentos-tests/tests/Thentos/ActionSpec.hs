@@ -89,7 +89,7 @@ spec_user = describe "user" $ do
                 updateUserField uid (UpdateUserFieldName "fka_user1")
 
             result <- runPrivs [UserA uid] sta $ lookupUser uid
-            result `shouldBe` (UserId 1, userName .~ "fka_user1" $ user)
+            result `shouldBe` (uid, userName .~ "fka_user1" $ user)
 
         it "throws an error if user does not exist" $ \ sta -> do
             Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $

@@ -172,10 +172,24 @@ data UpdateUserFieldOp =
   | UpdateUserFieldInsertService ServiceId ServiceAccount
   | UpdateUserFieldDropService ServiceId
   | UpdateUserFieldPassword (HashedSecret UserPass)
-  deriving (Eq)
+  deriving (Eq, Show)
 
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosQuery e ()
-updateUserField = error "src/Thentos/Transaction/Transactions.hs:99"
+updateUserField uid op = do
+    mod <- q op
+    case mod of
+        1 -> return ()
+        0 -> throwError NoSuchUser
+        _ -> impossible "updateUserField: unique constraint on id violated"
+  where
+    q op = case op of
+        UpdateUserFieldName n ->
+            execT [sql| UPDATE users SET name = ? WHERE id = ? |] (n, uid)
+        UpdateUserFieldEmail e ->
+            execT [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
+        UpdateUserFieldPassword p ->
+            execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
+        _ -> error $ "updateUserField op not implemented: " ++ show op
 
 updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
 updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
