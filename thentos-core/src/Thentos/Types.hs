@@ -371,6 +371,9 @@ instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Role where toCNF = toCNF . show
 
+instance ToField Role where
+    toField = toField . show
+
 -- * uri
 
 data ProxyUri = ProxyUri { proxyHost :: SBS

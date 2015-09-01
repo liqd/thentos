@@ -26,3 +26,9 @@ CREATE TABLE IF NOT EXISTS "email_change_tokens" (
     timestamp  timestamptz DEFAULT now(),
     new_email  text        NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "user_roles" (
+    uid bigint NOT NULL REFERENCES users (id),
+    role text NOT NULL,
+    UNIQUE (uid, role)
+);

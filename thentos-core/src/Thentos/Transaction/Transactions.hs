@@ -242,7 +242,11 @@ assertAgent :: Agent -> ThentosQuery e ()
 assertAgent = error "src/Thentos/Transaction/Transactions.hs:145"
 
 assignRole :: Agent -> Role -> ThentosQuery e ()
-assignRole _ _ = return ()
+assignRole agent role = case agent of
+    ServiceA _ -> error "assignRole not implemented for services"
+    UserA uid  -> do
+        void $ execT [sql| INSERT INTO user_roles (uid, role)
+                           VALUES (?, ?) |] (uid, role)
 
 unassignRole :: Agent -> Role -> ThentosQuery e ()
 unassignRole _ _ = return ()
