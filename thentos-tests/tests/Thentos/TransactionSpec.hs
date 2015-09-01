@@ -5,6 +5,7 @@ module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty)
+import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
@@ -35,6 +36,8 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     deleteUserSpec
     passwordResetTokenSpec
     updateUserFieldSpec
+    agentRolesSpec
+    assignRoleSpec
     doGarbageCollectUnconfirmedUsersSpec
     doGarbageCollectPasswordResetTokensSpec
 
@@ -268,6 +271,31 @@ updateUserFieldSpec = describe "updateUserField" $ do
         x <- runQuery conn $ updateUserField userId $ UpdateUserFieldName $ UserName "nobody"
         x `shouldBe` Left NoSuchUser
 
+agentRolesSpec :: SpecWith ActionState
+agentRolesSpec = describe "agentRoles" $ do
+    it "returns an empty set for a user without roles" $ \(ActionState (conn, _, _)) -> do
+        let user = mkUser "name" "super secret" "me@example.com"
+            userId = UserId 111
+        Right _ <- runQuery conn $ addUserPrim userId user
+        x <- runQuery conn $ agentRoles (UserA userId)
+        x `shouldBe` Right Set.empty
+
+assignRoleSpec :: SpecWith ActionState
+assignRoleSpec = describe "assignRole" $ do
+    let user = mkUser "name" "super secret" "me@example.com"
+        userId = UserId 111
+
+    it "adds a role" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        roles `shouldBe` Set.fromList [RoleAdmin]
+
+    it "silently allows adding a duplicte role" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        x <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        x `shouldBe` Right ()
 
 -- * Garbage collection
 
