@@ -5,7 +5,7 @@ module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
 import Data.Monoid (mempty)
-import Control.Lens ((^.))
+import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
 import Data.Void (Void)
@@ -34,6 +34,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     lookupUserByEmailSpec
     deleteUserSpec
     passwordResetTokenSpec
+    updateUserFieldSpec
     doGarbageCollectUnconfirmedUsersSpec
     doGarbageCollectPasswordResetTokensSpec
 
@@ -213,6 +214,55 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
         [Only newPassInDB] <- query conn
             [sql| SELECT password FROM users WHERE id = ?|] (Only userId)
         newPassInDB `shouldBe` newEncryptedPass
+
+updateUserFieldSpec :: SpecWith ActionState
+updateUserFieldSpec = describe "updateUserField" $ do
+    let user = mkUser "name" "super secret" "me@example.com"
+        userId = UserId 111
+        user2 = mkUser "someone" "ppppp" "who@example.com"
+        user2Id = UserId 222
+
+    it "changes the user name" $ \(ActionState (conn, _, _)) -> do
+        let newName = UserName "new"
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $
+            updateUserField userId (UpdateUserFieldName newName)
+        Right (_, usr) <- runQuery conn $ lookupUser userId
+        usr `shouldBe` (user & userName .~ newName)
+
+    it "changes the user email" $ \(ActionState (conn, _, _)) -> do
+        let newEmail = forceUserEmail "new@example.com"
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $
+            updateUserField userId (UpdateUserFieldEmail newEmail)
+        Right (_, usr) <- runQuery conn $ lookupUser userId
+        usr `shouldBe` (user & userEmail .~ newEmail)
+
+    it "changes the user name" $ \(ActionState (conn, _, _)) -> do
+        let newPass = encryptTestSecret "new pass"
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $
+            updateUserField userId (UpdateUserFieldPassword newPass)
+        Right (_, usr) <- runQuery conn $ lookupUser userId
+        usr `shouldBe` (user & userPassword .~ newPass)
+
+    it "doesn't change other users" $ \(ActionState (conn, _, _)) -> do
+        let newName = UserName "new"
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim user2Id user2
+        Right _ <- runQuery conn $
+            updateUserField userId (UpdateUserFieldName newName)
+        Right (_, usr2) <- runQuery conn $ lookupUser user2Id
+        usr2 `shouldBe` user2
+
+    it "fails if the new name is not unique" $ \(ActionState (conn, _, _)) -> do
+        let newName = user2 ^. userName
+        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim user2Id user2
+        x <- runQuery conn $ updateUserField userId (UpdateUserFieldName newName)
+        x `shouldBe` Left UserNameAlreadyExists
+        runQuery conn (lookupUser userId) `shouldReturn` Right (userId, user)
+        runQuery conn (lookupUser user2Id) `shouldReturn` Right (user2Id, user2)
 
 
 -- * Garbage collection
