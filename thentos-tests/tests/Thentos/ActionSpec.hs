@@ -205,10 +205,10 @@ runAsAgent :: Agent -> ActionState -> Action Void a -> IO a
 runAsAgent = runActionAsAgent
 
 runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO a
-runPrivs = runPrivs
+runPrivs = runActionWithPrivs
 
 runPrivsE :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
-runPrivsE = runPrivsE
+runPrivsE = runActionWithPrivsE
 
 runClearanceE :: DCLabel -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
 runClearanceE = runActionWithClearanceE
