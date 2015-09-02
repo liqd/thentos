@@ -255,3 +255,9 @@ or if you would like us to link to your GitHub handle / email.
 If you want to get involved, you're very welcome! Please read
 docs/dev-howtos.md and docs/styleguide.md to learn more about our
 development practices and our coding guidelines for Haskell.
+
+
+Future Directions
+-----------------
+
+- There are some exciting advances in IFC in Haskell: http://www.cse.chalmers.se/~buiras/hlio/, `cabal unpack mac`.
