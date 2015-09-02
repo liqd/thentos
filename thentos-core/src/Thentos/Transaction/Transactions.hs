@@ -146,9 +146,9 @@ confirmUserEmailChange timeout token = do
     modified <- execT [sql| UPDATE users
                             SET email = email_change_tokens.new_email
                             FROM email_change_tokens
-                            WHERE timestamp + ? < now()
+                            WHERE timestamp + ? > now()
                             AND users.id = email_change_tokens.uid
-                            AND password_reset_tokens.token = ?
+                            AND email_change_tokens.token = ?
                       |] (timeout, token)
     case modified of
         1 -> return ()

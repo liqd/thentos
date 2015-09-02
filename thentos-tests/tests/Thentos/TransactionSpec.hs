@@ -206,7 +206,7 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
             [sql| SELECT token FROM password_reset_tokens |] ()
         token_in_db `shouldBe` testToken
 
-    it "resets a password when the given token exists" $ \(ActionState (conn, _, _)) -> do
+    it "resets a password if the given token exists" $ \(ActionState (conn, _, _)) -> do
         let user = mkUser "name" "super secret" "me@example.com"
             userId = UserId 594
             testToken = PasswordResetToken "asgbagbaosubgoas"
@@ -329,16 +329,27 @@ unassignRoleSpec = describe "unassignRole" $ do
 emailChangeRequestSpec :: SpecWith ActionState
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \(ActionState (conn, _, _)) -> do
-        let user = mkUser "name" "super secret" "me@example.com"
-            userId = UserId 584
-            testToken = ConfirmationToken "asgbagbaosubgoas"
         Right _ <- runThentosQuery conn $ addUserPrim userId user
         Right _ <- runThentosQuery conn $
-            addUserEmailChangeRequest userId (user ^. userEmail) testToken
-        [Only token_in_db] <- query conn
+            addUserEmailChangeRequest userId newEmail testToken
+        [Only tokenInDb] <- query conn
             [sql| SELECT token FROM email_change_tokens|] ()
-        token_in_db `shouldBe` testToken
+        tokenInDb `shouldBe` testToken
 
+    it "changes a user's email if given a valid token" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $
+            addUserEmailChangeRequest userId newEmail testToken
+        Right _ <-
+            runThentosQuery conn $ confirmUserEmailChange (Timeout 3600) testToken
+        [Only expectedEmail] <- query conn
+            [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
+        expectedEmail `shouldBe` newEmail
+  where
+    user = mkUser "name" "super secret" "me@example.com"
+    userId = UserId 584
+    testToken = ConfirmationToken "asgbagbaosubgoas"
+    newEmail = forceUserEmail "new@example.com"
 
 -- * Garbage collection
 
