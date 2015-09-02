@@ -315,8 +315,9 @@ instance ToJSON PasswordResetRequest where
 instance FromJSON PasswordResetRequest where
     parseJSON = withObject "password reset request" $ \v -> do
         path <- Path <$> v .: "path"
-        pass <- UserPass <$> v .: "password"
-        return $ PasswordResetRequest path pass
+        pass <- v .: "password"
+        failOnError $ passwordAcceptable pass
+        return $ PasswordResetRequest path $ UserPass pass
 
 instance ToJSON RequestResult where
     toJSON (RequestSuccess p t) = object $
