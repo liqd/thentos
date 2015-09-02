@@ -156,19 +156,10 @@ instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, IsString)
-
-instance FromRow ConfirmationToken where
-    fromRow = ConfirmationToken <$> field
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
-
-instance ToField PasswordResetToken where
-    toField = toField . fromPasswordResetToken
-
-instance FromField PasswordResetToken where
-    fromField f dat = PasswordResetToken <$> fromField f dat
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
 -- | Information required to create a new User
 data UserFormData =

@@ -139,10 +139,9 @@ resetPassword timeout token newPassword = do
 addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
 addUserEmailChangeRequest uid newEmail token = do
     void $ execT [sql| INSERT INTO email_change_tokens (token, uid, new_email)
-                VALUES (?, ?) |] (token, uid, newEmail)
+                VALUES (?, ?, ?) |] (token, uid, newEmail)
 
-confirmUserEmailChange ::
-    Timeout -> ConfirmationToken -> ThentosQuery e ()
+confirmUserEmailChange :: Timeout -> ConfirmationToken -> ThentosQuery e ()
 confirmUserEmailChange timeout token = do
     modified <- execT [sql| UPDATE users
                             SET email = email_change_tokens.new_email

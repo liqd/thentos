@@ -41,6 +41,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     unassignRoleSpec
     doGarbageCollectUnconfirmedUsersSpec
     doGarbageCollectPasswordResetTokensSpec
+    emailChangeRequestSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -104,7 +105,7 @@ addUnconfirmedUserWithIdSpec = describe "addUnconfirmedUserWithId" $ do
 
     it "adds the token for the user to the DB" $ \ (ActionState (conn, _, _)) -> do
         Right () <- runQuery conn $ addUnconfirmedUserWithId token user userid
-        [res] <- query conn [sql|
+        [Only res] <- query conn [sql|
             SELECT token FROM user_confirmation_tokens
             WHERE id = ? |] (Only userid)
         res `shouldBe` token
@@ -140,7 +141,7 @@ finishUserRegistrationByIdSpec = describe "finishUserRegistrationById" $ do
         res <- query conn [sql|
             SELECT token FROM user_confirmation_tokens
             WHERE id = ? |] (Only userid)
-        res `shouldBe` ([] :: [ConfirmationToken])
+        res `shouldBe` ([] :: [Only ConfirmationToken])
 
     it "fails if the user is already confirmed" $ \ (ActionState (conn, _, _)) -> do
         Right () <- runQuery conn $ addUnconfirmedUserWithId token user userid
@@ -324,6 +325,20 @@ unassignRoleSpec = describe "unassignRole" $ do
         Right _ <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
         Right roles <- runQuery conn $ agentRoles (UserA userId)
         roles `shouldBe` Set.fromList [RoleUser]
+
+emailChangeRequestSpec :: SpecWith ActionState
+emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
+    it "adds an email change token to the db" $ \(ActionState (conn, _, _)) -> do
+        let user = mkUser "name" "super secret" "me@example.com"
+            userId = UserId 584
+            testToken = ConfirmationToken "asgbagbaosubgoas"
+        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $
+            addUserEmailChangeRequest userId (user ^. userEmail) testToken
+        [Only token_in_db] <- query conn
+            [sql| SELECT token FROM email_change_tokens|] ()
+        token_in_db `shouldBe` testToken
+
 
 -- * Garbage collection
 
