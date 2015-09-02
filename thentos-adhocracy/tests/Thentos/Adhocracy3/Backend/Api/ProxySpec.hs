@@ -25,9 +25,8 @@ import Network.Socket (PortNumber)
 import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings, runSettingsSocket)
 import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll, beforeAll)
-import Test.QuickCheck (Arbitrary(..), property, Gen, NonEmptyList(..), (==>))
+import Test.QuickCheck (property, NonEmptyList(..), (==>))
 
-import qualified Data.Text as Text
 import qualified Network.Wreq as Wreq
 
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
@@ -114,6 +113,7 @@ data RequestInfo = RequestInfo
     , body :: ByteString
     } deriving (Eq, Read, Show, Generic)
 
+
 -- * Aeson instances
 
 instance ToJSON (CI ByteString) where
@@ -131,10 +131,6 @@ instance FromJSON ByteString where
     parseJSON s@(String _) = cs <$> (parseJSON s :: Parser String)
     parseJSON _            = mzero
 
--- * Arbitrary instances
-
-instance Arbitrary Text.Text where
-    arbitrary = cs <$> (arbitrary :: Gen String)
 
 -- * Starting and stopping background processes
 

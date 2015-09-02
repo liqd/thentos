@@ -7,13 +7,16 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE StandaloneDeriving                       #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
+import Control.Applicative ((<*>))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
@@ -25,8 +28,7 @@ import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleStatus)
 import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
 import Test.Hspec.Wai (request, with)
-import Test.QuickCheck (property)
-
+import Test.QuickCheck (Arbitrary(..), property)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
@@ -95,6 +97,18 @@ spec =
                  fromA3UserWithPass <$>
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
+
+        describe "PasswordResetRequest" $ do
+            it "has invertible *JSON instances" . property $
+                \(p :: PasswordResetRequest) -> (Aeson.eitherDecode . Aeson.encode) p == Right p
+
+            it "rejects short passwords" $ do
+                 let req = encodePretty . object $
+                        [ "path"     .= String "Anna Müller"
+                        , "password" .= String "short"
+                        ]
+                 (Aeson.eitherDecode req :: Either String PasswordResetRequest)
+                     `shouldBe` Left "password too short (less than 6 characters)"
 
         describe "login" $ with setupBackend $
             it "rejects bad credentials mimicking A3" $ do
@@ -232,6 +246,8 @@ spec =
         -- (2) An error is returned if the wrong password is specified
 
 
+-- * helper functions
+
 -- | Create a JSON object describing an user.
 -- Aeson.encode would strip the password, hence we do it by hand.
 mkUserJson :: ST -> ST -> ST -> LBS
@@ -249,3 +265,15 @@ mkUserJson name email password = encodePretty . object $
       ]
   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
   ]
+
+
+-- * instances
+
+instance Arbitrary Path where
+    arbitrary = Path <$> arbitrary
+
+instance Arbitrary PasswordResetRequest where
+    arbitrary = PasswordResetRequest <$> arbitrary <*> arbitrary
+
+-- | We don't want to accidentally show passwords in production code but it's harmless in tests.
+deriving instance Show PasswordResetRequest
