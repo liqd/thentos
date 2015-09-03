@@ -260,4 +260,4 @@ development practices and our coding guidelines for Haskell.
 Future Directions
 -----------------
 
-- There are some exciting advances in IFC in Haskell: http://www.cse.chalmers.se/~buiras/hlio/, `cabal unpack mac`.
+- There are some exciting advances in IFC in Haskell: http://www.cse.chalmers.se/~buiras/hlio/, [the mac package](http://hackage.haskell.org/package/mac).
