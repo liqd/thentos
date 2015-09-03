@@ -436,7 +436,7 @@ login r = AC.logIfError'P $ do
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
 resetPassword :: PasswordResetRequest -> AC.Action DB RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
-    AC.logger'P DEBUG $ "route password_reset for path:" <> show path
+    AC.logger'P DEBUG $ "route password_reset for path: " <> show path
     reqResult <- resetPasswordInA3'P path
     case reqResult of
         RequestSuccess userPath _a3tok -> do
