@@ -17,6 +17,7 @@ module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
 import Control.Applicative ((<*>))
+import Control.Concurrent.Async (Async)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
@@ -25,6 +26,7 @@ import Data.Maybe (isJust)
 import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.Wai (Application)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
 import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
 import Test.Hspec.Wai (request, with)
@@ -37,11 +39,10 @@ import qualified Network.HTTP.Types.Status as Status
 import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
-
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
-
+import Thentos.Test.Network
 
 tests :: IO ()
 tests = hspec spec
@@ -103,11 +104,8 @@ spec =
                 \(p :: PasswordResetRequest) -> (Aeson.eitherDecode . Aeson.encode) p == Right p
 
             it "rejects short passwords" $ do
-                 let req = encodePretty . object $
-                        [ "path"     .= String "Anna Müller"
-                        , "password" .= String "short"
-                        ]
-                 (Aeson.eitherDecode req :: Either String PasswordResetRequest)
+                 let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "short"
+                 (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
                      `shouldBe` Left "password too short (less than 6 characters)"
 
         describe "login" $ with setupBackend $
@@ -118,9 +116,25 @@ spec =
                         , "password" .= String "this-is-wrong"
                         ]
 
-                rsp <- request "POST" "login_username" [ctJSON] reqBody
+                rsp <- request "POST" "login_username" [ctJson] reqBody
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
+
+        describe "resetPassword" $ with setupBackend $ do
+            it "changes the password if A3 signals success" $ do
+                fakeA3backend <- liftIO $ startA3fake . encodePretty . object $
+                    [ "status"     .= String "success"
+                    , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
+                    , "user_token" .= String "bla-bla-valid-token-blah"
+                    ]
+                let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                rsp <- request "POST" "password_reset" [ctJson] reqdata
+                liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
+                -- FIXME How to do this? Requires ActionState sta
+                -- Test that we can login using the new password
+                -- import qualified Thentos.Action as A
+                -- _stok <- runAction sta $ A.startThentosSessionByUserId (UserId 0) "newpass"
+                liftIO $ stopDaemon fakeA3backend
 
         describe "arbitrary requests" $ with setupBackend $
             it "rejects bad session token mimicking A3" $ do
@@ -136,7 +150,7 @@ spec =
 --                let reqBody = encodePretty . object $
 --                        [ "path" .= String "/activate/no-such-path" ]
 --
---                rsp <- request "POST" "activate_account" [ctJSON] reqBody
+--                rsp <- request "POST" "activate_account" [ctJson] reqBody
 --                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
 --                    "\"Unknown or expired activation path\""
 
@@ -148,7 +162,7 @@ spec =
         createGod adb
         return $! serveApi mgr db
 
-    ctJSON = ("Content-Type", "application/json")
+    ctJson = ("Content-Type", "application/json")
 
     shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
     shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
@@ -266,6 +280,21 @@ mkUserJson name email password = encodePretty . object $
   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
   ]
 
+-- | Create a JSON object for a PasswordResetRequest. Calling the ToJSON instance might be
+-- considered cheating, so we do it by hand.
+mkPwResetRequestJson :: ST -> ST -> LBS
+mkPwResetRequestJson path pass = encodePretty . object $
+    [ "path"     .= String path
+    , "password" .= String pass
+    ]
+
+-- | Start a faked A3 backend that always returns the same response, passed in as argument.
+-- Must be stopped via 'stopDaemon'.
+startA3fake :: LBS -> IO (Async ())
+startA3fake respBody =
+    startDaemon . runSettings settings $ staticReplyServer Nothing Nothing respBody
+  where
+    settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
 
 -- * instances
 
