@@ -6,8 +6,7 @@
 module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent.Async (Async, async, cancel, wait, link)
-import Control.Exception (catch, AsyncException(ThreadKilled))
+import Control.Concurrent.Async (Async)
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
 import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
@@ -22,7 +21,8 @@ import Network.HTTP.Base (urlEncode)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Header, mkStatus)
 import Network.Socket (PortNumber)
-import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod, responseLBS)
+import Network.Wai (Application, requestBody, rawPathInfo, requestHeaders, requestMethod,
+                    responseLBS)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings, runSettingsSocket)
 import Test.Hspec (Spec, SpecWith, describe, context, shouldBe, it, afterAll, beforeAll)
 import Test.QuickCheck (property, NonEmptyList(..), (==>))
@@ -32,7 +32,7 @@ import qualified Network.Wreq as Wreq
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
 import Thentos.Test.Core
 import Thentos.Test.Config
-import Thentos.Test.Network (openTestSocket)
+import Thentos.Test.Network
 
 
 type Env = (PortNumber, Async (), Async ())
@@ -88,6 +88,7 @@ hitsProxy = not . or . sequence [ ("principals/users" `isPrefixOf`)
                                 , ("activate_account" `isPrefixOf`)
                                 , ("login_username" `isPrefixOf`)
                                 , ("login_email" `isPrefixOf`)
+                                , ("password_reset" `isPrefixOf`)
                                 ]
 
 
@@ -130,17 +131,3 @@ instance ToJSON ByteString where
 instance FromJSON ByteString where
     parseJSON s@(String _) = cs <$> (parseJSON s :: Parser String)
     parseJSON _            = mzero
-
-
--- * Starting and stopping background processes
-
-startDaemon :: IO () -> IO (Async ())
-startDaemon x = do
-    a <- async x
-    link a
-    return a
-
-stopDaemon :: Async () -> IO ()
-stopDaemon a = do
-    cancel a
-    catch (wait a) (\ThreadKilled -> return ())
