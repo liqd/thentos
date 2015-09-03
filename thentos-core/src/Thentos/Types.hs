@@ -190,8 +190,11 @@ data Service =
       }
   deriving (Eq, Show, Typeable, Generic)
 
+instance FromRow Service where
+    fromRow = Service <$> field <*> field <*> field <*> field <*> field <*> pure Map.empty
+
 newtype ServiceId = ServiceId { fromServiceId :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
 
 instance Aeson.FromJSON ServiceId where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceId where toJSON = Aeson.gtoJson
@@ -203,13 +206,13 @@ instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
 
 newtype ServiceName = ServiceName { fromServiceName :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
 
 instance Aeson.FromJSON ServiceName where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceName where toJSON = Aeson.gtoJson
 
 newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
 
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
@@ -232,7 +235,7 @@ instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromJSON, ToJSON)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromJSON, ToJSON, FromField, ToField)
 
 data ThentosSession =
     ThentosSession
@@ -330,6 +333,14 @@ instance Aeson.ToJSON Timeout
 -- already.)
 data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+-- FIXME: assumes all Agents are Users for now
+instance FromField Agent where
+    fromField f dat = UserA <$> fromField f dat
+
+-- FIXME: assumes all Agents are Users for now
+instance ToField Agent where
+    toField (UserA uid) = toField uid
 
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson

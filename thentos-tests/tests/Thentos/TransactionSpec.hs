@@ -19,7 +19,7 @@ import Thentos.Action.Core
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
-import Thentos.Util (hashUserPass)
+import Thentos.Util (hashUserPass, hashServiceKey)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
@@ -42,6 +42,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     doGarbageCollectUnconfirmedUsersSpec
     doGarbageCollectPasswordResetTokensSpec
     emailChangeRequestSpec
+    addServiceSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -350,6 +351,32 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     userId = UserId 584
     testToken = ConfirmationToken "asgbagbaosubgoas"
     newEmail = forceUserEmail "new@example.com"
+
+addServiceSpec :: SpecWith ActionState
+addServiceSpec = describe "addService" $ do
+    it "adds a service to the db" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runThentosQuery conn $ addUserPrim uid user
+        [Only serviceCount] <- query conn countServices ()
+        serviceCount `shouldBe` (0 :: Int)
+        hashedKey <- hashServiceKey secret
+        Right _ <- runThentosQuery conn $
+            addService (UserA uid) sid hashedKey name description
+        [(owner', sid', key', name', desc')] <- query conn
+            [sql| SELECT owner, id, key, name, description
+                  FROM services |] ()
+        owner' `shouldBe` UserA uid
+        sid' `shouldBe` sid
+        key' `shouldBe` hashedKey
+        name' `shouldBe` name
+        desc' `shouldBe` description
+  where
+    secret = "verySecretKey"
+    sid = ServiceId "serviceid1"
+    uid = UserId 9
+    user = mkUser "name" "super secret" "me@example.com"
+    name = ServiceName "MyLittleService"
+    description = ServiceDescription "it serves"
+    countServices = [sql| SELECT COUNT(*) FROM services |]
 
 -- * Garbage collection
 

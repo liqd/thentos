@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 import Control.Exception.Lifted (throwIO)
 import Data.Monoid (mempty)
 import Data.Typeable (Typeable)
+import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad (void)
 import Control.Monad.Catch (catch)
@@ -203,15 +204,28 @@ deleteUser uid
       _ -> impossible "deleteUser: unique constraint on id violated"
 
 allServiceIds :: ThentosQuery e [ServiceId]
-allServiceIds = error "src/Thentos/Transaction/Transactions.hs:108"
+allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
-lookupService = error "src/Thentos/Transaction/Transactions.hs:111"
+lookupService sid = do
+    services <- queryT [sql| SELECT *
+                             FROM services
+                             WHERE id = ? |] (Only sid)
+    service <- case services of
+        [service] -> return service
+        []        -> throwError NoSuchService
+        _         -> impossible "lookupService: multiple results"
+    return (sid, service)
 
+
+-- FIXME: the agent has to be a user for now
 addService ::
     Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
     -> ServiceDescription -> ThentosQuery e ()
-addService = error "src/Thentos/Transaction/Transactions.hs:116"
+addService agent sid secret name description = void $
+    execT [sql| INSERT INTO services (id, owner, name, description, key)
+                VALUES (?, ?, ?, ?, ?)
+          |] (sid, agent, name, description, secret)
 
 deleteService :: ServiceId -> ThentosQuery e ()
 deleteService = error "src/Thentos/Transaction/Transactions.hs:119"

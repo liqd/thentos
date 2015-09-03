@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS "user_roles" (
     role text NOT NULL,
     UNIQUE (uid, role)
 );
+
+CREATE TABLE IF NOT EXISTS "services" (
+    id          TEXT       PRIMARY KEY,
+    owner       bigint     REFERENCES users (id),
+    name        TEXT       NOT NULL,
+    description TEXT       NOT NULL,
+    key         TEXT       NOT NULL
+)
