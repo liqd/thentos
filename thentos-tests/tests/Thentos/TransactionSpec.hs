@@ -4,12 +4,13 @@
 module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
+import Data.AffineSpace ((.+^))
 import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
-import Data.Thyme (getCurrentTime)
+import Data.Thyme (fromSeconds', getCurrentTime)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..), query, query_)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -453,13 +454,56 @@ doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordRese
 
 
 lookupThentosSessionSpec :: SpecWith ActionState
-lookupThentosSessionSpec = describe "lookupThentosSessionSpec" $ do
+lookupThentosSessionSpec = describe "lookupThentosSession" $ do
     let tok = ThentosSessionToken "hellohello"
+        userId = UserId 777
+        user = mkUser "name" "pass" "email@email.com"
+        agent = UserA userId
+        period' = fromSeconds' 60
+        period = Timeout period'
 
-    it "fails when there is no session" $ \ (ActionState (conn, _, _)) -> do
+    it "fails when there is no session" $ \(ActionState (conn, _, _)) -> do
         now <- Timestamp <$> getCurrentTime
+        void $ runQuery conn $ addUserPrim userId user
         x <- runQuery conn $ lookupThentosSession now tok
         x `shouldBe` Left NoSuchThentosSession
+
+    it "reads back a fresh session" $ \(ActionState (conn, _, _)) -> do
+        now <- Timestamp <$> getCurrentTime
+        void $ runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ startThentosSession tok agent now period
+        Right (t, s) <- runQuery conn $ lookupThentosSession now tok
+        t `shouldBe` tok
+        s ^. thSessAgent `shouldBe` agent
+
+    it "fails for an expired session" $ \(ActionState (conn, _, _)) -> do
+        now' <- getCurrentTime
+        let now = Timestamp now'
+            later = Timestamp $ now' .+^ 1.1*period'
+        void $ runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ startThentosSession tok agent now period
+        x <- runQuery conn $ lookupThentosSession later tok
+        x `shouldBe` Left NoSuchThentosSession
+
+    it "reads back an almost-expired session" $ \(ActionState (conn, _, _)) -> do
+        now' <- getCurrentTime
+        let now = Timestamp now'
+            later = Timestamp $ now' .+^ 0.9*period'
+        void $ runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ startThentosSession tok agent now period
+        Right (t, _) <- runQuery conn $ lookupThentosSession later tok
+        t `shouldBe` tok
+
+    it "extends the session" $ \(ActionState (conn, _, _)) -> do
+        now' <- getCurrentTime
+        let now = Timestamp now'
+            later = Timestamp $ now' .+^ 0.5*period'
+            evenlater = Timestamp $ now' .+^ 1.4*period'
+        void $ runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ startThentosSession tok agent now period
+        Right _ <- runQuery conn $ lookupThentosSession later tok
+        Right (t, _) <- runQuery conn $ lookupThentosSession evenlater tok
+        t `shouldBe` tok
 
 
 -- * Utils

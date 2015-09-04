@@ -151,6 +151,7 @@ test-suite tests
     , transformers-base
     , unix
     , unordered-containers
+    , vector-space
     , void
     , wai
     , wai-extra
