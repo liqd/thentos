@@ -93,22 +93,10 @@ newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText)
-
-instance ToField UserId where
-    toField = toField . fromUserId
-
-instance FromField UserId where
-    fromField f dat = UserId <$> fromField f dat
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText, FromField, ToField)
 
 newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
-
-instance FromField UserName where
-    fromField f dat = UserName <$> fromField f dat
-
-instance ToField UserName where
-    toField = toField . fromUserName
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField, ToField)
 
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
