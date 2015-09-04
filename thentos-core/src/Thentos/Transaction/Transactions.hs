@@ -258,7 +258,10 @@ lookupThentosSession now token = do
 
 startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout
                                        -> ThentosQuery e ()
-startThentosSession = error "src/Thentos/Transaction/Transactions.hs:127"
+startThentosSession tok agent now period = do
+    void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
+                       VALUES (?, ?, ?, ?::timestamptz + ?, ?)
+                 |] (tok, agent, now, now, period, period)
 
 endThentosSession :: ThentosSessionToken -> ThentosQuery e ()
 endThentosSession = error "src/Thentos/Transaction/Transactions.hs:130"
