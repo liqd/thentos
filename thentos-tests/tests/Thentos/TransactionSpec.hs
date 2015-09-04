@@ -47,6 +47,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     addServiceSpec
     deleteServiceSpec
     lookupThentosSessionSpec
+    startThentosSessionSpec
 
 
 addUserPrimSpec :: SpecWith ActionState
@@ -452,6 +453,16 @@ doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordRese
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
+startThentosSessionSpec :: SpecWith ActionState
+startThentosSessionSpec = describe "startThentosSession" $ do
+    let tok = "something"
+        user = UserA (UserId 55)
+        period = Timeout $ fromSeconds' 60
+
+    it "fails when the user doesn't exist" $ \(ActionState (conn, _, _)) -> do
+        now <- Timestamp <$> getCurrentTime
+        x <- runQuery conn $ startThentosSession tok user now period
+        x `shouldBe` Left NoSuchUser
 
 lookupThentosSessionSpec :: SpecWith ActionState
 lookupThentosSessionSpec = describe "lookupThentosSession" $ do
