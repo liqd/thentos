@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
     token      text        UNIQUE NOT NULL
 );
 
-
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
     token      text        NOT NULL,
     uid        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -34,9 +33,9 @@ CREATE TABLE IF NOT EXISTS "user_roles" (
 );
 
 CREATE TABLE IF NOT EXISTS "services" (
-    id          TEXT       PRIMARY KEY,
+    id          text       PRIMARY KEY,
     owner       bigint     REFERENCES users (id),
-    name        TEXT       NOT NULL,
-    description TEXT       NOT NULL,
-    key         TEXT       NOT NULL
-)
+    name        text       NOT NULL,
+    description text       NOT NULL,
+    key         text       NOT NULL
+);
