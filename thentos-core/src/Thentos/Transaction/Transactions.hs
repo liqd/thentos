@@ -239,15 +239,15 @@ deleteService sid = do
 -- | Lookup session.  If session does not exist or has expired, throw an error.  If it does exist,
 -- bump the expiry time and return session with bumped expiry time.
 lookupThentosSession ::
-    Timestamp -> ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)
-lookupThentosSession now token = do
+     ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)
+lookupThentosSession token = do
     void $ execT [sql| UPDATE user_sessions
-                       SET end_ = ?::timestamptz + period
-                       WHERE token = ? AND end_ >= ?
-                 |] (now, token, now)
+                       SET end_ = now()::timestamptz + period
+                       WHERE token = ? AND end_ >= now()
+                 |] (Only token)
     sesss <- queryT [sql| SELECT uid, start, end_, period FROM user_sessions
-                          WHERE token = ? AND end_ >= ?
-                    |] (token, now)
+                          WHERE token = ? AND end_ >= now()
+                    |] (Only token)
     case sesss of
         [(uid, start, end, period)] ->
              return ( token
@@ -256,17 +256,17 @@ lookupThentosSession now token = do
         []                          -> throwError NoSuchThentosSession
         _                           -> impossible "lookupThentosSession: multiple results"
 
-startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout
+startThentosSession :: ThentosSessionToken -> Agent -> Timeout
                                        -> ThentosQuery e ()
-startThentosSession tok agent now period = do
+startThentosSession tok agent period = do
     void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
-                       VALUES (?, ?, ?, ?::timestamptz + ?, ?)
-                 |] (tok, agent, now, now, period, period)
+                       VALUES (?, ?, now(), now() + ?, ?)
+                 |] (tok, agent, period, period)
 
 endThentosSession :: ThentosSessionToken -> ThentosQuery e ()
 endThentosSession = error "src/Thentos/Transaction/Transactions.hs:130"
 
-lookupServiceSession :: Timestamp -> ServiceSessionToken
+lookupServiceSession :: ServiceSessionToken
                                         -> ThentosQuery e (ServiceSessionToken, ServiceSession)
 lookupServiceSession = error "src/Thentos/Transaction/Transactions.hs:134"
 

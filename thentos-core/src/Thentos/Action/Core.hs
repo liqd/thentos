@@ -197,8 +197,7 @@ accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (T.agent
 
 accessRightsByThentosSession'P :: ThentosSessionToken -> Action e [CNF]
 accessRightsByThentosSession'P tok = do
-    now <- getCurrentTime'P
-    (_, session) <- query'P (T.lookupThentosSession now tok)
+    (_, session) <- query'P (T.lookupThentosSession tok)
     accessRightsByAgent'P $ session ^. thSessAgent
 
 

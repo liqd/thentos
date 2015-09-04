@@ -388,9 +388,7 @@ lookupThentosSession tok = do
 
 -- | Find 'ThentosSession' from token, without clearance check.
 _lookupThentosSession :: ThentosSessionToken -> Action e ThentosSession
-_lookupThentosSession tok = do
-    now <- getCurrentTime'P
-    snd <$> query'P (T.lookupThentosSession now tok)
+_lookupThentosSession tok = snd <$> query'P (T.lookupThentosSession tok)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
@@ -455,9 +453,8 @@ validateThentosUserSession tok = do
 -- NOTE: This should only be called after verifying the agent's credentials
 _startThentosSessionByAgent :: Agent -> Action e ThentosSessionToken
 _startThentosSessionByAgent agent = do
-    now <- getCurrentTime'P
     tok <- freshSessionToken
-    query'P $ T.startThentosSession tok agent now defaultSessionTimeout
+    query'P $ T.startThentosSession tok agent defaultSessionTimeout
     return tok
 
 
@@ -465,13 +462,11 @@ _startThentosSessionByAgent agent = do
 -- 'RoleAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
 serviceNamesFromThentosSession tok = do
-    now <- getCurrentTime'P
-
     ts :: ThentosSession
-        <- snd <$> query'P (T.lookupThentosSession now tok)
+        <- snd <$> query'P (T.lookupThentosSession tok)
 
     ss :: [ServiceSession]
-        <- mapM (fmap snd . query'P . T.lookupServiceSession now) $
+        <- mapM (fmap snd . query'P . T.lookupServiceSession) $
              Set.toList (ts ^. thSessServiceSessions)
 
     xs :: [(ServiceId, Service)]
@@ -488,8 +483,7 @@ serviceNamesFromThentosSession tok = do
 -- | Like 'lookupThentosSession', but for 'ServiceSession's.
 lookupServiceSession :: ServiceSessionToken -> Action e ServiceSession
 lookupServiceSession tok = do
-    now <- getCurrentTime'P
-    session <- snd <$> query'P (T.lookupServiceSession now tok)
+    session <- snd <$> query'P (T.lookupServiceSession tok)
     let agent = ServiceA (session ^. srvSessService)
     tryTaint (RoleAdmin \/ agent %% False)
         (return session)
@@ -594,7 +588,6 @@ collectGarbage = do
     logger'P DEBUG "starting garbage collection."
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
-    now <- getCurrentTime'P
     query'P T.garbageCollectThentosSessions
     query'P T.garbageCollectServiceSessions
 

@@ -4,17 +4,16 @@
 module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
-import Data.AffineSpace ((.+^))
 import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
-import Data.Thyme (fromSeconds', getCurrentTime)
+import Data.Thyme (fromSeconds')
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..), query, query_)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, before)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
 import Database.PostgreSQL.Simple (Connection)
 
 import Thentos.Action.Core
@@ -461,8 +460,7 @@ startThentosSessionSpec = describe "startThentosSession" $ do
         period = Timeout $ fromSeconds' 60
 
     it "fails when the user doesn't exist" $ \(ActionState (conn, _, _)) -> do
-        now <- Timestamp <$> getCurrentTime
-        x <- runQuery conn $ startThentosSession tok user now period
+        x <- runQuery conn $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
 
 lookupThentosSessionSpec :: SpecWith ActionState
@@ -475,47 +473,30 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         period = Timeout period'
 
     it "fails when there is no session" $ \(ActionState (conn, _, _)) -> do
-        now <- Timestamp <$> getCurrentTime
         void $ runQuery conn $ addUserPrim userId user
-        x <- runQuery conn $ lookupThentosSession now tok
+        x <- runQuery conn $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
     it "reads back a fresh session" $ \(ActionState (conn, _, _)) -> do
-        now <- Timestamp <$> getCurrentTime
         void $ runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ startThentosSession tok agent now period
-        Right (t, s) <- runQuery conn $ lookupThentosSession now tok
+        Right _ <- runQuery conn $ startThentosSession tok agent period
+        Right (t, s) <- runQuery conn $ lookupThentosSession tok
         t `shouldBe` tok
         s ^. thSessAgent `shouldBe` agent
 
     it "fails for an expired session" $ \(ActionState (conn, _, _)) -> do
-        now' <- getCurrentTime
-        let now = Timestamp now'
-            later = Timestamp $ now' .+^ 1.1*period'
         void $ runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ startThentosSession tok agent now period
-        x <- runQuery conn $ lookupThentosSession later tok
+        Right _ <- runQuery conn $ startThentosSession tok agent (Timeout $ fromSeconds' 0)
+        x <- runQuery conn $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
-    it "reads back an almost-expired session" $ \(ActionState (conn, _, _)) -> do
-        now' <- getCurrentTime
-        let now = Timestamp now'
-            later = Timestamp $ now' .+^ 0.9*period'
-        void $ runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ startThentosSession tok agent now period
-        Right (t, _) <- runQuery conn $ lookupThentosSession later tok
-        t `shouldBe` tok
-
     it "extends the session" $ \(ActionState (conn, _, _)) -> do
-        now' <- getCurrentTime
-        let now = Timestamp now'
-            later = Timestamp $ now' .+^ 0.5*period'
-            evenlater = Timestamp $ now' .+^ 1.4*period'
         void $ runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ startThentosSession tok agent now period
-        Right _ <- runQuery conn $ lookupThentosSession later tok
-        Right (t, _) <- runQuery conn $ lookupThentosSession evenlater tok
+        Right _ <- runQuery conn $ startThentosSession tok agent period
+        Right (_, sess1) <- runQuery conn $ lookupThentosSession tok
+        Right (t, sess2) <- runQuery conn $ lookupThentosSession tok
         t `shouldBe` tok
+        sess1 ^. thSessEnd `shouldSatisfy` (< sess2 ^. thSessEnd)
 
 garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
 garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
