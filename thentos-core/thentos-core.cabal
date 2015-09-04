@@ -140,6 +140,7 @@ library
     , template-haskell
     , text
     , thyme
+    , time
     , transformers
     , unordered-containers
     , uri-bytestring

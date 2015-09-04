@@ -30,6 +30,7 @@ import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
+import Data.Time (TimeOfDay(..))
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
@@ -42,8 +43,11 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 import Database.PostgreSQL.Simple.FromRow (FromRow, fromRow, field)
-import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError)
+import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.ToField (ToField, toField)
+import Database.PostgreSQL.Simple.TypeInfo (typoid)
+import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
+import Database.PostgreSQL.Simple.Time (parseTimeOfDay)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
@@ -281,10 +285,17 @@ newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
 
 instance ToField Timeout where
     toField = toField . fromThyme . fromTimeout
-    -- TODO: is this actually the right format?
 
 instance FromField Timeout where
-    fromField f dat = Timeout . fromRational <$> fromField f dat
+    fromField f mdat =
+        if typeOid f /= typoid interval
+            then returnError Incompatible f ""
+            else case mdat of
+                Nothing  -> returnError UnexpectedNull f ""
+                Just dat -> case parseTimeOfDay dat of
+                    Left msg                -> returnError ConversionFailed f msg
+                    Right (TimeOfDay h m s) -> return . Timeout . fromSeconds $
+                                                   s + (fromIntegral m) * 60 + (fromIntegral h) * 60 * 60
 
 timestampToString :: Timestamp -> String
 timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
