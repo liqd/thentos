@@ -8,6 +8,7 @@ import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
+import Data.Either (isRight)
 import Data.String.Conversions (ST, SBS)
 import Data.Thyme (fromSeconds')
 import Data.Void (Void)
@@ -48,6 +49,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     deleteServiceSpec
     lookupThentosSessionSpec
     startThentosSessionSpec
+    endThentosSessionSpec
 
 
 addUserPrimSpec :: SpecWith ActionState
@@ -497,6 +499,27 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         Right (t, sess2) <- runQuery conn $ lookupThentosSession tok
         t `shouldBe` tok
         sess1 ^. thSessEnd `shouldSatisfy` (< sess2 ^. thSessEnd)
+
+endThentosSessionSpec :: SpecWith ActionState
+endThentosSessionSpec = describe "endThentosSession" $ do
+    let tok = "something"
+        userId = UserId 777
+        user = mkUser "name" "pass" "email@email.com"
+        agent = UserA userId
+        period = Timeout $ fromSeconds' 60
+
+    it "deletes a session" $ \(ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ startThentosSession tok agent period
+        Right _ <- runQuery conn $ lookupThentosSession tok
+        Right _ <- runQuery conn $ endThentosSession tok
+        x <- runQuery conn $ lookupThentosSession tok
+        x `shouldBe` Left NoSuchThentosSession
+
+    it "silently allows deleting a non-existing session" $ \(ActionState (conn, _, _)) -> do
+        x <- runQuery conn $ endThentosSession tok
+        x `shouldSatisfy` isRight
+
 
 garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
 garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do

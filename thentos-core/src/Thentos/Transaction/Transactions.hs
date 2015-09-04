@@ -258,16 +258,17 @@ lookupThentosSession token = do
 
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout
                                        -> ThentosQuery e ()
-startThentosSession tok agent period = do
+startThentosSession tok agent period =
     void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
                        VALUES (?, ?, now(), now() + ?, ?)
                  |] (tok, agent, period, period)
 
 endThentosSession :: ThentosSessionToken -> ThentosQuery e ()
-endThentosSession = error "src/Thentos/Transaction/Transactions.hs:130"
+endThentosSession tok =
+    void $ execT [sql| DELETE FROM user_sessions WHERE token = ?
+                 |] (Only tok)
 
-lookupServiceSession :: ServiceSessionToken
-                                        -> ThentosQuery e (ServiceSessionToken, ServiceSession)
+lookupServiceSession :: ServiceSessionToken -> ThentosQuery e (ServiceSessionToken, ServiceSession)
 lookupServiceSession = error "src/Thentos/Transaction/Transactions.hs:134"
 
 startServiceSession ::
