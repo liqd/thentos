@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.String.Conversions (ST, SBS)
+import Data.Thyme (getCurrentTime)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..), query, query_)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
@@ -44,6 +45,8 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
+    lookupThentosSessionSpec
+
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -447,6 +450,16 @@ doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordRese
         void $ runQuery conn $ doGarbageCollectPasswordResetTokens 1000000
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (1 :: Int)
+
+
+lookupThentosSessionSpec :: SpecWith ActionState
+lookupThentosSessionSpec = describe "lookupThentosSessionSpec" $ do
+    let tok = ThentosSessionToken "hellohello"
+
+    it "fails when there is no session" $ \ (ActionState (conn, _, _)) -> do
+        now <- Timestamp <$> getCurrentTime
+        x <- runQuery conn $ lookupThentosSession now tok
+        x `shouldBe` Left NoSuchThentosSession
 
 
 -- * Utils
