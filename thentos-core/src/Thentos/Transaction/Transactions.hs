@@ -241,7 +241,7 @@ deleteService sid = do
 lookupThentosSession ::
     Timestamp -> ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)
 lookupThentosSession now token = do
-    mod <- execT [sql| UPDATE user_sessions
+    void $ execT [sql| UPDATE user_sessions
                        SET end_ = ?::timestamptz + period
                        WHERE token = ? AND end_ >= ?
                  |] (now, token, now)
