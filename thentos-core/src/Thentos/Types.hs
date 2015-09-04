@@ -283,6 +283,9 @@ instance ToField Timeout where
     toField = toField . fromThyme . fromTimeout
     -- TODO: is this actually the right format?
 
+instance FromField Timeout where
+    fromField f dat = Timeout . fromRational <$> fromField f dat
+
 timestampToString :: Timestamp -> String
 timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
 
