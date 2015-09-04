@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS "services" (
     description text       NOT NULL,
     key         text       NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "user_sessions" (
+    token  text        PRIMARY KEY,
+    uid    bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    start  timestamptz NOT NULL,
+    end    timestamptz NOT NULL,
+    period interval    NOT NULL
+);
