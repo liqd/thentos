@@ -57,6 +57,7 @@ library
     , Snap.Inline
     , Snap.Missing
     , System.Log.Missing
+    , Database.PostgreSQL.Simple.Missing
     , Thentos
     , ThentosDocs
     , Thentos.Action
@@ -89,6 +90,7 @@ library
     , aeson-pretty
     , aeson-utils
     , async
+    , attoparsec
     , blaze-builder
     , blaze-html
     , bytestring

@@ -17,11 +17,12 @@
 
 module Thentos.Types where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*), (<*>), pure)
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String))
+import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Set (Set)
@@ -55,6 +56,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Generics.Generic.Aeson as Aeson
 
+import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
 
 -- * user
 
@@ -292,10 +294,9 @@ instance FromField Timeout where
             then returnError Incompatible f ""
             else case mdat of
                 Nothing  -> returnError UnexpectedNull f ""
-                Just dat -> case parseTimeOfDay dat of
-                    Left msg                -> returnError ConversionFailed f msg
-                    Right (TimeOfDay h m s) -> return . Timeout . fromSeconds $
-                                                   s + (fromIntegral m) * 60 + (fromIntegral h) * 60 * 60
+                Just dat -> case parseOnly (nominalDiffTime <* endOfInput) dat of
+                    Left msg  -> returnError ConversionFailed f msg
+                    Right t   -> return . Timeout . toThyme $ t
 
 timestampToString :: Timestamp -> String
 timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
