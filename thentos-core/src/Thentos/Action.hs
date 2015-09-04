@@ -595,15 +595,15 @@ collectGarbage = do
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
     now <- getCurrentTime'P
-    query'P (T.garbageCollectThentosSessions now) >>= query'P . T.doGarbageCollectThentosSessions
-    query'P (T.garbageCollectServiceSessions now) >>= query'P . T.doGarbageCollectServiceSessions
+    query'P T.garbageCollectThentosSessions
+    query'P T.garbageCollectServiceSessions
 
     config <- getConfig'P
     let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
         passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
         emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
-    query'P $ T.doGarbageCollectUnconfirmedUsers userExpiry
-    query'P $ T.doGarbageCollectEmailChangeTokens now emailExpiry
-    query'P $ T.doGarbageCollectPasswordResetTokens passwordExpiry
+    query'P $ T.garbageCollectUnconfirmedUsers userExpiry
+    query'P $ T.garbageCollectEmailChangeTokens emailExpiry
+    query'P $ T.garbageCollectPasswordResetTokens passwordExpiry
 
     logger'P DEBUG "garbage collection complete!"

@@ -42,7 +42,8 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     assignRoleSpec
     unassignRoleSpec
     doGarbageCollectUnconfirmedUsersSpec
-    doGarbageCollectPasswordResetTokensSpec
+    garbageCollectPasswordResetTokensSpec
+    garbageCollectEmailChangeTokensSpec
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
@@ -415,7 +416,7 @@ doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUser
     it "deletes all expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
         Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
         Right () <- runQuery conn $ addUnconfirmedUserWithId token2 user2 userid2
-        Right () <- runQuery conn $ doGarbageCollectUnconfirmedUsers 0
+        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 0
         [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (0 :: Int)
@@ -423,15 +424,15 @@ doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUser
 
     it "only deletes expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
         Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery conn $ doGarbageCollectUnconfirmedUsers 100000
+        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 100000
         [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (1 :: Int)
         usrs `shouldBe` (1 :: Int)
 
 
-doGarbageCollectPasswordResetTokensSpec :: SpecWith ActionState
-doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
+garbageCollectPasswordResetTokensSpec :: SpecWith ActionState
+garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
     let user   = mkUser "name1" "pass" "email1@email.com"
         userid = UserId 321
         email = forceUserEmail "email1@email.com"
@@ -442,14 +443,14 @@ doGarbageCollectPasswordResetTokensSpec = describe "doGarbageCollectPasswordRese
         void $ runQuery conn $ addPasswordResetToken email passToken
         [Only tkns] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns `shouldBe` (1 :: Int)
-        Right () <- runQuery conn $ doGarbageCollectPasswordResetTokens 0
+        Right () <- runQuery conn $ garbageCollectPasswordResetTokens 0
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (0 :: Int)
 
     it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
         void $ runQuery conn $ addUserPrim userid user
         void $ runQuery conn $ addPasswordResetToken email passToken
-        void $ runQuery conn $ doGarbageCollectPasswordResetTokens 1000000
+        void $ runQuery conn $ garbageCollectPasswordResetTokens 1000000
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
@@ -515,6 +516,27 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         Right _ <- runQuery conn $ lookupThentosSession later tok
         Right (t, _) <- runQuery conn $ lookupThentosSession evenlater tok
         t `shouldBe` tok
+
+garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
+garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
+    let newEmail = forceUserEmail "new@example.com"
+        token = "sometoken2"
+
+    it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserEmailChangeRequest testUid newEmail token
+        [Only tokenCount] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
+        tokenCount `shouldBe` (1 :: Int)
+        Right () <- runQuery conn $ garbageCollectEmailChangeTokens 0
+        [Only tokenCount'] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
+        tokenCount' `shouldBe` (0 :: Int)
+
+    it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserEmailChangeRequest testUid newEmail token
+        Right () <- runQuery conn $ garbageCollectEmailChangeTokens 1000000
+        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
+        tkns' `shouldBe` (1 :: Int)
 
 
 -- * Utils

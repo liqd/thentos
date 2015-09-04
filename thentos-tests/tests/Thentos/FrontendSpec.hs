@@ -27,7 +27,7 @@ import Thentos.Util ((<//>))
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Config (godUid, godName, godPass)
+import Thentos.Test.Config (godName, godPass)
 import Thentos.Test.Core
 
 
@@ -99,11 +99,10 @@ spec_updateSelf = describe "update self" $ do
         _click label = WD.findElem (WD.ById label) >>= WD.clickSync
 
         -- FIXME: test with ordinary user (not god).
-        selfId   = godUid
         selfName = godName
         selfPass = godPass
 
-    it "username" $ \(ActionState (st, _, _)) -> withWebDriver $ do
+    it "username" $ \(ActionState _) -> withWebDriver $ do
         let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
@@ -114,7 +113,7 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \(ActionState (st, _, _)) -> withWebDriver $ do
+    it "password" $ \(ActionState _) -> withWebDriver $ do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
@@ -240,8 +239,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
 
 
 spec_serviceCreate :: SpecWith ActionState
-spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
-
+spec_serviceCreate = it "service create" $ \(ActionState _) -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
@@ -249,7 +247,7 @@ spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
-    serviceId <- withWebDriver $ do
+    _serviceId <- withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/dashboard/ownservices")
 

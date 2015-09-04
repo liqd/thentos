@@ -308,30 +308,27 @@ agentRoles agent = case agent of
 
 -- * Garbage collection
 
-garbageCollectThentosSessions :: Timestamp -> ThentosQuery e [ThentosSessionToken]
-garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:157"
+garbageCollectThentosSessions :: ThentosQuery e ()
+garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
 
-doGarbageCollectThentosSessions :: [ThentosSessionToken] -> ThentosQuery e ()
-doGarbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
+garbageCollectServiceSessions :: ThentosQuery e ()
+garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
 
-garbageCollectServiceSessions :: Timestamp -> ThentosQuery e [ServiceSessionToken]
-garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:165"
-
-doGarbageCollectServiceSessions :: [ServiceSessionToken] -> ThentosQuery e ()
-doGarbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
-
-doGarbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()
-doGarbageCollectUnconfirmedUsers timeout = void $ execT [sql|
+garbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()
+garbageCollectUnconfirmedUsers timeout = void $ execT [sql|
     DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
     |] (Only (round timeout :: Integer))
 
-doGarbageCollectPasswordResetTokens :: Timeout -> ThentosQuery e ()
-doGarbageCollectPasswordResetTokens timeout = void $ execT [sql|
+garbageCollectPasswordResetTokens :: Timeout -> ThentosQuery e ()
+garbageCollectPasswordResetTokens timeout = void $ execT [sql|
     DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
     |] (Only (round timeout :: Integer))
 
-doGarbageCollectEmailChangeTokens :: Timestamp -> Timeout -> ThentosQuery e ()
-doGarbageCollectEmailChangeTokens = error "src/Thentos/Transaction/Transactions.hs:181"
+garbageCollectEmailChangeTokens :: Timeout -> ThentosQuery e ()
+garbageCollectEmailChangeTokens timeout = void $ execT [sql|
+    DELETE FROM "email_change_tokens" WHERE timestamp < now() - interval '? seconds';
+    |] (Only (round timeout :: Integer))
+
 
 impossible :: String -> a
 impossible = error
