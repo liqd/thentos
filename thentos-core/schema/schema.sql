@@ -21,13 +21,13 @@ CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
 
 CREATE TABLE IF NOT EXISTS "email_change_tokens" (
     token      text        NOT NULL,
-    uid        bigint      NOT NULL REFERENCES users (id),
+    uid        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     timestamp  timestamptz DEFAULT now(),
     new_email  text        NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "user_roles" (
-    uid bigint NOT NULL REFERENCES users (id),
+    uid bigint NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     role text NOT NULL,
     UNIQUE (uid, role)
 );
