@@ -62,16 +62,6 @@ spec = do
                 request "GET" "/user" headers "" `shouldRespondWith` 400
 
         describe "user" $ do
-            describe "Get [UserId]" $ do
-                it "returns the list of users" $ do
-                    hdr <- liftIO ctHeader
-                    response <- request "GET" "/user" hdr ""
-                    return response `shouldRespondWith` 200
-                    liftIO $ Aeson.decode' (simpleBody response) `shouldBe` Just [UserId 0]
-
-                it "is not accessible for users without 'Admin' role" $ do
-                    get "/user" `shouldRespondWith` 401
-
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $ do
