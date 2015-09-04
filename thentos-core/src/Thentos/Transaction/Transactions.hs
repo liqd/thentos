@@ -236,9 +236,25 @@ deleteService sid = do
         1 -> return ()
         _ -> impossible "deleteService: multiple results"
 
+-- | Lookup session.  If session does not exist or has expired, throw an error.  If it does exist,
+-- bump the expiry time and return session with bumped expiry time.
 lookupThentosSession ::
     Timestamp -> ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)
-lookupThentosSession = error "src/Thentos/Transaction/Transactions.hs:123"
+lookupThentosSession now token = do
+    mod <- execT [sql| UPDATE user_sessions
+                       SET end_ = ?::timestamptz + period
+                       WHERE token = ? AND end_ >= ?
+                 |] (now, token, now)
+    sesss <- queryT [sql| SELECT uid, start, end_, period FROM user_sessions
+                          WHERE token = ? AND end_ >= ?
+                    |] (token, now)
+    case sesss of
+        [(uid, start, end, period)] ->
+             return ( token
+                    , ThentosSession (UserA uid) start end period Set.empty
+                    )
+        []                          -> throwError NoSuchThentosSession
+        _                           -> impossible "lookupThentosSession: multiple results"
 
 startThentosSession :: ThentosSessionToken -> Agent -> Timestamp -> Timeout
                                        -> ThentosQuery e ()
