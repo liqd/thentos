@@ -228,7 +228,13 @@ addService agent sid secret name description = void $
           |] (sid, agent, name, description, secret)
 
 deleteService :: ServiceId -> ThentosQuery e ()
-deleteService = error "src/Thentos/Transaction/Transactions.hs:119"
+deleteService sid = do
+    deletedCount <- execT [sql| DELETE FROM services
+                                WHERE id = ? |] (Only sid)
+    case deletedCount of
+        0 -> throwError NoSuchService
+        1 -> return ()
+        _ -> impossible "deleteService: multiple results"
 
 lookupThentosSession ::
     Timestamp -> ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)

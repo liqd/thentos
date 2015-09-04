@@ -43,6 +43,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     doGarbageCollectPasswordResetTokensSpec
     emailChangeRequestSpec
     addServiceSpec
+    deleteServiceSpec
 
 addUserPrimSpec :: SpecWith ActionState
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -377,6 +378,23 @@ addServiceSpec = describe "addService" $ do
     name = ServiceName "MyLittleService"
     description = ServiceDescription "it serves"
     countServices = [sql| SELECT COUNT(*) FROM services |]
+
+deleteServiceSpec :: SpecWith ActionState
+deleteServiceSpec = describe "deleteService" $ do
+    it "deletes a service" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runThentosQuery conn $ addUserPrim testUid testUser
+        Right _ <- runThentosQuery conn $
+            addService (UserA testUid) sid testHashedSecret "" ""
+        Right _ <- runThentosQuery conn $ deleteService sid
+        [Only serviceCount] <- query conn [sql| SELECT COUNT(*) FROM services |] ()
+        serviceCount `shouldBe` (0 :: Int)
+
+    it "fails if the service doesn't exist" $ \(ActionState (conn, _, _)) -> do
+        Left NoSuchService <- runThentosQuery conn $ deleteService sid
+        return ()
+  where
+    sid = ServiceId "blablabla"
+
 
 -- * Garbage collection
 

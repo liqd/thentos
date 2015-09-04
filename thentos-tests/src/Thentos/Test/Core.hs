@@ -46,7 +46,7 @@ import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger
 import System.IO.Temp (createTempDirectory)
 import System.Process
 
-
+import Crypto.Scrypt (EncryptedPass(..))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -84,6 +84,15 @@ testUsers :: [User]
 testUsers = (\ (UserFormData name pass email) ->
                 User name (encryptTestSecret . cs . fromUserPass $ pass) email Set.empty Map.empty)
     <$> testUserForms
+
+testUser :: User
+testUser = head testUsers
+
+testUid :: UserId
+testUid = UserId 7
+
+testHashedSecret :: HashedSecret ServiceKey
+testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
