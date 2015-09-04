@@ -54,13 +54,13 @@ lookupUserByName name = do
 
 lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
 lookupUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password, email
+    users <- queryT [sql| SELECT id, name, password
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(id, name, pwd, email)] -> return (id, User name pwd email mempty mempty)
-      []                       -> throwError NoSuchUser
-      _                        -> impossible "lookupUserByEmail: multiple users"
+      [(uid, name, pwd)] -> return (uid, User name pwd email mempty mempty)
+      []                 -> throwError NoSuchUser
+      _                  -> impossible "lookupUserByEmail: multiple users"
 
 addUserPrim :: UserId -> User -> ThentosQuery e ()
 addUserPrim uid user = do
@@ -178,13 +178,13 @@ data UpdateUserFieldOp =
 
 updateUserField :: UserId -> UpdateUserFieldOp -> ThentosQuery e ()
 updateUserField uid op = do
-    mod <- q op
-    case mod of
+    modified <- q
+    case modified of
         1 -> return ()
         0 -> throwError NoSuchUser
         _ -> impossible "updateUserField: unique constraint on id violated"
   where
-    q op = case op of
+    q = case op of
         UpdateUserFieldName n ->
             execT [sql| UPDATE users SET name = ? WHERE id = ? |] (n, uid)
         UpdateUserFieldEmail e ->

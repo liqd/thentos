@@ -162,6 +162,8 @@ thentosErrorInfo other e = f e
             "thentos session belongs to service, cannot create service session")
     f (MalformedUserPath path) =
         (Nothing, err400, "malformed user path: " <> cs (show path))
+    f ConfirmationTokenAlreadyExists =
+        (Just (ERROR, ppShow e), err500, "internal error")
     f (OtherError x) = other x
 
 

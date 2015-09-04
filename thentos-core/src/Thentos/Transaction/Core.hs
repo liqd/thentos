@@ -42,7 +42,7 @@ createDB conn = do
     void $ execute_ conn (fromString schema)
 
 runThentosQuery :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
-runThentosQuery conn query = runReaderT (runEitherT query) conn
+runThentosQuery conn q = runReaderT (runEitherT q) conn
 
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
 queryT q x = do
