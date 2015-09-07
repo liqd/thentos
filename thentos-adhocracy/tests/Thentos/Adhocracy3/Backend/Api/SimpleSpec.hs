@@ -25,6 +25,7 @@ import Data.Functor ((<$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.HTTP.Types (Status, status400)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
@@ -118,7 +119,7 @@ spec =
 
         describe "resetPassword" $ with setupBackend $ do
             it "changes the password if A3 signals success" $ do
-                fakeA3backend <- liftIO $ startA3fake . encodePretty . object $
+                fakeA3backend <- liftIO $ startA3fake Nothing . encodePretty . object $
                     [ "status"     .= String "success"
                     , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
                     , "user_token" .= String "bla-bla-valid-token-blah"
@@ -131,6 +132,15 @@ spec =
                 loginRsp <- request "POST" "login_username" [ctJson] loginReq
                 liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
                 liftIO $ stopDaemon fakeA3backend
+
+            it "passes the error on if A3 signals failure" $ do
+                let a3errMsg = A3ErrorMessage
+                        [A3Error "path" "body" "This resource path does not exist."]
+                fakeA3backend <- liftIO $ startA3fake (Just status400) $ encodePretty a3errMsg
+                let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                rsp <- request "POST" "password_reset" [ctJson] resetReq
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "resource path does not exist"
 
         describe "arbitrary requests" $ with setupBackend $
             it "rejects bad session token mimicking A3" $ do
@@ -293,10 +303,10 @@ mkPwResetRequestJson path pass = encodePretty . object $
     ]
 
 -- | Start a faked A3 backend that always returns the same response, passed in as argument.
--- Must be stopped via 'stopDaemon'.
-startA3fake :: LBS -> IO (Async ())
-startA3fake respBody =
-    startDaemon . runSettings settings $ staticReplyServer Nothing Nothing respBody
+-- The status code defaults to 200. Must be stopped via 'stopDaemon'.
+startA3fake :: Maybe Status -> LBS -> IO (Async ())
+startA3fake mStatus respBody =
+    startDaemon . runSettings settings $ staticReplyServer mStatus Nothing respBody
   where
     settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
 
