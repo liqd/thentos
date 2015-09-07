@@ -269,15 +269,31 @@ endThentosSession tok =
                  |] (Only tok)
 
 lookupServiceSession :: ServiceSessionToken -> ThentosQuery e (ServiceSessionToken, ServiceSession)
-lookupServiceSession = error "src/Thentos/Transaction/Transactions.hs:134"
+lookupServiceSession token = do
+    sessions <- queryT
+        [sql| SELECT * FROM WHERE token = ? |] (Only token)
+    case sessions of
+        []        -> throwError NoSuchServiceSession
+        [session] -> return (token, session)
+        _         -> impossible "multiple sessions with the same token"
 
 startServiceSession ::
     ThentosSessionToken -> ServiceSessionToken -> ServiceId
-    -> Timestamp -> Timeout -> ThentosQuery e ()
-startServiceSession = error "src/Thentos/Transaction/Transactions.hs:139"
+    -> Timeout -> ThentosQuery e ()
+startServiceSession thentosSessionToken token sid timeout =
+    void $ execT [sql| INSERT INTO service_sessions
+                        (token, thentos_session_token, start, end_, period, service)
+                       VALUES (?, ?, now(), now() + ?, ?, ?) |]
+                (token, thentosSessionToken, timeout, timeout, sid)
 
 endServiceSession :: ServiceSessionToken -> ThentosQuery e ()
-endServiceSession = error "src/Thentos/Transaction/Transactions.hs:142"
+endServiceSession token = do
+    deleted <- execT
+        [sql| DELETE FROM service_sessions WHERE token = ? |] (Only token)
+    case deleted of
+        0 -> throwError NoSuchServiceSession
+        1 -> return ()
+        _ -> impossible "multiple service sessions with same token"
 
 assertAgent :: Agent -> ThentosQuery e ()
 assertAgent = error "src/Thentos/Transaction/Transactions.hs:145"

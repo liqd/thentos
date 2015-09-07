@@ -47,3 +47,12 @@ CREATE TABLE IF NOT EXISTS "user_sessions" (
     end_   timestamptz NOT NULL,
     period interval    NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "service_sessions" (
+    token                 text        PRIMARY KEY,
+    service               text        NOT NULL REFERENCES services (id) ON DELETE CASCADE,
+    start                 timestamptz NOT NULL,
+    end_                  timestamptz NOT NULL,
+    period                interval    NOT NULL,
+    thentos_session_token text        NOT NULL REFERENCES user_sessions (token) ON DELETE CASCADE
+);

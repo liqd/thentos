@@ -543,10 +543,9 @@ dropServiceRegistration tok sid = do
 startServiceSession ::
     ThentosSessionToken -> ServiceId -> Action e ServiceSessionToken
 startServiceSession ttok sid = do
-    now <- getCurrentTime'P
     _ <- lookupThentosSession ttok
     stok <- freshServiceSessionToken
-    query'P $ T.startServiceSession ttok stok sid now defaultSessionTimeout
+    query'P $ T.startServiceSession ttok stok sid defaultSessionTimeout
     return stok
 
 -- | Terminate service session. Throws NoSuchServiceSession if the user does not

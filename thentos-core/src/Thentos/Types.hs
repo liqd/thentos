@@ -242,7 +242,7 @@ data ThentosSession =
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
 
 instance Aeson.FromJSON ServiceSessionToken where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
@@ -261,6 +261,9 @@ data ServiceSession =
 instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
+instance FromRow ServiceSession where
+    fromRow = ServiceSession <$> field <*> field <*> field <*> field <*> field <*> field
+
 data ServiceSessionMetadata =
     ServiceSessionMetadata
       { _srvSessMdUser :: !UserName
@@ -270,6 +273,8 @@ data ServiceSessionMetadata =
 instance Aeson.FromJSON ServiceSessionMetadata where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
+instance FromField ServiceSessionMetadata where
+    fromField f dat = ServiceSessionMetadata <$> fromField f dat
 
 -- * timestamp, timeout
 

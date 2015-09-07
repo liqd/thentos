@@ -50,6 +50,7 @@ spec = describe "Thentos.Transaction" . before (createActionState thentosTestCon
     lookupThentosSessionSpec
     startThentosSessionSpec
     endThentosSessionSpec
+    startServiceSessionSpec
 
 
 addUserPrimSpec :: SpecWith ActionState
@@ -520,6 +521,23 @@ endThentosSessionSpec = describe "endThentosSession" $ do
         x <- runQuery conn $ endThentosSession tok
         x `shouldSatisfy` isRight
 
+startServiceSessionSpec :: SpecWith ActionState
+startServiceSessionSpec = describe "startServiceSession" $ do
+    it "starts a service session" $ \(ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $
+            startThentosSession thentosSessionToken (UserA testUid) period
+        void $ runQuery conn $
+            addService (UserA testUid) sid testHashedSecret "" ""
+        void $ runQuery conn $
+            startServiceSession thentosSessionToken serviceSessionToken sid period
+        [Only count] <- query_ conn [sql| SELECT COUNT(*) FROM service_sessions |]
+        count `shouldBe` (1 :: Int)
+  where
+    period = Timeout $ fromSeconds' 60
+    thentosSessionToken = "foo"
+    serviceSessionToken = "bar"
+    sid = "sid"
 
 garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
 garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
