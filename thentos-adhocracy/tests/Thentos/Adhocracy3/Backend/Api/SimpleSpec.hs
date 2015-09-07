@@ -111,11 +111,7 @@ spec =
         describe "login" $ with setupBackend $
             it "rejects bad credentials mimicking A3" $ do
 
-                let reqBody = encodePretty . object $
-                        [ "name"     .= String "Anna Müller"
-                        , "password" .= String "this-is-wrong"
-                        ]
-
+                let reqBody = mkLoginRequest "Anna Müller" "this-is-wrong"
                 rsp <- request "POST" "login_username" [ctJson] reqBody
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
@@ -127,13 +123,13 @@ spec =
                     , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
                     , "user_token" .= String "bla-bla-valid-token-blah"
                     ]
-                let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
-                rsp <- request "POST" "password_reset" [ctJson] reqdata
+                let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                rsp <- request "POST" "password_reset" [ctJson] resetReq
                 liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
-                -- FIXME How to do this? Requires ActionState sta
                 -- Test that we can login using the new password
-                -- import qualified Thentos.Action as A
-                -- _stok <- runAction sta $ A.startThentosSessionByUserId (UserId 0) "newpass"
+                let loginReq = mkLoginRequest "god" "newpass"
+                loginRsp <- request "POST" "login_username" [ctJson] loginReq
+                liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
                 liftIO $ stopDaemon fakeA3backend
 
         describe "arbitrary requests" $ with setupBackend $
@@ -279,6 +275,14 @@ mkUserJson name email password = encodePretty . object $
       ]
   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
   ]
+
+-- | Create a JSON object for a login request. Calling the ToJSON instance might be
+-- considered cheating, so we do it by hand.
+mkLoginRequest :: ST -> ST -> LBS
+mkLoginRequest name pass = encodePretty . object $
+        [ "name"     .= String name
+        , "password" .= String pass
+        ]
 
 -- | Create a JSON object for a PasswordResetRequest. Calling the ToJSON instance might be
 -- considered cheating, so we do it by hand.
