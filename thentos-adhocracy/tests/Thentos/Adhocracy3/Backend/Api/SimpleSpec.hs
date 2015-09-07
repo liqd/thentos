@@ -141,6 +141,7 @@ spec =
                 rsp <- request "POST" "password_reset" [ctJson] resetReq
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "resource path does not exist"
+                liftIO $ stopDaemon fakeA3backend
 
         describe "arbitrary requests" $ with setupBackend $
             it "rejects bad session token mimicking A3" $ do
@@ -290,17 +291,13 @@ mkUserJson name email password = encodePretty . object $
 -- considered cheating, so we do it by hand.
 mkLoginRequest :: ST -> ST -> LBS
 mkLoginRequest name pass = encodePretty . object $
-        [ "name"     .= String name
-        , "password" .= String pass
-        ]
+    ["name" .= String name, "password" .= String pass]
 
 -- | Create a JSON object for a PasswordResetRequest. Calling the ToJSON instance might be
 -- considered cheating, so we do it by hand.
 mkPwResetRequestJson :: ST -> ST -> LBS
 mkPwResetRequestJson path pass = encodePretty . object $
-    [ "path"     .= String path
-    , "password" .= String pass
-    ]
+    ["path" .= String path, "password" .= String pass]
 
 -- | Start a faked A3 backend that always returns the same response, passed in as argument.
 -- The status code defaults to 200. Must be stopped via 'stopDaemon'.
