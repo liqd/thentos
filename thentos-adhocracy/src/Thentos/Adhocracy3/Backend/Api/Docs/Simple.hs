@@ -62,6 +62,11 @@ instance ToSample A3.LoginRequest A3.LoginRequest where
     toSample _ = A3.LoginByName <$> toSample (Proxy :: Proxy UserName)
                                 <*> toSample (Proxy :: Proxy UserPass)
 
+instance ToSample A3.PasswordResetRequest A3.PasswordResetRequest where
+    toSample _ = A3.PasswordResetRequest
+                    <$> toSample (Proxy :: Proxy A3.Path)
+                    <*> toSample (Proxy :: Proxy UserPass)
+
 instance ToSample A3.RequestResult A3.RequestResult where
     toSample _ = A3.RequestSuccess
                     <$> toSample (Proxy :: Proxy A3.Path)

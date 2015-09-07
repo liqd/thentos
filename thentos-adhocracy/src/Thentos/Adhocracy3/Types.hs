@@ -20,6 +20,7 @@ module Thentos.Adhocracy3.Types
     , dbSsoTokens
     , SsoToken(..)
     , ThentosError(..)
+    , A3Error(..)
     , A3ErrorMessage(..)
     , mkSimpleA3Error
     )
