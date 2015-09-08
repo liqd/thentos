@@ -143,6 +143,15 @@ spec =
                     "resource path does not exist"
                 liftIO $ stopDaemon fakeA3backend
 
+            it "throws an internal error if A3 is unreachable" $ do
+                rsp <- request "POST" "dummy/endpoint" [ctJson] ""
+                liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 500
+                -- Response body should be parseable as JSON
+                let rspBody = simpleBody rsp
+                liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
+                -- It should contain the quoted string "internal error"
+                liftIO $ (cs rspBody :: ST) `shouldSatisfy` ST.isInfixOf "\"internal error\""
+
         describe "arbitrary requests" $ with setupBackend $
             it "rejects bad session token mimicking A3" $ do
                 let headers = [("X-User-Token", "invalid-token")]
