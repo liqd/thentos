@@ -193,8 +193,9 @@ updateUserField uid op = do
             execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
         _ -> error $ "updateUserField op not implemented: " ++ show op
 
+-- FIXME: should be transactional
 updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
-updateUserFields = error "src/Thentos/Transaction/Transactions.hs:102"
+updateUserFields uid = mapM_ (updateUserField uid)
 
 deleteUser :: UserId -> ThentosQuery e ()
 deleteUser uid
