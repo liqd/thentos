@@ -31,7 +31,6 @@ import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
-import Data.Time (TimeOfDay(..))
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
@@ -48,7 +47,6 @@ import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(.
 import Database.PostgreSQL.Simple.ToField (ToField, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
-import Database.PostgreSQL.Simple.Time (parseTimeOfDay)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
