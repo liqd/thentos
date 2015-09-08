@@ -247,7 +247,7 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
 
 
 spec_serviceCreate :: SpecWith ActionState
-spec_serviceCreate = it "service create" $ \(ActionState _) -> do
+spec_serviceCreate = it "service create" $ \(ActionState (conn, _, _)) -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
@@ -255,7 +255,7 @@ spec_serviceCreate = it "service create" $ \(ActionState _) -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
-    _serviceId <- withWebDriver $ do
+    sid <- withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/dashboard/ownservices")
 
@@ -266,21 +266,16 @@ spec_serviceCreate = it "service create" $ \(ActionState _) -> do
         extractId <$> WD.getSource >>= \sid -> do
             liftIO $ sid `shouldSatisfy` isJust
             return (fromJust sid)
-    return ()
 
     -- db: check that
     --   1. service has been created;
     --   2. has right sname, sdescr;
     --   3. has correct owner.
-    -- FIXME: look this up via the API
-    --Right (db :: DB) <- query' st $ SnapShot
-    --case Map.lookup serviceId (db ^. dbServices) of
-    --    Nothing -> error "serviceId not found in db."
-    --    Just service -> do
-    --        service ^. serviceThentosSession `shouldBe` Nothing
-    --        service ^. serviceName           `shouldBe` ServiceName sname
-    --        service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
-    --        -- service ^. serviceOwner          `shouldBe` UserId 0
+    Right (_, service) <- runQuery conn $ T.lookupService sid
+    service ^. serviceThentosSession `shouldBe` Nothing
+    service ^. serviceName           `shouldBe` ServiceName sname
+    service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
+    -- service ^. serviceOwner          `shouldBe` UserId 0
 
     -- FIXME: test: without login, create user fails with "permission denied"
     -- FIXME: test: if user is deleted, so are all their services.
