@@ -24,7 +24,7 @@ import Thentos.Config
 import qualified Thentos.Transaction.Transactions as T
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
-import Thentos.Util ((<//>))
+import Thentos.Util ((<//>), verifyPass)
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
@@ -100,6 +100,7 @@ spec_updateSelf = describe "update self" $ do
         _click label = WD.findElem (WD.ById label) >>= WD.clickSync
 
         -- FIXME: test with ordinary user (not god).
+        selfId   = godUid
         selfName = godName
         selfPass = godPass
 
@@ -114,14 +115,17 @@ spec_updateSelf = describe "update self" $ do
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \(ActionState _) -> withWebDriver $ do
+    it "password" $ \(ActionState (conn, _, _)) -> do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
-        _fill "/user/update_password.old_password"  $ fromUserPass selfPass
-        _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
-        _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
-        _click "update_password_submit"
+        withWebDriver $ do
+            wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
+            _fill "/user/update_password.old_password"  $ fromUserPass selfPass
+            _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
+            _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
+            _click "update_password_submit"
+        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        usr `shouldSatisfy` verifyPass newSelfPass
 
     -- FIXME: test failure cases.  same restrictions apply as in
     -- "create_user" and "reset_password" (make sure the check is in
