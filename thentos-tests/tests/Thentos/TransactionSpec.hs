@@ -51,6 +51,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     startThentosSessionSpec
     endThentosSessionSpec
     startServiceSessionSpec
+    endServiceSessionSpec
 
 
 addUserPrimSpec :: SpecWith ActionState
@@ -534,6 +535,29 @@ startServiceSessionSpec = describe "startServiceSession" $ do
         [Only count] <- query_ conn [sql| SELECT COUNT(*) FROM service_sessions |]
         count `shouldBe` (1 :: Int)
   where
+    period = Timeout $ fromSeconds' 60
+    thentosSessionToken = "foo"
+    serviceSessionToken = "bar"
+    sid = "sid"
+
+endServiceSessionSpec :: SpecWith ActionState
+endServiceSessionSpec = describe "endServiceSession" $ do
+    it "ends an service session" $ \(ActionState  (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $
+            startThentosSession thentosSessionToken (UserA testUid) period
+        void $ runQuery conn $
+            addService (UserA testUid) sid testHashedSecret "" ""
+        void $ runQuery conn $
+            startServiceSession thentosSessionToken serviceSessionToken sid period
+        [Only count] <- query_ conn countSessions
+        count `shouldBe` (1 :: Int)
+        void $ runQuery conn $ endServiceSession serviceSessionToken
+        [Only count'] <- query_ conn countSessions
+        count' `shouldBe` (0 :: Int)
+        return ()
+  where
+    countSessions = [sql| SELECT COUNT(*) FROM service_sessions |]
     period = Timeout $ fromSeconds' 60
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
