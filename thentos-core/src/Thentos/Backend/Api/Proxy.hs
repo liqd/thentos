@@ -52,9 +52,9 @@ data ServiceProxy db = ServiceProxy
     , actionState      :: ActionState db
     }
 
-instance HasServer (ServiceProxy db) where
-    type ServerT (ServiceProxy db) m = ServiceProxy db
-    route Proxy sp = route (Proxy :: Proxy raw) (serviceProxy sp)
+instance (db `Ex` DB, ThentosErrorToServantErr db) => HasServer (ServiceProxy db) where
+    type ServerT (ServiceProxy db) m = S.Application
+    route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
       => ServiceProxy db -> S.Application
