@@ -109,6 +109,20 @@ spec =
                  (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
                      `shouldBe` Left "password too short (less than 6 characters)"
 
+        -- TODO re-add test for user creation together with account activation, cf. below
+
+        describe "activate_account" $ with setupBackend $
+            it "rejects bad path mimicking A3" $ do
+                let a3errMsg = A3ErrorMessage
+                        [A3Error "path" "body" "Unknown or expired activation path"]
+                fakeA3backend <- liftIO $ startA3fake (Just status400) $ encodePretty a3errMsg
+                let reqBody = encodePretty . object $
+                        [ "path" .= String "/activate/no-such-path" ]
+                rsp <- request "POST" "activate_account" [ctJson] reqBody
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"Unknown or expired activation path\""
+                liftIO $ stopDaemon fakeA3backend
+
         describe "login" $ with setupBackend $
             it "rejects bad credentials mimicking A3" $ do
 
@@ -158,17 +172,6 @@ spec =
                 rsp <- request "POST" "dummy/endpoint" headers ""
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"Invalid user token\""
-
--- Disabled because account activation now requires the A3 backend to run
---        describe "activate_account" $ with setupBackend $
---            it "rejects bad path mimicking A3" $ do
---
---                let reqBody = encodePretty . object $
---                        [ "path" .= String "/activate/no-such-path" ]
---
---                rsp <- request "POST" "activate_account" [ctJson] reqBody
---                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
---                    "\"Unknown or expired activation path\""
 
   where
     setupBackend :: IO Application
