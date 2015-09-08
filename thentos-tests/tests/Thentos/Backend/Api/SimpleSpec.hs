@@ -54,7 +54,7 @@ godHeaders = unsafePerformIO $ newIORef []
 spec :: Spec
 spec = do
 
-    with defaultApp  $ describe "Thentos.Backend.Api.Simple" $  do
+    with defaultApp $ describe "Thentos.Backend.Api.Simple" $  do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
                 hdr <- liftIO ctHeader
