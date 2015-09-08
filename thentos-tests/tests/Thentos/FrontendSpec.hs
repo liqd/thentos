@@ -104,12 +104,15 @@ spec_updateSelf = describe "update self" $ do
         selfName = godName
         selfPass = godPass
 
-    it "username" $ \(ActionState _) -> withWebDriver $ do
+    it "username" $ \(ActionState (conn, _, _)) -> do
         let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
-        _fill "/user/update.name" $ fromUserName newSelfName
-        _click "update_user_submit"
+        withWebDriver $ do
+            wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
+            _fill "/user/update.name" $ fromUserName newSelfName
+            _click "update_user_submit"
+        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        usr ^. userName `shouldBe` newSelfName
 
     -- FIXME: test with new user name that is already in use.
     -- FIXME: test with unauthenticated user.
