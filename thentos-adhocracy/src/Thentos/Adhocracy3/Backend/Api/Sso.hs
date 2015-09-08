@@ -151,7 +151,7 @@ activate _ = error "404"  -- FIXME: respond with a non-internal error
 login :: A3.LoginRequest -> Action' A3.RequestResult
 login _ = error "404"  -- FIXME: respond with a non-internal error
 
-resetPassword :: A3.PasswordResetRequest -> AC.Action DB A3.RequestResult
+resetPassword :: A3.PasswordResetRequest -> Action' A3.RequestResult
 resetPassword _ = error "404"  -- FIXME: respond with a non-internal error
 
 

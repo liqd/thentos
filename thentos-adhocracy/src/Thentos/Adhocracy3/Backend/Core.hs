@@ -79,6 +79,7 @@ actionErrorA3Info = f
         (Nothing, err400, errMsg)
     h e = mkA3 $ i e
 
+    i (GenericA3Error _) = impossible "generic error handled above"
     i e@(A3BackendErrorResponse _ _) =
         (Just (ERROR, show e), err500, "exception in a3 backend")
     i e@(A3BackendInvalidJson _) =

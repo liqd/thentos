@@ -288,11 +288,10 @@ changePassword uid old new = do
 -- authorized to change the password before calling this function!
 -- FIXME Reconsider/fix security model once our usage of LIO or a suitable replacement has
 -- been clarified.
-changePasswordUnconditionally :: (db `Ex` DB) => UserId -> UserPass -> Action db ()
+changePasswordUnconditionally :: UserId -> UserPass -> Action e ()
 changePasswordUnconditionally uid newPw = do
-    void . query'P $ T.LookupUser uid
     hashedPw <- hashUserPass'P newPw
-    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
+    query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
 -- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address

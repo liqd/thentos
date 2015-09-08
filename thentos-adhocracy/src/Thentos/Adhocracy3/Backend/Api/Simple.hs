@@ -434,7 +434,7 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
-resetPassword :: PasswordResetRequest -> AC.Action DB RequestResult
+resetPassword :: PasswordResetRequest -> Action' RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
     reqResult <- resetPasswordInA3'P path
@@ -443,7 +443,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
             uid  <- userIdFromPath userPath
             stok <- confirmUserUser uid `catchError` handle uid
             return $ RequestSuccess userPath stok
-        RequestError errMsg            -> throwError $ GenericA3Error errMsg
+        RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
   where
     confirmUserUser uid = do
         -- Before changing the password, try to activate the user in case they weren't yet
@@ -453,7 +453,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
         stok <- A.confirmNewUserById uid
         A.changePasswordUnconditionally uid pass
         return stok
-    handle uid (thentosErrorToParent -> Just NoSuchUser) = do
+    handle uid NoSuchUser = do
         -- User is already activated, just change the password and log them in
         A.changePasswordUnconditionally uid pass
         A.startThentosSessionByUserId uid pass
@@ -487,13 +487,13 @@ activateUserInA3'P actReq = do
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
 
 -- | Send a password reset request to A3 and return the response.
-resetPasswordInA3'P :: Path -> AC.Action DB RequestResult
+resetPasswordInA3'P :: Path -> Action' RequestResult
 resetPasswordInA3'P path = do
     config <- AC.getConfig'P
     let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $
                 mkRequestForA3 config "/password_reset" reqData
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . A3BackendInvalidJson) return $
+    either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
   where
     reqData = PasswordResetRequest path "dummypass"

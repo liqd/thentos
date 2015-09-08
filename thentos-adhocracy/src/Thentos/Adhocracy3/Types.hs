@@ -24,26 +24,15 @@ module Thentos.Adhocracy3.Types
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (Exception)
-import Control.Lens (makeLenses)
-import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.:), encode,
+import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.:),
                    object, withObject)
 import Data.Data (Typeable)
-import Data.Maybe (fromMaybe)
-import Data.SafeCopy (SafeCopy, deriveSafeCopy, base, putCopy, getCopy)
 import Data.Set (Set)
 import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
-import Servant.Server (ServantErr)
-import Servant.Server.Internal.ServantErr (err400, err500, errBody, errHeaders)
-import System.Log.Logger (Priority(ERROR))
 
-import Thentos.Backend.Core
 import Thentos.Types
-
-import qualified Data.Set as Set
-import qualified Thentos.Action.Core as AC
-import qualified Thentos.Types
 
 data ThentosA3Error =
       GenericA3Error A3ErrorMessage
