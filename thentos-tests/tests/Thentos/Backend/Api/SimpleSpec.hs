@@ -59,7 +59,7 @@ spec = do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
                 hdr <- liftIO ctHeader
                 let headers = ("X-Thentos-No-Such-Header", "3"):hdr
-                request "GET" "/user" headers "" `shouldRespondWith` 400
+                request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
 
         describe "user" $ do
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
