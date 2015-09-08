@@ -5,10 +5,11 @@
 module Thentos.Transaction.Transactions
 where
 
-import qualified Data.Set as Set
 
 import Control.Exception.Lifted (throwIO)
 import Data.Monoid (mempty)
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
@@ -209,15 +210,14 @@ allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
-    services <- queryT [sql| SELECT *
+    services <- queryT [sql| SELECT key, owner, name, description
                              FROM services
                              WHERE id = ? |] (Only sid)
     service <- case services of
-        [service] -> return service
-        []        -> throwError NoSuchService
-        _         -> impossible "lookupService: multiple results"
+        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc Map.empty
+        []                         -> throwError NoSuchService
+        _                          -> impossible "lookupService: multiple results"
     return (sid, service)
-
 
 -- FIXME: the agent has to be a user for now
 addService ::
