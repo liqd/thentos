@@ -453,7 +453,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
         stok <- A.confirmNewUserById uid
         A.changePasswordUnconditionally uid pass
         return stok
-    handle uid NoSuchUser = do
+    handle uid NoSuchPendingUserConfirmation = do
         -- User is already activated, just change the password and log them in
         A.changePasswordUnconditionally uid pass
         A.startThentosSessionByUserId uid pass
