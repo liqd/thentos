@@ -18,17 +18,21 @@
 module Thentos.Backend.Api.Proxy where
 
 import Control.Applicative ((<$>))
+import Control.Exception (SomeException)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
+import Data.Aeson (encode)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Network.HTTP.ReverseProxy
+import Network.HTTP.Types (status500)
 import Servant.API (Raw)
 import Servant.Server.Internal.ServantErr (responseServantErr)
 import Servant.Server (Server, HasServer(..))
-import System.Log.Logger (Priority(DEBUG))
+import System.Log.Logger (Priority(DEBUG, WARNING))
+import System.Log.Missing (logger)
 
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
@@ -53,7 +57,7 @@ serviceProxy ::
       C.Manager -> ProxyAdapter -> ActionState -> Server ServiceProxy
 serviceProxy manager adapter state
     = waiProxyTo (reverseProxyHandler adapter state)
-                 defaultOnExc
+                 err500onExc
                  manager
 
 -- | Proxy or respond based on request headers.
@@ -166,3 +170,10 @@ createCustomHeaders adapter (Just tok) sid = do
     return [ (renderHeader adapter ThentosHeaderUser, renderUser adapter cfg uid user)
            , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
+
+-- | Throw an Internal Server Error if the proxied app is unreachable.
+err500onExc :: SomeException -> S.Application
+err500onExc exc _ sendResponse = do
+    logger WARNING $ "Couldn't call proxied app: " <> show exc
+    sendResponse $ S.responseLBS
+        status500 [contentTypeJsonHeader] (encode $ ErrorMessage "internal error")
