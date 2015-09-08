@@ -111,28 +111,26 @@ spec =
 
         -- TODO re-add test for user creation together with account activation, cf. below
 
-        describe "activate_account" $ with setupBackend $
-            it "rejects bad path mimicking A3" $ do
-                let a3errMsg = A3ErrorMessage
-                        [A3Error "path" "body" "Unknown or expired activation path"]
-                fakeA3backend <- liftIO $ startA3fake (Just status400) $ encodePretty a3errMsg
-                let reqBody = encodePretty . object $
-                        [ "path" .= String "/activate/no-such-path" ]
-                rsp <- request "POST" "activate_account" [ctJson] reqBody
-                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                    "\"Unknown or expired activation path\""
-                liftIO $ stopDaemon fakeA3backend
+        describe "activate_account" $ with setupBackend $ do
+            let a3errMsg = encodePretty $ A3ErrorMessage
+                    [A3Error "path" "body" "Unknown or expired activation path"]
+            around_ (withA3fake (Just status400) a3errMsg) $ do
+                it "rejects bad path mimicking A3" $ do
+                    let reqBody = encodePretty $ object
+                            [ "path" .= String "/activate/no-such-path" ]
+                    rsp <- request "POST" "activate_account" [ctJson] reqBody
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "\"Unknown or expired activation path\""
 
         describe "login" $ with setupBackend $
             it "rejects bad credentials mimicking A3" $ do
-
                 let reqBody = mkLoginRequest "Anna Müller" "this-is-wrong"
                 rsp <- request "POST" "login_username" [ctJson] reqBody
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
 
         describe "resetPassword" $ with setupBackend $ do
-            let a3succMsg = encodePretty . object $
+            let a3succMsg = encodePretty $ object
                             [ "status"     .= String "success"
                             , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
                             , "user_token" .= String "bla-bla-valid-token-blah"
@@ -147,7 +145,7 @@ spec =
                     loginRsp <- request "POST" "login_username" [ctJson] loginReq
                     liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
 
-            let a3errMsg = encodePretty . A3ErrorMessage $
+            let a3errMsg = encodePretty $ A3ErrorMessage
                            [A3Error "path" "body" "This resource path does not exist."]
             around_ (withA3fake (Just status400) a3errMsg) $ do
                 it "passes the error on if A3 signals failure" $ do
@@ -155,6 +153,13 @@ spec =
                     rsp <- request "POST" "password_reset" [ctJson] resetReq
                     shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                         "resource path does not exist"
+
+        describe "an arbitrary request" $ with setupBackend $ do
+            it "rejects bad session token mimicking A3" $ do
+                let headers = [("X-User-Token", "invalid-token")]
+                rsp <- request "POST" "dummy/endpoint" headers ""
+                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                    "\"Invalid user token\""
 
             it "throws an internal error if A3 is unreachable" $ do
                 rsp <- request "POST" "dummy/endpoint" [ctJson] ""
@@ -164,13 +169,6 @@ spec =
                 liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
                 -- It should contain the quoted string "internal error"
                 liftIO $ (cs rspBody :: ST) `shouldSatisfy` ST.isInfixOf "\"internal error\""
-
-        describe "arbitrary requests" $ with setupBackend $
-            it "rejects bad session token mimicking A3" $ do
-                let headers = [("X-User-Token", "invalid-token")]
-                rsp <- request "POST" "dummy/endpoint" headers ""
-                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                    "\"Invalid user token\""
 
   where
     setupBackend :: IO Application
@@ -283,7 +281,7 @@ spec =
 -- | Create a JSON object describing an user.
 -- Aeson.encode would strip the password, hence we do it by hand.
 mkUserJson :: ST -> ST -> ST -> LBS
-mkUserJson name email password = encodePretty . object $
+mkUserJson name email password = encodePretty $ object
   [ "data" .= object
       [ "adhocracy_core.sheets.principal.IUserBasic" .= object
           [ "name" ..= name
@@ -301,13 +299,13 @@ mkUserJson name email password = encodePretty . object $
 -- | Create a JSON object for a login request. Calling the ToJSON instance might be
 -- considered cheating, so we do it by hand.
 mkLoginRequest :: ST -> ST -> LBS
-mkLoginRequest name pass = encodePretty . object $
+mkLoginRequest name pass = encodePretty $ object
     ["name" .= String name, "password" .= String pass]
 
 -- | Create a JSON object for a PasswordResetRequest. Calling the ToJSON instance might be
 -- considered cheating, so we do it by hand.
 mkPwResetRequestJson :: ST -> ST -> LBS
-mkPwResetRequestJson path pass = encodePretty . object $
+mkPwResetRequestJson path pass = encodePretty $ object
     ["path" .= String path, "password" .= String pass]
 
 -- | Start a faked A3 backend that always returns the same response, passed in as argument.
