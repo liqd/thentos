@@ -9,6 +9,7 @@ import Control.Applicative ((<$>))
 import Control.Concurrent.Async (Async)
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
+import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
 import Data.Aeson.Lens (key)
 import Data.Aeson.Types (Parser)
@@ -80,9 +81,11 @@ spec = do
                             `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
 
             context "the destination server is unavailable" $ do
-                it "returns 500" $ \env -> do
+                it "returns 500" $ \env@(_, dest, _) -> do
                     property $ \rPath -> hitsProxy rPath ==> do
-                        Wreq.get (url env rPath) `shouldReturn` 500
+                        liftIO $ stopDaemon dest
+                        resp <- Wreq.get (url env rPath)
+                        resp ^. Wreq.responseStatus . Wreq.statusCode `shouldBe` 500
       where
         url (port, _, _) rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
 
