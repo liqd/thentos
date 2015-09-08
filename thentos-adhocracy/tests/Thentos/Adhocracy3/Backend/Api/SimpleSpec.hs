@@ -17,7 +17,7 @@ module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
 import Control.Applicative ((<*>))
-import Control.Concurrent.Async (Async)
+import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
@@ -29,7 +29,7 @@ import Network.HTTP.Types (Status, status400)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
-import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy, around_)
 import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (Arbitrary(..), property)
 
@@ -118,30 +118,29 @@ spec =
                     "\"User doesn't exist or password is wrong\""
 
         describe "resetPassword" $ with setupBackend $ do
-            it "changes the password if A3 signals success" $ do
-                fakeA3backend <- liftIO $ startA3fake Nothing . encodePretty . object $
-                    [ "status"     .= String "success"
-                    , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
-                    , "user_token" .= String "bla-bla-valid-token-blah"
-                    ]
-                let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
-                rsp <- request "POST" "password_reset" [ctJson] resetReq
-                liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
-                -- Test that we can login using the new password
-                let loginReq = mkLoginRequest "god" "newpass"
-                loginRsp <- request "POST" "login_username" [ctJson] loginReq
-                liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
-                liftIO $ stopDaemon fakeA3backend
+            let a3succMsg = encodePretty . object $
+                            [ "status"     .= String "success"
+                            , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
+                            , "user_token" .= String "bla-bla-valid-token-blah"
+                            ]
+            around_ (withA3fake Nothing a3succMsg) $ do
+                it "changes the password if A3 signals success" $ do
+                    let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                    rsp <- request "POST" "password_reset" [ctJson] resetReq
+                    liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
+                    -- Test that we can login using the new password
+                    let loginReq = mkLoginRequest "god" "newpass"
+                    loginRsp <- request "POST" "login_username" [ctJson] loginReq
+                    liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
 
-            it "passes the error on if A3 signals failure" $ do
-                let a3errMsg = A3ErrorMessage
-                        [A3Error "path" "body" "This resource path does not exist."]
-                fakeA3backend <- liftIO $ startA3fake (Just status400) $ encodePretty a3errMsg
-                let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
-                rsp <- request "POST" "password_reset" [ctJson] resetReq
-                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
-                    "resource path does not exist"
-                liftIO $ stopDaemon fakeA3backend
+            let a3errMsg = encodePretty . A3ErrorMessage $
+                           [A3Error "path" "body" "This resource path does not exist."]
+            around_ (withA3fake (Just status400) a3errMsg) $ do
+                it "passes the error on if A3 signals failure" $ do
+                    let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                    rsp <- request "POST" "password_reset" [ctJson] resetReq
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "resource path does not exist"
 
             it "throws an internal error if A3 is unreachable" $ do
                 rsp <- request "POST" "dummy/endpoint" [ctJson] ""
@@ -309,10 +308,12 @@ mkPwResetRequestJson path pass = encodePretty . object $
     ["path" .= String path, "password" .= String pass]
 
 -- | Start a faked A3 backend that always returns the same response, passed in as argument.
--- The status code defaults to 200. Must be stopped via 'stopDaemon'.
-startA3fake :: Maybe Status -> LBS -> IO (Async ())
-startA3fake mStatus respBody =
-    startDaemon . runSettings settings $ staticReplyServer mStatus Nothing respBody
+-- The status code defaults to 200.
+withA3fake :: Maybe Status -> LBS -> IO () -> IO ()
+withA3fake mStatus respBody test = bracket
+    (startDaemon $ runSettings settings $ staticReplyServer mStatus Nothing respBody)
+    stopDaemon
+    (const test)
   where
     settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
 
