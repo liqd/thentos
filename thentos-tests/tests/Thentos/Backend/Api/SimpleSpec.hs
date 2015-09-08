@@ -23,7 +23,7 @@ import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, get, request, matchStatus)
+import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
 import System.IO.Unsafe (unsafePerformIO)
