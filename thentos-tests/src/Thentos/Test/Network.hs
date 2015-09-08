@@ -3,7 +3,7 @@
 module Thentos.Test.Network
 where
 
-import Control.Concurrent.Async (Async, async, cancel, wait, link)
+import Control.Concurrent.Async (Async, async, cancel, wait)
 import Control.Exception (catch, AsyncException(ThreadKilled))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (LBS, SBS)
