@@ -30,6 +30,7 @@ module Thentos.Action
     , addPasswordResetToken
     , resetPassword
     , changePassword
+    , changePasswordUnconditionally
     , requestUserEmailChange
     , confirmUserEmailChange
     , updateUserField, T.UpdateUserFieldOp(..)
@@ -280,6 +281,18 @@ changePassword uid old new = do
     hashedPw <- hashUserPass'P new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
+
+-- | Unconditionally change the password of a user.
+--
+-- SECURITY: As a caller, you have to make sure that the user is properly authenticated and
+-- authorized to change the password before calling this function!
+-- FIXME Reconsider/fix security model once our usage of LIO or a suitable replacement has
+-- been clarified.
+changePasswordUnconditionally :: (db `Ex` DB) => UserId -> UserPass -> Action db ()
+changePasswordUnconditionally uid newPw = do
+    void . query'P $ T.LookupUser uid
+    hashedPw <- hashUserPass'P newPw
+    update'P $ T.UpdateUserField uid (T.UpdateUserFieldPassword hashedPw)
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
 -- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address

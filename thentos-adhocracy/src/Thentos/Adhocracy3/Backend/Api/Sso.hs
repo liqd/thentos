@@ -131,6 +131,7 @@ thentosApi404 actionState = enter (enterAction actionState a3ActionErrorToServan
   :<|> activate
   :<|> login
   :<|> login
+  :<|> resetPassword
 
 api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState =
@@ -149,6 +150,9 @@ activate _ = error "404"  -- FIXME: respond with a non-internal error
 
 login :: A3.LoginRequest -> Action' A3.RequestResult
 login _ = error "404"  -- FIXME: respond with a non-internal error
+
+resetPassword :: A3.PasswordResetRequest -> AC.Action DB A3.RequestResult
+resetPassword _ = error "404"  -- FIXME: respond with a non-internal error
 
 
 data AuthRequest = AuthRequest ST
