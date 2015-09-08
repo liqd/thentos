@@ -1,20 +1,21 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE DeriveDataTypeable                       #-}
-{-# LANGUAGE DeriveGeneric                            #-}
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving               #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
@@ -26,6 +27,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , Api
     , ContentType(..)
     , LoginRequest(..)
+    , PasswordResetRequest(..)
     , Path(..)
     , RequestResult(..)
     , ThentosApi
@@ -39,7 +41,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     ) where
 
 import Control.Applicative ((<$>), (<*>), pure)
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad (when, unless, mzero, void)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
                    withObject)
@@ -215,7 +217,7 @@ a3UserToJSON withPass (UserFormData name password email) = object
     ]
 
 a3UserFromJSON :: Bool -> Aeson.Value -> Aeson.Parser UserFormData
-a3UserFromJSON withPass = withObject "resource object" $ \ v -> do
+a3UserFromJSON withPass = withObject "resource object" $ \v -> do
     content_type :: ContentType <- v .: "content_type"
     when (content_type /= CTUser) $
         fail $ "wrong content type: " ++ show content_type
@@ -269,7 +271,11 @@ data LoginRequest =
   | LoginByEmail UserEmail UserPass
   deriving (Eq, Typeable, Generic)
 
--- | Reponse to a login or activation request.
+data PasswordResetRequest =
+    PasswordResetRequest Path UserPass
+  deriving (Eq, Typeable, Generic)
+
+-- | Reponse to a login or similar request.
 --
 -- Note: this generic form is useful for parsing a result from A3, but you should never *return* a
 -- 'RequestError' because then the status code won't be set correctly. Instead, throw a
@@ -283,7 +289,7 @@ instance ToJSON ActivationRequest where
     toJSON (ActivationRequest p) = object ["path" .= p]
 
 instance FromJSON ActivationRequest where
-    parseJSON = withObject "activation request" $ \ v -> do
+    parseJSON = withObject "activation request" $ \v -> do
         p :: ST <- v .: "path"
         unless ("/activate/" `ST.isPrefixOf` p) $
             fail $ "ActivationRequest with malformed path: " ++ show p
@@ -294,7 +300,7 @@ instance ToJSON LoginRequest where
     toJSON (LoginByEmail e p) = object ["email" .= e, "password" .= p]
 
 instance FromJSON LoginRequest where
-    parseJSON = withObject "login request" $ \ v -> do
+    parseJSON = withObject "login request" $ \v -> do
         name <- UserName  <$$> v .:? "name"
         email <- v .:? "email"
         pass <- UserPass  <$>  v .: "password"
@@ -302,6 +308,16 @@ instance FromJSON LoginRequest where
           (Just x,  Nothing) -> return $ LoginByName x pass
           (Nothing, Just x)  -> return $ LoginByEmail x pass
           (_,       _)       -> fail $ "malformed login request body: " ++ show v
+
+instance ToJSON PasswordResetRequest where
+    toJSON (PasswordResetRequest path pass) = object ["path" .= path, "password" .= pass]
+
+instance FromJSON PasswordResetRequest where
+    parseJSON = withObject "password reset request" $ \v -> do
+        path <- Path <$> v .: "path"
+        pass <- v .: "password"
+        failOnError $ passwordAcceptable pass
+        return $ PasswordResetRequest path $ UserPass pass
 
 instance ToJSON RequestResult where
     toJSON (RequestSuccess p t) = object $
@@ -312,7 +328,7 @@ instance ToJSON RequestResult where
     toJSON (RequestError errMsg) = toJSON errMsg
 
 instance FromJSON RequestResult where
-    parseJSON = withObject "request result" $ \ v -> do
+    parseJSON = withObject "request result" $ \v -> do
         n :: ST <- v .: "status"
         case n of
             "success" -> RequestSuccess <$> v .: "user_path" <*> v .: "user_token"
@@ -344,6 +360,7 @@ type ThentosApi =
   :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post200 '[JSON] RequestResult
   :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
   :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
+  :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest :> Post200 '[JSON] RequestResult
 
 type Api =
        ThentosApi
@@ -355,6 +372,7 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
   :<|> activate
   :<|> login
   :<|> login
+  :<|> resetPassword
 
 api :: Client.Manager -> AC.ActionState DB -> Server Api
 api manager actionState =
@@ -401,6 +419,7 @@ activate ar@(ActivationRequest p) = AC.logIfError'P $ do
             return $ RequestSuccess path stok
         RequestError errMsg        -> throwError $ GenericA3Error errMsg
 
+-- | Log a user in.
 login :: LoginRequest -> AC.Action DB RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
@@ -410,8 +429,38 @@ login r = AC.logIfError'P $ do
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
     return $ RequestSuccess (userIdToPath config uid) stok
 
+-- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user
+-- has clicked on the link in a reset-password mail sent by the A3 backend. To check whether the
+-- reset path is valid, we forward the request to the backend, but replacing the new password by a
+-- dummy (as usual). If the backend indicates success, we update the password in Thentos.
+-- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
+resetPassword :: PasswordResetRequest -> AC.Action DB RequestResult
+resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
+    AC.logger'P DEBUG $ "route password_reset for path: " <> show path
+    reqResult <- resetPasswordInA3'P path
+    case reqResult of
+        RequestSuccess userPath _a3tok -> do
+            uid  <- userIdFromPath userPath
+            stok <- confirmUserUser uid `catchError` handle uid
+            return $ RequestSuccess userPath stok
+        RequestError errMsg            -> throwError $ GenericA3Error errMsg
+  where
+    confirmUserUser uid = do
+        -- Before changing the password, try to activate the user in case they weren't yet
+        -- FIXME once the switch-to-SQL branch is merged: instead of brute-forcing activation
+        -- and catching the resulting error, define and use a (trans)action to look up the
+        -- activation status of an uid (active/inactive/unknown)
+        stok <- A.confirmNewUserById uid
+        A.changePasswordUnconditionally uid pass
+        return stok
+    handle uid (thentosErrorToParent -> Just NoSuchUser) = do
+        -- User is already activated, just change the password and log them in
+        A.changePasswordUnconditionally uid pass
+        A.startThentosSessionByUserId uid pass
+    handle _ e                                           = throwError e
 
--- * helper action
+
+-- * helper actions
 
 -- | Create a user in A3 and return the user ID.
 createUserInA3'P :: UserFormData -> AC.Action DB UserId
@@ -436,6 +485,18 @@ activateUserInA3'P actReq = do
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     either (throwError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
+
+-- | Send a password reset request to A3 and return the response.
+resetPasswordInA3'P :: Path -> AC.Action DB RequestResult
+resetPasswordInA3'P path = do
+    config <- AC.getConfig'P
+    let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $
+                mkRequestForA3 config "/password_reset" reqData
+    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
+    either (throwError . A3BackendInvalidJson) return $
+        (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
+  where
+    reqData = PasswordResetRequest path "dummypass"
 
 
 -- * policy
@@ -472,7 +533,7 @@ mkRequestForA3 :: ToJSON a => ThentosConfig -> String -> a -> Maybe Client.Reque
 mkRequestForA3 config route dat = do
     defaultProxy <- Tagged <$> config >>. (Proxy :: Proxy '["proxy"])
     let target = extractTargetUrl defaultProxy
-    initReq <- Client.parseUrl $ cs $ show target <> route
+    initReq <- Client.parseUrl $ cs $ show target <//> route
     return initReq { Client.method = "POST"
         , Client.requestHeaders = [("Content-Type", "application/json")]
         , Client.requestBody = Client.RequestBodyLBS . Aeson.encode $ dat
@@ -512,7 +573,7 @@ userIdToPath config (UserId i) = a3backendPath config $
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
 a3backendPath :: ThentosConfig -> ST -> Path
-a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <> localPath
+a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
   where
     beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
                      Nothing -> error "a3backendPath: backend not configured!"

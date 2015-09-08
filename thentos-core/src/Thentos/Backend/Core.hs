@@ -256,7 +256,7 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 
 -- | header setting the Content-Type to JSON.
 contentTypeJsonHeader ::  Header
-contentTypeJsonHeader = ("Content-Type", "application/json; charset=UTF-8")
+contentTypeJsonHeader = ("Content-Type", "application/json")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --

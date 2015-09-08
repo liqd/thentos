@@ -9,6 +9,7 @@ import LIO.DCLabel (DCLabel(DCLabel), (%%), (/\), (\/), CNF, toCNF)
 import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 
 import qualified Data.ByteString as SBS
+import qualified Data.Text as ST
 
 import Thentos.Types
 
@@ -77,3 +78,8 @@ instance Arbitrary UserFormData where
 -- here.
 deriving instance Show UserPass
 deriving instance Show UserFormData
+
+-- | Orphan instance for ST. An alternative would be to use the quickcheck-instances package, but
+-- for just this instance it's probably overkill.
+instance Arbitrary ST.Text where
+    arbitrary = cs <$> (arbitrary :: Gen String)

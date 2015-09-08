@@ -7,13 +7,17 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE StandaloneDeriving                       #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE ViewPatterns                             #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
+import Control.Applicative ((<*>))
+import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
@@ -21,12 +25,13 @@ import Data.Functor ((<$>))
 import Data.Maybe (isJust)
 import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.HTTP.Types (Status, status400)
 import Network.Wai (Application)
+import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
-import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy, around_)
 import Test.Hspec.Wai (request, with)
-import Test.QuickCheck (property)
-
+import Test.QuickCheck (Arbitrary(..), property)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as ST
@@ -35,11 +40,10 @@ import qualified Network.HTTP.Types.Status as Status
 import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
-
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
-
+import Thentos.Test.Network
 
 tests :: IO ()
 tests = hspec spec
@@ -96,35 +100,75 @@ spec =
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
 
+        describe "PasswordResetRequest" $ do
+            it "has invertible *JSON instances" . property $
+                \(p :: PasswordResetRequest) -> (Aeson.eitherDecode . Aeson.encode) p == Right p
+
+            it "rejects short passwords" $ do
+                 let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "short"
+                 (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
+                     `shouldBe` Left "password too short (less than 6 characters)"
+
+        -- TODO re-add test for user creation together with account activation, cf. below
+
+        describe "activate_account" $ with setupBackend $ do
+            let a3errMsg = encodePretty $ A3ErrorMessage
+                    [A3Error "path" "body" "Unknown or expired activation path"]
+            around_ (withA3fake (Just status400) a3errMsg) $ do
+                it "rejects bad path mimicking A3" $ do
+                    let reqBody = encodePretty $ object
+                            [ "path" .= String "/activate/no-such-path" ]
+                    rsp <- request "POST" "activate_account" [ctJson] reqBody
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "\"Unknown or expired activation path\""
+
         describe "login" $ with setupBackend $
             it "rejects bad credentials mimicking A3" $ do
-
-                let reqBody = encodePretty . object $
-                        [ "name"     .= String "Anna Müller"
-                        , "password" .= String "this-is-wrong"
-                        ]
-
-                rsp <- request "POST" "login_username" [ctJSON] reqBody
+                let reqBody = mkLoginRequest "Anna Müller" "this-is-wrong"
+                rsp <- request "POST" "login_username" [ctJson] reqBody
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
 
-        describe "arbitrary requests" $ with setupBackend $
+        describe "resetPassword" $ with setupBackend $ do
+            let a3succMsg = encodePretty $ object
+                            [ "status"     .= String "success"
+                            , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
+                            , "user_token" .= String "bla-bla-valid-token-blah"
+                            ]
+            around_ (withA3fake Nothing a3succMsg) $ do
+                it "changes the password if A3 signals success" $ do
+                    let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                    rsp <- request "POST" "password_reset" [ctJson] resetReq
+                    liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
+                    -- Test that we can login using the new password
+                    let loginReq = mkLoginRequest "god" "newpass"
+                    loginRsp <- request "POST" "login_username" [ctJson] loginReq
+                    liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
+
+            let a3errMsg = encodePretty $ A3ErrorMessage
+                           [A3Error "path" "body" "This resource path does not exist."]
+            around_ (withA3fake (Just status400) a3errMsg) $ do
+                it "passes the error on if A3 signals failure" $ do
+                    let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
+                    rsp <- request "POST" "password_reset" [ctJson] resetReq
+                    shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
+                        "resource path does not exist"
+
+        describe "an arbitrary request" $ with setupBackend $ do
             it "rejects bad session token mimicking A3" $ do
                 let headers = [("X-User-Token", "invalid-token")]
                 rsp <- request "POST" "dummy/endpoint" headers ""
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"Invalid user token\""
 
--- Disabled because account activation now requires the A3 backend to run
---        describe "activate_account" $ with setupBackend $
---            it "rejects bad path mimicking A3" $ do
---
---                let reqBody = encodePretty . object $
---                        [ "path" .= String "/activate/no-such-path" ]
---
---                rsp <- request "POST" "activate_account" [ctJSON] reqBody
---                shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
---                    "\"Unknown or expired activation path\""
+            it "throws an internal error if A3 is unreachable" $ do
+                rsp <- request "POST" "dummy/endpoint" [ctJson] ""
+                liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 500
+                -- Response body should be parseable as JSON
+                let rspBody = simpleBody rsp
+                liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
+                -- It should contain the quoted string "internal error"
+                liftIO $ (cs rspBody :: ST) `shouldSatisfy` ST.isInfixOf "\"internal error\""
 
   where
     setupBackend :: IO Application
@@ -134,7 +178,7 @@ spec =
         createGod adb
         return $! serveApi mgr db
 
-    ctJSON = ("Content-Type", "application/json")
+    ctJson = ("Content-Type", "application/json")
 
     shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
     shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
@@ -232,10 +276,12 @@ spec =
         -- (2) An error is returned if the wrong password is specified
 
 
+-- * helper functions
+
 -- | Create a JSON object describing an user.
 -- Aeson.encode would strip the password, hence we do it by hand.
 mkUserJson :: ST -> ST -> ST -> LBS
-mkUserJson name email password = encodePretty . object $
+mkUserJson name email password = encodePretty $ object
   [ "data" .= object
       [ "adhocracy_core.sheets.principal.IUserBasic" .= object
           [ "name" ..= name
@@ -249,3 +295,36 @@ mkUserJson name email password = encodePretty . object $
       ]
   , "content_type" ..= "adhocracy_core.resources.principal.IUser"
   ]
+
+-- | Create a JSON object for a login request. Calling the ToJSON instance might be
+-- considered cheating, so we do it by hand.
+mkLoginRequest :: ST -> ST -> LBS
+mkLoginRequest name pass = encodePretty $ object
+    ["name" .= String name, "password" .= String pass]
+
+-- | Create a JSON object for a PasswordResetRequest. Calling the ToJSON instance might be
+-- considered cheating, so we do it by hand.
+mkPwResetRequestJson :: ST -> ST -> LBS
+mkPwResetRequestJson path pass = encodePretty $ object
+    ["path" .= String path, "password" .= String pass]
+
+-- | Start a faked A3 backend that always returns the same response, passed in as argument.
+-- The status code defaults to 200.
+withA3fake :: Maybe Status -> LBS -> IO () -> IO ()
+withA3fake mStatus respBody test = bracket
+    (startDaemon $ runSettings settings $ staticReplyServer mStatus Nothing respBody)
+    stopDaemon
+    (const test)
+  where
+    settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
+
+-- * instances
+
+instance Arbitrary Path where
+    arbitrary = Path <$> arbitrary
+
+instance Arbitrary PasswordResetRequest where
+    arbitrary = PasswordResetRequest <$> arbitrary <*> arbitrary
+
+-- | We don't want to accidentally show passwords in production code but it's harmless in tests.
+deriving instance Show PasswordResetRequest

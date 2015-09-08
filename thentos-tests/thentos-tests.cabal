@@ -79,6 +79,7 @@ library
     , string-conversions
     , template-haskell
     , temporary
+    , text
     , transformers
     , transformers-base
     , wai
