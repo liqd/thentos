@@ -8,7 +8,6 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
@@ -45,23 +44,15 @@ import Thentos.Config
 import Thentos.Types
 
 
-data ServiceProxy db = ServiceProxy
-    { exceptionHandler :: SomeException -> S.Application
-    , clientManager    :: C.Manager
-    , proxyAdapter     :: ProxyAdapter
-    , actionState      :: ActionState db
-    }
-
-instance (db `Ex` DB, ThentosErrorToServantErr db) => HasServer (ServiceProxy db) where
-    type ServerT (ServiceProxy db) m = S.Application
-    route Proxy = route (Proxy :: Proxy Raw)
+type ServiceProxy = Raw
 
 serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => ServiceProxy db -> S.Application
-serviceProxy ServiceProxy{..}
-    = waiProxyTo (reverseProxyHandler proxyAdapter actionState)
-                 exceptionHandler
-                 clientManager
+      => C.Manager -> ProxyAdapter -> ActionState db
+      -> (SomeException -> S.Application) -> S.Application
+serviceProxy manager adapter state excHandler
+    = waiProxyTo (reverseProxyHandler adapter state)
+                 excHandler
+                 manager
 
 -- | Proxy or respond based on request headers.
 reverseProxyHandler :: (db `Ex` DB, ThentosErrorToServantErr db)
@@ -76,7 +67,6 @@ reverseProxyHandler adapter state req = do
           let pReq = prepareReq adapter headers (proxyPath uri) req
           return $ WPRModifiedRequest pReq proxyDest
         Left e -> WPRResponse . responseServantErr <$> actionErrorToServantErr e
-
 
 -- | Allows adapting a proxy for a specific use case.
 data ProxyAdapter = ProxyAdapter

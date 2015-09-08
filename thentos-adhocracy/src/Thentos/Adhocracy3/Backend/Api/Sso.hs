@@ -86,6 +86,7 @@ import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Types
+import Thentos.Adhocracy3.Backend.Api.Proxy (proxyExceptionHandler)
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
 import Thentos.Config
@@ -138,7 +139,7 @@ api :: Client.Manager -> AC.ActionState DB -> Server Api
 api manager actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
-  :<|> serviceProxy manager A3.a3ProxyAdapter actionState
+  :<|> serviceProxy manager A3.a3ProxyAdapter actionState proxyExceptionHandler
 
 
 -- * handler

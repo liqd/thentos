@@ -43,6 +43,7 @@ library
   exposed-modules:
       Thentos.Adhocracy3
     , Thentos.Adhocracy3.Backend.Api.Docs.Simple
+    , Thentos.Adhocracy3.Backend.Api.Proxy
     , Thentos.Adhocracy3.Backend.Api.Simple
     , Thentos.Adhocracy3.Backend.Api.Sso
     , Thentos.Adhocracy3.Transactions

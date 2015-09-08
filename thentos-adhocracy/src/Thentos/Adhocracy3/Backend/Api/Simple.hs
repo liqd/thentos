@@ -80,6 +80,7 @@ import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
+import Thentos.Adhocracy3.Backend.Api.Proxy
 import Thentos.Adhocracy3.Transactions ()
 
 import qualified Thentos.Action as A
@@ -377,7 +378,7 @@ thentosApi actionState = enter (enterAction actionState Nothing) $
 api :: Client.Manager -> AC.ActionState DB -> Server Api
 api manager actionState =
        thentosApi actionState
-  :<|> serviceProxy manager a3ProxyAdapter actionState
+  :<|> serviceProxy manager a3ProxyAdapter actionState proxyExceptionHandler
 
 
 -- * handler
