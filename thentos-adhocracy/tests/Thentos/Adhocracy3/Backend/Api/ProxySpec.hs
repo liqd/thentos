@@ -78,6 +78,11 @@ spec = do
                         req <- Wreq.get (url env rPath)
                         req ^? Wreq.responseBody . key "path"
                             `shouldBe` Just (String $ cs $ "/path/" ++ urlEncode rPath)
+
+            context "the destination server is unavailable" $ do
+                it "returns 500" $ \env -> do
+                    property $ \rPath -> hitsProxy rPath ==> do
+                        Wreq.get (url env rPath) `shouldReturn` 500
       where
         url (port, _, _) rPath = "http://localhost:" ++ show port ++ "/" ++ urlEncode rPath
 
