@@ -12,8 +12,6 @@ packages:
   extra-dep: true
 - location: 'submodules/servant/servant-docs'
   extra-dep: true
-- location: 'submodules/servant/servant-jquery'
-  extra-dep: true
 extra-deps:
 - acid-state-0.12.4
 - configifier-0.0.5
