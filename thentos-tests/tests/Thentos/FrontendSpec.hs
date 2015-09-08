@@ -11,6 +11,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
+import Database.PostgreSQL.Simple (Connection)
 import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
 
 import qualified Data.Text as ST
@@ -21,13 +22,13 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Action.Core
 import Thentos.Config
 import qualified Thentos.Transaction.Transactions as T
-import Thentos.Transaction.Core (runThentosQuery)
+import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util ((<//>))
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Config (godName, godPass)
+import Thentos.Test.Config (godUid, godName, godPass)
 import Thentos.Test.Core
 
 
@@ -81,9 +82,9 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        (eUser :: Either (ThentosError Void) (UserId, User)) <- runThentosQuery st $ T.lookupUserByName (UserName myUsername)
-        fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
-        fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
+        Right (_, usr) <- runQuery st $ T.lookupUserByName (UserName myUsername)
+        fromUserName  (usr ^. userName)  `shouldBe` myUsername
+        fromUserEmail (usr ^. userEmail) `shouldBe` myEmail
 
 
 spec_resetPassword :: SpecWith ActionState
@@ -370,3 +371,6 @@ isNotLoggedIn cfg = do
 -- | Fill a labeled text field.
 fill :: WD.WebDriver wd => ST -> ST -> wd ()
 fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+
+runQuery :: Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
+runQuery = runThentosQuery
