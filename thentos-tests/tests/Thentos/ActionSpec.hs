@@ -28,7 +28,7 @@ tests = hspec spec
 spec :: Spec
 spec = do
     let b = do
-          db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+          db@(ActionState (adb, _, _)) <- createActionState "test_thentos" thentosTestConfig
           createGod adb
           return db
 

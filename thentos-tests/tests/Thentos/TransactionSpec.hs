@@ -27,7 +27,7 @@ import Thentos.Test.Core
 import Thentos.Test.Config
 
 spec :: Spec
-spec = describe "Thentos.Transaction" . before (createActionState thentosTestConfig) $ do
+spec = describe "Thentos.Transaction" . before (createActionState "test_thentos" thentosTestConfig) $ do
     addUserPrimSpec
     addUserSpec
     addUnconfirmedUserSpec

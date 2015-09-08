@@ -165,9 +165,9 @@ withBackend beConfig as action =
 
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend ::  (ActionState -> IO r) -> IO r
-withFrontendAndBackend test = do
-    st@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+withFrontendAndBackend ::  String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend dbname test = do
+    st@(ActionState (adb, _, _)) <- createActionState dbname thentosTestConfig
     withFrontend defaultFrontendConfig st
         $ withBackend defaultBackendConfig st $ liftIO (createGod adb) >> test st
 
@@ -179,13 +179,13 @@ defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pr
 
 -- | Create an @ActionState@ with a connection to an empty DB and the specified
 -- config.
-createActionState :: ThentosConfig -> IO ActionState
-createActionState config = do
+createActionState :: String -> ThentosConfig -> IO ActionState
+createActionState dbname config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     wipe <- wipeFile
-    callCommand $ "createdb test_thentos 2>/dev/null || true"
-               <> " && psql --quiet --file=" <> wipe <> " test_thentos >/dev/null 2>&1"
-    conn <- connectPostgreSQL "dbname=test_thentos"
+    callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
+               <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
+    conn <- connectPostgreSQL $ "dbname=" <> cs dbname
     createDB conn
     return $ ActionState (conn, rng, config)
 

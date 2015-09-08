@@ -36,7 +36,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "selenium grid" $ do
-  describe "many tests" . around withFrontendAndBackend $ do
+  describe "many tests" . around (withFrontendAndBackend "test_thentos") $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos
@@ -57,7 +57,7 @@ spec = describe "selenium grid" $ do
 
   -- (this is a separate top-level test case because it changes the DB
   -- state and gets the other tests confused.)
-  describe "update user" . around withFrontendAndBackend $ do
+  describe "update user" . around (withFrontendAndBackend "test_thentos") $ do
     spec_updateSelf
 
 

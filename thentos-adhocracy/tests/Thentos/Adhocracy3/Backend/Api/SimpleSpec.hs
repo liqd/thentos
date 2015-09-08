@@ -164,7 +164,7 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+        db@(ActionState (adb, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         createGod adb
         return $! serveApi mgr db
