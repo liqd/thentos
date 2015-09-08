@@ -3,11 +3,13 @@
 module Thentos.Adhocracy3.Backend.Core
     ( mkSimpleA3Error
     , a3ActionErrorToServantErr
+    , a3BaseActionErrorToServantErr
     , Action'
     )
     where
 
 import Data.String.Conversions (ST)
+import Data.Void (Void, absurd)
 import Servant.Server (ServantErr)
 import Servant.Server.Internal.ServantErr (err400, err401, err500, errBody, errHeaders)
 import System.Log.Logger (Priority(DEBUG, ERROR, CRITICAL))
@@ -22,7 +24,12 @@ import Thentos.Adhocracy3.Types
 type Action' = AC.Action ThentosA3Error
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
-a3ActionErrorToServantErr = errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info
+a3ActionErrorToServantErr e = do
+    errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info $ e
+
+a3BaseActionErrorToServantErr :: AC.ActionError Void -> IO ServantErr
+a3BaseActionErrorToServantErr e = do
+    errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info absurd $ e
 
 -- Construct a simple A3-style error wrapping a single error. 'aeName' is set to "thentos" and
 -- 'aeLocation' to "body". Useful for cases where all we really have is a description.
@@ -36,10 +43,13 @@ mkA3StyleServantErr :: ServantErr -> A3ErrorMessage -> ServantErr
 mkA3StyleServantErr baseErr err = baseErr
     {errBody = encode $ err, errHeaders = [contentTypeJsonHeader]}
 
-actionErrorA3Info :: AC.ActionError ThentosA3Error -> ErrorInfo A3ErrorMessage
-actionErrorA3Info = f
+mkA3 :: ErrorInfo ST -> ErrorInfo A3ErrorMessage
+mkA3 (p, se, msg) = (p, se, A3ErrorMessage [mkSimpleA3Error msg])
+
+actionErrorA3Info :: Show e
+                  => (e -> ErrorInfo A3ErrorMessage) -> AC.ActionError e -> ErrorInfo A3ErrorMessage
+actionErrorA3Info other = f
   where
-    mkA3 (p, se, msg) = (p, se, A3ErrorMessage [mkSimpleA3Error msg])
     a3Error a b c = A3ErrorMessage [A3Error a b c]
 
     f e = case e of
@@ -50,7 +60,7 @@ actionErrorA3Info = f
     -- For errors specifically relevant to the A3 frontend we mirror the A3 backend errors
     -- exactly so that the frontend recognizes them
     g e = case e of
-        OtherError ae -> h ae
+        OtherError ae -> other ae
         BadCredentials -> (Nothing, err400, a3Error
             "password"
             "body"
@@ -73,21 +83,23 @@ actionErrorA3Info = f
             "Invalid user token")
         _ -> mkA3 $ thentosErrorInfo (impossible "other error handled above") e
 
-    impossible = error
-
-    h (GenericA3Error errMsg) =
-        (Nothing, err400, errMsg)
-    h e = mkA3 $ i e
-
-    i (GenericA3Error _) = impossible "generic error handled above"
-    i e@(A3BackendErrorResponse _ _) =
+a3Info :: ThentosA3Error -> ErrorInfo A3ErrorMessage
+a3Info ae = case ae of
+               GenericA3Error errMsg -> (Nothing, err400, errMsg)
+               _                     ->  mkA3 $ f ae
+  where
+    f (GenericA3Error _) = impossible "generic error handled above"
+    f e@(A3BackendErrorResponse _ _) =
         (Just (ERROR, show e), err500, "exception in a3 backend")
-    i e@(A3BackendInvalidJson _) =
+    f e@(A3BackendInvalidJson _) =
         (Just (ERROR, show e), err500, "exception in a3 backend: received bad json")
     -- the following shouldn't actually reach servant:
-    i e@SsoErrorUnknownCsrfToken =
+    f e@SsoErrorUnknownCsrfToken =
         (Just (ERROR, show e), err500, "invalid token returned during sso process")
-    i e@(SsoErrorCouldNotAccessUserInfo _) =
+    f e@(SsoErrorCouldNotAccessUserInfo _) =
         (Just (ERROR, show e), err500, "error accessing user info")
-    i e@(SsoErrorCouldNotGetAccessToken _) =
+    f e@(SsoErrorCouldNotGetAccessToken _) =
         (Just (ERROR, show e), err500, "error retrieving access token")
+
+impossible :: String -> a
+impossible = error

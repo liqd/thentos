@@ -555,6 +555,7 @@ a3ProxyAdapter :: ProxyAdapter
 a3ProxyAdapter = ProxyAdapter
   { renderHeader = renderA3HeaderName
   , renderUser   = a3RenderUser
+  , renderError  = a3BaseActionErrorToServantErr
   }
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
