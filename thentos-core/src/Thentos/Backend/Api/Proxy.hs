@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
@@ -20,6 +21,7 @@ module Thentos.Backend.Api.Proxy where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
+import Control.Exception (SomeException)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -28,7 +30,7 @@ import Network.HTTP.ReverseProxy
 import Servant.API (Raw)
 import Servant.Server.Internal.ServantErr (responseServantErr)
 import Servant.Server (Server, HasServer(..))
-import System.Log.Logger (Priority(DEBUG))
+import System.Log.Logger (Priority(DEBUG, CRITICAL))
 
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
@@ -43,18 +45,23 @@ import Thentos.Config
 import Thentos.Types
 
 
-data ServiceProxy
+data ServiceProxy db = ServiceProxy
+    { exceptionHandler :: SomeException -> S.Application
+    , clientManager    :: C.Manager
+    , proxyAdapter     :: ProxyAdapter
+    , actionState      :: ActionState db
+    }
 
-instance HasServer ServiceProxy where
-    type ServerT ServiceProxy m = S.Application
-    route Proxy = route (Proxy :: Proxy Raw)
+instance HasServer (ServiceProxy db) where
+    type ServerT (ServiceProxy db) m = ServiceProxy db
+    route Proxy sp = route (Proxy :: Proxy raw) (serviceProxy sp)
 
 serviceProxy :: (db `Ex` DB, ThentosErrorToServantErr db)
-      => C.Manager -> ProxyAdapter -> ActionState db -> Server ServiceProxy
-serviceProxy manager adapter state
-    = waiProxyTo (reverseProxyHandler adapter state)
-                 defaultOnExc
-                 manager
+      => ServiceProxy db -> S.Application
+serviceProxy ServiceProxy{..}
+    = waiProxyTo (reverseProxyHandler proxyAdapter actionState)
+                 exceptionHandler
+                 clientManager
 
 -- | Proxy or respond based on request headers.
 reverseProxyHandler :: (db `Ex` DB, ThentosErrorToServantErr db)
@@ -69,6 +76,7 @@ reverseProxyHandler adapter state req = do
           let pReq = prepareReq adapter headers (proxyPath uri) req
           return $ WPRModifiedRequest pReq proxyDest
         Left e -> WPRResponse . responseServantErr <$> actionErrorToServantErr e
+
 
 -- | Allows adapting a proxy for a specific use case.
 data ProxyAdapter = ProxyAdapter

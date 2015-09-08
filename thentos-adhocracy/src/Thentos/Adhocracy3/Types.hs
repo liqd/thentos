@@ -128,7 +128,7 @@ instance FromJSON A3ErrorMessage where
 mkSimpleA3Error :: ST -> A3Error
 mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescription = desc}
 
--- | Construct a ServantErr that looks like those reponrted by the A3 backend.
+-- | Construct a ServantErr that looks like those reported by the A3 backend.
 -- The backend returns a list of errors but we always use a single-element list, as Thentos
 -- aborts at the first detected error.
 mkA3StyleServantErr :: ServantErr -> A3Error -> ServantErr
