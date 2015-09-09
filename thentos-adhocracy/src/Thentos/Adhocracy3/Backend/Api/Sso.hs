@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 -- | This is a variant of "Thentos.Backend.Api.Adhocracy3" that throws errors on the old
 -- authentication end points and instead performs github authentication.  The intricacies of the

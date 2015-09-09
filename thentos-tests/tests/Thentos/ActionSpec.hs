@@ -144,12 +144,12 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
         describe "assign" $ do
             it "can be called by admins" $ \ sta -> do
                 (UserA -> targetAgent, _, _) <- runClearance dcBottom sta $ addTestUser 1
-                result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent (RoleAdmin)
+                result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \ sta -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runPrivsE [targetAgent] sta $ assignRole targetAgent (RoleAdmin)
+                result <- runPrivsE [targetAgent] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do

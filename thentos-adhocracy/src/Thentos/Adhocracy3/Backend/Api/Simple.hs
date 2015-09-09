@@ -15,7 +15,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst

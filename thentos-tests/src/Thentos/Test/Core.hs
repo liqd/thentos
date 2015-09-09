@@ -24,7 +24,7 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Crypto.Random (ChaChaDRG, drgNew)
-import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
+import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -46,7 +46,6 @@ import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger
 import System.IO.Temp (createTempDirectory)
 import System.Process
 
-import Crypto.Scrypt (EncryptedPass(..))
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson

@@ -12,10 +12,9 @@ import Data.Either (isRight)
 import Data.String.Conversions (ST, SBS)
 import Data.Thyme (fromSeconds')
 import Data.Void (Void)
-import Database.PostgreSQL.Simple (Only(..), query, query_)
+import Database.PostgreSQL.Simple (Only(..), Connection, query, query_)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
-import Database.PostgreSQL.Simple (Connection)
 
 import Thentos.Action.Core
 import Thentos.Transaction
