@@ -54,5 +54,6 @@ CREATE TABLE IF NOT EXISTS "service_sessions" (
     start                 timestamptz NOT NULL,
     end_                  timestamptz NOT NULL,
     period                interval    NOT NULL,
-    thentos_session_token text        NOT NULL REFERENCES user_sessions (token) ON DELETE CASCADE
+    thentos_session_token text        NOT NULL REFERENCES user_sessions (token) ON DELETE CASCADE,
+    meta                  text        NOT NULL
 );

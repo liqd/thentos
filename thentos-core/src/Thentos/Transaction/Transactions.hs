@@ -306,10 +306,13 @@ endThentosSession tok =
 lookupServiceSession :: ServiceSessionToken -> ThentosQuery e (ServiceSessionToken, ServiceSession)
 lookupServiceSession token = do
     sessions <- queryT
-        [sql| SELECT * FROM WHERE token = ? |] (Only token)
+        [sql| SELECT service, start, end_, period, thentos_session_token, meta
+              FROM service_sessions
+              WHERE token = ? |] (Only token)
     case sessions of
         []        -> throwError NoSuchServiceSession
-        [session] -> return (token, session)
+        [(service, start, end, period, thentosSessionToken, meta)] ->
+            return (token, ServiceSession service start end period thentosSessionToken meta)
         _         -> impossible "multiple sessions with the same token"
 
 -- | Like 'startThentosSession' for service sessions.  Bump associated thentos session.  Throw an
@@ -320,8 +323,11 @@ startServiceSession ::
     -> Timeout -> ThentosQuery e ()
 startServiceSession thentosSessionToken token sid timeout =
     void $ execT [sql| INSERT INTO service_sessions
-                        (token, thentos_session_token, start, end_, period, service)
-                       VALUES (?, ?, now(), now() + ?, ?, ?) |]
+                        (token, thentos_session_token, start, end_, period, service, meta)
+                       VALUES (?, ?, now(), now() + ?, ?, ?,
+                            (SELECT users.name FROM users, user_sessions WHERE
+                             users.id = user_sessions.uid)
+                            ) |]
                 (token, thentosSessionToken, timeout, timeout, sid)
 
 -- | Like 'endThentosSession' for service sessions (see there).  If thentos session or service

@@ -50,6 +50,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     startThentosSessionSpec
     endThentosSessionSpec
     startServiceSessionSpec
+    lookupServiceSessionSpec
     endServiceSessionSpec
 
 
@@ -557,6 +558,31 @@ endServiceSessionSpec = describe "endServiceSession" $ do
         return ()
   where
     countSessions = [sql| SELECT COUNT(*) FROM service_sessions |]
+    period = Timeout $ fromSeconds' 60
+    thentosSessionToken = "foo"
+    serviceSessionToken = "bar"
+    sid = "sid"
+
+lookupServiceSessionSpec :: SpecWith ActionState
+lookupServiceSessionSpec = describe "lookupServiceSession" $ do
+    it "looks up the service session with a given token" $ \(ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $
+            startThentosSession thentosSessionToken (UserA testUid) period
+        void $ runQuery conn $
+            addService (UserA testUid) sid testHashedSecret "" ""
+        void $ runQuery conn $
+            startServiceSession thentosSessionToken serviceSessionToken sid period
+        Right (tok, sess) <- runQuery conn $ lookupServiceSession serviceSessionToken
+        sess ^. srvSessService `shouldBe` sid
+        sess ^. srvSessExpirePeriod `shouldBe` period
+        tok `shouldBe` serviceSessionToken
+
+    it "returns NoSuchServiceSession error if no service with the given id exists" $ \(ActionState (conn, _, _)) -> do
+        Left err <- runQuery conn $ lookupServiceSession "non-existent token"
+        err `shouldBe` NoSuchServiceSession
+
+  where
     period = Timeout $ fromSeconds' 60
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
