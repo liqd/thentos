@@ -107,8 +107,23 @@ addUnconfirmedUserWithId token user uid = void $ execT [sql|
     |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
        , uid, token )
 
-finishUserRegistration :: Timestamp -> Timeout -> ConfirmationToken -> ThentosQuery e UserId
-finishUserRegistration = error "src/Thentos/Transaction/Transactions.hs:67"
+finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
+finishUserRegistration timeout token = do
+    res <- queryT [sql|
+        UPDATE users SET confirmed = true
+        FROM user_confirmation_tokens
+        WHERE users.id = user_confirmation_tokens.id
+            AND timestamp + ? > now()
+            AND token = ?;
+
+        DELETE FROM user_confirmation_tokens
+        WHERE token = ? AND timestamp + ? > now()
+        RETURNING id ;
+    |] (timeout, token, token, timeout)
+    case res of
+        [] -> throwError NoSuchToken
+        [Only uid] -> return uid
+        _ -> impossible "repeated user confirmation token"
 
 -- | Confirm a user based on the 'UserId' rather than the 'ConfirmationToken.'
 finishUserRegistrationById :: UserId -> ThentosQuery e ()

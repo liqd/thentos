@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS "users" (
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
     id         bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    token      text        NOT NULL UNIQUE
+    token      text        NOT NULL UNIQUE,
+    timestamp  timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS "password_reset_tokens" (
