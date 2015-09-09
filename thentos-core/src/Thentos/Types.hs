@@ -347,6 +347,7 @@ instance FromField Agent where
 -- FIXME: assumes all Agents are Users for now
 instance ToField Agent where
     toField (UserA uid) = toField uid
+    toField (ServiceA _) = error "service agent not implemented"
 
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
