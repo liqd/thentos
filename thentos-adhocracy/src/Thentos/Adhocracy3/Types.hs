@@ -27,7 +27,6 @@ import Control.Exception (Exception)
 import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.:),
                    object, withObject)
 import Data.Data (Typeable)
-import Data.Set (Set)
 import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
