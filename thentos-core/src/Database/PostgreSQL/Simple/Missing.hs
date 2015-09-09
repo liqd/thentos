@@ -13,7 +13,7 @@ import Data.Time (NominalDiffTime)
 nominalDiffTime :: Parser NominalDiffTime
 nominalDiffTime = do
     (h, m, s) <- interval
-    return . fromRational . toRational $ s + 60*(fromIntegral m) + 60*60*(fromIntegral h)
+    return . fromRational . toRational $ s + 60 * fromIntegral m + 60 * 60 * fromIntegral h
 
 -- | Parse a limited postgres interval of the form [-]HHH:MM:SS.[SSSS] (no larger units than hours).
 interval :: Parser (Int, Int, Pico)

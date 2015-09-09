@@ -64,7 +64,7 @@ enterAction :: (Show e, Typeable e) =>
     ActionState ->
     (ActionError e -> IO ServantErr) ->
     Maybe ThentosSessionToken -> Action e :~> EitherT ServantErr IO
-enterAction state toServantErr mTok = Nat $ EitherT . (run toServantErr)
+enterAction state toServantErr mTok = Nat $ EitherT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
