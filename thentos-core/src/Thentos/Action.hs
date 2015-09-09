@@ -534,7 +534,7 @@ addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
-    query'P $ T.updateUserField uid (T.UpdateUserFieldInsertService sid newServiceAccount)
+    query'P $ T.registerUserWithService uid sid newServiceAccount
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
 --
@@ -544,7 +544,7 @@ dropServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
     guardWriteMsg "dropServiceRegistration"
         (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    query'P $ T.updateUserField uid (T.UpdateUserFieldDropService sid)
+    query'P $ T.unregisterUserFromService uid sid
 
 -- | Login user running the current thentos session into service.  If user is not registered with
 -- service, throw an error.

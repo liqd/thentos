@@ -198,8 +198,6 @@ lookupEmailChangeToken token = do
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
-  | UpdateUserFieldInsertService ServiceId ServiceAccount
-  | UpdateUserFieldDropService ServiceId
   | UpdateUserFieldPassword (HashedSecret UserPass)
   deriving (Eq, Show)
 
@@ -219,10 +217,6 @@ updateUserField uid op = do
             execT [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
         UpdateUserFieldPassword p ->
             execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
-        -- TODO insert entry in user_services table resp. remove it
-        UpdateUserFieldInsertService _sid _sacc ->
-            error $ "UpdateUserFieldInsertService not implemented"
-        UpdateUserFieldDropService _sid -> error $ "UpdateUserFieldDropService not implemented"
 
 -- | Update attributes stored for a user.
 -- FIXME: should be transactional
@@ -273,6 +267,19 @@ deleteService sid = do
         0 -> throwError NoSuchService
         1 -> return ()
         _ -> impossible "deleteService: multiple results"
+
+-- Register a user to grant them access to a service. Throws an error if the user is already
+-- registered for the service.
+registerUserWithService :: UserId -> ServiceId -> ServiceAccount -> ThentosQuery e ()
+registerUserWithService uid sid (ServiceAccount anonymous) = void $
+    execT [sql| INSERT INTO user_services (uid, sid, anonymous)
+                VALUES (?, ?, ?) |] (uid, sid, anonymous)
+
+-- Unregister a user from accessing a service. No-op if the user was not registered for the
+-- service.
+unregisterUserFromService :: UserId -> ServiceId -> ThentosQuery e ()
+unregisterUserFromService uid sid = void $
+    execT [sql| DELETE FROM user_services WHERE uid = ? AND sid = ? |] (uid, sid)
 
 
 -- * thentos and service session
