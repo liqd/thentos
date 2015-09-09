@@ -25,9 +25,7 @@ openTestSocket = do
 
 -- | Start a background processes.
 startDaemon :: IO () -> IO (Async ())
-startDaemon x = do
-    a <- async x
-    return a
+startDaemon = async
 
 -- | Stop a background processes.
 stopDaemon :: Async () -> IO ()
