@@ -31,6 +31,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     addUserSpec
     addUnconfirmedUserSpec
     addUnconfirmedUserWithIdSpec
+    finishUserRegistrationSpec
     finishUserRegistrationByIdSpec
     lookupUserByNameSpec
     lookupUserByEmailSpec
@@ -164,6 +165,28 @@ finishUserRegistrationByIdSpec = describe "finishUserRegistrationById" $ do
         Left err <- runQuery conn $ finishUserRegistrationById userid
         err `shouldBe` NoSuchPendingUserConfirmation
 
+finishUserRegistrationSpec :: SpecWith ActionState
+finishUserRegistrationSpec = describe "finishUserRegistration" $ do
+    it "confirms the user if the given token exists" $ \(ActionState (conn, _, _)) -> do
+        Right uid <- runQuery conn $ addUnconfirmedUser token testUser
+        Right uid' <- runQuery conn $ finishUserRegistration timeout token
+        uid `shouldBe` uid'
+        [Only confirmed] <- query conn
+            [sql| SELECT confirmed FROM users WHERE id = ? |] (Only uid)
+        confirmed `shouldBe` True
+        [Only tokenCount] <- query_ conn [sql| SELECT COUNT(*) FROM user_confirmation_tokens |]
+        tokenCount `shouldBe` (0 :: Int)
+
+    it "fails if the given token does not exist" $ \(ActionState (conn, _, _)) -> do
+        Right uid <- runQuery conn $ addUnconfirmedUser token testUser
+        Left NoSuchToken <- runQuery conn $ finishUserRegistration timeout "badToken"
+        [Only confirmed] <- query conn
+            [sql| SELECT confirmed FROM users WHERE id = ? |] (Only uid)
+        confirmed `shouldBe` False
+
+  where
+    token = "someToken"
+    timeout = Timeout $ fromSeconds' 60
 
 lookupUserByNameSpec :: SpecWith ActionState
 lookupUserByNameSpec = describe "lookupUserByName" $ do

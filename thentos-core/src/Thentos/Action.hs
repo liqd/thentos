@@ -197,8 +197,7 @@ addUnconfirmedUserWithId userData userId = do
 confirmNewUser :: ConfirmationToken -> Action e (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> getConfig'P
-    now <- getCurrentTime'P
-    uid <- query'P $ T.finishUserRegistration now expiryPeriod token
+    uid <- query'P $ T.finishUserRegistration expiryPeriod token
     sessionToken <- _startThentosSessionByAgent (UserA uid)
     return (uid, sessionToken)
 
