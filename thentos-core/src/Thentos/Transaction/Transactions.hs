@@ -27,9 +27,6 @@ import Thentos.Transaction.Core
 
 -- * user
 
-freshUserId :: ThentosQuery e UserId
-freshUserId = error "src/Thentos/Transaction/Transactions.hs:13"
-
 lookupUser :: UserId -> ThentosQuery e (UserId, User)
 lookupUser uid = do
     users <- queryT [sql| SELECT name, password, email
@@ -77,6 +74,7 @@ addUserPrim uid user = do
 addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
 addUser user = go (5 :: Int)
   where
+    -- FIXME why not let Postgres generate the ID (bigserial field)?
     go 0 = error "addUser: could not generate unique id"
     go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
       where f UserIdAlreadyExists = go (n - 1)
@@ -87,6 +85,7 @@ addUser user = go (5 :: Int)
 addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
 addUnconfirmedUser token user = go (5 :: Int)
   where
+    -- FIXME why not let Postgres generate the ID (bigserial field)?
     go 0 = error "addUnconfirmedUser: could not generate unique id"
     go n = liftIO randomIO >>= \uid -> (addUnconfirmedUserWithId token user uid
                                         >> return uid) `catch` f
@@ -205,7 +204,10 @@ updateUserField uid op = do
             execT [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
         UpdateUserFieldPassword p ->
             execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
-        _ -> error $ "updateUserField op not implemented: " ++ show op
+        -- TODO insert entry in user_services table resp. remove it
+        UpdateUserFieldInsertService _sid _sacc ->
+            error $ "UpdateUserFieldInsertService not implemented"
+        UpdateUserFieldDropService _sid -> error $ "UpdateUserFieldDropService not implemented"
 
 -- | Update attributes stored for a user.
 -- FIXME: should be transactional
@@ -349,8 +351,10 @@ endServiceSession token = do
 
 -- | For a given service and user id, look up all groups the user has in the context of that service
 -- from the service's group tree, and collect them into a list.
+-- FIXME For now, this just returns an empty list since there is no code to define groups or
+-- assign users to groups.
 flattenGroups :: Service -> UserId -> [Group]
-flattenGroups = error "src/Thentos/Transaction/Transactions.hs:10"
+flattenGroups _ _ = []
 
 -- | Add a new role to the roles defined for an 'Agent'.  If 'Role' is already assigned to
 -- 'Agent', do nothing.
