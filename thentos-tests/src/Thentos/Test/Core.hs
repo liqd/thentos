@@ -188,7 +188,6 @@ createActionState dbname config = do
     createDB conn
     return $ ActionState (conn, rng, config)
 
-
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
     (_, tok) <- runAction actionState $ (startThentosSessionByUserName godName godPass :: Action Void (UserId, ThentosSessionToken))
@@ -216,7 +215,6 @@ decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
     Aeson.parseEither Aeson.parseJSON v
-
 
 -- | This is convenient if you have lots of string literals with @-XOverloadedStrings@ but do not
 -- want to do explicit type signatures to avoid type ambiguity.

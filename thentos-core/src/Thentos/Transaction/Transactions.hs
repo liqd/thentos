@@ -280,9 +280,11 @@ lookupThentosSession token = do
         []                          -> throwError NoSuchThentosSession
         _                           -> impossible "lookupThentosSession: multiple results"
 
--- | Start a new thentos session.  Start and end time have to be passed explicitly.
--- If the agent is a user, this new session is added to their existing sessions.
--- If the agent is a service with an existing session, its session is replaced.
+-- | Start a new thentos session. Start time is set to now, end time is calculated based on the
+-- specified 'Timeout'. If the agent is a user, this new session is added to their existing
+-- sessions.
+-- FIXME not implemented: If the agent is a service with an existing session, its session is
+-- replaced.
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout -> ThentosQuery e ()
 startThentosSession tok agent period =
     void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
