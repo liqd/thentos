@@ -40,7 +40,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     agentRolesSpec
     assignRoleSpec
     unassignRoleSpec
-    doGarbageCollectUnconfirmedUsersSpec
+    garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
     emailChangeRequestSpec
@@ -560,8 +560,8 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
 
 -- * Garbage collection
 
-doGarbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
-doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUsers" $ do
+garbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
+garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $ do
     let user1   = mkUser "name1" "pass" "email1@email.com"
         userid1 = UserId 321
         token1  = "sometoken1"
@@ -610,7 +610,7 @@ garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTok
         tkns' `shouldBe` (1 :: Int)
 
 garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
-garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
+garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens" $ do
     let newEmail = forceUserEmail "new@example.com"
         token = "sometoken2"
 
