@@ -17,7 +17,7 @@
 
 module Thentos.Types where
 
-import Control.Applicative ((<$>), (<*), (<*>), pure)
+import Control.Applicative ((<$>), (<*), (<*>))
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
@@ -49,8 +49,6 @@ import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
-import Data.Map (Map)
-import qualified Data.Map as Map
 import qualified Generics.Generic.Aeson as Aeson
 
 import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
@@ -173,12 +171,11 @@ data Service =
           -- ^ Used by the service to authenticate in communication with thentos.
       , _serviceName           :: !ServiceName
       , _serviceDescription    :: !ServiceDescription
-      , _serviceGroups         :: !(Map GroupNode (Set Group))
       }
   deriving (Eq, Show, Typeable, Generic)
 
 instance FromRow Service where
-    fromRow = Service <$> field <*> field <*> field <*> field <*> field <*> pure Map.empty
+    fromRow = Service <$> field <*> field <*> field <*> field <*> field
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)

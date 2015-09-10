@@ -6,7 +6,6 @@ module Thentos.Transaction.Transactions
 where
 
 import Control.Exception.Lifted (throwIO)
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>))
@@ -242,7 +241,7 @@ lookupService sid = do
                              FROM services
                              WHERE id = ? |] (Only sid)
     service <- case services of
-        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc Map.empty
+        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc
         []                         -> throwError NoSuchService
         _                          -> impossible "lookupService: multiple results"
     return (sid, service)
