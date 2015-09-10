@@ -6,7 +6,6 @@ module Thentos.Transaction.Transactions
 where
 
 import Control.Exception.Lifted (throwIO)
-import Data.Monoid (mempty)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Typeable (Typeable)
@@ -44,7 +43,7 @@ lookupUserByName name = do
                           FROM users
                           WHERE name = ? |] (Only name)
     case users of
-      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email mempty mempty)
+      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email)
       []                        -> throwError NoSuchUser
       _                         -> impossible "lookupUserByName: multiple users"
 
@@ -55,7 +54,7 @@ lookupUserByEmail email = do
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email mempty mempty)
+      [(uid, name, pwd)] -> return (uid, User name pwd email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupUserByEmail: multiple users"
 

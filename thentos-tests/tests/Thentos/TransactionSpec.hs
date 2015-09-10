@@ -4,7 +4,6 @@
 module Thentos.TransactionSpec (spec) where
 
 import Control.Applicative ((<$>))
-import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
@@ -640,8 +639,6 @@ mkUser :: UserName -> SBS -> ST -> User
 mkUser name pass email = User { _userName = name
                               , _userPassword = encryptTestSecret pass
                               , _userEmail = forceUserEmail email
-                              , _userThentosSessions = mempty
-                              , _userServices = mempty
                               }
 
 

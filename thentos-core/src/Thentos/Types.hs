@@ -26,7 +26,6 @@ import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
@@ -66,15 +65,11 @@ data User =
       { _userName            :: !UserName
       , _userPassword        :: !(HashedSecret UserPass)
       , _userEmail           :: !UserEmail
-      , _userThentosSessions :: !(Set ThentosSessionToken)
-          -- ^ (service sessions are stored in the resp. value in @DB ^. dbSessions@)
-      , _userServices        :: !(Map ServiceId ServiceAccount)
-          -- ^ services (with session account information)
       }
   deriving (Eq, Show, Typeable, Generic)
 
 instance FromRow User where
-    fromRow = User <$> field <*> field <*> field <*> pure Set.empty <*> pure Map.empty
+    fromRow = User <$> field <*> field <*> field
 
 -- | the data a user maintains about a service they are signed up
 -- with.

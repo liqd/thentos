@@ -29,8 +29,6 @@ import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
 
 import qualified Crypto.Scrypt as Scrypt
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as ST
 
 import Thentos.Types
@@ -73,8 +71,6 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
-                  Set.empty
-                  Map.empty
 
 
 -- * acid-state business

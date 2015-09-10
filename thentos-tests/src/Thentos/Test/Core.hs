@@ -50,8 +50,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
@@ -81,7 +79,7 @@ testUserForms =
 
 testUsers :: [User]
 testUsers = (\ (UserFormData name pass email) ->
-                User name (encryptTestSecret . cs . fromUserPass $ pass) email Set.empty Map.empty)
+                User name (encryptTestSecret . cs . fromUserPass $ pass) email)
     <$> testUserForms
 
 testUser :: User
