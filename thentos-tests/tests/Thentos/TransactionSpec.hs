@@ -44,6 +44,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
     garbageCollectThentosSessionsSpec
+    garbageCollectServiceSessionsSpec
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
@@ -651,6 +652,32 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
 
   where
     token = "thentos session token"
+
+garbageCollectServiceSessionsSpec :: SpecWith ActionState
+garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ do
+    it "deletes (only) expired service sessions" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        hashedKey <- hashServiceKey "secret"
+        Right _ <- runQuery conn $
+            addService (UserA testUid) sid hashedKey "sName" "sDescription"
+
+        Right _ <- runQuery conn $ startThentosSession tTok1 (UserA testUid) laterTimeout
+        Right _ <- runQuery conn $ startThentosSession tTok2 (UserA testUid) laterTimeout
+        Right () <- runQuery conn $ startServiceSession tTok1 sTok1 sid laterTimeout
+        Right () <- runQuery conn $ startServiceSession tTok2 sTok2 sid immediateTimeout
+        Right () <- runQuery conn garbageCollectServiceSessions
+
+        [Only tok] <- query_ conn [sql| SELECT token FROM service_sessions |]
+        tok `shouldBe` sTok1
+        return ()
+  where
+    sid = "sid"
+    tTok1 = "thentos token 1"
+    tTok2 = "thentos token 2"
+    sTok1 = "service token 1"
+    sTok2 = "service token 2"
+    immediateTimeout = Timeout $ fromSeconds' 0
+    laterTimeout = Timeout $ fromSeconds' 60
 
 
 -- * Utils
