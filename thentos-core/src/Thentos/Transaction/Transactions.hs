@@ -410,10 +410,14 @@ agentRoles agent = case agent of
 
 -- | Go through "user_sessions" table and find all expired sessions.
 garbageCollectThentosSessions :: ThentosQuery e ()
-garbageCollectThentosSessions = error "src/Thentos/Transaction/Transactions.hs:161"
+garbageCollectThentosSessions = void $ execT [sql|
+    DELETE FROM user_sessions WHERE end_ < now()
+    |] ()
 
 garbageCollectServiceSessions :: ThentosQuery e ()
-garbageCollectServiceSessions = error "src/Thentos/Transaction/Transactions.hs:169"
+garbageCollectServiceSessions = void $ execT [sql|
+    DELETE FROM service_sessions WHERE end_ < now()
+    |] ()
 
 -- | Remove all expired unconfirmed users from db.
 garbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()

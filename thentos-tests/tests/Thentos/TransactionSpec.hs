@@ -43,6 +43,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
+    garbageCollectThentosSessionsSpec
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
@@ -614,7 +615,7 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
     let newEmail = forceUserEmail "new@example.com"
         token = "sometoken2"
 
-    it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
+    it "deletes all expired tokens" $ \(ActionState (conn, _, _)) -> do
         Right _ <- runQuery conn $ addUserPrim testUid testUser
         Right _ <- runQuery conn $ addUserEmailChangeRequest testUid newEmail token
         [Only tokenCount] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
@@ -629,6 +630,27 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
         Right () <- runQuery conn $ garbageCollectEmailChangeTokens 1000000
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
         tkns' `shouldBe` (1 :: Int)
+
+garbageCollectThentosSessionsSpec :: SpecWith ActionState
+garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
+    it "deletes all expired thentos sessions" $ \(ActionState (conn, _, _)) -> do
+        let immediateTimeout = Timeout $ fromSeconds' 0
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ startThentosSession token (UserA testUid) immediateTimeout
+        Right () <- runQuery conn garbageCollectThentosSessions
+        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
+        sessionCount `shouldBe` (0 :: Int)
+
+    it "doesn't delete active sessions" $ \(ActionState (conn, _, _)) -> do
+        let timeout = Timeout $ fromSeconds' 60
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ startThentosSession token (UserA testUid) timeout
+        Right () <- runQuery conn garbageCollectThentosSessions
+        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
+        sessionCount `shouldBe` (1 :: Int)
+
+  where
+    token = "thentos session token"
 
 
 -- * Utils
