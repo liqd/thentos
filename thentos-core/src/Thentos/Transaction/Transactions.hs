@@ -350,9 +350,10 @@ startServiceSession thentosSessionToken token sid timeout =
                         (token, thentos_session_token, start, end_, period, service, meta)
                        VALUES (?, ?, now(), now() + ?, ?, ?,
                             (SELECT users.name FROM users, user_sessions WHERE
-                             users.id = user_sessions.uid)
+                             users.id = user_sessions.uid
+                                AND user_sessions.token = ?)
                             ) |]
-                (token, thentosSessionToken, timeout, timeout, sid)
+                (token, thentosSessionToken, timeout, timeout, sid, thentosSessionToken)
 
 -- | Like 'endThentosSession' for service sessions (see there).  If thentos session or service
 -- session do not exist or have expired, remove the service session just the same, but never thentos
