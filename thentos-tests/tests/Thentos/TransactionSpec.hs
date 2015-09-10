@@ -426,59 +426,6 @@ deleteServiceSpec = describe "deleteService" $ do
   where
     sid = ServiceId "blablabla"
 
-
--- * Garbage collection
-
-doGarbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
-doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUsers" $ do
-    let user1   = mkUser "name1" "pass" "email1@email.com"
-        userid1 = UserId 321
-        token1  = "sometoken1"
-        user2   = mkUser "name2" "pass" "email2@email.com"
-        userid2 = UserId 322
-        token2  = "sometoken2"
-
-    it "deletes all expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
-        Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery conn $ addUnconfirmedUserWithId token2 user2 userid2
-        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 0
-        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
-        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
-        tkns `shouldBe` (0 :: Int)
-        usrs `shouldBe` (0 :: Int)
-
-    it "only deletes expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
-        Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 100000
-        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
-        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
-        tkns `shouldBe` (1 :: Int)
-        usrs `shouldBe` (1 :: Int)
-
-
-garbageCollectPasswordResetTokensSpec :: SpecWith ActionState
-garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
-    let user   = mkUser "name1" "pass" "email1@email.com"
-        userid = UserId 321
-        email = forceUserEmail "email1@email.com"
-        passToken = "sometoken2"
-
-    it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userid user
-        void $ runQuery conn $ addPasswordResetToken email passToken
-        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns `shouldBe` (1 :: Int)
-        Right () <- runQuery conn $ garbageCollectPasswordResetTokens 0
-        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns' `shouldBe` (0 :: Int)
-
-    it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userid user
-        void $ runQuery conn $ addPasswordResetToken email passToken
-        void $ runQuery conn $ garbageCollectPasswordResetTokens 1000000
-        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns' `shouldBe` (1 :: Int)
-
 startThentosSessionSpec :: SpecWith ActionState
 startThentosSessionSpec = describe "startThentosSession" $ do
     let tok = "something"
@@ -610,6 +557,58 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     serviceSessionToken = "bar"
     sid = "sid"
 
+
+-- * Garbage collection
+
+doGarbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
+doGarbageCollectUnconfirmedUsersSpec = describe "doGarbageCollectUnconfirmedUsers" $ do
+    let user1   = mkUser "name1" "pass" "email1@email.com"
+        userid1 = UserId 321
+        token1  = "sometoken1"
+        user2   = mkUser "name2" "pass" "email2@email.com"
+        userid2 = UserId 322
+        token2  = "sometoken2"
+
+    it "deletes all expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
+        Right () <- runQuery conn $ addUnconfirmedUserWithId token2 user2 userid2
+        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 0
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
+        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
+        tkns `shouldBe` (0 :: Int)
+        usrs `shouldBe` (0 :: Int)
+
+    it "only deletes expired unconfirmed users" $ \ (ActionState (conn, _, _)) -> do
+        Right () <- runQuery conn $ addUnconfirmedUserWithId token1 user1 userid1
+        Right () <- runQuery conn $ garbageCollectUnconfirmedUsers 100000
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM user_confirmation_tokens |]
+        [Only usrs] <- query_ conn [sql| SELECT count(*) FROM "users" |]
+        tkns `shouldBe` (1 :: Int)
+        usrs `shouldBe` (1 :: Int)
+
+garbageCollectPasswordResetTokensSpec :: SpecWith ActionState
+garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
+    let user   = mkUser "name1" "pass" "email1@email.com"
+        userid = UserId 321
+        email = forceUserEmail "email1@email.com"
+        passToken = "sometoken2"
+
+    it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addPasswordResetToken email passToken
+        [Only tkns] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns `shouldBe` (1 :: Int)
+        Right () <- runQuery conn $ garbageCollectPasswordResetTokens 0
+        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns' `shouldBe` (0 :: Int)
+
+    it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addPasswordResetToken email passToken
+        void $ runQuery conn $ garbageCollectPasswordResetTokens 1000000
+        [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
+        tkns' `shouldBe` (1 :: Int)
+
 garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
 garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTokens" $ do
     let newEmail = forceUserEmail "new@example.com"
@@ -633,7 +632,6 @@ garbageCollectEmailChangeTokensSpec = describe "doGarbageCollectPasswordResetTok
 
 
 -- * Utils
-
 
 mkUser :: UserName -> SBS -> ST -> User
 mkUser name pass email = User { _userName = name
