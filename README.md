@@ -174,6 +174,17 @@ Generated Thentos documentation (thentos-0.0.1) can be found online:
 Demo
 ----
 
+If you built `thentos-core` with flag `with-thentos-executable`, you
+can run it from the top leve directory:
+
+```shell
+$ createdb thentosdev
+$ ./path/to/thentos
+```
+
+You can visit the Thentos frontend at http://localhost:7002/, and
+log in as god/god.
+
 *[FIXME: this section is outdated!]*
 
 There is a helloworld service that you can use to test a simple
