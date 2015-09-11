@@ -131,9 +131,9 @@ library
     , safecopy
     , sandi
     , scrypt
-    , servant >= 0.4.1 && < 0.5
-    , servant-docs >= 0.4.1 && < 0.5
-    , servant-server >= 0.4.1 && < 0.5
+    , servant >= 0.4.1 && < 0.6
+    , servant-docs >= 0.4.1 && < 0.6
+    , servant-server >= 0.4.1 && < 0.6
     , snap
     , snap-core
     , snaplet-acid-state
