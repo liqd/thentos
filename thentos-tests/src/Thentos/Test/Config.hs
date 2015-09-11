@@ -56,6 +56,9 @@ gc_interval: 1800
 log:
     path: ./log/thentos.log
     level: DEBUG
+
+database:
+    name: unused
 |]
 
 
