@@ -137,7 +137,7 @@ userLoginCallAction action = do
                   -- only displayed inside the dashboard, but this
                   -- here is before login.  anyway, there should be
                   -- one way of doing this, not two.
-        Left _ -> error "logIntoThentosHandler: branch should not be reachable"
+        Left e -> crash500 $ "userLoginCallAction: unexpected error: " ++ show e
             -- FIXME: this should be handled.  we should
             -- always allow transactions / actions to throw
             -- errors.
