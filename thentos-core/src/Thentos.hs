@@ -29,7 +29,7 @@ import Control.Exception (finally)
 import Control.Monad (void, when, forever)
 import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Either (isRight, isLeft)
+import Data.Either (isRight)
 import Data.Maybe (maybeToList)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -47,7 +47,7 @@ import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
-import Thentos.Transaction.Core (createDB, runThentosQuery)
+import Thentos.Transaction.Core (createDB, runThentosQuery, ThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
@@ -126,25 +126,28 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
-    eq <- runThentosQuery conn $ T.lookupUser (UserId 0)
-    when (isLeft eq) $ do
-        -- user
-        user <- makeUserFromFormData userData
-        logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
-        (eu :: Either (ThentosError Void) ()) <- runThentosQuery conn $ T.addUserPrim (UserId 0) user
+    eq <- runThentosQuery conn $ (void $ T.lookupUser (UserId 0) :: ThentosQuery Void ())
+    case eq of
+        Right _         -> logger DEBUG $ "default user already exists"
+        Left NoSuchUser -> do
+            -- user
+            user <- makeUserFromFormData userData
+            logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
+            (eu :: Either (ThentosError Void) ()) <- runThentosQuery conn $ T.addUserPrim (UserId 0) user
 
-        if eu == Right ()
-            then logger DEBUG $ "[ok]"
-            else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
+            if eu == Right ()
+                then logger DEBUG $ "[ok]"
+                else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
 
-        -- roles
-        logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-        (result :: [Either (ThentosError Void) ()]) <-
-            mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
+            -- roles
+            logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+            (result :: [Either (ThentosError Void) ()]) <-
+                 mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
 
-        if all isRight result
-            then logger DEBUG $ "[ok]"
-            else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
+            if all isRight result
+                then logger DEBUG $ "[ok]"
+                else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
+        Left e          -> logger ERROR $ "error looking up default user: " ++ show e
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
