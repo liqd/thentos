@@ -47,13 +47,12 @@ import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
-import Thentos.Transaction.Core (createDB)
+import Thentos.Transaction.Core (createDB, runThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
 import qualified Thentos.Backend.Api.Simple (runApi)
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (runThentosQuery)
 
 
 -- * main
