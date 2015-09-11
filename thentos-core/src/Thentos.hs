@@ -90,6 +90,7 @@ makeMain commandSwitch =
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
+    createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
     runActionWithPrivs [RoleAdmin] actionState $ (autocreateMissingServices config :: Action Void ())
 
     let mBeConfig :: Maybe HttpConfig
