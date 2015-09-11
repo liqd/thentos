@@ -394,12 +394,12 @@ assignRole :: Agent -> Role -> ThentosQuery e ()
 assignRole agent role = case agent of
     ServiceA _ -> error "assignRole not implemented for services"
     UserA uid  -> do
-        catchViolation catcher $ void $
+        catchViolation catcher' $ void $
             execT [sql| INSERT INTO user_roles (uid, role)
                         VALUES (?, ?) |] (uid, role)
   where
-    catcher _ (UniqueViolation "user_roles_uid_role_key") = return ()
-    catcher e _                                           = throwIO e
+    catcher' _ (UniqueViolation "user_roles_uid_role_key") = return ()
+    catcher' e _                                           = throwIO e
 
 -- | Remove a 'Role' from the roles defined for an 'Agent'.  If 'Role' is not assigned to 'Agent',
 -- do nothing.
