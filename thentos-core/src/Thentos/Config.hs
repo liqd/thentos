@@ -53,6 +53,7 @@ type ThentosConfig' =
   :*> Maybe ("proxy"        :> ProxyConfig'          :>: "The default proxied app.")
   :*> Maybe ("proxies"      :> [ProxyConfig']        :>: "A list of proxied apps.")
   :*>       ("smtp"         :> SmtpConfig'           :>: "Sending email.")
+  :*>       ("database"     :> DatabaseConfig'       :>: "The database.")
   :*> Maybe ("default_user" :> DefaultUserConfig'    :>:
       "A user that is created if the user table is empty.")
   :*>       ("user_reg_expiration" :> Timeout        :>: "User registration expiration period")
@@ -70,6 +71,7 @@ defaultThentosConfig =
   :*> NothingO
   :*> NothingO
   :*> Just defaultSmtpConfig
+  :*> Just defaultDatabaseConfig
   :*> NothingO
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
@@ -104,6 +106,12 @@ defaultSmtpConfig =
   :*> Nothing
   :*> Just "/usr/sbin/sendmail"
   :*> Just ["-t"]
+
+type DatabaseConfig = Tagged (ToConfigCode DatabaseConfig')
+type DatabaseConfig' = "name" :> ST
+
+defaultDatabaseConfig :: ToConfig (ToConfigCode DatabaseConfig') Maybe
+defaultDatabaseConfig = Just "thentos"
 
 type DefaultUserConfig = Tagged (ToConfigCode DefaultUserConfig')
 type DefaultUserConfig' =

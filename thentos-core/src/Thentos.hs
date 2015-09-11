@@ -31,9 +31,11 @@ import Crypto.Random (ChaChaDRG, drgNew)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight, isLeft)
 import Data.Maybe (maybeToList)
+import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.Void (Void)
-import Database.PostgreSQL.Simple (Connection)
+import Database.PostgreSQL.Simple (connectPostgreSQL, Connection)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -45,6 +47,7 @@ import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
+import Thentos.Transaction.Core (createDB)
 import Thentos.Types
 import Thentos.Util
 
@@ -80,7 +83,10 @@ makeMain commandSwitch =
     checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
-    let actionState = ActionState (error "./src/Thentos.hs:80", rng, config)
+    let dbName = config >>. (Proxy :: Proxy '["database", "name"])
+    conn <- connectPostgreSQL $ "dbname=" <> cs dbName
+    createDB conn
+    let actionState = ActionState (conn, rng, config)
         log_path = config >>. (Proxy :: Proxy '["log", "path"])
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
