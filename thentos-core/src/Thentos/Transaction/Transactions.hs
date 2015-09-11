@@ -225,11 +225,9 @@ updateUserFields uid ups = do
         mapM (exec conn) ups
     case e of
         Left err -> throwError err
-        Right ns -> if all (== 1) ns
-                        then return ()
-                        else (if all (== 0) ns
-                                  then throwError NoSuchUser
-                                  else impossible $ "updateUserFields: updated " ++ show ns)
+        Right ns | all (== 1) ns -> return ()
+                 | all (== 0) ns -> throwError NoSuchUser
+                 | otherwise -> impossible $ "updateUserFields: updated " ++ show ns
   where
     exec conn op = case op of
         UpdateUserFieldName n ->
