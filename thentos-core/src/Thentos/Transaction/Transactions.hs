@@ -369,13 +369,6 @@ endServiceSession token = do
 
 -- * agents, roles, and groups
 
--- | For a given service and user id, look up all groups the user has in the context of that service
--- from the service's group tree, and collect them into a list.
--- FIXME For now, this just returns an empty list since there is no code to define groups or
--- assign users to groups.
-flattenGroups :: Service -> UserId -> [Group]
-flattenGroups _ _ = []
-
 -- | Add a new role to the roles defined for an 'Agent'.  If 'Role' is already assigned to
 -- 'Agent', do nothing.
 assignRole :: Agent -> Role -> ThentosQuery e ()
