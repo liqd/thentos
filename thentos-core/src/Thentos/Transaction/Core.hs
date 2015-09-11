@@ -9,6 +9,7 @@ module Thentos.Transaction.Core
     , schemaFile
     , wipeFile
     , catchViolation
+    , catcher
     )
 where
 

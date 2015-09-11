@@ -10,11 +10,12 @@ import qualified Data.Set as Set
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
-import Control.Monad (void)
+import Control.Monad (void, liftM)
 import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
-import Database.PostgreSQL.Simple        (Only(..))
+import Control.Monad.Reader (ask)
+import Database.PostgreSQL.Simple        (Only(..), execute, withTransaction)
 import Database.PostgreSQL.Simple.SqlQQ  (sql)
 import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
 import System.Random (randomIO)
@@ -215,10 +216,28 @@ updateUserField uid op = do
         UpdateUserFieldPassword p ->
             execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
 
+
 -- | Update attributes stored for a user.
--- FIXME: should be transactional
 updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
-updateUserFields uid = mapM_ (updateUserField uid)
+updateUserFields uid ups = do
+    conn <- ask
+    e <- catchViolation catcher . liftIO . liftM Right . withTransaction conn $
+        mapM (exec conn) ups
+    case e of
+        Left err -> throwError err
+        Right ns -> if all (== 1) ns
+                        then return ()
+                        else (if all (== 0) ns
+                                  then throwError NoSuchUser
+                                  else impossible $ "updateUserFields: updated " ++ show ns)
+  where
+    exec conn op = case op of
+        UpdateUserFieldName n ->
+            execute conn [sql| UPDATE users SET name = ? WHERE id = ? |] (n, uid)
+        UpdateUserFieldEmail e ->
+            execute conn [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
+        UpdateUserFieldPassword p ->
+            execute conn [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
 deleteUser :: UserId -> ThentosQuery e ()
