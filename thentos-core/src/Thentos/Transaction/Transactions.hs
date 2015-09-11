@@ -30,19 +30,18 @@ lookupUser uid = do
     users <- queryT [sql| SELECT name, password, email
                           FROM users
                           WHERE id = ? |] (Only uid)
-    user <- case users of
-      [user] -> return user
-      []     -> throwError NoSuchUser
-      _      -> impossible "lookupUser: multiple results"
-    return (uid, user)
+    case users of
+      [(name, pwd, email)] -> return (uid, User name pwd email)
+      []                   -> throwError NoSuchUser
+      _                    -> impossible "lookupUser: multiple results"
 
 lookupUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupUserByName name = do
+lookupUserByName uname = do
     users <- queryT [sql| SELECT id, name, password, email
                           FROM users
-                          WHERE name = ? |] (Only name)
+                          WHERE name = ? |] (Only uname)
     case users of
-      [(uid, uname, pwd, email)] -> return (uid, User uname pwd email)
+      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
       []                        -> throwError NoSuchUser
       _                         -> impossible "lookupUserByName: multiple users"
 
@@ -405,7 +404,7 @@ agentRoles agent = case agent of
     ServiceA _ -> error "agentRoles not implemented for services"
     UserA uid  -> do
         roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
-        return $ Set.fromList roles
+        return . Set.fromList . map fromOnly $ roles
 
 -- * garbage collection
 

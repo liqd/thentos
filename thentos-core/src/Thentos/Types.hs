@@ -17,7 +17,7 @@
 
 module Thentos.Types where
 
-import Control.Applicative ((<$>), (<*), (<*>))
+import Control.Applicative ((<$>), (<*))
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
@@ -41,7 +41,6 @@ import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
-import Database.PostgreSQL.Simple.FromRow (FromRow, fromRow, field)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.ToField (ToField, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
@@ -65,9 +64,6 @@ data User =
       , _userEmail           :: !UserEmail
       }
   deriving (Eq, Show, Typeable, Generic)
-
-instance FromRow User where
-    fromRow = User <$> field <*> field <*> field
 
 -- | the data a user maintains about a service they are signed up
 -- with.
@@ -174,9 +170,6 @@ data Service =
       }
   deriving (Eq, Show, Typeable, Generic)
 
-instance FromRow Service where
-    fromRow = Service <$> field <*> field <*> field <*> field <*> field
-
 newtype ServiceId = ServiceId { fromServiceId :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
 
@@ -250,9 +243,6 @@ data ServiceSession =
 
 instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
-
-instance FromRow ServiceSession where
-    fromRow = ServiceSession <$> field <*> field <*> field <*> field <*> field <*> field
 
 data ServiceSessionMetadata =
     ServiceSessionMetadata
@@ -381,9 +371,6 @@ instance FromField Role where
         case readMay s of
             Just r  -> return r
             Nothing -> returnError ConversionFailed f ""
-
-instance FromRow Role where
-    fromRow = field
 
 -- * uri
 
