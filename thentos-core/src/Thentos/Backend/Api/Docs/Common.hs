@@ -3,14 +3,12 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE OverlappingInstances                     #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
 module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
-import Control.Applicative (pure, (<$>), (<*>))
 import Control.Lens ((&), (%~))
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
@@ -148,12 +146,11 @@ instance ToSample Bool Bool where
 
 -- | cover for tuples whose components have already been given
 -- examples.  if you write an instance for a tuple for two concrete
--- types, `-XOverlappingInstances` will disregard this instance as
--- more general.
-instance (ToSample a a, ToSample b b) => ToSample (a, b) (a, b) where
+-- types, this instance will be disregarded because it is more general.
+instance {-# OVERLAPPABLE #-} (ToSample a a, ToSample b b) => ToSample (a, b) (a, b) where
     toSample _ = (,) <$> toSample (Proxy :: Proxy a) <*> toSample (Proxy :: Proxy b)
 
-instance (ToSample a a, ToSample b b, ToSample c c) => ToSample (a, b, c) (a, b, c) where
+instance {-# OVERLAPPABLE #-} (ToSample a a, ToSample b b, ToSample c c) => ToSample (a, b, c) (a, b, c) where
     toSample _ = (,,) <$> toSample (Proxy :: Proxy a) <*> toSample (Proxy :: Proxy b) <*> toSample (Proxy :: Proxy c)
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where

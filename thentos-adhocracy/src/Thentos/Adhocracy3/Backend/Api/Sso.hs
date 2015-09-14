@@ -60,7 +60,6 @@
 --
 module Thentos.Adhocracy3.Backend.Api.Sso where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
@@ -197,8 +196,8 @@ githubRequest = do
 githubConfirm :: ST -> ST -> A3Action A3.RequestResult
 githubConfirm state code = do
         lookupAndRemoveSsoToken (SsoToken state)
-        mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
-        confirm mgr `AC.finally` (liftLIO . ioTCB $ Http.closeManager mgr)
+        mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
+        confirm mgr
   where
     confirm mgr = do
         eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do

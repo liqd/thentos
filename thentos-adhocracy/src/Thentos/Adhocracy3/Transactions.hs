@@ -3,6 +3,7 @@ module Thentos.Adhocracy3.Transactions where
 import Thentos.Adhocracy3.Types
 import Thentos.Transaction.Core
 
+
 -- * SSO
 
 -- | Add an SSO token to the database

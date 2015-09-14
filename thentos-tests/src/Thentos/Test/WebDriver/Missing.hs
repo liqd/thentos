@@ -5,7 +5,6 @@
 
 module Thentos.Test.WebDriver.Missing where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay)
 import Control.Exception.Lifted (catches, Handler(Handler), throwIO)
 import Control.Monad.Base (MonadBase)

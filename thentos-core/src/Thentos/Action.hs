@@ -70,7 +70,6 @@ module Thentos.Action
     )
 where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad (unless, void)
 import Control.Monad.Except (throwError, catchError)

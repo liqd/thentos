@@ -46,7 +46,6 @@ single line.
     abbreviations (typically one or two letters) when renaming them.
 
 ```haskell
-import Control.Applicative (pure, (<$>), (<*>))
 import Control.Monad (unless)
 import Data.String.Conversions (SBS, ST, cs)
 import Text.Show.Pretty (ppShow)

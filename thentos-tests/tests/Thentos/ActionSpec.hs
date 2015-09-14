@@ -4,6 +4,7 @@
 
 module Thentos.ActionSpec where
 
+import Control.Concurrent (MVar, newMVar)
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
 import Data.Either (isLeft, isRight)

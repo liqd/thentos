@@ -16,12 +16,10 @@
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
 
-import Control.Applicative ((<*>))
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
-import Data.Functor ((<$>))
 import Data.Maybe (isJust)
 import Data.Pool (withResource)
 import Data.String.Conversions (LBS, ST, cs)
