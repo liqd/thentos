@@ -310,57 +310,93 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
 agentRolesSpec :: SpecWith ActionState
 agentRolesSpec = describe "agentRoles" $ do
-    it "returns an empty set for a user without roles" $ \(ActionState (conn, _, _)) -> do
-        let user = mkUser "name" "super secret" "me@example.com"
-            userId = UserId 111
-        Right _ <- runQuery conn $ addUserPrim userId user
-        x <- runQuery conn $ agentRoles (UserA userId)
+    it "returns an empty set for a user or service without roles" $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        x <- runQuery conn $ agentRoles (UserA testUid)
         x `shouldBe` Right Set.empty
+
+        Right _ <- runQuery conn $
+            addService (UserA testUid) sid testHashedSecret "name" "desc"
+        roles <- runQuery conn $ agentRoles (ServiceA sid)
+        roles `shouldBe` Right Set.empty
+  where
+    sid = "sid"
 
 assignRoleSpec :: SpecWith ActionState
 assignRoleSpec = describe "assignRole" $ do
-    let user = mkUser "name" "super secret" "me@example.com"
-        userId = UserId 111
-
     it "adds a role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
-        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleAdmin
+        Right roles <- runQuery conn $ agentRoles (UserA testUid)
         roles `shouldBe` Set.fromList [RoleAdmin]
+
+        addTestService conn
+        Right _ <- runQuery conn $ assignRole (ServiceA sid) RoleAdmin
+        Right serviceRoles <- runQuery conn $ agentRoles (ServiceA sid)
+        serviceRoles `shouldBe` Set.fromList [RoleAdmin]
 
     it "silently allows adding a duplicate role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
-        x <- runQuery conn $ assignRole (UserA userId) RoleAdmin
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleAdmin
+        x <- runQuery conn $ assignRole (UserA testUid) RoleAdmin
         x `shouldBe` Right ()
-        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        Right roles <- runQuery conn $ agentRoles (UserA testUid)
         roles `shouldBe` Set.fromList [RoleAdmin]
 
+        addTestService conn
+        Right () <- runQuery conn $ assignRole (ServiceA sid) RoleAdmin
+        Right () <- runQuery conn $ assignRole (ServiceA sid) RoleAdmin
+        Right serviceRoles <- runQuery conn $ agentRoles (ServiceA sid)
+        serviceRoles `shouldBe` Set.fromList [RoleAdmin]
+
     it "adds a second role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
-        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleUser
+        Right roles <- runQuery conn $ agentRoles (UserA testUid)
         roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+
+        addTestService conn
+        Right _ <- runQuery conn $ assignRole (ServiceA sid) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (ServiceA sid) RoleUser
+        Right serviceRoles <- runQuery conn $ agentRoles (ServiceA sid)
+        serviceRoles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+
+  where
+    sid = "sid"
+    addTestService conn = void . runQuery conn $
+        addService (UserA testUid) sid testHashedSecret "name" "desc"
 
 unassignRoleSpec :: SpecWith ActionState
 unassignRoleSpec = describe "unassignRole" $ do
-    let user = mkUser "name" "super secret" "me@example.com"
-        userId = UserId 111
-
     it "silently allows removing a non-assigned role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
-        x <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        x <- runQuery conn $ unassignRole (UserA testUid) RoleAdmin
         x `shouldBe` Right ()
 
+        addTestService conn
+        res <- runQuery conn $ unassignRole (ServiceA sid) RoleAdmin
+        res `shouldBe` Right ()
+
     it "removes the specified role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
-        Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
-        Right _ <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
-        Right roles <- runQuery conn $ agentRoles (UserA userId)
+        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (UserA testUid) RoleUser
+        Right _ <- runQuery conn $ unassignRole (UserA testUid) RoleAdmin
+        Right roles <- runQuery conn $ agentRoles (UserA testUid)
         roles `shouldBe` Set.fromList [RoleUser]
 
+        addTestService conn
+        Right _ <- runQuery conn $ assignRole (ServiceA sid) RoleAdmin
+        Right _ <- runQuery conn $ assignRole (ServiceA sid) RoleUser
+        Right _ <- runQuery conn $ unassignRole (ServiceA sid) RoleAdmin
+        Right serviceRoles <- runQuery conn $ agentRoles (ServiceA sid)
+        serviceRoles `shouldBe` Set.fromList [RoleUser]
+
+  where
+    sid = "sid"
+    addTestService conn = void . runQuery conn $
+        addService (UserA testUid) sid testHashedSecret "name" "desc"
 emailChangeRequestSpec :: SpecWith ActionState
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \(ActionState (conn, _, _)) -> do
