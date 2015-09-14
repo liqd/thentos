@@ -16,6 +16,8 @@ packages:
   extra-dep: true
 - location: 'submodules/servant/servant-docs'
   extra-dep: true
+- location: 'submodules/pronk'
+  extra-dep: true
 extra-deps:
 - configifier-0.0.5
 - cryptonite-0.5
