@@ -334,9 +334,7 @@ allServiceIds = do
     query'P T.allServiceIds
 
 lookupService :: ServiceId -> Action e (ServiceId, Service)
-lookupService sid = do
-    taintMsg "lookupService" (RoleAdmin \/ ServiceA sid %% False)
-    query'P $ T.lookupService sid
+lookupService sid = query'P $ T.lookupService sid
 
 addService ::
     Agent -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
@@ -500,12 +498,7 @@ serviceNamesFromThentosSession tok = do
 
 -- | Like 'lookupThentosSession', but for 'ServiceSession's.
 lookupServiceSession :: ServiceSessionToken -> Action e ServiceSession
-lookupServiceSession tok = do
-    session <- snd <$> query'P (T.lookupServiceSession tok)
-    let agent = ServiceA (session ^. srvSessService)
-    tryTaint (RoleAdmin \/ agent %% False)
-        (return session)
-        (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
+lookupServiceSession tok = snd <$> query'P (T.lookupServiceSession tok)
 
 -- | Like 'existsThentosSession', but for 'ServiceSession's.
 existsServiceSession :: ServiceSessionToken -> Action e Bool
@@ -526,7 +519,7 @@ _serviceSessionUser :: ServiceSessionToken -> Action e UserId
 _serviceSessionUser tok = do
     serviceSession <- lookupServiceSession tok
     let thentosSessionToken = serviceSession ^. srvSessThentosSession
-    thentosSession <- lookupThentosSession thentosSessionToken
+    thentosSession <- _lookupThentosSession thentosSessionToken
     case thentosSession ^. thSessAgent of
         UserA uid -> return uid
         ServiceA sid -> throwError $ NeedUserA thentosSessionToken sid
@@ -540,7 +533,6 @@ _serviceSessionUser tok = do
 addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e ()
 addServiceRegistration tok sid = do
     (_, uid) <- _thentosSessionAndUserIdByToken tok
-    guardWriteMsg "addServiceRegisteration" (RoleAdmin \/ UserA uid %% RoleAdmin /\  UserA uid)
     query'P $ T.registerUserWithService uid sid newServiceAccount
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
@@ -569,11 +561,7 @@ startServiceSession ttok sid = do
 -- | Terminate service session. Throws NoSuchServiceSession if the user does not
 -- own the session.
 endServiceSession :: ServiceSessionToken -> Action e ()
-endServiceSession tok = do
-    uid <- _serviceSessionUser tok
-    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (query'P $ T.endServiceSession tok)
-                  (\ (_ :: AnyLabelError) -> throwError NoSuchServiceSession)
+endServiceSession tok = query'P $ T.endServiceSession tok
 
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: ServiceSessionToken -> Action e ServiceSessionMetadata
