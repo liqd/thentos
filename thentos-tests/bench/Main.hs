@@ -1,26 +1,29 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns      #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ViewPatterns        #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds           #-}
 
 module Main (main) where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent (threadDelay)
-import Control.Lens ((^.))
-import Data.Aeson (encode, decode)
+import Data.Aeson (encode)
+import Database.PostgreSQL.Simple (Connection, query_, fromOnly)
+import Data.Configifier ((>>.))
+import Data.Functor.Infix ((<$$>))
 import Data.List (unfoldr)
-import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
+import Data.Pool (Pool, withResource)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Conduit
     ( Request(..), RequestBody(RequestBodyLBS), Response(responseBody)
-    , parseUrl, withManager, httpLbs )
+    , parseUrl, httpLbs, newManager, tlsManagerSettings )
 import Network.HTTP.LoadTest.Types (Config(..), Req(..))
 import Network.HTTP.Types.Method (methodPost, methodDelete)
 import Safe (fromJustNote)
 import System.IO (stdout)
 import System.Random (RandomGen, split, randoms, newStdGen)
-import Text.Show.Pretty (ppShow)
 
 import qualified Codec.Binary.Base32 as Base32
 import qualified Network.HTTP.LoadTest as Pronk
@@ -29,6 +32,8 @@ import qualified Network.HTTP.LoadTest.Analysis as Pronk
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as ST
 
+import Thentos.Config (ThentosConfig)
+import Thentos.Action.Core (ActionState(..))
 import Thentos.Types
     ( UserFormData(UserFormData), UserName(..), UserPass(..), parseUserEmail
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
@@ -36,35 +41,31 @@ import Thentos.Types
 
 import Thentos.Test.Config (godUid, godPass)
 import Thentos.Test.Core
-import Thentos.Test.Types
 
 
 main :: IO ()
 main = do
-    fts <- setupTestServerFull
-    let cfg = fts ^. ftsCfg
-    putStrLn $ ppShow cfg
-    threadDelay $ let s = (* (1000 * 1000)) in s 2
+    withFrontendAndBackend "thentos_bench" $ \ as@(ActionState (_, _, cfg)) -> do
+        -- putStrLn . cs . renderConfigFile $ cfg
+        threadDelay $ let s = (* (1000 * 1000)) in s 2
 
-    Just sessToken <- getThentosSessionToken cfg
-    runSignupBench cfg sessToken
-    runLoginBench cfg sessToken
-    runCheckTokenBench cfg sessToken
+        Just sessToken <- getThentosSessionToken cfg
+        runSignupBench cfg sessToken
+        runLoginBench as
+        runCheckTokenBench cfg sessToken
 
-    teardownTestServerFull fts
-
-runSignupBench :: TestConfig -> ThentosSessionToken -> IO ()
+runSignupBench :: ThentosConfig -> ThentosSessionToken -> IO ()
 runSignupBench cfg sessionToken = do
     gen <- newStdGen
     let conf = pronkConfig $ mkSignupGens cfg gen sessionToken
     runBench "Signup Benchmark" conf
 
-runLoginBench :: TestConfig -> ThentosSessionToken -> IO ()
-runLoginBench cfg sessionToken = do
-    conf <- pronkConfig `fmap` mkLoginGens cfg sessionToken
+runLoginBench :: ActionState -> IO ()
+runLoginBench as = do
+    conf <- pronkConfig `fmap` mkLoginGens as
     runBench "Login Benchmark" conf
 
-runCheckTokenBench :: TestConfig -> ThentosSessionToken -> IO ()
+runCheckTokenBench :: ThentosConfig -> ThentosSessionToken -> IO ()
 runCheckTokenBench cfg sessionToken = do
     let conf = pronkConfig (repeat $ sessionCheckGen cfg sessionToken)
     runBench "Session-check Benchmark" conf
@@ -83,24 +84,27 @@ pronkConfig reqs = Pronk.Config {
     , requests = reqs
     }
 
-getThentosSessionToken :: TestConfig -> IO (Maybe ThentosSessionToken)
+getThentosSessionToken :: ThentosConfig -> IO (Maybe ThentosSessionToken)
 getThentosSessionToken cfg = do
     let (Just req_) = makeEndpoint cfg "/thentos_session"
         req = req_
                 { requestBody = RequestBodyLBS $ encode (godUid, godPass)
                 , method = methodPost
                 }
-    withManager $ \m -> do
-            resp <- httpLbs req m
-            return $ decode (responseBody resp)
+    m <- newManager tlsManagerSettings
+    resp <- httpLbs req m
+    let respBody = decodeLenient . responseBody $ resp
+    -- print (resp, respBody)
+    return $ either (\_ -> Nothing) Just respBody
 
-makeEndpoint :: TestConfig -> String -> Maybe Request
+makeEndpoint :: ThentosConfig -> String -> Maybe Request
 makeEndpoint cfg endpoint = f <$> parseUrl url
   where
-    url = "http://localhost:" ++ show (cfg ^. tcfgServerFullBackendPort) ++ endpoint
+    Just (Just (backendPort :: Int)) = cfg >>. (Proxy :: Proxy ["backend", "expose_port"])
+    url = "http://localhost:" ++ show backendPort ++ endpoint
     f req = req { requestHeaders = requestHeaders req ++ [("Content-Type", "application/json")] }
 
-makeRequest :: TestConfig -> Maybe ThentosSessionToken -> String -> Request
+makeRequest :: ThentosConfig -> Maybe ThentosSessionToken -> String -> Request
 makeRequest cfg mSession endpoint = req {requestHeaders = requestHeaders req ++ hdrs}
   where
     (Just req) = makeEndpoint cfg endpoint
@@ -113,7 +117,7 @@ makeRequest cfg mSession endpoint = req {requestHeaders = requestHeaders req ++ 
 
 -- signup
 
-signupGenTrans :: TestConfig -> ThentosSessionToken -> String -> (Req, Response LBS.ByteString -> String)
+signupGenTrans :: ThentosConfig -> ThentosSessionToken -> String -> (Req, Response LBS.ByteString -> String)
 signupGenTrans cfg sessionToken charSource =
     let (cs . Base32.encode . cs -> name, remaining) = splitAt 30 charSource in
     let req = mkReq name in
@@ -133,7 +137,7 @@ signupGenTrans cfg sessionToken charSource =
         uEmail' = tName <> "@example.com"
         formData = UserFormData uName uPass uEmail
 
-mkSignupGens :: RandomGen r => TestConfig -> r -> ThentosSessionToken -> [Pronk.RequestGenerator]
+mkSignupGens :: RandomGen r => ThentosConfig -> r -> ThentosSessionToken -> [Pronk.RequestGenerator]
 mkSignupGens cfg r sessionToken =
     map
         (\s -> Pronk.RequestGeneratorStateMachine "Signup Generator"
@@ -147,7 +151,7 @@ mkSignupGens cfg r sessionToken =
 data MachineState = MachineState !UserId !LoginState
 data LoginState = LoggedOut | LoggedIn !ThentosSessionToken
 
-loginGenTrans :: TestConfig -> MachineState -> (Req, Response LBS.ByteString -> MachineState)
+loginGenTrans :: ThentosConfig -> MachineState -> (Req, Response LBS.ByteString -> MachineState)
 loginGenTrans cfg (MachineState uid loginState) =
     let (r, c) = case loginState of
             LoggedOut -> login
@@ -156,8 +160,8 @@ loginGenTrans cfg (MachineState uid loginState) =
   where
     login = (loginReq, loginCont)
     loginCont resp =
-        let sessionToken = decode $ responseBody resp in
-        LoggedIn $ fromMaybe (error "Got no session token") sessionToken
+        let Right sessionToken = decodeLenient $ responseBody resp in
+        LoggedIn sessionToken
 
     loginReq =
         (makeRequest cfg Nothing "/thentos_session")
@@ -173,9 +177,9 @@ loginGenTrans cfg (MachineState uid loginState) =
             , requestBody = RequestBodyLBS $ encode tok
             }
 
-mkLoginGens :: TestConfig -> ThentosSessionToken -> IO [Pronk.RequestGenerator]
-mkLoginGens cfg sessionToken = do
-    Just uids <- getUIDs
+mkLoginGens :: ActionState -> IO [Pronk.RequestGenerator]
+mkLoginGens (ActionState (connPool, _, cfg)) = do
+    uids <- getUIDs connPool
     -- take out god user so all users have the same password
     let uids' = filter (\(UserId n) -> n /= 0) uids
     return . cycle $ map makeGenerator uids'
@@ -187,19 +191,16 @@ mkLoginGens cfg sessionToken = do
             (MachineState uid LoggedOut)
             (loginGenTrans cfg)
 
-    getUIDs :: IO (Maybe [UserId])
-    getUIDs = do
-        let req = makeRequest cfg (Just sessionToken) "/user"
-        withManager $ \m -> do
-            resp <- httpLbs req m
-            return $ decode (responseBody resp)
+getUIDs :: Pool Connection -> IO [UserId]
+getUIDs connPool = withResource connPool $
+    \conn -> fromOnly <$$> query_ conn "select id from users"
 
 -- checking session tokens
 -- This is an intentionally trivial benchmark that is supposed to give
 -- us a performance baseline by measuring mostly overhead (routing, json
 -- decoding etc.)
 
-sessionCheckGen :: TestConfig -> ThentosSessionToken -> Pronk.RequestGenerator
+sessionCheckGen :: ThentosConfig -> ThentosSessionToken -> Pronk.RequestGenerator
 sessionCheckGen cfg sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
     req = (makeRequest cfg (Just sessionToken) "/thentos_session")

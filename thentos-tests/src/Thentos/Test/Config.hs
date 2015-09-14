@@ -27,10 +27,14 @@ command: "run"
 backend:
     bind_port: 7118
     bind_host: "127.0.0.1"
+    expose_port: 7118
+    expose_host: "127.0.0.1"
 
 frontend:
     bind_port: 7119
     bind_host: "127.0.0.1"
+    expose_port: 7119
+    expose_host: "127.0.0.1"
 
 smtp:
     sender_name: "Thentos"

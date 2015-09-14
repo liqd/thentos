@@ -82,12 +82,12 @@ executed.
 
 # Running benchmarks
 
-If you want to run benchmarks, you need to add a patched version of `pronk` to
-your cabal sandbox:
+If you want to run benchmarks, you need to add a patched version of
+`pronk` from the git submodules to your cabal sandbox:
 
 ```shell
-$ git clone https://github.com/liqd/pronk -b thentos-patches
-$ cabal sandbox add-source pronk
+$ cd thentos-tests
+$ cabal sandbox add-source ../submodules/pronk
 ```
 
 To start the benchmarks:
