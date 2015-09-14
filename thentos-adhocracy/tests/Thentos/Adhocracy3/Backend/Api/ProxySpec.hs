@@ -5,7 +5,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.Async (Async)
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)

@@ -3,7 +3,6 @@
 
 module Thentos.Test.Arbitrary () where
 
-import Control.Applicative ((<$>), (<*>))
 import Data.String.Conversions (cs)
 import LIO.DCLabel (DCLabel(DCLabel), (%%), (/\), (\/), CNF, toCNF)
 import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)

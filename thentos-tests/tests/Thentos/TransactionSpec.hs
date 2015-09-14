@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 module Thentos.TransactionSpec (spec) where
 
-import Control.Applicative ((<$>))
 import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)

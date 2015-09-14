@@ -18,7 +18,6 @@
 module Thentos.Test.Core
 where
 
-import Control.Applicative ((<*), (<$>))
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket)

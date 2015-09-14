@@ -56,10 +56,9 @@ module Thentos.Frontend.Pages
     , confirmationMailSentPagelet
     ) where
 
-import Control.Applicative ((<$>), (<*>), pure)
 import Control.Lens ((^.))
 import Data.Maybe (catMaybes, fromMaybe)
-import Data.Monoid (Monoid, (<>))
+import Data.Monoid ((<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
 import Data.Typeable (Typeable)

@@ -9,7 +9,7 @@
 module Thentos.Config
 where
 
-import Control.Applicative ((<$>), (<|>))
+import Control.Applicative ((<|>))
 import Control.Exception (throwIO, try)
 import Data.Configifier
     ( (:>), (:*>)((:*>)), (:>:), (>>.)

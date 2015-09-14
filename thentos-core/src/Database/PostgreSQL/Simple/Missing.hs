@@ -1,6 +1,5 @@
 module Database.PostgreSQL.Simple.Missing where
 
-import Control.Applicative ((<*), (*>))
 import Data.Attoparsec.ByteString.Char8 (Parser, anyChar, char, decimal, digit, isDigit, peekChar, signed, takeWhile1)
 import Data.Bits ((.&.))
 import qualified Data.ByteString.Char8 as B8

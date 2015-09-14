@@ -39,7 +39,6 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
-import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad (when, unless, mzero, void)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
@@ -547,7 +546,7 @@ extractUserId resp = do
     userIdFromPath $ tpPath resource
 
 sendRequest :: Client.Request -> IO (Client.Response LBS)
-sendRequest req = Client.withManager Client.defaultManagerSettings $ Client.httpLbs req
+sendRequest req = Client.newManager Client.defaultManagerSettings >>= Client.httpLbs req
 
 -- | A3-specific ProxyAdapter.
 a3ProxyAdapter :: ProxyAdapter

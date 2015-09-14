@@ -19,7 +19,6 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((&), (.~))
 import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)

@@ -5,7 +5,6 @@
 
 module Thentos.Frontend where
 
-import Control.Applicative (pure, (<$>), (<*>))
 import Data.ByteString (ByteString)
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))

@@ -16,7 +16,6 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)

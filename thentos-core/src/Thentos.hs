@@ -22,7 +22,6 @@ module Thentos
     , createDefaultUser
     ) where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)

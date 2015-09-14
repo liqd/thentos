@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Thentos.Transaction
 where
 
-import Control.Applicative ((<$>))
 import Control.Exception.Lifted (throwIO)
 import Control.Lens ((^.))
 import Control.Monad (void, liftM)

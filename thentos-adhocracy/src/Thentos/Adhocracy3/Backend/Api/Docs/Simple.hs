@@ -7,7 +7,6 @@
 
 module Thentos.Adhocracy3.Backend.Api.Docs.Simple where
 
-import Control.Applicative (pure, (<$>), (<*>))
 import Data.Maybe (maybeToList)
 import Data.Proxy (Proxy(Proxy))
 import Servant.Docs (ToSample(toSample))

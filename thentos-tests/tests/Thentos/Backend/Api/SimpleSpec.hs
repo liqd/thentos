@@ -13,7 +13,6 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
-import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))

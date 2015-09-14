@@ -7,7 +7,6 @@
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.), (%~), (.~))
 import Control.Monad.Except (liftIO)
