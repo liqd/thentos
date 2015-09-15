@@ -48,6 +48,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
+    lookupServiceSpec
     lookupThentosSessionSpec
     startThentosSessionSpec
     endThentosSessionSpec
@@ -463,6 +464,24 @@ deleteServiceSpec = describe "deleteService" $ do
         return ()
   where
     sid = ServiceId "blablabla"
+
+lookupServiceSpec :: SpecWith ActionState
+lookupServiceSpec = describe "lookupService" $ do
+    it "looks up a service"  $ \(ActionState (conn, _, _)) -> do
+        Right _ <- runThentosQuery conn $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQuery conn $
+            addService (UserA testUid) sid testHashedSecret "name" "desc"
+
+        Right (sid', service) <- runThentosQuery conn $ lookupService sid
+        service ^. serviceKey `shouldBe` testHashedSecret
+        sid' `shouldBe` sid
+        service ^. serviceName `shouldBe` name
+        service ^. serviceDescription `shouldBe` desc
+        service ^. serviceOwner `shouldBe` (UserA testUid)
+  where
+    sid = ServiceId "blablabla"
+    name = "name"
+    desc = "desc"
 
 startThentosSessionSpec :: SpecWith ActionState
 startThentosSessionSpec = describe "startThentosSession" $ do

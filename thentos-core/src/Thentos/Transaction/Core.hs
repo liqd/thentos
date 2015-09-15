@@ -103,7 +103,11 @@ instance (ToField a) => ToField (Defaultable a) where
 orDefault :: ToField a => Maybe a -> Defaultable a
 orDefault = maybe DefaultVal CustomVal
 
--- Takes a UserId and a ServiceId (either of which may be _|_) and creates
--- the right sort of Agent based on the discriminator boolean.
-makeAgent :: UserId -> ServiceId -> Bool -> Agent
-makeAgent uid sid isUser = if isUser then UserA uid else ServiceA sid
+-- Given either a UserId or a ServiceId, return an Agent. Throws an error
+-- if not exactly one of the arguments is Some. Useful for getting an Agent
+-- from the database.
+makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
+makeAgent (Just _) (Just _) = error "I'm so confused!"
+makeAgent (Just uid) Nothing  = UserA uid
+makeAgent Nothing (Just sid) = ServiceA sid
+makeAgent _ _ = error "makeAgent: invalid arguments"

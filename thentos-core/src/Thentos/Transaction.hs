@@ -243,29 +243,28 @@ allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
-    services <- queryT [sql| SELECT key, owner_user, owner_user, owner_is_user, name, description
+    services <- queryT [sql| SELECT key, owner_user, owner_service, name, description
                              FROM services
                              WHERE id = ? |] (Only sid)
     service <- case services of
-        [(key, ownerU, ownerS, ownerIsUser, name, desc)] ->
-            let owner = makeAgent ownerU ownerS ownerIsUser
+        [(key, ownerU, ownerS, name, desc)] ->
+            let owner = makeAgent ownerU ownerS
             in return $ Service key owner Nothing name desc
         []                         -> throwError NoSuchService
         _                          -> impossible "lookupService: multiple results"
     return (sid, service)
 
 -- | Add new service.
--- FIXME: the agent has to be a user for now
 addService ::
     Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
     -> ServiceDescription -> ThentosQuery e ()
 addService (UserA uid) sid secret name description = void $
-    execT [sql| INSERT INTO services (id, owner_user, owner_is_user, name, description, key)
-                VALUES (?, ?, true, ?, ?, ?)
+    execT [sql| INSERT INTO services (id, owner_user, name, description, key)
+                VALUES (?, ?, ?, ?, ?)
           |] (sid, uid, name, description, secret)
 addService (ServiceA ownerSid) sid secret name description = void $
-    execT [sql| INSERT INTO services (id, owner_service, owner_is_user, name, description, key)
-                VALUES (?, ?, false, ?, ?, ?)
+    execT [sql| INSERT INTO services (id, owner_service, name, description, key)
+                VALUES (?, ?, ?, ?, ?)
           |] (sid, ownerSid, name, description, secret)
 
 -- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.

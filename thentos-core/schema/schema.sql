@@ -37,7 +37,6 @@ CREATE TABLE IF NOT EXISTS "services" (
     id            text       PRIMARY KEY,
     owner_user    bigint     REFERENCES users (id),
     owner_service text       REFERENCES services (id),
-    owner_is_user bool       NOT NULL,
     name          text       NOT NULL,
     description   text       NOT NULL,
     key           text       NOT NULL
