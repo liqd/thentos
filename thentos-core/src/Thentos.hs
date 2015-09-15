@@ -133,9 +133,10 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
             -- user
             user <- makeUserFromFormData userData
             logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
-            (eu :: Either (ThentosError Void) ()) <- runThentosQuery conn $ T.addUserPrim (UserId 0) user
+            (eu :: Either (ThentosError Void) UserId) <- runThentosQuery conn $ T.addUserPrim
+                    (Just $ UserId 0) user True
 
-            if eu == Right ()
+            if eu == Right (UserId 0)
                 then logger DEBUG $ "[ok]"
                 else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
 

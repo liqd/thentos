@@ -1,6 +1,6 @@
 -- All statements in this file should be idempotent.
 CREATE TABLE IF NOT EXISTS "users" (
-    id         bigint      PRIMARY KEY,
+    id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,
     password   text        NOT NULL,
     email      text        NOT NULL UNIQUE,

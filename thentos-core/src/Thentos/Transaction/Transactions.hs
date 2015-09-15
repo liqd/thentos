@@ -5,23 +5,22 @@
 module Thentos.Transaction.Transactions
 where
 
-import Control.Exception.Lifted (throwIO)
-import qualified Data.Set as Set
-import Data.Typeable (Typeable)
 import Control.Applicative ((<$>))
+import Control.Exception.Lifted (throwIO)
 import Control.Lens ((^.))
 import Control.Monad (void, liftM)
-import Control.Monad.Catch (catch)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ask)
-import Database.PostgreSQL.Simple        (Only(..), execute, withTransaction)
-import Database.PostgreSQL.Simple.SqlQQ  (sql)
-import Database.PostgreSQL.Simple.Errors (ConstraintViolation(UniqueViolation))
-import System.Random (randomIO)
+import Database.PostgreSQL.Simple         (Only(..), execute, withTransaction)
+import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
+import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.Typeable (Typeable)
 
 import Thentos.Types
 import Thentos.Transaction.Core
+
+import qualified Data.Set as Set
 
 
 -- * user
@@ -57,38 +56,37 @@ lookupUserByEmail email = do
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupUserByEmail: multiple users"
 
--- | Actually add a new user who already has an ID.
-addUserPrim :: UserId -> User -> ThentosQuery e ()
-addUserPrim uid user = do
-    void $ execT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                       VALUES (?, ?, ?, ?, true) |] ( uid
-                                                    , user ^. userName
-                                                    , user ^. userPassword
-                                                    , user ^. userEmail
-                                                    )
+-- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
+-- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
+-- is a very bad idea and will quickly lead to errors!
+addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
+addUserPrim mUid user confirmed = do
+    res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
+                        VALUES (?, ?, ?, ?, ?)
+                        RETURNING id |]
+            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
+    case res of
+        [Only uid] -> return uid
+        []         -> impossible "addUserPrim created user without ID"
+        _          -> impossible "addUserPrim created multiple users"
 
 -- | Add a new user and return the new user's 'UserId'.
 -- Ensures that user name and email address are unique.
 addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
-addUser user = go (5 :: Int)
-  where
-    -- FIXME why not let Postgres generate the ID (bigserial field)?
-    go 0 = error "addUser: could not generate unique id"
-    go n = liftIO randomIO >>= \uid -> (addUserPrim uid user >> return uid) `catch` f
-      where f UserIdAlreadyExists = go (n - 1)
-            f e                   = throwError e
+addUser user = addUserPrim Nothing user True
+
+addUnconfirmedUserPrim :: ConfirmationToken -> User -> Maybe UserId -> ThentosQuery e UserId
+addUnconfirmedUserPrim token user mUid = do
+    -- FIXME make transactional
+    uid <- addUserPrim mUid user False
+    void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
+                       VALUES (?, ?) |] (uid, token)
+    return uid
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
 -- Ensures that user name and email address are unique.
 addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
-addUnconfirmedUser token user = go (5 :: Int)
-  where
-    -- FIXME why not let Postgres generate the ID (bigserial field)?
-    go 0 = error "addUnconfirmedUser: could not generate unique id"
-    go n = liftIO randomIO >>= \uid -> (addUnconfirmedUserWithId token user uid
-                                        >> return uid) `catch` f
-      where f UserIdAlreadyExists = go (n - 1)
-            f e                   = throwError e
+addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 
 -- | Add a new unconfirmed user, assigning a specific ID to the new user.
 -- Ensures that ID, user name and email address are unique.
@@ -97,13 +95,7 @@ addUnconfirmedUser token user = go (5 :: Int)
 -- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
 -- would leak information about the (non-)existence of IDs in our db.
 addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
-addUnconfirmedUserWithId token user uid = void $ execT [sql|
-    INSERT INTO users (id, name, password, email, confirmed)
-    VALUES (?, ?, ?, ?, false);
-    INSERT INTO user_confirmation_tokens (id, token)
-    VALUES (?, ?);
-    |] ( uid, user ^. userName, user ^. userPassword, user ^. userEmail
-       , uid, token )
+addUnconfirmedUserWithId token user uid = void $ addUnconfirmedUserPrim token user $ Just uid
 
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration timeout token = do
@@ -116,7 +108,7 @@ finishUserRegistration timeout token = do
 
         DELETE FROM user_confirmation_tokens
         WHERE token = ? AND timestamp + ? > now()
-        RETURNING id ;
+        RETURNING id;
     |] (timeout, token, token, timeout)
     case res of
         [] -> throwError NoSuchToken
