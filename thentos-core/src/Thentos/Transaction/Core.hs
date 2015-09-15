@@ -17,6 +17,7 @@ module Thentos.Transaction.Core
 where
 
 import Control.Monad.Except (throwError)
+import Control.Exception (onException)
 import Control.Exception.Lifted (catch, throwIO)
 import Control.Monad (void, liftM)
 import Control.Monad.IO.Class (liftIO)
@@ -30,7 +31,8 @@ import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, 
 import Database.PostgreSQL.Simple.Errors (constraintViolation,
     ConstraintViolation(ForeignKeyViolation, UniqueViolation))
 import Database.PostgreSQL.Simple.ToField (ToField(toField))
-import Database.PostgreSQL.Simple.Types   (Default(Default))
+import Database.PostgreSQL.Simple.Transaction (begin, commit, rollback)
+import Database.PostgreSQL.Simple.Types (Default(Default))
 
 import Paths_thentos_core
 import Thentos.Types
@@ -49,8 +51,14 @@ createDB conn = do
     schema <- readFile =<< schemaFile
     void $ execute_ conn (fromString schema)
 
+-- | Execute a 'ThentosQuery'. Every query is a DB transaction, so the DB state won't change
+-- if there are any errors, nor will other queries encouter a possibly inconsistent interim state.
 runThentosQuery :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
-runThentosQuery conn q = runReaderT (runEitherT q) conn
+runThentosQuery conn q = do
+    begin conn
+    r <- runReaderT (runEitherT q) conn `onException` rollback conn
+    commit conn
+    return r
 
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
 queryT q x = do
