@@ -382,20 +382,24 @@ endServiceSession token = do
 -- 'Agent', do nothing.
 assignRole :: Agent -> Role -> ThentosQuery e ()
 assignRole agent role = case agent of
-    ServiceA _ -> error "assignRole not implemented for services"
+    ServiceA sid -> catchViolation catcher' $
+        void $ execT [sql| INSERT INTO service_roles (sid, role)
+                           VALUES (?, ?) |] (sid, role)
     UserA uid  -> do
         catchViolation catcher' $ void $
             execT [sql| INSERT INTO user_roles (uid, role)
                         VALUES (?, ?) |] (uid, role)
   where
     catcher' _ (UniqueViolation "user_roles_uid_role_key") = return ()
+    catcher' _ (UniqueViolation "service_roles_sid_role_key") = return ()
     catcher' e _                                           = throwIO e
 
 -- | Remove a 'Role' from the roles defined for an 'Agent'.  If 'Role' is not assigned to 'Agent',
 -- do nothing.
 unassignRole :: Agent -> Role -> ThentosQuery e ()
 unassignRole agent role = case agent of
-    ServiceA _ -> error "unassignRole not implemented for services"
+    ServiceA sid -> void $ execT
+        [sql| DELETE FROM service_roles WHERE sid = ? AND role = ? |] (sid, role)
     UserA uid  -> do
         void $ execT [sql| DELETE FROM user_roles WHERE uid = ? AND role = ? |]
                            (uid, role)
@@ -403,7 +407,10 @@ unassignRole agent role = case agent of
 -- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
 agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
 agentRoles agent = case agent of
-    ServiceA _ -> error "agentRoles not implemented for services"
+    ServiceA sid -> do
+        roles <- queryT [sql| SELECT role FROM service_roles WHERE sid = ? |]
+                        (Only sid)
+        return . Set.fromList $ map fromOnly roles
     UserA uid  -> do
         roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
         return . Set.fromList . map fromOnly $ roles

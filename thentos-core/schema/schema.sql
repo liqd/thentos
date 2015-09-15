@@ -41,6 +41,12 @@ CREATE TABLE IF NOT EXISTS "services" (
     key         text       NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS "service_roles" (
+    sid         text       REFERENCES services (id) ON DELETE CASCADE,
+    role        text       NOT NULL,
+    UNIQUE (sid, role)
+);
+
 CREATE TABLE IF NOT EXISTS "user_services" (
     uid       bigint NOT NULL REFERENCES users (id)    ON DELETE CASCADE,
     sid       text   NOT NULL REFERENCES services (id) ON DELETE CASCADE,
