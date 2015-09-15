@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Thentos.Transaction.Core
     ( ThentosQuery
+    , Defaultable(..)
     , runThentosQuery
     , queryT
     , execT
@@ -10,6 +11,7 @@ module Thentos.Transaction.Core
     , wipeFile
     , catchViolation
     , catcher
+    , orDefault
     )
 where
 
@@ -26,6 +28,8 @@ import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, 
     execute_)
 import Database.PostgreSQL.Simple.Errors (constraintViolation,
     ConstraintViolation(ForeignKeyViolation, UniqueViolation))
+import Database.PostgreSQL.Simple.ToField (ToField(toField))
+import Database.PostgreSQL.Simple.Types   (Default(Default))
 
 import Paths_thentos_core
 import Thentos.Types
@@ -50,15 +54,14 @@ runThentosQuery conn q = runReaderT (runEitherT q) conn
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
 queryT q x = do
     conn <- ask
-    liftIO $ query conn q x
+    e <- catchViolation catcher . liftIO . liftM Right $ query conn q x
+    either throwError return e
 
 execT :: ToRow q => Query -> q -> ThentosQuery e Int64
 execT q x = do
     conn <- ask
     e <- catchViolation catcher . liftIO . liftM Right $ execute conn q x
-    case e of
-        Left err -> throwError err
-        Right n -> return n
+    either throwError return e
 
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
@@ -75,3 +78,18 @@ catcher e _                                   = throwIO e
 -- @MonadBaseControl IO m@
 catchViolation :: MonadBaseControl IO m => (SqlError -> ConstraintViolation -> m a) -> m a -> m a
 catchViolation f m = m `catch` (\e -> maybe (throwIO e) (f e) $ constraintViolation e)
+
+-- Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
+-- 'Maybe a', but postgresql-simple will convert 'Nothing' to "NULL", while we convert
+-- 'DefaultVal' to "DEFAULT". This allows using default values specified by the DB schema,
+-- e.g. auto-incrementing sequences.
+data Defaultable a = DefaultVal | CustomVal a
+    deriving (Eq, Ord, Read, Show)
+
+instance (ToField a) => ToField (Defaultable a) where
+    toField DefaultVal    = toField Default
+    toField (CustomVal a) = toField a
+
+-- Convert a 'Maybe' into a 'Defaultable' instance.
+orDefault :: ToField a => Maybe a -> Defaultable a
+orDefault = maybe DefaultVal CustomVal
