@@ -163,7 +163,7 @@ benchmark load-test
   main-is:
       Main.hs
   ghc-options:
-      -Wall -threaded
+      -Wall -O -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       acid-state >=0.12.4 && <0.13
     , aeson >=0.8.0.2 && <0.9
