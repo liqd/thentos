@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS "services" (
     owner_service text       REFERENCES services (id),
     name          text       NOT NULL,
     description   text       NOT NULL,
-    key           text       NOT NULL
+    key           text       NOT NULL,
+    CHECK ((owner_user IS NULL) <> (owner_service IS NULL))
 );
 
 CREATE TABLE IF NOT EXISTS "service_roles" (
