@@ -12,7 +12,7 @@ import Control.Monad (void, liftM)
 import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ask)
-import Database.PostgreSQL.Simple         (Only(..), execute, withTransaction)
+import Database.PostgreSQL.Simple         (Only(..), execute)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
 import Data.Typeable (Typeable)
@@ -77,7 +77,6 @@ addUser user = addUserPrim Nothing user True
 
 addUnconfirmedUserPrim :: ConfirmationToken -> User -> Maybe UserId -> ThentosQuery e UserId
 addUnconfirmedUserPrim token user mUid = do
-    -- FIXME make transactional
     uid <- addUserPrim mUid user False
     void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
                        VALUES (?, ?) |] (uid, token)
@@ -213,8 +212,7 @@ updateUserField uid op = do
 updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
 updateUserFields uid ups = do
     conn <- ask
-    e <- catchViolation catcher . liftIO . liftM Right . withTransaction conn $
-        mapM (exec conn) ups
+    e <- catchViolation catcher . liftIO . liftM Right $ mapM (exec conn) ups
     case e of
         Left err -> throwError err
         Right ns | all (== 1) ns -> return ()
