@@ -694,7 +694,7 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
         Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ startThentosSession token (UserA testUid) immediateTimeout
         Right () <- runQuery conn garbageCollectThentosSessions
-        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
+        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM thentos_sessions |]
         sessionCount `shouldBe` (0 :: Int)
 
     it "doesn't delete active sessions" $ \(ActionState (conn, _, _)) -> do
@@ -702,7 +702,7 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
         Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ startThentosSession token (UserA testUid) timeout
         Right () <- runQuery conn garbageCollectThentosSessions
-        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
+        [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM thentos_sessions |]
         sessionCount `shouldBe` (1 :: Int)
 
   where

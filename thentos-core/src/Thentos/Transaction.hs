@@ -298,18 +298,19 @@ unregisterUserFromService uid sid = void $
 lookupThentosSession ::
      ThentosSessionToken -> ThentosQuery e (ThentosSessionToken, ThentosSession)
 lookupThentosSession token = do
-    void $ execT [sql| UPDATE user_sessions
+    void $ execT [sql| UPDATE thentos_sessions
                        SET end_ = now()::timestamptz + period
                        WHERE token = ? AND end_ >= now()
                  |] (Only token)
-    sesss <- queryT [sql| SELECT uid, start, end_, period FROM user_sessions
+    sesss <- queryT [sql| SELECT uid, sid, start, end_, period FROM thentos_sessions
                           WHERE token = ? AND end_ >= now()
                     |] (Only token)
     case sesss of
-        [(uid, start, end, period)] ->
-             return ( token
-                    , ThentosSession (UserA uid) start end period Set.empty
-                    )
+        [(uid, sid, start, end, period)] ->
+            let agent = makeAgent uid sid
+            in return ( token
+                      , ThentosSession agent start end period Set.empty
+                      )
         []                          -> throwError NoSuchThentosSession
         _                           -> impossible "lookupThentosSession: multiple results"
 
@@ -320,9 +321,13 @@ lookupThentosSession token = do
 -- replaced.
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout -> ThentosQuery e ()
 startThentosSession tok (UserA uid) period =
-    void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
+    void $ execT [sql| INSERT INTO thentos_sessions (token, uid, start, end_, period)
                        VALUES (?, ?, now(), now() + ?, ?)
                  |] (tok, uid, period, period)
+startThentosSession tok (ServiceA sid) period = void $ execT
+    [sql| INSERT INTO thentos_sessions (token, sid, start, end_, period)
+          VALUES (?, ?, now(), now() + ?, ?)|]
+            (tok, sid, period, period)
 
 -- | End thentos session and all associated service sessions.
 -- If thentos session does not exist or has expired, remove it just the same.
@@ -332,7 +337,7 @@ startThentosSession tok (UserA uid) period =
 -- not actually destroy the session, but move it to an archive.
 endThentosSession :: ThentosSessionToken -> ThentosQuery e ()
 endThentosSession tok =
-    void $ execT [sql| DELETE FROM user_sessions WHERE token = ?
+    void $ execT [sql| DELETE FROM thentos_sessions WHERE token = ?
                  |] (Only tok)
 
 -- | Like 'lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
@@ -360,9 +365,9 @@ startServiceSession thentosSessionToken token sid timeout =
     void $ execT [sql| INSERT INTO service_sessions
                         (token, thentos_session_token, start, end_, period, service, meta)
                        VALUES (?, ?, now(), now() + ?, ?, ?,
-                            (SELECT users.name FROM users, user_sessions WHERE
-                             users.id = user_sessions.uid
-                                AND user_sessions.token = ?)
+                            (SELECT users.name FROM users, thentos_sessions WHERE
+                             users.id = thentos_sessions.uid
+                                AND thentos_sessions.token = ?)
                             ) |]
                 (token, thentosSessionToken, timeout, timeout, sid, thentosSessionToken)
 
@@ -420,10 +425,10 @@ agentRoles agent = case agent of
 
 -- * garbage collection
 
--- | Go through "user_sessions" table and find all expired sessions.
+-- | Go through "thentos_sessions" table and find all expired sessions.
 garbageCollectThentosSessions :: ThentosQuery e ()
 garbageCollectThentosSessions = void $ execT [sql|
-    DELETE FROM user_sessions WHERE end_ < now()
+    DELETE FROM thentos_sessions WHERE end_ < now()
     |] ()
 
 garbageCollectServiceSessions :: ThentosQuery e ()
