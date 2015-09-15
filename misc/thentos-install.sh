@@ -17,9 +17,15 @@ set -o errexit
 
 
 declare -a SOURCES
-SERVANT_SOURCES=( servant servant-server servant-client servant-docs servant-blaze )
+SUBMODULE_SOURCES=( servant/servant
+                    servant/servant-server
+                    servant/servant-client
+                    servant/servant-docs
+                    servant/servant-blaze
+                    pronk
+                  )
 SOURCES=( thentos-core thentos-tests thentos-adhocracy )
-ALL_SOURCES=( "${SERVANT_SOURCES[@]}" "${SOURCES[@]}" )
+ALL_SOURCES=( "${SUBMODULE_SOURCES[@]}" "${SOURCES[@]}" )
 SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 
 DIR=`pwd`
@@ -45,8 +51,8 @@ check_dir
 git submodule update --init
 cabal sandbox init
 
-for s in ${SERVANT_SOURCES[@]}; do
-    cd "submodules/servant/$s"
+for s in ${SUBMODULE_SOURCES[@]}; do
+    cd "submodules/$s"
     cabal sandbox init --sandbox="$SANDBOX"
     cabal sandbox add-source .
     cd $DIR
@@ -59,4 +65,9 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-cabal install --enable-tests --max-backjumps -1 --reorder-goals -fwith-thentos-executable $SOURCES_STR
+cabal install --dependencies-only --ghc-options="+RTS -M2G -RTS -w" \
+      --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
+      -fwith-thentos-executable $SOURCES_STR
+cabal install \
+      --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
+      -fwith-thentos-executable $SOURCES_STR
