@@ -162,7 +162,7 @@ withBackend beConfig as action =
 
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend ::  String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
 withFrontendAndBackend dbname test = do
     st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
     withFrontend defaultFrontendConfig st
