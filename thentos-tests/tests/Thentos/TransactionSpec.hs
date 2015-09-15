@@ -62,28 +62,28 @@ addUserPrimSpec = describe "addUserPrim" $ do
     it "adds a user to the database" $ \ (ActionState (conn, _, _)) -> do
         let user   = testUsers !! 2
             userId = UserId 289
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         Right (_, res) <- runQuery conn $ lookupUser userId
         res `shouldBe` user
 
     it "fails if the id is not unique" $ \ (ActionState (conn, _, _)) -> do
         let userId = UserId 289
-        void $ runQuery conn $ addUserPrim userId (testUsers !! 2)
-        x <- runQuery conn $ addUserPrim userId (testUsers !! 3)
+        void $ runQuery conn $ addUserPrim (Just userId) (testUsers !! 2) True
+        x <- runQuery conn $ addUserPrim (Just userId) (testUsers !! 3) True
         x `shouldBe` Left UserIdAlreadyExists
 
     it "fails if the username is not unique" $ \ (ActionState (conn, _, _)) -> do
         let user1 = mkUser "name" "pass1" "email1@email.com"
             user2 = mkUser "name" "pass2" "email2@email.com"
-        void $ runQuery conn $ addUserPrim (UserId 372) user1
-        x <- runQuery conn $ addUserPrim (UserId 482) user2
+        void $ runQuery conn $ addUserPrim (Just $ UserId 372) user1 True
+        x <- runQuery conn $ addUserPrim (Just $ UserId 482) user2 True
         x `shouldBe` Left UserNameAlreadyExists
 
     it "fails if the email is not unique" $  \ (ActionState (conn, _, _)) -> do
         let user1 = mkUser "name1" "pass1" "email@email.com"
             user2 = mkUser "name2" "pass2" "email@email.com"
-        void $ runQuery conn $ addUserPrim (UserId 372) user1
-        x <- runQuery conn $ addUserPrim (UserId 482) user2
+        void $ runQuery conn $ addUserPrim (Just $ UserId 372) user1 True
+        x <- runQuery conn $ addUserPrim (Just $ UserId 482) user2 True
         x `shouldBe` Left UserEmailAlreadyExists
 
 addUserSpec :: SpecWith ActionState
@@ -195,7 +195,7 @@ lookupUserByNameSpec = describe "lookupUserByName" $ do
     it "returns a user if one exists" $ \ (ActionState (conn, _, _)) -> do
         let user = mkUser "name" "pass" "email@email.com"
             userid = UserId 437
-        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addUserPrim (Just userid) user True
         runQuery conn (lookupUserByName "name") `shouldReturn` Right (userid, user)
 
     it "returns NoSuchUser if no user has the name" $ \ (ActionState (conn, _, _)) -> do
@@ -207,7 +207,7 @@ lookupUserByEmailSpec = describe "lookupUserByEmail" $ do
     it "returns a user if one exists" $ \ (ActionState (conn, _, _)) -> do
         let user = mkUser "name" "pass" "email@email.com"
             userid = UserId 437
-        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addUserPrim (Just userid) user True
         runQuery conn (lookupUserByEmail $ forceUserEmail "email@email.com")
             `shouldReturn` Right (userid, user)
 
@@ -220,7 +220,7 @@ deleteUserSpec = describe "deleteUser" $ do
     it "deletes a user" $ \ (ActionState (conn, _, _)) -> do
         let user = mkUser "name" "pass" "email@email.com"
             userid = UserId 371
-        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addUserPrim (Just userid) user True
         Right _  <- runQuery conn $ lookupUser userid
         Right () <- runQuery conn $ deleteUser userid
         runQuery conn (lookupUser userid) `shouldReturn` Left NoSuchUser
@@ -234,7 +234,7 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
         let user = mkUser "name" "super secret" "me@example.com"
             userId = UserId 584
             testToken = PasswordResetToken "asgbagbaosubgoas"
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $
             addPasswordResetToken (user ^. userEmail) testToken
         [Only token_in_db] <- query conn
@@ -246,7 +246,7 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
             userId = UserId 594
             testToken = PasswordResetToken "asgbagbaosubgoas"
         newEncryptedPass <- hashUserPass "newSecretP4ssw0rd"
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $
             addPasswordResetToken (user ^. userEmail) testToken
         Right _ <- runQuery conn $
@@ -264,7 +264,7 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
     it "changes the user name" $ \(ActionState (conn, _, _)) -> do
         let newName = UserName "new"
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $
             updateUserField userId (UpdateUserFieldName newName)
         Right (_, usr) <- runQuery conn $ lookupUser userId
@@ -272,7 +272,7 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
     it "changes the user email" $ \(ActionState (conn, _, _)) -> do
         let newEmail = forceUserEmail "new@example.com"
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $
             updateUserField userId (UpdateUserFieldEmail newEmail)
         Right (_, usr) <- runQuery conn $ lookupUser userId
@@ -280,7 +280,7 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
     it "changes the user name" $ \(ActionState (conn, _, _)) -> do
         let newPass = encryptTestSecret "new pass"
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $
             updateUserField userId (UpdateUserFieldPassword newPass)
         Right (_, usr) <- runQuery conn $ lookupUser userId
@@ -288,8 +288,8 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
     it "doesn't change other users" $ \(ActionState (conn, _, _)) -> do
         let newName = UserName "new"
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ addUserPrim user2Id user2
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
+        Right _ <- runQuery conn $ addUserPrim (Just user2Id) user2 True
         Right _ <- runQuery conn $
             updateUserField userId (UpdateUserFieldName newName)
         Right (_, usr2) <- runQuery conn $ lookupUser user2Id
@@ -297,8 +297,8 @@ updateUserFieldSpec = describe "updateUserField" $ do
 
     it "fails if the new name is not unique" $ \(ActionState (conn, _, _)) -> do
         let newName = user2 ^. userName
-        Right _ <- runQuery conn $ addUserPrim userId user
-        Right _ <- runQuery conn $ addUserPrim user2Id user2
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
+        Right _ <- runQuery conn $ addUserPrim (Just user2Id) user2 True
         x <- runQuery conn $ updateUserField userId (UpdateUserFieldName newName)
         x `shouldBe` Left UserNameAlreadyExists
         runQuery conn (lookupUser userId) `shouldReturn` Right (userId, user)
@@ -313,7 +313,7 @@ agentRolesSpec = describe "agentRoles" $ do
     it "returns an empty set for a user without roles" $ \(ActionState (conn, _, _)) -> do
         let user = mkUser "name" "super secret" "me@example.com"
             userId = UserId 111
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         x <- runQuery conn $ agentRoles (UserA userId)
         x `shouldBe` Right Set.empty
 
@@ -323,13 +323,13 @@ assignRoleSpec = describe "assignRole" $ do
         userId = UserId 111
 
     it "adds a role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         Right roles <- runQuery conn $ agentRoles (UserA userId)
         roles `shouldBe` Set.fromList [RoleAdmin]
 
     it "silently allows adding a duplicate role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         x <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         x `shouldBe` Right ()
@@ -337,7 +337,7 @@ assignRoleSpec = describe "assignRole" $ do
         roles `shouldBe` Set.fromList [RoleAdmin]
 
     it "adds a second role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
         Right roles <- runQuery conn $ agentRoles (UserA userId)
@@ -349,12 +349,12 @@ unassignRoleSpec = describe "unassignRole" $ do
         userId = UserId 111
 
     it "silently allows removing a non-assigned role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         x <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
         x `shouldBe` Right ()
 
     it "removes the specified role" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim userId user
+        Right _ <- runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleAdmin
         Right _ <- runQuery conn $ assignRole (UserA userId) RoleUser
         Right _ <- runQuery conn $ unassignRole (UserA userId) RoleAdmin
@@ -364,7 +364,7 @@ unassignRoleSpec = describe "unassignRole" $ do
 emailChangeRequestSpec :: SpecWith ActionState
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runThentosQuery conn $
             addUserEmailChangeRequest userId newEmail testToken
         [Only tokenInDb] <- query conn
@@ -372,7 +372,7 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
         tokenInDb `shouldBe` testToken
 
     it "changes a user's email if given a valid token" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runThentosQuery conn $ addUserPrim userId user
+        Right _ <- runThentosQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runThentosQuery conn $
             addUserEmailChangeRequest userId newEmail testToken
         Right _ <-
@@ -389,7 +389,7 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
 addServiceSpec :: SpecWith ActionState
 addServiceSpec = describe "addService" $ do
     it "adds a service to the db" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runThentosQuery conn $ addUserPrim uid user
+        Right _ <- runThentosQuery conn $ addUserPrim (Just uid) user True
         [Only serviceCount] <- query conn countServices ()
         serviceCount `shouldBe` (0 :: Int)
         hashedKey <- hashServiceKey secret
@@ -415,7 +415,7 @@ addServiceSpec = describe "addService" $ do
 deleteServiceSpec :: SpecWith ActionState
 deleteServiceSpec = describe "deleteService" $ do
     it "deletes a service" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runThentosQuery conn $ addUserPrim testUid testUser
+        Right _ <- runThentosQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runThentosQuery conn $
             addService (UserA testUid) sid testHashedSecret "" ""
         Right _ <- runThentosQuery conn $ deleteService sid
@@ -448,25 +448,25 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         period = Timeout period'
 
     it "fails when there is no session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         x <- runQuery conn $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
     it "reads back a fresh session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ startThentosSession tok agent period
         Right (t, s) <- runQuery conn $ lookupThentosSession tok
         t `shouldBe` tok
         s ^. thSessAgent `shouldBe` agent
 
     it "fails for an expired session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ startThentosSession tok agent (Timeout $ fromSeconds' 0)
         x <- runQuery conn $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
     it "extends the session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         Right _ <- runQuery conn $ startThentosSession tok agent period
         Right (_, sess1) <- runQuery conn $ lookupThentosSession tok
         Right (t, sess2) <- runQuery conn $ lookupThentosSession tok
@@ -482,7 +482,7 @@ endThentosSessionSpec = describe "endThentosSession" $ do
         period = Timeout $ fromSeconds' 60
 
     it "deletes a session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userId user
+        void $ runQuery conn $ addUserPrim (Just userId) user True
         void $ runQuery conn $ startThentosSession tok agent period
         Right _ <- runQuery conn $ lookupThentosSession tok
         Right _ <- runQuery conn $ endThentosSession tok
@@ -496,7 +496,7 @@ endThentosSessionSpec = describe "endThentosSession" $ do
 startServiceSessionSpec :: SpecWith ActionState
 startServiceSessionSpec = describe "startServiceSession" $ do
     it "starts a service session" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
         void $ runQuery conn $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runQuery conn $
@@ -514,7 +514,7 @@ startServiceSessionSpec = describe "startServiceSession" $ do
 endServiceSessionSpec :: SpecWith ActionState
 endServiceSessionSpec = describe "endServiceSession" $ do
     it "ends an service session" $ \(ActionState  (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
         void $ runQuery conn $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runQuery conn $
@@ -537,7 +537,7 @@ endServiceSessionSpec = describe "endServiceSession" $ do
 lookupServiceSessionSpec :: SpecWith ActionState
 lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     it "looks up the service session with a given token" $ \(ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim testUid testUser
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
         void $ runQuery conn $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runQuery conn $
@@ -596,7 +596,7 @@ garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTok
         passToken = "sometoken2"
 
     it "deletes all expired tokens" $ \ (ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addUserPrim (Just userid) user True
         void $ runQuery conn $ addPasswordResetToken email passToken
         [Only tkns] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns `shouldBe` (1 :: Int)
@@ -605,7 +605,7 @@ garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTok
         tkns' `shouldBe` (0 :: Int)
 
     it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
-        void $ runQuery conn $ addUserPrim userid user
+        void $ runQuery conn $ addUserPrim (Just userid) user True
         void $ runQuery conn $ addPasswordResetToken email passToken
         void $ runQuery conn $ garbageCollectPasswordResetTokens 1000000
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM password_reset_tokens |]
@@ -617,7 +617,7 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
         token = "sometoken2"
 
     it "deletes all expired tokens" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ addUserEmailChangeRequest testUid newEmail token
         [Only tokenCount] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
         tokenCount `shouldBe` (1 :: Int)
@@ -626,7 +626,7 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
         tokenCount' `shouldBe` (0 :: Int)
 
     it "only deletes expired tokens" $ \ (ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ addUserEmailChangeRequest testUid newEmail token
         Right () <- runQuery conn $ garbageCollectEmailChangeTokens 1000000
         [Only tkns'] <- query_ conn [sql| SELECT count(*) FROM email_change_tokens |]
@@ -636,7 +636,7 @@ garbageCollectThentosSessionsSpec :: SpecWith ActionState
 garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
     it "deletes all expired thentos sessions" $ \(ActionState (conn, _, _)) -> do
         let immediateTimeout = Timeout $ fromSeconds' 0
-        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ startThentosSession token (UserA testUid) immediateTimeout
         Right () <- runQuery conn garbageCollectThentosSessions
         [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
@@ -644,7 +644,7 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
 
     it "doesn't delete active sessions" $ \(ActionState (conn, _, _)) -> do
         let timeout = Timeout $ fromSeconds' 60
-        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery conn $ startThentosSession token (UserA testUid) timeout
         Right () <- runQuery conn garbageCollectThentosSessions
         [Only sessionCount] <- query_ conn [sql| SELECT count(*) FROM user_sessions |]
@@ -656,7 +656,7 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
 garbageCollectServiceSessionsSpec :: SpecWith ActionState
 garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ do
     it "deletes (only) expired service sessions" $ \(ActionState (conn, _, _)) -> do
-        Right _ <- runQuery conn $ addUserPrim testUid testUser
+        Right _ <- runQuery conn $ addUserPrim (Just testUid) testUser True
         hashedKey <- hashServiceKey "secret"
         Right _ <- runQuery conn $
             addService (UserA testUid) sid hashedKey "sName" "sDescription"
