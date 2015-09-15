@@ -21,7 +21,7 @@ import qualified Test.WebDriver.Class as WD
 
 import Thentos.Action.Core
 import Thentos.Config
-import qualified Thentos.Transaction.Transactions as T
+import qualified Thentos.Transaction as T
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)

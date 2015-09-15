@@ -78,7 +78,6 @@ library
     , Thentos.Smtp
     , Thentos.Transaction
     , Thentos.Transaction.Core
-    , Thentos.Transaction.Transactions
     , Thentos.Types
     , Thentos.Util
   other-modules:
