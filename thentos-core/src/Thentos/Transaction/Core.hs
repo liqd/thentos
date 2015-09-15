@@ -12,6 +12,7 @@ module Thentos.Transaction.Core
     , catchViolation
     , catcher
     , orDefault
+    , makeAgent
     )
 where
 
@@ -93,3 +94,8 @@ instance (ToField a) => ToField (Defaultable a) where
 -- Convert a 'Maybe' into a 'Defaultable' instance.
 orDefault :: ToField a => Maybe a -> Defaultable a
 orDefault = maybe DefaultVal CustomVal
+
+-- Takes a UserId and a ServiceId (either of which may be _|_) and creates
+-- the right sort of Agent based on the discriminator boolean.
+makeAgent :: UserId -> ServiceId -> Bool -> Agent
+makeAgent uid sid isUser = if isUser then UserA uid else ServiceA sid

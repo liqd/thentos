@@ -322,15 +322,6 @@ instance Aeson.ToJSON Timeout
 data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
--- FIXME: assumes all Agents are Users for now
-instance FromField Agent where
-    fromField f dat = UserA <$> fromField f dat
-
--- FIXME: assumes all Agents are Users for now
-instance ToField Agent where
-    toField (UserA uid) = toField uid
-    toField (ServiceA _) = error "service agent not implemented"
-
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 

@@ -245,11 +245,13 @@ allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
-    services <- queryT [sql| SELECT key, owner, name, description
+    services <- queryT [sql| SELECT key, owner_user, owner_user, owner_is_user, name, description
                              FROM services
                              WHERE id = ? |] (Only sid)
     service <- case services of
-        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc
+        [(key, ownerU, ownerS, ownerIsUser, name, desc)] ->
+            let owner = makeAgent ownerU ownerS ownerIsUser
+            in return $ Service key owner Nothing name desc
         []                         -> throwError NoSuchService
         _                          -> impossible "lookupService: multiple results"
     return (sid, service)
@@ -259,10 +261,14 @@ lookupService sid = do
 addService ::
     Agent -> ServiceId -> HashedSecret ServiceKey -> ServiceName
     -> ServiceDescription -> ThentosQuery e ()
-addService agent sid secret name description = void $
-    execT [sql| INSERT INTO services (id, owner, name, description, key)
-                VALUES (?, ?, ?, ?, ?)
-          |] (sid, agent, name, description, secret)
+addService (UserA uid) sid secret name description = void $
+    execT [sql| INSERT INTO services (id, owner_user, owner_is_user, name, description, key)
+                VALUES (?, ?, true, ?, ?, ?)
+          |] (sid, uid, name, description, secret)
+addService (ServiceA ownerSid) sid secret name description = void $
+    execT [sql| INSERT INTO services (id, owner_service, owner_is_user, name, description, key)
+                VALUES (?, ?, false, ?, ?, ?)
+          |] (sid, ownerSid, name, description, secret)
 
 -- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.
 deleteService :: ServiceId -> ThentosQuery e ()
@@ -316,10 +322,10 @@ lookupThentosSession token = do
 -- FIXME not implemented: If the agent is a service with an existing session, its session is
 -- replaced.
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout -> ThentosQuery e ()
-startThentosSession tok agent period =
+startThentosSession tok (UserA uid) period =
     void $ execT [sql| INSERT INTO user_sessions (token, uid, start, end_, period)
                        VALUES (?, ?, now(), now() + ?, ?)
-                 |] (tok, agent, period, period)
+                 |] (tok, uid, period, period)
 
 -- | End thentos session and all associated service sessions.
 -- If thentos session does not exist or has expired, remove it just the same.

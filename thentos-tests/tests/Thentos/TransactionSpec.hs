@@ -432,9 +432,9 @@ addServiceSpec = describe "addService" $ do
         Right _ <- runThentosQuery conn $
             addService (UserA uid) sid hashedKey name description
         [(owner', sid', key', name', desc')] <- query conn
-            [sql| SELECT owner, id, key, name, description
+            [sql| SELECT owner_user, id, key, name, description
                   FROM services |] ()
-        owner' `shouldBe` UserA uid
+        owner' `shouldBe` uid
         sid' `shouldBe` sid
         key' `shouldBe` hashedKey
         name' `shouldBe` name
