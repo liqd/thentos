@@ -24,15 +24,17 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Crypto.Random (ChaChaDRG, drgNew)
-import Crypto.Scrypt (Pass(Pass), encryptPass, Salt(Salt), scryptParams)
-import Data.Acid (IsAcidic)
-import Data.Acid.Memory (openMemoryState)
+import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
+import Data.Monoid ((<>))
+import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.Void (Void)
+
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
 import Network.Wai (requestMethod, requestHeaders)
@@ -42,24 +44,24 @@ import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
 import System.IO.Temp (createTempDirectory)
-
+import System.Process
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Attoparsec.ByteString as AP
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
-import Thentos.Action
+import Thentos (createConnPoolAndInitDb)
+import Thentos.Action hiding (addUser)
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
+import Thentos.Transaction.Core
 import Thentos.Types
 
 import Thentos.Test.Config
@@ -78,19 +80,28 @@ testUserForms =
 
 testUsers :: [User]
 testUsers = (\ (UserFormData name pass email) ->
-                User name (encryptTestSecret . cs . fromUserPass $ pass) email Set.empty Map.empty)
+                User name (encryptTestSecret . cs . fromUserPass $ pass) email)
     <$> testUserForms
+
+testUser :: User
+testUser = head testUsers
+
+testUid :: UserId
+testUid = UserId 7
+
+testHashedSecret :: HashedSecret ServiceKey
+testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
-addTestUser :: Int -> Action DB (UserId, UserFormData, User)
+addTestUser :: Int -> Action Void (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
-    uid <- update'P $ AddUser user
+    uid <- query'P $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
 -- them for use in test cases.
-initializeTestUsers :: Action DB [(UserId, UserFormData, User)]
+initializeTestUsers :: Action Void [(UserId, UserFormData, User)]
 initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
@@ -137,14 +148,14 @@ withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
 
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend :: HttpConfig -> ActionState DB -> IO r -> IO r
+withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
 withFrontend feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend :: HttpConfig -> ActionState DB -> IO r -> IO r
+withBackend :: HttpConfig -> ActionState -> IO r -> IO r
 withBackend beConfig as action =
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
             killThread
@@ -152,11 +163,12 @@ withBackend beConfig as action =
 
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend ::  (ActionState DB -> IO r) -> IO r
-withFrontendAndBackend test = do
-    st@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
+withFrontendAndBackend ::  String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend dbname test = do
+    st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
     withFrontend defaultFrontendConfig st
-        $ withBackend defaultBackendConfig st $ liftIO (createGod adb) >> test st
+        $ withBackend defaultBackendConfig st
+            $ withResource connPool $ \conn -> liftIO (createGod conn) >> test st
 
 defaultBackendConfig :: HttpConfig
 defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
@@ -164,18 +176,20 @@ defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pro
 defaultFrontendConfig :: HttpConfig
 defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
 
--- | Create an @ActionState@ with an empty in-memory DB and the specified
+-- | Create an @ActionState@ with a connection to an empty DB and the specified
 -- config.
-createActionState :: (EmptyDB db, IsAcidic db) => ThentosConfig -> IO (ActionState db)
-createActionState config = do
+createActionState :: String -> ThentosConfig -> IO ActionState
+createActionState dbname config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    st <- openMemoryState emptyDB
-    return $ ActionState (st, rng, config)
+    wipe <- wipeFile
+    callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
+               <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
+    connPool <- createConnPoolAndInitDb $ cs dbname
+    return $ ActionState (connPool, rng, config)
 
-
-loginAsGod :: forall db . (db `Ex` DB) => ActionState db -> IO (ThentosSessionToken, [Header])
+loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
-    (_, tok :: ThentosSessionToken) <- runAction actionState $ startThentosSessionByUserName godName godPass
+    (_, tok) <- runAction actionState $ (startThentosSessionByUserName godName godPass :: Action Void (UserId, ThentosSessionToken))
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
     return (tok, credentials)
 
@@ -200,7 +214,6 @@ decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
     Aeson.parseEither Aeson.parseJSON v
-
 
 -- | This is convenient if you have lots of string literals with @-XOverloadedStrings@ but do not
 -- want to do explicit type signatures to avoid type ambiguity.

@@ -1,77 +1,100 @@
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TupleSections        #-}
-{-# LANGUAGE TypeOperators        #-}
-
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Thentos.Transaction.Core
-  ( ThentosUpdate
-  , ThentosQuery
-  , liftThentosQuery
-  , runThentosUpdate
-  , runThentosQuery
-  , polyUpdate
-  , polyQuery
-  ) where
+    ( ThentosQuery
+    , Defaultable(..)
+    , runThentosQuery
+    , queryT
+    , execT
+    , createDB
+    , schemaFile
+    , wipeFile
+    , catchViolation
+    , catcher
+    , orDefault
+    )
+where
 
-import Control.Applicative ((<$>))
-import Control.Lens ((^.), (%%~))
-import Control.Monad.Identity (Identity(Identity), runIdentity)
-import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
-import Control.Monad.State (StateT(StateT), runStateT, get, put)
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
-import Data.Acid (Update, Query)
-import Data.EitherR (fmapL)
+import Control.Monad.Except (throwError)
+import Control.Exception.Lifted (catch, throwIO)
+import Control.Monad (void, liftM)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Reader (ReaderT, runReaderT, ask)
+import Control.Monad.Trans.Either (EitherT, runEitherT)
+import Control.Monad.Trans.Control (MonadBaseControl)
+import Data.Int (Int64)
+import Data.String (fromString)
+import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute,
+    execute_)
+import Database.PostgreSQL.Simple.Errors (constraintViolation,
+    ConstraintViolation(ForeignKeyViolation, UniqueViolation))
+import Database.PostgreSQL.Simple.ToField (ToField(toField))
+import Database.PostgreSQL.Simple.Transaction (withTransaction)
+import Database.PostgreSQL.Simple.Types (Default(Default))
 
+import Paths_thentos_core
 import Thentos.Types
 
+type ThentosQuery e a = EitherT (ThentosError e) (ReaderT Connection IO) a
 
--- * types
+schemaFile :: IO FilePath
+schemaFile = getDataFileName "schema/schema.sql"
 
-type ThentosUpdate db a = EitherT (ThentosError db) (StateT  db Identity) a
-type ThentosQuery  db a = EitherT (ThentosError db) (ReaderT db Identity) a
+wipeFile :: IO FilePath
+wipeFile = getDataFileName "schema/wipe.sql"
 
--- FUTURE WORK: make primed types newtypes rather than type synonyms, and provide a generic monad
--- instance.  (how does that work?)
+-- | Creates the database schema if it does not already exist.
+createDB :: Connection -> IO ()
+createDB conn = do
+    schema <- readFile =<< schemaFile
+    void $ execute_ conn (fromString schema)
 
+-- | Execute a 'ThentosQuery'. Every query is a DB transaction, so the DB state won't change
+-- if there are any errors, nor will other queries encouter a possibly inconsistent interim state.
+runThentosQuery :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
+runThentosQuery conn q = do
+    withTransaction conn $ runReaderT (runEitherT q) conn
 
--- * plumbing
+queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
+queryT q x = do
+    conn <- ask
+    e <- catchViolation catcher . liftIO . liftM Right $ query conn q x
+    either throwError return e
 
--- | 'liftQuery' for 'ThentosUpdate' and 'ThentosUpdate''.
-liftThentosQuery :: ThentosQuery db a -> ThentosUpdate db a
-liftThentosQuery thentosQuery = EitherT . StateT $ \ state ->
-    (, state) <$> runEitherT thentosQuery `runReaderT` state
+execT :: ToRow q => Query -> q -> ThentosQuery e Int64
+execT q x = do
+    conn <- ask
+    e <- catchViolation catcher . liftIO . liftM Right $ execute conn q x
+    either throwError return e
 
+-- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
+-- ones.
+catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Either (ThentosError e) a)
+catcher _ (UniqueViolation "users_pkey")      = return $ Left UserIdAlreadyExists
+catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
+catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
+catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
+    = return $ Left ConfirmationTokenAlreadyExists
+catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = return $ Left NoSuchUser
+catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey") = return $ Left NoSuchService
+catcher e _                                   = throwIO e
 
--- | Push 'ThentosUpdate' event down to acid-state's own 'Update'.  Errors are returned as 'Left'
--- values in an 'Either'.  See also:
---
--- - http://www.reddit.com/r/haskell/comments/2re0da/error_handling_in_acidstate/
--- - http://petterbergman.se/aciderror.html.en
--- - http://acid-state.seize.it/Error%20Scenarios
--- - https://github.com/acid-state/acid-state/pull/38
-runThentosUpdate :: ThentosUpdate db a -> Update db (Either (ThentosError db) a)
-runThentosUpdate action = do
-    state <- get
-    case runIdentity $ runStateT (runEitherT action) state of
-        (Left err,     _)      ->                return $ Left  err
-        (Right result, state') -> put state' >> return (Right result)
+-- | Like @postgresql-simple@'s 'catchViolation', but generalized to
+-- @MonadBaseControl IO m@
+catchViolation :: MonadBaseControl IO m => (SqlError -> ConstraintViolation -> m a) -> m a -> m a
+catchViolation f m = m `catch` (\e -> maybe (throwIO e) (f e) $ constraintViolation e)
 
--- | Like 'runThentosUpdate', but for 'ThentosQuery' and 'ThentosQuery''.
-runThentosQuery :: ThentosQuery db a -> Query db (Either (ThentosError db) a)
-runThentosQuery action = runIdentity . runReaderT (runEitherT action) <$> ask
+-- Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
+-- 'Maybe a', but postgresql-simple will convert 'Nothing' to "NULL", while we convert
+-- 'DefaultVal' to "DEFAULT". This allows using default values specified by the DB schema,
+-- e.g. auto-incrementing sequences.
+data Defaultable a = DefaultVal | CustomVal a
+    deriving (Eq, Ord, Read, Show)
 
+instance (ToField a) => ToField (Defaultable a) where
+    toField DefaultVal    = toField Default
+    toField (CustomVal a) = toField a
 
--- | Turn an update transaction on a db into one on any extending db.  See also 'polyQuery'.
---
--- FUTURE WORK: shouldn't there be a way to do both cases with one function @poly@?  (same goes for
--- 'runThentos*' above, as a matter of fact).
-polyUpdate :: forall a db1 db2 . (db2 `Extends` db1) => ThentosUpdate db1 a -> ThentosUpdate db2 a
-polyUpdate upd = EitherT . StateT $ Identity . (focus %%~ bare)
-  where
-    bare :: db1 -> (Either (ThentosError db2) a, db1)
-    bare = runIdentity . runStateT (fmapL thentosErrorFromParent <$> runEitherT upd)
-
--- | Turn a query transaction on a db on any extending db.  See also 'polyUpdate'.
-polyQuery :: forall a db1 db2 . (db2 `Extends` db1) => ThentosQuery db1 a -> ThentosQuery db2 a
-polyQuery qry = EitherT . ReaderT $ \ (state :: db2) ->
-    fmapL thentosErrorFromParent <$> runEitherT qry `runReaderT` (state ^. focus)
+-- Convert a 'Maybe' into a 'Defaultable' instance.
+orDefault :: ToField a => Maybe a -> Defaultable a
+orDefault = maybe DefaultVal CustomVal

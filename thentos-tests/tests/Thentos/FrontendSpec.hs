@@ -8,13 +8,13 @@ module Thentos.FrontendSpec where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Data.Acid (AcidState)
-import Data.Acid.Advanced (query')
 import Data.Maybe (fromJust, isJust, listToMaybe)
+import Data.Pool (Pool, withResource)
 import Data.String.Conversions (ST, cs)
+import Data.Void (Void)
+import Database.PostgreSQL.Simple (Connection)
 import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
 
-import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
@@ -22,8 +22,8 @@ import qualified Test.WebDriver.Class as WD
 
 import Thentos.Action.Core
 import Thentos.Config
-import Thentos.Frontend.Handlers.Combinators (urlConfirm)
-import Thentos.Transaction
+import qualified Thentos.Transaction as T
+import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util ((<//>), verifyPass)
 
@@ -38,7 +38,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "selenium grid" $ do
-  describe "many tests" . around withFrontendAndBackend $ do
+  describe "many tests" . around (withFrontendAndBackend "test_thentos") $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos
@@ -59,17 +59,17 @@ spec = describe "selenium grid" $ do
 
   -- (this is a separate top-level test case because it changes the DB
   -- state and gets the other tests confused.)
-  describe "update user" . around withFrontendAndBackend $ do
+  describe "update user" . around (withFrontendAndBackend "test_thentos") $ do
     spec_updateSelf
 
 
-spec_createUser :: SpecWith (ActionState DB)
+spec_createUser :: SpecWith ActionState
 spec_createUser = describe "create user" $ do
     let myUsername = "username"
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ \(ActionState (st, _, _)) -> do
+    it "fill out form." $ \(ActionState (connPool, _, _)) -> do
         withWebDriver $ do
             WD.openPageSync (cs $ exposeUrl defaultFrontendConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
@@ -82,31 +82,17 @@ spec_createUser = describe "create user" $ do
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
-        -- check confirmation token in DB.
-        Right (db1 :: DB) <- query' st SnapShot
-        Map.size (db1 ^. dbUnconfirmedUsers) `shouldBe` 1
-
-        -- (it would be nice if we somehow had access to the email here to extract the link from
-        -- there.  not yet...)
-        case Map.toList $ db1 ^. dbUnconfirmedUsers of
-              [(tok, _)] -> withWebDriver $ do
-                  WD.openPageSync . cs $ urlConfirm defaultFrontendConfig "/user/register_confirm" (fromConfirmationToken tok)
-                  WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Registration complete"
-              bad -> error $ "dbUnconfirmedUsers: " ++ show bad
-
         -- check that user is in db
-        Right (db2 :: DB) <- query' st $ SnapShot
-        Map.size (db2 ^. dbUnconfirmedUsers) `shouldBe` 0
-        eUser <- query' st $ LookupUserByName (UserName myUsername)
-        fromUserName  . (^. userName)  . snd <$> eUser `shouldBe` Right myUsername
-        fromUserEmail . (^. userEmail) . snd <$> eUser `shouldBe` Right myEmail
+        Right (_, usr) <- runQuery connPool $ T.lookupUserByName (UserName myUsername)
+        fromUserName  (usr ^. userName)  `shouldBe` myUsername
+        fromUserEmail (usr ^. userEmail) `shouldBe` myEmail
 
 
-spec_resetPassword :: SpecWith (ActionState DB)
+spec_resetPassword :: SpecWith ActionState
 spec_resetPassword = it "reset password" $ \_ -> pendingWith "no test implemented."
 
 
-spec_updateSelf :: SpecWith (ActionState DB)
+spec_updateSelf :: SpecWith ActionState
 spec_updateSelf = describe "update self" $ do
     let _fill :: ST -> ST -> WD.WD ()
         _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
@@ -114,37 +100,36 @@ spec_updateSelf = describe "update self" $ do
         _click :: ST -> WD.WD ()
         _click label = WD.findElem (WD.ById label) >>= WD.clickSync
 
-        _check ::  AcidState DB -> (User -> IO ()) -> WD.WD ()
-        _check st f = liftIO $ query' st SnapShot >>=
-                        maybe (error "no such user") f .
-                        either (error "could not take db snapshot") (Map.lookup selfId . (^. dbUsers))
-
         -- FIXME: test with ordinary user (not god).
         selfId   = godUid
         selfName = godName
         selfPass = godPass
 
-    it "username" $ \(ActionState (st, _, _)) -> withWebDriver $ do
+    it "username" $ \(ActionState (conn, _, _)) -> do
         let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
-        _fill "/user/update.name" $ fromUserName newSelfName
-        _click "update_user_submit"
-        _check st ((`shouldBe` newSelfName) . (^. userName))
+        withWebDriver $ do
+            wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
+            _fill "/user/update.name" $ fromUserName newSelfName
+            _click "update_user_submit"
+        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        usr ^. userName `shouldBe` newSelfName
 
     -- FIXME: test with new user name that is already in use.
     -- FIXME: test with unauthenticated user.
     -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
 
-    it "password" $ \(ActionState (st, _, _)) -> withWebDriver $ do
+    it "password" $ \(ActionState (conn, _, _)) -> do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-        WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
-        _fill "/user/update_password.old_password"  $ fromUserPass selfPass
-        _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
-        _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
-        _click "update_password_submit"
-        _check st (`shouldSatisfy` verifyPass newSelfPass)
+        withWebDriver $ do
+            wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update_password")
+            _fill "/user/update_password.old_password"  $ fromUserPass selfPass
+            _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
+            _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
+            _click "update_password_submit"
+        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        usr `shouldSatisfy` verifyPass newSelfPass
 
     -- FIXME: test failure cases.  same restrictions apply as in
     -- "create_user" and "reset_password" (make sure the check is in
@@ -193,17 +178,17 @@ spec_updateSelf = describe "update self" $ do
         -}
 
 
--- manageRoles :: SpecWith (ActionState DB)
+-- manageRoles :: SpecWith ActionState
 -- manageRoles = describe "manage roles" $ do ...
 
 
-spec_logIntoThentos :: SpecWith (ActionState DB)
+spec_logIntoThentos :: SpecWith ActionState
 spec_logIntoThentos = it "log into thentos" $ \_ -> withWebDriver $ do
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Login successful"
 
 
-spec_logOutOfThentos :: SpecWith (ActionState DB)
+spec_logOutOfThentos :: SpecWith ActionState
 spec_logOutOfThentos = it "log out of thentos" $ \_ -> withWebDriver $ do
     -- logout when logged in
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -214,19 +199,19 @@ spec_logOutOfThentos = it "log out of thentos" $ \_ -> withWebDriver $ do
     wdLogout defaultFrontendConfig >>= liftIO . (`shouldBe` 400) . C.statusCode
 
 
-spec_redirectWhenNotLoggedIn :: SpecWith (ActionState DB)
+spec_redirectWhenNotLoggedIn :: SpecWith ActionState
 spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \_ -> do
     withWebDriver $ isNotLoggedIn defaultFrontendConfig
 
 
-spec_dontRedirectWhenLoggedIn :: SpecWith (ActionState DB)
+spec_dontRedirectWhenLoggedIn :: SpecWith ActionState
 spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \_ -> do
     withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         isLoggedIn defaultFrontendConfig
 
 
-spec_deletingCookiesLogsOut :: SpecWith (ActionState DB)
+spec_deletingCookiesLogsOut :: SpecWith ActionState
 spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \_ -> do
     withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -234,7 +219,7 @@ spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \_ -> do
         isNotLoggedIn defaultFrontendConfig
 
 
-spec_logInSetsSessionCookie :: SpecWith (ActionState DB)
+spec_logInSetsSessionCookie :: SpecWith ActionState
 spec_logInSetsSessionCookie = it "set cookie on login" $ \_ -> do
     withWebDriver $ do
         WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
@@ -246,7 +231,7 @@ spec_logInSetsSessionCookie = it "set cookie on login" $ \_ -> do
 
 
 -- This is a a webdriver meta-test, as a base case for 'spec_failOnCsrf'.
-spec_restoringCookieRestoresSession :: SpecWith (ActionState DB)
+spec_restoringCookieRestoresSession :: SpecWith ActionState
 spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $ \_ -> do
     withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -262,9 +247,8 @@ spec_restoringCookieRestoresSession = it "restore session by restoring cookie" $
         -- WD.cookies >>= \cc -> liftIO $ length cc `shouldBe` 1
 
 
-spec_serviceCreate :: SpecWith (ActionState DB)
-spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
-
+spec_serviceCreate :: SpecWith ActionState
+spec_serviceCreate = it "service create" $ \(ActionState (conn, _, _)) -> do
     -- fe: fill out and submit create-service form
     let sname :: ST = "Evil Corp."
         sdescr :: ST = "don't be evil."
@@ -272,7 +256,7 @@ spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
-    serviceId <- withWebDriver $ do
+    sid <- withWebDriver $ do
         wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/dashboard/ownservices")
 
@@ -288,41 +272,38 @@ spec_serviceCreate = it "service create" $ \(ActionState (st, _, _)) -> do
     --   1. service has been created;
     --   2. has right sname, sdescr;
     --   3. has correct owner.
-    Right (db :: DB) <- query' st $ SnapShot
-    case Map.lookup serviceId (db ^. dbServices) of
-        Nothing -> error "serviceId not found in db."
-        Just service -> do
-            service ^. serviceThentosSession `shouldBe` Nothing
-            service ^. serviceName           `shouldBe` ServiceName sname
-            service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
-            -- service ^. serviceOwner          `shouldBe` UserId 0
+    Right (_, service) <- runQuery conn $ T.lookupService sid
+    service ^. serviceThentosSession `shouldBe` Nothing
+    service ^. serviceName           `shouldBe` ServiceName sname
+    service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
+    -- service ^. serviceOwner          `shouldBe` UserId 0
 
     -- FIXME: test: without login, create user fails with "permission denied"
     -- FIXME: test: if user is deleted, so are all their services.
 
 
-spec_serviceDelete :: SpecWith (ActionState DB)
-spec_serviceDelete = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_serviceDelete :: SpecWith ActionState
+spec_serviceDelete = it "service delete" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 
 
-spec_serviceUpdateMetadata :: SpecWith (ActionState DB)
-spec_serviceUpdateMetadata = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_serviceUpdateMetadata :: SpecWith ActionState
+spec_serviceUpdateMetadata = it "service delete" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 
 
-spec_serviceGiveToOtherUser :: SpecWith (ActionState DB)
-spec_serviceGiveToOtherUser = it "service delete" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_serviceGiveToOtherUser :: SpecWith ActionState
+spec_serviceGiveToOtherUser = it "service delete" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 
 
-spec_logIntoService :: SpecWith (ActionState DB)
-spec_logIntoService = it "log into service" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_logIntoService :: SpecWith ActionState
+spec_logIntoService = it "log into service" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 
 
-spec_logOutOfService :: SpecWith (ActionState DB)
-spec_logOutOfService = it "log out of service" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_logOutOfService :: SpecWith ActionState
+spec_logOutOfService = it "log out of service" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 
 
-spec_browseMyServices :: SpecWith (ActionState DB)
-spec_browseMyServices = it "browse my services" $ \(_ :: (ActionState DB)) -> pendingWith "no test implemented."
+spec_browseMyServices :: SpecWith ActionState
+spec_browseMyServices = it "browse my services" $ \(_ :: ActionState) -> pendingWith "no test implemented."
 {-
       \((st, _, _), _, (_, defaultFrontendConfig), wd) -> do
     wd $ do
@@ -335,7 +316,7 @@ spec_browseMyServices = it "browse my services" $ \(_ :: (ActionState DB)) -> pe
 -}
 
 
-spec_failOnCsrf :: SpecWith (ActionState DB)
+spec_failOnCsrf :: SpecWith ActionState
 spec_failOnCsrf =  it "fails on csrf" $ \_ -> withWebDriver $ do
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
@@ -393,3 +374,6 @@ isNotLoggedIn cfg = do
 -- | Fill a labeled text field.
 fill :: WD.WebDriver wd => ST -> ST -> wd ()
 fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
+
+runQuery :: Pool Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
+runQuery connPool q = withResource connPool $ \conn -> runThentosQuery conn q

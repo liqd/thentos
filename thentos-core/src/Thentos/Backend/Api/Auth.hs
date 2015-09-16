@@ -18,26 +18,26 @@
 --
 -- A LESS RELEVANT OBSERVATION: It would be nice if we could provide this function:
 --
--- >>> thentosAuth :: ActionState DB
--- >>>             -> ServerT api (Action DB)
+-- >>> thentosAuth :: ActionState
+-- >>>             -> ServerT api (Action)
 -- >>>             -> Maybe ThentosSessionToken
 -- >>>             -> Server api
 -- >>> thentosAuth actionState _api mTok = enter (enterAction actionState mTok) _api
 --
 -- because then here we could write:
 --
--- >>> api :: ActionState DB -> Server (ThentosAuth :> MyApi)
+-- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
 -- >>> api = (`thentosAuch` myApi)
 --
 -- But the signature of `thentosAuth` requires injectivity of `ServerT` (`api` needs to be inferred
--- from `ServerT api (Action DB)`).  ghc-7.12 may help (see
+-- from `ServerT api (Action)`).  ghc-7.12 may help (see
 -- https://ghc.haskell.org/trac/ghc/wiki/InjectiveTypeFamilies), or it may not: Even if injective
 -- type families are supported, `ServerT` may not be injective in some particular type that this
 -- function is called with.
 --
 -- So instead, you will have to write something like this:
 --
--- >>> api :: ActionState DB -> Server (ThentosAuth :> MyApi)
+-- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
 -- >>> api actionState mTok = enter (enterAction actionState mTok) myApi
 module Thentos.Backend.Api.Auth where
 

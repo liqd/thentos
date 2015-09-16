@@ -97,20 +97,18 @@ $ cabal install --enable-bench
 $ cabal bench  # requires thentos to be running in another shell
 ```
 
-
 ## Updating or deleting the database
 
-If the database state type changes,
-http://hackage.haskell.org/package/safecopy is used to migrate deprecated
-existing serializations from disk transparently.
+Changes to the database schema are implemented in three stages:
 
-There should be tests that make sure nobody breaks this rule, but currently
-there aren't.  Instead, the current "migration process" is simple: Just
-delete the DB!
+1. change the data types in haskell code
+2. change ./schema/schema.sql
+3. write a script that migrates a database of the before-schema to the now-schema.
 
-```shell
-$ rm -rf .acid-state
-```
+All this needs to be done manually.  For version control, the
+migration script should be named `migrate-<hash1>-<hash2>.sql`, where
+the `hash1` and `hash2` are commits that contain ./schema/schema.sql
+in the before-version and the now-version, resp.
 
 ## Adding new dependencies
 

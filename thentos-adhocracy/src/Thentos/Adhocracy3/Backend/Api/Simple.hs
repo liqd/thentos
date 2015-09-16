@@ -15,7 +15,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
@@ -75,12 +74,13 @@ import qualified Network.HTTP.Types.Status as Status
 import qualified URI.ByteString as URI
 
 import System.Log.Missing
+import Thentos.Adhocracy3.Backend.Core
+import Thentos.Adhocracy3.Transactions ()
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
-import Thentos.Adhocracy3.Transactions ()
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -338,13 +338,13 @@ instance FromJSON RequestResult where
 
 -- * main
 
-runBackend :: HttpConfig -> AC.ActionState DB -> IO ()
+runBackend :: HttpConfig -> AC.ActionState -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
     manager <- Client.newManager Client.defaultManagerSettings
     runWarpWithCfg cfg $ serveApi manager asg
 
-serveApi :: Client.Manager -> AC.ActionState DB -> Application
+serveApi :: Client.Manager -> AC.ActionState -> Application
 serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api manager
 
 
@@ -366,15 +366,15 @@ type Api =
        ThentosApi
   :<|> ServiceProxy
 
-thentosApi :: AC.ActionState DB -> Server ThentosApi
-thentosApi actionState = enter (enterAction actionState Nothing) $
+thentosApi :: AC.ActionState -> Server ThentosApi
+thentosApi actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
        addUser
   :<|> activate
   :<|> login
   :<|> login
   :<|> resetPassword
 
-api :: Client.Manager -> AC.ActionState DB -> Server Api
+api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState =
        thentosApi actionState
   :<|> serviceProxy manager a3ProxyAdapter actionState
@@ -384,10 +384,9 @@ api manager actionState =
 
 -- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
 -- If A3 reponds with a error, user creation is aborted.
-addUser :: A3UserWithPass -> AC.Action DB TypedPathWithCacheControl
+addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    A.assertUserIsNew user
     cfg <- AC.getConfig'P
     uid <- createUserInA3'P user
     void $ A.addUnconfirmedUserWithId user uid
@@ -408,7 +407,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
 
 -- | Activate a new user. The activation request is first sent to the A3 backend.
 -- If the backend successfully activates the user, we then activate them also in Thentos.
-activate :: ActivationRequest -> AC.Action DB RequestResult
+activate :: ActivationRequest -> A3Action RequestResult
 activate ar@(ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     reqResult <- activateUserInA3'P ar
@@ -417,10 +416,10 @@ activate ar@(ActivationRequest p) = AC.logIfError'P $ do
             uid  <- userIdFromPath path
             stok <- A.confirmNewUserById uid
             return $ RequestSuccess path stok
-        RequestError errMsg        -> throwError $ GenericA3Error errMsg
+        RequestError errMsg        -> throwError . OtherError $ GenericA3Error errMsg
 
 -- | Log a user in.
-login :: LoginRequest -> AC.Action DB RequestResult
+login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
     config <- AC.getConfig'P
@@ -434,7 +433,7 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
-resetPassword :: PasswordResetRequest -> AC.Action DB RequestResult
+resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
     reqResult <- resetPasswordInA3'P path
@@ -443,7 +442,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
             uid  <- userIdFromPath userPath
             stok <- confirmUserUser uid `catchError` handle uid
             return $ RequestSuccess userPath stok
-        RequestError errMsg            -> throwError $ GenericA3Error errMsg
+        RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
   where
     confirmUserUser uid = do
         -- Before changing the password, try to activate the user in case they weren't yet
@@ -453,7 +452,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
         stok <- A.confirmNewUserById uid
         A.changePasswordUnconditionally uid pass
         return stok
-    handle uid (thentosErrorToParent -> Just NoSuchUser) = do
+    handle uid NoSuchPendingUserConfirmation = do
         -- User is already activated, just change the password and log them in
         A.changePasswordUnconditionally uid pass
         A.startThentosSessionByUserId uid pass
@@ -463,7 +462,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 -- * helper actions
 
 -- | Create a user in A3 and return the user ID.
-createUserInA3'P :: UserFormData -> AC.Action DB UserId
+createUserInA3'P :: UserFormData -> A3Action UserId
 createUserInA3'P user = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
@@ -471,29 +470,29 @@ createUserInA3'P user = do
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
-        throwError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
+        throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
     extractUserId a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
 
 -- | Activate a user in A3 and return the response received from A3.
-activateUserInA3'P :: ActivationRequest -> AC.Action DB RequestResult
+activateUserInA3'P :: ActivationRequest -> A3Action RequestResult
 activateUserInA3'P actReq = do
     config <- AC.getConfig'P
     let a3req = fromMaybe (error "activateUserInA3'P: mkRequestForA3 failed, check config!") $
                 mkRequestForA3 config "/activate_account" actReq
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . A3BackendInvalidJson) return $
+    either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
 
 -- | Send a password reset request to A3 and return the response.
-resetPasswordInA3'P :: Path -> AC.Action DB RequestResult
+resetPasswordInA3'P :: Path -> A3Action RequestResult
 resetPasswordInA3'P path = do
     config <- AC.getConfig'P
     let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $
                 mkRequestForA3 config "/password_reset" reqData
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . A3BackendInvalidJson) return $
+    either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
   where
     reqData = PasswordResetRequest path "dummypass"
@@ -541,9 +540,9 @@ mkRequestForA3 config route dat = do
         }
 
 -- | Extract the user ID from an A3 response received for a user creation request.
-extractUserId :: (MonadError (ThentosError DB) m) => Client.Response LBS -> m UserId
+extractUserId :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m UserId
 extractUserId resp = do
-    resource <- either (throwError . A3BackendInvalidJson) return $
+    resource <- either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
     userIdFromPath $ tpPath resource
 
@@ -555,6 +554,7 @@ a3ProxyAdapter :: ProxyAdapter
 a3ProxyAdapter = ProxyAdapter
   { renderHeader = renderA3HeaderName
   , renderUser   = a3RenderUser
+  , renderError  = a3BaseActionErrorToServantErr
   }
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
@@ -579,10 +579,10 @@ a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
                      Nothing -> error "a3backendPath: backend not configured!"
                      Just v -> Tagged v
 
-userIdFromPath :: MonadError (ThentosError DB) m => Path -> m UserId
+userIdFromPath :: MonadError (ThentosError e) m => Path -> m UserId
 userIdFromPath (Path s) = do
-    uri <- either (const . throwError . ThentosA3ErrorCore . MalformedUserPath $ s) return $
+    uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
-    rawId <- maybe (throwError . ThentosA3ErrorCore $ MalformedUserPath s) return $
+    rawId <- maybe (throwError $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
-    maybe (throwError . ThentosA3ErrorCore $ NoSuchUser) (return . UserId) $ readMay rawId
+    maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId

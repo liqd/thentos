@@ -17,13 +17,14 @@ import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
+import Data.Pool (withResource)
 import Data.IORef
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
 import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
-import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, get, request, matchStatus)
+import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
 import System.IO.Unsafe (unsafePerformIO)
@@ -39,8 +40,8 @@ import Thentos.Test.Config
 
 defaultApp :: IO Application
 defaultApp = do
-    db@(ActionState (adb, _, _)) <- createActionState thentosTestConfig
-    createGod adb
+    db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod db
     return $! serveApi db
 
@@ -54,24 +55,14 @@ godHeaders = unsafePerformIO $ newIORef []
 spec :: Spec
 spec = do
 
-    with defaultApp  $ describe "Thentos.Backend.Api.Simple" $  do
+    with defaultApp $ describe "Thentos.Backend.Api.Simple" $  do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
                 hdr <- liftIO ctHeader
                 let headers = ("X-Thentos-No-Such-Header", "3"):hdr
-                request "GET" "/user" headers "" `shouldRespondWith` 400
+                request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
 
         describe "user" $ do
-            describe "Get [UserId]" $ do
-                it "returns the list of users" $ do
-                    hdr <- liftIO ctHeader
-                    response <- request "GET" "/user" hdr ""
-                    return response `shouldRespondWith` 200
-                    liftIO $ Aeson.decode' (simpleBody response) `shouldBe` Just [UserId 0]
-
-                it "is not accessible for users without 'Admin' role" $ do
-                    get "/user" `shouldRespondWith` 401
-
             describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
                 let resource = "/user/0/name"
                 it "yields a name" $ do

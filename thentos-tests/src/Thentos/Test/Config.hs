@@ -7,14 +7,13 @@
 module Thentos.Test.Config
 where
 
-import Data.Acid (AcidState)
 import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO))
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
+import Database.PostgreSQL.Simple (Connection)
 
 import Thentos.Types
 import Thentos.Config
-import Thentos.Action.Core (Ex)
 import Thentos (createDefaultUser)
 
 import Thentos.Test.Utils
@@ -57,6 +56,9 @@ gc_interval: 1800
 log:
     path: ./log/thentos.log
     level: DEBUG
+
+database:
+    name: unused
 |]
 
 
@@ -69,8 +71,8 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: (db `Ex` DB) => AcidState db -> IO ()
-createGod st = createDefaultUser st
+createGod :: Connection -> IO ()
+createGod conn = createDefaultUser conn
     (Just . Tagged $
           Id (fromUserName godName)
       :*> Id (fromUserPass godPass)

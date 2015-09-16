@@ -6,9 +6,6 @@ module Thentos.TypesSpec where
 
 import Control.Applicative ((<$>))
 import Data.Aeson (decode, FromJSON)
-import Data.SafeCopy (safeGet, safePut)
-import Data.Serialize.Get (runGet)
-import Data.Serialize.Put (runPut)
 import Data.String.Conversions (cs)
 import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
@@ -29,11 +26,6 @@ tests = hspec spec
 
 spec :: Spec
 spec = modifyMaxSize (* testSizeFactor) $ do
-    describe "Thentos.Types" $ do
-        describe "instance SafeCopy (HashedSecret a)" $
-            it "is invertible" $ property $
-                \ (pw :: HashedSecret a) ->
-                    runGet safeGet (runPut $ safePut pw) == Right pw
 
     describe "ThentosLabel, ThentosClearance, DCLabel" $ do
       it "works (unittests)" $ do

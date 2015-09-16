@@ -13,19 +13,18 @@ import Control.Lens ((^.), (%~), (.~))
 import Control.Monad.Except (liftIO)
 import Control.Monad.State.Class (gets)
 import "cryptonite" Crypto.Random (ChaChaDRG)
-import Data.Acid (AcidState)
 import Data.ByteString.Builder (Builder, toLazyByteString)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
+import Data.Void (Void)
 import LIO.Error (AnyLabelError)
 import Snap.Core
     ( getResponse, finishWith, urlEncode, getParam
     , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
     )
 import Snap.Inline (blanketCSRF)
-import Snap.Snaplet.AcidState (getAcidState)
 import Snap.Snaplet (Handler, with)
 import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
 import System.Log.Missing (logger)
@@ -303,31 +302,31 @@ _tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions
 
 -- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
 -- left value.
-snapRunAction :: Action DB a -> FH a
+snapRunAction :: Action Void a -> FH a
 snapRunAction = (>>= snapHandleAllErrors) . snapRunActionE
 
-snapRunAction'P :: Action DB a -> FH a
+snapRunAction'P :: Action Void a -> FH a
 snapRunAction'P = (>>= snapHandleAllErrors) . snapRunActionE'P
 
 -- | Call 'snapHandleSomeErrors', and if error is still unhandled, call 'crash500'.
-snapHandleAllErrors :: Either (ActionError DB) a -> FH a
+snapHandleAllErrors :: Either (ActionError Void) a -> FH a
 snapHandleAllErrors eth = do
     result <- snapHandleSomeErrors eth
     case result of
         Right val -> return val
         Left err -> crash500 err
 
-getActionState :: FH (ActionState DB)
+getActionState :: FH ActionState
 getActionState = do
-    st :: AcidState DB   <- getAcidState
+    pool <- gets (^. connPool)
     rn :: MVar ChaChaDRG <- gets (^. rng)
     cf :: ThentosConfig  <- gets (^. cfg)
-    return $ ActionState (st, rn, cf)
+    return $ ActionState (pool, rn, cf)
 
 -- | Run action with the clearance derived from thentos session token.
-snapRunActionE :: Action DB a -> FH (Either (ActionError DB) a)
+snapRunActionE :: Action Void a -> FH (Either (ActionError Void) a)
 snapRunActionE action = do
-    st :: ActionState DB      <- getActionState
+    st :: ActionState         <- getActionState
     fs :: FrontendSessionData <- getSessionData
 
     result <- case (^. fslToken) <$> fs ^. fsdLogin of
@@ -336,15 +335,15 @@ snapRunActionE action = do
     snapHandleSomeErrors result
 
 -- | Call action with top clearance.
-snapRunActionE'P :: Action DB a -> FH (Either (ActionError DB) a)
+snapRunActionE'P :: Action Void a -> FH (Either (ActionError Void) a)
 snapRunActionE'P action = do
-    st :: ActionState DB <- getActionState
+    st :: ActionState <- getActionState
     result <- liftIO $ runActionWithClearanceE dcTop st action
     snapHandleSomeErrors result
 
 -- | This function handles particular error cases for the frontend and propagates others in 'Left'
 -- values.
-snapHandleSomeErrors :: Either (ActionError DB) a -> FH (Either (ActionError DB) a)
+snapHandleSomeErrors :: Either (ActionError Void) a -> FH (Either (ActionError Void) a)
 snapHandleSomeErrors (Right v) = return $ Right v
 snapHandleSomeErrors (Left e) = case e of
     ActionErrorAnyLabel labelError -> permissionDenied labelError

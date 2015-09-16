@@ -46,13 +46,14 @@ import Thentos.Types
 
 type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
-            ("command"      :> Command               :>: "'run', 'runSso', 'showDB'")
+            ("command"      :> Command               :>: "'run'")
                -- FIXME: this doc string should really be generated from the 'Command' type.
   :*> Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
   :*> Maybe ("proxy"        :> ProxyConfig'          :>: "The default proxied app.")
   :*> Maybe ("proxies"      :> [ProxyConfig']        :>: "A list of proxied apps.")
   :*>       ("smtp"         :> SmtpConfig'           :>: "Sending email.")
+  :*>       ("database"     :> DatabaseConfig'       :>: "The database.")
   :*> Maybe ("default_user" :> DefaultUserConfig'    :>:
       "A user that is created if the user table is empty.")
   :*>       ("user_reg_expiration" :> Timeout        :>: "User registration expiration period")
@@ -70,6 +71,7 @@ defaultThentosConfig =
   :*> NothingO
   :*> NothingO
   :*> Just defaultSmtpConfig
+  :*> Just defaultDatabaseConfig
   :*> NothingO
   :*> Just (Timeout 3600)
   :*> Just (Timeout 3600)
@@ -105,12 +107,18 @@ defaultSmtpConfig =
   :*> Just "/usr/sbin/sendmail"
   :*> Just ["-t"]
 
+type DatabaseConfig = Tagged (ToConfigCode DatabaseConfig')
+type DatabaseConfig' = "name" :> ST
+
+defaultDatabaseConfig :: ToConfig (ToConfigCode DatabaseConfig') Maybe
+defaultDatabaseConfig = Just "thentos"
+
 type DefaultUserConfig = Tagged (ToConfigCode DefaultUserConfig')
 type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> UserEmail)
-  :*> Maybe ("roles"    :> [RoleBasic])
+  :*> Maybe ("roles"    :> [Role])
 
 
 type LogConfig = Tagged (ToConfigCode LogConfig')
@@ -121,7 +129,7 @@ type LogConfig' =
 
 -- * leaf types
 
-data Command = Run | RunSso | ShowDB
+data Command = Run | RunSso
   deriving (Eq, Ord, Show, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.ToJSON Command where toJSON = Aeson.gtoJson
@@ -218,7 +226,7 @@ getUserData cfg = UserFormData
     (cfg >>. (Proxy :: Proxy '["email"]))
 
 getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
-getDefaultUser cfg = (getUserData cfg, RoleBasic <$> fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))
+getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))
 
 
 -- * logging

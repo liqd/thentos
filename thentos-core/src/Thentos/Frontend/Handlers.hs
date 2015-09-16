@@ -16,6 +16,7 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
+import Data.Void (Void)
 import Snap.Core
     ( Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect'
     , rqMethod, urlDecode, setHeader, setResponseCode
@@ -59,14 +60,14 @@ userRegister = do
                 blaze userRegisterRequestedPage
             Left e -> logger INFO (show e) >> crash 400 "Registration failed."
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action DB ()
+sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action Void ()
 sendUserConfirmationMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
-sendUserExistsMail :: SmtpConfig -> UserEmail -> Action DB ()
+sendUserExistsMail :: SmtpConfig -> UserEmail -> Action Void ()
 sendUserExistsMail smtpConfig address = do
     sendMail'P smtpConfig Nothing address subject message
   where
@@ -79,7 +80,7 @@ sendUserExistsMail smtpConfig address = do
 
 
 defaultUserRoles :: [Role]
-defaultUserRoles = RoleBasic <$> [RoleUser, RoleUserAdmin, RoleServiceAdmin]
+defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
 
 userRegisterConfirm :: FH ()
 userRegisterConfirm = do
@@ -117,11 +118,10 @@ userLogin = do
 
 -- | If user name and password match, login.  Otherwise, redirect to
 -- login page with a message that asks to try again.
-userLoginCallAction :: Action DB (UserId, ThentosSessionToken) -> FH ()
+userLoginCallAction :: Action Void (UserId, ThentosSessionToken) -> FH ()
 userLoginCallAction action = do
     eResult <- snapRunActionE action
-      -- FIXME[mf]: See 'runThentosUpdateWithLabel' in
-      -- "Thentos.DB.Core".  Use that to create transaction
+      -- FIXME[mf]: Create transaction
       -- 'CheckPasswordWithLabel', then call that with
       -- 'allowNothing' and 'thentosPublic'.
     case eResult of
@@ -136,7 +136,7 @@ userLoginCallAction action = do
                   -- only displayed inside the dashboard, but this
                   -- here is before login.  anyway, there should be
                   -- one way of doing this, not two.
-        Left _ -> error "logIntoThentosHandler: branch should not be reachable"
+        Left e -> crash500 $ "userLoginCallAction: unexpected error: " ++ show e
             -- FIXME: this should be handled.  we should
             -- always allow transactions / actions to throw
             -- errors.
@@ -159,7 +159,7 @@ resetPassword = do
             Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
             Left e -> crash500 ("resetPassword" :: ST, e)
 
-sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action DB ()
+sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action Void ()
 sendPasswordResetMail smtpConfig user callbackUrl = do
     sendMail'P smtpConfig Nothing (user ^. userEmail) subject message
   where
@@ -364,7 +364,7 @@ serviceLogin = do
         loggedIn :: FrontendSessionLoginData -> FH ()
         loggedIn fsl = do
             let tok = fsl ^. fslToken
-            eSessionToken :: Either (ActionError DB) ServiceSessionToken
+            eSessionToken :: Either (ActionError Void) ServiceSessionToken
                 <- snapRunActionE $ startServiceSession tok sid
 
             case eSessionToken of

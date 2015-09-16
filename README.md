@@ -38,7 +38,7 @@ management.  You can:
 
 - ...
 
-Thentos uses [acid-state](http://acid-state.seize.it/) for persistence
+Thentos uses [PostgreSQL](http://postgresql.org/) for persistence
 (modules `Transaction*`), [lio](https://github.com/scslab/lio) for
 information flow control and authorization management (modules
 `Action*`), [servant](http://haskell-servant.github.io/) for rest APIs
@@ -68,15 +68,15 @@ Code Structure
 
 This is a possible quick walk through the code:
 
-- **Thentos.Types**: gives you the `DB` type that describes the
-    Thentos data model (and some polymorphism over it).
+- **Thentos.Types**: gives you the core types that describes the
+    Thentos data model.
 
-- **Thentos.Transaction...**: acid-state events with 'EitherT'
+- **Thentos.Transaction...**: SQL queries with 'EitherT'
     exceptions.  `Thentos.Transaction.Transactions` implements an
-    abstract API over the `DB` type.
+    abstract API over the database schema.
 
-- **Thentos.Action...**: non-acidic actions in the `Action` monad.
-    `Action` provides access to acid state, randomness, and config
+- **Thentos.Action...**: access-controlled actions in the `Action` monad.
+    `Action` provides access to the database, randomness, and config
     data (feel free to divert to `Thentos.Config` from here, not
     covered in this tour).  Perhaps most importantly, it is not based
     on `IO`, but on `LIO`, which provides information flow and access
@@ -115,6 +115,8 @@ this repository:
 You'll need to build `thentos-core` in any case. `thentos-tests` is only
 required if you want to run tests. Whether you need other packages will
 depend on your use case.
+
+To run executables or tests, you will need to install PostgreSQL.
 
 ### Stack
 
@@ -171,6 +173,17 @@ Generated Thentos documentation (thentos-0.0.1) can be found online:
 
 Demo
 ----
+
+If you built `thentos-core` with flag `with-thentos-executable`, you
+can run it from the top leve directory:
+
+```shell
+$ createdb thentosdev
+$ ./path/to/thentos
+```
+
+You can visit the Thentos frontend at http://localhost:7002/, and
+log in as god/god.
 
 *[FIXME: this section is outdated!]*
 

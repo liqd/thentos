@@ -42,6 +42,7 @@ library
           -auto-all -caf-all -fforce-recomp
   exposed-modules:
       Thentos.Adhocracy3
+    , Thentos.Adhocracy3.Backend.Core
     , Thentos.Adhocracy3.Backend.Api.Docs.Simple
     , Thentos.Adhocracy3.Backend.Api.Simple
     , Thentos.Adhocracy3.Backend.Api.Sso
@@ -50,7 +51,6 @@ library
   build-depends:
       base
     , thentos-core
-    , acid-state
     , aeson
     , aeson-pretty
     , aeson-utils
@@ -93,7 +93,6 @@ library
     , servant-server >= 0.4.1 && < 0.6
     , snap
     , snap-core
-    , snaplet-acid-state
     , snap-server
     , string-conversions
     , template-haskell
@@ -103,6 +102,7 @@ library
     , unordered-containers
     , uri-bytestring
     , vector-space
+    , void
     , wai
     , warp
 
@@ -167,7 +167,6 @@ test-suite tests
     , thentos-core
     , thentos-tests
     , thentos-adhocracy
-    , acid-state
     , aeson
     , aeson-pretty
     , async
@@ -199,6 +198,7 @@ test-suite tests
     , process
     , QuickCheck
     , regex-easy
+    , resource-pool
     , safecopy
     , scrypt
     , servant-server

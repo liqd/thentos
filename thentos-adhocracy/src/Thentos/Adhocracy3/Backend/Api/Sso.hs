@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 -- | This is a variant of "Thentos.Backend.Api.Adhocracy3" that throws errors on the old
 -- authentication end points and instead performs github authentication.  The intricacies of the
@@ -67,7 +66,6 @@ import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
-import GHC.Exception (Exception)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.OAuth.OAuth2
@@ -85,6 +83,7 @@ import qualified Network.HTTP.Client  as Client
 import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
+import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
@@ -98,13 +97,13 @@ import qualified Thentos.Adhocracy3.Transactions as T
 
 -- * main
 
-runBackend :: HttpConfig -> AC.ActionState DB -> IO ()
+runBackend :: HttpConfig -> AC.ActionState -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style with SSO) on " ++ show (bindUrl cfg) ++ "."
     manager <- Client.newManager Client.defaultManagerSettings
     runWarpWithCfg cfg $ serveApi manager asg
 
-serveApi :: Client.Manager -> AC.ActionState DB -> Application
+serveApi :: Client.Manager -> AC.ActionState -> Application
 serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) .
            api manager
 
@@ -118,23 +117,23 @@ type ThentosA3Sso =
 
 type Api = ThentosA3Sso :<|> A3.ThentosApi :<|> ServiceProxy
 
-thentosA3Sso :: AC.ActionState DB -> Server ThentosA3Sso
-thentosA3Sso actionState = enter (enterAction actionState Nothing) $
+thentosA3Sso :: AC.ActionState -> Server ThentosA3Sso
+thentosA3Sso actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
        githubRequest
   :<|> githubConfirm
 
 -- | Like 'A3.thentosApi', but responds with 404 on all end points rather than handling
 -- them as in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
 -- won't let any user management requests through that have been sent by confused clients.
-thentosApi404 :: AC.ActionState DB -> Server A3.ThentosApi
-thentosApi404 actionState = enter (enterAction actionState Nothing) $
+thentosApi404 :: AC.ActionState -> Server A3.ThentosApi
+thentosApi404 actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
        addUser
   :<|> activate
   :<|> login
   :<|> login
   :<|> resetPassword
 
-api :: Client.Manager -> AC.ActionState DB -> Server Api
+api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState =
        thentosA3Sso  actionState
   :<|> thentosApi404 actionState
@@ -143,16 +142,16 @@ api manager actionState =
 
 -- * handler
 
-addUser :: A3.A3UserWithPass -> AC.Action DB A3.TypedPathWithCacheControl
+addUser :: A3.A3UserWithPass -> A3Action A3.TypedPathWithCacheControl
 addUser _ = error "404"  -- FIXME: respond with a non-internal error
 
-activate :: A3.ActivationRequest -> AC.Action DB A3.RequestResult
+activate :: A3.ActivationRequest -> A3Action A3.RequestResult
 activate _ = error "404"  -- FIXME: respond with a non-internal error
 
-login :: A3.LoginRequest -> AC.Action DB A3.RequestResult
+login :: A3.LoginRequest -> A3Action A3.RequestResult
 login _ = error "404"  -- FIXME: respond with a non-internal error
 
-resetPassword :: A3.PasswordResetRequest -> AC.Action DB A3.RequestResult
+resetPassword :: A3.PasswordResetRequest -> A3Action A3.RequestResult
 resetPassword _ = error "404"  -- FIXME: respond with a non-internal error
 
 
@@ -187,7 +186,7 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
 
 
 -- | FIXME: document!
-githubRequest :: AC.Action DB AuthRequest
+githubRequest :: A3Action AuthRequest
 githubRequest = do
     state <- addNewSsoToken
     return . AuthRequest . cs $
@@ -195,7 +194,7 @@ githubRequest = do
 
 
 -- | FIXME: document!
-githubConfirm :: ST -> ST -> AC.Action DB A3.RequestResult
+githubConfirm :: ST -> ST -> A3Action A3.RequestResult
 githubConfirm state code = do
         lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
@@ -212,17 +211,17 @@ githubConfirm state code = do
                     <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
                 case eGhUser of
                     Right ghUser -> loginGithubUser ghUser
-                    Left e -> throwError . thentosErrorFromParent $ SsoErrorCouldNotAccessUserInfo e
-            Left e -> throwError . thentosErrorFromParent $ SsoErrorCouldNotGetAccessToken e
+                    Left e -> throwError . OtherError $ SsoErrorCouldNotAccessUserInfo e
+            Left e -> throwError . OtherError $ SsoErrorCouldNotGetAccessToken e
 
 
 -- | FIXME: document!
-loginGithubUser :: GithubUser -> AC.Action DB A3.RequestResult
+loginGithubUser :: GithubUser -> A3Action A3.RequestResult
 loginGithubUser (GithubUser _ uname) = do
     let makeTok = A.startThentosSessionByUserName (UserName uname) (UserPass "")
 
     (_, tok) <- makeTok `catchError`
-        \case (thentosErrorToParent -> Just BadCredentials) -> do
+        \case BadCredentials -> do
                 _ <- A.addUser $ UserFormData (UserName uname)
                                               (UserPass "")
                                               (UserEmail $ error "no email")
@@ -233,18 +232,17 @@ loginGithubUser (GithubUser _ uname) = do
 
 -- | This doesn't check any labels because it needs to be called as part of the
 -- authentication process.
-addNewSsoToken :: (db `Extends` DB, Exception (AC.ActionError db)) => AC.Action db SsoToken
+addNewSsoToken :: A3Action SsoToken
 addNewSsoToken = do
     tok <- freshSsoToken
-    AC.update'P $ T.AddSsoToken tok
+    AC.query'P $ T.addSsoToken tok
     return tok
 
 -- | This doesn't check any labels because it needs to be called as part of the
 -- authentication process.
-lookupAndRemoveSsoToken :: (db `Extends` DB, Exception (AC.ActionError db)) =>
-    SsoToken -> AC.Action db ()
-lookupAndRemoveSsoToken tok = AC.update'P $ T.LookupAndRemoveSsoToken tok
+lookupAndRemoveSsoToken :: SsoToken -> A3Action ()
+lookupAndRemoveSsoToken tok = AC.query'P $ T.lookupAndRemoveSsoToken tok
 
 
-freshSsoToken :: AC.Action db SsoToken
+freshSsoToken :: A3Action SsoToken
 freshSsoToken = SsoToken <$> A.freshRandomName

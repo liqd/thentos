@@ -17,8 +17,8 @@ extra-source-files:
   tests/Thentos/ActionSpec.hs
   tests/Thentos/Backend/Api/SimpleSpec.hs
   tests/Thentos/FrontendSpec.hs
-  tests/Thentos/Transaction/CoreSpec.hs
   tests/Thentos/TypesSpec.hs
+  tests/Thentos/TransactionSpec.hs
   tests/ThentosSpec.hs
 
 Source-Repository head
@@ -42,7 +42,6 @@ library
       Thentos.Test.Arbitrary
     , Thentos.Test.Config
     , Thentos.Test.Core
-    , Thentos.Test.CustomDB
     , Thentos.Test.Network
     , Thentos.Test.Utils
     , Thentos.Test.WebDriver.Missing
@@ -53,7 +52,6 @@ library
   build-depends:
       base
     , thentos-core
-    , acid-state
     , aeson
     , async
     , attoparsec
@@ -72,8 +70,11 @@ library
     , lio
     , mtl
     , network
+    , postgresql-simple
+    , process
     , pretty-show
     , QuickCheck
+    , resource-pool
     , safecopy
     , scrypt
     , string-conversions
@@ -82,6 +83,7 @@ library
     , text
     , transformers
     , transformers-base
+    , void
     , wai
     , wai-extra
     , webdriver
@@ -105,7 +107,6 @@ test-suite tests
       base
     , thentos-core
     , thentos-tests
-    , acid-state
     , aeson
     , aeson-pretty
     , async
@@ -131,10 +132,12 @@ test-suite tests
     , mime-mail
     , mtl
     , network
+    , postgresql-simple
     , pretty-show
     , process
     , QuickCheck
     , regex-easy
+    , resource-pool
     , safecopy
     , scrypt
     , servant-server
@@ -149,6 +152,8 @@ test-suite tests
     , transformers-base
     , unix
     , unordered-containers
+    , vector-space
+    , void
     , wai
     , wai-extra
     , webdriver
@@ -168,7 +173,6 @@ benchmark load-test
       base
     , thentos-core
     , thentos-tests
-    , acid-state
     , aeson
     , aeson-pretty
     , async

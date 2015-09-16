@@ -13,11 +13,11 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.State.Class (gets)
 import Control.Monad (when)
 import Data.Aeson (FromJSON, withObject, withText, (.=))
-import Data.String.Conversions (SBS, LBS, ST, cs, (<>))
+import Data.String.Conversions (SBS, LBS, ST, (<>))
 import Data.Text.Encoding (encodeUtf8, decodeUtf8')
 import Data.Text (Text)
 import Network.HTTP.Client.Conduit (parseUrl, httpLbs, responseBody, requestHeaders, requestBody, withManager, RequestBody(RequestBodyLBS))
-import Network.HTTP.Types (methodPost, methodDelete)
+import Network.HTTP.Types (methodDelete)
 import Snap.Blaze (blaze)
 import Snap (Handler, SnapletInit, makeSnaplet, redirect, redirect', urlEncode, getParam, method, Method(GET), ifTop, addRoutes)
 import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
@@ -58,7 +58,7 @@ data HWConfig =
       , thentosFrontendUrl :: SBS
       , helloWorldUrl      :: SBS
       , serviceId          :: Text
-      , serviceKey         :: Text
+      , _serviceKey        :: Text
       }
   deriving (Eq, Show)
 
@@ -236,21 +236,3 @@ runRequest req = liftIO $ bracket_
     (return ())
     (return ())
     (withManager (httpLbs req) `catch` (\ (e :: SomeException) -> let s = "*** " ++ ppShow e in hPutStrLn stderr s >> error s))
-
-
--- this is currently unused, but we should really have an example where
--- the service has to authenticate with thentos
-getServiceSessionToken :: Handler App App SBS
-getServiceSessionToken = do
-    hwConfig <- gets (^. aHWConfig)
-    let sid = serviceId hwConfig
-        key = serviceKey hwConfig
-        url = thentosBackendUrl hwConfig <> "/session"
-        json_sid = Aeson.object ["fromServiceId" .= sid]
-        json_key = Aeson.object ["fromServiceKey" .= key]
-        reqBody = RequestBodyLBS $ Aeson.encode [json_sid, json_key]
-    initReq <- liftIO $ parseUrl (BC.unpack url)
-
-    let req = initReq { requestBody = reqBody, HC.method = methodPost }  -- FIXME: this won't work (need more headers!)
-    response <- runRequest req
-    return . cs $ responseBody response

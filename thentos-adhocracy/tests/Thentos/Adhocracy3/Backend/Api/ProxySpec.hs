@@ -47,7 +47,7 @@ spec = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- startDaemon $ runSettings settings proxyDestServer
         mgr <- newManager defaultManagerSettings
-        db <- createActionState thentosTestConfig
+        db <- createActionState "test_thentosa3" thentosTestConfig
         let application = serveApi mgr db
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application

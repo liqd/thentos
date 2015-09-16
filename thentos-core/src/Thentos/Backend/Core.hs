@@ -19,7 +19,7 @@
 module Thentos.Backend.Core
 where
 
-import Control.Applicative ((<$>), pure)
+import Control.Applicative ((<$>))
 import Control.Lens ((&), (.~))
 import Control.Monad.Trans.Either (EitherT(EitherT))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
@@ -27,13 +27,12 @@ import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
-import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
-import LIO.Error (AnyLabelError)
+import Data.Void (Void, absurd)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, status400)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -61,14 +60,18 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: forall db . (db `Ex` DB, ThentosErrorToServantErr db) =>
-    ActionState db -> Maybe ThentosSessionToken -> Action db :~> EitherT ServantErr IO
-enterAction state mTok = Nat $ EitherT . run
+enterAction :: (Show e, Typeable e) =>
+    ActionState ->
+    (ActionError e -> IO ServantErr) ->
+    Maybe ThentosSessionToken -> Action e :~> EitherT ServantErr IO
+enterAction state toServantErr mTok = Nat $ EitherT . run toServantErr
   where
-    run :: Action db a -> IO (Either ServantErr a)
-    run = (>>= fmapLM actionErrorToServantErr) . runActionE state . updatePrivs mTok
+    run :: (Show e, Typeable e)
+        => (ActionError e -> IO ServantErr)
+        -> Action e a -> IO (Either ServantErr a)
+    run e = (>>= fmapLM e) . runActionE state . updatePrivs mTok
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action db a -> Action db a
+    updatePrivs :: Maybe ThentosSessionToken -> Action e a -> Action e a
     updatePrivs (Just tok) action = (accessRightsByThentosSession'P tok >>= grantAccessRights'P) >> action
     updatePrivs Nothing    action = action
 
@@ -81,94 +84,87 @@ newtype ErrorMessage = ErrorMessage { fromErrorMessage :: ST }
 instance ToJSON ErrorMessage where
     toJSON (ErrorMessage msg) = object ["status" .= String "error", "error" .= msg]
 
--- |Type of functions that transform a base error and an error message into a ServantErr.
-type MkServantErrFun = ServantErr -> ST -> ServantErr
-
 -- | Construct a ServantErr that looks as our errors should.
 -- Status code and reason phrase are taken from the base error given as first argument.
 -- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
-mkServantErr :: MkServantErrFun
+mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
     {errBody = encode $ ErrorMessage msg, errHeaders = [contentTypeJsonHeader]}
 
--- | Inspect an 'ActionError', log things, and construct a 'ServantErr'.
+type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
+
+-- | Log things, and construct a 'ServantErr'.
 --
 -- If any logging is to take place, it should take place here, not near the place where the error is
--- thrown.  The error constructors should take all the information in typed form.  Rendering
--- (e.g. with 'show') and dispatching different parts of the information to differnet log levels and
--- servant error is the sole responsibility of this function.
-actionErrorToServantErr :: forall db . (db `Ex` DB, ThentosErrorToServantErr db)
-      => ActionError db -> IO ServantErr
-actionErrorToServantErr e = do
-    logger DEBUG $ ppShow e
+-- thrown.
+errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
+errorInfoToServantErr mkServant (l, se, x) = do
+    case l of
+        Just (prio, msg) -> logger prio msg
+        Nothing          -> return ()
+    return $ mkServant se x
+
+baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
+baseActionErrorToServantErr ae = errorInfoToServantErr mkServantErr .
+                                     actionErrorInfo (thentosErrorInfo absurd) $ ae
+
+actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
+actionErrorInfo thentosInfo e =
     case e of
-        (ActionErrorThentos  te) -> _thentos te
-        (ActionErrorAnyLabel le) -> _permissions le
-        (ActionErrorUnknown  _)  -> logger CRITICAL (ppShow e) >>
-                                    pure (mkServantErr err500 "internal error")
+        (ActionErrorThentos  te) -> thentosInfo te
+        (ActionErrorAnyLabel _)  -> (Just (DEBUG, ppShow e), err401, "unauthorized")
+        (ActionErrorUnknown  _)  -> (Just (CRITICAL, ppShow e), err500, "internal error")
+
+thentosErrorInfo :: Show e
+                 => (e -> ErrorInfo ST)
+                 -> ThentosError e
+                 -> ErrorInfo ST
+thentosErrorInfo other e = f e
   where
-    _thentos :: ThentosError db -> IO ServantErr
-    _thentos te = case thentosErrorToServantErr Nothing te of
-        (Just (level, msg), se) -> logger level msg >> pure se
-        (Nothing,           se) ->                     pure se
-
-    _permissions :: AnyLabelError -> IO ServantErr
-    _permissions _ = logger DEBUG (ppShow e) >> pure (mkServantErr err401 "unauthorized")
-
-
-class ThentosErrorToServantErr db where
-    -- | Convert a 'ThentosError' into a 'ServantErr'. If the first argument is 'Just' provided,
-    -- it must be invoked to create the returned error, otherwise a suitable default implementation
-    -- must be used for that purpose. This allows derived db's to adapt the details of the error
-    -- actually returned.
-    thentosErrorToServantErr :: Maybe MkServantErrFun -> ThentosError db
-                             -> (Maybe (Priority, String), ServantErr)
-
-instance ThentosErrorToServantErr DB where
-    thentosErrorToServantErr mMkErr e = f e
-      where
-        mkErr = fromMaybe mkServantErr mMkErr
-        f NoSuchUser =
-            (Nothing, mkErr err404 "user not found")
-        f NoSuchPendingUserConfirmation =
-            (Nothing, mkErr err400 "unconfirmed user not found")
-        f (MalformedConfirmationToken path) =
-            (Nothing, mkErr err400 $ "malformed confirmation token: " <> cs (show path))
-        f NoSuchService =
-            (Nothing, mkErr err400 "service not found")
-        f NoSuchThentosSession =
-            (Nothing, mkErr err400 "thentos session not found")
-        f NoSuchServiceSession =
-            (Nothing, mkErr err400 "service session not found")
-        f OperationNotPossibleInServiceSession =
-            (Nothing, mkErr err404 "operation not possible in service session")
-        f ServiceAlreadyExists =
-            (Nothing, mkErr err403 "service already exists")
-        f NotRegisteredWithService =
-            (Nothing, mkErr err403 "not registered with service")
-        f UserEmailAlreadyExists =
-            (Nothing, mkErr err403 "email already in use")
-        f UserNameAlreadyExists =
-            (Nothing, mkErr err403 "user name already in use")
-        f UserIdAlreadyExists =    -- must be prevented earlier on
-            (Just (ERROR, ppShow e), mkErr err500 "internal error")
-        f BadCredentials =
-            (Just (INFO, show e), mkErr err401 "unauthorized")
-        f BadAuthenticationHeaders =
-            (Nothing, mkErr err400 "bad authentication headers")
-        f ProxyNotAvailable =
-            (Nothing, mkErr err404 "proxying not activated")
-        f MissingServiceHeader =
-            (Nothing, mkErr err404 "headers do not contain service id")
-        f (ProxyNotConfiguredForService sid) =
-            (Nothing, mkErr err404 $ "proxy not configured for service " <> cs (show sid))
-        f (NoSuchToken) =
-            (Nothing, mkErr err400 "no such token")
-        f (NeedUserA _ _) =
-            (Nothing, mkErr err404
-                "thentos session belongs to service, cannot create service session")
-        f (MalformedUserPath path) =
-            (Nothing, mkErr err400 $ "malformed user path: " <> cs (show path))
+    f NoSuchUser =
+        (Nothing, err404, "user not found")
+    f NoSuchPendingUserConfirmation =
+        (Nothing, err400, "unconfirmed user not found")
+    f (MalformedConfirmationToken path) =
+        (Nothing, err400, "malformed confirmation token: " <> cs (show path))
+    f NoSuchService =
+        (Nothing, err400, "service not found")
+    f NoSuchThentosSession =
+        (Nothing, err400, "thentos session not found")
+    f NoSuchServiceSession =
+        (Nothing, err400, "service session not found")
+    f OperationNotPossibleInServiceSession =
+        (Nothing, err404, "operation not possible in service session")
+    f ServiceAlreadyExists =
+        (Nothing, err403, "service already exists")
+    f NotRegisteredWithService =
+        (Nothing, err403, "not registered with service")
+    f UserEmailAlreadyExists =
+        (Nothing, err403, "email already in use")
+    f UserNameAlreadyExists =
+        (Nothing, err403, "user name already in use")
+    f UserIdAlreadyExists =    -- must be prevented earlier on
+        (Just (ERROR, ppShow e), err500, "internal error")
+    f BadCredentials =
+        (Just (INFO, show e), err401, "unauthorized")
+    f BadAuthenticationHeaders =
+        (Nothing, err400, "bad authentication headers")
+    f ProxyNotAvailable =
+        (Nothing, err404, "proxying not activated")
+    f MissingServiceHeader =
+        (Nothing, err404, "headers do not contain service id")
+    f (ProxyNotConfiguredForService sid) =
+        (Nothing, err404, "proxy not configured for service " <> cs (show sid))
+    f (NoSuchToken) =
+        (Nothing, err400, "no such token")
+    f (NeedUserA _ _) =
+        (Nothing, err404,
+            "thentos session belongs to service, cannot create service session")
+    f (MalformedUserPath path) =
+        (Nothing, err400, "malformed user path: " <> cs (show path))
+    f ConfirmationTokenAlreadyExists =
+        (Just (ERROR, ppShow e), err500, "internal error")
+    f (OtherError x) = other x
 
 
 -- * custom servers for servant

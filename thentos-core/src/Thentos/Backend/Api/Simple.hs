@@ -19,6 +19,7 @@ module Thentos.Backend.Api.Simple where
 import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
+import Data.Void (Void)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
@@ -35,18 +36,18 @@ import Thentos.Types
 
 -- * main
 
-runApi :: HttpConfig -> ActionState DB -> IO ()
+runApi :: HttpConfig -> ActionState -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi asg
 
-serveApi :: ActionState DB -> Application
+serveApi :: ActionState -> Application
 serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
-api :: ActionState DB -> Server Api
-api actionState mTok = enter (enterAction actionState mTok) thentosBasic
+api :: ActionState -> Server Api
+api actionState mTok = enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic
 
 
 -- * combinators
@@ -57,7 +58,7 @@ type ThentosBasic =
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
 
-thentosBasic :: ServerT ThentosBasic (Action DB)
+thentosBasic :: ServerT ThentosBasic (Action Void)
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -74,9 +75,8 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
-  :<|> Get '[JSON] [UserId]
 
-thentosUser :: ServerT ThentosUser (Action DB)
+thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
   :<|> deleteUser
@@ -84,7 +84,6 @@ thentosUser =
   :<|> (((^. userName) . snd) <$>) . lookupUser
   :<|> (\ uid email -> updateUserField uid (UpdateUserFieldEmail email))
   :<|> (((^. userEmail) . snd) <$>) . lookupUser
-  :<|> allUserIds
 
 
 -- * service
@@ -99,7 +98,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService (Action DB)
+thentosService :: ServerT ThentosService (Action Void)
 thentosService =
          (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
     :<|> deleteService
@@ -114,7 +113,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession (Action DB)
+thentosThentosSession :: ServerT ThentosThentosSession (Action Void)
 thentosThentosSession =
        uncurry startThentosSessionByUserId
   :<|> uncurry startThentosSessionByServiceId
@@ -129,7 +128,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession (Action DB)
+thentosServiceSession :: ServerT ThentosServiceSession (Action Void)
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
