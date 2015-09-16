@@ -30,10 +30,10 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
+import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Void (Void)
-import Database.PostgreSQL.Simple (connectPostgreSQL)
 
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
@@ -53,6 +53,7 @@ import qualified Data.Attoparsec.ByteString as AP
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
+import Thentos (createConnPoolAndInitDb)
 import Thentos.Action hiding (addUser)
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple as Simple
@@ -164,9 +165,10 @@ withBackend beConfig as action =
 -- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend ::  String -> (ActionState -> IO r) -> IO r
 withFrontendAndBackend dbname test = do
-    st@(ActionState (adb, _, _)) <- createActionState dbname thentosTestConfig
+    st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
     withFrontend defaultFrontendConfig st
-        $ withBackend defaultBackendConfig st $ liftIO (createGod adb) >> test st
+        $ withBackend defaultBackendConfig st
+            $ withResource connPool $ \conn -> liftIO (createGod conn) >> test st
 
 defaultBackendConfig :: HttpConfig
 defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
@@ -182,9 +184,8 @@ createActionState dbname config = do
     wipe <- wipeFile
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
                <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
-    conn <- connectPostgreSQL $ "dbname=" <> cs dbname
-    createDB conn
-    return $ ActionState (conn, rng, config)
+    connPool <- createConnPoolAndInitDb $ cs dbname
+    return $ ActionState (connPool, rng, config)
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do

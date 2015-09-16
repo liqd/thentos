@@ -7,6 +7,7 @@ module Thentos.ActionSpec where
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
 import Data.Either (isLeft, isRight)
+import Data.Pool (withResource)
 import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
@@ -28,8 +29,8 @@ tests = hspec spec
 spec :: Spec
 spec = do
     let b = do
-          db@(ActionState (adb, _, _)) <- createActionState "test_thentos" thentosTestConfig
-          createGod adb
+          db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+          withResource connPool createGod
           return db
 
     describe "Thentos.Action" . before b $ do

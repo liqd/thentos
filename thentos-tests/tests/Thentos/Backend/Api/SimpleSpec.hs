@@ -17,6 +17,7 @@ import Control.Applicative ((<$>))
 import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
+import Data.Pool (withResource)
 import Data.IORef
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
@@ -39,8 +40,8 @@ import Thentos.Test.Config
 
 defaultApp :: IO Application
 defaultApp = do
-    db@(ActionState (adb, _, _)) <- createActionState "test_thentos" thentosTestConfig
-    createGod adb
+    db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod db
     return $! serveApi db
 

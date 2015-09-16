@@ -9,6 +9,7 @@ import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
+import Data.Pool (Pool, withResource)
 import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
@@ -68,7 +69,7 @@ spec_createUser = describe "create user" $ do
         myPassword = "password"
         myEmail    = "email@example.com"
 
-    it "fill out form." $ \(ActionState (st, _, _)) -> do
+    it "fill out form." $ \(ActionState (connPool, _, _)) -> do
         withWebDriver $ do
             WD.openPageSync (cs $ exposeUrl defaultFrontendConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
@@ -82,7 +83,7 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        Right (_, usr) <- runQuery st $ T.lookupUserByName (UserName myUsername)
+        Right (_, usr) <- runQuery connPool $ T.lookupUserByName (UserName myUsername)
         fromUserName  (usr ^. userName)  `shouldBe` myUsername
         fromUserEmail (usr ^. userEmail) `shouldBe` myEmail
 
@@ -374,5 +375,5 @@ isNotLoggedIn cfg = do
 fill :: WD.WebDriver wd => ST -> ST -> wd ()
 fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
 
-runQuery :: Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
-runQuery = runThentosQuery
+runQuery :: Pool Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
+runQuery connPool q = withResource connPool $ \conn -> runThentosQuery conn q
