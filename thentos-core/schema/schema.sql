@@ -1,4 +1,4 @@
--- All statements in this file should be idempotent.
+-- All statements in this file must be idempotent (it is called at start time, every time).
 CREATE TABLE IF NOT EXISTS "users" (
     id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,

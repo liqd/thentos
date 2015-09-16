@@ -402,6 +402,7 @@ unassignRoleSpec = describe "unassignRole" $ do
     sid = "sid"
     addTestService connPool = void . runQuery connPool $
         addService (UserA testUid) sid testHashedSecret "name" "desc"
+
 emailChangeRequestSpec :: SpecWith ActionState
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \(ActionState (connPool, _, _)) -> do
@@ -433,19 +434,37 @@ addServiceSpec = describe "addService" $ do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just uid) user True
         [Only serviceCount] <- doQuery connPool countServices ()
         serviceCount `shouldBe` (0 :: Int)
-        hashedKey <- hashServiceKey secret
         Right _ <- runThentosQueryFromPool connPool $
-            addService (UserA uid) sid hashedKey name description
+            addService (UserA uid) sid testHashedSecret name description
         [(owner', sid', key', name', desc')] <- doQuery connPool
             [sql| SELECT owner_user, id, key, name, description
                   FROM services |] ()
         owner' `shouldBe` uid
         sid' `shouldBe` sid
-        key' `shouldBe` hashedKey
+        key' `shouldBe` testHashedSecret
         name' `shouldBe` name
         desc' `shouldBe` description
+
+    it "allows a service's owner to be a service" $ \(ActionState (connPool, _, _)) -> do
+        let childSid = "child_sid"
+            childName = "child service"
+        Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQueryFromPool connPool $
+            addService (UserA testUid) sid testHashedSecret name description
+        Right _ <- runThentosQueryFromPool connPool $
+            addService (ServiceA sid) childSid testHashedSecret childName "foo"
+
+        [Only serviceCount] <- doQuery connPool countServices ()
+        serviceCount `shouldBe` (2 :: Int)
+
+        [(sid', name')] <- doQuery connPool
+            [sql| SELECT id, name
+                  FROM services
+                  WHERE owner_service = ? |] (Only sid)
+        sid' `shouldBe` childSid
+        name' `shouldBe` childName
+
   where
-    secret = "verySecretKey"
     sid = ServiceId "serviceid1"
     uid = UserId 9
     user = mkUser "name" "super secret" "me@example.com"
@@ -493,9 +512,32 @@ startThentosSessionSpec = describe "startThentosSession" $ do
         user = UserA (UserId 55)
         period = Timeout $ fromSeconds' 60
 
+    it "creates a thentos session for a user" $ \(ActionState (connPool, _, _)) -> do
+        void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
+        Right () <- runQuery connPool $ startThentosSession tok (UserA testUid) period
+        [Only uid] <- doQuery connPool [sql| SELECT uid
+                                             FROM thentos_sessions
+                                             WHERE token = ? |] (Only tok)
+        uid `shouldBe` testUid
+
     it "fails when the user doesn't exist" $ \(ActionState (connPool, _, _)) -> do
         x <- runQuery connPool $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
+
+    it "creates a thentos session for a service" $ \(ActionState (connPool, _, _)) -> do
+        let sid = "sid"
+        void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQueryFromPool connPool $
+            addService (UserA testUid) sid testHashedSecret "name" "desc"
+        Right () <- runQuery connPool $ startThentosSession tok (ServiceA sid) period
+        [Only sid'] <- doQuery connPool [sql| SELECT sid
+                                         FROM thentos_sessions
+                                         WHERE token = ? |] (Only tok)
+        sid' `shouldBe` sid
+
+    it "fails when the service doesn't exist" $ \(ActionState (connPool, _, _)) -> do
+        x <- runQuery connPool $ startThentosSession tok (ServiceA "sid") period
+        x `shouldBe` Left NoSuchService
 
 lookupThentosSessionSpec :: SpecWith ActionState
 lookupThentosSessionSpec = describe "lookupThentosSession" $ do
@@ -505,6 +547,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         agent = UserA userId
         period' = fromSeconds' 60
         period = Timeout period'
+        sid = "sid"
 
     it "fails when there is no session" $ \(ActionState (connPool, _, _)) -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
@@ -517,6 +560,14 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         Right (t, s) <- runQuery connPool $ lookupThentosSession tok
         t `shouldBe` tok
         s ^. thSessAgent `shouldBe` agent
+
+        let tok2 = "anothertoken"
+        Right _ <- runThentosQueryFromPool connPool $
+            addService (UserA userId) sid testHashedSecret "name" "desc"
+        Right _ <- runQuery connPool $ startThentosSession tok2 (ServiceA sid) period
+        Right (tok2', sess) <- runQuery connPool $ lookupThentosSession tok2
+        tok2' `shouldBe` tok2
+        sess ^. thSessAgent `shouldBe` ServiceA sid
 
     it "fails for an expired session" $ \(ActionState (connPool, _, _)) -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True

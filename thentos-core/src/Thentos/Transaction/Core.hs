@@ -77,6 +77,7 @@ catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyEx
 catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
     = return $ Left ConfirmationTokenAlreadyExists
 catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = return $ Left NoSuchUser
+catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey") = return $ Left NoSuchService
 catcher e _                                   = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to
