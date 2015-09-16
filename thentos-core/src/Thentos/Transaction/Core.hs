@@ -12,7 +12,6 @@ module Thentos.Transaction.Core
     , catchViolation
     , catcher
     , orDefault
-    , makeAgent
     )
 where
 
@@ -99,12 +98,3 @@ instance (ToField a) => ToField (Defaultable a) where
 -- Convert a 'Maybe' into a 'Defaultable' instance.
 orDefault :: ToField a => Maybe a -> Defaultable a
 orDefault = maybe DefaultVal CustomVal
-
--- Given either a UserId or a ServiceId, return an Agent. Throws an error
--- if not exactly one of the arguments is Some. Useful for getting an Agent
--- from the database.
-makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
-makeAgent (Just _) (Just _) = error "I'm so confused!"
-makeAgent (Just uid) Nothing  = UserA uid
-makeAgent Nothing (Just sid) = ServiceA sid
-makeAgent _ _ = error "makeAgent: invalid arguments"

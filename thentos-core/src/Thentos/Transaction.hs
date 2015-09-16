@@ -472,3 +472,12 @@ garbageCollectEmailChangeTokens timeout = void $ execT [sql|
 -- | Throw an error from a situation which (we believe) will never arise.
 impossible :: String -> a
 impossible msg = error $ "Impossible error: " ++ msg
+
+-- Given either a UserId or a ServiceId, return an Agent. Throws an error
+-- if not exactly one of the arguments is Some. Useful for getting an Agent
+-- from the database (where constraints should ensure that exactly 1 of the
+-- fields is NULL).
+makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
+makeAgent (Just uid) Nothing  = UserA uid
+makeAgent Nothing (Just sid) = ServiceA sid
+makeAgent _ _ = error "makeAgent: invalid arguments"
