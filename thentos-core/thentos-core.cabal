@@ -126,6 +126,7 @@ library
     , postgresql-simple
     , pretty-show
     , random
+    , resource-pool >= 0.2.3.2 && < 0.3
     , safe
     , safecopy
     , sandi

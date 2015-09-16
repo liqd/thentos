@@ -318,10 +318,10 @@ snapHandleAllErrors eth = do
 
 getActionState :: FH ActionState
 getActionState = do
-    db <- gets (^. dbc)
+    pool <- gets (^. connPool)
     rn :: MVar ChaChaDRG <- gets (^. rng)
     cf :: ThentosConfig  <- gets (^. cfg)
-    return $ ActionState (db, rn, cf)
+    return $ ActionState (pool, rn, cf)
 
 -- | Run action with the clearance derived from thentos session token.
 snapRunActionE :: Action Void a -> FH (Either (ActionError Void) a)

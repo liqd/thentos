@@ -13,6 +13,7 @@ import Control.Monad (mzero)
 import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
+import Data.Pool (Pool)
 import Data.String.Conversions (ST, cs)
 import GHC.Generics (Generic)
 import Snap.Snaplet.Session.SessionManager (SessionManager)
@@ -28,7 +29,7 @@ import Thentos.Types
 
 data FrontendApp =
     FrontendApp
-      { _dbc :: Connection
+      { _connPool :: Pool Connection
       , _rng :: MVar ChaChaDRG
       , _cfg :: ThentosConfig
       , _sess :: Snaplet SessionManager

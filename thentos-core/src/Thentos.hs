@@ -18,6 +18,7 @@
 module Thentos
     ( main
     , makeMain
+    , createConnPoolAndInitDb
     , createDefaultUser
     ) where
 
@@ -32,10 +33,11 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight)
 import Data.Maybe (maybeToList)
 import Data.Monoid ((<>))
+import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (SBS, cs)
 import Data.Void (Void)
-import Database.PostgreSQL.Simple (connectPostgreSQL, Connection)
+import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -83,14 +85,14 @@ makeMain commandSwitch =
 
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
     let dbName = config >>. (Proxy :: Proxy '["database", "name"])
-    conn <- connectPostgreSQL $ "dbname=" <> cs dbName
-    createDB conn
-    let actionState = ActionState (conn, rng, config)
+    connPool <- createConnPoolAndInitDb $ cs dbName
+    let actionState = ActionState (connPool, rng, config)
         log_path = config >>. (Proxy :: Proxy '["log", "path"])
         log_level = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger log_path log_level
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
-    createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
+    withResource connPool $ \conn ->
+        createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
     runActionWithPrivs [RoleAdmin] actionState $ (autocreateMissingServices config :: Action Void ())
 
     let mBeConfig :: Maybe HttpConfig
@@ -120,6 +122,18 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
     runActionWithPrivs [RoleAdmin] actionState (collectGarbage :: Action Void ())
     threadDelay $ interval * 1000 * 1000
 
+-- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
+-- is empty. Tables already existing in the DB won't be touched. The DB itself must already exist.
+createConnPoolAndInitDb :: SBS -> IO (Pool Connection)
+createConnPoolAndInitDb dbName = do
+    connPool <- createPool createConn close
+                           1    -- # of stripes (sub-pools)
+                           60   -- close unused connections after .. secs
+                           100  -- max number of active connections
+    withResource connPool createDB
+    return connPool
+  where
+    createConn = connectPostgreSQL $ "dbname=" <> dbName
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.

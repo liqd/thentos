@@ -26,12 +26,14 @@ import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
+import Data.Pool (Pool, withResource)
 import Data.EitherR (fmapL)
 import Data.List (foldl')
 import Data.String.Conversions (ST, SBS)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
+import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
+                 guardWrite)
 import LIO.Label (lub)
 import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
@@ -57,7 +59,7 @@ import Thentos.Util
 
 newtype ActionState =
     ActionState
-      { fromActionState :: (Connection, MVar ChaChaDRG, ThentosConfig)
+      { fromActionState :: (Pool Connection, MVar ChaChaDRG, ThentosConfig)
       }
   deriving (Typeable, Generic)
 
@@ -205,8 +207,8 @@ accessRightsByThentosSession'P tok = do
 
 query'P :: ThentosQuery e v -> Action e v
 query'P u = do
-    ActionState (conn, _, _) <- Action ask
-    result <- liftLIO . ioTCB . runThentosQuery conn $ u
+    ActionState (connPool, _, _) <- Action ask
+    result <- liftLIO . ioTCB . withResource connPool $ \conn -> runThentosQuery conn u
     either throwError return result
 
 getConfig'P :: Action e ThentosConfig
