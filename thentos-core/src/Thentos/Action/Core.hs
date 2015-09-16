@@ -185,9 +185,7 @@ grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
     c :: DCLabel
     c = foldl' lub dcBottom [ ar %% ar | ar <- ars ]
 
--- | Unravel role hierarchy stored under 'Agent' and construct a 'DCLabel'.  Termination is
--- guaranteed by the fact that the roles of the agent have been serialized in acid-state, and thus
--- are finite and cycle-free.
+-- | Construct a 'DCLabel' from agent's roles.
 accessRightsByAgent'P :: Agent -> Action e [CNF]
 accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (T.agentRoles agent)
   where

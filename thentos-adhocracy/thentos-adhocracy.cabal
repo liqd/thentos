@@ -51,7 +51,6 @@ library
   build-depends:
       base
     , thentos-core
-    , acid-state
     , aeson
     , aeson-pretty
     , aeson-utils
@@ -94,7 +93,6 @@ library
     , servant-server >= 0.4.1 && < 0.6
     , snap
     , snap-core
-    , snaplet-acid-state
     , snap-server
     , string-conversions
     , template-haskell
@@ -169,7 +167,6 @@ test-suite tests
     , thentos-core
     , thentos-tests
     , thentos-adhocracy
-    , acid-state
     , aeson
     , aeson-pretty
     , async

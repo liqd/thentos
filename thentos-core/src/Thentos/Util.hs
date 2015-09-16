@@ -10,7 +10,6 @@ module Thentos.Util
     , verifyPass
     , verifyKey
     , makeUserFromFormData
-    , createCheckpointLoop
     , cshow
     , readsPrecEnumBoundedShow
     , (<//>)
@@ -19,12 +18,9 @@ module Thentos.Util
 ) where
 
 import Control.Applicative ((<$>))
-import Control.Concurrent (ThreadId, forkIO, threadDelay)
 import Control.Lens ((^.))
-import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
-import Data.Acid (AcidState, createCheckpoint)
 import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
 
@@ -71,21 +67,6 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
-
-
--- * acid-state business
-
--- | Create a new thread that calls `createCheckpoint` synchronously
--- in a loop every @timeThreshold@ miliseconds.
---
--- FUTURE WORK: Take one more argument @sizeThreshold@ that skips
--- creating the checkpoint if the number of change log entries since
--- the last checkpoint is not large enough.  (I think this is not
--- possible without patching acid-state.)
-createCheckpointLoop :: AcidState st -> Int -> IO ThreadId
-createCheckpointLoop acidState timeThreshold = forkIO . forever $ do
-      threadDelay $ timeThreshold * 1000
-      createCheckpoint acidState
 
 
 -- * misc

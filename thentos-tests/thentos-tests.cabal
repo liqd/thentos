@@ -52,7 +52,6 @@ library
   build-depends:
       base
     , thentos-core
-    , acid-state
     , aeson
     , async
     , attoparsec
@@ -108,7 +107,6 @@ test-suite tests
       base
     , thentos-core
     , thentos-tests
-    , acid-state
     , aeson
     , aeson-pretty
     , async
@@ -175,7 +173,6 @@ benchmark load-test
       base
     , thentos-core
     , thentos-tests
-    , acid-state
     , aeson
     , aeson-pretty
     , async
