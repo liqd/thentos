@@ -480,4 +480,4 @@ impossible msg = error $ "Impossible error: " ++ msg
 makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
 makeAgent (Just uid) Nothing  = UserA uid
 makeAgent Nothing (Just sid) = ServiceA sid
-makeAgent _ _ = error "makeAgent: invalid arguments"
+makeAgent _ _ = impossible "makeAgent: invalid arguments"
