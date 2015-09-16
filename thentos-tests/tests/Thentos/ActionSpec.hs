@@ -216,4 +216,3 @@ runClearanceE = runActionWithClearanceE
 
 runClearance :: DCLabel -> ActionState -> Action Void a -> IO a
 runClearance = runActionWithClearance
-

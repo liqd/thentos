@@ -51,6 +51,7 @@ import qualified Generics.Generic.Aeson as Aeson
 
 import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
 
+
 -- * user
 
 -- | (user groups (the data that services want to store and retrieve in thentos) and session tokens
@@ -254,6 +255,7 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
 
+
 -- * timestamp, timeout
 
 newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
@@ -360,6 +362,7 @@ instance FromField Role where
         case readMay s of
             Just r  -> return r
             Nothing -> returnError ConversionFailed f ""
+
 
 -- * uri
 

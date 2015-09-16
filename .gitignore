@@ -5,7 +5,6 @@
 *.dyn_hi
 *.swp
 *.tix
-.acid-state/
 .cabal-sandbox/
 cabal.sandbox.config
 *packages.conf.d/
@@ -16,4 +15,3 @@ add-source-timestamps
 /misc/selenium/*.jar
 /misc/selenium/C:*
 .vim.custom
-
