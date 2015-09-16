@@ -508,9 +508,32 @@ startThentosSessionSpec = describe "startThentosSession" $ do
         user = UserA (UserId 55)
         period = Timeout $ fromSeconds' 60
 
+    it "creates a thentos session for a user" $ \(ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
+        Right () <- runQuery conn $ startThentosSession tok (UserA testUid) period
+        [Only uid] <- query conn [sql| SELECT uid
+                                         FROM thentos_sessions
+                                         WHERE token = ? |] (Only tok)
+        uid `shouldBe` testUid
+
     it "fails when the user doesn't exist" $ \(ActionState (conn, _, _)) -> do
         x <- runQuery conn $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
+
+    it "creates a thentos session for a service" $ \(ActionState (conn, _, _)) -> do
+        let sid = "sid"
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQuery conn $
+            addService (UserA testUid) sid testHashedSecret "name" "desc"
+        Right () <- runQuery conn $ startThentosSession tok (ServiceA sid) period
+        [Only sid'] <- query conn [sql| SELECT sid
+                                         FROM thentos_sessions
+                                         WHERE token = ? |] (Only tok)
+        sid' `shouldBe` sid
+
+    it "fails when the service doesn't exist" $ \(ActionState (conn, _, _)) -> do
+        x <- runQuery conn $ startThentosSession tok (ServiceA "sid") period
+        x `shouldBe` Left NoSuchService
 
 lookupThentosSessionSpec :: SpecWith ActionState
 lookupThentosSessionSpec = describe "lookupThentosSession" $ do
