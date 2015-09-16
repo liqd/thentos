@@ -83,6 +83,7 @@ import qualified Network.HTTP.Client  as Client
 import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
+import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
@@ -92,7 +93,7 @@ import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
 import qualified Thentos.Adhocracy3.Transactions as T
-import Thentos.Adhocracy3.Backend.Core
+
 
 -- * main
 
@@ -141,16 +142,16 @@ api manager actionState =
 
 -- * handler
 
-addUser :: A3.A3UserWithPass -> Action' A3.TypedPathWithCacheControl
+addUser :: A3.A3UserWithPass -> A3Action A3.TypedPathWithCacheControl
 addUser _ = error "404"  -- FIXME: respond with a non-internal error
 
-activate :: A3.ActivationRequest -> Action' A3.RequestResult
+activate :: A3.ActivationRequest -> A3Action A3.RequestResult
 activate _ = error "404"  -- FIXME: respond with a non-internal error
 
-login :: A3.LoginRequest -> Action' A3.RequestResult
+login :: A3.LoginRequest -> A3Action A3.RequestResult
 login _ = error "404"  -- FIXME: respond with a non-internal error
 
-resetPassword :: A3.PasswordResetRequest -> Action' A3.RequestResult
+resetPassword :: A3.PasswordResetRequest -> A3Action A3.RequestResult
 resetPassword _ = error "404"  -- FIXME: respond with a non-internal error
 
 
@@ -185,7 +186,7 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
 
 
 -- | FIXME: document!
-githubRequest :: Action' AuthRequest
+githubRequest :: A3Action AuthRequest
 githubRequest = do
     state <- addNewSsoToken
     return . AuthRequest . cs $
@@ -193,7 +194,7 @@ githubRequest = do
 
 
 -- | FIXME: document!
-githubConfirm :: ST -> ST -> Action' A3.RequestResult
+githubConfirm :: ST -> ST -> A3Action A3.RequestResult
 githubConfirm state code = do
         lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.conduitManagerSettings
@@ -215,7 +216,7 @@ githubConfirm state code = do
 
 
 -- | FIXME: document!
-loginGithubUser :: GithubUser -> Action' A3.RequestResult
+loginGithubUser :: GithubUser -> A3Action A3.RequestResult
 loginGithubUser (GithubUser _ uname) = do
     let makeTok = A.startThentosSessionByUserName (UserName uname) (UserPass "")
 
@@ -231,7 +232,7 @@ loginGithubUser (GithubUser _ uname) = do
 
 -- | This doesn't check any labels because it needs to be called as part of the
 -- authentication process.
-addNewSsoToken :: Action' SsoToken
+addNewSsoToken :: A3Action SsoToken
 addNewSsoToken = do
     tok <- freshSsoToken
     AC.query'P $ T.addSsoToken tok
@@ -239,9 +240,9 @@ addNewSsoToken = do
 
 -- | This doesn't check any labels because it needs to be called as part of the
 -- authentication process.
-lookupAndRemoveSsoToken :: SsoToken -> Action' ()
+lookupAndRemoveSsoToken :: SsoToken -> A3Action ()
 lookupAndRemoveSsoToken tok = AC.query'P $ T.lookupAndRemoveSsoToken tok
 
 
-freshSsoToken :: Action' SsoToken
+freshSsoToken :: A3Action SsoToken
 freshSsoToken = SsoToken <$> A.freshRandomName

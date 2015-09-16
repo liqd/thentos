@@ -17,6 +17,7 @@ module Thentos.Adhocracy3.Types
     , ThentosA3Error(..)
     , A3ErrorMessage(..)
     , A3Error(..)
+    , A3Action
     )
     where
 
@@ -30,6 +31,9 @@ import Data.Thyme.Time () -- required for NominalDiffTime's num instance
 import GHC.Generics (Generic)
 
 import Thentos.Types
+
+import qualified Thentos.Action.Core (Action)
+
 
 data ThentosA3Error =
       GenericA3Error A3ErrorMessage
@@ -77,3 +81,5 @@ instance FromJSON A3ErrorMessage where
 
 newtype SsoToken = SsoToken { fromSsoToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
+
+type A3Action = Thentos.Action.Core.Action ThentosA3Error

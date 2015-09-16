@@ -74,13 +74,13 @@ import qualified Network.HTTP.Types.Status as Status
 import qualified URI.ByteString as URI
 
 import System.Log.Missing
+import Thentos.Adhocracy3.Backend.Core
+import Thentos.Adhocracy3.Transactions ()
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
-import Thentos.Adhocracy3.Transactions ()
-import Thentos.Adhocracy3.Backend.Core
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
@@ -384,7 +384,7 @@ api manager actionState =
 
 -- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
 -- If A3 reponds with a error, user creation is aborted.
-addUser :: A3UserWithPass -> Action' TypedPathWithCacheControl
+addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
     cfg <- AC.getConfig'P
@@ -407,7 +407,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
 
 -- | Activate a new user. The activation request is first sent to the A3 backend.
 -- If the backend successfully activates the user, we then activate them also in Thentos.
-activate :: ActivationRequest -> Action' RequestResult
+activate :: ActivationRequest -> A3Action RequestResult
 activate ar@(ActivationRequest p) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     reqResult <- activateUserInA3'P ar
@@ -419,7 +419,7 @@ activate ar@(ActivationRequest p) = AC.logIfError'P $ do
         RequestError errMsg        -> throwError . OtherError $ GenericA3Error errMsg
 
 -- | Log a user in.
-login :: LoginRequest -> Action' RequestResult
+login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
     config <- AC.getConfig'P
@@ -433,7 +433,7 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
-resetPassword :: PasswordResetRequest -> Action' RequestResult
+resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
     reqResult <- resetPasswordInA3'P path
@@ -462,7 +462,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 -- * helper actions
 
 -- | Create a user in A3 and return the user ID.
-createUserInA3'P :: UserFormData -> Action' UserId
+createUserInA3'P :: UserFormData -> A3Action UserId
 createUserInA3'P user = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
@@ -476,7 +476,7 @@ createUserInA3'P user = do
     responseCode = Status.statusCode . Client.responseStatus
 
 -- | Activate a user in A3 and return the response received from A3.
-activateUserInA3'P :: ActivationRequest -> Action' RequestResult
+activateUserInA3'P :: ActivationRequest -> A3Action RequestResult
 activateUserInA3'P actReq = do
     config <- AC.getConfig'P
     let a3req = fromMaybe (error "activateUserInA3'P: mkRequestForA3 failed, check config!") $
@@ -486,7 +486,7 @@ activateUserInA3'P actReq = do
         (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
 
 -- | Send a password reset request to A3 and return the response.
-resetPasswordInA3'P :: Path -> Action' RequestResult
+resetPasswordInA3'P :: Path -> A3Action RequestResult
 resetPasswordInA3'P path = do
     config <- AC.getConfig'P
     let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $

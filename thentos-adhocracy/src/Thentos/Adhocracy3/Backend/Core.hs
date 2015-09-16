@@ -4,7 +4,6 @@ module Thentos.Adhocracy3.Backend.Core
     ( mkSimpleA3Error
     , a3ActionErrorToServantErr
     , a3BaseActionErrorToServantErr
-    , Action'
     )
     where
 
@@ -20,8 +19,6 @@ import Thentos.Backend.Core
 import Data.Aeson (encode)
 
 import Thentos.Adhocracy3.Types
-
-type Action' = AC.Action ThentosA3Error
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
 a3ActionErrorToServantErr e = do
