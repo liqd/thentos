@@ -99,6 +99,9 @@ test-suite tests
     -- (modules to be collected by hspec-discover are not to be mentioned here.)
   ghc-options:
       -Wall -threaded -rtsopts
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
   cpp-options:
       -DGHC_GENERICS
   build-depends:
@@ -164,6 +167,9 @@ benchmark load-test
       Main.hs
   ghc-options:
       -Wall -O -threaded -rtsopts -with-rtsopts=-N
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
   build-depends:
       acid-state >=0.12.4 && <0.13
     , aeson >=0.8.0.2 && <0.9
