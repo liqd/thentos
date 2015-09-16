@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.Either (isRight)
+import Data.List (sort)
 import Data.Pool (Pool, withResource)
 import Data.String.Conversions (ST, SBS)
 import Data.Thyme (fromSeconds')
@@ -54,6 +55,7 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     lookupThentosSessionSpec
     startThentosSessionSpec
     endThentosSessionSpec
+    serviceNamesFromThentosSessionSpec
     startServiceSessionSpec
     lookupServiceSessionSpec
     endServiceSessionSpec
@@ -602,6 +604,29 @@ endThentosSessionSpec = describe "endThentosSession" $ do
     it "silently allows deleting a non-existing session" $ \(ActionState (connPool, _, _)) -> do
         x <- runQuery connPool $ endThentosSession tok
         x `shouldSatisfy` isRight
+
+serviceNamesFromThentosSessionSpec :: SpecWith ActionState
+serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $ do
+    it "gets the names of all services that a thentos session is signed into" $ \(ActionState (conn, _, _)) -> do
+        void $ runQuery conn $ addUserPrim (Just testUid) testUser True
+        void $ runQuery conn $
+            addService (UserA testUid) "sid1" testHashedSecret "s1" "s1"
+        void $ runQuery conn $
+            addService (UserA testUid) "sid2" testHashedSecret "s2" "s2"
+        void $ runQuery conn $
+            addService (UserA testUid) "sid3" testHashedSecret "s3" "s3"
+        void $ runQuery conn $
+            startThentosSession thentosSessionToken (UserA testUid) period
+        void $ runQuery conn $
+            startServiceSession thentosSessionToken "sst1" "sid1" period
+        void $ runQuery conn $
+            startServiceSession thentosSessionToken "sst2" "sid2" period
+        Right names <- runQuery conn $ serviceNamesFromThentosSession thentosSessionToken
+        sort names `shouldBe` ["s1", "s2"]
+        return ()
+  where
+    thentosSessionToken = "abcde"
+    period = Timeout $ fromSeconds' 60
 
 startServiceSessionSpec :: SpecWith ActionState
 startServiceSessionSpec = describe "startServiceSession" $ do

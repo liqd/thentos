@@ -309,7 +309,7 @@ lookupThentosSession token = do
         [(uid, sid, start, end, period)] ->
             let agent = makeAgent uid sid
             in return ( token
-                      , ThentosSession agent start end period Set.empty
+                      , ThentosSession agent start end period
                       )
         []                          -> throwError NoSuchThentosSession
         _                           -> impossible "lookupThentosSession: multiple results"
@@ -339,6 +339,17 @@ endThentosSession :: ThentosSessionToken -> ThentosQuery e ()
 endThentosSession tok =
     void $ execT [sql| DELETE FROM thentos_sessions WHERE token = ?
                  |] (Only tok)
+
+-- | Get the names of all services that a given thentos session is signed into
+serviceNamesFromThentosSession :: ThentosSessionToken -> ThentosQuery e [ServiceName]
+serviceNamesFromThentosSession tok = do
+    res <- queryT
+        [sql| SELECT services.name
+              FROM services, service_sessions
+              WHERE services.id = service_sessions.service
+                  AND service_sessions.thentos_session_token = ? |] (Only tok)
+    return $ map fromOnly res
+
 
 -- | Like 'lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
 -- thentos session.  If the service session is still active, but the associated thentos session has
@@ -422,6 +433,7 @@ agentRoles agent = case agent of
     UserA uid  -> do
         roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
         return . Set.fromList . map fromOnly $ roles
+
 
 -- * garbage collection
 

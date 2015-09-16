@@ -25,7 +25,6 @@ import Data.Aeson (FromJSON, ToJSON, Value(String))
 import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
-import Data.Set (Set)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
@@ -220,7 +219,6 @@ data ThentosSession =
       , _thSessStart           :: !Timestamp
       , _thSessEnd             :: !Timestamp
       , _thSessExpirePeriod    :: !Timeout
-      , _thSessServiceSessions :: !(Set ServiceSessionToken)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
