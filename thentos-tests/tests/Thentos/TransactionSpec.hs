@@ -543,6 +543,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         agent = UserA userId
         period' = fromSeconds' 60
         period = Timeout period'
+        sid = "sid"
 
     it "fails when there is no session" $ \(ActionState (conn, _, _)) -> do
         void $ runQuery conn $ addUserPrim (Just userId) user True
@@ -555,6 +556,14 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         Right (t, s) <- runQuery conn $ lookupThentosSession tok
         t `shouldBe` tok
         s ^. thSessAgent `shouldBe` agent
+
+        let tok2 = "anothertoken"
+        Right _ <- runThentosQuery conn $
+            addService (UserA userId) sid testHashedSecret "name" "desc"
+        Right _ <- runQuery conn $ startThentosSession tok2 (ServiceA sid) period
+        Right (tok2', sess) <- runQuery conn $ lookupThentosSession tok2
+        tok2' `shouldBe` tok2
+        sess ^. thSessAgent `shouldBe` ServiceA sid
 
     it "fails for an expired session" $ \(ActionState (conn, _, _)) -> do
         void $ runQuery conn $ addUserPrim (Just userId) user True
