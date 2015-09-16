@@ -53,11 +53,11 @@ library
     cpp-options: -DDEVELOPMENT -w
     ghc-options: -w
   exposed-modules:
-      LIO.Missing
+      Database.PostgreSQL.Simple.Missing
+    , LIO.Missing
     , Snap.Inline
     , Snap.Missing
     , System.Log.Missing
-    , Database.PostgreSQL.Simple.Missing
     , Thentos
     , ThentosDocs
     , Thentos.Action
