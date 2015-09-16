@@ -23,6 +23,7 @@ import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Functor ((<$>))
 import Data.Maybe (isJust)
+import Data.Pool (withResource)
 import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Status, status400)
@@ -173,9 +174,9 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        db@(ActionState (adb, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
+        db@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
-        createGod adb
+        withResource connPool createGod
         return $! serveApi mgr db
 
     ctJson = ("Content-Type", "application/json")

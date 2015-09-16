@@ -201,6 +201,7 @@ test-suite tests
     , process
     , QuickCheck
     , regex-easy
+    , resource-pool
     , safecopy
     , scrypt
     , servant-server
