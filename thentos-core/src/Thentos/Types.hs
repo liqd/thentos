@@ -220,7 +220,6 @@ data ThentosSession =
       , _thSessStart           :: !Timestamp
       , _thSessEnd             :: !Timestamp
       , _thSessExpirePeriod    :: !Timeout
-      , _thSessServiceSessions :: !(Set ServiceSessionToken)
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 

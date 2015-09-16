@@ -473,25 +473,12 @@ _startThentosSessionByAgent agent = do
     query'P $ T.startThentosSession tok agent defaultSessionTimeout
     return tok
 
-
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
 -- 'RoleAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
-serviceNamesFromThentosSession tok = do
-    ts :: ThentosSession
-        <- snd <$> query'P (T.lookupThentosSession tok)
-
-    ss :: [ServiceSession]
-        <- mapM (fmap snd . query'P . T.lookupServiceSession) $
-             Set.toList (ts ^. thSessServiceSessions)
-
-    xs :: [(ServiceId, Service)]
-        <- mapM (\ s -> query'P $ T.lookupService (s ^. srvSessService)) ss
-
-    guardWriteMsg "serviceNamesFromThentosSession"
-        (RoleAdmin \/ ts ^. thSessAgent %% RoleAdmin /\ ts ^. thSessAgent)
-
-    return $ (^. serviceName) . snd <$> xs
+serviceNamesFromThentosSession tok =
+    -- FIXME: privilege checks punted until the LIO story is clearer
+    query'P $ T.serviceNamesFromThentosSession tok
 
 
 -- * service session
