@@ -398,6 +398,7 @@ unassignRoleSpec = describe "unassignRole" $ do
     sid = "sid"
     addTestService conn = void . runQuery conn $
         addService (UserA testUid) sid testHashedSecret "name" "desc"
+
 emailChangeRequestSpec :: SpecWith ActionState
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \(ActionState (conn, _, _)) -> do
@@ -429,19 +430,37 @@ addServiceSpec = describe "addService" $ do
         Right _ <- runThentosQuery conn $ addUserPrim (Just uid) user True
         [Only serviceCount] <- query conn countServices ()
         serviceCount `shouldBe` (0 :: Int)
-        hashedKey <- hashServiceKey secret
         Right _ <- runThentosQuery conn $
-            addService (UserA uid) sid hashedKey name description
+            addService (UserA uid) sid testHashedSecret name description
         [(owner', sid', key', name', desc')] <- query conn
             [sql| SELECT owner_user, id, key, name, description
                   FROM services |] ()
         owner' `shouldBe` uid
         sid' `shouldBe` sid
-        key' `shouldBe` hashedKey
+        key' `shouldBe` testHashedSecret
         name' `shouldBe` name
         desc' `shouldBe` description
+
+    it "allows a service's owner to be a service" $ \(ActionState (conn, _, _)) -> do
+        let childSid = "child_sid"
+            childName = "child service"
+        Right _ <- runThentosQuery conn $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQuery conn $
+            addService (UserA testUid) sid testHashedSecret name description
+        Right _ <- runThentosQuery conn $
+            addService (ServiceA sid) childSid testHashedSecret childName "foo"
+
+        [Only serviceCount] <- query conn countServices ()
+        serviceCount `shouldBe` (2 :: Int)
+
+        [(sid', name')] <- query conn
+            [sql| SELECT id, name
+                  FROM services
+                  WHERE owner_service = ? |] (Only sid)
+        sid' `shouldBe` childSid
+        name' `shouldBe` childName
+
   where
-    secret = "verySecretKey"
     sid = ServiceId "serviceid1"
     uid = UserId 9
     user = mkUser "name" "super secret" "me@example.com"
