@@ -477,7 +477,7 @@ lookupServiceSpec = describe "lookupService" $ do
         sid' `shouldBe` sid
         service ^. serviceName `shouldBe` name
         service ^. serviceDescription `shouldBe` desc
-        service ^. serviceOwner `shouldBe` (UserA testUid)
+        service ^. serviceOwner `shouldBe` UserA testUid
   where
     sid = ServiceId "blablabla"
     name = "name"
