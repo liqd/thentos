@@ -16,10 +16,6 @@ before_install:
     - make start
     - cd ../..
 install:
-    - ./misc/get-cabal-config.sh stack.yaml cabal.config
-    - cp cabal.config thentos-core/cabal.config
-    - cp cabal.config thentos-tests/cabal.config
-    - cp cabal.config thentos-adhocracy/cabal.config
     - ./misc/thentos-install.sh
     - git clone --depth 1 https://github.com/liqd/travis-cache
     - export PATH=$PWD/travis-cache:$PATH
