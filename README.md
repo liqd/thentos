@@ -72,7 +72,7 @@ This is a possible quick walk through the code:
     Thentos data model.
 
 - **Thentos.Transaction...**: SQL queries with 'EitherT'
-    exceptions.  `Thentos.Transaction.Transactions` implements an
+    exceptions.  `Thentos.Transaction` implements an
     abstract API over the database schema.
 
 - **Thentos.Action...**: access-controlled actions in the `Action` monad.
@@ -117,6 +117,17 @@ required if you want to run tests. Whether you need other packages will
 depend on your use case.
 
 To run executables or tests, you will need to install PostgreSQL.
+Depending on your setup, you may need to cast some authorization
+spells.  Here is what works on debian (run as user postgres):
+
+```shell
+[as user postgres] $ createuser thentos -d
+[as user postgres] $ echo 'alter role thentos superuser' | psql
+[as you] $ export PGUSER=thentos
+```
+
+(Instead of `thentos`, you can choose your unix login name as postgres
+user name and skip setting the shell variable.)
 
 ### Stack
 
