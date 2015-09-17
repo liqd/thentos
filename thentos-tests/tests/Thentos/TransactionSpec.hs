@@ -320,12 +320,12 @@ agentRolesSpec = describe "agentRoles" $ do
       \(ActionState (connPool, _, _)) -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         x <- runQuery connPool $ agentRoles (UserA testUid)
-        x `shouldBe` Right Set.empty
+        x `shouldBe` Right []
 
         Right _ <- runQuery connPool $
             addService (UserA testUid) sid testHashedSecret "name" "desc"
         roles <- runQuery connPool $ agentRoles (ServiceA sid)
-        roles `shouldBe` Right Set.empty
+        roles `shouldBe` Right []
   where
     sid = "sid"
 
@@ -335,12 +335,12 @@ assignRoleSpec = describe "assignRole" $ do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         Right roles <- runQuery connPool $ agentRoles (UserA testUid)
-        roles `shouldBe` Set.fromList [RoleAdmin]
+        roles `shouldBe` [RoleAdmin]
 
         addTestService connPool
         Right _ <- runQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` Set.fromList [RoleAdmin]
+        serviceRoles `shouldBe` [RoleAdmin]
 
     it "silently allows adding a duplicate role" $ \(ActionState (connPool, _, _)) -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
@@ -348,26 +348,26 @@ assignRoleSpec = describe "assignRole" $ do
         x <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         x `shouldBe` Right ()
         Right roles <- runQuery connPool $ agentRoles (UserA testUid)
-        roles `shouldBe` Set.fromList [RoleAdmin]
+        roles `shouldBe` [RoleAdmin]
 
         addTestService connPool
         Right () <- runQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right () <- runQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` Set.fromList [RoleAdmin]
+        serviceRoles `shouldBe` [RoleAdmin]
 
     it "adds a second role" $ \(ActionState (connPool, _, _)) -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleUser
         Right roles <- runQuery connPool $ agentRoles (UserA testUid)
-        roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+        Set.fromList roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
 
         addTestService connPool
         Right _ <- runQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right _ <- runQuery connPool $ assignRole (ServiceA sid) RoleUser
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+        Set.fromList serviceRoles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
 
   where
     sid = "sid"
@@ -391,14 +391,14 @@ unassignRoleSpec = describe "unassignRole" $ do
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleUser
         Right _ <- runQuery connPool $ unassignRole (UserA testUid) RoleAdmin
         Right roles <- runQuery connPool $ agentRoles (UserA testUid)
-        roles `shouldBe` Set.fromList [RoleUser]
+        roles `shouldBe` [RoleUser]
 
         addTestService connPool
         Right _ <- runQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right _ <- runQuery connPool $ assignRole (ServiceA sid) RoleUser
         Right _ <- runQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` Set.fromList [RoleUser]
+        serviceRoles `shouldBe` [RoleUser]
 
   where
     sid = "sid"

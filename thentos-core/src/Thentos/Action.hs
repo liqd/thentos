@@ -85,7 +85,6 @@ import LIO.Error (AnyLabelError)
 import System.Log.Logger (Priority(DEBUG))
 
 import qualified Codec.Binary.Base64 as Base64
-import qualified Data.Set as Set
 import qualified Data.Text as ST
 
 import LIO.Missing
@@ -570,7 +569,7 @@ unassignRole agent role = do
 agentRoles :: Agent -> Action e [Role]
 agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
-    Set.toList <$> query'P (T.agentRoles agent)
+    query'P (T.agentRoles agent)
 
 
 -- * garbage collection
