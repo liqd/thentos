@@ -65,7 +65,7 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-cabal install --dependencies-only --ghc-options="+RTS -M2G -RTS -w" \
+cabal install --dependencies-only --ghc-options="+RTS -M500M -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $SOURCES_STR
 cabal install \
