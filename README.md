@@ -121,9 +121,9 @@ Depending on your setup, you may need to cast some authorization
 spells.  Here is what works on debian (run as user postgres):
 
 ```shell
-[as user postgres] $ createuser thentos -d
-[as user postgres] $ echo 'alter role thentos superuser' | psql
-[as you] $ export PGUSER=thentos
+$ sudo -u postgres createuser thentos -d
+$ echo 'alter role thentos superuser' | sudo -u postgres psql
+$ export PGUSER=thentos
 ```
 
 (Instead of `thentos`, you can choose your unix login name as postgres

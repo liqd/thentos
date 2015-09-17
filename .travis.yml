@@ -4,7 +4,6 @@ before_install:
     - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
     - travis_retry sudo apt-get update
     - travis_retry sudo apt-get install --force-yes ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22
-    - cat /var/lib/dpkg/info/ghc-7.10.2.list
     - export PATH=/opt/ghc/7.10.2/bin:/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:/opt/cabal/1.22/bin:$PATH
     - export PATH=~/.cabal/bin:$PATH
     - travis_retry sudo apt-get install xvfb
