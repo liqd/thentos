@@ -46,7 +46,6 @@ import Thentos.Test.Core
 main :: IO ()
 main = do
     withFrontendAndBackend "thentos_bench" $ \ as@(ActionState (_, _, cfg)) -> do
-        -- putStrLn . cs . renderConfigFile $ cfg
         threadDelay $ let s = (* (1000 * 1000)) in s 2
 
         Just sessToken <- getThentosSessionToken cfg

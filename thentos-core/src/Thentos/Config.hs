@@ -81,12 +81,18 @@ defaultThentosConfig =
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
-      Maybe ("bind_schema"   :> HttpSchema)
-  :*>       ("bind_host"     :> ST)
-  :*>       ("bind_port"     :> Int)
-  :*> Maybe ("expose_schema" :> HttpSchema)
-  :*> Maybe ("expose_host"   :> ST)
-  :*> Maybe ("expose_port"   :> Int)
+      Maybe ("bind_schema"   :> HttpSchema
+      :>: "Http schema that the server experiences.  Differs from expose_schema e.g. when running behind nginx.")
+  :*>       ("bind_host"     :> ST
+      :>: "Host name that the server experiences.  Differs from expose_host e.g. when running behind nginx.")
+  :*>       ("bind_port"     :> Int
+      :>: "Host port that the server experiences.  Differs from expose_port e.g. when running behind nginx.")
+  :*> Maybe ("expose_schema" :> HttpSchema
+      :>: "Http schema that the client experiences.  Differs from bind_schema e.g. when running behind nginx.")
+  :*> Maybe ("expose_host"   :> ST
+      :>: "Host name that the client experiences.  Differs from bind_host e.g. when running behind nginx.")
+  :*> Maybe ("expose_port"   :> Int
+      :>: "Host port that the client experiences.  Differs from bind_port e.g. when running behind nginx.")
 
 type ProxyConfig = Tagged (ToConfigCode ProxyConfig')
 type ProxyConfig' =
