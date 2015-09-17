@@ -42,7 +42,6 @@ import Database.PostgreSQL.Simple (Connection)
 
 import System.Log (Priority(DEBUG, CRITICAL))
 
-import qualified Data.Set as Set
 import qualified Data.Thyme as Thyme
 
 import LIO.Missing
@@ -187,13 +186,10 @@ grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
 
 -- | Construct a 'DCLabel' from agent's roles.
 accessRightsByAgent'P :: Agent -> Action e [CNF]
-accessRightsByAgent'P agent = Set.toList . makeAccessRights <$> query'P (T.agentRoles agent)
+accessRightsByAgent'P agent = makeAccessRights <$> query'P (T.agentRoles agent)
   where
-    makeAccessRights :: Set.Set Role -> Set.Set CNF
-    makeAccessRights roles = Set.fold Set.insert agent' roles'
-      where
-        agent' = Set.singleton $ toCNF agent
-        roles' = Set.map toCNF $ roles
+    makeAccessRights :: [Role] -> [CNF]
+    makeAccessRights roles = toCNF agent : map toCNF roles
 
 accessRightsByThentosSession'P :: ThentosSessionToken -> Action e [CNF]
 accessRightsByThentosSession'P tok = do

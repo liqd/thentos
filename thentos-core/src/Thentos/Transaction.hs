@@ -20,8 +20,6 @@ import Data.Typeable (Typeable)
 import Thentos.Types
 import Thentos.Transaction.Core
 
-import qualified Data.Set as Set
-
 
 -- * user
 
@@ -424,15 +422,15 @@ unassignRole agent role = case agent of
                            (uid, role)
 
 -- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
-agentRoles :: Agent -> ThentosQuery e (Set.Set Role)
+agentRoles :: Agent -> ThentosQuery e [Role]
 agentRoles agent = case agent of
     ServiceA sid -> do
         roles <- queryT [sql| SELECT role FROM service_roles WHERE sid = ? |]
                         (Only sid)
-        return . Set.fromList $ map fromOnly roles
+        return $ map fromOnly roles
     UserA uid  -> do
         roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
-        return . Set.fromList . map fromOnly $ roles
+        return $ map fromOnly roles
 
 
 -- * garbage collection
