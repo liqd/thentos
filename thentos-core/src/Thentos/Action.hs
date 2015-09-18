@@ -319,7 +319,6 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 confirmUserEmailChange :: ConfirmationToken -> Action e ()
 confirmUserEmailChange token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
-    void . query'P $ T.lookupEmailChangeToken token
     void . query'P $ T.confirmUserEmailChange expiryPeriod token
 
 
