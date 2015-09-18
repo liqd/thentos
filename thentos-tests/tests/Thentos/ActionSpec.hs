@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE ViewPatterns         #-}
+{-# LANGUAGE QuasiQuotes          #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.ActionSpec where
 
@@ -9,6 +10,8 @@ import Control.Monad (void)
 import Data.Either (isLeft, isRight)
 import Data.Pool (withResource)
 import Data.Void (Void)
+import Database.PostgreSQL.Simple (Only(..))
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 import LIO.DCLabel (ToCNF, DCLabel, (%%))
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
@@ -16,6 +19,7 @@ import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
+import Thentos.Test.Transaction
 
 import LIO.Missing
 import Thentos.Action
@@ -104,14 +108,20 @@ spec_user = describe "user" $ do
 
     describe "confirmUserEmailChange" $ do
         it "changes user email after change request" $ \ sta -> do
-            let newEmail = forceUserEmail "changed@example.com"
+            let ActionState (conns, _, _) = sta
+                newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
                     (_, user) <- runPrivs [RoleAdmin] sta $ lookupUser uid
                     user ^. userEmail `shouldSatisfy` p
+                runWithoutPrivs = runPrivs ([] :: [Bool])
             (uid, _, _) <- runClearance dcBottom sta $ addTestUser 1
             checkEmail uid $ not . (==) newEmail
             void . runPrivs [UserA uid] sta $ requestUserEmailChange uid newEmail (const "")
             checkEmail uid $ not . (==) newEmail
+            [Only token] <- doQuery conns
+                [sql| SELECT token FROM email_change_tokens WHERE uid = ?|] (Only uid)
+            void . runWithoutPrivs sta $ confirmUserEmailChange token
+            checkEmail uid $ (==) newEmail
 
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
