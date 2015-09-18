@@ -9,22 +9,20 @@ import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
-import Data.Pool (Pool, withResource)
 import Data.String.Conversions (ST, SBS)
 import Data.Thyme (fromSeconds')
-import Data.Void (Void)
-import Database.PostgreSQL.Simple (Connection, FromRow, ToRow, Only(..), Query, query, query_)
+import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
 
 import Thentos.Action.Core
 import Thentos.Transaction
-import Thentos.Transaction.Core
 import Thentos.Types
 import Thentos.Util (hashUserPass, hashServiceKey)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
+import Thentos.Test.Transaction
 
 spec :: Spec
 spec = describe "Thentos.Transaction" . before (createActionState "test_thentos" thentosTestConfig)
@@ -818,18 +816,3 @@ mkUser name pass email = User { _userName = name
                               , _userPassword = encryptTestSecret pass
                               , _userEmail = forceUserEmail email
                               }
-
--- | Like 'runThentosQuery', but take connection from pool.
-runThentosQueryFromPool :: Pool Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
-runThentosQueryFromPool connPool q = withResource connPool $ \conn -> runThentosQuery conn q
-
--- | Like 'runThentosQueryFromPool', but specialize error type to Void.
-runQuery :: Pool Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
-runQuery = runThentosQueryFromPool
-
--- | Take a connection from the pool and execute the query.
-doQuery :: (ToRow q, FromRow r) => Pool Connection -> Query -> q -> IO [r]
-doQuery connPool stmt params = withResource connPool $ \conn -> query conn stmt params
-
-doQuery_ :: FromRow r => Pool Connection -> Query -> IO [r]
-doQuery_ connPool stmt = withResource connPool $ \conn -> query_ conn stmt

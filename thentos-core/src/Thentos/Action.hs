@@ -319,10 +319,7 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 confirmUserEmailChange :: ConfirmationToken -> Action e ()
 confirmUserEmailChange token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["email_change_expiration"])) <$> getConfig'P
-    ((uid, _), _) <- query'P $ T.lookupEmailChangeToken token
-    tryGuardWrite (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-                  (void . query'P $ T.confirmUserEmailChange expiryPeriod token)
-                  (\ (_ :: AnyLabelError) -> throwError NoSuchToken)
+    void . query'P $ T.confirmUserEmailChange expiryPeriod token
 
 
 -- * service

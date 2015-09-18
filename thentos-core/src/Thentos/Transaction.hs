@@ -169,19 +169,6 @@ confirmUserEmailChange timeout token = do
         0 -> throwError NoSuchToken
         _ -> impossible "email change token exists multiple times"
 
--- | Look up an email change token. Does not verify that the token is still
--- valid, just retrieves it from the database.
-lookupEmailChangeToken :: ConfirmationToken -> ThentosQuery e ((UserId, UserEmail), Timestamp)
-lookupEmailChangeToken token = do
-    rs <- queryT [sql| SELECT uid, new_email, timestamp
-                       FROM email_change_tokens
-                       WHERE token = ? |] (Only token)
-    case rs of
-        [(uid, email, ts)] -> return ((uid, email), ts)
-        []                 -> throwError NoSuchToken
-        _                  -> impossible "repeated email change token"
-
-
 data UpdateUserFieldOp =
     UpdateUserFieldName UserName
   | UpdateUserFieldEmail UserEmail
