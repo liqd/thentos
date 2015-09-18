@@ -43,6 +43,7 @@ library
     , Thentos.Test.Config
     , Thentos.Test.Core
     , Thentos.Test.Network
+    , Thentos.Test.Transaction
     , Thentos.Test.Utils
     , Thentos.Test.WebDriver.Missing
   ghc-options:
