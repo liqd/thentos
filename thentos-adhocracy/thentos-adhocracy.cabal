@@ -36,7 +36,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-      -Wall -j5
+      -Wall -j1
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -119,7 +119,7 @@ executable thentos-adhocracy
   main-is:
       Main.hs
   ghc-options:
-      -Wall -j5 -threaded -rtsopts -with-rtsopts=-N
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -141,7 +141,7 @@ executable build-docs
   main-is:
       BuildDocs.hs
   ghc-options:
-      -Wall -j5 -threaded -rtsopts -with-rtsopts=-N
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , thentos-core
@@ -159,7 +159,7 @@ test-suite tests
   other-modules:
     -- (modules to be collected by hspec-discover are not to be mentioned here.)
   ghc-options:
-      -Wall -j5 -threaded -rtsopts -with-rtsopts=-N
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   cpp-options:
       -DGHC_GENERICS
   build-depends:

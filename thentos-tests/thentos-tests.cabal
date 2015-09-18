@@ -34,7 +34,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-      -Wall -j5
+      -Wall -j1
   cpp-options:
       -DGHC_GENERICS
   if flag(profiling)
@@ -99,7 +99,7 @@ test-suite tests
   other-modules:
     -- (modules to be collected by hspec-discover are not to be mentioned here.)
   ghc-options:
-      -Wall -j5 -threaded -rtsopts -with-rtsopts=-N
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -168,7 +168,7 @@ benchmark load-test
   main-is:
       Main.hs
   ghc-options:
-      -Wall -j5 -threaded -rtsopts -with-rtsopts=-N
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
