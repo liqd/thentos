@@ -17,7 +17,6 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Map (Map)
 import Data.String.Conversions (LBS)
 import Data.Proxy (Proxy(Proxy))
-import Data.Thyme (fromSeconds)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>))
@@ -128,7 +127,7 @@ instance ToSample [ServiceId] [ServiceId] where
     toSample _ = Just ["23t92ege0n", "f4ghwgegin0"]
 
 instance ToSample (UserId, Timeout) (UserId, Timeout) where
-    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId) <*> pure (Timeout $ fromSeconds (123456.0 :: Double))
+    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId) <*> pure (fromSeconds 123456)
 
 instance ToSample (UserId, ServiceId) (UserId, ServiceId) where
     toSample _ = (,) <$> toSample (Proxy :: Proxy UserId) <*> toSample (Proxy :: Proxy ServiceId)

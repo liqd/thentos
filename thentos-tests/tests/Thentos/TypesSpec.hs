@@ -1,27 +1,38 @@
 {-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE QuasiQuotes                              #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Thentos.TypesSpec where
 
 import Data.Aeson (decode, FromJSON)
+import Data.Pool (Pool)
 import Data.String.Conversions (cs)
+import Database.PostgreSQL.Simple (Connection, Only(..))
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, context, describe, it, shouldBe)
+import Test.Hspec (Spec, SpecWith, before, context, describe, it, shouldBe)
 import Test.QuickCheck (property)
 
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
+import Thentos.Test.Core
+import Thentos.Test.Transaction
 
 testSizeFactor :: Int
 testSizeFactor = 1
 
 spec :: Spec
-spec = modifyMaxSize (* testSizeFactor) $ do
+spec = do
+    typesSpec
+    before (createDb "test_thentos") dbSpec
+
+typesSpec :: Spec
+typesSpec = modifyMaxSize (* testSizeFactor) $ do
 
     describe "ThentosLabel, ThentosClearance, DCLabel" $ do
       it "works (unittests)" $ do
@@ -88,34 +99,34 @@ spec = modifyMaxSize (* testSizeFactor) $ do
                                        , proxyPort = 80
                                        , proxyPath = "/path"
                                        }
-                decodeLenient (show example) `shouldBe` Just example
+                decodeProxy (show example) `shouldBe` Just example
 
         context "its FromJSON instance" $ do
 
             it "allows simple http domains" $ do
                 let correct = ProxyUri "something.com" 80 "/"
-                decodeLenient "http://something.com/" `shouldBe` Just correct
+                decodeProxy "http://something.com/" `shouldBe` Just correct
 
             it "allows ports" $ do
                 let correct = ProxyUri "something.com" 799 "/"
-                decodeLenient "http://something.com:799/" `shouldBe` Just correct
+                decodeProxy "http://something.com:799/" `shouldBe` Just correct
 
             it "decodes paths" $ do
                 let correct = ProxyUri "something.com" 799 "/path"
-                decodeLenient "http://something.com:799/path" `shouldBe` Just correct
+                decodeProxy "http://something.com:799/path" `shouldBe` Just correct
 
             it "only allows http" $ do
-                decodeLenient "https://something.com" `shouldBe` Nothing
-                decodeLenient "ftp://something.com" `shouldBe` Nothing
+                decodeProxy "https://something.com" `shouldBe` Nothing
+                decodeProxy "ftp://something.com" `shouldBe` Nothing
 
             it "does not allow query strings" $ do
-                decodeLenient "http://something.com?hi" `shouldBe` Nothing
+                decodeProxy "http://something.com?hi" `shouldBe` Nothing
 
             it "does not allow fragments" $ do
-                decodeLenient "http://something.com/t#hi" `shouldBe` Nothing
+                decodeProxy "http://something.com/t#hi" `shouldBe` Nothing
 
-decodeLenient :: String -> Maybe ProxyUri
-decodeLenient str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
+decodeProxy :: String -> Maybe ProxyUri
+decodeProxy str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
 
 -- @Wrapper@ is used to get around the restriction from top-level strings in
 -- pre 0.9 versions of @aeson@
@@ -123,3 +134,23 @@ data Wrapper = Wrapper { val :: ProxyUri }
     deriving (Eq, Show, Generic)
 
 instance FromJSON Wrapper
+
+
+dbSpec :: SpecWith (Pool Connection)
+dbSpec = do
+    describe "Timeout" $ do
+        it "converts correctly from SQL intervals" $ \conns -> do
+            [Only res1] <- doQuery conns [sql| SELECT interval '5 seconds'|] ()
+            res1 `shouldBe` fromSeconds 5
+            [Only res2] <- doQuery conns [sql| SELECT interval '20 minutes'|] ()
+            res2 `shouldBe` fromSeconds (20 * 60)
+            [Only res3] <- doQuery conns [sql| SELECT interval '-1 hour'|] ()
+            res3 `shouldBe` fromSeconds (-1 * 60 * 60)
+
+        it "converts correctly to SQL intervals" $ \conns -> do
+            [Only res1] <- doQuery conns [sql| SELECT interval '5 seconds' = ?|] (Only $ fromSeconds 5)
+            res1 `shouldBe` True
+            [Only res2] <- doQuery conns [sql| SELECT interval '20 minutes' = ?|] (Only $ fromSeconds (20 * 60))
+            res2 `shouldBe` True
+            [Only res3] <- doQuery conns [sql| SELECT interval '-1 hour' = ?|] (Only $ fromSeconds (-1 * 60 * 60))
+            res3 `shouldBe` True

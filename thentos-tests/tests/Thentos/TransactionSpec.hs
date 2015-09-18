@@ -11,7 +11,6 @@ import Data.Either (isRight)
 import Data.List (sort)
 import Data.Pool (Pool)
 import Data.String.Conversions (ST, SBS)
-import Data.Thyme (fromSeconds')
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
@@ -191,7 +190,7 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
 
   where
     token = "someToken"
-    timeout = Timeout $ fromSeconds' 60
+    timeout = fromSeconds 60
 
 lookupUserByNameSpec :: SpecWith (Pool Connection)
 lookupUserByNameSpec = describe "lookupUserByName" $ do
@@ -510,7 +509,7 @@ startThentosSessionSpec :: SpecWith (Pool Connection)
 startThentosSessionSpec = describe "startThentosSession" $ do
     let tok = "something"
         user = UserA (UserId 55)
-        period = Timeout $ fromSeconds' 60
+        period = fromSeconds 60
 
     it "creates a thentos session for a user" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
@@ -545,8 +544,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         userId = UserId 777
         user = mkUser "name" "pass" "email@email.com"
         agent = UserA userId
-        period' = fromSeconds' 60
-        period = Timeout period'
+        period = fromSeconds 60
         sid = "sid"
 
     it "fails when there is no session" $ \connPool -> do
@@ -571,7 +569,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
 
     it "fails for an expired session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $ startThentosSession tok agent (Timeout $ fromSeconds' 0)
+        Right _ <- runQuery connPool $ startThentosSession tok agent (fromSeconds 0)
         x <- runQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
@@ -589,7 +587,7 @@ endThentosSessionSpec = describe "endThentosSession" $ do
         userId = UserId 777
         user = mkUser "name" "pass" "email@email.com"
         agent = UserA userId
-        period = Timeout $ fromSeconds' 60
+        period = fromSeconds 60
 
     it "deletes a session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
@@ -619,7 +617,7 @@ serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $
         return ()
   where
     thentosSessionToken = "abcde"
-    period = Timeout $ fromSeconds' 60
+    period = fromSeconds 60
 
 startServiceSessionSpec :: SpecWith (Pool Connection)
 startServiceSessionSpec = describe "startServiceSession" $ do
@@ -634,7 +632,7 @@ startServiceSessionSpec = describe "startServiceSession" $ do
         [Only count] <- doQuery_ connPool [sql| SELECT COUNT(*) FROM service_sessions |]
         count `shouldBe` (1 :: Int)
   where
-    period = Timeout $ fromSeconds' 60
+    period = fromSeconds 60
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
@@ -657,7 +655,7 @@ endServiceSessionSpec = describe "endServiceSession" $ do
         return ()
   where
     countSessions = [sql| SELECT COUNT(*) FROM service_sessions |]
-    period = Timeout $ fromSeconds' 60
+    period = fromSeconds 60
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
@@ -683,7 +681,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
         err `shouldBe` NoSuchServiceSession
 
   where
-    period = Timeout $ fromSeconds' 60
+    period = fromSeconds 60
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
@@ -703,7 +701,7 @@ garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $
     it "deletes all expired unconfirmed users" $ \connPool -> do
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userid1
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token2 user2 userid2
-        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers 0
+        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromSeconds 0
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (0 :: Int)
@@ -711,7 +709,7 @@ garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $
 
     it "only deletes expired unconfirmed users" $ \connPool -> do
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers 100000
+        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromSeconds 100000
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (1 :: Int)
@@ -729,14 +727,14 @@ garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTok
         void $ runQuery connPool $ addPasswordResetToken email passToken
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns `shouldBe` (1 :: Int)
-        Right () <- runQuery connPool $ garbageCollectPasswordResetTokens 0
+        Right () <- runQuery connPool $ garbageCollectPasswordResetTokens $ fromSeconds 0
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (0 :: Int)
 
     it "only deletes expired tokens" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userid) user True
         void $ runQuery connPool $ addPasswordResetToken email passToken
-        void $ runQuery connPool $ garbageCollectPasswordResetTokens 1000000
+        void $ runQuery connPool $ garbageCollectPasswordResetTokens $ fromSeconds 1000000
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
@@ -750,21 +748,21 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
         [Only tokenCount] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tokenCount `shouldBe` (1 :: Int)
-        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens 0
+        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromSeconds 0
         [Only tokenCount'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tokenCount' `shouldBe` (0 :: Int)
 
     it "only deletes expired tokens" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
-        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens 1000000
+        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromSeconds 1000000
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
 garbageCollectThentosSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
     it "deletes all expired thentos sessions" $ \connPool -> do
-        let immediateTimeout = Timeout $ fromSeconds' 0
+        let immediateTimeout = fromSeconds 0
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) immediateTimeout
         Right () <- runQuery connPool garbageCollectThentosSessions
@@ -772,7 +770,7 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
         sessionCount `shouldBe` (0 :: Int)
 
     it "doesn't delete active sessions" $ \connPool -> do
-        let timeout = Timeout $ fromSeconds' 60
+        let timeout = fromSeconds 60
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) timeout
         Right () <- runQuery connPool garbageCollectThentosSessions
@@ -805,8 +803,8 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
     tTok2 = "thentos token 2"
     sTok1 = "service token 1"
     sTok2 = "service token 2"
-    immediateTimeout = Timeout $ fromSeconds' 0
-    laterTimeout = Timeout $ fromSeconds' 60
+    immediateTimeout = fromSeconds 0
+    laterTimeout = fromSeconds 60
 
 
 -- * Utils
