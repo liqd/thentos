@@ -102,6 +102,16 @@ spec_user = describe "user" $ do
             void . runA sta $ startThentosSessionByUserId godUid godPass
             void . runA sta $ startThentosSessionByUserName godName godPass
 
+    describe "confirmUserEmailChange" $ do
+        it "changes user email after change request" $ \ sta -> do
+            let newEmail = forceUserEmail "changed@example.com"
+                checkEmail uid p = do
+                    (_, user) <- runPrivs [RoleAdmin] sta $ lookupUser uid
+                    user ^. userEmail `shouldSatisfy` p
+            (uid, _, _) <- runClearance dcBottom sta $ addTestUser 1
+            checkEmail uid $ not . (==) newEmail
+            void . runPrivs [UserA uid] sta $ requestUserEmailChange uid newEmail (const "")
+            checkEmail uid $ not . (==) newEmail
 
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
