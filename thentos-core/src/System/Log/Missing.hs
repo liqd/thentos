@@ -11,7 +11,6 @@ module System.Log.Missing
   )
 where
 
-import Control.Applicative ((<$>))
 import Control.Exception (bracket_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(String))

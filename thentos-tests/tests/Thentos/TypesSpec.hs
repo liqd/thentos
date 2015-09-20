@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveGeneric                            #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Thentos.TypesSpec where
 
-import Control.Applicative ((<$>))
 import Data.Aeson (decode, FromJSON)
 import Data.String.Conversions (cs)
 import GHC.Generics (Generic)

@@ -43,7 +43,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-      -Wall
+      -Wall -j1
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -83,71 +83,64 @@ library
   other-modules:
       Paths_thentos_core
   build-depends:
-      base
-    , aeson
-    , aeson-pretty
-    , aeson-utils
-    , async
-    , attoparsec
-    , blaze-builder
-    , blaze-html
-    , bytestring
-    , case-insensitive
-    , cereal
-    , configifier >= 0.0.4
-    , containers
-    , cryptonite
-    , digestive-functors
-    , digestive-functors-blaze >= 0.6.0.5
-    , digestive-functors-snap >= 0.6.1.1
-    , directory
-    , either
-    , email-validate >= 2.1.3
-    , errors
-    , exceptions
-    , filepath
-    , functor-infix
-    , generic-aeson
-    , hslogger
-    , http-client
-    , http-media
-    , http-reverse-proxy
-    , http-types
-    , lens
-    , lio
-    , lifted-base
-    , mime-mail >= 0.4.9
-    , MonadCatchIO-transformers
-    , monad-control
-    , mtl > 2 && < 2.2
-    , mtl-compat
-    , old-locale
-    , postgresql-simple
-    , pretty-show
-    , random
-    , resource-pool >= 0.2.3.2 && < 0.3
-    , safe
-    , safecopy
-    , sandi
-    , scrypt
-    , servant >= 0.4.1 && < 0.6
-    , servant-docs >= 0.4.1 && < 0.6
-    , servant-server >= 0.4.1 && < 0.6
-    , snap
-    , snap-core
-    , snap-server
-    , string-conversions
-    , template-haskell
-    , text
-    , thyme
-    , time
-    , transformers
-    , unordered-containers
-    , uri-bytestring
-    , vector-space
-    , void
-    , wai
-    , warp
+    -- losely based on: https://www.stackage.org/lts-3.5/cabal.config
+      aeson >=0.8.0.2 && <0.9
+    , aeson-pretty >=0.7.2 && <0.8
+    , aeson-utils >=0.3.0.2 && <0.4
+    , async >=2.0.2 && <2.1
+    , attoparsec >=0.13 && <0.14
+    , base >=4.8.1.0 && <5
+    , blaze-html >=0.8.1.0 && <0.9
+    , bytestring >=0.10.6.0 && <0.11
+    , case-insensitive >=1.2.0.4 && <1.3
+    , configifier >=0.0.5 && <0.1
+    , containers >=0.5.6.2 && <0.6
+    , cryptonite >=0.6 && <0.7
+    , digestive-functors >=0.8.0.0 && <0.9
+    , digestive-functors-blaze >=0.6.0.6 && <0.7
+    , digestive-functors-snap >=0.6.1.3 && <0.7
+    , directory >=1.2.2.0 && <1.3
+    , either >=4.4.1 && <4.5
+    , email-validate >=2.1.3 && <2.2
+    , errors >=2.0.0 && <2.1
+    , filepath >=1.4.0.0 && <1.5
+    , functor-infix >=0.0.3 && <0.1
+    , generic-aeson >=0.2.0.7 && <0.3
+    , hslogger >=1.2.9 && <1.3
+    , http-client >=0.4.22 && <0.5
+    , http-media >=0.6.2 && <0.7
+    , http-reverse-proxy >=0.4.2 && <0.5
+    , http-types >=0.8.6 && <0.9
+    , lens >=4.12.3 && <4.13
+    , lifted-base >=0.2.3.6 && <0.3
+    , lio >=0.11.5.0 && <0.12
+    , mime-mail >=0.4.10 && <0.5
+    , MonadCatchIO-transformers >=0.3.1.3 && <0.4
+    , monad-control >=1 && <1.1
+    , mtl >=2.2.1 && <2.3
+    , old-locale >=1.0.0.7 && <1.1
+    , postgresql-simple >=0.4.10 && <0.5
+    , pretty-show >=1.6.8.2 && <1.7
+    , random >=1.1 && <1.2
+    , resource-pool >=0.2.3.2 && <0.3
+    , safe >=0.3.9 && <0.4
+    , sandi >=0.3.5 && <0.4
+    , scrypt >=0.5.0 && <0.6
+    , servant ==0.5
+    , servant-docs ==0.5
+    , servant-server ==0.5
+    , snap >=0.14.0.6 && <0.15
+    , snap-core >=0.9.8.0 && <0.10
+    , snap-server >=0.9.5.1 && <0.10
+    , string-conversions >=0.4 && <0.5
+    , text >=1.2.1.3 && <1.3
+    , thyme >=0.3.5.5 && <0.4
+    , time >=1.5 && <1.6
+    , transformers >=0.4.2.0 && <0.5
+    , unordered-containers >=0.2.5.1 && <0.3
+    , uri-bytestring >=0.1.8 && <0.2
+    , wai >=3.0.3.0 && <3.1
+    , warp >=3.1.3 && <3.2
 
 executable thentos
   if flag(with-thentos-executable)
@@ -162,7 +155,7 @@ executable thentos
   main-is:
       Main.hs
   ghc-options:
-      -Wall -threaded -rtsopts
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
@@ -188,7 +181,7 @@ executable build-docs
   main-is:
       BuildDocs.hs
   ghc-options:
-      -Wall -threaded -rtsopts
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
     , thentos-core

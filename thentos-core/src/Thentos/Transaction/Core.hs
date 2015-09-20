@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Thentos.Transaction.Core
     ( ThentosQuery
     , Defaultable(..)
@@ -34,6 +35,7 @@ import Database.PostgreSQL.Simple.Types (Default(Default))
 
 import Paths_thentos_core
 import Thentos.Types
+
 
 type ThentosQuery e a = EitherT (ThentosError e) (ReaderT Connection IO) a
 

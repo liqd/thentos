@@ -21,7 +21,6 @@ module Thentos.Adhocracy3.Types
     )
     where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Exception (Exception)
 import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.:),
                    object, withObject)

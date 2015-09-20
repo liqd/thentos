@@ -6,7 +6,7 @@
 
 module Thentos.Frontend.Handlers where
 
-import Control.Applicative ((<$>), (<|>))
+import Control.Applicative ((<|>))
 import Control.Lens ((^.), (.~), (%~))
 import Control.Monad (when)
 import Control.Monad.State.Class (gets)

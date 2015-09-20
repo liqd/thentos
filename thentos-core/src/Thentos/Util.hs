@@ -17,7 +17,6 @@ module Thentos.Util
     , fmapLTM
 ) where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)

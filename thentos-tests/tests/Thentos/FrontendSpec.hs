@@ -5,7 +5,6 @@
 
 module Thentos.FrontendSpec where
 
-import Control.Applicative ((<$>))
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)

@@ -18,7 +18,6 @@
 module Thentos.Action.Core
 where
 
-import Control.Applicative (Applicative, (<$>))
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
 import Control.Lens ((^.))

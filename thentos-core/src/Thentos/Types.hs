@@ -17,7 +17,6 @@
 
 module Thentos.Types where
 
-import Control.Applicative ((<$>), (<*))
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)

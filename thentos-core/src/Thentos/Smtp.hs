@@ -5,7 +5,6 @@
 module Thentos.Smtp (sendMail, SendmailError(..), checkSendmail)
 where
 
-import Control.Applicative ((<$>))
 import Control.Exception (try, IOException, ErrorCall(..), throwIO)
 import Control.Monad (unless)
 import Data.Configifier ((>>.))

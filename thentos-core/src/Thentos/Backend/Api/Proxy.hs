@@ -17,7 +17,6 @@
 
 module Thentos.Backend.Api.Proxy where
 
-import Control.Applicative ((<$>))
 import Control.Exception (SomeException)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)

@@ -6,7 +6,6 @@ module Site
   ( app
   ) where
 
-import Control.Applicative (pure, (<$>), (<*>))
 import Control.Exception (SomeException, catch, bracket_)
 import Control.Lens (makeLenses, (^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
