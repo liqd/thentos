@@ -4,7 +4,7 @@ before_install:
     - git show | head -1  # (for matching against commit hash given on the travis log web page)
     - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
     - travis_retry sudo apt-get update
-    - travis_retry sudo apt-get install --force-yes ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22
+    - travis_retry sudo apt-get install --force-yes ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22 hlint
     - export PATH=/opt/ghc/7.10.2/bin:/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:/opt/cabal/1.22/bin:$PATH
     - export PATH=~/.cabal/bin:$PATH
     - travis_retry sudo apt-get install xvfb
@@ -17,10 +17,7 @@ before_install:
     - cd ../..
 install:
     - ./misc/thentos-install.sh
-    - git clone --depth 1 https://github.com/liqd/travis-cache
     - export PATH=$PWD/travis-cache:$PATH
-    - mkdir -p ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4
-    - cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlint-1.9.21/
 script:
     - make hlint
     - (cd thentos-core && cabal configure --ghc-options="-Werror" && cabal build)
