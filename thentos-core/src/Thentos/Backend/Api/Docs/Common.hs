@@ -145,6 +145,13 @@ instance ToSample () () where
 instance ToSample Bool Bool where
     toSample _ = Just True
 
+instance ToSample ByUserOrServiceId ByUserOrServiceId where
+    toSamples _ = catMaybes [ (,) "user" . ByUser <$> toSample p1
+                            , (,) "service" .  ByService <$> toSample p2]
+      where p1 = Proxy :: Proxy (UserId, UserPass)
+            p2 = Proxy :: Proxy (ServiceId, ServiceKey)
+
+
 instance (ToSample a a', ToSample b b') => ToSample (Either a b) (Either a' b') where
     toSamples _ = catMaybes [(,) "Left" . Left <$> toSample p1, (,) "Right" . Right <$> toSample p2]
       where p1 = Proxy :: Proxy a

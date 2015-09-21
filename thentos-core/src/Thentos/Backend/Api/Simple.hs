@@ -107,17 +107,17 @@ thentosService =
 -- * session
 
 type ThentosThentosSession =
-       ReqBody '[JSON] (Either (UserId, UserPass) (ServiceId, ServiceKey)) :> Post '[JSON] ThentosSessionToken
-  :<|> ReqBody '[JSON] ThentosSessionToken     :> Get '[JSON] Bool
-  :<|> ReqBody '[JSON] ThentosSessionToken     :> Delete '[JSON] ()
+       ReqBody '[JSON] ByUserOrServiceId   :> Post '[JSON] ThentosSessionToken
+  :<|> ReqBody '[JSON] ThentosSessionToken :> Get '[JSON] Bool
+  :<|> ReqBody '[JSON] ThentosSessionToken :> Delete '[JSON] ()
 
 thentosThentosSession :: ServerT ThentosThentosSession (Action Void)
 thentosThentosSession =
        startThentosSession
   :<|> existsThentosSession
   :<|> endThentosSession
-  where startThentosSession (Left (id', pass)) = startThentosSessionByUserId id' pass
-        startThentosSession (Right (id', key)) = startThentosSessionByServiceId id' key
+  where startThentosSession (ByUser (id', pass)) = startThentosSessionByUserId id' pass
+        startThentosSession (ByService (id', key)) = startThentosSessionByServiceId id' key
 
 
 -- * service session
