@@ -4,6 +4,7 @@
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE UndecidableInstances                     #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -12,7 +13,7 @@ module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 import Control.Lens ((&), (%~))
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Map (Map)
 import Data.String.Conversions (LBS)
 import Data.Proxy (Proxy(Proxy))
@@ -143,6 +144,12 @@ instance ToSample () () where
 
 instance ToSample Bool Bool where
     toSample _ = Just True
+
+instance (ToSample a a', ToSample b b') => ToSample (Either a b) (Either a' b') where
+    toSamples _ = catMaybes [(,) "Left" . Left <$> toSample p1, (,) "Right" . Right <$> toSample p2]
+      where p1 = Proxy :: Proxy a
+            p2 = Proxy :: Proxy b
+
 
 -- | cover for tuples whose components have already been given
 -- examples.  if you write an instance for a tuple for two concrete

@@ -20,7 +20,7 @@ module Thentos.Backend.Core
 where
 
 import Control.Lens ((&), (.~))
-import Control.Monad.Trans.Either (EitherT(EitherT))
+import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
@@ -32,16 +32,17 @@ import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
-import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, status400)
+import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(..))
 import Servant.Docs.Internal (HasDocs(..), sampleByteStrings, response, respTypes, respBody,
-        respStatus, single, method, SupportedTypes(..), Method(DocPOST), ToSample(..))
+        respStatus, single, method, Method(DocPOST), ToSample(..))
 import Servant.API ((:>))
-import Servant.API.ContentTypes (AllCTRender, AllMimeRender, IsNonEmpty)
+import Servant.API.ContentTypes (AllCTRender, AllMimeRender, allMime, IsNonEmpty)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
-import Servant.Server.Internal (methodRouter, Router(..), RouteMismatch(HttpError), failWith)
+import Servant.Server.Internal (methodRouter, Router(..), RouteResult(Route, FailFatal))
+import Servant.Server.Internal.RoutingApplication (addMethodCheck)
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
         errHeaders)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
@@ -62,8 +63,8 @@ import Thentos.Util
 enterAction :: (Show e, Typeable e) =>
     ActionState ->
     (ActionError e -> IO ServantErr) ->
-    Maybe ThentosSessionToken -> Action e :~> EitherT ServantErr IO
-enterAction state toServantErr mTok = Nat $ EitherT . run toServantErr
+    Maybe ThentosSessionToken -> Action e :~> ExceptT ServantErr IO
+enterAction state toServantErr mTok = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
@@ -175,13 +176,13 @@ instance ( AllCTRender ctypes a ) => HasServer (Post200 ctypes a) where
     type ServerT (Post200 ctypes a) m = m a
     route Proxy = methodRouter methodPost (Proxy :: Proxy ctypes) ok200
 
-instance (ToSample a b, IsNonEmpty cts, AllMimeRender cts b, SupportedTypes cts)
+instance (ToSample a b, IsNonEmpty cts, AllMimeRender cts b )
     => HasDocs (Post200 cts a) where
   docsFor Proxy (endpoint, action) = single endpoint' action'
 
     where endpoint' = endpoint & method .~ DocPOST
           action' = action & response.respBody .~ sampleByteStrings t p
-                           & response.respTypes .~ supportedTypes t
+                           & response.respTypes .~ allMime t
                            & response.respStatus .~ 200
           t = Proxy :: Proxy cts
           p = Proxy :: Proxy a
@@ -242,9 +243,9 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
     type ServerT (ThentosAssertHeaders :> subserver) m = ServerT subserver m
 
     route Proxy subserver = WithRequest $ \ request -> route (Proxy :: Proxy subserver) $
-       case badHeaders $ requestHeaders request of
-          []  -> subserver
-          bad -> return $ failWith $ HttpError status400 (Just . cs $ "Unknown thentos header fields: " ++ show bad)
+       subserver `addMethodCheck` (return $ case badHeaders $ requestHeaders request of
+          []  -> Route ()
+          bad -> FailFatal err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad})
 
 
 -- * response headers
