@@ -243,7 +243,7 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
     type ServerT (ThentosAssertHeaders :> subserver) m = ServerT subserver m
 
     route Proxy subserver = WithRequest $ \ request -> route (Proxy :: Proxy subserver) $
-       subserver `addMethodCheck` (return $ case badHeaders $ requestHeaders request of
+       subserver `addMethodCheck` return (case badHeaders $ requestHeaders request of
           []  -> Route ()
           bad -> FailFatal err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad})
 
