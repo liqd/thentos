@@ -20,7 +20,9 @@ import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Foldable (for_)
 import Data.Maybe (isJust)
+import Data.Monoid ((<>))
 import Data.Pool (withResource)
 import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
@@ -108,8 +110,22 @@ spec =
                  (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
                      `shouldBe` Left "password too short (less than 6 characters)"
 
-        -- TODO re-add test for user creation together with account activation, cf. below
+        describe "create user" $ with setupBackend $ do
+            let a3resp = encodePretty $ object
+                    [ "content_type" .= String "adhocracy_core.resources.principal.IUser"
+                    , "path"         .= String "http://127.0.0.1:6541/principals/users/0000111/"
+                    ]
+            around_ (withA3fake Nothing a3resp) $ do
+                it "works" $ do
+                    let reqBody = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
+                    -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
+                    rsp <- request "POST" "/principals/users" [ctJson] $ reqBody  <> "\n"
+                    shouldBeStatusXWithCustomMessages 200 (simpleStatus rsp) (simpleBody rsp)
+                        -- path should contain the uid returned by A3, but using our endpoint
+                        -- prefix instead of the one from A3
+                        ["http://127.0.0.1:7118/principals/users/0000111"]
 
+        -- TODO also add positive test case for activate_account
         describe "activate_account" $ with setupBackend $ do
             let a3errMsg = encodePretty $ A3ErrorMessage
                     [A3Error "path" "body" "Unknown or expired activation path"]
@@ -179,103 +195,24 @@ spec =
 
     ctJson = ("Content-Type", "application/json")
 
-    shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
-    shouldBeErr400WithCustomMessage rstStatus rspBody customMessage = do
-        liftIO $ Status.statusCode rstStatus `shouldBe` 400
-        -- Response body should be parseable as JSON
-        liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
-        let rspText = cs rspBody :: ST
-        -- It should contain the quoted string "error" as well as the customMessage
-        liftIO $ rspText `shouldSatisfy` ST.isInfixOf "\"error\""
-        liftIO $ rspText `shouldSatisfy` ST.isInfixOf customMessage
-
--- FIXME Disabled since user creation now requires a running A3 backend and we don't have
--- that in the tests.
---
--- Additional imports required for disabled test:
--- import Control.Lens ((^.))
--- import Control.Monad.IO.Class (liftIO)
--- import Data.Acid.Advanced (query')
--- import Data.String.Conversions (cs, (<>))
--- import Network.Wai.Test (srequest, simpleStatus, simpleBody)
--- import Test.Hspec (shouldSatisfy)
--- import System.Exit (ExitCode(ExitSuccess))
--- import System.FilePath ((</>))
--- import System.Process (readProcess, readProcessWithExitCode)
--- import qualified Data.Map as Map
--- import qualified Data.HashMap.Strict as HashMap
--- import qualified Network.HTTP.Types.Status as C
--- import Thentos.Action.Core
--- import qualified Thentos.Transaction as T
--- import Test.Types
---
---      describe "create user" . before setupTestBackend . after teardownTestBackend $
---          it "works" $
---              \ bts@(BTS tcfg ast@(ActionState (st, _, _)) _ _ _) -> runTestBackend bts $ do
---
---                  let rq1 = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
---
---                  -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
---                  rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1 <> "\n"
---                  liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 201
---
---                  -- Extract user path from response
---                  let respJson = Aeson.decode (simpleBody rsp1) :: Maybe Aeson.Value
---                      mUserPath = case respJson of
---                          Just (Aeson.Object m) -> HashMap.lookup "path" m
---                          _                     -> error "Response is not a JSON object"
---
---                  -- Check that it looks as it should
---                  case mUserPath of
---                      Just pathItem -> case pathItem of
---                          Aeson.String userPath -> do
---                              userId <- liftIO . runAction ast . userIdFromPath . Path $ userPath
---                              liftIO $ fromUserId userId `shouldSatisfy` (> 0)
---                          _ -> error "'path' in response is not a string"
---                      Nothing -> error "Response doesn't contain 'path' field"
---
---                  Right (db :: DB) <- query' st T.SnapShot
---                  let [(ConfirmationToken confTok, _)] = Map.toList $ db ^. dbUnconfirmedUsers
---
---                  -- Check that activation email was sent and contains the confirmation token.
---                  -- We use system calls to "grep" here which is ugly but works, while reading the
---                  -- log file within Haskell doesn't (openFile: resource busy (file is locked)).
---                  let logfile = tcfg ^. tcfgTmp </> "everything.log"
---                  (statusCode, _, _) <- liftIO $ readProcessWithExitCode "grep"
---                      ["-q", "Subject: Thentos account creation", logfile] ""
---                  liftIO $ statusCode `shouldBe` ExitSuccess
---                  loggedLine <- liftIO $ readProcess "grep" ["\"Please go to ", logfile] ""
---                  -- The grepped line should contain the confirmation token
---                  liftIO $ confTok `shouldSatisfy` (`ST.isInfixOf` cs loggedLine)
---
---                  let rq2 = Aeson.encode . ActivationRequest . Path $ "/activate/" <> confTok
---                  rsp2 <- srequest $ makeSRequest "POST" "/activate_account" [] rq2
---                  liftIO $ C.statusCode (simpleStatus rsp2) `shouldBe` 201
---
---                  let sessTok = case Aeson.eitherDecode $ simpleBody rsp2 of
---                        Right (RequestSuccess _ t) -> t
---                        bad -> error $ show bad
---
---                  liftIO $ sessTok `shouldSatisfy` (not . ST.null . fromThentosSessionToken)
---                  return ()
-
-        -- FIXME currently not working because of Servant quirks on failures
-        --describe "create user errors" . before setupTestBackend
-        --                              . after teardownTestBackend $
-        --    it "rejects users with short passwords" $
-        --        \ bts@(BTS _ (ActionState (_, _, _)) _ _ _) -> runTestBackend bts $ do
-        --
-        --            let rq1 = mkUserJson "Anna Müller" "anna@example.org" "short"
-        --            rsp1 <- srequest $ makeSRequest "POST" "/principals/users" [] $ rq1
-        --            liftIO $ C.statusCode (simpleStatus rsp1) `shouldBe` 400
-        --            liftIO $ simpleBody rsp1 `shouldBe` "..."
-
-        -- FIXME further stuff that can only be tested after Servant has been fixed:
-        -- (1) An error is returned if the specified user name or email doesn't exist
-        -- (2) An error is returned if the wrong password is specified
-
-
 -- * helper functions
+
+-- | Compare the response status with an expected status code and check that the response
+-- body is a JSON object that contains all of the specified custom strings.
+shouldBeStatusXWithCustomMessages :: MonadIO m => Int -> Status.Status -> LBS -> [ST] -> m ()
+shouldBeStatusXWithCustomMessages expectedCode rstStatus rspBody customMessages = do
+    liftIO $ Status.statusCode rstStatus `shouldBe` expectedCode
+    -- Response body should be parseable as JSON
+    liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
+    let rspText = cs rspBody :: ST
+    liftIO $ for_ customMessages $ \customMessage ->
+        rspText `shouldSatisfy` ST.isInfixOf customMessage
+
+-- | Like 'shouldBeStatusXWithCustomMessage', with the expected code set tu 400.
+-- We check the custom messages and the quoted string "error" are present in the JSON body.
+shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
+shouldBeErr400WithCustomMessage rstStatus rspBody customMessage =
+    shouldBeStatusXWithCustomMessages 400 rstStatus rspBody ["\"error\"", customMessage]
 
 -- | Create a JSON object describing an user.
 -- Aeson.encode would strip the password, hence we do it by hand.
