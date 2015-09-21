@@ -95,14 +95,12 @@ Installation
 
 If you want to use vagrant, visit https://github.com/tarleb/thentos-vagrant.
 
-Tested on [ghc-7.8.4](https://www.haskell.org/ghc/download_ghc_7_8_4)
-with all versions pinned (see `cabal.config`).  You should be able to
-build with other ghc versions since 7.8 and without pinning, but it may
+Tested on [7.10.2](https://www.haskell.org/ghc/download_ghc_7_10_2). You
+should be able to build with later ghc versions (if any), but it may
 involve some tweaking (and hence some familiarity with ghc).
 
-But it's best to use ghc 7.8.x, where x >= 4. ghc 7.10 is not yet
-supported. If your package manager doesn't have a suitable ghc version, you
-can download it manually from https://www.haskell.org/ghc/.
+If your package manager doesn't have a suitable ghc version, you can
+download it manually from https://www.haskell.org/ghc/.
 
 Clone the Thentos repository from GitHub. There are several packages in
 this repository:
