@@ -21,7 +21,7 @@ module Thentos.Types where
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
-import Data.Aeson (FromJSON, ToJSON, Value(String))
+import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
@@ -267,8 +267,8 @@ instance FromJSON ByUserOrServiceId where
     parseJSON _ = mzero
 
 instance ToJSON ByUserOrServiceId where
-    toJSON (ByUser v)    = Aeson.object [ "user" Aeson..= Aeson.toJSON v]
-    toJSON (ByService v) = Aeson.object [ "service" Aeson..= Aeson.toJSON v]
+    toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
+    toJSON (ByService v) = Aeson.object [ "service" .= Aeson.toJSON v]
 
 
 -- * timestamp, timeout
