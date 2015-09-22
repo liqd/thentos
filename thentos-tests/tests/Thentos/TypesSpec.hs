@@ -139,25 +139,24 @@ instance FromJSON Wrapper
 dbSpec :: SpecWith (Pool Connection)
 dbSpec = do
     describe "Timeout" $ do
-        it "converts correctly from SQL intervals" $ \conns -> do
-            [Only res1] <- doQuery conns [sql| SELECT interval '5 seconds'|] ()
-            res1 `shouldBe` fromSeconds 5
-            [Only res2] <- doQuery conns [sql| SELECT interval '20 minutes'|] ()
-            res2 `shouldBe` fromSeconds (20 * 60)
-            [Only res3] <- doQuery conns [sql| SELECT interval '-1 hour'|] ()
-            res3 `shouldBe` fromSeconds (-1 * 60 * 60)
-            [Only res4] <- doQuery conns [sql| SELECT interval '0.1 seconds'|] ()
-            res4 `shouldBe` fromMilliseconds 100
+        let testData =
+              [ ("5 seconds" , fromSeconds 5)
+              , ("20 minutes", fromSeconds $ 20*60)
+              , ("-1 hour", fromSeconds $ -1*60*60)
+              , ("0.1 seconds", fromMilliseconds 100)
+              ] :: [(String, Timeout)]
 
-        it "converts correctly to SQL intervals" $ \conns -> do
-            [Only res1] <- doQuery conns [sql| SELECT interval '5 seconds' = ?|] (Only $ fromSeconds 5)
-            res1 `shouldBe` True
-            [Only res2] <- doQuery conns [sql| SELECT interval '20 minutes' = ?|] (Only $ fromSeconds (20 * 60))
-            res2 `shouldBe` True
-            [Only res3] <- doQuery conns [sql| SELECT interval '-1 hour' = ?|] (Only $ fromSeconds (-1 * 60 * 60))
-            res3 `shouldBe` True
-            [Only res4] <- doQuery conns [sql| SELECT interval '0.1 seconds' = ?|] (Only $ fromMilliseconds 100)
-            res4 `shouldBe` True
+        it "converts correctly from SQL intervals" $ \conns -> mapM_
+            (\(i, t) -> do
+                [Only res] <- doQuery conns [sql|SELECT interval ?|] (Only i)
+                res `shouldBe` t)
+            testData
+
+        it "converts correctly to SQL intervals" $ \conns -> mapM_
+            (\(i, t) -> do
+                [Only res] <- doQuery conns [sql|SELECT interval ? = ?|] (i, t)
+                res `shouldBe` True)
+            testData
 
         it "converts correctly to SQL intervals in mixed expressions" $ \conns -> do
             [Only res1] <- doQuery conns [sql| SELECT now() < now() - ?::interval|] (Only $ fromMilliseconds 500)
