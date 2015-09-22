@@ -41,7 +41,8 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
-import Database.PostgreSQL.Simple.ToField (ToField, toField)
+import Database.PostgreSQL.Simple.Time (nominalDiffTimeToBuilder)
+import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 
@@ -293,7 +294,9 @@ fromMilliseconds :: Integer -> Timeout
 fromMilliseconds = Timeout . (/1000.0) . fromInteger
 
 instance ToField Timeout where
-    toField = toField . fromThyme . fromTimeout
+    toField = Plain . inQuotes . builder . fromThyme . fromTimeout
+      where
+        builder t = nominalDiffTimeToBuilder t <> " seconds"
 
 instance FromField Timeout where
     fromField f mdat =
