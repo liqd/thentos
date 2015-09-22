@@ -289,6 +289,9 @@ newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
 fromSeconds :: Integer -> Timeout
 fromSeconds = Timeout . fromInteger
 
+fromMilliseconds :: Integer -> Timeout
+fromMilliseconds = Timeout . (/1000.0) . fromInteger
+
 instance ToField Timeout where
     toField = toField . fromThyme . fromTimeout
 
