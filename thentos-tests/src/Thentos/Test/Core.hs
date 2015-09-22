@@ -29,10 +29,11 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
-import Data.Pool (withResource)
+import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Void (Void)
+import Database.PostgreSQL.Simple (Connection)
 
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Method (Method)
@@ -180,11 +181,17 @@ defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pr
 createActionState :: String -> ThentosConfig -> IO ActionState
 createActionState dbname config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
+    connPool <- createDb dbname
+    return $ ActionState (connPool, rng, config)
+
+-- | Create a connection to an empty DB.
+createDb :: String -> IO (Pool Connection)
+createDb dbname = do
     wipe <- wipeFile
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
                <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
-    connPool <- createConnPoolAndInitDb $ cs dbname
-    return $ ActionState (connPool, rng, config)
+    createConnPoolAndInitDb $ cs dbname
+
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
