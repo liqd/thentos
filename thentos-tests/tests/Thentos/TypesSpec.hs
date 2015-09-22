@@ -10,7 +10,7 @@ import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, context, describe, it, shouldBe, hspec)
+import Test.Hspec (Spec, context, describe, it, shouldBe)
 import Test.QuickCheck (property)
 
 import Thentos.Types
@@ -19,9 +19,6 @@ import Thentos.Test.Arbitrary ()
 
 testSizeFactor :: Int
 testSizeFactor = 1
-
-tests :: IO ()
-tests = hspec spec
 
 spec :: Spec
 spec = modifyMaxSize (* testSizeFactor) $ do
