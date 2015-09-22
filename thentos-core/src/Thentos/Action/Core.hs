@@ -219,7 +219,7 @@ genRandomBytes'P i = do
     ActionState (_, mr, _) <- Action ask
     liftLIO . ioTCB . modifyMVar mr $ return . f
 
-makeUserFromFormData'P :: UserFormData -> Action e User
+makeUserFromFormData'P :: UserFormData -> Action e CoreUser
 makeUserFromFormData'P = liftLIO . ioTCB . makeUserFromFormData
 
 hashUserPass'P :: UserPass -> Action e (HashedSecret UserPass)

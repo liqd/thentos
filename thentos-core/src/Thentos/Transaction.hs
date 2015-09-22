@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Thentos.Transaction
 where
@@ -21,68 +22,72 @@ import Thentos.Types
 import Thentos.Transaction.Core
 
 
--- * user
-
-lookupUser :: UserId -> ThentosQuery e (UserId, User)
-lookupUser uid = do
-    users <- queryT [sql| SELECT name, password, email
-                          FROM users
-                          WHERE id = ? |] (Only uid)
-    case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
-      []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupUser: multiple results"
-
-lookupUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupUserByName uname = do
-    users <- queryT [sql| SELECT id, name, password, email
-                          FROM users
-                          WHERE name = ? |] (Only uname)
-    case users of
-      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
-      []                        -> throwError NoSuchUser
-      _                         -> impossible "lookupUserByName: multiple users"
+class UserTrans u where
+    lookupUser :: UserId -> ThentosQuery e (UserId, u)
+    lookupUserByName :: UserName -> ThentosQuery e (UserId, u)
+    lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, u)
+    addUserPrim :: Maybe UserId -> u -> Bool -> ThentosQuery e UserId
+    addUnconfirmedUserPrim :: ConfirmationToken -> u -> Maybe UserId -> ThentosQuery e UserId
 
 
-lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
-lookupUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
-                          FROM users
-                          WHERE email = ? |] (Only email)
-    case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
-      []                 -> throwError NoSuchUser
-      _                  -> impossible "lookupUserByEmail: multiple users"
+instance UserTrans (User (HashedSecret UserPass)) where
+
+    lookupUser uid = do
+        users <- queryT [sql| SELECT name, password, email
+                              FROM users
+                              WHERE id = ? |] (Only uid)
+        case users of
+          [(name, pwd, email)] -> return (uid, User name pwd email)
+          []                   -> throwError NoSuchUser
+          _                    -> impossible "lookupUser: multiple results"
+
+    lookupUserByName uname = do
+        users <- queryT [sql| SELECT id, name, password, email
+                              FROM users
+                              WHERE name = ? |] (Only uname)
+        case users of
+          [(uid, name, pwd, email)] -> return (uid, User name pwd email)
+          []                        -> throwError NoSuchUser
+          _                         -> impossible "lookupUserByName: multiple users"
+
+
+    lookupUserByEmail email = do
+        users <- queryT [sql| SELECT id, name, password
+                              FROM users
+                              WHERE email = ? |] (Only email)
+        case users of
+          [(uid, name, pwd)] -> return (uid, User name pwd email)
+          []                 -> throwError NoSuchUser
+          _                  -> impossible "lookupUserByEmail: multiple users"
+
+    addUnconfirmedUserPrim token user mUid = do
+        uid <- addUserPrim mUid user False
+        void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
+                           VALUES (?, ?) |] (uid, token)
+        return uid
 
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
 -- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
 -- is a very bad idea and will quickly lead to errors!
-addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
-addUserPrim mUid user confirmed = do
-    res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?, ?)
-                        RETURNING id |]
-            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
-    case res of
-        [Only uid] -> return uid
-        []         -> impossible "addUserPrim created user without ID"
-        _          -> impossible "addUserPrim created multiple users"
+    addUserPrim mUid user confirmed = do
+        res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
+                            VALUES (?, ?, ?, ?, ?)
+                            RETURNING id |]
+                (orDefault mUid, user ^. userName, user ^. userAuth, user ^. userEmail, confirmed)
+        case res of
+            [Only uid] -> return uid
+            []         -> impossible "addUserPrim created user without ID"
+            _          -> impossible "addUserPrim created multiple users"
 
 -- | Add a new user and return the new user's 'UserId'.
 -- Ensures that user name and email address are unique.
-addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
+addUser :: (Show e, Typeable e, UserTrans u) => u -> ThentosQuery e UserId
 addUser user = addUserPrim Nothing user True
 
-addUnconfirmedUserPrim :: ConfirmationToken -> User -> Maybe UserId -> ThentosQuery e UserId
-addUnconfirmedUserPrim token user mUid = do
-    uid <- addUserPrim mUid user False
-    void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
-                       VALUES (?, ?) |] (uid, token)
-    return uid
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
 -- Ensures that user name and email address are unique.
-addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
+addUnconfirmedUser :: (Show e, Typeable e, UserTrans u) => ConfirmationToken -> u -> ThentosQuery e UserId
 addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 
 -- | Add a new unconfirmed user, assigning a specific ID to the new user.
@@ -91,7 +96,7 @@ addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 -- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend process
 -- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
 -- would leak information about the (non-)existence of IDs in our db.
-addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
+addUnconfirmedUserWithId :: UserTrans u => ConfirmationToken -> u -> UserId -> ThentosQuery e ()
 addUnconfirmedUserWithId token user uid = void $ addUnconfirmedUserPrim token user $ Just uid
 
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
@@ -125,12 +130,13 @@ finishUserRegistrationById uid = do
         _ -> impossible "finishUserRegistrationById: id uniqueness violation"
 
 -- | Add a password reset token.  Return the user whose password this token can change.
-addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
+addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e UserId 
 addPasswordResetToken email token = do
-    (uid, user) <- lookupUserByEmail email
+    -- (uid, user) <- lookupUserByEmail email
+    let uid = undefined :: UserId -- FIXME
     void $ execT [sql| INSERT INTO password_reset_tokens (token, uid)
                 VALUES (?, ?) |] (token, uid)
-    return user
+    return uid
 
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.

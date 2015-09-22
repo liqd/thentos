@@ -299,7 +299,7 @@ userLogoutDonePage = basePagelet "Thentos Logout" $ do
 
 -- * update user
 
-userDisplayPagelet :: User -> rs -> Html
+userDisplayPagelet :: CoreUser -> rs -> Html
 userDisplayPagelet user _ = do
     H.table $ do
         H.tr $ do
@@ -435,7 +435,7 @@ serviceCreateForm =
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
-serviceRegisterPage :: ST -> ST -> View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage :: ST -> ST -> View Html -> ServiceId -> Service -> CoreUser -> Html
 serviceRegisterPage csrfToken formAction v sid service user = basePagelet "Register with Service" $ do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do

@@ -132,10 +132,10 @@ freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
 -- user lookup prior to authentication.
-lookupUser :: UserId -> Action e (UserId, User)
+lookupUser :: T.UserTrans u => UserId -> Action e (UserId, u)
 lookupUser uid = _lookupUser $ T.lookupUser uid
 
-_lookupUser :: ThentosQuery e (UserId, User) -> Action e (UserId, User)
+_lookupUser :: T.UserTrans u => ThentosQuery e (UserId, u) -> Action e (UserId, u)
 _lookupUser transaction = do
     val@(uid, _) <- query'P transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
@@ -143,11 +143,11 @@ _lookupUser transaction = do
         (\ (_ :: AnyLabelError) -> throwError NoSuchUser)
 
 -- | Like 'lookupUser', but based on 'UserName'.
-lookupUserByName :: UserName -> Action e (UserId, User)
+lookupUserByName :: T.UserTrans u => UserName -> Action e (UserId, u)
 lookupUserByName name = _lookupUser $ T.lookupUserByName name
 
 -- | Like 'lookupUser', but based on 'UserEmail'.
-lookupUserByEmail :: UserEmail -> Action e (UserId, User)
+lookupUserByEmail :: T.UserTrans u => UserEmail -> Action e (UserId, u)
 lookupUserByEmail email = _lookupUser $ T.lookupUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
@@ -217,7 +217,7 @@ confirmNewUserById uid = do
 -- ** password reset
 
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
-addPasswordResetToken :: UserEmail -> Action e (User, PasswordResetToken)
+addPasswordResetToken :: UserEmail -> Action e (UserId, PasswordResetToken)
 addPasswordResetToken email = do
     tok <- freshPasswordResetToken
     user <- query'P $ T.addPasswordResetToken email tok
@@ -240,7 +240,7 @@ resetPassword token password = do
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
 _lookupUserCheckPassword ::
-    ThentosQuery e (UserId, User) -> UserPass -> Action e (UserId, User)
+    ThentosQuery e (UserId, CoreUser) -> UserPass -> Action e (UserId, CoreUser)
 _lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
@@ -453,7 +453,7 @@ endThentosSession = query'P . T.endThentosSession
 --
 -- We assume that the ThentosSessionToken is a secret that nobody except the session owner can
 -- know, therefore no special clearance is required.
-validateThentosUserSession :: ThentosSessionToken -> Action e (UserId, User)
+validateThentosUserSession :: T.UserTrans u => ThentosSessionToken -> Action e (UserId, u)
 validateThentosUserSession tok = do
     session <- _lookupThentosSession tok
     case session ^. thSessAgent of

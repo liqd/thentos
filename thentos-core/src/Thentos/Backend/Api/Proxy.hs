@@ -45,6 +45,7 @@ import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
+import Thentos.Transaction (UserTrans)
 
 
 data ServiceProxy
@@ -53,16 +54,16 @@ instance HasServer ServiceProxy where
     type ServerT ServiceProxy m = S.Application
     route Proxy = route (Proxy :: Proxy Raw)
 
-serviceProxy ::
-      C.Manager -> ProxyAdapter -> ActionState -> Server ServiceProxy
+serviceProxy :: UserTrans (User auth) =>
+      C.Manager -> ProxyAdapter auth -> ActionState -> Server ServiceProxy
 serviceProxy manager adapter state
     = waiProxyTo (reverseProxyHandler adapter state)
                  err500onExc
                  manager
 
 -- | Proxy or respond based on request headers.
-reverseProxyHandler ::
-      ProxyAdapter -> ActionState -> S.Request -> IO WaiProxyResponse
+reverseProxyHandler :: UserTrans (User auth) =>
+      ProxyAdapter auth -> ActionState -> S.Request -> IO WaiProxyResponse
 reverseProxyHandler adapter state req = do
     eRqMod <- runActionE state $ getRqMod adapter req
     case eRqMod of
@@ -75,13 +76,13 @@ reverseProxyHandler adapter state req = do
         Left e -> WPRResponse . responseServantErr <$> renderError adapter e
 
 -- | Allows adapting a proxy for a specific use case.
-data ProxyAdapter = ProxyAdapter
+data ProxyAdapter auth = ProxyAdapter
   { renderHeader :: RenderHeaderFun
-  , renderUser   :: ThentosConfig -> UserId -> User -> SBS
+  , renderUser   :: ThentosConfig -> UserId -> User auth-> SBS
   , renderError  :: ActionError Void -> IO ServantErr
   }
 
-defaultProxyAdapter :: ProxyAdapter
+defaultProxyAdapter :: ProxyAdapter (User auth)
 defaultProxyAdapter = ProxyAdapter
   { renderHeader = renderThentosHeaderName
   , renderUser   = defaultRenderUser
@@ -89,10 +90,10 @@ defaultProxyAdapter = ProxyAdapter
   }
 
 -- | Render the user by showing their name.
-defaultRenderUser :: ThentosConfig -> UserId -> User -> SBS
+defaultRenderUser :: ThentosConfig -> UserId -> User auth -> SBS
 defaultRenderUser _ _ user = cs . fromUserName $ user ^. userName
 
-prepareReq :: ProxyAdapter -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
+prepareReq :: ProxyAdapter user -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
 prepareReq adapter proxyHdrs pathPrefix req
     = req { S.requestHeaders = proxyHdrs <> newHdrs
           , S.rawPathInfo = newPath
@@ -122,7 +123,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 --
 -- The first parameter allows adapting a proxy for a specific use case.
 -- To get the default behavior, use 'defaultProxyAdapter'.
-getRqMod :: ProxyAdapter -> S.Request -> Action Void RqMod
+getRqMod :: UserTrans (User auth) => ProxyAdapter auth -> S.Request -> Action Void RqMod
 getRqMod adapter req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
@@ -161,8 +162,8 @@ findDefaultServiceIdAndTarget conf = do
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
-createCustomHeaders ::
-    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
+createCustomHeaders :: UserTrans (User auth) =>
+    ProxyAdapter auth -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) sid = do
     cfg <- getConfig'P

@@ -56,13 +56,16 @@ import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
 -- | (user groups (the data that services want to store and retrieve in thentos) and session tokens
 -- of all active sessions are stored in assoc lists rather than maps.  this saves us explicit json
 -- instances for now.)
-data User =
+data User auth =
     User
       { _userName            :: !UserName
-      , _userPassword        :: !(HashedSecret UserPass)
+      -- , _userPassword        :: !(HashedSecret UserPass)
+      , _userAuth :: auth
       , _userEmail           :: !UserEmail
       }
   deriving (Eq, Show, Typeable, Generic)
+
+type CoreUser = User (HashedSecret UserPass)
 
 -- | the data a user maintains about a service they are signed up
 -- with.

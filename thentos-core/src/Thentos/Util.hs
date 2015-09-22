@@ -52,15 +52,15 @@ secretMatches :: ST -> HashedSecret a -> Bool
 secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
                                        (fromHashedSecret s)
 
-verifyPass :: UserPass -> User -> Bool
+verifyPass :: UserPass -> CoreUser -> Bool
 verifyPass pass user = secretMatches (fromUserPass pass)
-                                     (user ^. userPassword)
+                                     (user ^. userAuth)
 
 verifyKey :: ServiceKey -> Service -> Bool
 verifyKey key service = secretMatches (fromServiceKey key)
                                       (service ^. serviceKey)
 
-makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
+makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m CoreUser
 makeUserFromFormData userData = do
     hashedPassword <- hashUserPass $ udPassword userData
     return $ User (udName userData)
