@@ -158,3 +158,9 @@ dbSpec = do
             res3 `shouldBe` True
             [Only res4] <- doQuery conns [sql| SELECT interval '0.1 seconds' = ?|] (Only $ fromMilliseconds 100)
             res4 `shouldBe` True
+
+        it "converts correctly to SQL intervals in mixed expressions" $ \conns -> do
+            [Only res1] <- doQuery conns [sql| SELECT now() < now() - ?::interval|] (Only $ fromMilliseconds 500)
+            res1 `shouldBe` False
+            [Only res2] <- doQuery conns [sql| SELECT now() < now() + ?::interval|] (Only $ fromMilliseconds 500)
+            res2 `shouldBe` True
