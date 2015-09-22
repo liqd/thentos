@@ -23,6 +23,7 @@ import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
+import Data.Char (isAlpha)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
@@ -287,11 +288,14 @@ instance FromField Timestamp where
 newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
   deriving (Eq, Ord, Show, Bounded, Typeable, Generic)
 
-fromSeconds :: Integer -> Timeout
-fromSeconds = Timeout . fromInteger
+fromSeconds :: Int -> Timeout
+fromSeconds = Timeout . fromInteger . toInteger
 
-fromMilliseconds :: Integer -> Timeout
-fromMilliseconds = Timeout . (/1000.0) . fromInteger
+fromMilliseconds :: Int -> Timeout
+fromMilliseconds = Timeout . (/1000.0) . fromInteger . toInteger
+
+toMilliseconds :: Timeout -> Int
+toMilliseconds = round . (*1000.0) . fromTimeout
 
 instance ToField Timeout where
     toField = Plain . inQuotes . builder . fromThyme . fromTimeout
@@ -324,11 +328,26 @@ instance Aeson.ToJSON Timestamp
     toJSON = Aeson.toJSON . timestampToString
 
 timeoutToString :: Timeout -> String
-timeoutToString = show . (Thyme.toSeconds :: NominalDiffTime -> Double) . fromTimeout
+timeoutToString = secondsToString . Thyme.toSeconds . fromTimeout
 
 timeoutFromString :: Monad m => String -> m Timeout
-timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
-  Timeout . (Thyme.fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
+timeoutFromString raw = Timeout . Thyme.fromSeconds <$> secondsFromString raw
+
+secondsToString :: Double -> String
+secondsToString s = show s ++ "s"
+
+secondsFromString :: Monad m => String -> m Double
+secondsFromString raw = do
+    let (ns, suff) = break isAlpha raw
+    n <- maybe (fail $ "interval: no parse: number: " ++ ns) return $ readMay ns
+    mult <- case suff of
+        "ms" -> return 0.001
+        "s"  -> return 1
+        "m"  -> return 60
+        "h"  -> return $ 60*60
+        "d"  -> return $ 24*60*60
+        _    -> fail $ "interval: no parse: unit: " ++ suff
+    return $ mult * n
 
 instance Aeson.FromJSON Timeout
   where
