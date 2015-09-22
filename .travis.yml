@@ -1,13 +1,31 @@
-language: haskell
+# We use --force-reinstalls to allow caching. If this causes problems, go to
+# https://travis-ci.org/liqd/thentos/caches to invalidate the cache.
+
+language: c
+
+sudo: false
+
+cache:
+    directories:
+        - $HOME/build/liqd/thentos/.cabal-sandbox
+        - $HOME/.cabal
+
+addons:
+    apt:
+        sources:
+            - hvr-ghc
+        packages:
+            - ghc-7.10.2
+            - happy-1.19.3
+            - alex-3.1.3
+            - cabal-install-1.22
+            - xvfb
+
 before_install:
     - grep '\(MemTotal\|SwapTotal\)' /proc/meminfo
     - git show | head -1  # (for matching against commit hash given on the travis log web page)
-    - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-    - travis_retry sudo apt-get update
-    - travis_retry sudo apt-get install --force-yes ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22 hlint
     - export PATH=/opt/ghc/7.10.2/bin:/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:/opt/cabal/1.22/bin:$PATH
     - export PATH=~/.cabal/bin:$PATH
-    - travis_retry sudo apt-get install xvfb
     - cd misc/selenium
     - mkdir log
     - "export DISPLAY=:1"
@@ -15,9 +33,21 @@ before_install:
     - make init
     - make start
     - cd ../..
+
 install:
-    - ./misc/thentos-install.sh
+    - travis_retry cabal update
+    # We install hlint because we don't want to invalidate i's cache together
+    # with the thentos cache
+    - git clone --depth 1 https://github.com/liqd/travis-cache
     - export PATH=$PWD/travis-cache:$PATH
+    - mkdir -p ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4
+    - cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlint-1.9.21/
+    # The container reports 16 cores (when it only has 1.5), and a higher
+    # number may result in slower builds. So we comment out the relevant line
+    # the config file
+    - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
+    - ./misc/thentos-install.sh -c "--force-reinstalls"
+
 script:
     - make hlint
     - (cd thentos-core && cabal configure --ghc-options="-Werror" && cabal build)
