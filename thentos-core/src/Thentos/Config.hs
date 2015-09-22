@@ -73,9 +73,9 @@ defaultThentosConfig =
   :*> Just defaultSmtpConfig
   :*> Just defaultDatabaseConfig
   :*> NothingO
-  :*> Just (Timeout 3600)
-  :*> Just (Timeout 3600)
-  :*> Just (Timeout 3600)
+  :*> Just (fromSeconds 3600)
+  :*> Just (fromSeconds 3600)
+  :*> Just (fromSeconds 3600)
   :*> NothingO
   :*> Nothing
 

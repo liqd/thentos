@@ -22,14 +22,15 @@ import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
-import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
+import Data.Attoparsec.ByteString.Char8 (parseOnly)
+import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
-import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime)
+import Data.Thyme (UTCTime, formatTime, parseTime)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
@@ -42,7 +43,6 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
-import Database.PostgreSQL.Simple.Time (nominalDiffTimeToBuilder)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
@@ -50,10 +50,9 @@ import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 import qualified Data.HashMap.Strict as H
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
-import qualified Data.Thyme as Thyme
 import qualified Generics.Generic.Aeson as Aeson
 
-import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
+import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 
 
 -- * user
@@ -285,22 +284,20 @@ instance ToField Timestamp where
 instance FromField Timestamp where
     fromField f dat = Timestamp . toThyme <$> fromField f dat
 
-newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
-  deriving (Eq, Ord, Show, Bounded, Typeable, Generic)
+newtype Timeout = Timeoutms { toMilliseconds :: Int }
+  deriving (Eq, Ord, Show)
+
+toSeconds :: (Fractional a, Real a) => Timeout -> a
+toSeconds = (/1000.0) . fromIntegral . toMilliseconds
 
 fromSeconds :: Int -> Timeout
-fromSeconds = Timeout . fromInteger . toInteger
+fromSeconds = Timeoutms . (*1000)
 
 fromMilliseconds :: Int -> Timeout
-fromMilliseconds = Timeout . (/1000.0) . fromInteger . toInteger
-
-toMilliseconds :: Timeout -> Int
-toMilliseconds = round . (*1000.0) . fromTimeout
+fromMilliseconds = Timeoutms
 
 instance ToField Timeout where
-    toField = Plain . inQuotes . builder . fromThyme . fromTimeout
-      where
-        builder t = nominalDiffTimeToBuilder t <> " seconds"
+    toField = Plain . inQuotes . (<> " seconds") . doubleDec . toSeconds
 
 instance FromField Timeout where
     fromField f mdat =
@@ -308,9 +305,9 @@ instance FromField Timeout where
             then returnError Incompatible f ""
             else case mdat of
                 Nothing  -> returnError UnexpectedNull f ""
-                Just dat -> case parseOnly (nominalDiffTime <* endOfInput) dat of
+                Just dat -> case parseOnly intervalSeconds dat of
                     Left msg  -> returnError ConversionFailed f msg
-                    Right t   -> return . Timeout . toThyme $ t
+                    Right t   -> return . Timeoutms . round . (*1000) $ t
 
 timestampToString :: Timestamp -> String
 timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
@@ -328,15 +325,15 @@ instance Aeson.ToJSON Timestamp
     toJSON = Aeson.toJSON . timestampToString
 
 timeoutToString :: Timeout -> String
-timeoutToString = secondsToString . Thyme.toSeconds . fromTimeout
+timeoutToString = secondsToString . (toSeconds :: Timeout -> Double)
 
 timeoutFromString :: Monad m => String -> m Timeout
-timeoutFromString raw = Timeout . Thyme.fromSeconds <$> secondsFromString raw
+timeoutFromString raw = Timeoutms . round . (*(1000::Double)) <$> secondsFromString raw
 
-secondsToString :: Double -> String
+secondsToString :: (Show a, Fractional a, Real a) => a -> String
 secondsToString s = show s ++ "s"
 
-secondsFromString :: Monad m => String -> m Double
+secondsFromString :: (Read a, Fractional a, Real a, Monad m) => String -> m a
 secondsFromString raw = do
     let (ns, suff) = break isAlpha raw
     n <- maybe (fail $ "interval: no parse: number: " ++ ns) return $ readMay ns

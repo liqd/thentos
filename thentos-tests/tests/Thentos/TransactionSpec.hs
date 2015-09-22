@@ -253,7 +253,7 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
         Right _ <- runQuery connPool $
             addPasswordResetToken (user ^. userEmail) testToken
         Right _ <- runQuery connPool $
-            resetPassword (Timeout 3600) testToken newEncryptedPass
+            resetPassword (fromSeconds 3600) testToken newEncryptedPass
         [Only newPassInDB] <- doQuery connPool
             [sql| SELECT password FROM users WHERE id = ?|] (Only userId)
         newPassInDB `shouldBe` newEncryptedPass
@@ -417,7 +417,7 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
         Right _ <- runThentosQueryFromPool connPool $
             addUserEmailChangeRequest userId newEmail testToken
         Right _ <-
-            runThentosQueryFromPool connPool $ confirmUserEmailChange (Timeout 3600) testToken
+            runThentosQueryFromPool connPool $ confirmUserEmailChange (fromSeconds 3600) testToken
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` newEmail
