@@ -13,6 +13,7 @@
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
+{-# LANGUAGE ViewPatterns                #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Types where
@@ -20,7 +21,7 @@ module Thentos.Types where
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
-import Data.Aeson (FromJSON, ToJSON, Value(String))
+import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
@@ -44,6 +45,7 @@ import Database.PostgreSQL.Simple.ToField (ToField, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 
+import qualified Data.HashMap.Strict as H
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
@@ -253,6 +255,20 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
+
+data ByUserOrServiceId = ByUser (UserId, UserPass)
+                       | ByService (ServiceId, ServiceKey)
+  deriving (Eq, Typeable, Generic)
+
+instance FromJSON ByUserOrServiceId where
+    parseJSON (Aeson.Object (H.toList -> [(key, val)]))
+        | key == "user"    = ByUser <$> Aeson.parseJSON val
+        | key == "service" = ByService <$> Aeson.parseJSON val
+    parseJSON _ = mzero
+
+instance ToJSON ByUserOrServiceId where
+    toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
+    toJSON (ByService v) = Aeson.object [ "service" .= Aeson.toJSON v]
 
 
 -- * timestamp, timeout

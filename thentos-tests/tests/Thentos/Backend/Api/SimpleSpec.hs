@@ -122,13 +122,13 @@ spec = do
 
         describe "thentos_session" $ do
 
-            describe "Capture \"token\" ThentosSessionToken :> Get Bool" $ do
+            describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
                 it "returns true if session is active" $ do
                     hdr <- liftIO ctHeader
                     response1 <- postDefaultUser
-                    let (uid :: Int) = read . cs $ simpleBody response1
+                    let uid = read . cs $ simpleBody response1
                     response2 <- request "POST" "/thentos_session" hdr $
-                        Aeson.encode (uid, udPassword defaultUserData)
+                        Aeson.encode $ ByUser (UserId uid, udPassword defaultUserData)
                     request "GET" "/thentos_session/" hdr (simpleBody response2)
                         `shouldRespondWith` "true" { matchStatus = 200 }
 
