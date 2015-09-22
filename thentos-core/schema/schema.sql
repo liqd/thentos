@@ -2,10 +2,12 @@
 CREATE TABLE IF NOT EXISTS "users" (
     id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,
-    password   text        NOT NULL,
+    password   text,
+    github_id  bigint,
     email      text        NOT NULL UNIQUE,
     confirmed  bool        NOT NULL,
-    created    timestamptz NOT NULL DEFAULT now()
+    created    timestamptz NOT NULL DEFAULT now(),
+    CHECK ((password IS NULL) <> (github_id IS NULL))
 );
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (

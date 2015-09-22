@@ -245,9 +245,12 @@ _lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
         (uid, user) <- query'P transaction
-        if verifyPass password user
-            then return (uid, user)
-            else throwError BadCredentials
+        case user ^. userAuth of
+            UserAuthPassword pw ->
+                if verifyPass password pw
+                    then return (uid, user)
+                    else throwError BadCredentials
+            UserAuthGithubId _ -> throwError PasswordOpOnSsoUser
 
     h NoSuchUser = throwError BadCredentials
     h e          = throwError e

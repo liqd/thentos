@@ -25,32 +25,38 @@ import Thentos.Transaction.Core
 
 lookupUser :: UserId -> ThentosQuery e (UserId, User)
 lookupUser uid = do
-    users <- queryT [sql| SELECT name, password, email
+    users <- queryT [sql| SELECT name, password, github_id, email
                           FROM users
                           WHERE id = ? |] (Only uid)
     case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
-      []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupUser: multiple results"
+      [(name, pwd, ghId, email)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
+      []                         -> throwError NoSuchUser
+      _                          -> impossible "lookupUser: multiple results"
 
 lookupUserByName :: UserName -> ThentosQuery e (UserId, User)
 lookupUserByName uname = do
-    users <- queryT [sql| SELECT id, name, password, email
+    users <- queryT [sql| SELECT id, name, password, github_id, email
                           FROM users
                           WHERE name = ? |] (Only uname)
     case users of
-      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, ghId, email)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                        -> throwError NoSuchUser
       _                         -> impossible "lookupUserByName: multiple users"
 
 
 lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
 lookupUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
+    users <- queryT [sql| SELECT id, name, password, github_id
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, ghId)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupUserByEmail: multiple users"
 
@@ -59,10 +65,13 @@ lookupUserByEmail email = do
 -- is a very bad idea and will quickly lead to errors!
 addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
 addUserPrim mUid user confirmed = do
-    res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?, ?)
+    let (pwd, githubId) = case user ^. userAuth of
+            UserAuthPassword pw -> (Just pw, Nothing)
+            UserAuthGithubId ghId -> (Nothing, Just ghId)
+    res <- queryT [sql| INSERT INTO users (id, name, password, github_id, email, confirmed)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         RETURNING id |]
-            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
+            (orDefault mUid, user ^. userName, pwd, githubId ,user ^. userEmail, confirmed)
     case res of
         [Only uid] -> return uid
         []         -> impossible "addUserPrim created user without ID"
@@ -466,3 +475,8 @@ makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
 makeAgent (Just uid) Nothing  = UserA uid
 makeAgent Nothing (Just sid) = ServiceA sid
 makeAgent _ _ = impossible "makeAgent: invalid arguments"
+
+makeAuth :: Maybe (HashedSecret UserPass) -> Maybe GithubId -> UserAuth
+makeAuth (Just pw) Nothing = UserAuthPassword pw
+makeAuth Nothing (Just ghId) = UserAuthGithubId ghId
+makeAuth _ _ = impossible "makeAuth: invalid arguments"

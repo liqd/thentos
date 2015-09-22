@@ -288,7 +288,7 @@ updateUserFieldSpec = describe "updateUserField" $ do
         Right _ <- runQuery connPool $
             updateUserField userId (UpdateUserFieldPassword newPass)
         Right (_, usr) <- runQuery connPool $ lookupUser userId
-        usr `shouldBe` (user & userPassword .~ newPass)
+        usr `shouldBe` (user & userAuth .~ UserAuthPassword newPass)
 
     it "doesn't change other users" $ \(ActionState (connPool, _, _)) -> do
         let newName = UserName "new"
@@ -813,6 +813,6 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
 
 mkUser :: UserName -> SBS -> ST -> User
 mkUser name pass email = User { _userName = name
-                              , _userPassword = encryptTestSecret pass
+                              , _userAuth = UserAuthPassword $ encryptTestSecret pass
                               , _userEmail = forceUserEmail email
                               }

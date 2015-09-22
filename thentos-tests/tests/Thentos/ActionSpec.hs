@@ -52,7 +52,8 @@ spec_user = describe "user" $ do
             uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
             (uid', user') <- runPrivs [RoleAdmin] sta $ lookupUser uid
             uid' `shouldBe` uid
-            user' `shouldBe` (userPassword .~ (user' ^. userPassword) $ user)
+            user' `shouldBe`
+                (userAuth .~ (user' ^. userAuth) $ user)
             void . runPrivs [RoleAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
                 runClearanceE dcBottom sta $ lookupUser uid

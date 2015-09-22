@@ -61,10 +61,17 @@ import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
 data User =
     User
       { _userName            :: !UserName
-      , _userPassword        :: !(HashedSecret UserPass)
+      , _userAuth            :: !UserAuth
       , _userEmail           :: !UserEmail
       }
   deriving (Eq, Show, Typeable, Generic)
+
+data UserAuth = UserAuthPassword !(HashedSecret UserPass)
+              | UserAuthGithubId !GithubId
+    deriving (Eq, Show, Typeable, Generic)
+
+newtype GithubId = GithubId Int
+    deriving (Eq, Show, FromField, ToField)
 
 -- | the data a user maintains about a service they are signed up
 -- with.
@@ -446,6 +453,7 @@ data ThentosError e =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
+    | PasswordOpOnSsoUser
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 
