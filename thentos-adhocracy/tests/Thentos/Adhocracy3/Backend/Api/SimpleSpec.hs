@@ -24,7 +24,7 @@ import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
-import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai (Application)
@@ -144,14 +144,14 @@ spec =
                     liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 400
 
                     -- Activate user
-                    let reqBody = encodePretty $ object
+                    let actReq = encodePretty $ object
                             [ "path" .= String "/activate/random-path" ]
-                    rsp <- request "POST" "activate_account" [ctJson] reqBody
-                    liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
+                    actRsp <- request "POST" "activate_account" [ctJson] actReq
+                    liftIO $ Status.statusCode (simpleStatus actRsp) `shouldBe` 200
 
                     -- Make sure that we can log in now
-                    loginRsp <- request "POST" "login_username" [ctJson] loginReq
-                    liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
+                    loginRsp2 <- request "POST" "login_username" [ctJson] loginReq
+                    liftIO $ Status.statusCode (simpleStatus loginRsp2) `shouldBe` 200
 
         describe "activate_account" $ with setupBackend $ do
             let a3errMsg = encodePretty $ A3ErrorMessage
