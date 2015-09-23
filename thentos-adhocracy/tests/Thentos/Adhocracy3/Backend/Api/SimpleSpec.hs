@@ -24,9 +24,9 @@ import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
-import Data.String.Conversions (LBS, ST, cs)
+import Data.String.Conversions (LBS, SBS, ST, cs)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
-import Network.HTTP.Types (Status, status400)
+import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
@@ -35,6 +35,7 @@ import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (Arbitrary(..), property)
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as Status
 
@@ -111,13 +112,25 @@ spec =
                      `shouldBe` Left "password too short (less than 6 characters)"
 
         describe "create user" $ with setupBackend $ do
-            let a3resp = encodePretty $ object
+            let a3userCreated   = encodePretty $ object
                     [ "content_type" .= String "adhocracy_core.resources.principal.IUser"
                     , "path"         .= String "http://127.0.0.1:6541/principals/users/0000111/"
                     ]
-            around_ (withA3fake Nothing a3resp) $ do
+                a3loginSuccess = encodePretty $ object
+                    [ "status"     .= String "success"
+                    , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000111/"
+                    , "user_token" .= String "bla-bla-valid-token-blah"
+                    ]
+                smartA3backend = routingReplyServer Nothing $ Map.fromList
+                    [ ("/path/principals/users", (status200, a3userCreated))
+                    , ("/path/activate_account", (status200, a3loginSuccess))
+                    ]
+
+            around_ (withApp smartA3backend) $ do
                 it "works" $ do
-                    let reqBody = mkUserJson "Anna Müller" "anna@example.org" "EckVocUbs3"
+                    let name    = "Anna Müller"
+                        pass    = "EckVocUbs3"
+                        reqBody = mkUserJson name "anna@example.org" pass
                     -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
                     rsp <- request "POST" "/principals/users" [ctJson] $ reqBody  <> "\n"
                     shouldBeStatusXWithCustomMessages 200 (simpleStatus rsp) (simpleBody rsp)
@@ -125,7 +138,21 @@ spec =
                         -- prefix instead of the one from A3
                         ["http://127.0.0.1:7118/principals/users/0000111"]
 
-        -- TODO also add positive test case for activate_account
+                    -- Make sure that we cannot log in since the account isn't yet active
+                    let loginReq = mkLoginRequest name pass
+                    loginRsp <- request "POST" "login_username" [ctJson] loginReq
+                    liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 400
+
+                    -- Activate user
+                    let reqBody = encodePretty $ object
+                            [ "path" .= String "/activate/random-path" ]
+                    rsp <- request "POST" "activate_account" [ctJson] reqBody
+                    liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
+
+                    -- Make sure that we can log in now
+                    loginRsp <- request "POST" "login_username" [ctJson] loginReq
+                    liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
+
         describe "activate_account" $ with setupBackend $ do
             let a3errMsg = encodePretty $ A3ErrorMessage
                     [A3Error "path" "body" "Unknown or expired activation path"]
@@ -145,17 +172,17 @@ spec =
                     "\"User doesn't exist or password is wrong\""
 
         describe "resetPassword" $ with setupBackend $ do
-            let a3succMsg = encodePretty $ object
-                            [ "status"     .= String "success"
-                            , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
-                            , "user_token" .= String "bla-bla-valid-token-blah"
-                            ]
-            around_ (withA3fake Nothing a3succMsg) $ do
+            let a3loginSuccess = encodePretty $ object
+                    [ "status"     .= String "success"
+                    , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000000/"
+                    , "user_token" .= String "bla-bla-valid-token-blah"
+                    ]
+            around_ (withA3fake Nothing a3loginSuccess) $ do
                 it "changes the password if A3 signals success" $ do
                     let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
                     rsp <- request "POST" "password_reset" [ctJson] resetReq
                     liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
-                    -- Test that we can login using the new password
+                    -- Test that we can log in using the new password
                     let loginReq = mkLoginRequest "god" "newpass"
                     loginRsp <- request "POST" "login_username" [ctJson] loginReq
                     liftIO $ Status.statusCode (simpleStatus loginRsp) `shouldBe` 200
@@ -247,8 +274,12 @@ mkPwResetRequestJson path pass = encodePretty $ object
 -- | Start a faked A3 backend that always returns the same response, passed in as argument.
 -- The status code defaults to 200.
 withA3fake :: Maybe Status -> LBS -> IO () -> IO ()
-withA3fake mStatus respBody test = bracket
-    (startDaemon $ runSettings settings $ staticReplyServer mStatus Nothing respBody)
+withA3fake mStatus respBody = withApp $ staticReplyServer mStatus Nothing respBody
+
+-- | Start an application prior to running the test, stopping it afterwards.
+withApp :: Application -> IO () -> IO ()
+withApp app test = bracket
+    (startDaemon $ runSettings settings app)
     stopDaemon
     (const test)
   where
