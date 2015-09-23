@@ -78,7 +78,4 @@ instance ToJSON A3ErrorMessage where
 instance FromJSON A3ErrorMessage where
     parseJSON = withObject "A3-style error message" $ \v -> A3ErrorMessage <$> (v .: "errors")
 
-newtype SsoToken = SsoToken { fromSsoToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
 type A3Action = Thentos.Action.Core.Action ThentosA3Error

@@ -77,3 +77,7 @@ CREATE TABLE IF NOT EXISTS "service_sessions" (
     thentos_session_token text        NOT NULL REFERENCES thentos_sessions (token) ON DELETE CASCADE,
     meta                  text        NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "sso_tokens" (
+    token text PRIMARY KEY
+);

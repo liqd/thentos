@@ -162,6 +162,9 @@ data UserFormData =
 instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
+newtype SsoToken = SsoToken { fromSsoToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, FromField, ToField)
+
 
 -- * service
 

@@ -57,6 +57,8 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     startServiceSessionSpec
     lookupServiceSessionSpec
     endServiceSessionSpec
+    addSsoTokenSpec
+    lookupAndDeleteSsoTokenSpec
 
 
 addUserPrimSpec :: SpecWith ActionState
@@ -688,6 +690,37 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     serviceSessionToken = "bar"
     sid = "sid"
 
+
+-- * SSO
+addSsoTokenSpec :: SpecWith ActionState
+addSsoTokenSpec = describe "addSsoToken" $ do
+    it "adds a new SSO token to the db" $ \(ActionState (connPool, _, _)) -> do
+        Right () <- runQuery connPool $ addSsoToken ssoToken
+        [Only tokenCount] <- doQuery connPool
+            [sql| SELECT COUNT(*) FROM sso_tokens WHERE token = ? |]
+            (Only ssoToken)
+        tokenCount `shouldBe` (1 :: Int)
+  where
+    ssoToken = SsoToken "abcdefg"
+
+lookupAndDeleteSsoTokenSpec :: SpecWith ActionState
+lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
+    it "succeeds if the token is in the db" $ \(ActionState (connPool, _, _)) -> do
+        Right () <- runQuery connPool $ addSsoToken token
+        Right () <- runQuery connPool $ lookupAndRemoveSsoToken token
+        -- token should now be removed from the db:
+        [Only tokenCount] <- doQuery connPool
+            [sql| SELECT COUNT(*) FROM sso_tokens WHERE token = ? |]
+            (Only token)
+        tokenCount `shouldBe` (0 :: Int)
+
+    it "throws NoSuchToken if the token is not in the db" $ \(ActionState (connPool, _, _)) -> do
+        Right () <- runQuery connPool $ addSsoToken token
+        res <- runQuery connPool $ lookupAndRemoveSsoToken (SsoToken "foo")
+        res `shouldBe` Left NoSuchToken
+
+  where
+    token = SsoToken "abcdefg"
 
 -- * Garbage collection
 

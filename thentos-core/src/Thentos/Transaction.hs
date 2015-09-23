@@ -429,6 +429,24 @@ agentRoles agent = case agent of
         return $ map fromOnly roles
 
 
+-- * SSO
+
+-- | Add an SSO token to the database
+addSsoToken :: SsoToken -> ThentosQuery e ()
+addSsoToken token = void $ execT [sql|
+    INSERT INTO sso_tokens (token) VALUES (?) |] (Only token)
+
+-- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
+lookupAndRemoveSsoToken :: SsoToken -> ThentosQuery e ()
+lookupAndRemoveSsoToken token = do
+    res <- execT [sql|
+        DELETE FROM sso_tokens WHERE token = ? |] (Only token)
+    case res of
+        0 -> throwError NoSuchToken
+        1 -> return ()
+        _ -> impossible "repeated sso token in db"
+
+
 -- * garbage collection
 
 -- | Go through "thentos_sessions" table and find all expired sessions.
