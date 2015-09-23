@@ -27,7 +27,6 @@ import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.
 import Data.Data (Typeable)
 import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
-import GHC.Generics (Generic)
 
 import Thentos.Types
 
@@ -39,8 +38,6 @@ data ThentosA3Error =
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
     | SsoErrorUnknownCsrfToken
-    | SsoErrorCouldNotAccessUserInfo LBS
-    | SsoErrorCouldNotGetAccessToken LBS
   deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosA3Error

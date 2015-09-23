@@ -166,6 +166,10 @@ thentosErrorInfo other e = f e
         (Just (ERROR, ppShow e), err500, "internal error")
     f PasswordOpOnSsoUser =
         (Just (ERROR, ppShow e), err500, "internal error")
+    f (SsoErrorCouldNotAccessUserInfo _) =
+        (Just (ERROR, show e), err500, "error accessing user info")
+    f (SsoErrorCouldNotGetAccessToken _) =
+        (Just (ERROR, show e), err500, "error retrieving access token")
     f (OtherError x) = other x
 
 

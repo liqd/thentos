@@ -1,6 +1,6 @@
 module Thentos.Adhocracy3 (main) where
 
-import Thentos (makeMain)
+import Thentos (makeMain, createConnPoolAndInitDb)
 import Thentos.Config
 
 import qualified Thentos.Adhocracy3.Backend.Api.Simple as Simple (runBackend)

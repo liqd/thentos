@@ -66,6 +66,9 @@ module Thentos.Action
     , unassignRole
     , agentRoles
 
+    , addNewSsoToken
+    , lookupAndRemoveSsoToken
+
     , collectGarbage
     )
 where
@@ -126,6 +129,10 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: Action e ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
+
+freshSsoToken :: Action e SsoToken
+freshSsoToken = SsoToken <$> freshRandomName
+
 
 -- * user
 
@@ -570,6 +577,21 @@ agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     query'P (T.agentRoles agent)
 
+
+-- * SSO
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+addNewSsoToken :: Action e SsoToken
+addNewSsoToken = do
+    tok <- freshSsoToken
+    query'P $ T.addSsoToken tok
+    return tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+lookupAndRemoveSsoToken :: SsoToken -> Action e ()
+lookupAndRemoveSsoToken tok = query'P $ T.lookupAndRemoveSsoToken tok
 
 -- * garbage collection
 

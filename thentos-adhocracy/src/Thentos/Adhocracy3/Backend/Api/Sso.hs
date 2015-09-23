@@ -91,7 +91,6 @@ import Thentos.Config
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
-import qualified Thentos.Adhocracy3.Transactions as T
 
 
 -- * main
@@ -187,7 +186,7 @@ githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
 -- | FIXME: document!
 githubRequest :: A3Action AuthRequest
 githubRequest = do
-    state <- addNewSsoToken
+    state <- A.addNewSsoToken
     return . AuthRequest . cs $
         authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
@@ -195,7 +194,7 @@ githubRequest = do
 -- | FIXME: document!
 githubConfirm :: ST -> ST -> A3Action A3.RequestResult
 githubConfirm state code = do
-        lookupAndRemoveSsoToken (SsoToken state)
+        A.lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
         confirm mgr
   where
@@ -210,8 +209,8 @@ githubConfirm state code = do
                     <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
                 case eGhUser of
                     Right ghUser -> loginGithubUser ghUser
-                    Left e -> throwError . OtherError $ SsoErrorCouldNotAccessUserInfo e
-            Left e -> throwError . OtherError $ SsoErrorCouldNotGetAccessToken e
+                    Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
+            Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
 
 
 -- | FIXME: document!
@@ -228,20 +227,3 @@ loginGithubUser (GithubUser _ uname) = do
               e -> throwError e
 
     return $ A3.RequestSuccess (A3.Path "/dashboard") tok
-
--- | This doesn't check any labels because it needs to be called as part of the
--- authentication process.
-addNewSsoToken :: A3Action SsoToken
-addNewSsoToken = do
-    tok <- freshSsoToken
-    AC.query'P $ T.addSsoToken tok
-    return tok
-
--- | This doesn't check any labels because it needs to be called as part of the
--- authentication process.
-lookupAndRemoveSsoToken :: SsoToken -> A3Action ()
-lookupAndRemoveSsoToken tok = AC.query'P $ T.lookupAndRemoveSsoToken tok
-
-
-freshSsoToken :: A3Action SsoToken
-freshSsoToken = SsoToken <$> A.freshRandomName

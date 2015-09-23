@@ -25,7 +25,7 @@ import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
@@ -457,6 +457,8 @@ data ThentosError e =
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
     | PasswordOpOnSsoUser
+    | SsoErrorCouldNotAccessUserInfo LBS
+    | SsoErrorCouldNotGetAccessToken LBS
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 

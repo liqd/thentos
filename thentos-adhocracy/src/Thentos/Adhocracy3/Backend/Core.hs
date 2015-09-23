@@ -93,10 +93,6 @@ a3Info ae = case ae of
     -- the following shouldn't actually reach servant:
     f e@SsoErrorUnknownCsrfToken =
         (Just (ERROR, show e), err500, "invalid token returned during sso process")
-    f e@(SsoErrorCouldNotAccessUserInfo _) =
-        (Just (ERROR, show e), err500, "error accessing user info")
-    f e@(SsoErrorCouldNotGetAccessToken _) =
-        (Just (ERROR, show e), err500, "error retrieving access token")
 
 impossible :: String -> a
 impossible = error
