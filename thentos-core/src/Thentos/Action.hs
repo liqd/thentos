@@ -50,6 +50,7 @@ module Thentos.Action
     , startThentosSessionByUserName
     , startThentosSessionByUserEmail
     , startThentosSessionByServiceId
+    , startThentosSessionByGithubId
     , endThentosSession
     , validateThentosUserSession
     , serviceNamesFromThentosSession
@@ -436,6 +437,15 @@ startThentosSessionByUserEmail ::
     UserEmail -> UserPass -> Action e (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupUserByEmail email) pass
+    (uid,) <$> _startThentosSessionByAgent (UserA uid)
+
+-- | Like the other startThentosSession.. actions, except that this doesn't
+-- check the password (because a user with a github id doesn't have one).
+-- It is the caller's responsibility to ensure that this is only called
+-- for the owner of the github account.
+startThentosSessionByGithubId :: GithubId -> Action e (UserId, ThentosSessionToken)
+startThentosSessionByGithubId ghId = do
+    (uid, _) <- query'P $ T.lookupUserByGithubId ghId
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.

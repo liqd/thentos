@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,
     password   text,
-    github_id  bigint,
+    github_id  bigint      UNIQUE,
     email      text        NOT NULL UNIQUE,
     confirmed  bool        NOT NULL,
     created    timestamptz NOT NULL DEFAULT now(),

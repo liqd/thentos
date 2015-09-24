@@ -159,14 +159,21 @@ instance ToJSON AuthRequest where
     toJSON (AuthRequest st) = object ["redirect" .= st]
 
 
-data GithubUser = GithubUser { gid   :: Integer
+data GithubUser = GithubUser { gid   :: GithubId
                              , gname :: ST
+                             , gEmail :: UserEmail
                              } deriving (Show, Eq)
 
 instance FromJSON GithubUser where
-    parseJSON (Object o) = GithubUser
-                           <$> o .: "id"
-                           <*> o .: "name"
+    parseJSON (Object o) = do
+        email <- o .: "email"
+        case parseUserEmail email of
+            Just userMail ->
+                GithubUser
+                    <$> o .: "id"
+                    <*> o .: "name"
+                    <*> pure userMail
+            Nothing -> mzero
     parseJSON _ = mzero
 
 -- | FIXME: move this to config.  this may also be a point in favour of configifier: we now need to
@@ -215,14 +222,14 @@ githubConfirm state code = do
 
 -- | FIXME: document!
 loginGithubUser :: GithubUser -> A3Action A3.RequestResult
-loginGithubUser (GithubUser _ uname) = do
-    let makeTok = A.startThentosSessionByUserName (UserName uname) (UserPass "")
+loginGithubUser (GithubUser ghId uname email) = do
+    let makeTok = A.startThentosSessionByGithubId ghId
 
     (_, tok) <- makeTok `catchError`
         \case BadCredentials -> do
                 _ <- A.addUser $ UserFormData (UserName uname)
                                               (UserPass "")
-                                              (UserEmail $ error "no email")
+                                              email
                 makeTok
               e -> throwError e
 

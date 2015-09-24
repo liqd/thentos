@@ -60,6 +60,18 @@ lookupUserByEmail email = do
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupUserByEmail: multiple users"
 
+lookupUserByGithubId :: GithubId -> ThentosQuery e (UserId, User)
+lookupUserByGithubId ghId = do
+    users <- queryT [sql| SELECT (id, name, email)
+                          FROM users
+                          WHERE github_id = ? |] (Only ghId)
+    case users of
+        [(uid, name, email)] ->
+            return (uid, User name (UserAuthGithubId ghId) email)
+        [] -> throwError NoSuchUser
+        _ -> impossible "lookupUserByGithubId: multiple users"
+
+
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
 -- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
 -- is a very bad idea and will quickly lead to errors!

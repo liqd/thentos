@@ -71,7 +71,10 @@ data UserAuth = UserAuthPassword !(HashedSecret UserPass)
     deriving (Eq, Show, Typeable, Generic)
 
 newtype GithubId = GithubId Int
-    deriving (Eq, Show, FromField, ToField)
+    deriving (Eq, Show, FromField, ToField, Generic)
+
+instance Aeson.FromJSON GithubId where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON GithubId where toJSON = Aeson.gtoJson
 
 -- | the data a user maintains about a service they are signed up
 -- with.
