@@ -74,7 +74,7 @@ buildDashboard' tab pageletBuilder = do
     runAsUser $ \ _ sessionLoginData -> do
         msgs <- popAllFrontendMsgs
         let uid = sessionLoginData ^. fslUserId
-        (_, user) <- snapRunAction $ lookupUser uid
+        (_, user) <- snapRunAction $ lookupConfirmedUser uid
         roles     <- snapRunAction $ agentRoles (UserA uid)
         dashboardPagelet msgs roles tab <$> pageletBuilder user roles
 

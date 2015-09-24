@@ -6,12 +6,15 @@ where
 import Control.Concurrent.Async (Async, async, cancel, wait)
 import Control.Exception (catch, AsyncException(ThreadKilled))
 import Data.Maybe (fromMaybe)
-import Data.String.Conversions (LBS, SBS)
-import Network.HTTP.Types (Status, status200)
+import Data.Monoid ((<>))
+import Data.String.Conversions (LBS, SBS, cs)
+import Network.HTTP.Types (Status, status200, status404)
 import Network.Socket (bind, listen, socket, Family(AF_INET),
     SocketType(Stream), PortNumber, Socket, defaultProtocol, socketPort,
     aNY_PORT, SockAddr(SockAddrInet), inet_addr)
-import Network.Wai (Application, responseLBS)
+import Network.Wai (Application, rawPathInfo, responseLBS)
+
+import qualified Data.Map as Map
 
 openTestSocket :: IO (PortNumber, Socket)
 openTestSocket = do
@@ -41,4 +44,19 @@ staticReplyServer mStatus mContentType respBody _req respond =
     respond $ responseLBS status [("Content-Type", contentType)] respBody
   where
     status      = fromMaybe status200 mStatus
+    contentType = fromMaybe "application/json" mContentType
+
+-- | Somewhat more refined reply server that looks up the route in a map and replies with the status
+-- and response defined for that route. Routes must match *exactly,* not just by prefix. All
+-- replies must have the same content type (first argument, default: application/json).
+-- Returns 404 and a simple plain-text body if no matching route is found.
+routingReplyServer :: Maybe SBS -> Map.Map SBS (Status, LBS) -> Application
+routingReplyServer mContentType replyMap req respond =
+    case Map.lookup route replyMap of
+        Just (status, respBody) -> respond $ responseLBS status
+            [("Content-Type", contentType)] respBody
+        Nothing                 -> respond . responseLBS status404
+            [("Content-Type", "text/plain; charset=UTF-8")] $ "Route not found: " <> cs route
+  where
+    route       = rawPathInfo req
     contentType = fromMaybe "application/json" mContentType

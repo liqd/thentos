@@ -23,36 +23,59 @@ import Thentos.Transaction.Core
 
 -- * user
 
-lookupUser :: UserId -> ThentosQuery e (UserId, User)
-lookupUser uid = do
+lookupConfirmedUser :: UserId -> ThentosQuery e (UserId, User)
+lookupConfirmedUser uid = do
+    users <- queryT [sql| SELECT name, password, email
+                          FROM users
+                          WHERE id = ? AND confirmed = true |] (Only uid)
+    case users of
+      [(name, pwd, email)] -> return (uid, User name pwd email)
+      []                   -> throwError NoSuchUser
+      _                    -> impossible "lookupConfirmedUser: multiple results"
+
+-- | Lookup any user (whether confirmed or not) by their ID.
+lookupAnyUser :: UserId -> ThentosQuery e (UserId, User)
+lookupAnyUser uid = do
     users <- queryT [sql| SELECT name, password, email
                           FROM users
                           WHERE id = ? |] (Only uid)
     case users of
       [(name, pwd, email)] -> return (uid, User name pwd email)
       []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupUser: multiple results"
+      _                    -> impossible "lookupAnyUser: multiple results"
 
-lookupUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupUserByName uname = do
+lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
+lookupConfirmedUserByName uname = do
     users <- queryT [sql| SELECT id, name, password, email
                           FROM users
-                          WHERE name = ? |] (Only uname)
+                          WHERE name = ? AND confirmed = true |] (Only uname)
     case users of
       [(uid, name, pwd, email)] -> return (uid, User name pwd email)
       []                        -> throwError NoSuchUser
-      _                         -> impossible "lookupUserByName: multiple users"
+      _                         -> impossible "lookupConfirmedUserByName: multiple users"
 
 
-lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
-lookupUserByEmail email = do
+lookupConfirmedUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
+lookupConfirmedUserByEmail email = do
+    users <- queryT [sql| SELECT id, name, password
+                          FROM users
+                          WHERE email = ? AND confirmed = true |] (Only email)
+    case users of
+      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      []                 -> throwError NoSuchUser
+      _                  -> impossible "lookupConfirmedUserByEmail: multiple users"
+
+-- | Lookup any user (whether confirmed or not) by their email address.
+lookupAnyUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
+lookupAnyUserByEmail email = do
     users <- queryT [sql| SELECT id, name, password
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
       [(uid, name, pwd)] -> return (uid, User name pwd email)
       []                 -> throwError NoSuchUser
-      _                  -> impossible "lookupUserByEmail: multiple users"
+      _                  -> impossible "lookupAnyUserByEmail: multiple users"
+
 
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
 -- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
@@ -127,7 +150,7 @@ finishUserRegistrationById uid = do
 -- | Add a password reset token.  Return the user whose password this token can change.
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
 addPasswordResetToken email token = do
-    (uid, user) <- lookupUserByEmail email
+    (uid, user) <- lookupAnyUserByEmail email
     void $ execT [sql| INSERT INTO password_reset_tokens (token, uid)
                 VALUES (?, ?) |] (token, uid)
     return user
@@ -301,11 +324,12 @@ lookupThentosSession token = do
 
 -- | Start a new thentos session. Start time is set to now, end time is calculated based on the
 -- specified 'Timeout'. If the agent is a user, this new session is added to their existing
--- sessions.
+-- sessions. Only confirmed users are allowed to log in; a 'NoSuchUser' error is thrown otherwise.
 -- FIXME not implemented: If the agent is a service with an existing session, its session is
 -- replaced.
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout -> ThentosQuery e ()
-startThentosSession tok (UserA uid) period =
+startThentosSession tok (UserA uid) period = do
+    void $ lookupConfirmedUser uid  -- may throw NoSuchUser
     void $ execT [sql| INSERT INTO thentos_sessions (token, uid, start, end_, period)
                        VALUES (?, ?, now(), now() + ?, ?)
                  |] (tok, uid, period, period)

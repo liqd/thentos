@@ -140,7 +140,7 @@ createConnPoolAndInitDb dbName = do
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
-    eq <- runThentosQuery conn $ (void $ T.lookupUser (UserId 0) :: ThentosQuery Void ())
+    eq <- runThentosQuery conn $ (void $ T.lookupConfirmedUser (UserId 0) :: ThentosQuery Void ())
     case eq of
         Right _         -> logger DEBUG $ "default user already exists"
         Left NoSuchUser -> do

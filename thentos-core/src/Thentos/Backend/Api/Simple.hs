@@ -79,10 +79,14 @@ thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
   :<|> deleteUser
+  -- FIXME Is it proper to allow users changing their name like that? Users may no longer
+  -- be recognizable if they can simply change their name at will.
   :<|> (\ uid name -> updateUserField uid (UpdateUserFieldName name))
-  :<|> (((^. userName) . snd) <$>) . lookupUser
+  :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
+  -- FIXME We shouldn't allow users to change their email without making sure that the new
+  -- email is actually theirs!
   :<|> (\ uid email -> updateUserField uid (UpdateUserFieldEmail email))
-  :<|> (((^. userEmail) . snd) <$>) . lookupUser
+  :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
 
 
 -- * service
