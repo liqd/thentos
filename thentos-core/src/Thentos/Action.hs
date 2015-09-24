@@ -22,6 +22,7 @@ module Thentos.Action
     , lookupUserByName
     , lookupUserByEmail
     , addUser
+    , addGithubUser
     , deleteUser
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
@@ -164,6 +165,13 @@ addUser :: (Show e, Typeable e) => UserFormData -> Action e UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= query'P . T.addUser
+
+-- | Like addUser, but for users that authenticate via github SSO
+addGithubUser :: (Show e, Typeable e) => UserName -> GithubId -> UserEmail -> Action e UserId
+addGithubUser name ghId email = do
+    guardWriteMsg "addGithubUser" (RoleAdmin %% RoleAdmin)
+    let user = User name (UserAuthGithubId ghId) email
+    query'P $ T.addUser user
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.

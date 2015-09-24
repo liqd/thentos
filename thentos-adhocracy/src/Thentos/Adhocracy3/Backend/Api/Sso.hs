@@ -227,9 +227,7 @@ loginGithubUser (GithubUser ghId uname email) = do
 
     (_, tok) <- makeTok `catchError`
         \case BadCredentials -> do
-                _ <- A.addUser $ UserFormData (UserName uname)
-                                              (UserPass "")
-                                              email
+                _ <- A.addGithubUser (UserName uname) ghId email
                 makeTok
               e -> throwError e
 
