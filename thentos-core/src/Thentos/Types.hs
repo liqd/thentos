@@ -22,13 +22,15 @@ import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
-import Data.Attoparsec.ByteString.Char8 (parseOnly, endOfInput)
+import Data.Attoparsec.ByteString.Char8 (parseOnly)
+import Data.ByteString.Builder (doubleDec)
+import Data.Char (isAlpha)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
-import Data.Thyme (UTCTime, NominalDiffTime, formatTime, parseTime, toSeconds, fromSeconds)
+import Data.Thyme (UTCTime, formatTime, parseTime)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
@@ -41,7 +43,7 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
-import Database.PostgreSQL.Simple.ToField (ToField, toField)
+import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 
@@ -50,7 +52,7 @@ import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
-import Database.PostgreSQL.Simple.Missing (nominalDiffTime)
+import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 
 
 -- * user
@@ -222,7 +224,7 @@ data ThentosSession =
       , _thSessEnd             :: !Timestamp
       , _thSessExpirePeriod    :: !Timeout
       }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+  deriving (Eq, Ord, Show, Typeable, Generic)
 
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
@@ -239,7 +241,7 @@ data ServiceSession =
       , _srvSessThentosSession :: !ThentosSessionToken
       , _srvSessMetadata       :: !ServiceSessionMetadata
       }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic)
+  deriving (Eq, Ord, Show, Typeable, Generic)
 
 instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
@@ -282,11 +284,29 @@ instance ToField Timestamp where
 instance FromField Timestamp where
     fromField f dat = Timestamp . toThyme <$> fromField f dat
 
-newtype Timeout = Timeout { fromTimeout :: NominalDiffTime }
-  deriving (Eq, Ord, Show, Read, Num, Real, Fractional, RealFrac, Bounded, Typeable, Generic)
+newtype Timeout = Timeoutms { toMilliseconds :: Int }
+  deriving (Eq, Ord, Show)
+
+toSeconds :: (Fractional a, Real a) => Timeout -> a
+toSeconds = (/1000.0) . fromIntegral . toMilliseconds
+
+fromMilliseconds :: Int -> Timeout
+fromMilliseconds = Timeoutms
+
+fromSeconds :: Int -> Timeout
+fromSeconds = fromMilliseconds . (*1000)
+
+fromMinutes :: Int -> Timeout
+fromMinutes = fromSeconds . (*60)
+
+fromHours :: Int -> Timeout
+fromHours = fromMinutes . (*60)
+
+fromDays :: Int -> Timeout
+fromDays = fromHours . (*24)
 
 instance ToField Timeout where
-    toField = toField . fromThyme . fromTimeout
+    toField = Plain . inQuotes . (<> " seconds") . doubleDec . toSeconds
 
 instance FromField Timeout where
     fromField f mdat =
@@ -294,9 +314,9 @@ instance FromField Timeout where
             then returnError Incompatible f ""
             else case mdat of
                 Nothing  -> returnError UnexpectedNull f ""
-                Just dat -> case parseOnly (nominalDiffTime <* endOfInput) dat of
+                Just dat -> case parseOnly intervalSeconds dat of
                     Left msg  -> returnError ConversionFailed f msg
-                    Right t   -> return . Timeout . toThyme $ t
+                    Right t   -> return . Timeoutms . round . (*1000) $ t
 
 timestampToString :: Timestamp -> String
 timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
@@ -314,11 +334,26 @@ instance Aeson.ToJSON Timestamp
     toJSON = Aeson.toJSON . timestampToString
 
 timeoutToString :: Timeout -> String
-timeoutToString = show . (toSeconds :: NominalDiffTime -> Double) . fromTimeout
+timeoutToString = secondsToString . (toSeconds :: Timeout -> Double)
 
 timeoutFromString :: Monad m => String -> m Timeout
-timeoutFromString raw = maybe (fail $ "Timeout: no parse: " ++ show raw) return $
-  Timeout . (fromSeconds :: Double -> NominalDiffTime) <$> readMay raw
+timeoutFromString raw = Timeoutms . round . (*(1000::Double)) <$> secondsFromString raw
+
+secondsToString :: (Show a, Fractional a, Real a) => a -> String
+secondsToString s = show s ++ "s"
+
+secondsFromString :: (Read a, Fractional a, Real a, Monad m) => String -> m a
+secondsFromString raw = do
+    let (ns, suff) = break isAlpha raw
+    n <- maybe (fail $ "interval: no parse: number: " ++ ns) return $ readMay ns
+    mult <- case suff of
+        "ms" -> return 0.001
+        "s"  -> return 1
+        "m"  -> return 60
+        "h"  -> return $ 60*60
+        "d"  -> return $ 24*60*60
+        _    -> fail $ "interval: no parse: unit: " ++ suff
+    return $ mult * n
 
 instance Aeson.FromJSON Timeout
   where

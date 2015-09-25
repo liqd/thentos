@@ -460,20 +460,20 @@ garbageCollectServiceSessions = void $ execT [sql|
 -- | Remove all expired unconfirmed users from db.
 garbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()
 garbageCollectUnconfirmedUsers timeout = void $ execT [sql|
-    DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "users" WHERE created < now() - ?::interval AND confirmed = false;
+    |] (Only timeout)
 
 -- | Remove all expired password reset requests from db.
 garbageCollectPasswordResetTokens :: Timeout -> ThentosQuery e ()
 garbageCollectPasswordResetTokens timeout = void $ execT [sql|
-    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - ?::interval;
+    |] (Only timeout)
 
 -- | Remove all expired email change requests from db.
 garbageCollectEmailChangeTokens :: Timeout -> ThentosQuery e ()
 garbageCollectEmailChangeTokens timeout = void $ execT [sql|
-    DELETE FROM "email_change_tokens" WHERE timestamp < now() - interval '? seconds';
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "email_change_tokens" WHERE timestamp < now() - ?::interval;
+    |] (Only timeout)
 
 
 -- * helpers
