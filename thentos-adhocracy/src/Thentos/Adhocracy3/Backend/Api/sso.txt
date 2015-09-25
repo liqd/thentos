@@ -1,0 +1,42 @@
+browser
+  javascript
+    haskell
+
+adhocracy.net/proposals
+
+button ->
+  POST /sso/github/request
+  <- {redirect: "https://github.com/login/oauth/authorize?client_id=CID&"
+              "redirect_uri=REDIRECT&user:email&state=RANDOMTOKEN"}
+
+  CID=configured
+  RANDOMTOKEN = newSsoToken
+  REDIRECT=https://thentos-dev-frontend.liqd.net/sso/github/confirm
+
+redirect to github 
+... 
+redirect to https://thentos-dev-frontend.liqd.net/sso/github/confirm?state=RANDOMTOKEN&code=CODE&redirect_back_to=...
+    POST https://github.com/login/oauth/access_token
+      OAUTHTOKEN <-
+    GET https://github.com/user?token=OAUTHTOKEN
+      email <-
+
+set session cookie, redirect to adhocracy.net/proposals
+
+
+
+
+
+
+Alternative: from "...", saves a redirect but clobbers a couple of url parameteres:
+
+... 
+redirect to https://adhocracy.net/proposals?ssoprovider=github&state=RANDOMTOKEN&code=CODE
+    <intercepted by proxy>
+    POST https://github.com/login/oauth/access_token
+      OAUTHTOKEN <-
+    GET https://github.com/user?token=OAUTHTOKEN
+      email <-
+
+    forward to a3 backend https://adhocracy.net/proposals
+forward response, set session cookie
