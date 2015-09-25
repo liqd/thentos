@@ -125,6 +125,28 @@ typesSpec = modifyMaxSize (* testSizeFactor) $ do
             it "does not allow fragments" $ do
                 decodeProxy "http://something.com/t#hi" `shouldBe` Nothing
 
+    describe "secondsFromString" $ do
+
+        it "parses and converts units correctly" $ do
+            secondsFromString "1ms" `shouldBe` Just (0.001 :: Double)
+            secondsFromString "1s"  `shouldBe` Just (1     :: Double)
+            secondsFromString "1m"  `shouldBe` Just (60    :: Double)
+            secondsFromString "1h"  `shouldBe` Just (3600  :: Double)
+            secondsFromString "1d"  `shouldBe` Just (86400 :: Double)
+
+        it "handles fractional values" $
+            secondsFromString "0.5m" `shouldBe` Just (30 :: Double)
+
+        it "handles negative values" $
+            secondsFromString "-3m" `shouldBe` Just (-180 :: Double)
+
+        it "requires a unit" $
+            secondsFromString "10" `shouldBe` (Nothing :: Maybe Double)
+
+        it "fails for empty input" $
+            secondsFromString "" `shouldBe` (Nothing :: Maybe Double)
+
+
 decodeProxy :: String -> Maybe ProxyUri
 decodeProxy str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
 
