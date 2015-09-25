@@ -386,7 +386,7 @@ userGroups uid sid = do
 -- (eventually, this will need to be run-time configurable.  but there will probably still be global
 -- defaults handled by configifier.)
 defaultSessionTimeout :: Timeout
-defaultSessionTimeout = fromSeconds $ 14 * 24 * 60 * 60
+defaultSessionTimeout = fromDays 14
 
 -- | Find 'ThentosSession' from token.  If 'ThentosSessionToken' does not exist or clearance does
 -- not allow access, throw 'NoSuchThentosSession'.

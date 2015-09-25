@@ -290,11 +290,20 @@ newtype Timeout = Timeoutms { toMilliseconds :: Int }
 toSeconds :: (Fractional a, Real a) => Timeout -> a
 toSeconds = (/1000.0) . fromIntegral . toMilliseconds
 
-fromSeconds :: Int -> Timeout
-fromSeconds = Timeoutms . (*1000)
-
 fromMilliseconds :: Int -> Timeout
 fromMilliseconds = Timeoutms
+
+fromSeconds :: Int -> Timeout
+fromSeconds = fromMilliseconds . (*1000)
+
+fromMinutes :: Int -> Timeout
+fromMinutes = fromSeconds . (*60)
+
+fromHours :: Int -> Timeout
+fromHours = fromMinutes . (*60)
+
+fromDays :: Int -> Timeout
+fromDays = fromHours . (*24)
 
 instance ToField Timeout where
     toField = Plain . inQuotes . (<> " seconds") . doubleDec . toSeconds
