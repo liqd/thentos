@@ -23,12 +23,12 @@
 -- >>> 01.  1.   BRO -> A3:    "can i give you access to my sso data on github so you know it's me?"
 -- >>> 02.  1.   A3  -> BRO:   "ok, here is a request token."
 -- >>> 03.  2.   BRO -> GIH:   "a3 gave me this request token."
--- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 access your name and t-shirt size?"
+-- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 access your github-verified email address?"
 -- >>> 05.  3.   BRO -> GIH:   "sure!"
 -- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to a3."
--- >>> 07.  4.   BRO -> A3:    "here you go: take this to github and check out my t-shirt size."
+-- >>> 07.  4.   BRO -> A3:    "here you go: take this to github and check out my email address"
 -- >>> 08.  5.     A3  -> GIH: "here is an access token."
--- >>> 09.  5.     GIH -> A3:  "here is some accessed information: t-shirt size and name."
+-- >>> 09.  5.     GIH -> A3:  "here is some accessed information: email address."
 -- >>> 10.  4.   A3  -> BRO:   "here is your 'ThentosSessionToken'."
 --
 -- (A3 is represented by this module; the actual application first sees any traffic only after the
@@ -49,10 +49,11 @@
 -- >>> // is redirected back from github, it will call this function first.
 -- >>> function handle_confirm_redirect() {
 -- >>>
--- >>>     // extract authentication token from request
--- >>>     // pass to thentos rest api
--- >>>     // process login response
--- >>>     // proceed normally
+-- >>>     // extract authentication token from route (or from the function arguments)
+-- >>>     // pass to thentos via rest api
+-- >>>     // extract target route and session token from login response from thentos
+-- >>>     // activate session token
+-- >>>     // re-route to target route (something along the lines of `/logged_in/dashboard`)
 -- >>>
 -- >>> }
 --
