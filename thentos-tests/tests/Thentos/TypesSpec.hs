@@ -163,3 +163,7 @@ dbSpec = do
             res1 `shouldBe` False
             [Only res2] <- doQuery conns [sql| SELECT now() < now() + ?::interval|] (Only $ fromMilliseconds 500)
             res2 `shouldBe` True
+            [Only res3] <- doQuery conns [sql| SELECT '2015-02-03 12:01:02'::timestamp
+                                                    = '2015-02-03 12:00:59'::timestamp
+                                                    + ?::interval|] (Only $ fromSeconds 3)
+            res3 `shouldBe` True
