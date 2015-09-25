@@ -9,13 +9,12 @@ import Control.Lens ((&), (^.), (.~))
 import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
+import Data.Pool (Pool)
 import Data.String.Conversions (ST, SBS)
-import Data.Thyme (fromSeconds')
-import Database.PostgreSQL.Simple (Only(..))
+import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
 
-import Thentos.Action.Core
 import Thentos.Transaction
 import Thentos.Types
 import Thentos.Util (hashUserPass, hashServiceKey)
@@ -25,7 +24,7 @@ import Thentos.Test.Config
 import Thentos.Test.Transaction
 
 spec :: Spec
-spec = describe "Thentos.Transaction" . before (createActionState "test_thentos" thentosTestConfig)
+spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
   $ do
     addUserPrimSpec
     addUserSpec
@@ -33,8 +32,9 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     addUnconfirmedUserWithIdSpec
     finishUserRegistrationSpec
     finishUserRegistrationByIdSpec
-    lookupUserByNameSpec
-    lookupUserByEmailSpec
+    lookupConfirmedUserByNameSpec
+    lookupConfirmedUserByEmailSpec
+    lookupAnyUserByEmailSpec
     deleteUserSpec
     passwordResetTokenSpec
     updateUserFieldSpec
@@ -61,119 +61,130 @@ spec = describe "Thentos.Transaction" . before (createActionState "test_thentos"
     lookupAndDeleteSsoTokenSpec
 
 
-addUserPrimSpec :: SpecWith ActionState
+addUserPrimSpec :: SpecWith (Pool Connection)
 addUserPrimSpec = describe "addUserPrim" $ do
 
-    it "adds a user to the database" $ \ (ActionState (connPool, _, _)) -> do
+    it "adds a confirmed user to the database" $ \connPool -> do
         let user   = testUsers !! 2
             userId = UserId 289
         void $ runQuery connPool $ addUserPrim (Just userId) user True
-        Right (_, res) <- runQuery connPool $ lookupUser userId
+        Right (_, res) <- runQuery connPool $ lookupConfirmedUser userId
         res `shouldBe` user
 
-    it "fails if the id is not unique" $ \ (ActionState (connPool, _, _)) -> do
+    it "adds an unconfirmed user to the database" $ \connPool -> do
+        let user   = testUsers !! 2
+            userId = UserId 290
+        void $ runQuery connPool $ addUserPrim (Just userId) user False
+        runQuery connPool (lookupConfirmedUser userId) `shouldReturn` Left NoSuchUser
+        Right (_, res) <- runQuery connPool $ lookupAnyUser userId
+        res `shouldBe` user
+
+    it "fails if the id is not unique" $ \connPool -> do
         let userId = UserId 289
         void $ runQuery connPool $ addUserPrim (Just userId) (testUsers !! 2) True
         x <- runQuery connPool $ addUserPrim (Just userId) (testUsers !! 3) True
         x `shouldBe` Left UserIdAlreadyExists
 
-    it "fails if the username is not unique" $ \ (ActionState (connPool, _, _)) -> do
-        let user1 = mkUser "name" "pass1" "email1@email.com"
-            user2 = mkUser "name" "pass2" "email2@email.com"
+    it "fails if the username is not unique" $ \connPool -> do
+        let user1 = mkUser "name" "pass1" "email1@example.com"
+            user2 = mkUser "name" "pass2" "email2@example.com"
         void $ runQuery connPool $ addUserPrim (Just $ UserId 372) user1 True
         x <- runQuery connPool $ addUserPrim (Just $ UserId 482) user2 True
         x `shouldBe` Left UserNameAlreadyExists
 
-    it "fails if the email is not unique" $  \ (ActionState (connPool, _, _)) -> do
-        let user1 = mkUser "name1" "pass1" "email@email.com"
-            user2 = mkUser "name2" "pass2" "email@email.com"
+    it "fails if the email is not unique" $  \connPool -> do
+        let user1 = mkUser "name1" "pass1" "email@example.com"
+            user2 = mkUser "name2" "pass2" "email@example.com"
         void $ runQuery connPool $ addUserPrim (Just $ UserId 372) user1 True
         x <- runQuery connPool $ addUserPrim (Just $ UserId 482) user2 True
         x `shouldBe` Left UserEmailAlreadyExists
 
-addUserSpec :: SpecWith ActionState
+addUserSpec :: SpecWith (Pool Connection)
 addUserSpec = describe "addUser" $ do
 
-    it "adds a user to the database" $ \ (ActionState (connPool, _, _)) -> do
+    it "adds a user to the database" $ \connPool -> do
         void $ runQuery connPool $ mapM_ addUser testUsers
         let names = _userName <$> testUsers
-        Right res <- runQuery connPool $ mapM lookupUserByName names
+        Right res <- runQuery connPool $ mapM lookupConfirmedUserByName names
         (snd <$> res) `shouldBe` testUsers
 
-addUnconfirmedUserSpec :: SpecWith ActionState
+addUnconfirmedUserSpec :: SpecWith (Pool Connection)
 addUnconfirmedUserSpec = describe "addUnconfirmedUser" $ do
-    let user  = mkUser "name" "pass" "email@email.com"
+    let user  = mkUser "name" "pass" "email@example.com"
         token = "sometoken"
 
-    it "adds a user to the database" $ \ (ActionState (connPool, _, _)) -> do
+    it "adds an unconfirmed a user to the database" $ \connPool -> do
         Right uid <- runQuery connPool $ addUnconfirmedUser token user
-        Right (_, usr) <- runQuery connPool $ lookupUser uid
+        runQuery connPool (lookupConfirmedUser uid) `shouldReturn` Left NoSuchUser
+        Right (_, usr) <- runQuery connPool $ lookupAnyUser uid
         usr `shouldBe` user
 
-addUnconfirmedUserWithIdSpec :: SpecWith ActionState
+addUnconfirmedUserWithIdSpec :: SpecWith (Pool Connection)
 addUnconfirmedUserWithIdSpec = describe "addUnconfirmedUserWithId" $ do
-    let user   = mkUser "name" "pass" "email@email.com"
-        userid = UserId 321
+    let user   = mkUser "name" "pass" "email@example.com"
+        userId = UserId 321
         token  = "sometoken"
 
-    it "adds an unconfirmed user to the DB" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
-        Right (_, usr) <- runQuery connPool $ lookupUserByName "name"
+    it "adds an unconfirmed user to the DB" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
+        runQuery connPool (lookupConfirmedUser userId) `shouldReturn` Left NoSuchUser
+        Right (_, usr) <- runQuery connPool . lookupAnyUserByEmail $
+            forceUserEmail "email@example.com"
         usr `shouldBe` user
 
-    it "adds the token for the user to the DB" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
+    it "adds the token for the user to the DB" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
         [Only res] <- doQuery connPool [sql|
             SELECT token FROM user_confirmation_tokens
-            WHERE id = ? |] (Only userid)
+            WHERE id = ? |] (Only userId)
         res `shouldBe` token
 
-    it "fails if the token is not unique" $ \ (ActionState (connPool, _, _)) -> do
-        let user2 = mkUser "name2" "pass" "email2@email.com"
-            userid2 = UserId 322
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
-        Left err <- runQuery connPool $ addUnconfirmedUserWithId token user2 userid2
+    it "fails if the token is not unique" $ \connPool -> do
+        let user2 = mkUser "name2" "pass" "email2@example.com"
+            userId2 = UserId 322
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
+        Left err <- runQuery connPool $ addUnconfirmedUserWithId token user2 userId2
         err `shouldBe` ConfirmationTokenAlreadyExists
 
-finishUserRegistrationByIdSpec :: SpecWith ActionState
+finishUserRegistrationByIdSpec :: SpecWith (Pool Connection)
 finishUserRegistrationByIdSpec = describe "finishUserRegistrationById" $ do
-    let user   = mkUser "name" "pass" "email@email.com"
-        userid = UserId 321
+    let user   = mkUser "name" "pass" "email@example.com"
+        userId = UserId 321
         token  = "sometoken"
 
-    it "makes the user be confirmed" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
+    it "makes the user be confirmed" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
         [Only res1] <- doQuery connPool [sql|
             SELECT confirmed FROM "users"
-            WHERE id = ? |] (Only userid)
+            WHERE id = ? |] (Only userId)
         res1 `shouldBe` False
-        Right () <- runQuery connPool $ finishUserRegistrationById userid
+        Right () <- runQuery connPool $ finishUserRegistrationById userId
         [Only res2] <- doQuery connPool [sql|
             SELECT confirmed FROM "users"
-            WHERE id = ? |] (Only userid)
+            WHERE id = ? |] (Only userId)
         res2 `shouldBe` True
 
-    it "removes the confirmation token" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
-        Right () <- runQuery connPool $ finishUserRegistrationById userid
+    it "removes the confirmation token" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
+        Right () <- runQuery connPool $ finishUserRegistrationById userId
         res <- doQuery connPool [sql|
             SELECT token FROM user_confirmation_tokens
-            WHERE id = ? |] (Only userid)
+            WHERE id = ? |] (Only userId)
         res `shouldBe` ([] :: [Only ConfirmationToken])
 
-    it "fails if the user is already confirmed" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userid
-        Right () <- runQuery connPool $ finishUserRegistrationById userid
-        Left err <- runQuery connPool $ finishUserRegistrationById userid
+    it "fails if the user is already confirmed" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token user userId
+        Right () <- runQuery connPool $ finishUserRegistrationById userId
+        Left err <- runQuery connPool $ finishUserRegistrationById userId
         err `shouldBe` NoSuchPendingUserConfirmation
 
-    it "fails if the user doesn't exist" $ \ (ActionState (connPool, _, _)) -> do
-        Left err <- runQuery connPool $ finishUserRegistrationById userid
+    it "fails if the user doesn't exist" $ \connPool -> do
+        Left err <- runQuery connPool $ finishUserRegistrationById userId
         err `shouldBe` NoSuchPendingUserConfirmation
 
-finishUserRegistrationSpec :: SpecWith ActionState
+finishUserRegistrationSpec :: SpecWith (Pool Connection)
 finishUserRegistrationSpec = describe "finishUserRegistration" $ do
-    it "confirms the user if the given token exists" $ \(ActionState (connPool, _, _)) -> do
+    it "confirms the user if the given token exists" $ \connPool -> do
         Right uid <- runQuery connPool $ addUnconfirmedUser token testUser
         Right uid' <- runQuery connPool $ finishUserRegistration timeout token
         uid `shouldBe` uid'
@@ -184,7 +195,7 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
             [sql| SELECT COUNT(*) FROM user_confirmation_tokens |]
         tokenCount `shouldBe` (0 :: Int)
 
-    it "fails if the given token does not exist" $ \(ActionState (connPool, _, _)) -> do
+    it "fails if the given token does not exist" $ \connPool -> do
         Right uid <- runQuery connPool $ addUnconfirmedUser token testUser
         Left NoSuchToken <- runQuery connPool $ finishUserRegistration timeout "badToken"
         [Only confirmed] <- doQuery connPool
@@ -193,50 +204,85 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
 
   where
     token = "someToken"
-    timeout = Timeout $ fromSeconds' 60
+    timeout = fromMinutes 1
 
-lookupUserByNameSpec :: SpecWith ActionState
-lookupUserByNameSpec = describe "lookupUserByName" $ do
+lookupConfirmedUserByNameSpec :: SpecWith (Pool Connection)
+lookupConfirmedUserByNameSpec = describe "lookupConfirmedUserByName" $ do
 
-    it "returns a user if one exists" $ \ (ActionState (connPool, _, _)) -> do
-        let user = mkUser "name" "pass" "email@email.com"
-            userid = UserId 437
-        void $ runQuery connPool $ addUserPrim (Just userid) user True
-        runQuery connPool (lookupUserByName "name") `shouldReturn` Right (userid, user)
+    it "returns a confirmed user" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
+        runQuery connPool (lookupConfirmedUserByName "name") `shouldReturn` Right (userId, user)
 
-    it "returns NoSuchUser if no user has the name" $ \ (ActionState (connPool, _, _)) -> do
-        runQuery connPool (lookupUserByName "name") `shouldReturn` Left NoSuchUser
+    it "returns NoSuchUser for unconfirmed users" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user False
+        runQuery connPool (lookupConfirmedUserByName "name") `shouldReturn` Left NoSuchUser
 
-lookupUserByEmailSpec :: SpecWith ActionState
-lookupUserByEmailSpec = describe "lookupUserByEmail" $ do
+    it "returns NoSuchUser if no user has the name" $ \connPool -> do
+        runQuery connPool (lookupConfirmedUserByName "name") `shouldReturn` Left NoSuchUser
 
-    it "returns a user if one exists" $ \ (ActionState (connPool, _, _)) -> do
-        let user = mkUser "name" "pass" "email@email.com"
-            userid = UserId 437
-        void $ runQuery connPool $ addUserPrim (Just userid) user True
-        runQuery connPool (lookupUserByEmail $ forceUserEmail "email@email.com")
-            `shouldReturn` Right (userid, user)
+lookupConfirmedUserByEmailSpec :: SpecWith (Pool Connection)
+lookupConfirmedUserByEmailSpec = describe "lookupConfirmedUserByEmail" $ do
 
-    it "returns NoSuchUser if no user has the email" $ \ (ActionState (connPool, _, _)) -> do
-        runQuery connPool (lookupUserByName "name") `shouldReturn` Left NoSuchUser
+    it "returns a confirmed user" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
+        runQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Right (userId, user)
 
-deleteUserSpec :: SpecWith ActionState
+    it "returns NoSuchUser for unconfirmed users" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user False
+        runQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Left NoSuchUser
+
+    it "returns NoSuchUser if no user has the email" $ \connPool -> do
+        runQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Left NoSuchUser
+
+lookupAnyUserByEmailSpec :: SpecWith (Pool Connection)
+lookupAnyUserByEmailSpec = describe "lookupAnyUserByEmail" $ do
+
+    it "returns a confirmed user" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
+        runQuery connPool (lookupAnyUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Right (userId, user)
+
+    it "returns an unconfirmed user" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 437
+        void $ runQuery connPool $ addUserPrim (Just userId) user False
+        runQuery connPool (lookupAnyUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Right (userId, user)
+
+    it "returns NoSuchUser if no user has the email" $ \connPool -> do
+        runQuery connPool (lookupAnyUserByEmail $ forceUserEmail "email@example.com")
+            `shouldReturn` Left NoSuchUser
+
+deleteUserSpec :: SpecWith (Pool Connection)
 deleteUserSpec = describe "deleteUser" $ do
 
-    it "deletes a user" $ \ (ActionState (connPool, _, _)) -> do
-        let user = mkUser "name" "pass" "email@email.com"
-            userid = UserId 371
-        void $ runQuery connPool $ addUserPrim (Just userid) user True
-        Right _  <- runQuery connPool $ lookupUser userid
-        Right () <- runQuery connPool $ deleteUser userid
-        runQuery connPool (lookupUser userid) `shouldReturn` Left NoSuchUser
+    it "deletes a user" $ \connPool -> do
+        let user = mkUser "name" "pass" "email@example.com"
+            userId = UserId 371
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
+        Right _  <- runQuery connPool $ lookupAnyUser userId
+        Right () <- runQuery connPool $ deleteUser userId
+        runQuery connPool (lookupAnyUser userId) `shouldReturn` Left NoSuchUser
 
-    it "throws NoSuchUser if the id does not exist" $ \ (ActionState (connPool, _, _)) -> do
+    it "throws NoSuchUser if the id does not exist" $ \connPool -> do
         runQuery connPool (deleteUser $ UserId 210) `shouldReturn` Left NoSuchUser
 
-passwordResetTokenSpec :: SpecWith ActionState
+passwordResetTokenSpec :: SpecWith (Pool Connection)
 passwordResetTokenSpec = describe "addPasswordResetToken" $ do
-    it "adds a password reset to the db" $ \(ActionState (connPool, _, _)) -> do
+    it "adds a password reset to the db" $ \connPool -> do
         let user = mkUser "name" "super secret" "me@example.com"
             userId = UserId 584
             testToken = PasswordResetToken "asgbagbaosubgoas"
@@ -247,7 +293,7 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
             [sql| SELECT token FROM password_reset_tokens |] ()
         token_in_db `shouldBe` testToken
 
-    it "resets a password if the given token exists" $ \(ActionState (connPool, _, _)) -> do
+    it "resets a password if the given token exists" $ \connPool -> do
         let user = mkUser "name" "super secret" "me@example.com"
             userId = UserId 594
             testToken = PasswordResetToken "asgbagbaosubgoas"
@@ -256,68 +302,68 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
         Right _ <- runQuery connPool $
             addPasswordResetToken (user ^. userEmail) testToken
         Right _ <- runQuery connPool $
-            resetPassword (Timeout 3600) testToken newEncryptedPass
+            resetPassword (fromHours 1) testToken newEncryptedPass
         [Only newPassInDB] <- doQuery connPool
             [sql| SELECT password FROM users WHERE id = ?|] (Only userId)
         newPassInDB `shouldBe` newEncryptedPass
 
-updateUserFieldSpec :: SpecWith ActionState
+updateUserFieldSpec :: SpecWith (Pool Connection)
 updateUserFieldSpec = describe "updateUserField" $ do
     let user = mkUser "name" "super secret" "me@example.com"
         userId = UserId 111
         user2 = mkUser "someone" "ppppp" "who@example.com"
         user2Id = UserId 222
 
-    it "changes the user name" $ \(ActionState (connPool, _, _)) -> do
+    it "changes the user name" $ \connPool -> do
         let newName = UserName "new"
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $
             updateUserField userId (UpdateUserFieldName newName)
-        Right (_, usr) <- runQuery connPool $ lookupUser userId
+        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
         usr `shouldBe` (user & userName .~ newName)
 
-    it "changes the user email" $ \(ActionState (connPool, _, _)) -> do
+    it "changes the user email" $ \connPool -> do
         let newEmail = forceUserEmail "new@example.com"
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $
             updateUserField userId (UpdateUserFieldEmail newEmail)
-        Right (_, usr) <- runQuery connPool $ lookupUser userId
+        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
         usr `shouldBe` (user & userEmail .~ newEmail)
 
-    it "changes the user name" $ \(ActionState (connPool, _, _)) -> do
+    it "changes the user name" $ \connPool -> do
         let newPass = encryptTestSecret "new pass"
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $
             updateUserField userId (UpdateUserFieldPassword newPass)
-        Right (_, usr) <- runQuery connPool $ lookupUser userId
+        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
         usr `shouldBe` (user & userAuth .~ UserAuthPassword newPass)
 
-    it "doesn't change other users" $ \(ActionState (connPool, _, _)) -> do
+    it "doesn't change other users" $ \connPool -> do
         let newName = UserName "new"
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
         Right _ <- runQuery connPool $
             updateUserField userId (UpdateUserFieldName newName)
-        Right (_, usr2) <- runQuery connPool $ lookupUser user2Id
+        Right (_, usr2) <- runQuery connPool $ lookupConfirmedUser user2Id
         usr2 `shouldBe` user2
 
-    it "fails if the new name is not unique" $ \(ActionState (connPool, _, _)) -> do
+    it "fails if the new name is not unique" $ \connPool -> do
         let newName = user2 ^. userName
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
         x <- runQuery connPool $ updateUserField userId (UpdateUserFieldName newName)
         x `shouldBe` Left UserNameAlreadyExists
-        runQuery connPool (lookupUser userId) `shouldReturn` Right (userId, user)
-        runQuery connPool (lookupUser user2Id) `shouldReturn` Right (user2Id, user2)
+        runQuery connPool (lookupConfirmedUser userId) `shouldReturn` Right (userId, user)
+        runQuery connPool (lookupConfirmedUser user2Id) `shouldReturn` Right (user2Id, user2)
 
-    it "fails if the user doesn't exist" $ \(ActionState (connPool, _, _)) -> do
+    it "fails if the user doesn't exist" $ \connPool -> do
         x <- runQuery connPool $ updateUserField userId $ UpdateUserFieldName $ UserName "nobody"
         x `shouldBe` Left NoSuchUser
 
-agentRolesSpec :: SpecWith ActionState
+agentRolesSpec :: SpecWith (Pool Connection)
 agentRolesSpec = describe "agentRoles" $ do
     it "returns an empty set for a user or service without roles" $
-      \(ActionState (connPool, _, _)) -> do
+      \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         x <- runQuery connPool $ agentRoles (UserA testUid)
         x `shouldBe` Right []
@@ -329,9 +375,9 @@ agentRolesSpec = describe "agentRoles" $ do
   where
     sid = "sid"
 
-assignRoleSpec :: SpecWith ActionState
+assignRoleSpec :: SpecWith (Pool Connection)
 assignRoleSpec = describe "assignRole" $ do
-    it "adds a role" $ \(ActionState (connPool, _, _)) -> do
+    it "adds a role" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         Right roles <- runQuery connPool $ agentRoles (UserA testUid)
@@ -342,7 +388,7 @@ assignRoleSpec = describe "assignRole" $ do
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
         serviceRoles `shouldBe` [RoleAdmin]
 
-    it "silently allows adding a duplicate role" $ \(ActionState (connPool, _, _)) -> do
+    it "silently allows adding a duplicate role" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         x <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
@@ -356,7 +402,7 @@ assignRoleSpec = describe "assignRole" $ do
         Right serviceRoles <- runQuery connPool $ agentRoles (ServiceA sid)
         serviceRoles `shouldBe` [RoleAdmin]
 
-    it "adds a second role" $ \(ActionState (connPool, _, _)) -> do
+    it "adds a second role" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleUser
@@ -374,9 +420,9 @@ assignRoleSpec = describe "assignRole" $ do
     addTestService connPool = void . runQuery connPool $
         addService (UserA testUid) sid testHashedSecret "name" "desc"
 
-unassignRoleSpec :: SpecWith ActionState
+unassignRoleSpec :: SpecWith (Pool Connection)
 unassignRoleSpec = describe "unassignRole" $ do
-    it "silently allows removing a non-assigned role" $ \(ActionState (connPool, _, _)) -> do
+    it "silently allows removing a non-assigned role" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         x <- runQuery connPool $ unassignRole (UserA testUid) RoleAdmin
         x `shouldBe` Right ()
@@ -385,7 +431,7 @@ unassignRoleSpec = describe "unassignRole" $ do
         res <- runQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
         res `shouldBe` Right ()
 
-    it "removes the specified role" $ \(ActionState (connPool, _, _)) -> do
+    it "removes the specified role" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleAdmin
         Right _ <- runQuery connPool $ assignRole (UserA testUid) RoleUser
@@ -405,9 +451,9 @@ unassignRoleSpec = describe "unassignRole" $ do
     addTestService connPool = void . runQuery connPool $
         addService (UserA testUid) sid testHashedSecret "name" "desc"
 
-emailChangeRequestSpec :: SpecWith ActionState
+emailChangeRequestSpec :: SpecWith (Pool Connection)
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
-    it "adds an email change token to the db" $ \(ActionState (connPool, _, _)) -> do
+    it "adds an email change token to the db" $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just userId) user True
         Right _ <- runThentosQueryFromPool connPool $
             addUserEmailChangeRequest userId newEmail testToken
@@ -415,12 +461,12 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
             [sql| SELECT token FROM email_change_tokens|] ()
         tokenInDb `shouldBe` testToken
 
-    it "changes a user's email if given a valid token" $ \(ActionState (connPool, _, _)) -> do
+    it "changes a user's email if given a valid token" $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just userId) user True
         Right _ <- runThentosQueryFromPool connPool $
             addUserEmailChangeRequest userId newEmail testToken
         Right _ <-
-            runThentosQueryFromPool connPool $ confirmUserEmailChange (Timeout 3600) testToken
+            runThentosQueryFromPool connPool $ confirmUserEmailChange (fromHours 1) testToken
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` newEmail
@@ -430,9 +476,9 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     testToken = ConfirmationToken "asgbagbaosubgoas"
     newEmail = forceUserEmail "new@example.com"
 
-addServiceSpec :: SpecWith ActionState
+addServiceSpec :: SpecWith (Pool Connection)
 addServiceSpec = describe "addService" $ do
-    it "adds a service to the db" $ \(ActionState (connPool, _, _)) -> do
+    it "adds a service to the db" $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just uid) user True
         [Only serviceCount] <- doQuery connPool countServices ()
         serviceCount `shouldBe` (0 :: Int)
@@ -447,7 +493,7 @@ addServiceSpec = describe "addService" $ do
         name' `shouldBe` name
         desc' `shouldBe` description
 
-    it "allows a service's owner to be a service" $ \(ActionState (connPool, _, _)) -> do
+    it "allows a service's owner to be a service" $ \connPool -> do
         let childSid = "child_sid"
             childName = "child service"
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just testUid) testUser True
@@ -474,9 +520,9 @@ addServiceSpec = describe "addService" $ do
     description = ServiceDescription "it serves"
     countServices = [sql| SELECT COUNT(*) FROM services |]
 
-deleteServiceSpec :: SpecWith ActionState
+deleteServiceSpec :: SpecWith (Pool Connection)
 deleteServiceSpec = describe "deleteService" $ do
-    it "deletes a service" $ \(ActionState (connPool, _, _)) -> do
+    it "deletes a service" $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runThentosQueryFromPool connPool $
             addService (UserA testUid) sid testHashedSecret "" ""
@@ -484,15 +530,15 @@ deleteServiceSpec = describe "deleteService" $ do
         [Only serviceCount] <- doQuery connPool [sql| SELECT COUNT(*) FROM services |] ()
         serviceCount `shouldBe` (0 :: Int)
 
-    it "fails if the service doesn't exist" $ \(ActionState (connPool, _, _)) -> do
+    it "fails if the service doesn't exist" $ \connPool -> do
         Left NoSuchService <- runThentosQueryFromPool connPool $ deleteService sid
         return ()
   where
     sid = ServiceId "blablabla"
 
-lookupServiceSpec :: SpecWith ActionState
+lookupServiceSpec :: SpecWith (Pool Connection)
 lookupServiceSpec = describe "lookupService" $ do
-    it "looks up a service"  $ \(ActionState (connPool, _, _)) -> do
+    it "looks up a service"  $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runThentosQueryFromPool connPool $
             addService (UserA testUid) sid testHashedSecret "name" "desc"
@@ -508,13 +554,13 @@ lookupServiceSpec = describe "lookupService" $ do
     name = "name"
     desc = "desc"
 
-startThentosSessionSpec :: SpecWith ActionState
+startThentosSessionSpec :: SpecWith (Pool Connection)
 startThentosSessionSpec = describe "startThentosSession" $ do
     let tok = "something"
         user = UserA (UserId 55)
-        period = Timeout $ fromSeconds' 60
+        period = fromMinutes 1
 
-    it "creates a thentos session for a user" $ \(ActionState (connPool, _, _)) -> do
+    it "creates a thentos session for a confirmed user" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right () <- runQuery connPool $ startThentosSession tok (UserA testUid) period
         [Only uid] <- doQuery connPool [sql| SELECT uid
@@ -522,11 +568,16 @@ startThentosSessionSpec = describe "startThentosSession" $ do
                                              WHERE token = ? |] (Only tok)
         uid `shouldBe` testUid
 
-    it "fails when the user doesn't exist" $ \(ActionState (connPool, _, _)) -> do
+    it "fails when the user is uconfirmed" $ \connPool -> do
+        void $ runQuery connPool $ addUserPrim (Just testUid) testUser False
         x <- runQuery connPool $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
 
-    it "creates a thentos session for a service" $ \(ActionState (connPool, _, _)) -> do
+    it "fails when the user doesn't exist" $ \connPool -> do
+        x <- runQuery connPool $ startThentosSession tok user period
+        x `shouldBe` Left NoSuchUser
+
+    it "creates a thentos session for a service" $ \connPool -> do
         let sid = "sid"
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runThentosQueryFromPool connPool $
@@ -537,26 +588,25 @@ startThentosSessionSpec = describe "startThentosSession" $ do
                                          WHERE token = ? |] (Only tok)
         sid' `shouldBe` sid
 
-    it "fails when the service doesn't exist" $ \(ActionState (connPool, _, _)) -> do
+    it "fails when the service doesn't exist" $ \connPool -> do
         x <- runQuery connPool $ startThentosSession tok (ServiceA "sid") period
         x `shouldBe` Left NoSuchService
 
-lookupThentosSessionSpec :: SpecWith ActionState
+lookupThentosSessionSpec :: SpecWith (Pool Connection)
 lookupThentosSessionSpec = describe "lookupThentosSession" $ do
     let tok = ThentosSessionToken "hellohello"
         userId = UserId 777
-        user = mkUser "name" "pass" "email@email.com"
+        user = mkUser "name" "pass" "email@example.com"
         agent = UserA userId
-        period' = fromSeconds' 60
-        period = Timeout period'
+        period = fromMinutes 1
         sid = "sid"
 
-    it "fails when there is no session" $ \(ActionState (connPool, _, _)) -> do
+    it "fails when there is no session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         x <- runQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
-    it "reads back a fresh session" $ \(ActionState (connPool, _, _)) -> do
+    it "reads back a fresh session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ startThentosSession tok agent period
         Right (t, s) <- runQuery connPool $ lookupThentosSession tok
@@ -571,13 +621,13 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         tok2' `shouldBe` tok2
         sess ^. thSessAgent `shouldBe` ServiceA sid
 
-    it "fails for an expired session" $ \(ActionState (connPool, _, _)) -> do
+    it "fails for an expired session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $ startThentosSession tok agent (Timeout $ fromSeconds' 0)
+        Right _ <- runQuery connPool $ startThentosSession tok agent (fromSeconds 0)
         x <- runQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
-    it "extends the session" $ \(ActionState (connPool, _, _)) -> do
+    it "extends the session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ startThentosSession tok agent period
         Right (_, sess1) <- runQuery connPool $ lookupThentosSession tok
@@ -585,15 +635,15 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         t `shouldBe` tok
         sess1 ^. thSessEnd `shouldSatisfy` (< sess2 ^. thSessEnd)
 
-endThentosSessionSpec :: SpecWith ActionState
+endThentosSessionSpec :: SpecWith (Pool Connection)
 endThentosSessionSpec = describe "endThentosSession" $ do
     let tok = "something"
         userId = UserId 777
-        user = mkUser "name" "pass" "email@email.com"
+        user = mkUser "name" "pass" "email@example.com"
         agent = UserA userId
-        period = Timeout $ fromSeconds' 60
+        period = fromMinutes 1
 
-    it "deletes a session" $ \(ActionState (connPool, _, _)) -> do
+    it "deletes a session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         void $ runQuery connPool $ startThentosSession tok agent period
         Right _ <- runQuery connPool $ lookupThentosSession tok
@@ -601,13 +651,13 @@ endThentosSessionSpec = describe "endThentosSession" $ do
         x <- runQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
-    it "silently allows deleting a non-existing session" $ \(ActionState (connPool, _, _)) -> do
+    it "silently allows deleting a non-existing session" $ \connPool -> do
         x <- runQuery connPool $ endThentosSession tok
         x `shouldSatisfy` isRight
 
-serviceNamesFromThentosSessionSpec :: SpecWith ActionState
+serviceNamesFromThentosSessionSpec :: SpecWith (Pool Connection)
 serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $ do
-    it "gets the names of all services that a thentos session is signed into" $ \(ActionState (conn, _, _)) -> do
+    it "gets the names of all services that a thentos session is signed into" $ \conn -> do
         let go = void . runQuery conn
         go $ addUserPrim (Just testUid) testUser True
         go $ addService (UserA testUid) "sid1" testHashedSecret "s1-name" "s1-desc"
@@ -621,11 +671,11 @@ serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $
         return ()
   where
     thentosSessionToken = "abcde"
-    period = Timeout $ fromSeconds' 60
+    period = fromMinutes 1
 
-startServiceSessionSpec :: SpecWith ActionState
+startServiceSessionSpec :: SpecWith (Pool Connection)
 startServiceSessionSpec = describe "startServiceSession" $ do
-    it "starts a service session" $ \(ActionState (connPool, _, _)) -> do
+    it "starts a service session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
         void $ runQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
@@ -636,14 +686,14 @@ startServiceSessionSpec = describe "startServiceSession" $ do
         [Only count] <- doQuery_ connPool [sql| SELECT COUNT(*) FROM service_sessions |]
         count `shouldBe` (1 :: Int)
   where
-    period = Timeout $ fromSeconds' 60
+    period = fromMinutes 1
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
 
-endServiceSessionSpec :: SpecWith ActionState
+endServiceSessionSpec :: SpecWith (Pool Connection)
 endServiceSessionSpec = describe "endServiceSession" $ do
-    it "ends an service session" $ \(ActionState  (connPool, _, _)) -> do
+    it "ends an service session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
         void $ runQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
@@ -659,14 +709,14 @@ endServiceSessionSpec = describe "endServiceSession" $ do
         return ()
   where
     countSessions = [sql| SELECT COUNT(*) FROM service_sessions |]
-    period = Timeout $ fromSeconds' 60
+    period = fromMinutes 1
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
 
-lookupServiceSessionSpec :: SpecWith ActionState
+lookupServiceSessionSpec :: SpecWith (Pool Connection)
 lookupServiceSessionSpec = describe "lookupServiceSession" $ do
-    it "looks up the service session with a given token" $ \(ActionState (connPool, _, _)) -> do
+    it "looks up the service session with a given token" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser True
         void $ runQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
@@ -680,21 +730,21 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
         tok `shouldBe` serviceSessionToken
 
     it "returns NoSuchServiceSession error if no service with the given id exists" $
-      \(ActionState (connPool, _, _)) -> do
+      \connPool -> do
         Left err <- runQuery connPool $ lookupServiceSession "non-existent token"
         err `shouldBe` NoSuchServiceSession
 
   where
-    period = Timeout $ fromSeconds' 60
+    period = fromMinutes 1
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
 
 
 -- * SSO
-addSsoTokenSpec :: SpecWith ActionState
+addSsoTokenSpec :: SpecWith (Pool Connection)
 addSsoTokenSpec = describe "addSsoToken" $ do
-    it "adds a new SSO token to the db" $ \(ActionState (connPool, _, _)) -> do
+    it "adds a new SSO token to the db" $ \connPool -> do
         Right () <- runQuery connPool $ addSsoToken ssoToken
         [Only tokenCount] <- doQuery connPool
             [sql| SELECT COUNT(*) FROM sso_tokens WHERE token = ? |]
@@ -703,9 +753,9 @@ addSsoTokenSpec = describe "addSsoToken" $ do
   where
     ssoToken = SsoToken "abcdefg"
 
-lookupAndDeleteSsoTokenSpec :: SpecWith ActionState
+lookupAndDeleteSsoTokenSpec :: SpecWith (Pool Connection)
 lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
-    it "succeeds if the token is in the db" $ \(ActionState (connPool, _, _)) -> do
+    it "succeeds if the token is in the db" $ \connPool -> do
         Right () <- runQuery connPool $ addSsoToken token
         Right () <- runQuery connPool $ lookupAndRemoveSsoToken token
         -- token should now be removed from the db:
@@ -714,7 +764,7 @@ lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
             (Only token)
         tokenCount `shouldBe` (0 :: Int)
 
-    it "throws NoSuchToken if the token is not in the db" $ \(ActionState (connPool, _, _)) -> do
+    it "throws NoSuchToken if the token is not in the db" $ \connPool -> do
         Right () <- runQuery connPool $ addSsoToken token
         res <- runQuery connPool $ lookupAndRemoveSsoToken (SsoToken "foo")
         res `shouldBe` Left NoSuchToken
@@ -724,88 +774,88 @@ lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
 
 -- * Garbage collection
 
-garbageCollectUnconfirmedUsersSpec :: SpecWith ActionState
+garbageCollectUnconfirmedUsersSpec :: SpecWith (Pool Connection)
 garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $ do
-    let user1   = mkUser "name1" "pass" "email1@email.com"
-        userid1 = UserId 321
+    let user1   = mkUser "name1" "pass" "email1@example.com"
+        userId1 = UserId 321
         token1  = "sometoken1"
-        user2   = mkUser "name2" "pass" "email2@email.com"
-        userid2 = UserId 322
+        user2   = mkUser "name2" "pass" "email2@example.com"
+        userId2 = UserId 322
         token2  = "sometoken2"
 
-    it "deletes all expired unconfirmed users" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token2 user2 userid2
-        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers 0
+    it "deletes all expired unconfirmed users" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userId1
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token2 user2 userId2
+        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromSeconds 0
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (0 :: Int)
         usrs `shouldBe` (0 :: Int)
 
-    it "only deletes expired unconfirmed users" $ \ (ActionState (connPool, _, _)) -> do
-        Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userid1
-        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers 100000
+    it "only deletes expired unconfirmed users" $ \connPool -> do
+        Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userId1
+        Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromHours 1
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
         [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
         tkns `shouldBe` (1 :: Int)
         usrs `shouldBe` (1 :: Int)
 
-garbageCollectPasswordResetTokensSpec :: SpecWith ActionState
+garbageCollectPasswordResetTokensSpec :: SpecWith (Pool Connection)
 garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
-    let user   = mkUser "name1" "pass" "email1@email.com"
-        userid = UserId 321
-        email = forceUserEmail "email1@email.com"
+    let user   = mkUser "name1" "pass" "email1@example.com"
+        userId = UserId 321
+        email = forceUserEmail "email1@example.com"
         passToken = "sometoken2"
 
-    it "deletes all expired tokens" $ \ (ActionState (connPool, _, _)) -> do
-        void $ runQuery connPool $ addUserPrim (Just userid) user True
+    it "deletes all expired tokens" $ \connPool -> do
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
         void $ runQuery connPool $ addPasswordResetToken email passToken
         [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns `shouldBe` (1 :: Int)
-        Right () <- runQuery connPool $ garbageCollectPasswordResetTokens 0
+        Right () <- runQuery connPool $ garbageCollectPasswordResetTokens $ fromSeconds 0
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (0 :: Int)
 
-    it "only deletes expired tokens" $ \ (ActionState (connPool, _, _)) -> do
-        void $ runQuery connPool $ addUserPrim (Just userid) user True
+    it "only deletes expired tokens" $ \connPool -> do
+        void $ runQuery connPool $ addUserPrim (Just userId) user True
         void $ runQuery connPool $ addPasswordResetToken email passToken
-        void $ runQuery connPool $ garbageCollectPasswordResetTokens 1000000
+        void $ runQuery connPool $ garbageCollectPasswordResetTokens $ fromHours 1
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
-garbageCollectEmailChangeTokensSpec :: SpecWith ActionState
+garbageCollectEmailChangeTokensSpec :: SpecWith (Pool Connection)
 garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens" $ do
     let newEmail = forceUserEmail "new@example.com"
         token = "sometoken2"
 
-    it "deletes all expired tokens" $ \(ActionState (connPool, _, _)) -> do
+    it "deletes all expired tokens" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
         [Only tokenCount] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tokenCount `shouldBe` (1 :: Int)
-        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens 0
+        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromSeconds 0
         [Only tokenCount'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tokenCount' `shouldBe` (0 :: Int)
 
-    it "only deletes expired tokens" $ \ (ActionState (connPool, _, _)) -> do
+    it "only deletes expired tokens" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
-        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens 1000000
+        Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromHours 1
         [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
         tkns' `shouldBe` (1 :: Int)
 
-garbageCollectThentosSessionsSpec :: SpecWith ActionState
+garbageCollectThentosSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
-    it "deletes all expired thentos sessions" $ \(ActionState (connPool, _, _)) -> do
-        let immediateTimeout = Timeout $ fromSeconds' 0
+    it "deletes all expired thentos sessions" $ \connPool -> do
+        let immediateTimeout = fromSeconds 0
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) immediateTimeout
         Right () <- runQuery connPool garbageCollectThentosSessions
         [Only sessionCount] <- doQuery_ connPool [sql| SELECT count(*) FROM thentos_sessions |]
         sessionCount `shouldBe` (0 :: Int)
 
-    it "doesn't delete active sessions" $ \(ActionState (connPool, _, _)) -> do
-        let timeout = Timeout $ fromSeconds' 60
+    it "doesn't delete active sessions" $ \connPool -> do
+        let timeout = fromMinutes 1
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) timeout
         Right () <- runQuery connPool garbageCollectThentosSessions
@@ -815,9 +865,9 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
   where
     token = "thentos session token"
 
-garbageCollectServiceSessionsSpec :: SpecWith ActionState
+garbageCollectServiceSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ do
-    it "deletes (only) expired service sessions" $ \(ActionState (connPool, _, _)) -> do
+    it "deletes (only) expired service sessions" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         hashedKey <- hashServiceKey "secret"
         Right _ <- runQuery connPool $
@@ -838,8 +888,8 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
     tTok2 = "thentos token 2"
     sTok1 = "service token 1"
     sTok2 = "service token 2"
-    immediateTimeout = Timeout $ fromSeconds' 0
-    laterTimeout = Timeout $ fromSeconds' 60
+    immediateTimeout = fromSeconds 0
+    laterTimeout = fromMinutes 1
 
 
 -- * Utils

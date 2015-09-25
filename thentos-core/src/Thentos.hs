@@ -116,11 +116,11 @@ makeMain commandSwitch =
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
-runGcLoop :: ActionState -> Maybe Int -> IO ThreadId
+runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     runActionWithPrivs [RoleAdmin] actionState (collectGarbage :: Action Void ())
-    threadDelay $ interval * 1000 * 1000
+    threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
 -- is empty. Tables already existing in the DB won't be touched. The DB itself must already exist.
@@ -140,7 +140,7 @@ createConnPoolAndInitDb dbName = do
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser _ Nothing = return ()
 createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
-    eq <- runThentosQuery conn $ (void $ T.lookupUser (UserId 0) :: ThentosQuery Void ())
+    eq <- runThentosQuery conn $ (void $ T.lookupConfirmedUser (UserId 0) :: ThentosQuery Void ())
     case eq of
         Right _         -> logger DEBUG $ "default user already exists"
         Left NoSuchUser -> do

@@ -23,42 +23,64 @@ import Thentos.Transaction.Core
 
 -- * user
 
-lookupUser :: UserId -> ThentosQuery e (UserId, User)
-lookupUser uid = do
+lookupConfirmedUser :: UserId -> ThentosQuery e (UserId, User)
+lookupConfirmedUser uid = do
+    users <- queryT [sql| SELECT name, password, github_id, email
+                          FROM users
+                          WHERE id = ? AND confirmed = true |] (Only uid)
+    case users of
+      [(name, pwd, ghId, email)] -> let auth = makeAuth pwd ghId
+                                    in return (uid, User name auth email)
+      []                         -> throwError NoSuchUser
+      _                          -> impossible "lookupConfirmedUser: multiple results"
+
+-- | Lookup any user (whether confirmed or not) by their ID.
+lookupAnyUser :: UserId -> ThentosQuery e (UserId, User)
+lookupAnyUser uid = do
     users <- queryT [sql| SELECT name, password, github_id, email
                           FROM users
                           WHERE id = ? |] (Only uid)
     case users of
-      [(name, pwd, ghId, email)] ->
-        let auth = makeAuth pwd ghId
-        in return (uid, User name auth email)
+      [(name, pwd, ghId, email)] -> let auth = makeAuth pwd ghId
+                                    in return (uid, User name auth email)
       []                         -> throwError NoSuchUser
-      _                          -> impossible "lookupUser: multiple results"
+      _                          -> impossible "lookupAnyUser: multiple results"
 
-lookupUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupUserByName uname = do
+lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
+lookupConfirmedUserByName uname = do
     users <- queryT [sql| SELECT id, name, password, github_id, email
                           FROM users
-                          WHERE name = ? |] (Only uname)
+                          WHERE name = ? AND confirmed = true |] (Only uname)
     case users of
-      [(uid, name, pwd, ghId, email)] ->
-        let auth = makeAuth pwd ghId
-        in return (uid, User name auth email)
-      []                        -> throwError NoSuchUser
-      _                         -> impossible "lookupUserByName: multiple users"
+      [(uid, name, pwd, ghId, email)] -> let auth = makeAuth pwd ghId
+                                         in return (uid, User name auth email)
+      []                              -> throwError NoSuchUser
+      _                               -> impossible "lookupConfirmedUserByName: multiple users"
 
 
-lookupUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
-lookupUserByEmail email = do
+lookupConfirmedUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
+lookupConfirmedUserByEmail email = do
+    users <- queryT [sql| SELECT id, name, password, github_id
+                          FROM users
+                          WHERE email = ? AND confirmed = true |] (Only email)
+    case users of
+      [(uid, name, pwd, ghId)] -> let auth = makeAuth pwd ghId
+                                  in return (uid, User name auth email)
+      []                       -> throwError NoSuchUser
+      _                        -> impossible "lookupConfirmedUserByEmail: multiple users"
+
+-- | Lookup any user (whether confirmed or not) by their email address.
+lookupAnyUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
+lookupAnyUserByEmail email = do
     users <- queryT [sql| SELECT id, name, password, github_id
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(uid, name, pwd, ghId)] ->
-        let auth = makeAuth pwd ghId
-        in return (uid, User name auth email)
-      []                 -> throwError NoSuchUser
-      _                  -> impossible "lookupUserByEmail: multiple users"
+      [(uid, name, pwd, ghId)] -> let auth = makeAuth pwd ghId
+                                  in return (uid, User name auth email)
+      []                       -> throwError NoSuchUser
+      _                        -> impossible "lookupAnyUserByEmail: multiple users"
+
 
 lookupUserByGithubId :: GithubId -> ThentosQuery e (UserId, User)
 lookupUserByGithubId ghId = do
@@ -148,7 +170,7 @@ finishUserRegistrationById uid = do
 -- | Add a password reset token.  Return the user whose password this token can change.
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
 addPasswordResetToken email token = do
-    (uid, user) <- lookupUserByEmail email
+    (uid, user) <- lookupAnyUserByEmail email
     void $ execT [sql| INSERT INTO password_reset_tokens (token, uid)
                 VALUES (?, ?) |] (token, uid)
     return user
@@ -322,11 +344,12 @@ lookupThentosSession token = do
 
 -- | Start a new thentos session. Start time is set to now, end time is calculated based on the
 -- specified 'Timeout'. If the agent is a user, this new session is added to their existing
--- sessions.
+-- sessions. Only confirmed users are allowed to log in; a 'NoSuchUser' error is thrown otherwise.
 -- FIXME not implemented: If the agent is a service with an existing session, its session is
 -- replaced.
 startThentosSession :: ThentosSessionToken -> Agent -> Timeout -> ThentosQuery e ()
-startThentosSession tok (UserA uid) period =
+startThentosSession tok (UserA uid) period = do
+    void $ lookupConfirmedUser uid  -- may throw NoSuchUser
     void $ execT [sql| INSERT INTO thentos_sessions (token, uid, start, end_, period)
                        VALUES (?, ?, now(), now() + ?, ?)
                  |] (tok, uid, period, period)
@@ -475,20 +498,20 @@ garbageCollectServiceSessions = void $ execT [sql|
 -- | Remove all expired unconfirmed users from db.
 garbageCollectUnconfirmedUsers :: Timeout -> ThentosQuery e ()
 garbageCollectUnconfirmedUsers timeout = void $ execT [sql|
-    DELETE FROM "users" WHERE created < now() - interval '? seconds' AND confirmed = false;
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "users" WHERE created < now() - ?::interval AND confirmed = false;
+    |] (Only timeout)
 
 -- | Remove all expired password reset requests from db.
 garbageCollectPasswordResetTokens :: Timeout -> ThentosQuery e ()
 garbageCollectPasswordResetTokens timeout = void $ execT [sql|
-    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - interval '? seconds';
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "password_reset_tokens" WHERE timestamp < now() - ?::interval;
+    |] (Only timeout)
 
 -- | Remove all expired email change requests from db.
 garbageCollectEmailChangeTokens :: Timeout -> ThentosQuery e ()
 garbageCollectEmailChangeTokens timeout = void $ execT [sql|
-    DELETE FROM "email_change_tokens" WHERE timestamp < now() - interval '? seconds';
-    |] (Only (round timeout :: Integer))
+    DELETE FROM "email_change_tokens" WHERE timestamp < now() - ?::interval;
+    |] (Only timeout)
 
 
 -- * helpers

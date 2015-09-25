@@ -46,17 +46,17 @@ spec = do
 
 spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
-    describe "addUser, lookupUser, deleteUser" $ do
+    describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
             let user = testUsers !! 0
             uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
-            (uid', user') <- runPrivs [RoleAdmin] sta $ lookupUser uid
+            (uid', user') <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
             uid' `shouldBe` uid
             user' `shouldBe`
                 (userAuth .~ (user' ^. userAuth) $ user)
             void . runPrivs [RoleAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
-                runClearanceE dcBottom sta $ lookupUser uid
+                runClearanceE dcBottom sta $ lookupConfirmedUser uid
             return ()
 
         it "guarantee that user names are unique" $ \ sta -> do
@@ -94,7 +94,7 @@ spec_user = describe "user" $ do
             runPrivs [UserA uid] sta $
                 updateUserField uid (UpdateUserFieldName "fka_user1")
 
-            result <- runPrivs [UserA uid] sta $ lookupUser uid
+            result <- runPrivs [UserA uid] sta $ lookupConfirmedUser uid
             result `shouldBe` (uid, userName .~ "fka_user1" $ user)
 
         it "throws an error if user does not exist" $ \ sta -> do
@@ -112,7 +112,7 @@ spec_user = describe "user" $ do
             let ActionState (conns, _, _) = sta
                 newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
-                    (_, user) <- runPrivs [RoleAdmin] sta $ lookupUser uid
+                    (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
                     user ^. userEmail `shouldSatisfy` p
                 runWithoutPrivs = runPrivs ([] :: [Bool])
             (uid, _, _) <- runClearance dcBottom sta $ addTestUser 1

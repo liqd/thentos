@@ -18,9 +18,9 @@ module Thentos.Action
     , freshSessionToken
     , freshServiceSessionToken
 
-    , lookupUser
-    , lookupUserByName
-    , lookupUserByEmail
+    , lookupConfirmedUser
+    , lookupConfirmedUserByName
+    , lookupConfirmedUserByEmail
     , addUser
     , addGithubUser
     , deleteUser
@@ -141,8 +141,8 @@ freshSsoToken = SsoToken <$> freshRandomName
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
 -- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
 -- user lookup prior to authentication.
-lookupUser :: UserId -> Action e (UserId, User)
-lookupUser uid = _lookupUser $ T.lookupUser uid
+lookupConfirmedUser :: UserId -> Action e (UserId, User)
+lookupConfirmedUser uid = _lookupUser $ T.lookupConfirmedUser uid
 
 _lookupUser :: ThentosQuery e (UserId, User) -> Action e (UserId, User)
 _lookupUser transaction = do
@@ -151,13 +151,13 @@ _lookupUser transaction = do
         (return val)
         (\ (_ :: AnyLabelError) -> throwError NoSuchUser)
 
--- | Like 'lookupUser', but based on 'UserName'.
-lookupUserByName :: UserName -> Action e (UserId, User)
-lookupUserByName name = _lookupUser $ T.lookupUserByName name
+-- | Like 'lookupConfirmedUser', but based on 'UserName'.
+lookupConfirmedUserByName :: UserName -> Action e (UserId, User)
+lookupConfirmedUserByName name = _lookupUser $ T.lookupConfirmedUserByName name
 
--- | Like 'lookupUser', but based on 'UserEmail'.
-lookupUserByEmail :: UserEmail -> Action e (UserId, User)
-lookupUserByEmail email = _lookupUser $ T.lookupUserByEmail email
+-- | Like 'lookupConfirmedUser', but based on 'UserEmail'.
+lookupConfirmedUserByEmail :: UserEmail -> Action e (UserId, User)
+lookupConfirmedUserByEmail email = _lookupUser $ T.lookupConfirmedUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
@@ -251,8 +251,8 @@ resetPassword token password = do
 
 -- ** login
 
--- | Find user running the action, confirm the password, and return the user or crash.  'NoSuchUser'
--- is translated into 'BadCredentials'.
+-- | Find user running the action, confirm the password, and return the user or crash.
+-- 'NoSuchUser' is translated into 'BadCredentials'.
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
 _lookupUserCheckPassword ::
@@ -289,11 +289,12 @@ updateUserFields uid ops = do
     guardWriteMsg "updateUserFields" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.updateUserFields uid ops
 
--- | Authenticate user against old password, and then change password to new password.  Requires
--- 'RoleAdmin' or privs of user that owns the password.
+-- | Authenticate user against old password, and then change password to new password.
+-- We allow this for any users, whether confirmed or not.
+-- Requires 'RoleAdmin' or privs of user that owns the password.
 changePassword :: UserId -> UserPass -> UserPass -> Action e ()
 changePassword uid old new = do
-    _ <- _lookupUserCheckPassword (T.lookupUser uid) old
+    _ <- _lookupUserCheckPassword (T.lookupAnyUser uid) old
     hashedPw <- hashUserPass'P new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
@@ -405,7 +406,7 @@ userGroups uid sid = do
 -- (eventually, this will need to be run-time configurable.  but there will probably still be global
 -- defaults handled by configifier.)
 defaultSessionTimeout :: Timeout
-defaultSessionTimeout = Timeout $ 14 * 24 * 3600
+defaultSessionTimeout = fromDays 14
 
 -- | Find 'ThentosSession' from token.  If 'ThentosSessionToken' does not exist or clearance does
 -- not allow access, throw 'NoSuchThentosSession'.
@@ -427,24 +428,24 @@ existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError
     \case NoSuchThentosSession -> return False
           e                    -> throwError e
 
--- | Check user credentials and create a session for user.  Requires 'lub' or 'lookupUser' and
+-- | Check user credentials and create a session for user.  Requires 'lookupConfirmedUser' and
 -- '_startThentosSessionByAgent'.
 startThentosSessionByUserId :: UserId -> UserPass -> Action e ThentosSessionToken
 startThentosSessionByUserId uid pass = do
-    _ <- _lookupUserCheckPassword (T.lookupUser uid) pass
+    _ <- _lookupUserCheckPassword (T.lookupConfirmedUser uid) pass
     _startThentosSessionByAgent (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
 startThentosSessionByUserName ::
     UserName -> UserPass -> Action e (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
-    (uid, _) <- _lookupUserCheckPassword (T.lookupUserByName name) pass
+    (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByName name) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 startThentosSessionByUserEmail ::
     UserEmail -> UserPass -> Action e (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
-    (uid, _) <- _lookupUserCheckPassword (T.lookupUserByEmail email) pass
+    (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByEmail email) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Like the other startThentosSession.. actions, except that this doesn't
@@ -485,7 +486,7 @@ validateThentosUserSession :: ThentosSessionToken -> Action e (UserId, User)
 validateThentosUserSession tok = do
     session <- _lookupThentosSession tok
     case session ^. thSessAgent of
-        UserA uid  -> query'P $ T.lookupUser uid
+        UserA uid  -> query'P $ T.lookupConfirmedUser uid
         ServiceA _ -> throwError NoSuchThentosSession
 
 -- | Open a session for any agent.

@@ -1,30 +1,38 @@
 {-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE QuasiQuotes                              #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Thentos.TypesSpec where
 
 import Data.Aeson (decode, FromJSON)
+import Data.Pool (Pool)
 import Data.String.Conversions (cs)
+import Database.PostgreSQL.Simple (Connection, Only(..))
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, context, describe, it, shouldBe, hspec)
+import Test.Hspec (Spec, SpecWith, before, context, describe, it, shouldBe)
 import Test.QuickCheck (property)
 
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
+import Thentos.Test.Core
+import Thentos.Test.Transaction
 
 testSizeFactor :: Int
 testSizeFactor = 1
 
-tests :: IO ()
-tests = hspec spec
-
 spec :: Spec
-spec = modifyMaxSize (* testSizeFactor) $ do
+spec = do
+    typesSpec
+    before (createDb "test_thentos") dbSpec
+
+typesSpec :: Spec
+typesSpec = modifyMaxSize (* testSizeFactor) $ do
 
     describe "ThentosLabel, ThentosClearance, DCLabel" $ do
       it "works (unittests)" $ do
@@ -91,34 +99,56 @@ spec = modifyMaxSize (* testSizeFactor) $ do
                                        , proxyPort = 80
                                        , proxyPath = "/path"
                                        }
-                decodeLenient (show example) `shouldBe` Just example
+                decodeProxy (show example) `shouldBe` Just example
 
         context "its FromJSON instance" $ do
 
             it "allows simple http domains" $ do
                 let correct = ProxyUri "something.com" 80 "/"
-                decodeLenient "http://something.com/" `shouldBe` Just correct
+                decodeProxy "http://something.com/" `shouldBe` Just correct
 
             it "allows ports" $ do
                 let correct = ProxyUri "something.com" 799 "/"
-                decodeLenient "http://something.com:799/" `shouldBe` Just correct
+                decodeProxy "http://something.com:799/" `shouldBe` Just correct
 
             it "decodes paths" $ do
                 let correct = ProxyUri "something.com" 799 "/path"
-                decodeLenient "http://something.com:799/path" `shouldBe` Just correct
+                decodeProxy "http://something.com:799/path" `shouldBe` Just correct
 
             it "only allows http" $ do
-                decodeLenient "https://something.com" `shouldBe` Nothing
-                decodeLenient "ftp://something.com" `shouldBe` Nothing
+                decodeProxy "https://something.com" `shouldBe` Nothing
+                decodeProxy "ftp://something.com" `shouldBe` Nothing
 
             it "does not allow query strings" $ do
-                decodeLenient "http://something.com?hi" `shouldBe` Nothing
+                decodeProxy "http://something.com?hi" `shouldBe` Nothing
 
             it "does not allow fragments" $ do
-                decodeLenient "http://something.com/t#hi" `shouldBe` Nothing
+                decodeProxy "http://something.com/t#hi" `shouldBe` Nothing
 
-decodeLenient :: String -> Maybe ProxyUri
-decodeLenient str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
+    describe "secondsFromString" $ do
+
+        it "parses and converts units correctly" $ do
+            secondsFromString "1ms" `shouldBe` Just (0.001 :: Double)
+            secondsFromString "1s"  `shouldBe` Just (1     :: Double)
+            secondsFromString "1m"  `shouldBe` Just (60    :: Double)
+            secondsFromString "1h"  `shouldBe` Just (3600  :: Double)
+            secondsFromString "1d"  `shouldBe` Just (86400 :: Double)
+
+        it "handles fractional values" $
+            secondsFromString "0.5m" `shouldBe` Just (30 :: Double)
+
+        it "handles negative values" $
+            secondsFromString "-3m" `shouldBe` Just (-180 :: Double)
+
+        it "requires a unit" $
+            secondsFromString "10" `shouldBe` (Nothing :: Maybe Double)
+
+        it "fails for empty input" $
+            secondsFromString "" `shouldBe` (Nothing :: Maybe Double)
+
+
+decodeProxy :: String -> Maybe ProxyUri
+decodeProxy str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
 
 -- @Wrapper@ is used to get around the restriction from top-level strings in
 -- pre 0.9 versions of @aeson@
@@ -126,3 +156,36 @@ data Wrapper = Wrapper { val :: ProxyUri }
     deriving (Eq, Show, Generic)
 
 instance FromJSON Wrapper
+
+
+dbSpec :: SpecWith (Pool Connection)
+dbSpec = do
+    describe "Timeout" $ do
+        let testData =
+              [ ("5 seconds",   fromSeconds 5)
+              , ("20 minutes",  fromSeconds $ 20*60)
+              , ("-1 hour",     fromSeconds $ -1*60*60)
+              , ("0.1 seconds", fromMilliseconds 100)
+              ] :: [(String, Timeout)]
+
+        it "converts correctly from SQL intervals" $ \conns -> mapM_
+            (\(i, t) -> do
+                [Only res] <- doQuery conns [sql|SELECT interval ?|] (Only i)
+                res `shouldBe` t)
+            testData
+
+        it "converts correctly to SQL intervals" $ \conns -> mapM_
+            (\(i, t) -> do
+                [Only res] <- doQuery conns [sql|SELECT interval ? = ?|] (i, t)
+                res `shouldBe` True)
+            testData
+
+        it "converts correctly to SQL intervals in mixed expressions" $ \conns -> do
+            [Only res1] <- doQuery conns [sql| SELECT now() < now() - ?::interval|] (Only $ fromMilliseconds 500)
+            res1 `shouldBe` False
+            [Only res2] <- doQuery conns [sql| SELECT now() < now() + ?::interval|] (Only $ fromMilliseconds 500)
+            res2 `shouldBe` True
+            [Only res3] <- doQuery conns [sql| SELECT '2015-02-03 12:01:02'::timestamp
+                                                    = '2015-02-03 12:00:59'::timestamp
+                                                    + ?::interval|] (Only $ fromSeconds 3)
+            res3 `shouldBe` True
