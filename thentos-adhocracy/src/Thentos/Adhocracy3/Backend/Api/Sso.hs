@@ -111,8 +111,14 @@ serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . ser
 
 type ThentosA3Sso =
        "sso" :> "github" :>
-            ("request" :> Post '[JSON] AuthRequest
-        :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Post '[JSON] A3.RequestResult)
+            ("request" :> Capture "currenturl" URL :> Post '[JSON] AuthRequest
+        :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "redirectback" URL
+                       :> Post '[] RedirectAndSetCookie)
+
+data RedirectAndSetCookie = RedirectAndSetCookie
+    { redirectUri :: URI
+    , cookie :: Cookie
+    }
 
 type Api = ThentosA3Sso :<|> A3.ThentosApi :<|> ServiceProxy
 
@@ -185,26 +191,28 @@ instance FromJSON GithubUser where
 githubKey :: OAuth2
 githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
                    , oauthClientSecret = "51009ec786aa61296ac2f2564f9b5f1fbb23a24f"
-                   , oauthCallback = Just "https://thentos-dev-frontend.liqd.net/sso/github/confirm"
                    , oauthOAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
                    , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
                    }
 
+setCallback :: URL -> OAuth2 -> OAuth2
+setCallback redirectback o = o { oauthCallback = Just $ "https://thentos-dev-frontend.liqd.net/sso/github/confirm?redirectback=" <> redirectback }
 
 -- | FIXME: document!
-githubRequest :: A3Action AuthRequest
-githubRequest = do
+githubRequest :: URL -> A3Action AuthRequest
+githubRequest currenturl = do
     state <- A.addNewSsoToken
     return . AuthRequest . cs $
-        authorizationUrl githubKey `appendQueryParam` [("state", cs $ fromSsoToken state)]
+        authorizationUrl (setCallback currenturl githubKey) `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
 
 -- | FIXME: document!
-githubConfirm :: ST -> ST -> A3Action A3.RequestResult
-githubConfirm state code = do
+githubConfirm :: ST -> ST -> URL -> A3Action RedirectAndSetCookie
+githubConfirm state code redirectback = do
         A.lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
-        confirm mgr
+        tok <- confirm mgr
+        return $ RedirectAndSetCookie redirectback tok
   where
     confirm mgr = do
         eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
@@ -222,7 +230,7 @@ githubConfirm state code = do
 
 
 -- | FIXME: document!
-loginGithubUser :: GithubUser -> A3Action A3.RequestResult
+loginGithubUser :: GithubUser -> A3Action Token
 loginGithubUser (GithubUser ghId uname email) = do
     let makeTok = A.startThentosSessionByGithubId ghId
 
@@ -231,5 +239,4 @@ loginGithubUser (GithubUser ghId uname email) = do
                 _ <- A.addGithubUser (UserName uname) ghId email
                 makeTok
               e -> throwError e
-
-    return $ A3.RequestSuccess (A3.Path "/dashboard") tok
+    return tok
