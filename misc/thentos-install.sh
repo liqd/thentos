@@ -3,7 +3,7 @@
 #
 #          FILE: thentos-install.sh
 #
-#         USAGE: misc/thentos-install.sh
+#         USAGE: misc/thentos-install.sh [-c <CABAL-OPTS>]
 #
 #   DESCRIPTION:
 #       Installs thentos packages and their dependencies into a cabal
@@ -30,9 +30,10 @@ SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 
 DIR=`pwd`
 SANDBOX="$DIR/.cabal-sandbox"
+CABAL_ARGS=""
 
 usage () {
-    echo "thentos-install.sh"
+    echo "thentos-install.sh [-c <CABAL-OPTS>]"
     echo "  Installs thentos packages and their dependencies into a cabal"
     echo "  sandbox. Use it only from the thentos repo top-level dir."
     exit 1
@@ -45,7 +46,16 @@ check_dir () {
     fi
 }
 
-[ $# == 0 ] || usage
+while getopts :c: opt; do
+    case $opt in
+        c) CABAL_ARGS="$OPTARG"
+           ;;
+        *) echo "Invalid option: -$OPTARG" >&2
+           usage
+           ;;
+    esac
+done
+
 check_dir
 
 git submodule update --init
@@ -67,7 +77,7 @@ done
 
 cabal install --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable $SOURCES_STR
+      -fwith-thentos-executable "$CABAL_ARGS" $SOURCES_STR
 cabal install \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable $SOURCES_STR
+      -fwith-thentos-executable "$CABAL_ARGS" $SOURCES_STR

@@ -25,11 +25,14 @@ clickSync :: (MonadIO wd, WD.WebDriver wd) => WD.Element -> wd ()
 clickSync = waitForPageLoad . WD.click
 
 -- | If you have an action @act@ that you know will load a new page, and you want this page to be
--- loaded and ready before the action returns, call @waitForPageLoad act@ instead.  (See
--- http://www.obeythetestinggoat.com/how-to-get-selenium-to-wait-for-page-load-after-a-click.html.)
+-- loaded and ready before the action returns, call @waitForPageLoad act@ instead.  See also:
 --
--- There are horrible things going on in here like seemingly arbitrary calls to threadDelay, and
--- timeout values that may be exceeded by a lot in practice.  Using webdriver is not for the
+--   * http://www.obeythetestinggoat.com/how-to-get-selenium-to-wait-for-page-load-after-a-click.html
+--
+--   * https://github.com/kallisti-dev/hs-webdriver/issues/72
+--
+-- FIXME: There are horrible things going on in here like seemingly arbitrary calls to threadDelay,
+-- and timeout values that may be exceeded by a lot in practice.  Using webdriver is not for the
 -- impatient.
 waitForPageLoad :: forall wd a . (MonadIO wd, WD.WebDriver wd) => wd a -> wd a
 waitForPageLoad action = do

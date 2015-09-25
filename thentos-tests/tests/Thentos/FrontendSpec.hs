@@ -28,7 +28,7 @@ import Thentos.Util ((<//>), verifyPass)
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Config (godUid, godName, godPass)
+import Thentos.Test.Config
 import Thentos.Test.Core
 
 
@@ -82,7 +82,7 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        Right (_, usr) <- runQuery connPool $ T.lookupUserByName (UserName myUsername)
+        Right (_, usr) <- runQuery connPool . T.lookupAnyUserByEmail $ forceUserEmail myEmail
         fromUserName  (usr ^. userName)  `shouldBe` myUsername
         fromUserEmail (usr ^. userEmail) `shouldBe` myEmail
 
@@ -111,7 +111,7 @@ spec_updateSelf = describe "update self" $ do
             WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
             _fill "/user/update.name" $ fromUserName newSelfName
             _click "update_user_submit"
-        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        Right (_, usr) <- runQuery conn $ T.lookupAnyUser selfId
         usr ^. userName `shouldBe` newSelfName
 
     -- FIXME: test with new user name that is already in use.
@@ -127,7 +127,7 @@ spec_updateSelf = describe "update self" $ do
             _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
             _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
             _click "update_password_submit"
-        Right (_, usr) <- runQuery conn $ T.lookupUser selfId
+        Right (_, usr) <- runQuery conn $ T.lookupAnyUser selfId
         usr `shouldSatisfy` verifyPass newSelfPass
 
     -- FIXME: test failure cases.  same restrictions apply as in

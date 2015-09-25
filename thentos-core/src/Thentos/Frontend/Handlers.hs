@@ -224,7 +224,7 @@ userLogoutDone = runAsUser $ \ _ fsl -> do
 
 userUpdate :: FH ()
 userUpdate = runAsUser $ \ _ fsl -> do
-    (_, user) <- snapRunAction $ lookupUser (fsl ^. fslUserId)
+    (_, user) <- snapRunAction $ lookupConfirmedUser (fsl ^. fslUserId)
     tok <- with sess csrfToken
     runPageletForm
                (userUpdateForm
@@ -314,7 +314,7 @@ serviceRegister = runAsUser $ \ _ fsl -> do
 
     let present :: ST -> View H.Html -> FH ()
         present formAction view = do
-            (_, user)    <- snapRunAction (lookupUser (fsl ^. fslUserId))
+            (_, user)    <- snapRunAction (lookupConfirmedUser (fsl ^. fslUserId))
             (_, service) <- snapRunActionE (lookupService sid)
                         >>= either (\ e -> crash' 400 e "Service registration: misconfigured service (no service id).") return
             -- FIXME: we are doing a lookup on the service table, but
