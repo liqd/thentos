@@ -52,10 +52,10 @@ default_user:
     email: "postmaster@localhost"
     roles: ["roleAdmin", "roleUser", "roleServiceAdmin", "roleUserAdmin"]
 
-user_reg_expiration: 1800s
-pw_reset_expiration: 1800s
-email_change_expiration: 1800s
-gc_interval: 1800s
+user_reg_expiration: 30m
+pw_reset_expiration: 30m
+email_change_expiration: 30m
+gc_interval: 30m
 
 log:
     path: ./log/thentos.log
