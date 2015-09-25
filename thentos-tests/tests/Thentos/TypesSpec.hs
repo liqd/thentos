@@ -140,9 +140,9 @@ dbSpec :: SpecWith (Pool Connection)
 dbSpec = do
     describe "Timeout" $ do
         let testData =
-              [ ("5 seconds" , fromSeconds 5)
-              , ("20 minutes", fromSeconds $ 20*60)
-              , ("-1 hour", fromSeconds $ -1*60*60)
+              [ ("5 seconds",   fromSeconds 5)
+              , ("20 minutes",  fromSeconds $ 20*60)
+              , ("-1 hour",     fromSeconds $ -1*60*60)
               , ("0.1 seconds", fromMilliseconds 100)
               ] :: [(String, Timeout)]
 
