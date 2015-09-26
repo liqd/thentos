@@ -57,15 +57,31 @@
 -- >>>
 -- >>> }
 --
--- FIXME: implement this.
 --
-module Thentos.Adhocracy3.Backend.Api.Sso where
+-- https://developer.github.com/guides/basics-of-authentication/
+-- https://developer.github.com/v3/oauth/
+--
+--
+-- TODO:
+--   - move githubKey contents to config
+--   - PR to hoauth2: split up OAuth2 type into two, one containing the callback (as a mandatory
+--     value, not as Maybe), and one containing everything else.  change api so that there are fewer
+--     partial functions.  also, base everything on uri-bytestring.
+--   - 'Thentos.Config.exposeUrl' operates on 'ST', but should operate on 'URI'.  Go through entire
+--     module there and find everything that needs to be made uri-bytestring-aware as well.
+--   - for github user lookup, distinguish between "bad password" and "user does not exist".  (there
+--     are some interesting fringe cases where existing users want to switch to github sso the other
+--     way around.  find them and fix them!)
+module Thentos.Backend.Api.Sso where
 
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (SBS, ST, cs)
+import Data.Typeable (Typeable)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.OAuth.OAuth2
@@ -76,6 +92,8 @@ import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Capture, Post, JSON)
 import Servant.Server (Server, serve, enter)
 import System.Log (Priority(INFO))
+import URI.ByteString
+import Data.Configifier (Tagged(Tagged), (>>.))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding   as ST
@@ -83,28 +101,15 @@ import qualified Network.HTTP.Client  as Client
 import qualified Network.HTTP.Conduit as Http
 
 import System.Log.Missing
-import Thentos.Adhocracy3.Backend.Core
-import Thentos.Adhocracy3.Types
+import Thentos.Action as A
+import Thentos.Action.Core
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
 import Thentos.Backend.Core
+import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Types
 
-import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
-import qualified Thentos.Adhocracy3.Backend.Api.Simple as A3
-
-
--- * main
-
-runBackend :: HttpConfig -> AC.ActionState -> IO ()
-runBackend cfg asg = do
-    logger INFO $ "running rest api (a3 style with SSO) on " ++ show (bindUrl cfg) ++ "."
-    manager <- Client.newManager Client.defaultManagerSettings
-    runWarpWithCfg cfg $ serveApi manager asg
-
-serveApi :: Client.Manager -> AC.ActionState -> Application
-serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) .
-           api manager
 
 
 -- * api
@@ -112,109 +117,92 @@ serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . ser
 type ThentosSso =
        "sso" :> "github" :> ThentosSsoGithub
 
+-- | Thentos needs to provide two end-points: one for requesting the SSO that sends the browser off
+-- to github for negotiating the authorization token, and one that the browser can come back to with
+-- that authorization token from github.
 type ThentosSsoGithub =
-       "request" :> Capture "currenturl" URL :> Post '[JSON] AuthRequest
-  :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "redirectback" URL
-          :> Post '[] RedirectAndSetCookie
+       "request" :> Capture "return_uri" URI :> Post '[JSON] AuthRequest
+  :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "return_uri" URI
+          :> Post '[JSON] RedirectToService
 
-data RedirectAndSetCookie = RedirectAndSetCookie
-    { redirectUri :: URI
-    , cookie :: Cookie
-    }
+data RedirectToService = RedirectToService URI ThentosSessionToken
 
-thentosSso :: AC.ActionState -> Server ThentosSso
-thentosSso actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
-       githubRequest
-  :<|> githubConfirm
-
--- | Like 'A3.thentosApi', but responds with 404 on all end points rather than handling
--- them as in "Thentos.Backend.Api.Adhocracy3".  This is to make sure the proxy handler
--- won't let any user management requests through that have been sent by confused clients.
-thentosApi404 :: AC.ActionState -> Server A3.ThentosApi
-thentosApi404 actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
-       addUser
-  :<|> activate
-  :<|> login
-  :<|> login
-  :<|> resetPassword
-
-api :: Client.Manager -> AC.ActionState -> Server Api
-api manager actionState =
-       thentosA3Sso  actionState
-  :<|> thentosApi404 actionState
-  :<|> serviceProxy manager A3.a3ProxyAdapter actionState
-
-
--- * handler
-
-addUser :: A3.A3UserWithPass -> A3Action A3.TypedPathWithCacheControl
-addUser _ = error "404"  -- FIXME: respond with a non-internal error
-
-activate :: A3.ActivationRequest -> A3Action A3.RequestResult
-activate _ = error "404"  -- FIXME: respond with a non-internal error
-
-login :: A3.LoginRequest -> A3Action A3.RequestResult
-login _ = error "404"  -- FIXME: respond with a non-internal error
-
-resetPassword :: A3.PasswordResetRequest -> A3Action A3.RequestResult
-resetPassword _ = error "404"  -- FIXME: respond with a non-internal error
-
+instance ToJSON RedirectToService where
+    toJSON (RedirectToService uri tok) = object
+        [ "uri" .= (Aeson.String . cs . serializeURI' $ uri)
+        , "session" .= tok
+        ]
 
 data AuthRequest = AuthRequest ST
 
 instance ToJSON AuthRequest where
     toJSON (AuthRequest st) = object ["redirect" .= st]
 
-
-data GithubUser = GithubUser { gid   :: GithubId
-                             , gname :: ST
-                             , gEmail :: UserEmail
-                             } deriving (Show, Eq)
+data GithubUser = GithubUser
+    { gId    :: GithubId
+    , gName  :: ST
+    , gEmail :: UserEmail
+    }
+  deriving (Show, Eq)
 
 instance FromJSON GithubUser where
-    parseJSON (Object o) = do
-        email <- o .: "email"
-        case parseUserEmail email of
-            Just userMail ->
-                GithubUser
-                    <$> o .: "id"
-                    <*> o .: "name"
-                    <*> pure userMail
-            Nothing -> mzero
+    parseJSON (Object o) = GithubUser
+        <$> o .: "id"
+        <*> o .: "name"
+        <*> (o .: "email" >>= maybe mzero return . parseUserEmail)
     parseJSON _ = mzero
 
--- | FIXME: move this to config.  this may also be a point in favour of configifier: we now need to
--- start thinking about composing configs just like we compose apis.
---
--- https://developer.github.com/guides/basics-of-authentication/
--- https://developer.github.com/v3/oauth/
--- https://github.com/settings/applications/214371
+
+-- * handler
+
+thentosSso :: AC.ActionState -> Server ThentosSso
+thentosSso actionState@(ActionState (_, _, cfg)) =
+    enter (enterAction actionState baseActionErrorToServantErr Nothing) $
+       githubRequest thentosHttp
+  :<|> githubConfirm
+  where
+    thentosHttp :: HttpConfig
+    thentosHttp = Tagged . fromMaybe (error "blargh") $ cfg >>. (Proxy :: Proxy '["backend"])
+
 githubKey :: OAuth2
-githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
-                   , oauthClientSecret = "51009ec786aa61296ac2f2564f9b5f1fbb23a24f"
+githubKey = OAuth2 { oauthClientId = "..."
+                   , oauthClientSecret = "..."
                    , oauthOAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
                    , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
+                   , oauthCallback = Nothing
                    }
 
-setCallback :: URL -> OAuth2 -> OAuth2
-setCallback redirectback o = o { oauthCallback = Just $ "https://thentos-dev-frontend.liqd.net/sso/github/confirm?redirectback=" <> redirectback }
+-- | Thentos proxy needs to capture the redirect back from the token server, and then redirect back
+-- to the service.  This makes two nested redirects.  The first is specified by a `HttpConfig`,
+-- because (the path of that `URI` is fixed), and the second by a `URI`.
+setCallback :: HttpConfig -> URI -> OAuth2 -> OAuth2
+setCallback thentosHttp toService o = o { oauthCallback = Just $ serializeURI' toThentos }
+  where
+    toThentos :: URI
+    toThentos = case parseURI strictURIParserOptions . cs $ exposeUrl thentosHttp of
+        Right uri -> uri
+            { uriPath  = "/sso/github/confirm"
+            , uriQuery = Query [("redirect_to_service", serializeURI' toService)]
+            }
+        Left e -> error $ "setCallback: internal error: " ++ show e
 
--- | FIXME: document!
-githubRequest :: URL -> A3Action AuthRequest
-githubRequest currenturl = do
+-- | ...
+githubRequest :: (Show e, Typeable e) => HttpConfig -> URI -> Action e AuthRequest
+githubRequest thentosHttp currenturl = do
     state <- A.addNewSsoToken
     return . AuthRequest . cs $
-        authorizationUrl (setCallback currenturl githubKey) `appendQueryParam` [("state", cs $ fromSsoToken state)]
+        authorizationUrl (setCallback thentosHttp currenturl githubKey)
+            `appendQueryParam` [("state", cs $ fromSsoToken state)]
 
-
--- | FIXME: document!
-githubConfirm :: ST -> ST -> URL -> A3Action RedirectAndSetCookie
+-- | ...
+githubConfirm :: forall e . (Show e, Typeable e) => ST -> ST -> URI -> Action e RedirectToService
 githubConfirm state code redirectback = do
         A.lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
         tok <- confirm mgr
-        return $ RedirectAndSetCookie redirectback tok
+        return $ RedirectToService redirectback tok
   where
+    confirm :: Http.Manager -> Action e ThentosSessionToken
     confirm mgr = do
         eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
             let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code
@@ -223,15 +211,14 @@ githubConfirm state code redirectback = do
         case eToken of
             Right token -> do
                 eGhUser :: OAuth2Result GithubUser
-                    <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"
+                    <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"  -- FIXME: store this uri somewhere in a type.
                 case eGhUser of
                     Right ghUser -> loginGithubUser ghUser
                     Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
             Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
 
-
--- | FIXME: document!
-loginGithubUser :: GithubUser -> A3Action Token
+-- | ...
+loginGithubUser :: (Show e, Typeable e) => GithubUser -> Action e ThentosSessionToken
 loginGithubUser (GithubUser ghId uname email) = do
     let makeTok = A.startThentosSessionByGithubId ghId
 

@@ -742,6 +742,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
 
 
 -- * SSO
+
 addSsoTokenSpec :: SpecWith (Pool Connection)
 addSsoTokenSpec = describe "addSsoToken" $ do
     it "adds a new SSO token to the db" $ \connPool -> do
@@ -771,6 +772,7 @@ lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
 
   where
     token = SsoToken "abcdefg"
+
 
 -- * Garbage collection
 

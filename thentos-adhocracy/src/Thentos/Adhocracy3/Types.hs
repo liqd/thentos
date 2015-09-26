@@ -13,7 +13,6 @@
 
 module Thentos.Adhocracy3.Types
     ( module Thentos.Types
-    , SsoToken(..)
     , ThentosA3Error(..)
     , A3ErrorMessage(..)
     , A3Error(..)
