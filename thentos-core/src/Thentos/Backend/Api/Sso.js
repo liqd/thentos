@@ -1,15 +1,32 @@
+// FIXME: don't just hope that jquery is available!
+// FIXME: somehow make the two names defined here less global!  (ask somebody who speaks js.)
 
-var requestSso = function() {
-    var request_url = post(backend + "/sso/github/request", { data: {} });
-    redirect(request_url);
+/*
+ * bind this to the click event of your "log in with github" button.
+ */
+var requestSso = function(returnUri) {
+    var response = $.post("/sso/github/request", { data: { return_uri: returnUri } });
+    window.location = response['return_uri'];
 };
 
-// this function is registered under the route of the auth callback url.  that is, when the browser
-// is redirected back from github, it will call this function first.
-var confirmSso = function() {
-    // extract authentication token from route (or from the function arguments)
-    // pass to thentos via rest api
-    // extract target route and session token from login response from thentos
-    // activate session token
-    // re-route to target route (something along the lines of `/logged_in/dashboard`)
+/*
+ * bind this to the return uri.  arguments: uri should be the actual
+ * current uri the browser is aimed at when this function is called
+ * (this is where the sso credentials provided by github and need to
+ * be passed on to thentos are extracted); cb is a function that is
+ * called with the session token as an argument.  the application has
+ * to make sure that this callback will activate the session token and
+ * change the application state to "logged in".
+ */
+var confirmSso = function(uri, cb) {
+    var readStateParam = function(uri) { return ""; };                  // FIXME
+    var readCodeParam = function(uri) { return ""; };                   // FIXME
+
+    var d = {
+        state: readStateParam(uri),
+        code: readCodeParam(uri),
+    };
+
+    var tok = $.post("/sso/github/confirm", { data: d });
+    cb(tok);
 };

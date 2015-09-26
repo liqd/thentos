@@ -76,6 +76,7 @@
 
 module Thentos.Backend.Api.Sso where
 
+import Control.Lens ((%~))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad (mzero)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
@@ -91,7 +92,7 @@ import Network.OAuth.OAuth2
     , authorizationUrl, accessTokenUrl, doJSONPostRequest, appendQueryParam, authGetJSON
     )
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Capture, Post, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, Get, Post, JSON, PlainText)
 import Servant.Server (Server, serve, enter)
 import System.Log (Priority(INFO))
 import URI.ByteString
@@ -99,8 +100,9 @@ import Data.Configifier (Tagged(Tagged), (>>.))
 import Language.ECMAScript3.Syntax.QuasiQuote (js)
 import Language.ECMAScript3.Syntax
 import Language.ECMAScript3.PrettyPrint
-import Language.ECMAScript3.Parser
+import Language.ECMAScript3.Parser (parseFromFile)
 import System.IO.Unsafe (unsafePerformIO)
+import Data.Aeson.Types (Parser)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding   as ST
@@ -126,23 +128,41 @@ type ThentosSso =
 -- | Thentos needs to provide two end-points: one for requesting the SSO that sends the browser off
 -- to github for negotiating the authorization token, and one that the browser can come back to with
 -- that authorization token from github.
+--
+-- (The javascript code containing the callback functions to the browser is delivered through a
+-- third end-point.)
 type ThentosSsoGithub =
-       "request" :> Capture "return_uri" URI :> Post '[JSON] AuthRequest
-  :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "return_uri" URI
-          :> Post '[JSON] RedirectToService
+       "request" :> ReqBody '[JSON] AuthRequest :> Post '[JSON] AuthRequest
+  :<|> "confirm" :> ReqBody '[JSON] AuthConfirm :> Post '[JSON] ThentosSessionToken
+  :<|> "callbacks.js" :> Get '[PlainText] ST
 
-data RedirectToService = RedirectToService URI ThentosSessionToken
+data AuthRequest = AuthRequest URI
 
-instance ToJSON RedirectToService where
-    toJSON (RedirectToService uri tok) = object
-        [ "uri" .= (Aeson.String . cs . serializeURI' $ uri)
-        , "session" .= tok
-        ]
+uriToJSON :: URI -> Aeson.Value
+uriToJSON = Aeson.String . cs . serializeURI'
 
-data AuthRequest = AuthRequest ST
+uriParseJSON :: Aeson.Value -> Parser URI
+uriParseJSON (Aeson.String s) = either (fail . show) return . parseURI strictURIParserOptions $ cs s
+uriParseJSON _ = mzero
 
 instance ToJSON AuthRequest where
-    toJSON (AuthRequest st) = object ["redirect" .= st]
+    toJSON (AuthRequest u) = object ["return_uri" .= uriToJSON u]
+
+instance FromJSON AuthRequest where
+    parseJSON (Object o) = AuthRequest <$> ((o .: "return_uri") >>= uriParseJSON)
+    parseJSON _ = mzero
+
+data AuthConfirm = AuthConfirm
+    { acState     :: ST
+    , acCode      :: ST
+    }
+
+instance ToJSON AuthConfirm where
+    toJSON (AuthConfirm s c) = object ["state" .= s, "code" .= c]
+
+instance FromJSON AuthConfirm where
+    parseJSON (Object o) = AuthConfirm <$> o .: "state" <*> o .: "code"
+    parseJSON _ = mzero
 
 data GithubUser = GithubUser
     { gId    :: GithubId
@@ -166,6 +186,7 @@ thentosSso actionState@(ActionState (_, _, cfg)) =
     enter (enterAction actionState baseActionErrorToServantErr Nothing) $
        githubRequest thentosHttp
   :<|> githubConfirm
+  :<|> jsCallbacks
   where
     thentosHttp :: HttpConfig
     thentosHttp = Tagged . fromMaybe (error "thentosSso: requires backend config!") $
@@ -194,20 +215,21 @@ setCallback thentosHttp toService o = o { oauthCallback = Just $ serializeURI' t
         Left e -> error $ "setCallback: internal error: " ++ show e
 
 -- | ...
-githubRequest :: (Show e, Typeable e) => HttpConfig -> URI -> Action e AuthRequest
-githubRequest thentosHttp currenturl = do
+githubRequest :: (Show e, Typeable e) => HttpConfig -> AuthRequest -> Action e AuthRequest
+githubRequest thentosHttp (AuthRequest uri) = do
     state <- A.addNewSsoToken
-    return . AuthRequest . cs $
-        authorizationUrl (setCallback thentosHttp currenturl githubKey)
-            `appendQueryParam` [("state", cs $ fromSsoToken state)]
+    uri' <- case parseURI strictURIParserOptions $
+                authorizationUrl (setCallback thentosHttp uri githubKey) of
+      Right u -> return $ uriQueryL %~ (\(Query q) -> Query $ ("state", cs $ fromSsoToken state):q) $ u
+      Left e -> error $ "githubRequest: internal error: " ++ show e
+    return $ AuthRequest uri'
 
 -- | ...
-githubConfirm :: forall e . (Show e, Typeable e) => ST -> ST -> URI -> Action e RedirectToService
-githubConfirm state code redirectback = do
+githubConfirm :: forall e . (Show e, Typeable e) => AuthConfirm -> Action e ThentosSessionToken
+githubConfirm (AuthConfirm state code) = do
         A.lookupAndRemoveSsoToken (SsoToken state)
         mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
-        tok <- confirm mgr
-        return $ RedirectToService redirectback tok
+        confirm mgr
   where
     confirm :: Http.Manager -> Action e ThentosSessionToken
     confirm mgr = do
@@ -239,5 +261,7 @@ loginGithubUser (GithubUser ghId uname email) = do
 
 -- * js
 
-jsHandleRequest :: JavaScript SourcePos
-jsHandleRequest = unsafePerformIO $ parseFromFile "./src/Thentos/Backend/Api/Sso.js"
+-- | (We will need to somehow stick that into `LIO` at some point.  But the question of how to
+-- deliver js code from thentos needs more thinking in general, too.)
+jsCallbacks :: Action e ST
+jsCallbacks = return . cs . show . prettyPrint . unsafePerformIO . parseFromFile $ "./src/Thentos/Backend/Api/Sso.js"
