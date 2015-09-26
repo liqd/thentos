@@ -53,8 +53,7 @@ secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
                                        (fromHashedSecret s)
 
 verifyPass :: UserPass -> HashedSecret UserPass -> Bool
-verifyPass pass userPass = secretMatches (fromUserPass pass)
-                                         userPass
+verifyPass pass = secretMatches (fromUserPass pass)
 
 verifyKey :: ServiceKey -> Service -> Bool
 verifyKey key service = secretMatches (fromServiceKey key)

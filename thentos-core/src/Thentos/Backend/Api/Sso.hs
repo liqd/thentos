@@ -1,77 +1,79 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE LambdaCase                               #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE QuasiQuotes                #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
--- | This is a variant of "Thentos.Backend.Api.Adhocracy3" that throws errors on the old
--- authentication end points and instead performs github authentication.  The intricacies of the
--- protocol look something like this:
+-- | This is a sub-api complete with handlers and frontend callbacks for github single-sign-on.
+--
+-- There are two rest end-points, one for requesting sso, and one for sso confirmation.  The
+-- frontend needs two js callbacks provided from here: one that is registered as an on-click handler
+-- for the "sign on with github" button and hits the "request" end-point; and one that handles the
+-- return uri (which points into the service, not thentos), hits the "confirm" end-point with the
+-- credentials stored in the return uri, and registers the resulting session token with the
+-- frontend.
+--
+-- The gist of the protocol looks something like this:
 --
 -- >>> step req# description
 -- >>>
--- >>> 01.  1.   BRO -> A3:    "can i give you access to my sso data on github so you know it's me?"
--- >>> 02.  1.   A3  -> BRO:   "ok, here is a request token."
--- >>> 03.  2.   BRO -> GIH:   "a3 gave me this request token."
--- >>> 04.  2.   GIH -> BRO:   "do you want to let a3 access your github-verified email address?"
+-- >>> 01.  1.   BRO -> THT:   "can i give you access to my sso data on github so you know it's me?"
+-- >>> 02.  1.   THT -> BRO:   "ok, here is a request token and a re-direct uri."
+-- >>> 03.  2.   BRO -> GIH:   "THT gave me this request token."
+-- >>> 04.  2.   GIH -> BRO:   "do you want to let THT access your github-verified email address?"
 -- >>> 05.  3.   BRO -> GIH:   "sure!"
--- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to a3."
--- >>> 07.  4.   BRO -> A3:    "here you go: take this to github and check out my email address"
--- >>> 08.  5.     A3  -> GIH: "here is an access token."
--- >>> 09.  5.     GIH -> A3:  "here is some accessed information: email address."
--- >>> 10.  4.   A3  -> BRO:   "here is your 'ThentosSessionToken'."
+-- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to THT."
+-- >>> 07.  4.   BRO -> THT:   "here you go: take this to github and check out my email address"
+-- >>> 08.  5.     THT -> GIH: "here is an access token."
+-- >>> 09.  5.     GIH -> THT: "here is some accessed information: email address."
+-- >>> 10.  4.   THT  -> BRO:  "here is your 'ThentosSessionToken'."
 --
--- (A3 is represented by this module; the actual application first sees any traffic only after the
--- browser has received the response in step 8 and sends a new, authenticated request.)
+-- Steps 1..2 are the request end-point, and result in aiming the browser at github.com.  Steps 3..6
+-- happen between browser and github.com, and neither thentos nor the underlying service can see
+-- these steps.
 --
--- This workflow is complicated further by the fact that rest api and traditional http/html both
--- play a role in both a3 and thentos.  So a differnt (and equally valid) view on what happens is
--- this (javascript pseudo-code, as will be delivered by thentos frontend):
+-- What happens in step 7 is actually a bit more complex than depicted here: the browser actually
+-- hits the underlying service, not thentos (the return uri was originally provided by the service
+-- as an argument to the request callback).  The confirmation callback in the browser will be
+-- triggered because the application has made sure it is called at this point (e.g. by registering
+-- it as a handler in the routing table in an angular single-page app).  It will hit the "confirm"
+-- end-point, still in step 7; THT will talk to GIH for a bit, and return into the confirmation
+-- callback in step 10.  The session token is registered in the service frontend (by passing it to
+-- yet another callback function passed to the route handler as an argument).
 --
+-- SEE ALSO:
 --
--- >>> // this function is called when the login button is clicked.
--- >>> function handle_sso_login_button_click() {
--- >>>     var request_url = post(backend + "/sso/github/request", { data: {} });
--- >>>     redirect(request_url);
--- >>> }
--- >>>
--- >>> // this function is registered under the route of the auth callback url.  that is, when the browser
--- >>> // is redirected back from github, it will call this function first.
--- >>> function handle_confirm_redirect() {
--- >>>
--- >>>     // extract authentication token from route (or from the function arguments)
--- >>>     // pass to thentos via rest api
--- >>>     // extract target route and session token from login response from thentos
--- >>>     // activate session token
--- >>>     // re-route to target route (something along the lines of `/logged_in/dashboard`)
--- >>>
--- >>> }
+--   - https://developer.github.com/guides/basics-of-authentication/
 --
---
--- https://developer.github.com/guides/basics-of-authentication/
--- https://developer.github.com/v3/oauth/
+--   - https://developer.github.com/v3/oauth/
 --
 --
 -- TODO:
+--
 --   - move githubKey contents to config
+--
 --   - PR to hoauth2: split up OAuth2 type into two, one containing the callback (as a mandatory
 --     value, not as Maybe), and one containing everything else.  change api so that there are fewer
 --     partial functions.  also, base everything on uri-bytestring.
+--
 --   - 'Thentos.Config.exposeUrl' operates on 'ST', but should operate on 'URI'.  Go through entire
 --     module there and find everything that needs to be made uri-bytestring-aware as well.
+--
 --   - for github user lookup, distinguish between "bad password" and "user does not exist".  (there
 --     are some interesting fringe cases where existing users want to switch to github sso the other
 --     way around.  find them and fix them!)
+
 module Thentos.Backend.Api.Sso where
 
 import Control.Monad.Except (throwError, catchError)
@@ -94,6 +96,11 @@ import Servant.Server (Server, serve, enter)
 import System.Log (Priority(INFO))
 import URI.ByteString
 import Data.Configifier (Tagged(Tagged), (>>.))
+import Language.ECMAScript3.Syntax.QuasiQuote (js)
+import Language.ECMAScript3.Syntax
+import Language.ECMAScript3.PrettyPrint
+import Language.ECMAScript3.Parser
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding   as ST
@@ -104,7 +111,6 @@ import System.Log.Missing
 import Thentos.Action as A
 import Thentos.Action.Core
 import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
-import Thentos.Backend.Core
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
@@ -162,7 +168,8 @@ thentosSso actionState@(ActionState (_, _, cfg)) =
   :<|> githubConfirm
   where
     thentosHttp :: HttpConfig
-    thentosHttp = Tagged . fromMaybe (error "blargh") $ cfg >>. (Proxy :: Proxy '["backend"])
+    thentosHttp = Tagged . fromMaybe (error "thentosSso: requires backend config!") $
+        cfg >>. (Proxy :: Proxy '["backend"])
 
 githubKey :: OAuth2
 githubKey = OAuth2 { oauthClientId = "..."
@@ -228,3 +235,9 @@ loginGithubUser (GithubUser ghId uname email) = do
                 makeTok
               e -> throwError e
     return tok
+
+
+-- * js
+
+jsHandleRequest :: JavaScript SourcePos
+jsHandleRequest = unsafePerformIO $ parseFromFile "./src/Thentos/Backend/Api/Sso.js"

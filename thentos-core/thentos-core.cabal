@@ -117,6 +117,7 @@ library
     , http-media >=0.6.2 && <0.7
     , http-reverse-proxy >=0.4.2 && <0.5
     , http-types >=0.8.6 && <0.9
+    , language-ecmascript >=0.17 && <0.18
     , lens >=4.12.3 && <4.13
     , lifted-base >=0.2.3.6 && <0.3
     , lio >=0.11.5.0 && <0.12
