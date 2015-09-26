@@ -42,7 +42,7 @@
 -- >>> // this function is called when the login button is clicked.
 -- >>> function handle_sso_login_button_click() {
 -- >>>     var request_url = post(backend + "/sso/github/request", { data: {} });
--- >>>     open_browser_tab(request_url);
+-- >>>     redirect(request_url);
 -- >>> }
 -- >>>
 -- >>> // this function is registered under the route of the auth callback url.  that is, when the browser
@@ -109,21 +109,21 @@ serveApi manager = addCorsHeaders A3.a3corsPolicy . addCacheControlHeaders . ser
 
 -- * api
 
-type ThentosA3Sso =
-       "sso" :> "github" :>
-            ("request" :> Capture "currenturl" URL :> Post '[JSON] AuthRequest
-        :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "redirectback" URL
-                       :> Post '[] RedirectAndSetCookie)
+type ThentosSso =
+       "sso" :> "github" :> ThentosSsoGithub
+
+type ThentosSsoGithub =
+       "request" :> Capture "currenturl" URL :> Post '[JSON] AuthRequest
+  :<|> "confirm" :> Capture "state" ST :> Capture "code" ST :> Capture "redirectback" URL
+          :> Post '[] RedirectAndSetCookie
 
 data RedirectAndSetCookie = RedirectAndSetCookie
     { redirectUri :: URI
     , cookie :: Cookie
     }
 
-type Api = ThentosA3Sso :<|> A3.ThentosApi :<|> ServiceProxy
-
-thentosA3Sso :: AC.ActionState -> Server ThentosA3Sso
-thentosA3Sso actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
+thentosSso :: AC.ActionState -> Server ThentosSso
+thentosSso actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
        githubRequest
   :<|> githubConfirm
 
@@ -186,7 +186,8 @@ instance FromJSON GithubUser where
 -- | FIXME: move this to config.  this may also be a point in favour of configifier: we now need to
 -- start thinking about composing configs just like we compose apis.
 --
--- http://developer.github.com/v3/oauth/
+-- https://developer.github.com/guides/basics-of-authentication/
+-- https://developer.github.com/v3/oauth/
 -- https://github.com/settings/applications/214371
 githubKey :: OAuth2
 githubKey = OAuth2 { oauthClientId = "c4c9355b9ea698f622ba"
