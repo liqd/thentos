@@ -50,7 +50,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    with defaultApp $ describe "Thentos.Backend.Api.Sso" $ do
+    with defaultApp . before (createDb "test_thentos") $ describe "Thentos.Backend.Api.Sso" $ do
         describe "/sso/github/callbacks.js" $ do
             it "returns a javascript source file" $ do
                 body :: ST <- request "GET" "/sso/github/callbacks.js" ctHeaders ""

@@ -79,12 +79,17 @@ module Thentos.Backend.Api.Sso where
 import Control.Lens ((%~))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad (mzero)
+import Data.Aeson.Types (Parser)
 import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Typeable (Typeable)
+import Language.ECMAScript3.Parser (parseFromFile)
+import Language.ECMAScript3.PrettyPrint (prettyPrint)
+import Language.ECMAScript3.Syntax.QuasiQuote (js)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.OAuth.OAuth2
@@ -94,15 +99,12 @@ import Network.OAuth.OAuth2
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, Get, Post, JSON, PlainText)
 import Servant.Server (Server, serve, enter)
+import System.IO.Unsafe (unsafePerformIO)
 import System.Log (Priority(INFO))
 import URI.ByteString
-import Data.Configifier (Tagged(Tagged), (>>.))
-import Language.ECMAScript3.Syntax.QuasiQuote (js)
-import Language.ECMAScript3.Syntax
-import Language.ECMAScript3.PrettyPrint
-import Language.ECMAScript3.Parser (parseFromFile)
-import System.IO.Unsafe (unsafePerformIO)
-import Data.Aeson.Types (Parser)
+    ( URI(URI), Query(Query), uriQueryL, queryPairsL, serializeURI', parseURI, uriPath, uriQuery
+    , strictURIParserOptions
+    )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Text.Encoding   as ST
