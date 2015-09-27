@@ -214,13 +214,17 @@ setCallback thentosHttp toService o = o { oauthCallback = Just $ serializeURI' t
             }
         Left e -> error $ "setCallback: internal error: " ++ show e
 
--- | ...
+-- | Create a new 'SsoToken' and return the authorization uri to be passed to github.  This uri
+-- contains the github route, the sso token just created, and the return uri the browser should land
+-- on coming back from github with the authorization token.  (The latter is passed to this function
+-- as the second argument.)
 githubRequest :: (Show e, Typeable e) => HttpConfig -> AuthRequest -> Action e AuthRequest
 githubRequest thentosHttp (AuthRequest uri) = do
     state <- A.addNewSsoToken
+    let injectState = (uriQueryL . queryPairsL) %~ (("state", cs $ fromSsoToken state):)
     uri' <- case parseURI strictURIParserOptions $
                 authorizationUrl (setCallback thentosHttp uri githubKey) of
-      Right u -> return $ uriQueryL %~ (\(Query q) -> Query $ ("state", cs $ fromSsoToken state):q) $ u
+      Right u -> return $ injectState u
       Left e -> error $ "githubRequest: internal error: " ++ show e
     return $ AuthRequest uri'
 
@@ -261,7 +265,9 @@ loginGithubUser (GithubUser ghId uname email) = do
 
 -- * js
 
--- | (We will need to somehow stick that into `LIO` at some point.  But the question of how to
--- deliver js code from thentos needs more thinking in general, too.)
+-- | Load callback source code.
+--
+-- FIXME: use LIO properly, don't use unsafePerformIO
+-- FIXME: make Sso.js extra source file in cabal, get the correct path from cabal.
 jsCallbacks :: Action e ST
 jsCallbacks = return . cs . show . prettyPrint . unsafePerformIO . parseFromFile $ "./src/Thentos/Backend/Api/Sso.js"
