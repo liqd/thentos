@@ -228,7 +228,8 @@ githubRequest thentosHttp (AuthRequest uri) = do
       Left e -> error $ "githubRequest: internal error: " ++ show e
     return $ AuthRequest uri'
 
--- | ...
+-- | Given a sso token and auth token, contact github and request an authenticated 'GithubUser'
+-- value.  If successful, call 'loginGithubUser'.
 githubConfirm :: forall e . (Show e, Typeable e) => AuthConfirm -> Action e ThentosSessionToken
 githubConfirm (AuthConfirm state code) = do
         A.lookupAndRemoveSsoToken (SsoToken state)
@@ -250,7 +251,7 @@ githubConfirm (AuthConfirm state code) = do
                     Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
             Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
 
--- | ...
+-- | Call the actions for logging in and, if necessary, creating a github-authenticated user.
 loginGithubUser :: (Show e, Typeable e) => GithubUser -> Action e ThentosSessionToken
 loginGithubUser (GithubUser ghId uname email) = do
     let makeTok = A.startThentosSessionByGithubId ghId
