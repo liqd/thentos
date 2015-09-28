@@ -444,7 +444,6 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` forceUserEmail "me@example.com"
 
-
   where
     user = mkUser "name" "super secret" "me@example.com"
     userId = UserId 584

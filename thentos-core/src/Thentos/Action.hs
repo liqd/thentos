@@ -255,7 +255,7 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 
 -- | Authenticate user against old password, and then change password to new password.
 --
--- LIO policy: In additino to the old password as proof of authority, this function requires the
+-- LIO policy: In addition to the old password as proof of authority, this function requires the
 -- user to change the password to be logged in (or admin privs).
 changePassword :: UserId -> UserPass -> UserPass -> Action e ()
 changePassword uid old new = do
@@ -264,7 +264,7 @@ changePassword uid old new = do
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.changePassword uid hashedPw
 
--- FIXME: As the '_' sais, this function shouldn't be exported, but wrapped in a public action that
+-- FIXME: As the '_' says, this function shouldn't be exported, but wrapped in a public action that
 -- establishes that the password change is legitimate.  (Currently, this function is only called in
 -- "Thentos.Adhocracy3.Backend.Api.Simple", and that will change heavily during implementation of
 -- #321.  If we would keep the current setup, we would pull the code calling the service into the
