@@ -71,8 +71,6 @@ main = makeMain $ \ actionState mBeConfig mFeConfig cmd ->
 
             void $ concurrently backend frontend
 
-        RunSso -> error "RunSso: not implemented."
-
 
 -- * main with abstract commands
 
