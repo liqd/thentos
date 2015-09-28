@@ -59,23 +59,20 @@ import qualified Thentos.Transaction as T
 -- * main
 
 main :: IO ()
-main = makeMain $ \ actionState mBeConfig mFeConfig cmd ->
-    case cmd of
-        Run -> do
-            let backend = maybe (return ())
-                    (`Thentos.Backend.Api.Simple.runApi` actionState)
-                    mBeConfig
-            let frontend = maybe (return ())
-                    (`runFrontend` actionState)
-                    mFeConfig
+main = makeMain $ \ actionState mBeConfig mFeConfig -> do
+    let backend = maybe (return ())
+            (`Thentos.Backend.Api.Simple.runApi` actionState)
+            mBeConfig
+    let frontend = maybe (return ())
+            (`runFrontend` actionState)
+            mFeConfig
 
-            void $ concurrently backend frontend
+    void $ concurrently backend frontend
 
 
 -- * main with abstract commands
 
-makeMain ::
-    (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> Command -> IO ()) -> IO ()
+makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO ()
 makeMain commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
@@ -101,7 +98,7 @@ makeMain commandSwitch =
 
     logger INFO "Press ^C to abort."
     let run = do
-            commandSwitch actionState mBeConfig mFeConfig $ config >>. (Proxy :: Proxy '["command"])
+            commandSwitch actionState mBeConfig mFeConfig
         finalize = do
             announceAction "shutting down hslogger" $
                 removeAllHandlers

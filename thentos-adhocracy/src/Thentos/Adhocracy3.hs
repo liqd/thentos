@@ -9,9 +9,7 @@ import qualified Thentos.Adhocracy3.Backend.Api.Simple as Simple (runBackend)
 -- * main
 
 main :: IO ()
-main = makeMain $ \actionState mBeConfig _ cmd ->
-    case cmd of
-        Run -> do
-            maybe (error "command `run` requires backend")
-                (`Simple.runBackend` actionState)
-                mBeConfig
+main = makeMain $ \actionState mBeConfig _ -> do
+    maybe (error "command `run` requires backend")
+        (`Simple.runBackend` actionState)
+        mBeConfig
