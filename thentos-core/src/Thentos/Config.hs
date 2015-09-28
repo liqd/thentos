@@ -17,7 +17,6 @@ import Data.Configifier
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
 import Data.Maybe (fromMaybe)
-import Data.List (elemIndex, nub)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs, (<>))
 import Data.Typeable (Typeable)
