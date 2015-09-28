@@ -77,8 +77,8 @@ thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
   :<|> deleteUser
-  :<|> (((^. userName) . snd) <$>) . lookupUser
-  :<|> (((^. userEmail) . snd) <$>) . lookupUser
+  :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
+  :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
 
 
 -- * service
