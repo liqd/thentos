@@ -35,7 +35,6 @@ data ThentosA3Error =
       GenericA3Error A3ErrorMessage
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
-    | SsoErrorUnknownCsrfToken
   deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosA3Error
