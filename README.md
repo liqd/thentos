@@ -116,7 +116,7 @@ depend on your use case.
 
 To run executables or tests, you will need to install PostgreSQL.
 Depending on your setup, you may need to cast some authorization
-spells.  Here is what works on debian (run as user postgres):
+spells.  Here is what works on debian:
 
 ```shell
 $ sudo -u postgres createuser thentos -d

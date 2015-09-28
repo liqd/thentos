@@ -33,8 +33,6 @@ module Thentos.Action
     , changePasswordUnconditionally
     , requestUserEmailChange
     , confirmUserEmailChange
-    , updateUserField, T.UpdateUserFieldOp(..)
-    , updateUserFields
 
     , allServiceIds
     , lookupService
@@ -255,20 +253,6 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 
 -- ** change user data
 
--- | FIXME: In combination with 'addServiceRegistration', the label of this function may constitute
--- an integrity breach: If a service does not authorize registration of a user with a service, that
--- user may be able to login without consent of the service, especially once we have anonymous
--- login.  See also 'updateUserFields'.
-updateUserField :: UserId -> T.UpdateUserFieldOp -> Action e ()
-updateUserField uid op = do
-    guardWriteMsg "updateUserField" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    query'P $ T.updateUserField uid op
-
--- | See 'updateUserField'.
-updateUserFields :: UserId -> [T.UpdateUserFieldOp] -> Action e ()
-updateUserFields uid ops = do
-    guardWriteMsg "updateUserFields" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    query'P $ T.updateUserFields uid ops
 
 -- | Authenticate user against old password, and then change password to new password.
 -- We allow this for any users, whether confirmed or not.
@@ -278,18 +262,17 @@ changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.lookupAnyUser uid) old
     hashedPw <- hashUserPass'P new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
+    query'P $ T.changePassword uid hashedPw
 
--- | Unconditionally change the password of a user.
---
+
 -- SECURITY: As a caller, you have to make sure that the user is properly authenticated and
--- authorized to change the password before calling this function!
+-- authorized to change the password before calling this function
 -- FIXME Reconsider/fix security model once our usage of LIO or a suitable replacement has
--- been clarified.
+-- been clarified
 changePasswordUnconditionally :: UserId -> UserPass -> Action e ()
 changePasswordUnconditionally uid newPw = do
     hashedPw <- hashUserPass'P newPw
-    query'P $ T.updateUserField uid (T.UpdateUserFieldPassword hashedPw)
+    query'P $ T.changePassword uid hashedPw
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
 -- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address

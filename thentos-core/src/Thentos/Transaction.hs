@@ -8,11 +8,9 @@ where
 
 import Control.Exception.Lifted (throwIO)
 import Control.Lens ((^.))
-import Control.Monad (void, liftM)
+import Control.Monad (void)
 import Control.Monad.Except (throwError)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ask)
-import Database.PostgreSQL.Simple         (Only(..), execute)
+import Database.PostgreSQL.Simple         (Only(..))
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
 import Data.Typeable (Typeable)
@@ -192,48 +190,19 @@ confirmUserEmailChange timeout token = do
         0 -> throwError NoSuchToken
         _ -> impossible "email change token exists multiple times"
 
-data UpdateUserFieldOp =
-    UpdateUserFieldName UserName
-  | UpdateUserFieldEmail UserEmail
-  | UpdateUserFieldPassword (HashedSecret UserPass)
-  deriving (Eq, Show)
 
--- | Update one of the attributes stored for a user.
-updateUserField :: UserId -> UpdateUserFieldOp -> ThentosQuery e ()
-updateUserField uid op = do
+-- | Change password. Should only be called once the old password has been
+-- verified.
+changePassword :: UserId -> HashedSecret UserPass -> ThentosQuery e ()
+changePassword uid newpass = do
     modified <- q
     case modified of
         1 -> return ()
         0 -> throwError NoSuchUser
-        _ -> impossible "updateUserField: unique constraint on id violated"
+        _ -> impossible "changePassword: unique constraint on id violated"
   where
-    q = case op of
-        UpdateUserFieldName n ->
-            execT [sql| UPDATE users SET name = ? WHERE id = ? |] (n, uid)
-        UpdateUserFieldEmail e ->
-            execT [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
-        UpdateUserFieldPassword p ->
-            execT [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
+    q = execT [sql| UPDATE users SET password = ? WHERE id = ?  |] (newpass, uid)
 
-
--- | Update attributes stored for a user.
-updateUserFields :: UserId -> [UpdateUserFieldOp] -> ThentosQuery e ()
-updateUserFields uid ups = do
-    conn <- ask
-    e <- catchViolation catcher . liftIO . liftM Right $ mapM (exec conn) ups
-    case e of
-        Left err -> throwError err
-        Right ns | all (== 1) ns -> return ()
-                 | all (== 0) ns -> throwError NoSuchUser
-                 | otherwise -> impossible $ "updateUserFields: updated " ++ show ns
-  where
-    exec conn op = case op of
-        UpdateUserFieldName n ->
-            execute conn [sql| UPDATE users SET name = ? WHERE id = ? |] (n, uid)
-        UpdateUserFieldEmail e ->
-            execute conn [sql| UPDATE users SET email = ? WHERE id = ? |] (e, uid)
-        UpdateUserFieldPassword p ->
-            execute conn [sql| UPDATE users SET password = ? WHERE id = ? |] (p, uid)
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
 deleteUser :: UserId -> ThentosQuery e ()
