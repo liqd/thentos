@@ -46,13 +46,15 @@ spec = do
 
 spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
+    -- FIXME: test addGithubUser
     describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
             let user = testUsers !! 0
             uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
             (uid', user') <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
             uid' `shouldBe` uid
-            user' `shouldBe` (userPassword .~ (user' ^. userPassword) $ user)
+            user' `shouldBe`
+                (userAuth .~ (user' ^. userAuth) $ user)
             void . runPrivs [RoleAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
                 runClearanceE dcBottom sta $ lookupConfirmedUser uid
@@ -87,6 +89,7 @@ spec_user = describe "user" $ do
             result <- runPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
+    -- FIXME: test startThentosSessionByGithubId
     describe "checkPassword" $ do
         it "works" $ \ sta -> do
             void . runA sta $ startThentosSessionByUserId godUid godPass

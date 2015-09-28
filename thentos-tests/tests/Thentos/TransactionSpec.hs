@@ -57,6 +57,8 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     startServiceSessionSpec
     lookupServiceSessionSpec
     endServiceSessionSpec
+    addSsoTokenSpec
+    lookupAndDeleteSsoTokenSpec
 
 
 addUserPrimSpec :: SpecWith (Pool Connection)
@@ -204,6 +206,9 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
     token = "someToken"
     timeout = fromMinutes 1
 
+-- FIXME: test all looukup*User* transactions with users that have a github id
+-- instead of a password
+-- FIXME: test lookupUserByGithubId
 lookupConfirmedUserByNameSpec :: SpecWith (Pool Connection)
 lookupConfirmedUserByNameSpec = describe "lookupConfirmedUserByName" $ do
 
@@ -315,7 +320,25 @@ changePasswordSpec = describe "changePassword" $ do
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ changePassword userId newPass
         Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
-        _userPassword usr `shouldBe` newPass
+        usr `shouldBe` (user & userAuth .~ UserAuthPassword newPass)
+
+    it "doesn't change other users" $ \connPool -> do
+        let newName = UserName "new"
+        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
+        Right _ <- runQuery connPool $
+            updateUserField userId (UpdateUserFieldName newName)
+        Right (_, usr2) <- runQuery connPool $ lookupConfirmedUser user2Id
+        usr2 `shouldBe` user2
+
+    it "fails if the new name is not unique" $ \connPool -> do
+        let newName = user2 ^. userName
+        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
+        x <- runQuery connPool $ updateUserField userId (UpdateUserFieldName newName)
+        x `shouldBe` Left UserNameAlreadyExists
+        runQuery connPool (lookupConfirmedUser userId) `shouldReturn` Right (userId, user)
+        runQuery connPool (lookupConfirmedUser user2Id) `shouldReturn` Right (user2Id, user2)
 
     it "fails if the user doesn't exist" $ \connPool -> do
         Left err <- runQuery connPool $ changePassword userId newPass
@@ -715,6 +738,39 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     sid = "sid"
 
 
+-- * SSO
+
+addSsoTokenSpec :: SpecWith (Pool Connection)
+addSsoTokenSpec = describe "addSsoToken" $ do
+    it "adds a new SSO token to the db" $ \connPool -> do
+        Right () <- runQuery connPool $ addSsoToken ssoToken
+        [Only tokenCount] <- doQuery connPool
+            [sql| SELECT COUNT(*) FROM sso_tokens WHERE token = ? |]
+            (Only ssoToken)
+        tokenCount `shouldBe` (1 :: Int)
+  where
+    ssoToken = SsoToken "abcdefg"
+
+lookupAndDeleteSsoTokenSpec :: SpecWith (Pool Connection)
+lookupAndDeleteSsoTokenSpec = describe "lookupAndDeleteSsoToken" $ do
+    it "succeeds if the token is in the db" $ \connPool -> do
+        Right () <- runQuery connPool $ addSsoToken token
+        Right () <- runQuery connPool $ lookupAndRemoveSsoToken token
+        -- token should now be removed from the db:
+        [Only tokenCount] <- doQuery connPool
+            [sql| SELECT COUNT(*) FROM sso_tokens WHERE token = ? |]
+            (Only token)
+        tokenCount `shouldBe` (0 :: Int)
+
+    it "throws NoSuchToken if the token is not in the db" $ \connPool -> do
+        Right () <- runQuery connPool $ addSsoToken token
+        res <- runQuery connPool $ lookupAndRemoveSsoToken (SsoToken "foo")
+        res `shouldBe` Left NoSuchToken
+
+  where
+    token = SsoToken "abcdefg"
+
+
 -- * Garbage collection
 
 garbageCollectUnconfirmedUsersSpec :: SpecWith (Pool Connection)
@@ -839,6 +895,6 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
 
 mkUser :: UserName -> SBS -> ST -> User
 mkUser name pass email = User { _userName = name
-                              , _userPassword = encryptTestSecret pass
+                              , _userAuth = UserAuthPassword $ encryptTestSecret pass
                               , _userEmail = forceUserEmail email
                               }

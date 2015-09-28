@@ -68,6 +68,7 @@ library
     , Thentos.Backend.Api.Docs.Simple
     , Thentos.Backend.Api.Proxy
     , Thentos.Backend.Api.Simple
+    , Thentos.Backend.Api.Sso
     , Thentos.Backend.Core
     , Thentos.Config
     , Thentos.Frontend
@@ -106,11 +107,14 @@ library
     , filepath >=1.4.0.0 && <1.5
     , functor-infix >=0.0.3 && <0.1
     , generic-aeson >=0.2.0.7 && <0.3
+    , hoauth2 >=0.4.8 && <0.5
     , hslogger >=1.2.9 && <1.3
     , http-client >=0.4.22 && <0.5
+    , http-conduit >=2.1.8 && <2.2
     , http-media >=0.6.2 && <0.7
     , http-reverse-proxy >=0.4.2 && <0.5
     , http-types >=0.8.6 && <0.9
+    , language-ecmascript >=0.17 && <0.18
     , lens >=4.12.3 && <4.13
     , lifted-base >=0.2.3.6 && <0.3
     , lio >=0.11.5.0 && <0.12

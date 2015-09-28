@@ -77,7 +77,9 @@ testUserForms =
 
 testUsers :: [User]
 testUsers = (\ (UserFormData name pass email) ->
-                User name (encryptTestSecret . cs . fromUserPass $ pass) email)
+                User name
+                     (UserAuthPassword . encryptTestSecret . cs . fromUserPass $ pass)
+                     email)
     <$> testUserForms
 
 testUser :: User

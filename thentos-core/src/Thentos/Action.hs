@@ -22,6 +22,7 @@ module Thentos.Action
     , lookupConfirmedUserByName
     , lookupConfirmedUserByEmail
     , addUser
+    , addGithubUser
     , deleteUser
     , addUnconfirmedUser
     , addUnconfirmedUserWithId
@@ -48,6 +49,7 @@ module Thentos.Action
     , startThentosSessionByUserName
     , startThentosSessionByUserEmail
     , startThentosSessionByServiceId
+    , startThentosSessionByGithubId
     , endThentosSession
     , validateThentosUserSession
     , serviceNamesFromThentosSession
@@ -63,6 +65,9 @@ module Thentos.Action
     , assignRole
     , unassignRole
     , agentRoles
+
+    , addNewSsoToken
+    , lookupAndRemoveSsoToken
 
     , collectGarbage
     )
@@ -125,6 +130,10 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 freshServiceSessionToken :: Action e ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
+freshSsoToken :: Action e SsoToken
+freshSsoToken = SsoToken <$> freshRandomName
+
+
 -- * user
 
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
@@ -154,6 +163,13 @@ addUser :: (Show e, Typeable e) => UserFormData -> Action e UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     makeUserFromFormData'P userData >>= query'P . T.addUser
+
+-- | Like addUser, but for users that authenticate via github SSO
+addGithubUser :: (Show e, Typeable e) => UserName -> GithubId -> UserEmail -> Action e UserId
+addGithubUser name ghId email = do
+    guardWriteMsg "addGithubUser" (RoleAdmin %% RoleAdmin)
+    let user = User name (UserAuthGithubId ghId) email
+    query'P $ T.addUser user
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
@@ -243,9 +259,12 @@ _lookupUserCheckPassword transaction password = a `catchError` h
   where
     a = do
         (uid, user) <- query'P transaction
-        if verifyPass password user
-            then return (uid, user)
-            else throwError BadCredentials
+        case user ^. userAuth of
+            UserAuthPassword pw ->
+                if verifyPass password pw
+                    then return (uid, user)
+                    else throwError BadCredentials
+            UserAuthGithubId _ -> throwError PasswordOpOnSsoUser
 
     h NoSuchUser = throwError BadCredentials
     h e          = throwError e
@@ -413,6 +432,15 @@ startThentosSessionByUserEmail email pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByEmail email) pass
     (uid,) <$> _startThentosSessionByAgent (UserA uid)
 
+-- | Like the other startThentosSession.. actions, except that this doesn't
+-- check the password (because a user with a github id doesn't have one).
+-- It is the caller's responsibility to ensure that this is only called
+-- for the owner of the github account.
+startThentosSessionByGithubId :: GithubId -> Action e (UserId, ThentosSessionToken)
+startThentosSessionByGithubId ghId = do
+    (uid, _) <- query'P $ T.lookupUserByGithubId ghId
+    (uid,) <$> _startThentosSessionByAgent (UserA uid)
+
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId ::
     ServiceId -> ServiceKey -> Action e ThentosSessionToken
@@ -552,6 +580,21 @@ agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     query'P (T.agentRoles agent)
 
+
+-- * SSO
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+addNewSsoToken :: Action e SsoToken
+addNewSsoToken = do
+    tok <- freshSsoToken
+    query'P $ T.addSsoToken tok
+    return tok
+
+-- | This doesn't check any labels because it needs to be called as part of the
+-- authentication process.
+lookupAndRemoveSsoToken :: SsoToken -> Action e ()
+lookupAndRemoveSsoToken tok = query'P $ T.lookupAndRemoveSsoToken tok
 
 -- * garbage collection
 

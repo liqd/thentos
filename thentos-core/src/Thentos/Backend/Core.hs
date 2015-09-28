@@ -164,6 +164,12 @@ thentosErrorInfo other e = f e
         (Nothing, err400, "malformed user path: " <> cs (show path))
     f ConfirmationTokenAlreadyExists =
         (Just (ERROR, ppShow e), err500, "internal error")
+    f PasswordOpOnSsoUser =
+        (Just (ERROR, ppShow e), err500, "internal error")
+    f (SsoErrorCouldNotAccessUserInfo _) =
+        (Just (ERROR, show e), err500, "error accessing user info")
+    f (SsoErrorCouldNotGetAccessToken _) =
+        (Just (ERROR, show e), err500, "error retrieving access token")
     f (OtherError x) = other x
 
 

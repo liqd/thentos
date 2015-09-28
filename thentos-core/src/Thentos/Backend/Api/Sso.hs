@@ -1,0 +1,276 @@
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE QuasiQuotes                #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+
+-- | This is a sub-api complete with handlers and frontend callbacks for github single-sign-on.
+--
+-- There are two rest end-points, one for requesting sso, and one for sso confirmation.  The
+-- frontend needs two js callbacks provided from here: one that is registered as an on-click handler
+-- for the "sign on with github" button and hits the "request" end-point; and one that handles the
+-- return uri (which points into the service, not thentos), hits the "confirm" end-point with the
+-- credentials stored in the return uri, and registers the resulting session token with the
+-- frontend.
+--
+-- The gist of the protocol looks something like this:
+--
+-- >>> step req# description
+-- >>>
+-- >>> 01.  1.   BRO -> THT:   "can i give you access to my sso data on github so you know it's me?"
+-- >>> 02.  1.   THT -> BRO:   "ok, here is a request token and a re-direct uri."
+-- >>> 03.  2.   BRO -> GIH:   "THT gave me this request token."
+-- >>> 04.  2.   GIH -> BRO:   "do you want to let THT access your github-verified email address?"
+-- >>> 05.  3.   BRO -> GIH:   "sure!"
+-- >>> 06.  3.   GIH -> BRO:   "ok, please pass this access token on to THT."
+-- >>> 07.  4.   BRO -> THT:   "here you go: take this to github and check out my email address"
+-- >>> 08.  5.     THT -> GIH: "here is an access token."
+-- >>> 09.  5.     GIH -> THT: "here is some accessed information: email address."
+-- >>> 10.  4.   THT  -> BRO:  "here is your 'ThentosSessionToken'."
+--
+-- Steps 1..2 are the request end-point, and result in aiming the browser at github.com.  Steps 3..6
+-- happen between browser and github.com, and neither thentos nor the underlying service can see
+-- these steps.
+--
+-- What happens in step 7 is actually a bit more complex than depicted here: the browser actually
+-- hits the underlying service, not thentos (the return uri was originally provided by the service
+-- as an argument to the request callback).  The confirmation callback in the browser will be
+-- triggered because the application has made sure it is called at this point (e.g. by registering
+-- it as a handler in the routing table in an angular single-page app).  It will hit the "confirm"
+-- end-point, still in step 7; THT will talk to GIH for a bit, and return into the confirmation
+-- callback in step 10.  The session token is registered in the service frontend (by passing it to
+-- yet another callback function passed to the route handler as an argument).
+--
+-- SEE ALSO:
+--
+--   - https://developer.github.com/guides/basics-of-authentication/
+--
+--   - https://developer.github.com/v3/oauth/
+--
+--
+-- TODO:
+--
+--   - move githubKey contents to config
+--
+--   - PR to hoauth2: split up OAuth2 type into two, one containing the callback (as a mandatory
+--     value, not as Maybe), and one containing everything else.  change api so that there are fewer
+--     partial functions.  also, base everything on uri-bytestring.
+--
+--   - 'Thentos.Config.exposeUrl' operates on 'ST', but should operate on 'URI'.  Go through entire
+--     module there and find everything that needs to be made uri-bytestring-aware as well.
+--
+--   - for github user lookup, distinguish between "bad password" and "user does not exist".  (there
+--     are some interesting fringe cases where existing users want to switch to github sso the other
+--     way around.  find them and fix them!)
+
+module Thentos.Backend.Api.Sso where
+
+import Control.Lens ((%~))
+import Control.Monad.Except (throwError, catchError)
+import Control.Monad (mzero)
+import Data.Aeson.Types (Parser)
+import Data.Aeson (Value(Object), ToJSON, FromJSON, (.:), (.=), object)
+import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (SBS, ST, cs)
+import Data.Typeable (Typeable)
+import Language.ECMAScript3.Parser (parseFromFile)
+import Language.ECMAScript3.PrettyPrint (prettyPrint)
+import Language.ECMAScript3.Syntax.QuasiQuote (js)
+import LIO.Core (liftLIO)
+import LIO.TCB (ioTCB)
+import Network.OAuth.OAuth2
+    ( OAuth2Result, AccessToken(..), OAuth2(..)
+    , authorizationUrl, accessTokenUrl, doJSONPostRequest, appendQueryParam, authGetJSON
+    )
+import Network.Wai (Application)
+import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, Get, Post, JSON, PlainText)
+import Servant.Server (Server, serve, enter)
+import System.IO.Unsafe (unsafePerformIO)
+import System.Log (Priority(INFO))
+import URI.ByteString
+    ( URI(URI), Query(Query), uriQueryL, queryPairsL, serializeURI', parseURI, uriPath, uriQuery
+    , strictURIParserOptions
+    )
+
+import qualified Data.Aeson as Aeson
+import qualified Data.Text.Encoding   as ST
+import qualified Network.HTTP.Client  as Client
+import qualified Network.HTTP.Conduit as Http
+
+import System.Log.Missing
+import Thentos.Action as A
+import Thentos.Action.Core
+import Thentos.Backend.Api.Proxy (ServiceProxy, serviceProxy)
+import Thentos.Backend.Core
+import Thentos.Config
+import Thentos.Types
+
+import qualified Thentos.Action.Core as AC
+
+
+-- * api
+
+type ThentosSso =
+       "sso" :> "github" :> ThentosSsoGithub
+
+-- | Thentos needs to provide two end-points: one for requesting the SSO that sends the browser off
+-- to github for negotiating the authorization token, and one that the browser can come back to with
+-- that authorization token from github.
+--
+-- (The javascript code containing the callback functions to the browser is delivered through a
+-- third end-point.)
+type ThentosSsoGithub =
+       "request" :> ReqBody '[JSON] AuthRequest :> Post '[JSON] AuthRequest
+  :<|> "confirm" :> ReqBody '[JSON] AuthConfirm :> Post '[JSON] ThentosSessionToken
+  :<|> "callbacks.js" :> Get '[PlainText] ST
+
+data AuthRequest = AuthRequest URI
+
+uriToJSON :: URI -> Aeson.Value
+uriToJSON = Aeson.String . cs . serializeURI'
+
+uriParseJSON :: Aeson.Value -> Parser URI
+uriParseJSON (Aeson.String s) = either (fail . show) return . parseURI strictURIParserOptions $ cs s
+uriParseJSON _ = mzero
+
+instance ToJSON AuthRequest where
+    toJSON (AuthRequest u) = object ["return_uri" .= uriToJSON u]
+
+instance FromJSON AuthRequest where
+    parseJSON (Object o) = AuthRequest <$> ((o .: "return_uri") >>= uriParseJSON)
+    parseJSON _ = mzero
+
+data AuthConfirm = AuthConfirm
+    { acState     :: ST
+    , acCode      :: ST
+    }
+
+instance ToJSON AuthConfirm where
+    toJSON (AuthConfirm s c) = object ["state" .= s, "code" .= c]
+
+instance FromJSON AuthConfirm where
+    parseJSON (Object o) = AuthConfirm <$> o .: "state" <*> o .: "code"
+    parseJSON _ = mzero
+
+data GithubUser = GithubUser
+    { gId    :: GithubId
+    , gName  :: ST
+    , gEmail :: UserEmail
+    }
+  deriving (Show, Eq)
+
+instance FromJSON GithubUser where
+    parseJSON (Object o) = GithubUser
+        <$> o .: "id"
+        <*> o .: "name"
+        <*> (o .: "email" >>= maybe mzero return . parseUserEmail)
+    parseJSON _ = mzero
+
+
+-- * handler
+
+thentosSso :: AC.ActionState -> Server ThentosSso
+thentosSso actionState@(ActionState (_, _, cfg)) =
+    enter (enterAction actionState baseActionErrorToServantErr Nothing) $
+       githubRequest thentosHttp
+  :<|> githubConfirm
+  :<|> jsCallbacks
+  where
+    thentosHttp :: HttpConfig
+    thentosHttp = Tagged . fromMaybe (error "thentosSso: requires backend config!") $
+        cfg >>. (Proxy :: Proxy '["backend"])
+
+githubKey :: OAuth2
+githubKey = OAuth2 { oauthClientId = "..."
+                   , oauthClientSecret = "..."
+                   , oauthOAuthorizeEndpoint = "https://github.com/login/oauth/authorize"
+                   , oauthAccessTokenEndpoint = "https://github.com/login/oauth/access_token"
+                   , oauthCallback = Nothing
+                   }
+
+-- | Thentos proxy needs to capture the redirect back from the token server, and then redirect back
+-- to the service.  This makes two nested redirects.  The first is specified by a `HttpConfig`,
+-- because (the path of that `URI` is fixed), and the second by a `URI`.
+setCallback :: HttpConfig -> URI -> OAuth2 -> OAuth2
+setCallback thentosHttp toService o = o { oauthCallback = Just $ serializeURI' toThentos }
+  where
+    toThentos :: URI
+    toThentos = case parseURI strictURIParserOptions . cs $ exposeUrl thentosHttp of
+        Right uri -> uri
+            { uriPath  = "/sso/github/confirm"
+            , uriQuery = Query [("redirect_to_service", serializeURI' toService)]
+            }
+        Left e -> error $ "setCallback: internal error: " ++ show e
+
+-- | Create a new 'SsoToken' and return the authorization uri to be passed to github.  This uri
+-- contains the github route, the sso token just created, and the return uri the browser should land
+-- on coming back from github with the authorization token.  (The latter is passed to this function
+-- as the second argument.)
+githubRequest :: (Show e, Typeable e) => HttpConfig -> AuthRequest -> Action e AuthRequest
+githubRequest thentosHttp (AuthRequest uri) = do
+    state <- A.addNewSsoToken
+    let injectState = (uriQueryL . queryPairsL) %~ (("state", cs $ fromSsoToken state):)
+    uri' <- case parseURI strictURIParserOptions $
+                authorizationUrl (setCallback thentosHttp uri githubKey) of
+      Right u -> return $ injectState u
+      Left e -> error $ "githubRequest: internal error: " ++ show e
+    return $ AuthRequest uri'
+
+-- | Given a sso token and auth token, contact github and request an authenticated 'GithubUser'
+-- value.  If successful, call 'loginGithubUser'.
+githubConfirm :: forall e . (Show e, Typeable e) => AuthConfirm -> Action e ThentosSessionToken
+githubConfirm (AuthConfirm state code) = do
+        A.lookupAndRemoveSsoToken (SsoToken state)
+        mgr <- liftLIO . ioTCB $ Http.newManager Http.tlsManagerSettings
+        confirm mgr
+  where
+    confirm :: Http.Manager -> Action e ThentosSessionToken
+    confirm mgr = do
+        eToken :: OAuth2Result AccessToken <- liftLIO . ioTCB $ do
+            let (url, body) = accessTokenUrl githubKey $ ST.encodeUtf8 code
+            doJSONPostRequest mgr githubKey url (body ++ [("state", cs state)])
+
+        case eToken of
+            Right token -> do
+                eGhUser :: OAuth2Result GithubUser
+                    <- liftLIO . ioTCB $ authGetJSON mgr token "https://api.github.com/user"  -- FIXME: store this uri somewhere in a type.
+                case eGhUser of
+                    Right ghUser -> loginGithubUser ghUser
+                    Left e -> throwError $ SsoErrorCouldNotAccessUserInfo e
+            Left e -> throwError $ SsoErrorCouldNotGetAccessToken e
+
+-- | Call the actions for logging in and, if necessary, creating a github-authenticated user.
+loginGithubUser :: (Show e, Typeable e) => GithubUser -> Action e ThentosSessionToken
+loginGithubUser (GithubUser ghId uname email) = do
+    let makeTok = A.startThentosSessionByGithubId ghId
+
+    (_, tok) <- makeTok `catchError`
+        \case BadCredentials -> do
+                _ <- A.addGithubUser (UserName uname) ghId email
+                makeTok
+              e -> throwError e
+    return tok
+
+
+-- * js
+
+-- | Load callback source code.
+--
+-- FIXME: use LIO properly, don't use unsafePerformIO
+-- FIXME: make Sso.js extra source file in cabal, get the correct path from cabal.
+jsCallbacks :: Action e ST
+jsCallbacks = return . cs . show . prettyPrint . unsafePerformIO . parseFromFile $ "./src/Thentos/Backend/Api/Sso.js"

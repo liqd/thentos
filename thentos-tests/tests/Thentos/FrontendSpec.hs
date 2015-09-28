@@ -114,7 +114,9 @@ spec_updateSelf = describe "update self" $ do
             _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
             _click "update_password_submit"
         Right (_, usr) <- runQuery conn $ T.lookupAnyUser selfId
-        usr `shouldSatisfy` verifyPass newSelfPass
+        True `shouldBe` case usr ^. userAuth of
+            UserAuthPassword pw -> verifyPass newSelfPass pw
+            _ -> False
 
     -- FIXME: test failure cases.  same restrictions apply as in
     -- "create_user" and "reset_password" (make sure the check is in

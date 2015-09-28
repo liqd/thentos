@@ -2,10 +2,13 @@
 CREATE TABLE IF NOT EXISTS "users" (
     id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,
-    password   text        NOT NULL,
+    password   text,
+    github_id  bigint      UNIQUE,
     email      text        NOT NULL UNIQUE,
     confirmed  bool        NOT NULL,
-    created    timestamptz NOT NULL DEFAULT now()
+    created    timestamptz NOT NULL DEFAULT now(),
+    -- the follwing constraint makes `Thentos.Transaction.makeAuth` total.
+    CHECK ((password IS NULL) <> (github_id IS NULL))
 );
 
 CREATE TABLE IF NOT EXISTS "user_confirmation_tokens" (
@@ -40,6 +43,7 @@ CREATE TABLE IF NOT EXISTS "services" (
     name          text       NOT NULL,
     description   text       NOT NULL,
     key           text       NOT NULL,
+    -- the following constraint makes `Thentos.Transaction.makeAgent` total.
     CHECK ((owner_user IS NULL) <> (owner_service IS NULL))
 );
 
@@ -74,4 +78,8 @@ CREATE TABLE IF NOT EXISTS "service_sessions" (
     period                interval    NOT NULL,
     thentos_session_token text        NOT NULL REFERENCES thentos_sessions (token) ON DELETE CASCADE,
     meta                  text        NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "sso_tokens" (
+    token text PRIMARY KEY
 );

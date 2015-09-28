@@ -23,43 +23,51 @@ import Thentos.Transaction.Core
 
 lookupConfirmedUser :: UserId -> ThentosQuery e (UserId, User)
 lookupConfirmedUser uid = do
-    users <- queryT [sql| SELECT name, password, email
+    users <- queryT [sql| SELECT name, password, github_id, email
                           FROM users
                           WHERE id = ? AND confirmed = true |] (Only uid)
     case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
+      [(name, pwd, ghId, email)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                   -> throwError NoSuchUser
       _                    -> impossible "lookupConfirmedUser: multiple results"
 
 -- | Lookup any user (whether confirmed or not) by their ID.
 lookupAnyUser :: UserId -> ThentosQuery e (UserId, User)
 lookupAnyUser uid = do
-    users <- queryT [sql| SELECT name, password, email
+    users <- queryT [sql| SELECT name, password, github_id, email
                           FROM users
-                          WHERE id = ? |] (Only uid)
+                          WHERE name = ? |] (Only uid)
     case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
-      []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupAnyUser: multiple results"
-
-lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupConfirmedUserByName uname = do
-    users <- queryT [sql| SELECT id, name, password, email
-                          FROM users
-                          WHERE name = ? AND confirmed = true |] (Only uname)
-    case users of
-      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
+      [(name, pwd, ghId, email)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                        -> throwError NoSuchUser
       _                         -> impossible "lookupConfirmedUserByName: multiple users"
 
 
+lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
+lookupConfirmedUserByName name = do
+    users <- queryT [sql| SELECT id, email, password, github_id
+                          FROM users
+                          WHERE name = ? AND confirmed = true |] (Only name)
+    case users of
+      [(uid, email, pwd, ghId)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
+      []                 -> throwError NoSuchUser
+      _                  -> impossible "lookupConfirmedUserByEmail: multiple users"
+
 lookupConfirmedUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
 lookupConfirmedUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
+    users <- queryT [sql| SELECT id, name, password, github_id
                           FROM users
                           WHERE email = ? AND confirmed = true |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, ghId)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupConfirmedUserByEmail: multiple users"
 
@@ -70,9 +78,23 @@ lookupAnyUserByEmail email = do
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, ghId)] ->
+        let auth = makeAuth pwd ghId
+        in return (uid, User name auth email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupAnyUserByEmail: multiple users"
+
+
+lookupUserByGithubId :: GithubId -> ThentosQuery e (UserId, User)
+lookupUserByGithubId ghId = do
+    users <- queryT [sql| SELECT (id, name, email)
+                          FROM users
+                          WHERE github_id = ? |] (Only ghId)
+    case users of
+        [(uid, name, email)] ->
+            return (uid, User name (UserAuthGithubId ghId) email)
+        [] -> throwError NoSuchUser
+        _ -> impossible "lookupUserByGithubId: multiple users"
 
 
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
@@ -80,10 +102,13 @@ lookupAnyUserByEmail email = do
 -- is a very bad idea and will quickly lead to errors!
 addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
 addUserPrim mUid user confirmed = do
-    res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?, ?)
+    let (pwd, githubId) = case user ^. userAuth of
+            UserAuthPassword pw -> (Just pw, Nothing)
+            UserAuthGithubId ghId -> (Nothing, Just ghId)
+    res <- queryT [sql| INSERT INTO users (id, name, password, github_id, email, confirmed)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         RETURNING id |]
-            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
+            (orDefault mUid, user ^. userName, pwd, githubId ,user ^. userEmail, confirmed)
     case res of
         [Only uid] -> return uid
         []         -> impossible "addUserPrim created user without ID"
@@ -413,6 +438,24 @@ agentRoles agent = case agent of
         return $ map fromOnly roles
 
 
+-- * SSO
+
+-- | Add an SSO token to the database
+addSsoToken :: SsoToken -> ThentosQuery e ()
+addSsoToken token = void $ execT [sql|
+    INSERT INTO sso_tokens (token) VALUES (?) |] (Only token)
+
+-- | Remove an SSO token from the database. Throw NoSuchToken if the token doesn't exist.
+lookupAndRemoveSsoToken :: SsoToken -> ThentosQuery e ()
+lookupAndRemoveSsoToken token = do
+    res <- execT [sql|
+        DELETE FROM sso_tokens WHERE token = ? |] (Only token)
+    case res of
+        0 -> throwError NoSuchToken
+        1 -> return ()
+        _ -> impossible "repeated sso token in db"
+
+
 -- * garbage collection
 
 -- | Go through "thentos_sessions" table and find all expired sessions.
@@ -458,3 +501,9 @@ makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
 makeAgent (Just uid) Nothing  = UserA uid
 makeAgent Nothing (Just sid) = ServiceA sid
 makeAgent _ _ = impossible "makeAgent: invalid arguments"
+
+-- | totality enforced by DB constraint on `users.{password,github_id}`.
+makeAuth :: Maybe (HashedSecret UserPass) -> Maybe GithubId -> UserAuth
+makeAuth (Just pw) Nothing = UserAuthPassword pw
+makeAuth Nothing (Just ghId) = UserAuthGithubId ghId
+makeAuth _ _ = impossible "makeAuth: invalid arguments"

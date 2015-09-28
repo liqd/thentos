@@ -32,7 +32,7 @@ import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
@@ -62,10 +62,20 @@ import qualified Generics.Generic.Aeson as Aeson
 data User =
     User
       { _userName            :: !UserName
-      , _userPassword        :: !(HashedSecret UserPass)
+      , _userAuth            :: !UserAuth
       , _userEmail           :: !UserEmail
       }
   deriving (Eq, Show, Typeable, Generic)
+
+data UserAuth = UserAuthPassword !(HashedSecret UserPass)
+              | UserAuthGithubId !GithubId
+    deriving (Eq, Show, Typeable, Generic)
+
+newtype GithubId = GithubId Int
+    deriving (Eq, Show, FromField, ToField, Generic)
+
+instance Aeson.FromJSON GithubId where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON GithubId where toJSON = Aeson.gtoJson
 
 -- | the data a user maintains about a service they are signed up
 -- with.
@@ -155,6 +165,9 @@ data UserFormData =
 
 instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
+
+newtype SsoToken = SsoToken { fromSsoToken :: ST }
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, FromField, ToField)
 
 
 -- * service
@@ -480,6 +493,9 @@ data ThentosError e =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
+    | PasswordOpOnSsoUser
+    | SsoErrorCouldNotAccessUserInfo LBS
+    | SsoErrorCouldNotGetAccessToken LBS
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 
