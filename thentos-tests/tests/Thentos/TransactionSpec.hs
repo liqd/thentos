@@ -206,6 +206,9 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
     token = "someToken"
     timeout = fromMinutes 1
 
+-- FIXME: test all looukup*User* transactions with users that have a github id
+-- instead of a password
+-- FIXME: test lookupUserByGithubId
 lookupConfirmedUserByNameSpec :: SpecWith (Pool Connection)
 lookupConfirmedUserByNameSpec = describe "lookupConfirmedUserByName" $ do
 

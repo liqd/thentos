@@ -46,6 +46,7 @@ spec = do
 
 spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
+    -- FIXME: test addGithubUser
     describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
             let user = testUsers !! 0
@@ -102,6 +103,7 @@ spec_user = describe "user" $ do
                 updateUserField (UserId 391) (UpdateUserFieldName "moo")
             e `shouldBe` NoSuchUser
 
+    -- FIXME: test startThentosSessionByGithubId
     describe "checkPassword" $ do
         it "works" $ \ sta -> do
             void . runA sta $ startThentosSessionByUserId godUid godPass
