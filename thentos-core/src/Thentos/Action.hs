@@ -253,10 +253,10 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 
 -- ** change user data
 
-
 -- | Authenticate user against old password, and then change password to new password.
--- We allow this for any users, whether confirmed or not.
--- Requires 'RoleAdmin' or privs of user that owns the password.
+--
+-- LIO policy: In additino to the old password as proof of authority, this function requires the
+-- user to change the password to be logged in (or admin privs).
 changePassword :: UserId -> UserPass -> UserPass -> Action e ()
 changePassword uid old new = do
     _ <- _lookupUserCheckPassword (T.lookupAnyUser uid) old
