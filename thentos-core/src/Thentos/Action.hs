@@ -30,7 +30,7 @@ module Thentos.Action
     , addPasswordResetToken
     , resetPassword
     , changePassword
-    , changePasswordUnconditionally
+    , _changePasswordUnconditionally
     , requestUserEmailChange
     , confirmUserEmailChange
 
@@ -264,13 +264,14 @@ changePassword uid old new = do
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.changePassword uid hashedPw
 
-
--- SECURITY: As a caller, you have to make sure that the user is properly authenticated and
--- authorized to change the password before calling this function
--- FIXME Reconsider/fix security model once our usage of LIO or a suitable replacement has
--- been clarified
-changePasswordUnconditionally :: UserId -> UserPass -> Action e ()
-changePasswordUnconditionally uid newPw = do
+-- FIXME: As the '_' sais, this function shouldn't be exported, but wrapped in a public action that
+-- establishes that the password change is legitimate.  (Currently, this function is only called in
+-- "Thentos.Adhocracy3.Backend.Api.Simple", and that will change heavily during implementation of
+-- #321.  If we would keep the current setup, we would pull the code calling the service into the
+-- wrapping action, and taint that with the obtained user id.  Once #321 has been implemented, we
+-- should have something analogous happening here in this module.)
+_changePasswordUnconditionally :: UserId -> UserPass -> Action e ()
+_changePasswordUnconditionally uid newPw = do
     hashedPw <- hashUserPass'P newPw
     query'P $ T.changePassword uid hashedPw
 
