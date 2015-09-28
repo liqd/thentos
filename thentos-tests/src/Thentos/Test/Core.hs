@@ -181,8 +181,7 @@ createActionState dbname config = do
     connPool <- createDb dbname
     return $ ActionState (connPool, rng, config)
 
--- | Create a connection to an empty DB.  (NOTE: There is no need for a 'destroyDb', since 'Pool'
--- handles destruction of unused connections implicitly.)
+-- | Create a connection to an empty DB.
 createDb :: String -> IO (Pool Connection)
 createDb dbname = do
     wipe <- wipeFile
