@@ -94,7 +94,7 @@ spec = do
                     let (uid :: Int) = read . cs $ simpleBody response1
                     response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
-                    let Right name = Aeson.decode $ simpleBody response2
+                    let Right name = decodeLenient $ simpleBody response2
                     liftIO $ name `shouldBe` udName defaultUserData
 
                 it "can only be called by admins" $

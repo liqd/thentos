@@ -200,6 +200,16 @@ loginAsGod actionState = do
 
 -- * misc
 
+-- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
+-- objects and arrays.
+--
+-- Copied from https://github.com/haskell-servant/servant-client
+-- (FIXME: also available from aeson these days.  replace!)
+decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
+decodeLenient input = do
+    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
+    Aeson.parseEither Aeson.parseJSON v
+
 -- | This is convenient if you have lots of string literals with @-XOverloadedStrings@ but do not
 -- want to do explicit type signatures to avoid type ambiguity.
 (..=) :: ST -> ST -> Aeson.Pair

@@ -42,7 +42,7 @@ library
     , Thentos.Test.WebDriver.Missing
   build-depends:
     -- losely based on: https://www.stackage.org/lts-3.5/cabal.config
-      aeson >=0.10 && <0.11
+      aeson >=0.8.0.2 && <0.9
     , async >=2.0.2 && <2.1
     , attoparsec >=0.12.1.6 && <0.14
     , base >=4.8.1.0 && <5
@@ -92,7 +92,7 @@ test-suite tests
   cpp-options:
       -DGHC_GENERICS
   build-depends:
-      aeson >=0.10 && <0.11
+      aeson >=0.8.0.2 && <0.9
     , base >=4.8.1.0 && <5
     , configifier >=0.0.5 && <0.1
     , containers >=0.5.6.2 && <0.6
@@ -131,7 +131,7 @@ benchmark load-test
       ghc-options:
           -auto-all -caf-all -fforce-recomp
   build-depends:
-      aeson >=0.10 && <0.11
+      aeson >=0.8.0.2 && <0.9
     , base >=4.8.1.0 && <5
     , bytestring >=0.10.6.0 && <0.11
     , configifier >=0.0.5 && <0.1
