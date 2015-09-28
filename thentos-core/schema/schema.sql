@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     email      text        NOT NULL UNIQUE,
     confirmed  bool        NOT NULL,
     created    timestamptz NOT NULL DEFAULT now(),
+    -- the follwing constraint makes `Thentos.Transaction.makeAuth` total.
     CHECK ((password IS NULL) <> (github_id IS NULL))
 );
 
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS "services" (
     name          text       NOT NULL,
     description   text       NOT NULL,
     key           text       NOT NULL,
+    -- the following constraint makes `Thentos.Transaction.makeAgent` total.
     CHECK ((owner_user IS NULL) <> (owner_service IS NULL))
 );
 

@@ -31,14 +31,11 @@ import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 
 import Network.HTTP.Types.Header (Header)
-import Network.HTTP.Types.Method (Method)
-import Network.Wai (requestMethod, requestHeaders)
-import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
 import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
@@ -186,14 +183,13 @@ createActionState dbname config = do
     connPool <- createDb dbname
     return $ ActionState (connPool, rng, config)
 
--- | Create a connection to an empty DB.
+-- | Create a connection to an empty DB.  FIXME: why isn't there a 'destroyDB'?
 createDb :: String -> IO (Pool Connection)
 createDb dbname = do
     wipe <- wipeFile
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
                <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
     createConnPoolAndInitDb $ cs dbname
-
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
@@ -202,22 +198,13 @@ loginAsGod actionState = do
     return (tok, credentials)
 
 
--- | Cloned from hspec-wai's 'request'.  (We don't want to use the
--- return type from there.)
-makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
-makeSRequest method path headers = SRequest req
-  where
-    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers ++ defaultHeaders } path
-    defaultHeaders = [("Content-Type", "application/json")]
-
-
 -- * misc
 
 -- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
 -- objects and arrays.
 --
 -- Copied from https://github.com/haskell-servant/servant-client
--- (FIXME: also available from attoparsec these days.  replace!)
+-- (FIXME: also available from aeson these days.  replace!)
 decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
