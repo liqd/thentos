@@ -20,7 +20,7 @@ import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON, OctetStream)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
@@ -32,6 +32,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
+import Data.String.Conversions (ST, SBS)
 
 -- * main
 
@@ -56,6 +57,7 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
+  :<|> "frontend" :> ThentosFrontend
 
 thentosBasic :: ServerT ThentosBasic (Action Void)
 thentosBasic =
@@ -63,6 +65,7 @@ thentosBasic =
   :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
+  :<|> thentosFrontend  
 
 
 -- * user
@@ -136,3 +139,10 @@ thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
+
+-- * fronted
+
+type ThentosFrontend =
+    Get '[OctetStream] SBS
+
+thentosFrontend = undefined -- return $ "abcd"
