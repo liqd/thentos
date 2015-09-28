@@ -314,7 +314,7 @@ changePasswordSpec = describe "changePassword" $ do
     it "changes the password" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runQuery connPool $ changePassword userId newPass
-        Right (_, usr) <- runQuery connPool $ lookupUser userId
+        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
         _userPassword usr `shouldBe` newPass
 
     it "fails if the user doesn't exist" $ \connPool -> do
@@ -439,7 +439,7 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
             addUserEmailChangeRequest userId newEmail testToken
         let badToken = ConfirmationToken "badtoken"
         Left NoSuchToken <-
-            runThentosQueryFromPool connPool $ confirmUserEmailChange (Timeout 3600) badToken
+            runThentosQueryFromPool connPool $ confirmUserEmailChange (Timeoutms 3600) badToken
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` forceUserEmail "me@example.com"
