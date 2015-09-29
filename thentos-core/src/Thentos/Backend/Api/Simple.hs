@@ -20,7 +20,7 @@ import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
@@ -70,22 +70,14 @@ thentosBasic =
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
-  :<|> Capture "uid" UserId :> "name" :> ReqBody '[JSON] UserName :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
-  :<|> Capture "uid" UserId :> "email" :> ReqBody '[JSON] UserEmail :> Put '[JSON] ()
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
 
 thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
   :<|> deleteUser
-  -- FIXME Is it proper to allow users changing their name like that? Users may no longer
-  -- be recognizable if they can simply change their name at will.
-  :<|> (\ uid name -> updateUserField uid (UpdateUserFieldName name))
   :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
-  -- FIXME We shouldn't allow users to change their email without making sure that the new
-  -- email is actually theirs!
-  :<|> (\ uid email -> updateUserField uid (UpdateUserFieldEmail email))
   :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
 
 
