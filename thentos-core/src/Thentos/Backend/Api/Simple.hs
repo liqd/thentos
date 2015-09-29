@@ -20,8 +20,9 @@ import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON, OctetStream)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON, Raw)
 import Servant.Server (ServerT, Server, serve, enter)
+import Servant.Utils.StaticFiles (serveDirectory)
 import System.Log.Logger (Priority(INFO))
 
 import System.Log.Missing (logger)
@@ -31,23 +32,26 @@ import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
+import Thentos.Util (getJsDir)
 
-import Data.String.Conversions (ST, SBS)
 
 -- * main
 
 runApi :: HttpConfig -> ActionState -> IO ()
 runApi cfg asg = do
+    jsDir <- getJsDir
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg
+    runWarpWithCfg cfg $ serveApi asg jsDir
 
-serveApi :: ActionState -> Application
-serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
+serveApi :: ActionState -> FilePath -> Application
+serveApi actionState jsDir = addCacheControlHeaders . serve (Proxy :: Proxy Api) $ api actionState jsDir
 
-type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
+type Api =
+         (ThentosAssertHeaders :> ThentosAuth :> ThentosBasic)
+    :<|> ("js" :> ThentosFrontend)
 
-api :: ActionState -> Server Api
-api actionState mTok = enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic
+api :: ActionState -> FilePath -> Server Api
+api actionState basePath = (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic) :<|> thentosFrontend basePath
 
 
 -- * combinators
@@ -57,7 +61,6 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
-  :<|> "frontend" :> ThentosFrontend
 
 thentosBasic :: ServerT ThentosBasic (Action Void)
 thentosBasic =
@@ -65,7 +68,6 @@ thentosBasic =
   :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
-  :<|> thentosFrontend  
 
 
 -- * user
@@ -140,9 +142,10 @@ thentosServiceSession =
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
 
--- * fronted
 
-type ThentosFrontend =
-    Get '[OctetStream] SBS
+-- * frontend
 
-thentosFrontend = undefined -- return $ "abcd"
+type ThentosFrontend = Raw
+
+thentosFrontend :: FilePath -> Server ThentosFrontend
+thentosFrontend jsDir = serveDirectory jsDir

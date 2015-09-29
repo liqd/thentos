@@ -15,6 +15,7 @@ module Thentos.Util
     , (<//>)
     , fmapLM
     , fmapLTM
+    , getJsDir
 ) where
 
 import Control.Lens ((^.))
@@ -27,6 +28,8 @@ import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Text as ST
 
 import Thentos.Types
+
+import Paths_thentos_core
 
 
 -- * crypto
@@ -111,3 +114,6 @@ fmapLTM trans e = EitherT $ do
     case result of
         Right r -> return $ Right r
         Left l -> Left <$> trans l
+
+getJsDir :: IO FilePath
+getJsDir = getDataFileName "js"

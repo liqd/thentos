@@ -12,9 +12,9 @@ author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
 maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
-build-type:          Simple
+build-type:          Custom
 cabal-version:       >= 1.18
-data-files:          schema/schema.sql schema/wipe.sql
+data-files:          schema/schema.sql schema/wipe.sql js/*.js
 
 Source-Repository head
   type: git

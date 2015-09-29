@@ -32,6 +32,7 @@ import Network.HTTP.Types.Status ()
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
 import Thentos.Action.Core
+import Thentos.Util (getJsDir)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
@@ -42,7 +43,8 @@ defaultApp = do
     db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod db
-    return $! serveApi db
+    jsDir <- getJsDir
+    return $! serveApi db jsDir
 
 tests :: IO ()
 tests = hspec spec
