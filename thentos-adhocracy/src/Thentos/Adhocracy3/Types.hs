@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveDataTypeable          #-}
-{-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
@@ -13,7 +12,6 @@
 
 module Thentos.Adhocracy3.Types
     ( module Thentos.Types
-    , SsoToken(..)
     , ThentosA3Error(..)
     , A3ErrorMessage(..)
     , A3Error(..)
@@ -27,7 +25,6 @@ import Data.Aeson (FromJSON (parseJSON), ToJSON(toJSON), Value(String), (.=), (.
 import Data.Data (Typeable)
 import Data.String.Conversions (LBS, ST)
 import Data.Thyme.Time () -- required for NominalDiffTime's num instance
-import GHC.Generics (Generic)
 
 import Thentos.Types
 
@@ -38,9 +35,6 @@ data ThentosA3Error =
       GenericA3Error A3ErrorMessage
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
-    | SsoErrorUnknownCsrfToken
-    | SsoErrorCouldNotAccessUserInfo LBS
-    | SsoErrorCouldNotGetAccessToken LBS
   deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosA3Error
@@ -77,8 +71,5 @@ instance ToJSON A3ErrorMessage where
 
 instance FromJSON A3ErrorMessage where
     parseJSON = withObject "A3-style error message" $ \v -> A3ErrorMessage <$> (v .: "errors")
-
-newtype SsoToken = SsoToken { fromSsoToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
 type A3Action = Thentos.Action.Core.Action ThentosA3Error

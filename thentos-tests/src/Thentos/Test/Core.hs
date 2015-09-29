@@ -31,14 +31,11 @@ import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, SBS, ST, cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 
 import Network.HTTP.Types.Header (Header)
-import Network.HTTP.Types.Method (Method)
-import Network.Wai (requestMethod, requestHeaders)
-import Network.Wai.Test (SRequest(SRequest), setPath, defaultRequest)
 import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
@@ -200,22 +197,14 @@ loginAsGod actionState = do
     return (tok, credentials)
 
 
--- | Cloned from hspec-wai's 'request'.  (We don't want to use the
--- return type from there.)
-makeSRequest :: Method -> SBS -> [Header] -> LBS -> SRequest
-makeSRequest method path headers = SRequest req
-  where
-    req = setPath defaultRequest { requestMethod = method, requestHeaders = headers ++ defaultHeaders } path
-    defaultHeaders = [("Content-Type", "application/json")]
-
-
 -- * misc
 
 -- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
 -- objects and arrays.
 --
--- Copied from https://github.com/haskell-servant/servant-client
--- (FIXME: also available from attoparsec these days.  replace!)
+-- Once we don't need snap any more we can upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode'
+-- instead of this: See 4b370592242d4e4367ca46d852109c3927210f4b.  (We haven't checked whether 0.9
+-- would work with snap, but we might as well leave this in until snap is gone.)
 decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
