@@ -87,20 +87,6 @@ spec_user = describe "user" $ do
             result <- runPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
-    describe "UpdateUser" $ do
-        it "changes user if it exists" $ \ sta -> do
-            (uid, _, user) <- runClearance dcBottom sta $ addTestUser 1
-            runPrivs [UserA uid] sta $
-                updateUserField uid (UpdateUserFieldName "fka_user1")
-
-            result <- runPrivs [UserA uid] sta $ lookupConfirmedUser uid
-            result `shouldBe` (uid, userName .~ "fka_user1" $ user)
-
-        it "throws an error if user does not exist" $ \ sta -> do
-            Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $
-                updateUserField (UserId 391) (UpdateUserFieldName "moo")
-            e `shouldBe` NoSuchUser
-
     describe "checkPassword" $ do
         it "works" $ \ sta -> do
             void . runA sta $ startThentosSessionByUserId godUid godPass

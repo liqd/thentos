@@ -64,7 +64,6 @@ routes = [ -- default entry point
 
            -- if logged in
          , ("user/logout", H.userLogout)
-         , ("user/update", H.userUpdate)
          , ("user/update_email", H.emailUpdate)
          , ("user/update_email_confirm", H.emailUpdateConfirm)
          , ("user/update_password", H.passwordUpdate)

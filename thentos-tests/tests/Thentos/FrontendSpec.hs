@@ -104,20 +104,6 @@ spec_updateSelf = describe "update self" $ do
         selfName = godName
         selfPass = godPass
 
-    it "username" $ \(ActionState (conn, _, _)) -> do
-        let newSelfName = UserName "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-        withWebDriver $ do
-            wdLogin defaultFrontendConfig selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-            WD.openPageSync (cs $ exposeUrl defaultFrontendConfig <//> "/user/update")
-            _fill "/user/update.name" $ fromUserName newSelfName
-            _click "update_user_submit"
-        Right (_, usr) <- runQuery conn $ T.lookupAnyUser selfId
-        usr ^. userName `shouldBe` newSelfName
-
-    -- FIXME: test with new user name that is already in use.
-    -- FIXME: test with unauthenticated user.
-    -- FIXME: test with other user (user A wants to edit uesr B), with and without RoleAdmin.
-
     it "password" $ \(ActionState (conn, _, _)) -> do
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         withWebDriver $ do

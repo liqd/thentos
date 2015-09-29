@@ -37,7 +37,6 @@ module Thentos.Frontend.Pages
     , userDisplayPagelet
     , userServicesDisplayPagelet
     , userUpdatePagelet
-    , userUpdateForm
     , emailUpdatePagelet
     , emailUpdateForm
     , passwordUpdatePagelet
@@ -57,7 +56,7 @@ module Thentos.Frontend.Pages
     ) where
 
 import Control.Lens ((^.))
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
@@ -73,7 +72,6 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Frontend.Types
-import Thentos.Transaction
 import Thentos.Types
 
 
@@ -322,9 +320,6 @@ userDisplayPagelet user _ = do
             H.td . H.text $ "n/a"
         H.tr $ do
             H.td $ pure ()
-            H.td $ H.a ! A.href "/user/update" $ "edit"
-        H.tr $ do
-            H.td $ pure ()
             H.td $ H.a ! A.href "/user/update_password" $ "change password"
         H.tr $ do
             H.td $ pure ()
@@ -356,27 +351,6 @@ userUpdatePagelet csrfToken formAction v _ _ = do
             inputText "name" v
         inputSubmit "Update User Data" ! A.id "update_user_submit"
 
--- | This is a bit overkill for now, but easily extensible for new user data fields.
-userUpdateForm :: Monad m => UserName -> Form Html m [UpdateUserFieldOp]
-userUpdateForm uname =
-    validate validateUserData $
-        "name" .: text (Just (fromUserName uname))
-  where
-    validateUserData :: ST -> Result Html [UpdateUserFieldOp]
-    validateUserData name  =
-        let updates = catMaybes [ validateName name
-                                ]
-        in if null updates
-            then Error "Nothing to update"
-            else Success updates
-
-    validateName :: ST -> Maybe UpdateUserFieldOp
-    validateName name = toMaybe (not $ ST.null name)
-                                (UpdateUserFieldName $ UserName name)
-
-    toMaybe :: Bool -> a -> Maybe a
-    toMaybe True  v = Just v
-    toMaybe False _ = Nothing
 
 passwordUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
 passwordUpdatePagelet csrfToken formAction v _ _ = do

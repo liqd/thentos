@@ -443,16 +443,16 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
         RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
   where
     confirmUserUser uid = do
-        -- Before changing the password, try to activate the user in case they weren't yet
+        -- Before changing the password, try to activate the user in case they weren't yet activated.
         -- FIXME once the switch-to-SQL branch is merged: instead of brute-forcing activation
         -- and catching the resulting error, define and use a (trans)action to look up the
         -- activation status of an uid (active/inactive/unknown)
         stok <- A.confirmNewUserById uid
-        A.changePasswordUnconditionally uid pass
+        A._changePasswordUnconditionally uid pass
         return stok
     handle uid NoSuchPendingUserConfirmation = do
         -- User is already activated, just change the password and log them in
-        A.changePasswordUnconditionally uid pass
+        A._changePasswordUnconditionally uid pass
         A.startThentosSessionByUserId uid pass
     handle _ e                                           = throwError e
 

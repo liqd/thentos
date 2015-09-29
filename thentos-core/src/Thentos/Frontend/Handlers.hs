@@ -222,19 +222,6 @@ userLogoutDone = runAsUser $ \ _ fsl -> do
 
 -- * user update
 
-userUpdate :: FH ()
-userUpdate = runAsUser $ \ _ fsl -> do
-    (_, user) <- snapRunAction $ lookupConfirmedUser (fsl ^. fslUserId)
-    tok <- with sess csrfToken
-    runPageletForm
-               (userUpdateForm
-                   (user ^. userName))
-               (userUpdatePagelet tok) DashboardTabDetails
-               $ \ fieldUpdates -> do
-        snapRunAction $ updateUserFields (fsl ^. fslUserId) fieldUpdates
-        sendFrontendMsg $ FrontendMsgSuccess "User data changed."
-        redirect' "/dashboard" 303
-
 emailUpdate :: FH ()
 emailUpdate = runAsUser $ \ _ fsl -> do
     tok <- with sess csrfToken

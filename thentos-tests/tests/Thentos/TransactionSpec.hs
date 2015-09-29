@@ -5,7 +5,7 @@
 module Thentos.TransactionSpec (spec) where
 
 import qualified Data.Set as Set
-import Control.Lens ((&), (^.), (.~))
+import Control.Lens ((^.))
 import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
@@ -37,7 +37,7 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     lookupAnyUserByEmailSpec
     deleteUserSpec
     passwordResetTokenSpec
-    updateUserFieldSpec
+    changePasswordSpec
     agentRolesSpec
     assignRoleSpec
     unassignRoleSpec
@@ -305,58 +305,22 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
             [sql| SELECT password FROM users WHERE id = ?|] (Only userId)
         newPassInDB `shouldBe` newEncryptedPass
 
-updateUserFieldSpec :: SpecWith (Pool Connection)
-updateUserFieldSpec = describe "updateUserField" $ do
+changePasswordSpec :: SpecWith (Pool Connection)
+changePasswordSpec = describe "changePassword" $ do
     let user = mkUser "name" "super secret" "me@example.com"
         userId = UserId 111
-        user2 = mkUser "someone" "ppppp" "who@example.com"
-        user2Id = UserId 222
+        newPass = encryptTestSecret "new"
 
-    it "changes the user name" $ \connPool -> do
-        let newName = UserName "new"
+    it "changes the password" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $
-            updateUserField userId (UpdateUserFieldName newName)
+        Right _ <- runQuery connPool $ changePassword userId newPass
         Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
-        usr `shouldBe` (user & userName .~ newName)
-
-    it "changes the user email" $ \connPool -> do
-        let newEmail = forceUserEmail "new@example.com"
-        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $
-            updateUserField userId (UpdateUserFieldEmail newEmail)
-        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
-        usr `shouldBe` (user & userEmail .~ newEmail)
-
-    it "changes the user name" $ \connPool -> do
-        let newPass = encryptTestSecret "new pass"
-        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $
-            updateUserField userId (UpdateUserFieldPassword newPass)
-        Right (_, usr) <- runQuery connPool $ lookupConfirmedUser userId
-        usr `shouldBe` (user & userPassword .~ newPass)
-
-    it "doesn't change other users" $ \connPool -> do
-        let newName = UserName "new"
-        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
-        Right _ <- runQuery connPool $
-            updateUserField userId (UpdateUserFieldName newName)
-        Right (_, usr2) <- runQuery connPool $ lookupConfirmedUser user2Id
-        usr2 `shouldBe` user2
-
-    it "fails if the new name is not unique" $ \connPool -> do
-        let newName = user2 ^. userName
-        Right _ <- runQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runQuery connPool $ addUserPrim (Just user2Id) user2 True
-        x <- runQuery connPool $ updateUserField userId (UpdateUserFieldName newName)
-        x `shouldBe` Left UserNameAlreadyExists
-        runQuery connPool (lookupConfirmedUser userId) `shouldReturn` Right (userId, user)
-        runQuery connPool (lookupConfirmedUser user2Id) `shouldReturn` Right (user2Id, user2)
+        _userPassword usr `shouldBe` newPass
 
     it "fails if the user doesn't exist" $ \connPool -> do
-        x <- runQuery connPool $ updateUserField userId $ UpdateUserFieldName $ UserName "nobody"
-        x `shouldBe` Left NoSuchUser
+        Left err <- runQuery connPool $ changePassword userId newPass
+        err `shouldBe` NoSuchUser
+
 
 agentRolesSpec :: SpecWith (Pool Connection)
 agentRolesSpec = describe "agentRoles" $ do
@@ -468,6 +432,18 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` newEmail
+
+    it "throws NoSuchToken if given an invalid token and does not update the email" $ \connPool -> do
+        Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just userId) user True
+        Right _ <- runThentosQueryFromPool connPool $
+            addUserEmailChangeRequest userId newEmail testToken
+        let badToken = ConfirmationToken "badtoken"
+        Left NoSuchToken <-
+            runThentosQueryFromPool connPool $ confirmUserEmailChange (Timeoutms 3600) badToken
+        [Only expectedEmail] <- doQuery connPool
+            [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
+        expectedEmail `shouldBe` forceUserEmail "me@example.com"
+
   where
     user = mkUser "name" "super secret" "me@example.com"
     userId = UserId 584
