@@ -1,12 +1,14 @@
-import Distribution.Simple
-import Distribution.PackageDescription (HookedBuildInfo, emptyHookedBuildInfo)
-import Distribution.Simple.Setup (BuildFlags)
+import Distribution.Simple (defaultMainWithHooks, simpleUserHooks, postConf)
+import System.Directory (setCurrentDirectory)
 
 import System.Process (callProcess)
 
-buildJs :: Args -> BuildFlags -> IO HookedBuildInfo
-buildJs _ _ = do
+buildJs :: IO ()
+buildJs = do
+    setCurrentDirectory "./purescript"
     callProcess "./build-js.sh" []
-    return emptyHookedBuildInfo
+    return ()
 
-main = defaultMainWithHooks $ simpleUserHooks { preBuild = buildJs }
+main :: IO ()
+main = do
+    defaultMainWithHooks $ simpleUserHooks { postConf = \_ _ _ _ -> buildJs }
