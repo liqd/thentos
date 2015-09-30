@@ -133,6 +133,10 @@ thentosErrorInfo other e = f e
         (Nothing, err400, "thentos session not found")
     f NoSuchServiceSession =
         (Nothing, err400, "service session not found")
+    f NoSuchPersona =
+        (Nothing, err400, "persona not found")
+    f MultiplePersonasPerProcess =
+        (Nothing, err400, "Cannot register multiple personas by a user for the same process")
     f OperationNotPossibleInServiceSession =
         (Nothing, err404, "operation not possible in service session")
     f ServiceAlreadyExists =

@@ -8,11 +8,12 @@ where
 
 import Control.Exception.Lifted (throwIO)
 import Control.Lens ((^.))
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..))
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 
 import Thentos.Types
@@ -266,6 +267,77 @@ registerUserWithService uid sid (ServiceAccount anonymous) = void $
 unregisterUserFromService :: UserId -> ServiceId -> ThentosQuery e ()
 unregisterUserFromService uid sid = void $
     execT [sql| DELETE FROM user_services WHERE uid = ? AND sid = ? |] (uid, sid)
+
+
+-- * persona and process
+
+-- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
+-- The 'PersonaId' is assigned by the DB.
+addPersona :: ST -> UserId -> ThentosQuery e Persona
+addPersona name uid = do
+    res <- queryT [sql| INSERT INTO personas (name, uid) VALUES (?, ?) RETURNING id |]
+                  (name, uid)
+    case res of
+        [Only persId] -> return $ Persona persId name uid
+        _             -> impossible "addProcess didn't return a single ID"
+
+-- | Delete a persona. Throw an error if the persona does not exist in the DB.
+deletePersona :: Persona -> ThentosQuery e ()
+deletePersona persona = do
+    rows <- execT [sql| DELETE FROM personas WHERE id = ? |] (Only $ persona ^. personaId)
+    case rows of
+        1 -> return ()
+        0 -> throwError NoSuchPersona
+        _ -> impossible "deletePersona: unique constraint on id violated"
+
+-- | Add a new process. The first argument identifies the service to which the process belongs.
+-- Throw an error if the process name is not unique.
+addProcess :: ServiceId -> ProcessName -> ProcessDescription -> ProxyUri -> ThentosQuery e Process
+addProcess ownerService name desc url = do
+    res <- queryT [sql| INSERT INTO processes (owner_service, name, description, url)
+                        VALUES (?, ?, ?, ?)
+                        RETURNING id |]
+                  (ownerService, name, desc, url)
+    case res of
+        [Only procId] -> return $ Process procId ownerService name desc url
+        _             -> impossible "addProcess didn't return a single ID"
+
+-- Connect a persona with a process. Throws an error if the persona is already registered for the
+-- process or if the user has any *other* persona egistered for the process. (As we currently allow
+-- only one persona per user and process.)
+registerPersonaWithProcess :: Persona -> Process -> ThentosQuery e ()
+registerPersonaWithProcess persona process = do
+    -- Check that user has no personas yet
+    res <- queryT [sql| SELECT count(*)
+                        FROM personas pers, personas_per_process pp
+                        WHERE pers.id = pp.persona_id AND pers.uid = ? |]
+                  (Only $ persona ^. personaUid)
+    case res of
+        [Only (count :: Int)] -> when (count > 0) . throwError $ MultiplePersonasPerProcess
+        _ -> impossible "registerPersonaWithProcess: count didn't return a single result"
+    void $ execT [sql| INSERT INTO personas_per_process (persona_id, process_id)
+                       VALUES (?, ?) |] (persona ^. personaId, process ^. processId)
+
+-- Find the persona that a user wants to use for a process (if any).
+findPersona :: UserId -> ProcessId -> ThentosQuery e (Maybe Persona)
+findPersona uid procId = do
+    res <- queryT [sql| SELECT pers.id, pers.name
+                        FROM personas pers, personas_per_process pp
+                        WHERE pers.id = pp.persona_id AND pers.uid = ? AND pp.process_id = ? |]
+                  (uid, procId)
+    case res of
+        [(persId, name)] -> return . Just $ Persona persId name uid
+        []               -> return Nothing
+        -- This is not 'impossible', since the constraint is enforced by us, not by the DB
+        _                -> error "findPersona: multiple personas per process"
+
+-- List all processes owned by a service.
+processesForService :: ServiceId -> ThentosQuery e [Process]
+processesForService sid = map mkProcess <$>
+    queryT [sql| SELECT id, name, description, url FROM processes WHERE owner_service = ? |]
+           (Only sid)
+  where
+    mkProcess (procId, name, description, url) = Process procId sid name description url
 
 
 -- * thentos and service session

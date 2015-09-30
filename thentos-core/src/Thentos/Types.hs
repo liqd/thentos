@@ -89,10 +89,12 @@ newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText, FromField, ToField)
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
 
 newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField, ToField)
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
 
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
@@ -211,6 +213,38 @@ data GroupNode =
 instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
+
+-- * persona and process
+
+newtype PersonaId = PersonaId { fromPersonaId :: Integer }
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
+
+data Persona = Persona
+  { _personaId   :: PersonaId
+  , _personaName :: ST
+  , _personaUid  :: UserId
+  } deriving (Eq, Show, Typeable, Generic)
+
+newtype ProcessId = ProcessId { fromProcessId :: Integer }
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
+
+newtype ProcessName = ProcessName { fromProcessName :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
+newtype ProcessDescription = ProcessDescription { fromProcessDescription :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
+data Process = Process
+  { _processId           :: ProcessId
+  , _processOwnerService :: ServiceId
+  , _processName         :: ProcessName
+  , _processDescription  :: ProcessDescription
+  , _processUrl          :: ProxyUri
+  } deriving (Eq, Show, Typeable, Generic)
 
 -- * thentos and service session
 
@@ -422,7 +456,6 @@ data ProxyUri = ProxyUri { proxyHost :: SBS
                          }
     deriving (Eq, Typeable, Generic)
 
-
 instance Aeson.FromJSON ProxyUri
   where
     parseJSON (String t) = case parseURI laxURIParserOptions $ cs t of
@@ -456,6 +489,14 @@ instance Show ProxyUri where
                 ('/':xs) -> reverse xs
                 _        -> cs host
 
+instance FromField ProxyUri where
+    fromField f Nothing = returnError UnexpectedNull f ""
+    fromField f (Just bs) = case Aeson.eitherDecodeStrict bs of
+        Left err  -> returnError ConversionFailed f err
+        Right uri -> return uri
+
+instance ToField ProxyUri where
+    toField = toField . Aeson.encode
 
 -- * errors
 
@@ -467,6 +508,8 @@ data ThentosError e =
     | NoSuchService
     | NoSuchThentosSession
     | NoSuchServiceSession
+    | NoSuchPersona
+    | MultiplePersonasPerProcess
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService
@@ -490,6 +533,8 @@ instance (Show e, Typeable e) => Exception (ThentosError e)
 
 -- * boilerplate
 
+makeLenses ''Persona
+makeLenses ''Process
 makeLenses ''Service
 makeLenses ''ServiceAccount
 makeLenses ''ServiceSession
