@@ -44,10 +44,13 @@ loginUser :: forall ajax err eff
      . Username -> Password
     -> Aff (ajax :: AJAX, err :: EXCEPTION | eff) (Array ThentosSessionToken)
 loginUser username password = do
+  let body = encode $ LoginRequestBody { user: username, pass: password }
+  liftEff $ log "***"
+  liftEff $ log body
   res <- affjax defRq
     { method = GET
     , url = "/user/login"
-    , content = Just $ encode $ LoginRequestBody { user: username, pass: password }
+    , content = Just body
     }
   case eitherDecode res.response of
     Left e  -> crash e
