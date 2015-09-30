@@ -43,6 +43,9 @@ flag with-thentos-executable
 flag with-build-docs-executable
   default: False
 
+flag development
+  default: False
+
 -- snap-development mode seems to have issues:
 -- https://groups.google.com/forum/#!topic/snap_framework/7fWgxMxjNWE
 -- https://groups.google.com/forum/#!topic/snap_framework/NnjKNYU5yeI
@@ -61,6 +64,8 @@ library
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
   if flag(snap-development)
     build-depends:
       snap-loader-dynamic == 0.10.*
@@ -94,6 +99,7 @@ library
     , Thentos.Transaction.Core
     , Thentos.Types
     , Thentos.Util
+    , Paths
   other-modules:
       Paths_thentos_core
   build-depends:
@@ -176,6 +182,8 @@ executable thentos
   build-depends:
       base
     , thentos-core
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
   if flag(snap-development)
     build-depends:
       snap-loader-dynamic == 0.10.*

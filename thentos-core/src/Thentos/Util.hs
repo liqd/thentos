@@ -28,8 +28,7 @@ import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Text as ST
 
 import Thentos.Types
-
-import Paths_thentos_core
+import Paths
 
 
 -- * crypto
