@@ -14,7 +14,21 @@ copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Custom
 cabal-version:       >= 1.18
-data-files:          schema/schema.sql schema/wipe.sql js/*.js js/*.html
+
+data-files:
+    schema/schema.sql
+    schema/wipe.sql
+    js/*.js
+    js/*.html
+
+extra-source-files:
+    purescript/bower.json
+    purescript/build-js.sh
+    purescript/.gitignore
+    purescript/src
+    purescript/src/Main.purs
+    purescript/test
+    purescript/test/Main.purs
 
 Source-Repository head
   type: git
