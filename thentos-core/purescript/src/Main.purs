@@ -42,7 +42,7 @@ instance loginRequestBodyToJSON :: ToJSON LoginRequestBody where
 
 loginUser :: forall ajax err eff
      . Username -> Password
-    -> Aff (ajax :: AJAX, err :: EXCEPTION | eff) (Array ThentosSessionToken)
+    -> Aff (ajax :: AJAX, err :: EXCEPTION | eff) ThentosSessionToken
 loginUser username password = do
   let body = encode $ LoginRequestBody { user: username, pass: password }
   liftEff $ log "***"
