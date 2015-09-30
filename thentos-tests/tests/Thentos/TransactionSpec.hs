@@ -41,6 +41,14 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     agentRolesSpec
     assignRoleSpec
     unassignRoleSpec
+    addPersonaSpec
+    deletePersonaSpec
+    addProcessSpec
+    deleteProcessSpec
+    registerPersonaWithProcessSpec
+    unregisterPersonaFromProcessSpec
+    findPersonaSpec
+    processesForServiceSpec
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
@@ -57,7 +65,6 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     startServiceSessionSpec
     lookupServiceSessionSpec
     endServiceSessionSpec
-
 
 addUserPrimSpec :: SpecWith (Pool Connection)
 addUserPrimSpec = describe "addUserPrim" $ do
@@ -713,6 +720,64 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
     sid = "sid"
+
+
+-- * persona and process
+
+addPersonaSpec :: SpecWith (Pool Connection)
+addPersonaSpec = describe "addPersona" $ do
+    it "adds a persona to the DB" $ \connPool -> do
+        Right uid <- runQuery connPool $ addUser (head testUsers)
+        [Only personaCount] <- doQuery connPool countPersonas ()
+        personaCount `shouldBe` (0 :: Int)
+        Right persona <- runThentosQueryFromPool connPool $ addPersona name uid
+        persona ^. personaName `shouldBe` name
+        persona ^. personaUid `shouldBe` uid
+        [(id', name', uid')] <- doQuery connPool [sql| SELECT id, name, uid FROM personas |] ()
+        id' `shouldBe` persona ^. personaId
+        name' `shouldBe` name
+        uid' `shouldBe` uid
+
+    -- TODO add more teste
+
+  where
+    name          = "MyOtherSelf"
+    countPersonas = [sql| SELECT COUNT(*) FROM personas |]
+
+deletePersonaSpec :: SpecWith (Pool Connection)
+deletePersonaSpec = describe "deletePersona" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+addProcessSpec :: SpecWith (Pool Connection)
+addProcessSpec = describe "addProcess" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+deleteProcessSpec :: SpecWith (Pool Connection)
+deleteProcessSpec = describe "deleteProcess" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+registerPersonaWithProcessSpec :: SpecWith (Pool Connection)
+registerPersonaWithProcessSpec = describe "registerPersonaWithProcess" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+unregisterPersonaFromProcessSpec :: SpecWith (Pool Connection)
+unregisterPersonaFromProcessSpec = describe "unregisterPersonaFromProcess" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+findPersonaSpec :: SpecWith (Pool Connection)
+findPersonaSpec = describe "findPersona" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
+
+processesForServiceSpec :: SpecWith (Pool Connection)
+processesForServiceSpec = describe "processesForService" $ do
+    it "TODO" $ \connPool -> do
+        2 `shouldBe` 3 -- TODO
 
 
 -- * Garbage collection
