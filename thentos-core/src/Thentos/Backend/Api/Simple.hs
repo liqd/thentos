@@ -20,7 +20,7 @@ import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Put, Delete, Capture, ReqBody, JSON, Raw)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON, Raw)
 import Servant.Server (ServerT, Server, serve, enter)
 import Servant.Utils.StaticFiles (serveDirectory)
 import System.Log.Logger (Priority(INFO))
@@ -68,7 +68,6 @@ thentosBasic =
   :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
-  :<|> thentosFrontend
 
 
 -- * user
@@ -141,4 +140,4 @@ thentosServiceSession =
 type ThentosFrontend = Raw
 
 thentosFrontend :: FilePath -> Server ThentosFrontend
-thentosFrontend jsDir = serveDirectory jsDir
+thentosFrontend = serveDirectory
