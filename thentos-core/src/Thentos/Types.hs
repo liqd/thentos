@@ -509,6 +509,7 @@ data ThentosError e =
     | NoSuchThentosSession
     | NoSuchServiceSession
     | NoSuchPersona
+    | NoSuchProcess
     | MultiplePersonasPerProcess
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists

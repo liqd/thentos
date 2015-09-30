@@ -282,9 +282,9 @@ addPersona name uid = do
         _             -> impossible "addProcess didn't return a single ID"
 
 -- | Delete a persona. Throw an error if the persona does not exist in the DB.
-deletePersona :: Persona -> ThentosQuery e ()
-deletePersona persona = do
-    rows <- execT [sql| DELETE FROM personas WHERE id = ? |] (Only $ persona ^. personaId)
+deletePersona :: PersonaId -> ThentosQuery e ()
+deletePersona persId = do
+    rows <- execT [sql| DELETE FROM personas WHERE id = ? |] (Only persId)
     case rows of
         1 -> return ()
         0 -> throwError NoSuchPersona
@@ -302,21 +302,37 @@ addProcess ownerService name desc url = do
         [Only procId] -> return $ Process procId ownerService name desc url
         _             -> impossible "addProcess didn't return a single ID"
 
+-- | Delete a process. Throw an error if the process does not exist in the DB.
+deleteProcess :: ProcessId -> ThentosQuery e ()
+deleteProcess procId = do
+    rows <- execT [sql| DELETE FROM processes WHERE id = ? |] (Only procId)
+    case rows of
+        1 -> return ()
+        0 -> throwError NoSuchProcess
+        _ -> impossible "deleteProcess: unique constraint on id violated"
+
 -- Connect a persona with a process. Throws an error if the persona is already registered for the
 -- process or if the user has any *other* persona egistered for the process. (As we currently allow
 -- only one persona per user and process.)
-registerPersonaWithProcess :: Persona -> Process -> ThentosQuery e ()
-registerPersonaWithProcess persona process = do
-    -- Check that user has no personas yet
+registerPersonaWithProcess :: Persona -> ProcessId -> ThentosQuery e ()
+registerPersonaWithProcess persona procId = do
+    -- Check that user has no registered personas yet
     res <- queryT [sql| SELECT count(*)
                         FROM personas pers, personas_per_process pp
-                        WHERE pers.id = pp.persona_id AND pers.uid = ? |]
+                        WHERE pers.id = pp.persona_id AND pers.uid = ? AND pp.process_id = ? |]
                   (Only $ persona ^. personaUid)
     case res of
         [Only (count :: Int)] -> when (count > 0) . throwError $ MultiplePersonasPerProcess
         _ -> impossible "registerPersonaWithProcess: count didn't return a single result"
     void $ execT [sql| INSERT INTO personas_per_process (persona_id, process_id)
-                       VALUES (?, ?) |] (persona ^. personaId, process ^. processId)
+                       VALUES (?, ?) |] (persona ^. personaId, procId)
+
+-- Unregister a persona from accessing a process. No-op if the persona was not registered for the
+-- process.
+unregisterPersonaFromProcess :: PersonaId -> ProcessId -> ThentosQuery e ()
+unregisterPersonaFromProcess persId procId = void $
+    execT [sql| DELETE FROM personas_per_process WHERE persona_id = ? AND process_id = ? |]
+          (persId, procId)
 
 -- Find the persona that a user wants to use for a process (if any).
 findPersona :: UserId -> ProcessId -> ThentosQuery e (Maybe Persona)
