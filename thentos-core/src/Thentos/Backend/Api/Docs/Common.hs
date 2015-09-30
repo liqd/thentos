@@ -91,6 +91,11 @@ instance ToSample UserFormData UserFormData where
                               <*> toSample (Proxy :: Proxy UserPass)
                               <*> toSample (Proxy :: Proxy UserEmail)
 
+-- FIXME: long request bodys should be pretty-printed
+instance ToSample LoginFormData LoginFormData where
+    toSample _ = LoginFormData <$> toSample (Proxy :: Proxy UserName)
+                               <*> toSample (Proxy :: Proxy UserPass)
+
 instance ToSample UserPass UserPass where
     toSample _ = Just $ UserPass "secret"
 
