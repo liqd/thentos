@@ -38,18 +38,17 @@ data LoginRequestBody = LoginRequestBody
     }
 
 instance loginRequestBodyToJSON :: ToJSON LoginRequestBody where
-  toJSON (LoginRequestBody { user: userName, pass: passWord }) =
-    object [userName .= userName, passWord .= passWord]
+  toJSON (LoginRequestBody { user: n, pass: p }) = object ["ldName" .= n, "ldPassword" .= p]
 
 loginUser :: forall ajax err eff
      . Username -> Password
     -> Aff (ajax :: AJAX, err :: EXCEPTION | eff) (Array ThentosSessionToken)
-loginUser userName passWord = do
+loginUser username password = do
   res <- affjax defRq
-          { method = POST
-          , url = "/user/login"
-          , content = Just $ encode $ LoginRequestBody { user: userName, pass: passWord }
-          }
+    { method = GET
+    , url = "/user/login"
+    , content = Just $ encode $ LoginRequestBody { user: username, pass: password }
+    }
   case eitherDecode res.response of
     Left e  -> crash e
     Right v -> return v
