@@ -74,7 +74,7 @@ thentosBasic =
 
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
-  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Get '[JSON] ThentosSessionToken
+  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] ThentosSessionToken
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail

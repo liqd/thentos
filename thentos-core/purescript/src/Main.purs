@@ -48,7 +48,7 @@ loginUser username password = do
   liftEff $ log "***"
   liftEff $ log body
   res <- affjax defRq
-    { method = GET
+    { method = POST
     , url = "/user/login"
     , content = Just body
     }
