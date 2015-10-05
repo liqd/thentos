@@ -144,6 +144,7 @@ library
     , old-locale >=1.0.0.7 && <1.1
     , postgresql-simple >=0.4.10 && <0.5
     , pretty-show >=1.6.8.2 && <1.7
+    , purescript > 0.7.4 && < 0.7.5
     , random >=1.1 && <1.2
     , resource-pool >=0.2.3.2 && <0.3
     , safe >=0.3.9 && <0.4

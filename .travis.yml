@@ -35,6 +35,7 @@ before_install:
     - cd ../..
 
 install:
+    - npm install -g pulp
     - travis_retry cabal update
     # We install hlint because we don't want to invalidate i's cache together
     # with the thentos cache
