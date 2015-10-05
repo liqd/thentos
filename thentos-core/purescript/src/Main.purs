@@ -61,4 +61,5 @@ loginUser username password = do
 main :: forall ajax err2 console. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE) Unit
 main = do
   log "Hello sailor!"
-  launchAff (loginUser "god" "god") >>= log
+  eTok <- launchAff (loginUser "god" "god")
+  log $ show eTok
