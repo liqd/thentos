@@ -85,13 +85,11 @@ instance ToSample ThentosSessionToken ThentosSessionToken where
 instance ToSample [ThentosSessionToken] [ThentosSessionToken] where
     toSample _ = Just ["abde1234llkjh", "47202sdfsg"]
 
--- FIXME: long request bodys should be pretty-printed
 instance ToSample UserFormData UserFormData where
     toSample _ = UserFormData <$> toSample (Proxy :: Proxy UserName)
                               <*> toSample (Proxy :: Proxy UserPass)
                               <*> toSample (Proxy :: Proxy UserEmail)
 
--- FIXME: long request bodys should be pretty-printed
 instance ToSample LoginFormData LoginFormData where
     toSample _ = LoginFormData <$> toSample (Proxy :: Proxy UserName)
                                <*> toSample (Proxy :: Proxy UserPass)
