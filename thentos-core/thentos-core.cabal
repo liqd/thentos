@@ -44,6 +44,9 @@ flag with-build-docs-executable
   default: False
 
 flag development
+-- JS files are loaded dynamically upon recompilation of purescript modules
+-- rather than only during cabal builds.
+  description: Development mode
   default: False
 
 -- snap-development mode seems to have issues:
