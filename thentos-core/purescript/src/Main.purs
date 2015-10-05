@@ -9,6 +9,7 @@ import Data.Array (zipWith, range, length)
 import Data.Either
 import Data.Foreign.Class
 import Data.Foreign hiding (parseJSON)
+import Data.Generic
 import Data.JSON
 import Data.Maybe
 import Data.Tuple
@@ -29,7 +30,13 @@ defRq = defaultRequest { headers = [ContentType applicationJSON, Accept applicat
 type Username = String
 type Password = String
 type ThentosSessionToken = String
-type ThentosError = String
+
+
+data ThentosError = ConnectionError String | DecodeError String
+
+derive instance genericThentosError :: Generic ThentosError
+instance showThentosError :: Show ThentosError where
+    show = gShow
 
 data LoginRequestBody = LoginRequestBody
     { user :: Username
@@ -51,9 +58,9 @@ loginUser username password = do
   return if res.status == StatusCode 201
     then case eitherDecode res.response of
       Right v -> Right v
-      Left e  -> Left $ "error decoding response: " ++ show (Tuple res.response e)
+      Left e  -> Left $ DecodeError $ "error decoding response: " ++ show (Tuple res.response e)
     else
-      Left $ "server responsed with error: " ++ show res.status
+      Left $ ConnectionError $ "server responsed with error: " ++ show res.status
 
 main :: forall ajax err2 console. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE) Unit
 main = do
