@@ -3,7 +3,7 @@ module Main where
 import Control.Monad.Aff
 import Control.Monad.Eff
 import Control.Monad.Eff.Class
-import Control.Monad.Eff.Console (CONSOLE(), log)
+import Control.Monad.Eff.Console (CONSOLE(), log, print)
 import Control.Monad.Eff.Exception
 import Data.Array (zipWith, range, length)
 import Data.Either
@@ -25,9 +25,6 @@ import Prelude
 
 defRq :: AffjaxRequest Unit
 defRq = defaultRequest { headers = [ContentType applicationJSON, Accept applicationJSON] }
-
-crash :: forall m err eff a b . (Show a) => a -> Aff (err :: EXCEPTION | eff) b
-crash = liftEff <<< throwException <<< error <<< show
 
 type Username = String
 type Password = String
@@ -61,5 +58,4 @@ loginUser username password = do
 main :: forall ajax err2 console. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE) Unit
 main = do
   log "Hello sailor!"
-  eTok <- launchAff (loginUser "god" "god")
-  log $ show eTok
+  runAff throwException print $ loginUser "god" "god"
