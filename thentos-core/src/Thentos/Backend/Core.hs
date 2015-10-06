@@ -135,10 +135,10 @@ thentosErrorInfo other e = f e
         (Nothing, err400, "service session not found")
     f NoSuchPersona =
         (Nothing, err400, "persona not found")
-    f NoSuchProcess =
-        (Nothing, err400, "process not found")
-    f MultiplePersonasPerProcess =
-        (Nothing, err400, "Cannot register multiple personas by a user for the same process")
+    f NoSuchContext =
+        (Nothing, err400, "context not found")
+    f MultiplePersonasPerContext =
+        (Nothing, err400, "Cannot register multiple personas by a user for the same context")
     f OperationNotPossibleInServiceSession =
         (Nothing, err404, "operation not possible in service session")
     f ServiceAlreadyExists =

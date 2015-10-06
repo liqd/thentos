@@ -43,12 +43,12 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     unassignRoleSpec
     addPersonaSpec
     deletePersonaSpec
-    addProcessSpec
-    deleteProcessSpec
-    registerPersonaWithProcessSpec
-    unregisterPersonaFromProcessSpec
+    addContextSpec
+    deleteContextSpec
+    registerPersonaWithContextSpec
+    unregisterPersonaFromContextSpec
     findPersonaSpec
-    processesForServiceSpec
+    contextsForServiceSpec
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
@@ -722,7 +722,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     sid = "sid"
 
 
--- * persona and process
+-- * persona and context
 
 addPersonaSpec :: SpecWith (Pool Connection)
 addPersonaSpec = describe "addPersona" $ do
@@ -771,23 +771,23 @@ deletePersonaSpec = describe "deletePersona" $ do
     name          = "MyOtherSelf"
     countPersonas = [sql| SELECT COUNT(*) FROM personas |]
 
-addProcessSpec :: SpecWith (Pool Connection)
-addProcessSpec = describe "addProcess" $ do
+addContextSpec :: SpecWith (Pool Connection)
+addContextSpec = describe "addContext" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 
-deleteProcessSpec :: SpecWith (Pool Connection)
-deleteProcessSpec = describe "deleteProcess" $ do
+deleteContextSpec :: SpecWith (Pool Connection)
+deleteContextSpec = describe "deleteContext" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 
-registerPersonaWithProcessSpec :: SpecWith (Pool Connection)
-registerPersonaWithProcessSpec = describe "registerPersonaWithProcess" $ do
+registerPersonaWithContextSpec :: SpecWith (Pool Connection)
+registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 
-unregisterPersonaFromProcessSpec :: SpecWith (Pool Connection)
-unregisterPersonaFromProcessSpec = describe "unregisterPersonaFromProcess" $ do
+unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
+unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 
@@ -796,8 +796,8 @@ findPersonaSpec = describe "findPersona" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 
-processesForServiceSpec :: SpecWith (Pool Connection)
-processesForServiceSpec = describe "processesForService" $ do
+contextsForServiceSpec :: SpecWith (Pool Connection)
+contextsForServiceSpec = describe "contextsForService" $ do
     it "TODO" $ \connPool -> do
         2 `shouldBe` 3 -- TODO
 

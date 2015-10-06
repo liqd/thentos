@@ -110,7 +110,7 @@ addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 -- | Add a new unconfirmed user, assigning a specific ID to the new user.
 -- Ensures that ID, user name and email address are unique.
 --
--- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend process
+-- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend context
 -- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
 -- would leak information about the (non-)existence of IDs in our db.
 addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
@@ -269,7 +269,7 @@ unregisterUserFromService uid sid = void $
     execT [sql| DELETE FROM user_services WHERE uid = ? AND sid = ? |] (uid, sid)
 
 
--- * persona and process
+-- * persona and context
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
@@ -279,7 +279,7 @@ addPersona name uid = do
                   (name, uid)
     case res of
         [Only persId] -> return $ Persona persId name uid
-        _             -> impossible "addProcess didn't return a single ID"
+        _             -> impossible "addContext didn't return a single ID"
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 deletePersona :: PersonaId -> ThentosQuery e ()
@@ -290,70 +290,70 @@ deletePersona persId = do
         0 -> throwError NoSuchPersona
         _ -> impossible "deletePersona: unique constraint on id violated"
 
--- | Add a new process. The first argument identifies the service to which the process belongs.
--- Throw an error if the process name is not unique.
-addProcess :: ServiceId -> ProcessName -> ProcessDescription -> ProxyUri -> ThentosQuery e Process
-addProcess ownerService name desc url = do
-    res <- queryT [sql| INSERT INTO processes (owner_service, name, description, url)
+-- | Add a new context. The first argument identifies the service to which the context belongs.
+-- Throw an error if the context name is not unique.
+addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> ThentosQuery e Context
+addContext ownerService name desc url = do
+    res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
                         VALUES (?, ?, ?, ?)
                         RETURNING id |]
                   (ownerService, name, desc, url)
     case res of
-        [Only procId] -> return $ Process procId ownerService name desc url
-        _             -> impossible "addProcess didn't return a single ID"
+        [Only cxtId] -> return $ Context cxtId ownerService name desc url
+        _            -> impossible "addContext didn't return a single ID"
 
--- | Delete a process. Throw an error if the process does not exist in the DB.
-deleteProcess :: ProcessId -> ThentosQuery e ()
-deleteProcess procId = do
-    rows <- execT [sql| DELETE FROM processes WHERE id = ? |] (Only procId)
+-- | Delete a context. Throw an error if the context does not exist in the DB.
+deleteContext :: ContextId -> ThentosQuery e ()
+deleteContext cxtId = do
+    rows <- execT [sql| DELETE FROM contexts WHERE id = ? |] (Only cxtId)
     case rows of
         1 -> return ()
-        0 -> throwError NoSuchProcess
-        _ -> impossible "deleteProcess: unique constraint on id violated"
+        0 -> throwError NoSuchContext
+        _ -> impossible "deleteContext: unique constraint on id violated"
 
--- Connect a persona with a process. Throws an error if the persona is already registered for the
--- process or if the user has any *other* persona egistered for the process. (As we currently allow
--- only one persona per user and process.)
-registerPersonaWithProcess :: Persona -> ProcessId -> ThentosQuery e ()
-registerPersonaWithProcess persona procId = do
+-- Connect a persona with a context. Throws an error if the persona is already registered for the
+-- context or if the user has any *other* persona registered for the context. (As we currently
+-- allow only one persona per user and context.)
+registerPersonaWithContext :: Persona -> ContextId -> ThentosQuery e ()
+registerPersonaWithContext persona cxtId = do
     -- Check that user has no registered personas yet
     res <- queryT [sql| SELECT count(*)
-                        FROM personas pers, personas_per_process pp
-                        WHERE pers.id = pp.persona_id AND pers.uid = ? AND pp.process_id = ? |]
+                        FROM personas pers, personas_per_context pc
+                        WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
                   (Only $ persona ^. personaUid)
     case res of
-        [Only (count :: Int)] -> when (count > 0) . throwError $ MultiplePersonasPerProcess
-        _ -> impossible "registerPersonaWithProcess: count didn't return a single result"
-    void $ execT [sql| INSERT INTO personas_per_process (persona_id, process_id)
-                       VALUES (?, ?) |] (persona ^. personaId, procId)
+        [Only (count :: Int)] -> when (count > 0) . throwError $ MultiplePersonasPerContext
+        _ -> impossible "registerPersonaWithContext: count didn't return a single result"
+    void $ execT [sql| INSERT INTO personas_per_context (persona_id, context_id)
+                       VALUES (?, ?) |] (persona ^. personaId, cxtId)
 
--- Unregister a persona from accessing a process. No-op if the persona was not registered for the
--- process.
-unregisterPersonaFromProcess :: PersonaId -> ProcessId -> ThentosQuery e ()
-unregisterPersonaFromProcess persId procId = void $
-    execT [sql| DELETE FROM personas_per_process WHERE persona_id = ? AND process_id = ? |]
-          (persId, procId)
+-- Unregister a persona from accessing a context. No-op if the persona was not registered for the
+-- context.
+unregisterPersonaFromContext :: PersonaId -> ContextId -> ThentosQuery e ()
+unregisterPersonaFromContext persId cxtId = void $
+    execT [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
+          (persId, cxtId)
 
--- Find the persona that a user wants to use for a process (if any).
-findPersona :: UserId -> ProcessId -> ThentosQuery e (Maybe Persona)
-findPersona uid procId = do
+-- Find the persona that a user wants to use for a context (if any).
+findPersona :: UserId -> ContextId -> ThentosQuery e (Maybe Persona)
+findPersona uid cxtId = do
     res <- queryT [sql| SELECT pers.id, pers.name
-                        FROM personas pers, personas_per_process pp
-                        WHERE pers.id = pp.persona_id AND pers.uid = ? AND pp.process_id = ? |]
-                  (uid, procId)
+                        FROM personas pers, personas_per_context pc
+                        WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
+                  (uid, cxtId)
     case res of
         [(persId, name)] -> return . Just $ Persona persId name uid
         []               -> return Nothing
         -- This is not 'impossible', since the constraint is enforced by us, not by the DB
-        _                -> error "findPersona: multiple personas per process"
+        _                -> error "findPersona: multiple personas per context"
 
--- List all processes owned by a service.
-processesForService :: ServiceId -> ThentosQuery e [Process]
-processesForService sid = map mkProcess <$>
-    queryT [sql| SELECT id, name, description, url FROM processes WHERE owner_service = ? |]
+-- List all contexts owned by a service.
+contextsForService :: ServiceId -> ThentosQuery e [Context]
+contextsForService sid = map mkContext <$>
+    queryT [sql| SELECT id, name, description, url FROM contexts WHERE owner_service = ? |]
            (Only sid)
   where
-    mkProcess (procId, name, description, url) = Process procId sid name description url
+    mkContext (cxtId, name, description, url) = Context cxtId sid name description url
 
 
 -- * thentos and service session

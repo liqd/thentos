@@ -214,7 +214,7 @@ instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
 
--- * persona and process
+-- * persona and context
 
 newtype PersonaId = PersonaId { fromPersonaId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
@@ -226,24 +226,24 @@ data Persona = Persona
   , _personaUid  :: UserId
   } deriving (Eq, Show, Typeable, Generic)
 
-newtype ProcessId = ProcessId { fromProcessId :: Integer }
+newtype ContextId = ContextId { fromContextId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
               FromField, ToField)
 
-newtype ProcessName = ProcessName { fromProcessName :: ST }
+newtype ContextName = ContextName { fromContextName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
-newtype ProcessDescription = ProcessDescription { fromProcessDescription :: ST }
+newtype ContextDescription = ContextDescription { fromContextDescription :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
-data Process = Process
-  { _processId           :: ProcessId
-  , _processOwnerService :: ServiceId
-  , _processName         :: ProcessName
-  , _processDescription  :: ProcessDescription
-  , _processUrl          :: ProxyUri
+data Context = Context
+  { _contextId           :: ContextId
+  , _contextOwnerService :: ServiceId
+  , _contextName         :: ContextName
+  , _contextDescription  :: ContextDescription
+  , _contextUrl          :: ProxyUri
   } deriving (Eq, Show, Typeable, Generic)
 
 -- * thentos and service session
@@ -509,8 +509,8 @@ data ThentosError e =
     | NoSuchThentosSession
     | NoSuchServiceSession
     | NoSuchPersona
-    | NoSuchProcess
-    | MultiplePersonasPerProcess
+    | NoSuchContext
+    | MultiplePersonasPerContext
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService
@@ -536,7 +536,7 @@ instance (Show e, Typeable e) => Exception (ThentosError e)
 -- * boilerplate
 
 makeLenses ''Persona
-makeLenses ''Process
+makeLenses ''Context
 makeLenses ''Service
 makeLenses ''ServiceAccount
 makeLenses ''ServiceSession

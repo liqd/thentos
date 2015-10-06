@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS personas (
     created    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS processes (
+CREATE TABLE IF NOT EXISTS contexts (
     id            serial    PRIMARY KEY,
     name          text      NOT NULL UNIQUE,
     owner_service text      NOT NULL REFERENCES services (id),
@@ -70,12 +70,12 @@ CREATE TABLE IF NOT EXISTS processes (
     url           text      NOT NULL
 );
 
--- Which persona should be used for which process?
-CREATE TABLE IF NOT EXISTS personas_per_process (
+-- Which persona should be used for which context?
+CREATE TABLE IF NOT EXISTS personas_per_context (
     id            serial     PRIMARY KEY,
-    persona_id    bigint     NOT NULL REFERENCES personas (id)  ON DELETE CASCADE,
-    process_id    bigint     NOT NULL REFERENCES processes (id) ON DELETE CASCADE,
-    UNIQUE (persona_id, process_id)
+    persona_id    bigint     NOT NULL REFERENCES personas (id) ON DELETE CASCADE,
+    context_id    bigint     NOT NULL REFERENCES contexts (id) ON DELETE CASCADE,
+    UNIQUE (persona_id, context_id)
 );
 
 CREATE TABLE IF NOT EXISTS thentos_sessions (
