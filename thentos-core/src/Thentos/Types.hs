@@ -517,6 +517,7 @@ data ThentosError e =
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
     | UserIdAlreadyExists
+    | PersonaNameAlreadyExists
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable

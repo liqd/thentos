@@ -272,7 +272,7 @@ unregisterUserFromService uid sid = void $
 -- * persona and process
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
--- The 'PersonaId' is assigned by the DB.
+-- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
 addPersona :: ST -> UserId -> ThentosQuery e Persona
 addPersona name uid = do
     res <- queryT [sql| INSERT INTO personas (name, uid) VALUES (?, ?) RETURNING id |]
@@ -281,7 +281,7 @@ addPersona name uid = do
         [Only persId] -> return $ Persona persId name uid
         _             -> impossible "addProcess didn't return a single ID"
 
--- | Delete a persona. Throw an error if the persona does not exist in the DB.
+-- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 deletePersona :: PersonaId -> ThentosQuery e ()
 deletePersona persId = do
     rows <- execT [sql| DELETE FROM personas WHERE id = ? |] (Only persId)
