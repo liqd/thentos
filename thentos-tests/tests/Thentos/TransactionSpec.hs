@@ -738,7 +738,15 @@ addPersonaSpec = describe "addPersona" $ do
         name' `shouldBe` name
         uid' `shouldBe` uid
 
-    -- TODO add more teste
+    it "throws NoSuchUser if the persona belongs to a non-existent user" $ \connPool -> do
+        Left err <- runQuery connPool . addPersona name $ UserId 6696
+        err `shouldBe` NoSuchUser
+
+    it "throws PersonaNameAlreadyExists when the name is not unique" $ \connPool -> do
+        Right uid <- runQuery connPool $ addUser (head testUsers)
+        Right _   <- runQuery connPool $ addPersona name uid
+        Left err  <- runQuery connPool $ addPersona name uid
+        err `shouldBe` PersonaNameAlreadyExists
 
   where
     name          = "MyOtherSelf"
@@ -746,8 +754,22 @@ addPersonaSpec = describe "addPersona" $ do
 
 deletePersonaSpec :: SpecWith (Pool Connection)
 deletePersonaSpec = describe "deletePersona" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "deletes a persona" $ \connPool -> do
+        Right uid <- runQuery connPool $ addUser (head testUsers)
+        [Only personaCount] <- doQuery connPool countPersonas ()
+        personaCount `shouldBe` (0 :: Int)
+        Right persona <- runThentosQueryFromPool connPool $ addPersona name uid
+        Right () <- runQuery connPool . deletePersona $ persona ^. personaId
+        [Only personaCount'] <- doQuery connPool countPersonas ()
+        personaCount' `shouldBe` (0 :: Int)
+
+    it "throws NoSuchPersona if the persona does not exist" $ \connPool -> do
+        Left err <- runQuery connPool . deletePersona $ PersonaId 5432
+        err `shouldBe` NoSuchPersona
+
+  where
+    name          = "MyOtherSelf"
+    countPersonas = [sql| SELECT COUNT(*) FROM personas |]
 
 addProcessSpec :: SpecWith (Pool Connection)
 addProcessSpec = describe "addProcess" $ do
