@@ -291,7 +291,7 @@ deletePersona persId = do
         _ -> impossible "deletePersona: unique constraint on id violated"
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
--- Throw an error if the context name is not unique.
+-- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> ThentosQuery e Context
 addContext ownerService name desc url = do
     res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)

@@ -76,9 +76,12 @@ catcher _ (UniqueViolation "users_pkey")      = return $ Left UserIdAlreadyExist
 catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
 catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
 catcher _ (UniqueViolation "personas_name_key") = return $ Left PersonaNameAlreadyExists
+catcher _ (UniqueViolation "contexts_name_key") = return $ Left ContextNameAlreadyExists
 catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
     = return $ Left ConfirmationTokenAlreadyExists
 catcher _ (ForeignKeyViolation "personas" "personas_uid_fkey") = return $ Left NoSuchUser
+catcher _ (ForeignKeyViolation "contexts" "contexts_owner_service_fkey")
+    = return $ Left NoSuchService
 catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey")
     = return $ Left NoSuchUser
 catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey")

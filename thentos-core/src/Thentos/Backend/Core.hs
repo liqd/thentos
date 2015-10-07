@@ -138,7 +138,8 @@ thentosErrorInfo other e = f e
     f NoSuchContext =
         (Nothing, err400, "context not found")
     f MultiplePersonasPerContext =
-        (Nothing, err400, "Cannot register multiple personas by a user for the same context")
+        (Nothing, err400, "Sybil attack prevention: "
+            <> "cannot register multiple personas of the same user for the same context")
     f OperationNotPossibleInServiceSession =
         (Nothing, err404, "operation not possible in service session")
     f ServiceAlreadyExists =
@@ -153,6 +154,8 @@ thentosErrorInfo other e = f e
         (Just (ERROR, ppShow e), err500, "internal error")
     f PersonaNameAlreadyExists =
         (Nothing, err403, "persona name already in use")
+    f ContextNameAlreadyExists =
+        (Nothing, err403, "context name already in use")
     f BadCredentials =
         (Just (INFO, show e), err401, "unauthorized")
     f BadAuthenticationHeaders =
