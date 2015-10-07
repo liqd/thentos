@@ -13,7 +13,8 @@ import Data.Pool (Pool)
 import Data.String.Conversions (ST, SBS)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldReturn, shouldSatisfy, before)
+import Test.Hspec (Spec, SpecWith, before, describe, it, pendingWith, shouldBe, shouldReturn,
+                   shouldSatisfy)
 
 import Thentos.Transaction
 import Thentos.Types
@@ -773,33 +774,68 @@ deletePersonaSpec = describe "deletePersona" $ do
 
 addContextSpec :: SpecWith (Pool Connection)
 addContextSpec = describe "addContext" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "adds a context to the DB" $ \connPool -> do
+        Right uid <- runQuery connPool $ addUser (head testUsers)
+        Right ()  <- runQuery connPool $
+                        addService (UserA uid) sid testHashedSecret "sName" "sDescription"
+        [Only contextCount] <- doQuery connPool countContexts ()
+        contextCount `shouldBe` (0 :: Int)
+        Right cxt <- runThentosQueryFromPool connPool $ addContext sid name desc url
+        cxt ^. contextOwnerService `shouldBe` sid
+        cxt ^. contextName `shouldBe` name
+        cxt ^. contextDescription `shouldBe` desc
+        cxt ^. contextUrl `shouldBe` url
+        [(id', name', sid', desc', url')] <- doQuery connPool
+            [sql| SELECT id, name, owner_service, description, url FROM contexts |] ()
+        id' `shouldBe` cxt ^. contextId
+        name' `shouldBe` name
+        sid' `shouldBe` sid
+        desc' `shouldBe` desc
+        url' `shouldBe` url
+
+    it "throws NoSuchService if the context belongs to a non-existent service" $ \connPool -> do
+        Left err <- runQuery connPool $ addContext sid name desc url
+        err `shouldBe` NoSuchService
+
+    it "throws ContextNameAlreadyExists when the name is not unique" $ \connPool -> do
+        Right uid <- runQuery connPool $ addUser (head testUsers)
+        Right ()  <- runQuery connPool $
+                        addService (UserA uid) sid testHashedSecret "sName" "sDescription"
+        Right _   <- runQuery connPool $ addContext sid name desc url
+        Left err  <- runQuery connPool $ addContext sid name desc url
+        err `shouldBe` ContextNameAlreadyExists
+
+  where
+    sid           = "sid"
+    name          = "Kiezkasse"
+    desc          = "A simple sample context"
+    url           = ProxyUri "example.org" 80 "/kiezkasse"
+    countContexts = [sql| SELECT COUNT(*) FROM contexts |]
 
 deleteContextSpec :: SpecWith (Pool Connection)
 deleteContextSpec = describe "deleteContext" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "TODO" $ \_connPool -> do
+        pendingWith "not yet implemented"
 
 registerPersonaWithContextSpec :: SpecWith (Pool Connection)
 registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "TODO" $ \_connPool -> do
+        pendingWith "not yet implemented"
 
 unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
 unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "TODO" $ \_connPool -> do
+        pendingWith "not yet implemented"
 
 findPersonaSpec :: SpecWith (Pool Connection)
 findPersonaSpec = describe "findPersona" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "TODO" $ \_connPool -> do
+        pendingWith "not yet implemented"
 
 contextsForServiceSpec :: SpecWith (Pool Connection)
 contextsForServiceSpec = describe "contextsForService" $ do
-    it "TODO" $ \connPool -> do
-        2 `shouldBe` 3 -- TODO
+    it "TODO" $ \_connPool -> do
+        pendingWith "not yet implemented"
 
 
 -- * Garbage collection
