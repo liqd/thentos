@@ -20,6 +20,7 @@ module Thentos.Types where
 
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
@@ -463,12 +464,12 @@ renderProxyUri (ProxyUri host port path) = "http://" <> host' <> port' <//> cs p
     host' :: ST = stripTrailingSlash $ cs host
     port' :: ST = if port == 80 then "" else cs $ ':' : show port
 
-parseProxyUri :: ST -> Either String ProxyUri
+parseProxyUri :: MonadError String m => ST -> m ProxyUri
 parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     Right uri -> do
-        when (schemeBS (uriScheme uri) /= "http") $ Left "Expected http schema"
-        unless (null . queryPairs $ uriQuery uri) $ Left "No query part allowed"
-        unless (isNothing $ uriFragment uri) $ Left "No URI fragment allowed"
+        when (schemeBS (uriScheme uri) /= "http") $ throwError "Expected http schema"
+        unless (null . queryPairs $ uriQuery uri) $ throwError "No query part allowed"
+        unless (isNothing $ uriFragment uri) $ throwError "No URI fragment allowed"
         auth <- maybe (fail "No URI authority allowed") return $ uriAuthority uri
         let host = authorityHost auth
             port = fromMaybe 80 $ portNumber <$> authorityPort auth
@@ -476,7 +477,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
                         , proxyPort = port
                         , proxyPath = uriPath uri
                         }
-    Left err -> Left $ "Invalid URI: " ++ show err
+    Left err -> throwError $ "Invalid URI: " ++ show err
 
 instance Aeson.FromJSON ProxyUri
   where
