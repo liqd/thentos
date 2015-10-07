@@ -466,9 +466,9 @@ renderProxyUri (ProxyUri host port path) = "http://" <> host' <> port' <//> cs p
 parseProxyUri :: ST -> Either String ProxyUri
 parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     Right uri -> do
-        when (schemeBS (uriScheme uri) /= "http") $ fail "Expected http schema"
-        unless (null . queryPairs $ uriQuery uri) $ fail "No query part allowed"
-        unless (isNothing $ uriFragment uri) $ fail "No URI fragment allowed"
+        when (schemeBS (uriScheme uri) /= "http") $ Left "Expected http schema"
+        unless (null . queryPairs $ uriQuery uri) $ Left "No query part allowed"
+        unless (isNothing $ uriFragment uri) $ Left "No URI fragment allowed"
         auth <- maybe (fail "No URI authority allowed") return $ uriAuthority uri
         let host = authorityHost auth
             port = fromMaybe 80 $ portNumber <$> authorityPort auth
@@ -476,7 +476,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
                         , proxyPort = port
                         , proxyPath = uriPath uri
                         }
-    Left err -> fail $ "Invalid URI: " ++ show err
+    Left err -> Left $ "Invalid URI: " ++ show err
 
 instance Aeson.FromJSON ProxyUri
   where
