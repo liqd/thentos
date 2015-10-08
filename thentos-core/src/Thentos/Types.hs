@@ -470,7 +470,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
         when (schemeBS (uriScheme uri) /= "http") $ throwError "Expected http schema"
         unless (null . queryPairs $ uriQuery uri) $ throwError "No query part allowed"
         unless (isNothing $ uriFragment uri) $ throwError "No URI fragment allowed"
-        auth <- maybe (fail "No URI authority allowed") return $ uriAuthority uri
+        auth <- maybe (throwError "Missing URI authority") return $ uriAuthority uri
         let host = authorityHost auth
             port = fromMaybe 80 $ portNumber <$> authorityPort auth
         return ProxyUri { proxyHost = hostBS host
