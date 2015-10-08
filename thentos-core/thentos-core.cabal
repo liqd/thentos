@@ -95,7 +95,7 @@ library
     , case-insensitive >=1.2.0.4 && <1.3
     , configifier >=0.0.5 && <0.1
     , containers >=0.5.6.2 && <0.6
-    , cryptonite >=0.7 && <0.8
+    , cryptonite >=0.6 && <0.7
     , digestive-functors >=0.8.0.0 && <0.9
     , digestive-functors-blaze >=0.6.0.6 && <0.7
     , digestive-functors-snap >=0.6.1.3 && <0.7
