@@ -247,6 +247,7 @@ data Context = Context
   , _contextUrl          :: ProxyUri
   } deriving (Eq, Show, Typeable, Generic)
 
+
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
