@@ -38,6 +38,9 @@ derive instance genericThentosError :: Generic ThentosError
 instance showThentosError :: Show ThentosError where
     show = gShow
 
+instance eqThentosError :: Eq ThentosError where
+    eq = gEq
+
 data LoginRequestBody = LoginRequestBody
     { user :: Username
     , pass :: Password
