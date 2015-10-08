@@ -22,7 +22,6 @@ import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
-import Control.Monad (when, unless, mzero)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
@@ -49,12 +48,6 @@ import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
-import Database.PostgreSQL.Simple.Missing (intervalSeconds)
-import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError,
-                                             typeOid)
-import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
-import Database.PostgreSQL.Simple.TypeInfo (typoid)
-import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
