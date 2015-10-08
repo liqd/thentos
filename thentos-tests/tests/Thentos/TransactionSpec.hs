@@ -550,12 +550,12 @@ startThentosSessionSpec = describe "startThentosSession" $ do
                                              WHERE token = ? |] (Only tok)
         uid `shouldBe` testUid
 
-    it "fails when the user is uconfirmed" $ \connPool -> do
+    it "fails if the user is uconfirmed" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just testUid) testUser False
         x <- runQuery connPool $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
 
-    it "fails when the user doesn't exist" $ \connPool -> do
+    it "fails if the user doesn't exist" $ \connPool -> do
         x <- runQuery connPool $ startThentosSession tok user period
         x `shouldBe` Left NoSuchUser
 
@@ -570,7 +570,7 @@ startThentosSessionSpec = describe "startThentosSession" $ do
                                          WHERE token = ? |] (Only tok)
         sid' `shouldBe` sid
 
-    it "fails when the service doesn't exist" $ \connPool -> do
+    it "fails if the service doesn't exist" $ \connPool -> do
         x <- runQuery connPool $ startThentosSession tok (ServiceA "sid") period
         x `shouldBe` Left NoSuchService
 
@@ -583,7 +583,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         period = fromMinutes 1
         sid = "sid"
 
-    it "fails when there is no session" $ \connPool -> do
+    it "fails if there is no session" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         x <- runQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
@@ -743,7 +743,7 @@ addPersonaSpec = describe "addPersona" $ do
         Left err <- runQuery connPool . addPersona name $ UserId 6696
         err `shouldBe` NoSuchUser
 
-    it "throws PersonaNameAlreadyExists when the name is not unique" $ \connPool -> do
+    it "throws PersonaNameAlreadyExists if the name is not unique" $ \connPool -> do
         Right uid <- runQuery connPool $ addUser (head testUsers)
         Right _   <- runQuery connPool $ addPersona name uid
         Left err  <- runQuery connPool $ addPersona name uid
@@ -797,7 +797,7 @@ addContextSpec = describe "addContext" $ do
         Left err <- runQuery connPool $ addContext sid name desc url
         err `shouldBe` NoSuchService
 
-    it "throws ContextNameAlreadyExists when the name is not unique" $ \connPool -> do
+    it "throws ContextNameAlreadyExists if the name is not unique" $ \connPool -> do
         Right uid <- runQuery connPool $ addUser (head testUsers)
         Right ()  <- runQuery connPool $
                         addService (UserA uid) sid testHashedSecret "sName" "sDescription"
