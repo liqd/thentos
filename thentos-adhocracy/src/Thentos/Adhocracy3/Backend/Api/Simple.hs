@@ -74,7 +74,6 @@ import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
-import Thentos.Adhocracy3.Transactions ()
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
