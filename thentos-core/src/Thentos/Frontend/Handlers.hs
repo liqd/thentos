@@ -17,12 +17,6 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Void (Void)
-import Snap.Core
-    ( Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect'
-    , rqMethod, urlDecode, setHeader, setResponseCode
-    )
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (csrfToken)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
 import Text.Digestive.View (View)
@@ -31,7 +25,6 @@ import URI.ByteString
 
 import qualified Text.Blaze.Html5 as H
 
-import Snap.Missing (blaze)
 import Thentos.Action as A
 import Thentos.Action.Core
 import Thentos.Config
@@ -118,7 +111,7 @@ userLogin = do
 
 -- | If user name and password match, login.  Otherwise, redirect to
 -- login page with a message that asks to try again.
-userLoginCallAction :: Action Void (UserId, ThentosSessionToken) -> FH ()
+userLoginCallAction :: FH (UserId, ThentosSessionToken) -> FH ()
 userLoginCallAction action = do
     eResult <- snapRunActionE action
       -- FIXME[mf]: Create transaction

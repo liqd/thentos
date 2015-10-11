@@ -1,49 +1,60 @@
-{-# LANGUAGE DeriveDataTypeable     #-}
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE PackageImports         #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE PackageImports             #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 
 module Thentos.Frontend.Types where
 
-import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses)
+import Control.Monad.Except (MonadError)
 import Control.Monad (mzero)
-import "cryptonite" Crypto.Random (ChaChaDRG)
+import Control.Monad.State (MonadState)
+import Control.Monad.Trans.State
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.Pool (Pool)
 import Data.String.Conversions (ST, cs)
+import Data.Typeable (Typeable)
+import Data.Void (Void)
 import GHC.Generics (Generic)
-import Snap.Snaplet.Session.SessionManager (SessionManager)
-import Snap.Snaplet (Snaplet, Handler)
-import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
-import Database.PostgreSQL.Simple (Connection)
+import Servant (FromText, fromText)
+import Servant.Server (ServantErr)
+import URI.ByteString (RelativeRef, URI, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
-import Thentos.Config
-import Thentos.Types
+import Thentos.Action.Core (Action)
+import Thentos.Frontend.Session
+import Thentos.Types (ThentosSessionToken, UserId, ServiceId, ThentosError)
 
-data FrontendApp =
-    FrontendApp
-      { _connPool :: Pool Connection
-      , _rng :: MVar ChaChaDRG
-      , _cfg :: ThentosConfig
-      , _sess :: Snaplet SessionManager
-      , _frontendCfg :: HttpConfig
-      }
 
-makeLenses ''FrontendApp
+newtype FrontendAction a = FrontendAction
+    { fromFrontendAction :: StateT (SessionPayload FrontendSessionData) (Action FrontendError) a }
+  deriving ( Functor
+           , Applicative
+           , Monad
+           , MonadState (SessionPayload FrontendSessionData)
+           , MonadError (ThentosError FrontendError)
+           , Typeable
+           , Generic
+           )
 
-type FH = Handler FrontendApp FrontendApp
+instance FromText FrontendSessionData where
+  fromText = error "FromText FrontendSessionData"
 
+data FrontendError =
+    FrontendErrorRedirectRR RelativeRef
+  | FrontendErrorRedirectURI URI
+  deriving (Eq, Show, Typeable)
+
+-- | Cookie payload.
 data FrontendSessionData =
     FrontendSessionData
         { _fsdLogin             :: Maybe FrontendSessionLoginData
-        , _fsdServiceLoginState :: Maybe ServiceLoginState  -- ^ (see 'ServiceLoginState')
+        , _fsdServiceLoginState :: Maybe ServiceLoginState
         , _fsdMessages          :: [FrontendMsg]
         }
   deriving (Show, Eq, Generic)
