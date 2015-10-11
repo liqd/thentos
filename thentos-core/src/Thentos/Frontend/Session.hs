@@ -33,6 +33,8 @@ import Servant
 data Session (sym :: Symbol) payload = Session payload
   deriving (Typeable, Eq, Show, Functor)
 
+-- FIXME: is something like SessionPayload already in servant?  or is there an implicit error if decoding state fails?
+
 data SessionPayload a = SessionPayload a | SessionParseError ST | SessionNothing
   deriving (Typeable, Eq, Show, Functor)
 

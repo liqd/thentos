@@ -15,11 +15,12 @@ import Control.Monad.State (MonadState)
 import Control.Monad.Trans.State
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
+import Data.ByteString.Conversion (ToByteString, builder, FromByteString, parser)
 import Data.String.Conversions (ST, cs)
 import Data.Typeable (Typeable)
 import Data.Void (Void)
 import GHC.Generics (Generic)
-import Servant (FromText, fromText)
+import Servant (FromText, fromText, ToText, toText)
 import Servant.Server (ServantErr)
 import URI.ByteString (RelativeRef, URI, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
 
@@ -42,9 +43,6 @@ newtype FrontendAction a = FrontendAction
            , Generic
            )
 
-instance FromText FrontendSessionData where
-  fromText = error "FromText FrontendSessionData"
-
 data FrontendError =
     FrontendErrorRedirectRR RelativeRef
   | FrontendErrorRedirectURI URI
@@ -58,6 +56,18 @@ data FrontendSessionData =
         , _fsdMessages          :: [FrontendMsg]
         }
   deriving (Show, Eq, Generic)
+
+instance FromText FrontendSessionData where
+  fromText = error "FromText FrontendSessionData"
+
+instance ToText FrontendSessionData where
+  toText = error "ToText FrontendSessionData"
+
+instance ToByteString FrontendSessionData where
+  builder = error "ToByteString FrontendSessionData"
+
+instance FromByteString FrontendSessionData where
+  parser = error "FromByteString FrontendSessionData"
 
 emptyFrontendSessionData :: FrontendSessionData
 emptyFrontendSessionData = FrontendSessionData Nothing Nothing []

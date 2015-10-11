@@ -1,9 +1,12 @@
 {-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE DeriveFunctor          #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE ViewPatterns           #-}
 
 module Thentos.Frontend where
 
@@ -59,27 +62,33 @@ api actionState = enter t . runFrontendApi
     t = enterAction actionState frontendActionErrorToServantErr Nothing
 
 
-type FrontendApi = Header "cookie" FrontendSessionData :> FApi
+type FrontendApi = Header "Cookie" FrontendSessionData :> FApi With
 
-runFrontendApi :: Maybe FrontendSessionData -> ServerT FApi (Action FrontendError)
-runFrontendApi mSessionState = enter t runFApi
+runFrontendApi :: Maybe FrontendSessionData -> ServerT (FApi With) (Action FrontendError)
+runFrontendApi (maybe SessionNothing SessionPayload -> sessionPayload) = enter t runFApi
   where
     t :: FrontendAction :~> Action FrontendError
-    t = Nat $ \(FrontendAction (StateT a)) -> fst <$> a sessionState
+    t = Nat $ \(FrontendAction (StateT a)) -> do
+          (v, s') <- a sessionPayload
+          return . addHeader s' $ v
 
-    sessionState :: SessionPayload FrontendSessionData
-    sessionState = case mSessionState of
-      Just p -> SessionPayload p
-      Nothing -> SessionNothing
+data With
+data Without
 
+type family H w a :: * where
+  H With    a = Headers '[Header "Set-Cookie" FrontendSessionData] a
+  H Without a = a
 
-type FApi = "bool" :> Get '[HTML] Bool :<|> "int" :> Get '[HTML] Int
+type FApi a =
+       "bool" :> Get '[HTML] (H a Bool)
+  :<|> "int" :> Get '[HTML] (H a Int)
 
-runFApi :: ServerT FApi FrontendAction
-runFApi = b :<|> i
+runFApi :: ServerT (FApi Without) FrontendAction
+runFApi = do
+    -- SessionPayload sessionData <- get
+    b :<|> i
   where
     b = do
-          -- sessionData <- get
           return True -- $ case sessionData ^. fsdLogin of Just _ -> True; Nothing -> False
     i = do
           -- sessionData <- get
