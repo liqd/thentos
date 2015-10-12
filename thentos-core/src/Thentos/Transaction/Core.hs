@@ -86,6 +86,10 @@ catcher e = f
     f (ForeignKeyViolation "contexts" "contexts_owner_service_fkey") = r NoSuchService
     f (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = r NoSuchUser
     f (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey") = r NoSuchService
+    f (ForeignKeyViolation "personas_per_context" "personas_per_context_persona_id_fkey") =
+        r NoSuchPersona
+    f (ForeignKeyViolation "personas_per_context" "personas_per_context_context_id_fkey") =
+        r NoSuchContext
     f _ = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to

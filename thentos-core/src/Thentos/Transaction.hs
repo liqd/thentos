@@ -312,15 +312,16 @@ deleteContext cxtId = do
         _ -> impossible "deleteContext: unique constraint on id violated"
 
 -- Connect a persona with a context. Throws an error if the persona is already registered for the
--- context or if the user has any *other* persona registered for the context. (As we currently
--- allow only one persona per user and context.)
+-- context or if the user has any *other* persona registered for the context
+-- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
+-- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
 registerPersonaWithContext :: Persona -> ContextId -> ThentosQuery e ()
 registerPersonaWithContext persona cxtId = do
-    -- Check that user has no registered personas yet
+    -- Check that user has no registered personas for that context yet
     res <- queryT [sql| SELECT count(*)
                         FROM personas pers, personas_per_context pc
                         WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
-                  (Only $ persona ^. personaUid)
+                  (persona ^. personaUid, cxtId)
     case res of
         [Only (count :: Int)] -> when (count > 0) . throwError $ MultiplePersonasPerContext
         _ -> impossible "registerPersonaWithContext: count didn't return a single result"
