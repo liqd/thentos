@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE DeriveFunctor          #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
 {-# LANGUAGE TypeFamilies           #-}
@@ -33,6 +35,7 @@ import Data.ByteString.Builder (toLazyByteString)
 import URI.ByteString
 import Control.Monad.State
 import Control.Lens ((^.))
+import Servant.Server.Internal.Enter
 
 import Thentos.Action.Core
 import Thentos.Config
@@ -65,12 +68,11 @@ api actionState = enter t . runFrontendApi
 type FrontendApi = Header "Cookie" FrontendSessionData :> FApi With
 
 runFrontendApi :: Maybe FrontendSessionData -> ServerT (FApi With) (Action FrontendError)
-runFrontendApi (maybe SessionNothing SessionPayload -> sessionPayload) = enter t runFApi
-  where
-    t :: FrontendAction :~> Action FrontendError
-    t = Nat $ \(FrontendAction (StateT a)) -> do
-          (v, s') <- a sessionPayload
-          return . addHeader s' $ v
+runFrontendApi mp = enter' (maybe SessionNothing SessionPayload mp) runFApi
+
+
+
+--------------------------------------------------------------------------
 
 data With
 data Without
@@ -78,6 +80,31 @@ data Without
 type family H w a :: * where
   H With    a = Headers '[Header "Set-Cookie" FrontendSessionData] a
   H Without a = a
+
+
+class Enter' typ arg where
+    type TransEnter' typ arg
+    enter' :: arg -> typ -> TransEnter' typ arg
+
+instance (Enter' typ1 arg1, Enter' typ2 arg1) => Enter' (typ1 :<|> typ2) arg1 where
+    type TransEnter' (typ1 :<|> typ2) arg1 = TransEnter' typ1 arg1 :<|> TransEnter' typ2 arg1
+    enter' e (a :<|> b) = enter' e a :<|> enter' e b
+
+instance (Enter' b arg) => Enter' (a -> b) arg where
+    type TransEnter' (a -> b) arg = a -> TransEnter' b arg
+    enter' arg f a = enter' arg (f a)
+
+instance Enter' (ServerT (FApi Without) FrontendAction) (SessionPayload FrontendSessionData) where
+    type TransEnter' (ServerT (FApi Without) FrontendAction)
+            (SessionPayload FrontendSessionData) =
+                ServerT (FApi With) (Action FrontendError)
+    enter' s (FrontendAction (StateT m)) = do
+        (v, s') <- m s
+        return $ addHeader s' v
+
+--------------------------------------------------------------------------
+
+
 
 type FApi a =
        "bool" :> Get '[HTML] (H a Bool)
