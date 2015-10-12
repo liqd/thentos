@@ -65,6 +65,11 @@ injectToken = error "easy!"
 -- PR for servant!!
 fmapRouter :: (Response -> Response) -> Router -> Router
 fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont . (f <$>))
+fmapRouter f (StaticRouter m) = StaticRouter (fmapRouter f <$> m)
+fmapRouter f (DynamicRouter d) = DynamicRouter (fmapRouter f <$> d)
+fmapRouter f (Choice r1 r2) = Choice (fmapRouter f r1) (fmapRouter f r2)
+
+
 
 
 {-
