@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
@@ -13,28 +12,29 @@
 
 module Thentos.Frontend.Session where
 
-import Data.Text (Text)
-import Data.String (fromString)
-import Data.ByteString (ByteString)
+--import Data.ByteString (ByteString)
 import Data.Typeable (Typeable)
-import Data.String.Conversions (SBS)
-import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
-import Data.Text.Encoding (decodeUtf8, encodeUtf8)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
+-- import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Network.Wai -- (requestHeaders)
-import Control.Monad.State
+import Network.HTTP.Types (Header)
 -- import Web.ClientSession
 -- import Web.Cookie
-import Servant
+import Servant.API ((:>))
 import Servant.Server.Internal
 import Data.Aeson
 import GHC.Generics
-import Data.String.Conversions
 
 
 data Session
 
 newtype Token = Token String
   deriving (Eq, Show, Ord, Typeable, Generic, ToJSON, FromJSON)
+
+tokenToHeader :: Token -> Header
+tokenToHeader (Token t) = ("Set-Cookie", cs t)
+
 
 -- FIXME: is something like SessionPayload already in servant?  or is there an implicit error if decoding state fails?
 
@@ -60,7 +60,7 @@ mkToken = Token "bla"
 
 
 injectToken :: Token -> Response -> Response
-injectToken = error "easy!"
+injectToken tok = mapResponseHeaders (tokenToHeader tok :)
 
 -- PR for servant!!
 fmapRouter :: (Response -> Response) -> Router -> Router
