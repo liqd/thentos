@@ -47,19 +47,20 @@ instance ( HasServer sublayout
   route Proxy a = WithRequest $ \request ->
     case lookup "Cookie" (requestHeaders request) of
       Just tok -> route (Proxy :: Proxy sublayout) . passToServer a . Token . cs $ tok
-      Nothing -> do
-        let tok = mkToken
-        fmapRouter (injectToken tok) . route (Proxy :: Proxy sublayout) . passToServer a $ tok
+      Nothing -> route (Proxy :: Proxy sublayout) $ (addCapture a' mkToken)
+        where
+          a' :: Delayed (Token -> ServerT sublayout)
+          a' = (passToServer a tok :: Delayed (ServerT sublayout)) --- and now stick tok into the header of this
 
-mkToken :: Token  -- FIXME: IO Token
-mkToken = Token "bla"
 
+mkToken :: IO (RouteResult Token)
+mkToken = return . Route . Token $ "bla"
 
 injectToken :: Token -> Response -> IO Response
 injectToken tok = return . mapResponseHeaders (tokenToHeader tok :)
 
 -- PR for servant!!
-fmapRouter :: (Response -> IO Response) -> Router -> Router
+fmapRouter :: (Response -> IO (Response, Token)) -> Router -> IO (Router, Token)
 fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont <=< _)
 {-fmapRouter f (StaticRouter m) = StaticRouter (fmapRouter f <$> m)-}
 {-fmapRouter f (DynamicRouter d) = DynamicRouter (fmapRouter f <$> d)-}
