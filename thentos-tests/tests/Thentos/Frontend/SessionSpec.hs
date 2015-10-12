@@ -7,37 +7,14 @@
 
 module Thentos.Frontend.SessionSpec where
 
-import Control.Lens ((^.))
-import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (fromJust, isJust, listToMaybe)
-import Data.Pool (Pool, withResource)
-import Data.String.Conversions (ST, cs)
-import Data.Void (Void)
-import Database.PostgreSQL.Simple (Connection)
-import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
+import Data.Maybe (isJust)
+import Test.Hspec (Spec, describe, it, shouldSatisfy, hspec)
 import Test.Hspec.Wai
 import Network.Wai
-import Network.Wai.Test (simpleBody)
+import Network.Wai.Test (simpleBody, simpleHeaders)
 import Servant
-import Data.Proxy
 import Network.HTTP.Types
 
-import qualified Data.Text as ST
-import qualified Network.HTTP.Types.Status as C
-import qualified Test.WebDriver as WD
-import qualified Test.WebDriver.Class as WD
-
-import Thentos.Action.Core
-import Thentos.Config
-import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
-import Thentos.Types
-import Thentos.Util ((<//>), verifyPass)
-
-import Thentos.Test.WebDriver.Missing as WD
-import Thentos.Test.Arbitrary ()
-import Thentos.Test.Config
-import Thentos.Test.Core
 
 import Thentos.Frontend.Session
 import Data.Aeson
@@ -50,16 +27,22 @@ server1 = serve (Proxy :: Proxy (Session :> Get '[JSON] Token)) return
 
 spec :: Spec
 spec = describe "asdf-session-tests" . with (return server1) $ do
-    it "gets the token from the client cookie" $ do
-        request methodGet "" [("Cookie", "bla")] "" `shouldRespondWith` "\"bla\""
 
-    it "if no cookie is set, returns a fresh one" $ do
-        resp <- request methodGet "" [] ""
-        liftIO $ print (simpleBody resp)
-        liftIO $ (decode $ simpleBody resp) `shouldSatisfy` (\(Just (Token _)) -> True)  -- fails because of missing leniency
+    context "the cookie is set" $ do
 
-    it "if no cookie is set, a fresh will be in the Set-Cookie header of the response" $ do
-        pending
+        it "gets the token from the client cookie" $ do
+            request methodGet "" [("Cookie", "bla")] "" `shouldRespondWith` "\"bla\""
+
+    context "no cookie is set" $ do
+
+        it "returns a fresh one" $ do
+            resp <- request methodGet "" [] ""
+            liftIO $ print (simpleBody resp)
+            liftIO $ (decode $ simpleBody resp) `shouldSatisfy` (\(Just (Token _)) -> True)  -- fails because of missing leniency
+
+        it "one will be in the Set-Cookie header of the response" $ do
+            resp <- request methodGet "" [] ""
+            liftIO $ simpleHeaders resp `shouldSatisfy` isJust . lookup "Set-Cookie"
 
     it "cookies are fresh" $ do
         pending

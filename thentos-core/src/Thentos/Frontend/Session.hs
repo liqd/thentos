@@ -13,6 +13,7 @@
 module Thentos.Frontend.Session where
 
 --import Data.ByteString (ByteString)
+import Control.Monad
 import Data.Typeable (Typeable)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
@@ -36,11 +37,6 @@ tokenToHeader :: Token -> Header
 tokenToHeader (Token t) = ("Set-Cookie", cs t)
 
 
--- FIXME: is something like SessionPayload already in servant?  or is there an implicit error if decoding state fails?
-
--- data SessionPayload a = SessionPayload a | SessionParseError ST | SessionNothing
---   deriving (Typeable, Eq, Show, Functor)
-
 instance ( HasServer sublayout
          )
       => HasServer (Session :> sublayout) where
@@ -51,40 +47,26 @@ instance ( HasServer sublayout
   route Proxy a = WithRequest $ \request ->
     case lookup "Cookie" (requestHeaders request) of
       Just tok -> route (Proxy :: Proxy sublayout) . passToServer a . Token . cs $ tok
-      Nothing ->
-        let tok = mkToken in
+      Nothing -> do
+        let tok = mkToken
         fmapRouter (injectToken tok) . route (Proxy :: Proxy sublayout) . passToServer a $ tok
 
 mkToken :: Token  -- FIXME: IO Token
 mkToken = Token "bla"
 
 
-injectToken :: Token -> Response -> Response
-injectToken tok = mapResponseHeaders (tokenToHeader tok :)
+injectToken :: Token -> Response -> IO Response
+injectToken tok = return . mapResponseHeaders (tokenToHeader tok :)
 
 -- PR for servant!!
-fmapRouter :: (Response -> Response) -> Router -> Router
-fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont . (f <$>))
-fmapRouter f (StaticRouter m) = StaticRouter (fmapRouter f <$> m)
-fmapRouter f (DynamicRouter d) = DynamicRouter (fmapRouter f <$> d)
-fmapRouter f (Choice r1 r2) = Choice (fmapRouter f r1) (fmapRouter f r2)
+fmapRouter :: (Response -> IO Response) -> Router -> Router
+fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont <=< _)
+{-fmapRouter f (StaticRouter m) = StaticRouter (fmapRouter f <$> m)-}
+{-fmapRouter f (DynamicRouter d) = DynamicRouter (fmapRouter f <$> d)-}
+{-fmapRouter f (Choice r1 r2) = Choice (fmapRouter f r1) (fmapRouter f r2)-}
+{-fmapRouter f (WithRequest g) = WithRequest (fmapRouter f . g)-}
 
 
-
-
-{-
-createSession :: (p ~ SessionPayload payload, MonadState p m) => payload -> m ()
-createSession = error "createSession"
-
-destroySession :: (p ~ SessionPayload payload, MonadState p m) => m ()
-destroySession = undefined
-
-getSession :: (p ~ SessionPayload payload, MonadState p m) => m p
-getSession = undefined
-
-modifySession :: (p ~ SessionPayload payload, MonadState p m) => (Maybe payload -> Maybe payload) -> m ()
-modifySession = undefined
--}
 
 
 -- FIXME: EU bullshit
