@@ -878,13 +878,53 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
 
 unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
 unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
-    it "TODO" $ \_connPool -> do
-        pendingWith "not yet implemented"
+    it "disconnects a persona from a context" $ \connPool -> do
+        Right uid     <- runQuery connPool $ addUser (head testUsers)
+        Right persona <- runThentosQueryFromPool connPool $ addPersona persName uid
+        Right ()      <- runQuery connPool $
+                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+        Right cxt     <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right ()      <- runThentosQueryFromPool connPool . registerPersonaWithContext persona
+                            $ cxt ^. contextId
+        [Only entryCount]  <- doQuery connPool countEntries (Only $ cxt ^. contextId)
+        entryCount `shouldBe` (1 :: Int)
+        Right ()      <- runThentosQueryFromPool connPool . unregisterPersonaFromContext
+                            (persona ^. personaId) $ cxt ^. contextId
+        [Only entryCount'] <- doQuery connPool countEntries (Only $ cxt ^. contextId)
+        entryCount' `shouldBe` (0 :: Int)
+
+    it "is a no-op if persona and context don't exist" $ \connPool -> do
+        [Only entryCount] <- doQuery connPool [sql| SELECT COUNT(*) FROM personas_per_context |] ()
+        entryCount `shouldBe` (0 :: Int)
+        Right ()      <- runThentosQueryFromPool connPool . unregisterPersonaFromContext
+                            (PersonaId 5432) $ ContextId 1525
+        [Only entryCount'] <- doQuery connPool [sql| SELECT COUNT(*) FROM personas_per_context |] ()
+        entryCount' `shouldBe` (0 :: Int)
+
+  where
+    countEntries = [sql| SELECT COUNT(*) FROM personas_per_context WHERE context_id = ? |]
 
 findPersonaSpec :: SpecWith (Pool Connection)
 findPersonaSpec = describe "findPersona" $ do
-    it "TODO" $ \_connPool -> do
-        pendingWith "not yet implemented"
+    it "find the persona a user wants to use for a context" $ \connPool -> do
+        Right uid     <- runQuery connPool $ addUser (head testUsers)
+        Right persona <- runThentosQueryFromPool connPool $ addPersona persName uid
+        Right ()      <- runQuery connPool $
+                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+        Right cxt     <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right ()      <- runThentosQueryFromPool connPool . registerPersonaWithContext persona
+                            $ cxt ^. contextId
+        Right mPers   <- runThentosQueryFromPool connPool . findPersona uid $ cxt ^. contextId
+        mPers `shouldBe` Just persona
+
+    it "doesn't find a persona if none was registered" $ \connPool -> do
+        Right uid   <- runQuery connPool $ addUser (head testUsers)
+        Right _     <- runThentosQueryFromPool connPool $ addPersona persName uid
+        Right ()    <- runQuery connPool $
+                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+        Right cxt   <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right mPers <- runThentosQueryFromPool connPool . findPersona uid $ cxt ^. contextId
+        mPers `shouldBe` Nothing
 
 contextsForServiceSpec :: SpecWith (Pool Connection)
 contextsForServiceSpec = describe "contextsForService" $ do
