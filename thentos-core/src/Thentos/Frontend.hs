@@ -65,7 +65,9 @@ api actionState = enter t . runFrontendApi
     t = enterAction actionState frontendActionErrorToServantErr Nothing
 
 
-type FrontendApi = Header "Cookie" FrontendSessionData :> FApi With
+type FrontendApi = Session "thentos" :> FApi With
+
+
 
 runFrontendApi :: Maybe FrontendSessionData -> ServerT (FApi With) (Action FrontendError)
 runFrontendApi mp = enter' (maybe SessionNothing SessionPayload mp) runFApi
