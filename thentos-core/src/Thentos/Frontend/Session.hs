@@ -12,11 +12,10 @@
 
 module Thentos.Frontend.Session where
 
---import Data.ByteString (ByteString)
-import Control.Monad
+import Data.ByteString (ByteString)
 import Data.Typeable (Typeable)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.Maybe (fromJust)
 -- import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import Network.Wai -- (requestHeaders)
 import Network.HTTP.Types (Header)
@@ -24,48 +23,39 @@ import Network.HTTP.Types (Header)
 -- import Web.Cookie
 import Servant.API ((:>))
 import Servant.Server.Internal
-import Data.Aeson
 import GHC.Generics
 
 
 data Session
+newtype Cookie = Cookie { unCookie :: ByteString }
+  deriving (Eq, Show, Ord, Typeable, Generic)
 
-newtype Token = Token String
-  deriving (Eq, Show, Ord, Typeable, Generic, ToJSON, FromJSON)
+cookieToHeader :: Cookie -> Header
+cookieToHeader (Cookie t) = ("Set-Cookie", t)
 
-tokenToHeader :: Token -> Header
-tokenToHeader (Token t) = ("Set-Cookie", cs t)
+instance (HasServer sublayout) => HasServer (Session :> sublayout) where
 
+  type ServerT (Session :> sublayout) m = Cookie -> ServerT sublayout m
 
-instance ( HasServer sublayout
-         )
-      => HasServer (Session :> sublayout) where
-
-  type ServerT (Session :> sublayout) m = Token -> ServerT sublayout m
-
-  -- lookup Cookie header; if n/a, create fresh token and set it in response.
-  route Proxy a = WithRequest $ \request ->
-    case lookup "Cookie" (requestHeaders request) of
-      Just tok -> route (Proxy :: Proxy sublayout) . passToServer a . Token . cs $ tok
-      Nothing -> route (Proxy :: Proxy sublayout) $ (addCapture a' mkToken)
-        where
-          a' :: Delayed (Token -> ServerT sublayout)
-          a' = (passToServer a tok :: Delayed (ServerT sublayout)) --- and now stick tok into the header of this
+  route Proxy a = WithRequest $ \request -> route (Proxy :: Proxy sublayout)
+        $ passToServer a (Cookie . fromJust $ lookup "Cookie" $ requestHeaders request)
 
 
-mkToken :: IO (RouteResult Token)
-mkToken = return . Route . Token $ "bla"
+mkCookie :: IO Cookie
+mkCookie = return $ Cookie "bla"
 
-injectToken :: Token -> Response -> IO Response
-injectToken tok = return . mapResponseHeaders (tokenToHeader tok :)
 
--- PR for servant!!
-fmapRouter :: (Response -> IO (Response, Token)) -> Router -> IO (Router, Token)
-fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont <=< _)
-{-fmapRouter f (StaticRouter m) = StaticRouter (fmapRouter f <$> m)-}
-{-fmapRouter f (DynamicRouter d) = DynamicRouter (fmapRouter f <$> d)-}
-{-fmapRouter f (Choice r1 r2) = Choice (fmapRouter f r1) (fmapRouter f r2)-}
-{-fmapRouter f (WithRequest g) = WithRequest (fmapRouter f . g)-}
+midd :: Middleware
+midd app req respond = case lookup "Cookie" (requestHeaders req) of
+    Nothing -> do
+        newCookie <- mkCookie
+        app (req { requestHeaders = ("Cookie", unCookie newCookie):requestHeaders req}) (respond . injectCookie newCookie)
+    Just _  -> app req respond
+
+
+injectCookie :: Cookie -> Response -> Response
+injectCookie tok = mapResponseHeaders (cookieToHeader tok :)
+
 
 
 
