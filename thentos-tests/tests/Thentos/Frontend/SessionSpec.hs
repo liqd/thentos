@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 
-module Thentos.FrontendSpec where
+module Thentos.Frontend.SessionSpec where
 
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
@@ -13,6 +15,12 @@ import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
+import Test.Hspec.Wai
+import Network.Wai
+import Network.Wai.Test (simpleBody)
+import Servant
+import Data.Proxy
+import Network.HTTP.Types
 
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
@@ -31,14 +39,27 @@ import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
 
+import Thentos.Frontend.Session
+import Data.Aeson
 
 tests :: IO ()
 tests = hspec spec
 
+server1 :: Application
+server1 = serve (Proxy :: Proxy (Session :> Get '[JSON] Token)) return
+
 spec :: Spec
-spec = describe "session tests" $ do
-  describe "many tests" . around (withFrontendAndBackend "test_thentos") $ do
-    spec_createUser
-    spec_resetPassword
-    spec_logIntoThentos
-    spec_logOutOfThentos
+spec = describe "asdf-session-tests" . with (return server1) $ do
+    it "gets the token from the client cookie" $ do
+        request methodGet "" [("Cookie", "bla")] "" `shouldRespondWith` "\"bla\""
+
+    it "if no cookie is set, returns a fresh one" $ do
+        resp <- request methodGet "" [] ""
+        liftIO $ print (simpleBody resp)
+        liftIO $ (decode $ simpleBody resp) `shouldSatisfy` (\(Just (Token _)) -> True)  -- fails because of missing leniency
+
+    it "if no cookie is set, a fresh will be in the Set-Cookie header of the response" $ do
+        pending
+
+    it "cookies are fresh" $ do
+        pending

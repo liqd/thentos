@@ -29,8 +29,13 @@ flag with-thentos-executable
 flag with-build-docs-executable
   default: False
 
-flag development
-  default: False
+-- snap-development mode seems to have issues:
+-- https://groups.google.com/forum/#!topic/snap_framework/7fWgxMxjNWE
+-- https://groups.google.com/forum/#!topic/snap_framework/NnjKNYU5yeI
+-- https://groups.google.com/forum/#!topic/snap_framework/A459Gt8kr0U
+Flag snap-development
+  Description: build the snap frontend in development (interpreted) mode
+  Default: False
 
 library
   default-language:
@@ -42,11 +47,16 @@ library
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
-  if flag(development)
-    cpp-options: -DDEVELOPMENT
+  if flag(snap-development)
+    build-depends:
+      snap-loader-dynamic == 0.10.*
+    cpp-options: -DDEVELOPMENT -w
+    ghc-options: -w
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
     , LIO.Missing
+    , Snap.Inline
+    , Snap.Missing
     , System.Log.Missing
     , Thentos
     , ThentosDocs
@@ -61,10 +71,10 @@ library
     , Thentos.Backend.Core
     , Thentos.Config
     , Thentos.Frontend
+    , Thentos.Frontend.Session
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
-    , Thentos.Frontend.Session
     , Thentos.Frontend.Types
     , Thentos.Smtp
     , Thentos.Transaction
@@ -83,15 +93,13 @@ library
     , base >=4.8.1.0 && <5
     , blaze-html >=0.8.1.0 && <0.9
     , bytestring >=0.10.6.0 && <0.11
-    , bytestring-conversion >=0.3.1 && <0.4
     , case-insensitive >=1.2.0.4 && <1.3
-    , clientsession >=0.9 && <0.10
     , configifier >=0.0.5 && <0.1
     , containers >=0.5.6.2 && <0.6
-    , cookie >=0.4 && <0.5
-    , cryptonite >=0.7 && <0.8
+    , cryptonite >=0.6 && <0.7
     , digestive-functors >=0.8.0.0 && <0.9
     , digestive-functors-blaze >=0.6.0.6 && <0.7
+    , digestive-functors-snap >=0.6.1.3 && <0.7
     , directory >=1.2.2.0 && <1.3
     , either >=4.4.1 && <4.5
     , email-validate >=2.1.3 && <2.2
@@ -120,9 +128,11 @@ library
     , sandi >=0.3.5 && <0.4
     , scrypt >=0.5.0 && <0.6
     , servant ==0.5
-    , servant-blaze ==0.5
     , servant-docs ==0.5
     , servant-server ==0.5
+    , snap >=0.14.0.6 && <0.15
+    , snap-core >=0.9.8.0 && <0.10
+    , snap-server >=0.9.5.1 && <0.10
     , string-conversions >=0.4 && <0.5
     , text >=1.2.1.3 && <1.3
     , thyme >=0.3.5.5 && <0.4
@@ -153,8 +163,11 @@ executable thentos
   build-depends:
       base
     , thentos-core
-  if flag(development)
-    cpp-options: -DDEVELOPMENT
+  if flag(snap-development)
+    build-depends:
+      snap-loader-dynamic == 0.10.*
+    cpp-options: -DDEVELOPMENT -w
+    ghc-options: -w
 
 executable build-docs
   if flag(with-build-docs-executable)

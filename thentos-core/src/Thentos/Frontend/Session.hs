@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DeriveAnyClass      #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -19,17 +20,21 @@ import Data.Typeable (Typeable)
 import Data.String.Conversions (SBS)
 import GHC.TypeLits (Symbol, KnownSymbol, symbolVal)
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import Network.Wai (requestHeaders)
+import Network.Wai -- (requestHeaders)
 import Control.Monad.State
-import Web.ClientSession
-import Web.Cookie
+-- import Web.ClientSession
+-- import Web.Cookie
 import Servant
 import Servant.Server.Internal
+import Data.Aeson
+import GHC.Generics
+import Data.String.Conversions
 
 
 data Session
 
-newtype Token = Token SBS
+newtype Token = Token String
+  deriving (Eq, Show, Ord, Typeable, Generic, ToJSON, FromJSON)
 
 -- FIXME: is something like SessionPayload already in servant?  or is there an implicit error if decoding state fails?
 
@@ -44,14 +49,23 @@ instance ( HasServer sublayout
 
   -- lookup Cookie header; if n/a, create fresh token and set it in response.
   route Proxy a = WithRequest $ \request ->
-    route (Proxy :: Proxy sublayout) $ do
-      case lookup "Cookie" (requestHeaders request) of
-        Just tok -> passToServer a $ Token tok
-        Nothing -> do
-          passToServer a mkToken
+    case lookup "Cookie" (requestHeaders request) of
+      Just tok -> route (Proxy :: Proxy sublayout) . passToServer a . Token . cs $ tok
+      Nothing ->
+        let tok = mkToken in
+        fmapRouter (injectToken tok) . route (Proxy :: Proxy sublayout) . passToServer a $ tok
 
-mkToken :: Token
+mkToken :: Token  -- FIXME: IO Token
 mkToken = Token "bla"
+
+
+injectToken :: Token -> Response -> Response
+injectToken = error "easy!"
+
+-- PR for servant!!
+fmapRouter :: (Response -> Response) -> Router -> Router
+fmapRouter f (LeafRouter a) = LeafRouter $ \req cont -> a req (cont . (f <$>))
+
 
 {-
 createSession :: (p ~ SessionPayload payload, MonadState p m) => payload -> m ()
@@ -66,3 +80,7 @@ getSession = undefined
 modifySession :: (p ~ SessionPayload payload, MonadState p m) => (Maybe payload -> Maybe payload) -> m ()
 modifySession = undefined
 -}
+
+
+-- FIXME: EU bullshit
+-- FIXME: other use case: only set cookie on login page (this comes after what snap currently does.)

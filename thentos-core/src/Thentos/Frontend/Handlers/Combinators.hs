@@ -7,11 +7,9 @@
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Data.ByteString.Builder (toLazyByteString)
-import Control.Applicative (pure)
 import Control.Concurrent.MVar (MVar)
 import Control.Lens ((^.), (%~), (.~))
-import Control.Monad.Except (liftIO, throwError)
+import Control.Monad.Except (liftIO)
 import Control.Monad.State.Class (gets)
 import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.ByteString.Builder (Builder, toLazyByteString)
@@ -21,11 +19,18 @@ import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Data.Void (Void)
 import LIO.Error (AnyLabelError)
+import Snap.Core
+    ( getResponse, finishWith, urlEncode, getParam
+    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
+    )
+import Snap.Inline (blanketCSRF)
+import Snap.Snaplet (Handler, with)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, CRITICAL, INFO))
 import Text.Digestive.Form (Form)
+import Text.Digestive.Snap (runForm)
 import Text.Digestive.View (View)
-import Servant.Server
 import URI.ByteString
     ( parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef
     , URI(..), RelativeRef(..), URIParserOptions, Query(..)
@@ -35,6 +40,7 @@ import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
 import LIO.Missing
+import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
@@ -48,18 +54,18 @@ import Thentos.Util
 
 -- | Call 'buildDashboard' to consruct a dashboard page and render it
 -- into the application monad.
-renderDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FH H.Html
-renderDashboard tab pagelet = buildDashboard tab pagelet
+renderDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FH ()
+renderDashboard tab pagelet = buildDashboard tab pagelet >>= blaze
 
 -- | Like 'renderDashboard', but take a pagelet builder instead of a
 -- pagelet.
-renderDashboard' :: DashboardTab -> (User -> [Role] -> H.Html) -> FH H.Html
-renderDashboard' tab pagelet = buildDashboard tab pagelet
+renderDashboard' :: DashboardTab -> (User -> [Role] -> H.Html) -> FH ()
+renderDashboard' tab pagelet = buildDashboard tab pagelet >>= blaze
 
 -- | Take a dashboard tab and a pagelet, and consruct the dashboard
 -- page.
 buildDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FH H.Html
-buildDashboard tab pagelet = buildDashboard' tab (\ u -> pure . pagelet u)
+buildDashboard tab pagelet = buildDashboard' tab (\ u -> return . pagelet u)
 
 -- | Like 'buildDashboard', but take a pagelet builder instead of a
 -- pagelet.
@@ -73,7 +79,6 @@ buildDashboard' tab pageletBuilder = do
         dashboardPagelet msgs roles tab <$> pageletBuilder user roles
 
 
-{-
 -- * form rendering and processing
 
 -- | Take a form, a pagelet matching this form, a dashboard tab to render it in, and an action to be
@@ -103,11 +108,12 @@ runPageletForm' f buildPagelet tab = runPageForm' f buildPage
 -- | Full-page version of 'runPageletForm'.
 runPageForm :: forall v a .
        Form v FH a
-    -> (ST -> View v -> H.Html)
+    -> (ST -> ST -> View v -> H.Html)
     -> (a -> FH ())
     -> FH ()
 runPageForm f page a = do
-    runPageForm' f (\ formAction -> return . page formAction) a
+    tok <- with sess csrfToken
+    runPageForm' f (\ formAction -> return . page tok formAction) a
 
 -- | Full-page version of 'runPageletForm''.
 runPageForm' :: forall v a .
@@ -117,8 +123,8 @@ runPageForm' :: forall v a .
     -> FH ()
 runPageForm' f buildPage = runHandlerForm f handler
   where
-    handler :: ST -> View v -> FH H.Html
-    handler formAction view = buildPage formAction view
+    handler :: ST -> View v -> FH ()
+    handler formAction view = buildPage formAction view >>= blaze
 
 -- | Version of of 'runPageletForm'' that takes a handler rather than a pagelet, and calls that in
 -- order to render the empty form.  (For symmetry, the function name could be primed, but there is
@@ -135,16 +141,13 @@ runHandlerForm f handler a = do
         Nothing -> handler formAction view
         Just result -> logger DEBUG "[formDriver: action]" >> a result
 
--}
-
-
 
 -- * authentication
 
 -- | Call 'runAsUserOrNot', and redirect to login page if not logged
 -- in.
 runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FH a) -> FH a
-runAsUser = (`runAsUserOrNot` redirectSBS "/user/login")
+runAsUser = (`runAsUserOrNot` redirect' "/user/login" 303)
 
 -- | Runs a given handler with the credentials and the session data of
 -- the currently logged-in user.  If not logged in, call a default
@@ -160,14 +163,6 @@ runAsUserOrNot loggedInHandler loggedOutHandler = do
             loggedInHandler sessionData sessionLoginData
         Nothing -> loggedOutHandler
 
-popAllFrontendMsgs = undefined
-snapRunAction = undefined
-getSessionData = undefined
-
-
-
-
-{-
 
 -- * session management
 
@@ -265,20 +260,6 @@ permissionDenied labelError = do
     getResponse >>= finishWith
 
 
-
--- | This function handles particular error cases for the frontend and propagates others in 'Left'
--- values.
-snapHandleSomeErrors :: Either (ActionError Void) a -> FH (Either (ActionError Void) a)
-snapHandleSomeErrors (Right v) = return $ Right v
-snapHandleSomeErrors (Left e) = case e of
-    ActionErrorAnyLabel labelError -> permissionDenied labelError
-    _ -> return $ Left e
-
-
-
-
-
-
 -- * uri manipulation
 
 urlConfirm :: HttpConfig -> ST -> ST -> ST
@@ -288,21 +269,84 @@ urlConfirm feConfig path token = exposeUrl feConfig <//> toST ref
     query = [("token", urlEncode . encodeUtf8 $ token)]
     toST  = cs . toLazyByteString . serializeRelativeRef
 
--}
-
-redirectRR :: RelativeRef -> FH a
-redirectRR = throwError . OtherError . FrontendErrorRedirectRR
-
 redirectURI :: URI -> FH ()
-redirectURI = throwError . OtherError . FrontendErrorRedirectURI
+redirectURI ref = redirect' (cs . toLazyByteString . serializeURI $ ref) 303
 
-{-
+redirectRR :: RelativeRef -> FH ()
+redirectRR ref = redirect' (cs . toLazyByteString . serializeRelativeRef $ ref) 303
 
 
+tweakRelativeRqRef :: (RelativeRef -> RelativeRef) -> FH SBS
+tweakRelativeRqRef tweak = getsRequest rqURI >>= tweakRelativeRef tweak
+
+tweakRelativeRef :: (RelativeRef -> RelativeRef) -> SBS -> FH SBS
+tweakRelativeRef = _tweakURI parseRelativeRef serializeRelativeRef
+
+tweakURI :: (URI -> URI) -> SBS -> FH SBS
+tweakURI = _tweakURI parseURI serializeURI
+
+_tweakURI :: forall e t t' . (Show e) =>
+                   (URIParserOptions -> SBS -> Either e t)
+                -> (t' -> Builder)
+                -> (t -> t')
+                -> SBS
+                -> FH SBS
+_tweakURI parse serialize tweak uriBS = either er ok $ parse laxURIParserOptions uriBS
+  where
+    ok = return . cs . toLazyByteString . serialize . tweak
+    er = crash500 . ("_tweakURI" :: ST, uriBS,)
 
 
-{-
+-- * actions vs. snap
 
+-- | Like 'snapRunActionE', but sends a snap error response in case of error rather than returning a
+-- left value.
+snapRunAction :: Action Void a -> FH a
+snapRunAction = (>>= snapHandleAllErrors) . snapRunActionE
+
+snapRunAction'P :: Action Void a -> FH a
+snapRunAction'P = (>>= snapHandleAllErrors) . snapRunActionE'P
+
+-- | Call 'snapHandleSomeErrors', and if error is still unhandled, call 'crash500'.
+snapHandleAllErrors :: Either (ActionError Void) a -> FH a
+snapHandleAllErrors eth = do
+    result <- snapHandleSomeErrors eth
+    case result of
+        Right val -> return val
+        Left err -> crash500 err
+
+getActionState :: FH ActionState
+getActionState = do
+    pool <- gets (^. connPool)
+    rn :: MVar ChaChaDRG <- gets (^. rng)
+    cf :: ThentosConfig  <- gets (^. cfg)
+    return $ ActionState (pool, rn, cf)
+
+-- | Run action with the clearance derived from thentos session token.
+snapRunActionE :: Action Void a -> FH (Either (ActionError Void) a)
+snapRunActionE action = do
+    st :: ActionState         <- getActionState
+    fs :: FrontendSessionData <- getSessionData
+
+    result <- case (^. fslToken) <$> fs ^. fsdLogin of
+        Just tok -> liftIO $ runActionInThentosSessionE tok st action
+        Nothing  -> liftIO $ runActionE                     st action
+    snapHandleSomeErrors result
+
+-- | Call action with top clearance.
+snapRunActionE'P :: Action Void a -> FH (Either (ActionError Void) a)
+snapRunActionE'P action = do
+    st :: ActionState <- getActionState
+    result <- liftIO $ runActionWithClearanceE dcTop st action
+    snapHandleSomeErrors result
+
+-- | This function handles particular error cases for the frontend and propagates others in 'Left'
+-- values.
+snapHandleSomeErrors :: Either (ActionError Void) a -> FH (Either (ActionError Void) a)
+snapHandleSomeErrors (Right v) = return $ Right v
+snapHandleSomeErrors (Left e) = case e of
+    ActionErrorAnyLabel labelError -> permissionDenied labelError
+    _ -> return $ Left e
 
 -- | Wraps the top-level handler to prevent cross-site request forgery
 csrfify :: FH () -> FH ()
@@ -314,86 +358,3 @@ csrfify handler = do
         -- http://security.stackexchange.com/questions/8446/how-should-a-web-page-respond-to-a-csrf-attack
         Just _ -> blanketCSRF sess (crash 500 "csrf badness") handler
         Nothing -> handler
-
-
-
-
-
-{-# LANGUAGE OverloadedStrings #-}
-
--- | The contents of this module are copied from the snap-extras package to
--- avoid several large dependencies of snap-extras that we're not using at all.
-module Snap.Inline (blanketCSRF, handleCSRF) where
-
-import qualified Data.ByteString.Char8 as B
-import qualified Data.Text.Encoding    as T
-import           Snap
-import           Snap.Snaplet.Session
-
-------------------------------------------------------------------------------
--- | Use this function to wrap your whole site with CSRF protection.  Due to
--- security considerations, the way Snap parses file uploads
--- means that the CSRF token cannot be checked before the file uploads have
--- been handled.  This function protects your whole site except for handlers
--- of multipart/form-data forms (forms with file uploads).  To protect those
--- handlers, you have to call handleCSRF explicitly after the file has been
--- processed.
-blanketCSRF :: SnapletLens v SessionManager
-            -- ^ Lens to the session snaplet
-            -> Handler b v ()
-            -- ^ Handler to run if the CSRF check fails
-            -> Handler b v ()
-            -- ^ Handler to let through when successful.
-            -> Handler b v ()
-blanketCSRF session onFailure onSucc = do
-    h <- getHeader "content-type" `fmap` getRequest
-    if maybe False (B.isInfixOf "multipart/form-data") h
-      then onSucc
-      else handleCSRF session onFailure onSucc
-
-
-------------------------------------------------------------------------------
--- | If a request is a POST, check the CSRF token and fail with the specified
--- handler if the check fails.  If if the token is correct or if it's not a
--- POST request, then control passes through as a no-op.
-handleCSRF :: SnapletLens v SessionManager
-           -- ^ Lens to the session snaplet
-           -> Handler b v ()
-           -- ^ Handler to run on failure
-           -> Handler b v ()
-           -- ^ Handler to let through when successful.
-           -> Handler b v ()
-handleCSRF session onFailure onSucc = do
-    m <- getsRequest rqMethod
-    if m /= POST
-      then onSucc
-      else do
-        tok <- getParam "_csrf"
-        realTok <- with session csrfToken
-        if tok == Just (T.encodeUtf8 realTok)
-          then onSucc
-          else onFailure >> getResponse >>= finishWith
-
-
-
--
---- | Write some 'Html' as response.  We use pretty printing instead of
---- 'Text.Blaze.Html.Renderer.Utf8.renderHtml'.  This may even be a good idea in production, because
---- it makes things more transparent while it is not clear how much performance improvement can come
---- from killing all the redundant whitespace.  (If we only didn't have to go through 'String'..)
----
---- (Missing in "Snap.Blaze"; package snap-blaze.)
----
---- No pull request has been made for this.  snap-blaze contains nothing beyond this function, and we
---- can afford inlining it.
--blaze :: MonadSnap m => Html -> m ()
--blaze response = do
--    modifyResponse $ addHeader "Content-Type" "text/html; charset=UTF-8"
--    writeText . cs $ Text.Blaze.Html.Renderer.Pretty.renderHtml response
-
-
-
-
-
--}
--}
