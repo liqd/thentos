@@ -121,7 +121,7 @@ cxtDesc = "A simple sample context"
 cxtUrl :: ProxyUri
 cxtUrl = ProxyUri "example.org" 80 "/kiezkasse"
 
-persName :: ST
+persName :: PersonaName
 persName = "MyOtherSelf"
 
 

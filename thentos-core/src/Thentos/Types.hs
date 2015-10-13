@@ -221,9 +221,13 @@ newtype PersonaId = PersonaId { fromPersonaId :: Integer }
     deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
               FromField, ToField)
 
+newtype PersonaName = PersonaName { fromPersonaName :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
 data Persona = Persona
   { _personaId   :: PersonaId
-  , _personaName :: ST
+  , _personaName :: PersonaName
   , _personaUid  :: UserId
   } deriving (Eq, Show, Typeable, Generic)
 

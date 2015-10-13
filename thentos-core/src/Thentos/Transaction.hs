@@ -13,7 +13,6 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..))
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
-import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 
 import Thentos.Types
@@ -273,7 +272,7 @@ unregisterUserFromService uid sid = void $
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
-addPersona :: ST -> UserId -> ThentosQuery e Persona
+addPersona :: PersonaName -> UserId -> ThentosQuery e Persona
 addPersona name uid = do
     res <- queryT [sql| INSERT INTO personas (name, uid) VALUES (?, ?) RETURNING id |]
                   (name, uid)
