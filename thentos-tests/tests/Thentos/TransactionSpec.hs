@@ -10,7 +10,7 @@ import Data.Either (isRight)
 import Data.List (sort)
 import Data.Pool (Pool)
 import Data.String.Conversions (ST, SBS)
-import Database.PostgreSQL.Simple (Connection, Only(..), Query)
+import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn, shouldSatisfy)
 
@@ -197,9 +197,7 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
         [Only confirmed] <- doQuery connPool
             [sql| SELECT confirmed FROM users WHERE id = ? |] (Only uid)
         confirmed `shouldBe` True
-        [Only tokenCount] <- doQuery_ connPool
-            [sql| SELECT COUNT(*) FROM user_confirmation_tokens |]
-        tokenCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "user_confirmation_tokens" 0
 
     it "fails if the given token does not exist" $ \connPool -> do
         Right uid <- runQuery connPool $ addUnconfirmedUser token testUser
@@ -462,8 +460,7 @@ addServiceSpec :: SpecWith (Pool Connection)
 addServiceSpec = describe "addService" $ do
     it "adds a service to the db" $ \connPool -> do
         Right _ <- runThentosQueryFromPool connPool $ addUserPrim (Just uid) user True
-        [Only serviceCount] <- doQuery connPool countServices ()
-        serviceCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "services" 0
         Right _ <- runThentosQueryFromPool connPool $
             addService (UserA uid) sid testHashedSecret name description
         [(owner', sid', key', name', desc')] <- doQuery connPool
@@ -483,10 +480,7 @@ addServiceSpec = describe "addService" $ do
             addService (UserA testUid) sid testHashedSecret name description
         Right _ <- runThentosQueryFromPool connPool $
             addService (ServiceA sid) childSid testHashedSecret childName "foo"
-
-        [Only serviceCount] <- doQuery connPool countServices ()
-        serviceCount `shouldBe` (2 :: Int)
-
+        rowCountShouldBe connPool "services" 2
         [(sid', name')] <- doQuery connPool
             [sql| SELECT id, name
                   FROM services
@@ -500,7 +494,6 @@ addServiceSpec = describe "addService" $ do
     user = mkUser "name" "super secret" "me@example.com"
     name = ServiceName "MyLittleService"
     description = ServiceDescription "it serves"
-    countServices = [sql| SELECT COUNT(*) FROM services |]
 
 deleteServiceSpec :: SpecWith (Pool Connection)
 deleteServiceSpec = describe "deleteService" $ do
@@ -509,8 +502,7 @@ deleteServiceSpec = describe "deleteService" $ do
         Right _ <- runThentosQueryFromPool connPool $
             addService (UserA testUid) sid testHashedSecret "" ""
         Right _ <- runThentosQueryFromPool connPool $ deleteService sid
-        [Only serviceCount] <- doQuery connPool [sql| SELECT COUNT(*) FROM services |] ()
-        serviceCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "services" 0
 
     it "fails if the service doesn't exist" $ \connPool -> do
         Left NoSuchService <- runThentosQueryFromPool connPool $ deleteService sid
@@ -665,8 +657,7 @@ startServiceSessionSpec = describe "startServiceSession" $ do
             addService (UserA testUid) sid testHashedSecret "" ""
         void $ runQuery connPool $
             startServiceSession thentosSessionToken serviceSessionToken sid period
-        [Only count] <- doQuery_ connPool [sql| SELECT COUNT(*) FROM service_sessions |]
-        count `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "service_sessions" 1
   where
     period = fromMinutes 1
     thentosSessionToken = "foo"
@@ -683,14 +674,10 @@ endServiceSessionSpec = describe "endServiceSession" $ do
             addService (UserA testUid) sid testHashedSecret "" ""
         void $ runQuery connPool $
             startServiceSession thentosSessionToken serviceSessionToken sid period
-        [Only count] <- doQuery_ connPool countSessions
-        count `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "service_sessions" 1
         void $ runQuery connPool $ endServiceSession serviceSessionToken
-        [Only count'] <- doQuery_ connPool countSessions
-        count' `shouldBe` (0 :: Int)
-        return ()
+        rowCountShouldBe connPool "service_sessions" 0
   where
-    countSessions = [sql| SELECT COUNT(*) FROM service_sessions |]
     period = fromMinutes 1
     thentosSessionToken = "foo"
     serviceSessionToken = "bar"
@@ -725,19 +712,11 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
 
 -- * persona and context
 
--- | Some helper SQL queries.
-countContexts :: Query
-countContexts = [sql| SELECT COUNT(*) FROM contexts |]
-
-countPersonas :: Query
-countPersonas = [sql| SELECT COUNT(*) FROM personas |]
-
 addPersonaSpec :: SpecWith (Pool Connection)
 addPersonaSpec = describe "addPersona" $ do
     it "adds a persona to the DB" $ \connPool -> do
         Right uid <- runQuery connPool $ addUser (head testUsers)
-        [Only personaCount] <- doQuery connPool countPersonas ()
-        personaCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "personas" 0
         Right persona <- runThentosQueryFromPool connPool $ addPersona persName uid
         persona ^. personaName `shouldBe` persName
         persona ^. personaUid `shouldBe` uid
@@ -760,12 +739,10 @@ deletePersonaSpec :: SpecWith (Pool Connection)
 deletePersonaSpec = describe "deletePersona" $ do
     it "deletes a persona" $ \connPool -> do
         Right uid <- runQuery connPool $ addUser (head testUsers)
-        [Only personaCount] <- doQuery connPool countPersonas ()
-        personaCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "personas" 0
         Right persona <- runThentosQueryFromPool connPool $ addPersona persName uid
         Right () <- runQuery connPool . deletePersona $ persona ^. personaId
-        [Only personaCount'] <- doQuery connPool countPersonas ()
-        personaCount' `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "personas" 0
 
     it "throws NoSuchPersona if the persona does not exist" $ \connPool -> do
         Left err <- runQuery connPool . deletePersona $ PersonaId 5432
@@ -777,8 +754,7 @@ addContextSpec = describe "addContext" $ do
         Right uid <- runQuery connPool $ addUser (head testUsers)
         Right ()  <- runQuery connPool $
                         addService (UserA uid) servId testHashedSecret "sName" "sDescription"
-        [Only contextCount] <- doQuery connPool countContexts ()
-        contextCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "contexts" 0
         Right cxt <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
         cxt ^. contextService `shouldBe` servId
         cxt ^. contextName `shouldBe` cxtName
@@ -810,12 +786,10 @@ deleteContextSpec = describe "deleteContext" $ do
         Right uid <- runQuery connPool $ addUser (head testUsers)
         Right ()  <- runQuery connPool $
                         addService (UserA uid) servId testHashedSecret "sName" "sDescription"
-        [Only contextCount] <- doQuery connPool countContexts ()
-        contextCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "contexts" 0
         Right cxt <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()  <- runThentosQueryFromPool connPool . deleteContext $ cxt ^. contextId
-        [Only contextCount'] <- doQuery connPool countContexts ()
-        contextCount' `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "contexts" 0
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
         Left err <- runQuery connPool . deleteContext $ ContextId 1525
@@ -894,12 +868,10 @@ unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
         entryCount' `shouldBe` (0 :: Int)
 
     it "is a no-op if persona and context don't exist" $ \connPool -> do
-        [Only entryCount] <- doQuery connPool [sql| SELECT COUNT(*) FROM personas_per_context |] ()
-        entryCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "personas_per_context" 0
         Right ()      <- runThentosQueryFromPool connPool . unregisterPersonaFromContext
                             (PersonaId 5432) $ ContextId 1525
-        [Only entryCount'] <- doQuery connPool [sql| SELECT COUNT(*) FROM personas_per_context |] ()
-        entryCount' `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "personas_per_context" 0
 
   where
     countEntries = [sql| SELECT COUNT(*) FROM personas_per_context WHERE context_id = ? |]
@@ -966,18 +938,14 @@ garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userId1
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token2 user2 userId2
         Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromSeconds 0
-        [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
-        [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
-        tkns `shouldBe` (0 :: Int)
-        usrs `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "user_confirmation_tokens" 0
+        rowCountShouldBe connPool "users" 0
 
     it "only deletes expired unconfirmed users" $ \connPool -> do
         Right () <- runQuery connPool $ addUnconfirmedUserWithId token1 user1 userId1
         Right () <- runQuery connPool $ garbageCollectUnconfirmedUsers $ fromHours 1
-        [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM user_confirmation_tokens |]
-        [Only usrs] <- doQuery_ connPool [sql| SELECT count(*) FROM "users" |]
-        tkns `shouldBe` (1 :: Int)
-        usrs `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "user_confirmation_tokens" 1
+        rowCountShouldBe connPool "users" 1
 
 garbageCollectPasswordResetTokensSpec :: SpecWith (Pool Connection)
 garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
@@ -989,18 +957,15 @@ garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTok
     it "deletes all expired tokens" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         void $ runQuery connPool $ addPasswordResetToken email passToken
-        [Only tkns] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "password_reset_tokens" 1
         Right () <- runQuery connPool $ garbageCollectPasswordResetTokens $ fromSeconds 0
-        [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns' `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "password_reset_tokens" 0
 
     it "only deletes expired tokens" $ \connPool -> do
         void $ runQuery connPool $ addUserPrim (Just userId) user True
         void $ runQuery connPool $ addPasswordResetToken email passToken
         void $ runQuery connPool $ garbageCollectPasswordResetTokens $ fromHours 1
-        [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM password_reset_tokens |]
-        tkns' `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "password_reset_tokens" 1
 
 garbageCollectEmailChangeTokensSpec :: SpecWith (Pool Connection)
 garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens" $ do
@@ -1010,18 +975,15 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
     it "deletes all expired tokens" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
-        [Only tokenCount] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
-        tokenCount `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "email_change_tokens" 1
         Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromSeconds 0
-        [Only tokenCount'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
-        tokenCount' `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "email_change_tokens" 0
 
     it "only deletes expired tokens" $ \connPool -> do
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ addUserEmailChangeRequest testUid newEmail token
         Right () <- runQuery connPool $ garbageCollectEmailChangeTokens $ fromHours 1
-        [Only tkns'] <- doQuery_ connPool [sql| SELECT count(*) FROM email_change_tokens |]
-        tkns' `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "email_change_tokens" 1
 
 garbageCollectThentosSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
@@ -1030,16 +992,14 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) immediateTimeout
         Right () <- runQuery connPool garbageCollectThentosSessions
-        [Only sessionCount] <- doQuery_ connPool [sql| SELECT count(*) FROM thentos_sessions |]
-        sessionCount `shouldBe` (0 :: Int)
+        rowCountShouldBe connPool "thentos_sessions" 0
 
     it "doesn't delete active sessions" $ \connPool -> do
         let timeout = fromMinutes 1
         Right _ <- runQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runQuery connPool $ startThentosSession token (UserA testUid) timeout
         Right () <- runQuery connPool garbageCollectThentosSessions
-        [Only sessionCount] <- doQuery_ connPool [sql| SELECT count(*) FROM thentos_sessions |]
-        sessionCount `shouldBe` (1 :: Int)
+        rowCountShouldBe connPool "thentos_sessions" 1
 
   where
     token = "thentos session token"
