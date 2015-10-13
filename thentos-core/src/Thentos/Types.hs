@@ -24,6 +24,7 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
+import Data.Function (on)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -252,7 +253,7 @@ data Context = Context
   } deriving (Eq, Show, Typeable, Generic)
 
 instance Ord Context where
-    compare cxt1 cxt2 = compare (_contextId cxt1) (_contextId cxt2)
+    compare = compare `on` _contextId
 
 -- * thentos and service session
 
