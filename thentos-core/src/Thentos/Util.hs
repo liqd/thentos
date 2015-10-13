@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE ViewPatterns        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
@@ -12,7 +11,6 @@ module Thentos.Util
     , makeUserFromFormData
     , cshow
     , readsPrecEnumBoundedShow
-    , (<//>)
     , fmapLM
     , fmapLTM
 ) where
@@ -20,11 +18,10 @@ module Thentos.Util
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
-import Data.String.Conversions (ConvertibleStrings, ST, cs, (<>))
+import Data.String.Conversions (ConvertibleStrings, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 
 import qualified Crypto.Scrypt as Scrypt
-import qualified Data.Text as ST
 
 import Thentos.Types
 
@@ -84,16 +81,6 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
         (s0, s1) -> if s0 == s' then [(x, s1)] else f xs
       where
         s' = show x
-
-
--- | Path concatenation for avoiding double slashes in paths.  One
--- optional '/' trailing left side / leading right side is removed,
--- and one '/' is inserted.
-(<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
-(cs -> p) <//> (cs -> p') = cs $ q <> "/" <> q'
-  where
-    q  :: ST = if "/" `ST.isSuffixOf` p  then ST.init p  else p
-    q' :: ST = if "/" `ST.isPrefixOf` p' then ST.tail p' else p'
 
 
 -- | Like 'fmapL' from "Data.EitherR", but with the update of the

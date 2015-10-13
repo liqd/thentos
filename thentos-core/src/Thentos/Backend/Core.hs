@@ -133,6 +133,13 @@ thentosErrorInfo other e = f e
         (Nothing, err400, "thentos session not found")
     f NoSuchServiceSession =
         (Nothing, err400, "service session not found")
+    f NoSuchPersona =
+        (Nothing, err400, "persona not found")
+    f NoSuchContext =
+        (Nothing, err400, "context not found")
+    f MultiplePersonasPerContext =
+        (Nothing, err400, "Sybil attack prevention: "
+            <> "cannot register multiple personas of the same user for the same context")
     f OperationNotPossibleInServiceSession =
         (Nothing, err404, "operation not possible in service session")
     f ServiceAlreadyExists =
@@ -145,6 +152,10 @@ thentosErrorInfo other e = f e
         (Nothing, err403, "user name already in use")
     f UserIdAlreadyExists =    -- must be prevented earlier on
         (Just (ERROR, ppShow e), err500, "internal error")
+    f PersonaNameAlreadyExists =
+        (Nothing, err403, "persona name already in use")
+    f ContextNameAlreadyExists =
+        (Nothing, err403, "context name already in use")
     f BadCredentials =
         (Just (INFO, show e), err401, "unauthorized")
     f BadAuthenticationHeaders =

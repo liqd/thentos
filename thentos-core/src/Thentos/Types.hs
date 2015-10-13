@@ -19,10 +19,12 @@
 module Thentos.Types where
 
 import Control.Exception (Exception)
-import Control.Lens (makeLenses)
 import Control.Monad (when, unless, mzero)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Lens (makeLenses)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
+import Data.Function (on)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -32,7 +34,7 @@ import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.String (IsString)
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
@@ -48,9 +50,10 @@ import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 
-import qualified Data.HashMap.Strict as H
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.HashMap.Strict as H
+import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
 
 
@@ -88,10 +91,12 @@ newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText, FromField, ToField)
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
 
 newtype UserName = UserName { fromUserName :: ST }
-    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField, ToField)
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
 
 -- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
@@ -210,6 +215,45 @@ data GroupNode =
 instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 
+
+-- * persona and context
+
+newtype PersonaId = PersonaId { fromPersonaId :: Integer }
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
+
+newtype PersonaName = PersonaName { fromPersonaName :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
+data Persona = Persona
+  { _personaId   :: PersonaId
+  , _personaName :: PersonaName
+  , _personaUid  :: UserId
+  } deriving (Eq, Show, Typeable, Generic)
+
+newtype ContextId = ContextId { fromContextId :: Integer }
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+              FromField, ToField)
+
+newtype ContextName = ContextName { fromContextName :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
+newtype ContextDescription = ContextDescription { fromContextDescription :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
+              ToField)
+
+data Context = Context
+  { _contextId          :: ContextId
+  , _contextService     :: ServiceId
+  , _contextName        :: ContextName
+  , _contextDescription :: ContextDescription
+  , _contextUrl         :: ProxyUri
+  } deriving (Eq, Show, Typeable, Generic)
+
+instance Ord Context where
+    compare = compare `on` _contextId
 
 -- * thentos and service session
 
@@ -421,39 +465,65 @@ data ProxyUri = ProxyUri { proxyHost :: SBS
                          }
     deriving (Eq, Typeable, Generic)
 
+renderProxyUri :: ProxyUri -> ST
+renderProxyUri (ProxyUri host port path) = "http://" <> host' <> port' <//> cs path
+  where
+    host' :: ST = stripTrailingSlash $ cs host
+    port' :: ST = if port == 80 then "" else cs $ ':' : show port
+
+parseProxyUri :: forall m . MonadError String m => ST -> m ProxyUri
+parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
+    Right uri -> do
+        when (schemeBS (uriScheme uri) /= "http") $ _fail "Expected http schema"
+        unless (null . queryPairs $ uriQuery uri) $ _fail "No query part allowed"
+        unless (isNothing $ uriFragment uri) $ _fail "No URI fragment allowed"
+        auth <- maybe (_fail "Missing URI authority") return $ uriAuthority uri
+        let host = authorityHost auth
+            port = fromMaybe 80 $ portNumber <$> authorityPort auth
+        return ProxyUri { proxyHost = hostBS host
+                        , proxyPort = port
+                        , proxyPath = uriPath uri
+                        }
+    Left err -> _fail $ "Invalid URI: " ++ show err
+  where
+    _fail :: String -> m a
+    _fail = throwError . ("parseProxyURI: " ++)
 
 instance Aeson.FromJSON ProxyUri
   where
-    parseJSON (String t) = case parseURI laxURIParserOptions $ cs t of
-        Right uri -> do
-            when (schemeBS (uriScheme uri) /= "http") mzero
-            unless (null . queryPairs $ uriQuery uri) mzero
-            unless (isNothing $ uriFragment uri) mzero
-            auth <- maybe mzero return $ uriAuthority uri
-            let host = authorityHost auth
-                port = fromMaybe 80 $ portNumber <$> authorityPort auth
-            return ProxyUri { proxyHost = hostBS host
-                            , proxyPort = port
-                            , proxyPath = uriPath uri
-                            }
-        Left _ -> mzero
+    parseJSON (String t) = either fail return $ parseProxyUri t
     parseJSON bad        = fail $ "Not a valid URI (expected string): " ++ show bad
 
 instance Aeson.ToJSON ProxyUri where
-    toJSON (ProxyUri host port path) = Aeson.String $ cs host
-                                                   <> cs (show port)
-                                                   <> cs path
+    toJSON = Aeson.String . renderProxyUri
 
 instance Show ProxyUri where
-    show (ProxyUri host port path) = "http://" ++ host' ++ port' ++ path'
-        where
-            path' = case cs path of
-                a@('/' : _) -> a
-                a           -> '/' : a
-            port' = ':' : show port
-            host' = case reverse (cs host) of
-                ('/':xs) -> reverse xs
-                _        -> cs host
+    show = cs . renderProxyUri
+
+instance FromField ProxyUri where
+    fromField f Nothing = returnError UnexpectedNull f ""
+    fromField f (Just bs) = case parseProxyUri $ cs bs of
+        Left err  -> returnError ConversionFailed f err
+        Right uri -> return uri
+
+instance ToField ProxyUri where
+    toField = toField . renderProxyUri
+
+-- | Strip an optional slash from the start of a text. If the text doesn't start with a slash,
+-- it is returned unchanged.
+stripLeadingSlash :: ST -> ST
+stripLeadingSlash p = if "/" `ST.isPrefixOf` p then ST.tail p else p
+
+-- | Strip an optional slash from the end of a text. If the text doesn't end in a slash,
+-- it is returned unchanged.
+stripTrailingSlash :: ST -> ST
+stripTrailingSlash p = if "/" `ST.isSuffixOf` p then ST.init p else p
+
+-- | Path concatenation for avoiding double slashes in paths.  One
+-- optional '/' trailing left side / leading right side is removed,
+-- and one '/' is inserted.
+(<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
+(cs -> p) <//> (cs -> p') = cs $ stripTrailingSlash p <> "/" <> stripLeadingSlash p'
 
 
 -- * errors
@@ -466,12 +536,17 @@ data ThentosError e =
     | NoSuchService
     | NoSuchThentosSession
     | NoSuchServiceSession
+    | NoSuchPersona
+    | NoSuchContext
+    | MultiplePersonasPerContext
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
     | UserIdAlreadyExists
+    | PersonaNameAlreadyExists
+    | ContextNameAlreadyExists
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
@@ -489,6 +564,8 @@ instance (Show e, Typeable e) => Exception (ThentosError e)
 
 -- * boilerplate
 
+makeLenses ''Persona
+makeLenses ''Context
 makeLenses ''Service
 makeLenses ''ServiceAccount
 makeLenses ''ServiceSession

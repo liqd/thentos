@@ -47,7 +47,6 @@ import Thentos.Config
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
 import Thentos.Types
-import Thentos.Util
 
 
 -- * dashboard construction

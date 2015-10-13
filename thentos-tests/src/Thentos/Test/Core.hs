@@ -107,6 +107,24 @@ encryptTestSecret pw =
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 
+-- * Sample data for making services, contexts, and personas
+
+servId :: ServiceId
+servId = "sid"
+
+cxtName :: ContextName
+cxtName = "Kiezkasse"
+
+cxtDesc :: ContextDescription
+cxtDesc = "A simple sample context"
+
+cxtUrl :: ProxyUri
+cxtUrl = ProxyUri "example.org" 80 "/kiezkasse"
+
+persName :: PersonaName
+persName = "MyOtherSelf"
+
+
 -- * test logger
 
 -- | Run an action, logging everything with 'DEBUG' level to a temp file.

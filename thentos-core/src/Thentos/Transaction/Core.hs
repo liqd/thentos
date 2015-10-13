@@ -72,14 +72,25 @@ execT q x = do
 -- | Convert known SQL constraint errors to 'ThentosError', rethrowing unknown
 -- ones.
 catcher :: MonadBaseControl IO m => SqlError -> ConstraintViolation -> m (Either (ThentosError e) a)
-catcher _ (UniqueViolation "users_pkey")      = return $ Left UserIdAlreadyExists
-catcher _ (UniqueViolation "users_name_key")  = return $ Left UserNameAlreadyExists
-catcher _ (UniqueViolation "users_email_key") = return $ Left UserEmailAlreadyExists
-catcher _ (UniqueViolation "user_confirmation_tokens_token_key")
-    = return $ Left ConfirmationTokenAlreadyExists
-catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = return $ Left NoSuchUser
-catcher _ (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey") = return $ Left NoSuchService
-catcher e _                                   = throwIO e
+catcher e = f
+  where
+    r = return . Left
+
+    f (UniqueViolation "users_pkey") = r UserIdAlreadyExists
+    f (UniqueViolation "users_name_key") = r UserNameAlreadyExists
+    f (UniqueViolation "users_email_key") = r UserEmailAlreadyExists
+    f (UniqueViolation "personas_name_key") = r PersonaNameAlreadyExists
+    f (UniqueViolation "contexts_name_key") = r ContextNameAlreadyExists
+    f (UniqueViolation "user_confirmation_tokens_token_key") = r ConfirmationTokenAlreadyExists
+    f (ForeignKeyViolation "personas" "personas_uid_fkey") = r NoSuchUser
+    f (ForeignKeyViolation "contexts" "contexts_owner_service_fkey") = r NoSuchService
+    f (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = r NoSuchUser
+    f (ForeignKeyViolation "thentos_sessions" "thentos_sessions_sid_fkey") = r NoSuchService
+    f (ForeignKeyViolation "personas_per_context" "personas_per_context_persona_id_fkey") =
+        r NoSuchPersona
+    f (ForeignKeyViolation "personas_per_context" "personas_per_context_context_id_fkey") =
+        r NoSuchContext
+    f _ = throwIO e
 
 -- | Like @postgresql-simple@'s 'catchViolation', but generalized to
 -- @MonadBaseControl IO m@
