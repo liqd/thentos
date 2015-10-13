@@ -4,7 +4,6 @@
 
 module Thentos.TransactionSpec (spec) where
 
-import qualified Data.Set as Set
 import Control.Lens ((^.))
 import Control.Monad (void)
 import Data.Either (isRight)
@@ -13,8 +12,9 @@ import Data.Pool (Pool)
 import Data.String.Conversions (ST, SBS)
 import Database.PostgreSQL.Simple (Connection, Only(..), Query)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
-import Test.Hspec (Spec, SpecWith, before, describe, it, pendingWith, shouldBe, shouldReturn,
-                   shouldSatisfy)
+import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn, shouldSatisfy)
+
+import qualified Data.Set as Set
 
 import Thentos.Transaction
 import Thentos.Types
@@ -928,9 +928,27 @@ findPersonaSpec = describe "findPersona" $ do
 
 contextsForServiceSpec :: SpecWith (Pool Connection)
 contextsForServiceSpec = describe "contextsForService" $ do
-    it "TODO" $ \_connPool -> do
-        pendingWith "not yet implemented"
+    it "finds contexts registered for a service" $ \connPool -> do
+        Right uid  <- runQuery connPool $ addUser (head testUsers)
+        Right ()   <- runQuery connPool $
+                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+        Right cxt1 <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt2 <- runThentosQueryFromPool connPool $ addContext servId "MeinMoabit"
+                            "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
+        Right contexts <- runThentosQueryFromPool connPool $ contextsForService servId
+        Set.fromList contexts `shouldBe` Set.fromList [cxt1, cxt2]
 
+    it "doesn't return contexts registered for other services" $ \connPool -> do
+        Right uid  <- runQuery connPool $ addUser (head testUsers)
+        Right ()   <- runQuery connPool $
+                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+        Right ()   <- runQuery connPool $
+                            addService (UserA uid) "sid2" testHashedSecret "s2Name" "s2Description"
+        Right _    <- runThentosQueryFromPool connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right _    <- runThentosQueryFromPool connPool $ addContext servId "MeinMoabit"
+                            "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
+        Right contexts <- runThentosQueryFromPool connPool $ contextsForService "sid2"
+        contexts `shouldBe` []
 
 -- * Garbage collection
 

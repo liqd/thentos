@@ -247,6 +247,8 @@ data Context = Context
   , _contextUrl         :: ProxyUri
   } deriving (Eq, Show, Typeable, Generic)
 
+instance Ord Context where
+    compare cxt1 cxt2 = compare (_contextId cxt1) (_contextId cxt2)
 
 -- * thentos and service session
 
