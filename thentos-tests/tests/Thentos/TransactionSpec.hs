@@ -950,6 +950,7 @@ contextsForServiceSpec = describe "contextsForService" $ do
         Right contexts <- runThentosQueryFromPool connPool $ contextsForService "sid2"
         contexts `shouldBe` []
 
+
 -- * Garbage collection
 
 garbageCollectUnconfirmedUsersSpec :: SpecWith (Pool Connection)
