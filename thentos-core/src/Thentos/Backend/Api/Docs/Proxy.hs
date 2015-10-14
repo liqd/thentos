@@ -18,7 +18,8 @@ import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Proxy (ServiceProxy)
 
 instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
-    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
+    docsFor _ dat opt = docsFor (Proxy :: Proxy sublayout) dat opt
+                        & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
         text = "All requests that are not handled by the endpoints listed\

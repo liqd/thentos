@@ -187,9 +187,9 @@ instance ( AllCTRender ctypes a ) => HasServer (Post200 ctypes a) where
     type ServerT (Post200 ctypes a) m = m a
     route Proxy = methodRouter methodPost (Proxy :: Proxy ctypes) ok200
 
-instance (ToSample a b, IsNonEmpty cts, AllMimeRender cts b )
+instance (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
     => HasDocs (Post200 cts a) where
-  docsFor Proxy (endpoint, action) = single endpoint' action'
+  docsFor Proxy (endpoint, action) _ = single endpoint' action'
 
     where endpoint' = endpoint & method .~ DocPOST
           action' = action & response.respBody .~ sampleByteStrings t p

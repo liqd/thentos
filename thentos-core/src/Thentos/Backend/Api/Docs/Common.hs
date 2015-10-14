@@ -11,9 +11,10 @@
 module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
 import Control.Lens ((&), (%~))
+import Control.Arrow (second)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe)
 import Data.Map (Map)
 import Data.String.Conversions (LBS)
 import Data.Proxy (Proxy(Proxy))
@@ -21,7 +22,7 @@ import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>))
 import Servant.Docs
-    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSample), HasDocs, docsFor)
+    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs, docsFor)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -76,98 +77,54 @@ instance ToCapture (Capture "sid" ServiceId) where
 instance ToCapture (Capture "uid" UserId) where
     toCapture _ = DocCapture "uid" "User ID"
 
-instance ToSample Agent Agent where
-    toSample _ = Just . UserA . UserId $ 0
+instance ToSample Agent where
+    toSamples _ = Docs.singleSample . UserA . UserId $ 0
 
-instance ToSample ThentosSessionToken ThentosSessionToken where
-    toSample _ = Just "abde1234llkjh"
-
-instance ToSample [ThentosSessionToken] [ThentosSessionToken] where
-    toSample _ = Just ["abde1234llkjh", "47202sdfsg"]
+instance ToSample ThentosSessionToken where
+    toSamples _ = Docs.singleSample "abde1234llkjh"
 
 -- FIXME: long request bodys should be pretty-printed
-instance ToSample UserFormData UserFormData where
-    toSample _ = UserFormData <$> toSample (Proxy :: Proxy UserName)
-                              <*> toSample (Proxy :: Proxy UserPass)
-                              <*> toSample (Proxy :: Proxy UserEmail)
+instance ToSample UserFormData where
+    toSamples _ = let curry3 f (a, b, c) = f a b c
+                  in second (curry3 UserFormData)
+                    <$> toSamples (Proxy :: Proxy (UserName, UserPass, UserEmail))
 
-instance ToSample UserPass UserPass where
-    toSample _ = Just $ UserPass "secret"
+instance ToSample UserPass where
+    toSamples _ = Docs.singleSample $ UserPass "secret"
 
-instance ToSample UserName UserName where
-    toSample _ = Just $ UserName "Alice"
+instance ToSample UserName where
+    toSamples _ = Docs.singleSample $ UserName "Alice"
 
-instance ToSample UserEmail UserEmail where
-    toSample _ = Just $ fromMaybe (error "ToSample UserEmail instance broken")
+instance ToSample UserEmail where
+    toSamples _ = Docs.singleSample $ fromMaybe (error "ToSample UserEmail instance broken")
                                   (parseUserEmail "alice@example.com")
 
-instance ToSample UserId UserId where
-    toSample _ = Just $ UserId 12
+instance ToSample UserId where
+    toSamples _ = Docs.singleSample $ UserId 12
 
-instance ToSample (UserId, UserPass) (UserId, UserPass) where
-    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId)
-                     <*> toSample (Proxy :: Proxy UserPass)
+instance ToSample ServiceId where
+    toSamples _ = Docs.singleSample "23t92ege0n"
 
-instance ToSample [UserId] [UserId] where
-    toSample _ = Just [UserId 3, UserId 7, UserId 23]
+instance ToSample ServiceKey where
+    toSamples _ = Docs.singleSample "yd090129rj"
 
-instance ToSample ServiceId ServiceId where
-    toSample _ = Just "23t92ege0n"
+instance ToSample ServiceName where
+    toSamples _ = Docs.singleSample "Example Service"
 
-instance ToSample ServiceKey ServiceKey where
-    toSample _ = Just "yd090129rj"
+instance ToSample ServiceDescription where
+    toSamples _ = Docs.singleSample "serve as an example"
 
-instance ToSample ServiceName ServiceName where
-    toSample _ = Just "Example Service"
+instance ToSample ServiceSessionMetadata where
+    toSamples _ = second ServiceSessionMetadata <$> toSamples (Proxy :: Proxy UserName)
 
-instance ToSample ServiceDescription ServiceDescription where
-    toSample _ = Just "serve as an example"
+instance ToSample ServiceSessionToken where
+    toSamples _ = Docs.singleSample $ ServiceSessionToken "abde1234llkjh"
 
-instance ToSample [ServiceId] [ServiceId] where
-    toSample _ = Just ["23t92ege0n", "f4ghwgegin0"]
+instance ToSample ByUserOrServiceId
 
-instance ToSample (UserId, Timeout) (UserId, Timeout) where
-    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId) <*> pure (fromSeconds 123456)
-
-instance ToSample (UserId, ServiceId) (UserId, ServiceId) where
-    toSample _ = (,) <$> toSample (Proxy :: Proxy UserId) <*> toSample (Proxy :: Proxy ServiceId)
-
-instance ToSample ServiceSessionMetadata ServiceSessionMetadata where
-    toSample _ = ServiceSessionMetadata <$> toSample (Proxy :: Proxy UserName)
-
-instance ToSample ServiceSessionToken ServiceSessionToken where
-    toSample _ = Just $ ServiceSessionToken "abde1234llkjh"
-
-instance ToSample () () where
-    toSample _ = Just ()
-
-instance ToSample Bool Bool where
-    toSample _ = Just True
-
-instance ToSample ByUserOrServiceId ByUserOrServiceId where
-    toSamples _ = catMaybes [ (,) "user" . ByUser <$> toSample p1
-                            , (,) "service" .  ByService <$> toSample p2]
-      where p1 = Proxy :: Proxy (UserId, UserPass)
-            p2 = Proxy :: Proxy (ServiceId, ServiceKey)
-
-
-instance (ToSample a a', ToSample b b') => ToSample (Either a b) (Either a' b') where
-    toSamples _ = catMaybes [(,) "Left" . Left <$> toSample p1, (,) "Right" . Right <$> toSample p2]
-      where p1 = Proxy :: Proxy a
-            p2 = Proxy :: Proxy b
-
-
--- | cover for tuples whose components have already been given
--- examples.  if you write an instance for a tuple for two concrete
--- types, this instance will be disregarded because it is more general.
-instance {-# OVERLAPPABLE #-} (ToSample a a, ToSample b b) => ToSample (a, b) (a, b) where
-    toSample _ = (,) <$> toSample (Proxy :: Proxy a) <*> toSample (Proxy :: Proxy b)
-
-instance {-# OVERLAPPABLE #-} (ToSample a a, ToSample b b, ToSample c c) => ToSample (a, b, c) (a, b, c) where
-    toSample _ = (,,) <$> toSample (Proxy :: Proxy a) <*> toSample (Proxy :: Proxy b) <*> toSample (Proxy :: Proxy c)
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
+    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
         title = "Authentication"
@@ -180,7 +137,7 @@ instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
 
 
 instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
-    docsFor _ dat = docsFor (Proxy :: Proxy sublayout) dat & Docs.apiIntros %~ (intros ++)
+    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
         text = "If a request has a headers starting with \"X-Thentos-\\*\" where\

@@ -14,6 +14,8 @@ packages:
   extra-dep: true
 - location: 'submodules/servant/servant-client'
   extra-dep: true
+- location: 'submodules/servant/servant-session'
+  extra-dep: true
 - location: 'submodules/servant/servant-docs'
   extra-dep: true
 - location: 'submodules/pronk'
@@ -32,5 +34,8 @@ extra-deps:
 - snap-blaze-0.2.1.3
 - snap-loader-static-0.9.0.2
 - regex-easy-0.1.0.0
+- control-monad-omega-0.3.1
+- http-api-data-0.1.1.1
+- servant-blaze-0.4.4.4
 
 resolver: lts-3.5
