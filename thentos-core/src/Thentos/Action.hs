@@ -41,6 +41,15 @@ module Thentos.Action
     , autocreateServiceIfMissing'P
     , userGroups
 
+    , addPersona
+    , deletePersona
+    , addContext
+    , deleteContext
+    , registerPersonaWithContext
+    , unregisterPersonaFromContext
+    , findPersona
+    , contextsForService
+
     , defaultSessionTimeout
     , lookupThentosSession
     , existsThentosSession
@@ -124,6 +133,7 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: Action e ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
+
 
 -- * user
 
@@ -533,6 +543,71 @@ endServiceSession tok = query'P $ T.endServiceSession tok
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: ServiceSessionToken -> Action e ServiceSessionMetadata
 getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
+
+
+-- * persona and context
+
+-- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
+-- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
+-- Only the user owning the persona or an admin may do this.
+addPersona :: PersonaName -> UserId -> Action e Persona
+addPersona name uid = do
+    -- FIXME authorization control: ensure (userHasId uid <||> hasRole RoleAdmin)
+    query'P $ T.addPersona name uid
+
+-- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
+-- Only the user owning the persona or an admin may do this.
+deletePersona :: Persona -> Action e ()
+deletePersona persona = do
+    -- FIXME authorization control:
+    -- ensure (userHasId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    query'P . T.deletePersona $ persona ^. personaId
+
+-- | Add a new context. The first argument identifies the service to which the context belongs.
+-- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
+-- Only the service or an admin may do this.
+addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> Action e Context
+addContext sid name desc url = do
+    -- FIXME authorization control: ensure (serviceHasId sid <||> hasRole RoleAdmin)
+    query'P $ T.addContext sid name desc url
+
+-- | Delete a context. Throw an error if the context does not exist in the DB.
+-- Only the service owning the context or an admin may do this.
+deleteContext :: Context -> Action e ()
+deleteContext context = do
+    -- FIXME authorization control:
+    -- ensure (serviceHasId (context ^. contextService) <||> hasRole RoleAdmin)
+    query'P . T.deleteContext $ context ^. contextId
+
+-- Connect a persona with a context. Throws an error if the persona is already registered for the
+-- context or if the user has any *other* persona registered for the context
+-- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
+-- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
+-- Only the user owning the persona or an admin may do this.
+registerPersonaWithContext :: Persona -> ContextId -> Action e ()
+registerPersonaWithContext persona cxtId = do
+    -- FIXME authorization control:
+    -- ensure (userHasId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    query'P $ T.registerPersonaWithContext persona cxtId
+
+-- Unregister a persona from accessing a context. No-op if the persona was not registered for the
+-- context. Only the user owning the persona or an admin may do this.
+unregisterPersonaFromContext :: Persona -> ContextId -> Action e ()
+unregisterPersonaFromContext persona cxtId = do
+    -- FIXME authorization control:
+    -- ensure (userHasId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    query'P $ T.unregisterPersonaFromContext (persona ^. personaId) cxtId
+
+-- Find the persona that a user wants to use for a context (if any).
+-- Only the user owning the persona or an admin may do this.
+findPersona :: UserId -> ContextId -> Action e (Maybe Persona)
+findPersona uid cxtId = do
+    -- FIXME authorization control: ensure (userHasId uid <||> hasRole RoleAdmin)
+    query'P $ T.findPersona uid cxtId
+
+-- List all contexts owned by a service. Anybody may do this.
+contextsForService :: ServiceId -> Action e [Context]
+contextsForService sid = query'P $ T.contextsForService sid
 
 
 -- * agents and roles
