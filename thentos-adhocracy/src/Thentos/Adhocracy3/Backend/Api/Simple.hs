@@ -147,7 +147,7 @@ instance FromJSON a => FromJSON (A3Resource a) where
 data TypedPath = TypedPath
   { tpPath :: Path
   , tpContentType :: ContentType
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Generic)
 
 instance ToJSON TypedPath where
     toJSON (TypedPath p ct) = object ["path" .= p, "content_type" .= ct]
@@ -164,7 +164,7 @@ data TypedPathWithCacheControl = TypedPathWithCacheControl
     , tpccCreated :: [Path]
     , tpccModified :: [Path]
     , tpccRemoved :: [Path]
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Generic)
 
 instance ToJSON TypedPathWithCacheControl where
     toJSON t = object

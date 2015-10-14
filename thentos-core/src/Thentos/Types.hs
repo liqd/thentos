@@ -42,7 +42,7 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
-import Servant.Common.Text (FromText)
+import Servant.API (FromHttpApiData)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
@@ -91,7 +91,7 @@ newServiceAccount :: ServiceAccount
 newServiceAccount = ServiceAccount False
 
 newtype UserId = UserId { fromUserId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromHttpApiData,
               FromField, ToField)
 
 newtype UserName = UserName { fromUserName :: ST }
@@ -178,7 +178,7 @@ data Service =
   deriving (Eq, Show, Typeable, Generic)
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
 instance Aeson.FromJSON ServiceId where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceId where toJSON = Aeson.gtoJson
@@ -190,13 +190,13 @@ instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
 
 newtype ServiceName = ServiceName { fromServiceName :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
 instance Aeson.FromJSON ServiceName where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceName where toJSON = Aeson.gtoJson
 
 newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
@@ -219,7 +219,7 @@ instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
 -- * persona and context
 
 newtype PersonaId = PersonaId { fromPersonaId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromHttpApiData,
               FromField, ToField)
 
 newtype PersonaName = PersonaName { fromPersonaName :: ST }
@@ -233,7 +233,7 @@ data Persona = Persona
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
-    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromText,
+    deriving (Eq, Ord, Enum, Show, Read, Random, FromJSON, ToJSON, Typeable, Generic, FromHttpApiData,
               FromField, ToField)
 
 newtype ContextName = ContextName { fromContextName :: ST }
@@ -258,7 +258,7 @@ instance Ord Context where
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromJSON, ToJSON, FromField, ToField)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromJSON, ToJSON, FromField, ToField)
 
 data ThentosSession =
     ThentosSession
@@ -270,7 +270,7 @@ data ThentosSession =
   deriving (Eq, Ord, Show, Typeable, Generic)
 
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromText, FromField, ToField)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
 instance Aeson.FromJSON ServiceSessionToken where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
