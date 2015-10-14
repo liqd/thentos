@@ -61,6 +61,14 @@ newtype ActionState =
       }
   deriving (Typeable, Generic)
 
+-- | The 'Action' monad transformer stack.  It contains:
+--
+--     - 'LIO' as a base monad.
+--     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
+--       authorization errors that must not be catchable from inside an 'Action'.)
+--     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
+--       will have authorized effect.  Since it is contained in a reader, actions have not the power
+--       to change it.
 newtype Action e a =
     Action
       { fromAction :: ReaderT ActionState (EitherT (ThentosError e) (LIO DCLabel)) a
