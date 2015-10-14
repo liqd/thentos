@@ -9,7 +9,6 @@
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE RecordWildCards                          #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeFamilies                             #-}
@@ -38,7 +37,7 @@ import Network.Wai (Application, Middleware, Request, requestHeaders, requestMet
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(..))
 import Servant.Docs.Internal (HasDocs(..), sampleByteStrings, response, respTypes, respBody,
-        respStatus, single, method, Method(DocPOST), ToSample(..), DocOptions(..))
+        respStatus, single, method, Method(DocPOST), ToSample(..))
 import Servant.API ((:>))
 import Servant.API.ContentTypes (AllCTRender, AllMimeRender, allMime, IsNonEmpty)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
@@ -190,7 +189,7 @@ instance ( AllCTRender ctypes a ) => HasServer (Post200 ctypes a) where
 
 instance (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
     => HasDocs (Post200 cts a) where
-  docsFor Proxy (endpoint, action) DocOptions{..} = single endpoint' action'
+  docsFor Proxy (endpoint, action) _ = single endpoint' action'
 
     where endpoint' = endpoint & method .~ DocPOST
           action' = action & response.respBody .~ sampleByteStrings t p
