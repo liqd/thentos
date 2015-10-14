@@ -79,14 +79,20 @@ newtype UnsafeAction e a =
 makeActionSafe :: UnsafeAction e a -> Action e a
 makeActionSafe = undefined
 
--- | Check that this request comes from a logged-in user.
+-- | Run an unsafe action if 'RoleUser' is present.  If not, throw an 'ActionErrorAnyLabel' error.
 withUserIsLoggedIn :: UnsafeAction e a -> Action e a
 withUserIsLoggedIn = withUserHasRole RoleUser
 
--- | Check that the logged-in user has the expected 'UserID'.
+-- | Run an unsafe action if the logged-in user has the expected 'UserID'.  If not, throw an
+-- 'ActionErrorAnyLabel' error.
 withUserHasId :: UserId -> UnsafeAction e a -> Action e a
 withUserHasId _ _ = error "withUserHasId"
 
--- | Check that the logged-in user belongs to a given 'Role'.
+-- | Run an unsafe action if a given role is present.  If not, throw an 'ActionErrorAnyLabel' error.
 withUserHasRole :: Role -> UnsafeAction e a -> Action e a
 withUserHasRole _ _ = error "withUserHasRole"
+
+-- | If role is present, run an unsafe action.  If not, run a fallback action instead of throwing a
+-- permission error.
+withUserHasRoleCatch :: Role -> UnsafeAction e a -> UnsafeAction e a -> Action e a
+withUserHasRoleCatch _ _ _ = error "withUserHasRoleCatch"
