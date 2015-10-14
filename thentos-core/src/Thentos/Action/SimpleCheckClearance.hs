@@ -60,6 +60,8 @@ import qualified Thentos.Transaction as T
 import Thentos.Transaction.Core (ThentosQuery)
 
 
+-- * types
+
 -- | Like 'Action', but with 'IO' at the base.
 newtype UnsafeAction e a =
     UnsafeAction
@@ -75,9 +77,16 @@ newtype UnsafeAction e a =
            , Generic
            )
 
+
+-- * making unsafe actions safe
+
 -- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
 makeActionSafe :: UnsafeAction e a -> Action e a
-makeActionSafe = undefined
+makeActionSafe = makeActionSafe (pure True)
+
+-- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
+makeActionSafe' :: UnsafeAction e Bool -> UnsafeAction e a -> Action e a
+makeActionSafe' = undefined
 
 -- | Run an unsafe action if 'RoleUser' is present.  If not, throw an 'ActionErrorAnyLabel' error.
 withUserIsLoggedIn :: UnsafeAction e a -> Action e a
@@ -96,3 +105,15 @@ withUserHasRole _ _ = error "withUserHasRole"
 -- permission error.
 withUserHasRoleCatch :: Role -> UnsafeAction e a -> UnsafeAction e a -> Action e a
 withUserHasRoleCatch _ _ _ = error "withUserHasRoleCatch"
+
+
+-- * predicates
+
+isUserLoggedIn :: UnsafeAction e Bool
+isUserLoggedIn = undefined
+
+doesUserHaveId :: UserId -> UnsafeAction e Bool
+doesUserHaveId = undefined
+
+doesUserHaveRole :: Role -> UnsafeAction e Bool
+doesUserHaveRole = undefined
