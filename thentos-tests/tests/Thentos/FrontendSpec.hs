@@ -8,11 +8,9 @@ module Thentos.FrontendSpec where
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
-import Data.Pool (Pool, withResource)
 import Data.String.Conversions (ST, cs)
-import Data.Void (Void)
-import Database.PostgreSQL.Simple (Connection)
-import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec, pendingWith)
+import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec,
+                   pendingWith)
 
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
@@ -22,7 +20,6 @@ import qualified Test.WebDriver.Class as WD
 import Thentos.Action.Core
 import Thentos.Config
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
@@ -30,6 +27,7 @@ import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
+import Thentos.Test.Transaction
 
 
 tests :: IO ()
@@ -82,7 +80,7 @@ spec_createUser = describe "create user" $ do
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
 
         -- check that user is in db
-        Right (_, usr) <- runQuery connPool . T.lookupAnyUserByEmail $ forceUserEmail myEmail
+        Right (_, usr) <- runVoidedQuery connPool . T.lookupAnyUserByEmail $ forceUserEmail myEmail
         fromUserName  (usr ^. userName)  `shouldBe` myUsername
         fromUserEmail (usr ^. userEmail) `shouldBe` myEmail
 
@@ -113,7 +111,7 @@ spec_updateSelf = describe "update self" $ do
             _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
             _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
             _click "update_password_submit"
-        Right (_, usr) <- runQuery conn $ T.lookupAnyUser selfId
+        Right (_, usr) <- runVoidedQuery conn $ T.lookupAnyUser selfId
         usr `shouldSatisfy` verifyPass newSelfPass
 
     -- FIXME: test failure cases.  same restrictions apply as in
@@ -257,7 +255,7 @@ spec_serviceCreate = it "service create" $ \(ActionState (conn, _, _)) -> do
     --   1. service has been created;
     --   2. has right sname, sdescr;
     --   3. has correct owner.
-    Right (_, service) <- runQuery conn $ T.lookupService sid
+    Right (_, service) <- runVoidedQuery conn $ T.lookupService sid
     service ^. serviceThentosSession `shouldBe` Nothing
     service ^. serviceName           `shouldBe` ServiceName sname
     service ^. serviceDescription    `shouldBe` ServiceDescription sdescr
@@ -359,6 +357,3 @@ isNotLoggedIn cfg = do
 -- | Fill a labeled text field.
 fill :: WD.WebDriver wd => ST -> ST -> wd ()
 fill label text = WD.findElem (WD.ById label) >>= WD.sendKeys text
-
-runQuery :: Pool Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
-runQuery connPool q = withResource connPool $ \conn -> runThentosQuery conn q
