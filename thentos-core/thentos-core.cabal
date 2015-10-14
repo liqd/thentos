@@ -63,6 +63,7 @@ library
     , Thentos.Action
     , Thentos.Action.Core
     , Thentos.Action.SimpleCheckClearance
+    , Thentos.Action.Unsafe
     , Thentos.Backend.Api.Auth
     , Thentos.Backend.Api.Docs.Common
     , Thentos.Backend.Api.Docs.Proxy
