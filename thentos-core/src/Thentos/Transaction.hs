@@ -292,13 +292,13 @@ deletePersona persId = do
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> ThentosQuery e Context
-addContext ownerService name desc url = do
+addContext sid name desc url = do
     res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
                         VALUES (?, ?, ?, ?)
                         RETURNING id |]
-                  (ownerService, name, desc, url)
+                  (sid, name, desc, url)
     case res of
-        [Only cxtId] -> return $ Context cxtId ownerService name desc url
+        [Only cxtId] -> return $ Context cxtId sid name desc url
         _            -> impossible "addContext didn't return a single ID"
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
