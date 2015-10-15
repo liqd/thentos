@@ -153,14 +153,6 @@ runActionInThentosSessionE :: (Show e, Typeable e) =>
     ThentosSessionToken -> ActionState -> Action e a -> IO (Either (ActionError e) a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
--- | Run an action followed by a second action. The second action is run
--- even if the first one throws an error.
-finally :: forall e a b . Action e a -> Action e b -> Action e a
-finally a sequel = do
-    r <- catchError a (\e -> sequel >> throwError e)
-    _ <- sequel
-    return r
-
 
 -- * labels, privileges and access rights.
 
