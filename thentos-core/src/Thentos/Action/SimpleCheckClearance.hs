@@ -72,9 +72,6 @@ newtype UnsafeAction e a =
 assertAuth :: (e ~ ActionError e') => Action e Bool -> Action e ()
 assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcBottom)
 
-guardWriteOk :: DCLabel -> Action e Bool
-guardWriteOk l = tryGuardWrite l (pure True) $ \ (_ :: AnyLabelError) -> pure False
-
 isUserLoggedIn :: Action e Bool
 isUserLoggedIn = doesUserHaveRole RoleUser
 
