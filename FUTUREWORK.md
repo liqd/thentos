@@ -10,3 +10,12 @@ useful as reference in the future.
 
 - github single-sign-on (sso)
   git checkout 2015-09-28-github-sso
+
+- a system for public-key certification.  this could be used by
+  services that aim at full, server-less distribution with
+  pseudonymous identities.  the identities could be sybil attack
+  proof, because you can only get exactly one for every qualified
+  thentos user you control.  and they could be highly anonymous if we
+  manage to weave in blind signature schemes intelligently.
+
+- https://hacks.mozilla.org/2015/09/subresource-integrity-in-firefox-43/
