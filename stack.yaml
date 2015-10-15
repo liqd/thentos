@@ -1,8 +1,4 @@
 flags: {}
-ghc-options:
-  thentos-core: -Werror
-  thentos-tests: -Werror
-  thentos-adhocracy: -Werror
 packages:
 - 'thentos-core'
 - 'thentos-tests'
