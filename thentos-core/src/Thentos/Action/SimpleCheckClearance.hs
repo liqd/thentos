@@ -37,8 +37,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (liftLIO, taint)
-import LIO.DCLabel ((%%), DCLabel)
-import LIO.Error (AnyLabelError)
+import LIO.DCLabel ((%%))
 import LIO.TCB (ioTCB)
 
 import LIO.Missing
