@@ -4,21 +4,28 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Servant.Missing where
 
 import Servant
+import Servant.HTML.Blaze (HTML)
 import Servant.Server.Internal
 
+import Control.Arrow (first)
 import Control.Monad.IO.Class
 import Text.Digestive
-import Network.Wai (Request, Response, responseLBS)
-import Network.Wai.Parse (BackEnd)
-import Network.HTTP.Types (ok200)
+import Network.Wai (Request, Response, responseLBS, requestBody)
+import Network.Wai.Parse (BackEnd, parseRequestBody)
+import Network.HTTP.Types (ok200, methodGet)
 import Data.Text (Text)
+import qualified Data.Text as Text
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html.Renderer.Utf8
+import qualified Data.Text.Encoding as T
 import Network.Wai.Digestive
+
+import Debug.Trace
 
 -- Combinators for digestive-functors
 --
@@ -64,7 +71,7 @@ class HasForm f v a | f -> v, f -> a where
     formView :: Proxy f -> View v -> v
     formBackend :: Proxy f -> BackEnd FilePath
 
-instance (HasForm f v a, H.ToMarkup v, HasServer sublayout)
+instance (HasForm f v a, Show a, H.ToMarkup v, HasServer sublayout)
          => HasServer (FormPost f v a :> sublayout) where
     type ServerT (FormPost f v a :> sub) m = a -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
@@ -74,18 +81,27 @@ instance (HasForm f v a, H.ToMarkup v, HasServer sublayout)
         go req = do
            (v, a) <- runFormP req "test" (formBackend fp) (isForm fp)
            case a of
-             Nothing -> return $ Fail (toServantErr $ formView fp v)
-             Just a' -> return $ Route a'
+             Nothing -> return $ FailFatal (toServantErr $ formView fp v)
+             Just a' -> traceShow a $ return $ Route a'
 
 instance (HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v a) where
     type ServerT (FormGet f v a) m = m ()
-    route _ _ = LeafRouter route'
+    route _ sub = methodRouter methodGet (Proxy :: Proxy '[HTML]) ok200 go
       where
         fp = Proxy :: Proxy f
-        route' _req respond = do
-          v <- runFormG "test" $ isForm fp
-          respond . render . H.toHtml $ formView fp v
+        go = fmap (\_ -> do
+            v <- runFormG "test" $ isForm fp
+            return . H.toHtml $ formView fp v) sub
 
+bfe :: MonadIO m => BackEnd a -> Request -> Env m
+bfe be req query = do
+    (q, _) <- liftIO $ parseRequestBody be req
+    liftIO $ putStrLn ("ReqBody " ++ show q)
+    liftIO $ putStrLn ("query " ++ show (fromPath query))
+    let q' = map (first T.decodeUtf8) q
+    let res = map (TextInput . T.decodeUtf8 . snd) $ filter (\(x,_) -> x == fromPath query) q'
+    liftIO $ putStrLn ("Res " ++ show res)
+    return $ res
 
 runFormG :: Monad m => Text -> Form v m a -> m (View v)
 runFormG = getForm
@@ -93,5 +109,5 @@ runFormG = getForm
 runFormP :: MonadIO m
     => Request -> Text -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
 runFormP req name backend form = postForm name form $ \x -> case x of
-    MultiPart  -> bodyFormEnv backend req
-    UrlEncoded -> requestFormEnv backend req
+    MultiPart  -> trace "here1" $ bodyFormEnv backend req
+    UrlEncoded -> return $ bfe backend req
