@@ -19,6 +19,36 @@ import Text.Blaze.Html5 as H
 import Text.Blaze.Renderer.Utf8
 import Network.Wai.Digestive
 
+-- Combinators for digestive-functors
+--
+-- The 'FormGet' combinator returns the HTML for the form, and takes a unit
+-- handler. The 'FormPost f v a' combinator provides an argument for the handler
+-- of type 'a' in case the form can be validated; otherwise it automatically
+-- returns the HTML corresponding to the error.
+--
+-- > type API = "form" :> FormGet "PersonForm" Html Person
+-- >       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
+-- >
+-- > server :: Server API
+-- > server = () :<|> id
+-- >
+-- > data Person = Person { name :: String, age :: Int }
+-- >
+-- > personForm :: Monad m => Form Html m Person
+-- > personForm = Person <$> "name" .: nonEmptyText
+-- >                     <*> "age"  .: positiveInt
+-- >   where
+-- >     nonEmptyText = check "Cannot be empty" (not . Data.Text.null)
+-- >                  $ text Nothing
+-- >     positiveInt  = check "Must be postive" (>= 0) $ stringRead Nothing
+-- >
+-- > renderPersonForm :: View Html -> Html
+-- > renderPersonForm v = ...
+-- >
+-- > instance HasForm "PersonForm" Html Person where
+-- >    isForm _   = personForm
+-- >    formView _ = renderPersonForm
+
 data FormPost f v a
 data FormGet f v a
 
@@ -47,8 +77,6 @@ instance (HasForm f v a, ToMarkup v, HasServer sublayout)
              Nothing -> return $ Fail (toServantErr $ formView fp v)
              Just a' -> return $ Route a'
 
--- E.g.:
--- >
 instance (HasForm f v a, ToMarkup v) => HasServer (FormGet f v a) where
     type ServerT (FormGet f v a) m = m ()
     route _ _ = LeafRouter route'
