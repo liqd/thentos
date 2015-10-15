@@ -10,6 +10,8 @@ packages:
 - 'services/helloworld'
 - location: 'submodules/servant/servant'
   extra-dep: true
+- location: 'submodules/servant/servant-blaze'
+  extra-dep: true
 - location: 'submodules/servant/servant-server'
   extra-dep: true
 - location: 'submodules/servant/servant-client'
@@ -36,6 +38,8 @@ extra-deps:
 - regex-easy-0.1.0.0
 - control-monad-omega-0.3.1
 - http-api-data-0.1.1.1
-- servant-blaze-0.4.4.4
+- wai-digestive-functors-0.3
+- wai-util-0.8
+- http-accept-0.2
 
 resolver: lts-3.5
