@@ -579,7 +579,7 @@ deleteContext context = do
     -- ensure (serviceHasId (context ^. contextService) <||> hasRole RoleAdmin)
     query'P . T.deleteContext $ context ^. contextId
 
--- Connect a persona with a context. Throws an error if the persona is already registered for the
+-- | Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
@@ -590,7 +590,7 @@ registerPersonaWithContext persona cxtId = do
     -- ensure (userHasId (persona ^. personaUid) <||> hasRole RoleAdmin)
     query'P $ T.registerPersonaWithContext persona cxtId
 
--- Unregister a persona from accessing a context. No-op if the persona was not registered for the
+-- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
 unregisterPersonaFromContext :: Persona -> ContextId -> Action e ()
 unregisterPersonaFromContext persona cxtId = do
@@ -598,7 +598,7 @@ unregisterPersonaFromContext persona cxtId = do
     -- ensure (userHasId (persona ^. personaUid) <||> hasRole RoleAdmin)
     query'P $ T.unregisterPersonaFromContext (persona ^. personaId) cxtId
 
--- Find the persona that a user wants to use for a context (if any).
+-- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
 findPersona :: UserId -> ContextId -> Action e (Maybe Persona)
 findPersona uid cxtId = do
