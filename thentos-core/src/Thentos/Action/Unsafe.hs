@@ -1,11 +1,7 @@
 {-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DataKinds                   #-}
-{-# LANGUAGE DeriveDataTypeable          #-}
-{-# LANGUAGE DeriveFunctor               #-}
-{-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE InstanceSigs                #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
@@ -18,42 +14,28 @@
 module Thentos.Action.Unsafe
 where
 
-import Control.Concurrent (MVar, modifyMVar)
-import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
-import Control.Lens ((^.))
+import Control.Concurrent (modifyMVar)
+import Control.Exception (throwIO, ErrorCall(..))
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
-import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
-import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
-import Data.Pool (Pool, withResource)
-import Data.EitherR (fmapL)
-import Data.List (foldl')
-import Data.String.Conversions (ST, SBS)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
-                 guardWrite)
 import Control.Monad.IO.Class (liftIO)
-import LIO.Label (lub)
-import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
-import LIO.Error (AnyLabelError)
-import LIO.TCB (Priv(PrivTCB), ioTCB)
-import Database.PostgreSQL.Simple (Connection)
-
+import Control.Monad.Reader (ask)
+import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
+import Data.Pool (withResource)
+import Data.String.Conversions (ST, SBS)
+import LIO.Core (MonadLIO)
 import System.Log (Priority(DEBUG, CRITICAL))
 
 import qualified Data.Thyme as Thyme
 
-import LIO.Missing
-import qualified System.Log.Missing as SLM
+import Thentos.Action.Core
+import Thentos.Action.SimpleCheckClearance
 import Thentos.Config
 import Thentos.Smtp as TS
-import qualified Thentos.Transaction as T
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util as TU
-import Thentos.Action.SimpleCheckClearance
-import Thentos.Action.Core
+
+import qualified System.Log.Missing as SLM
 
 
 query :: ThentosQuery e v -> UnsafeAction e v

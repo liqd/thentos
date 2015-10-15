@@ -11,7 +11,6 @@
 {-# LANGUAGE InstanceSigs                #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
@@ -40,8 +39,7 @@ import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (liftLIO, taint)
-import LIO.DCLabel ((%%))
-import LIO.DCLabel (DCLabel)
+import LIO.DCLabel ((%%), DCLabel)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (ioTCB)
 
