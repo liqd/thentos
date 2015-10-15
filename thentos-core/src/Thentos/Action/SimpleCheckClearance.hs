@@ -22,45 +22,35 @@
 -}
 module Thentos.Action.SimpleCheckClearance
   ( UnsafeAction(..)
-  , makeActionSafe
-  , withUserIsLoggedIn
-  , withUserHasId
-  , withUserHasRole
+
+  , isUserLoggedIn
+  , doesUserHaveId
+  , doesUserHaveRole
+
+  , assertAuth
+  , guardedUnsafeAction
+  , unsafeAction
   ) where
 
-import Control.Lens ((^.))
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Except (throwError, catchError)
+import Control.Conditional (ifM)
+import Control.Monad.Except (MonadError)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
-import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
-import Control.Monad (unless, void)
-import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Monoid ((<>))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT)
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.Typeable (Typeable)
-import GHC.Exception (Exception)
-import GHC.Generics
-import LIO.Core
-import LIO.DCLabel ((%%), (\/), (/\))
+import GHC.Generics (Generic)
+import LIO.Core (liftLIO, taint)
+import LIO.DCLabel ((%%))
+import LIO.DCLabel (DCLabel)
 import LIO.Error (AnyLabelError)
-import LIO.TCB
-import System.Log.Logger (Priority(DEBUG))
-
-import qualified Codec.Binary.Base64 as Base64
-import qualified Data.Text as ST
+import LIO.TCB (ioTCB)
 
 import LIO.Missing
 import Thentos.Action.Core
 import Thentos.Types
-import Thentos.Util
-
-import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (ThentosQuery)
 
 
--- * types
+-- * type
 
 -- | Like 'Action', but with 'IO' at the base.
 newtype UnsafeAction e a =
@@ -78,42 +68,35 @@ newtype UnsafeAction e a =
            )
 
 
+-- * authorization predicates
+
+-- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
+assertAuth :: (e ~ ActionError e') => Action e Bool -> Action e ()
+assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcBottom)
+
+guardWriteOk :: DCLabel -> Action e Bool
+guardWriteOk l = tryGuardWrite l (pure True) $ \ (_ :: AnyLabelError) -> pure False
+
+isUserLoggedIn :: Action e Bool
+isUserLoggedIn = doesUserHaveRole RoleUser
+
+doesUserHaveId :: UserId -> Action e Bool
+doesUserHaveId uid = guardWriteOk (UserA uid %% UserA uid)
+
+doesUserHaveRole :: Role -> Action e Bool
+doesUserHaveRole role = guardWriteOk (role %% role)
+
+
 -- * making unsafe actions safe
 
--- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
-makeActionSafe :: UnsafeAction e a -> Action e a
-makeActionSafe = makeActionSafe (pure True)
+-- | Run an 'UnsafeAction' in a safe 'Action' with extra authorization checks (performed through
+-- 'assertAuth').
+guardedUnsafeAction :: (e ~ ActionError e') => Action e Bool -> UnsafeAction e a -> Action e a
+guardedUnsafeAction utest uaction = assertAuth utest >> unsafeAction uaction
 
 -- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
-makeActionSafe' :: UnsafeAction e Bool -> UnsafeAction e a -> Action e a
-makeActionSafe' = undefined
-
--- | Run an unsafe action if 'RoleUser' is present.  If not, throw an 'ActionErrorAnyLabel' error.
-withUserIsLoggedIn :: UnsafeAction e a -> Action e a
-withUserIsLoggedIn = withUserHasRole RoleUser
-
--- | Run an unsafe action if the logged-in user has the expected 'UserID'.  If not, throw an
--- 'ActionErrorAnyLabel' error.
-withUserHasId :: UserId -> UnsafeAction e a -> Action e a
-withUserHasId _ _ = error "withUserHasId"
-
--- | Run an unsafe action if a given role is present.  If not, throw an 'ActionErrorAnyLabel' error.
-withUserHasRole :: Role -> UnsafeAction e a -> Action e a
-withUserHasRole _ _ = error "withUserHasRole"
-
--- | If role is present, run an unsafe action.  If not, run a fallback action instead of throwing a
--- permission error.
-withUserHasRoleCatch :: Role -> UnsafeAction e a -> UnsafeAction e a -> Action e a
-withUserHasRoleCatch _ _ _ = error "withUserHasRoleCatch"
-
-
--- * predicates
-
-isUserLoggedIn :: UnsafeAction e Bool
-isUserLoggedIn = undefined
-
-doesUserHaveId :: UserId -> UnsafeAction e Bool
-doesUserHaveId = undefined
-
-doesUserHaveRole :: Role -> UnsafeAction e Bool
-doesUserHaveRole = undefined
+unsafeAction :: (e ~ ActionError e') => UnsafeAction e a -> Action e a
+unsafeAction uaction = construct deconstruct
+  where
+    construct io = Action . ReaderT $ EitherT . ioTCB . io
+    deconstruct = runEitherT . runReaderT (fromUnsafeAction uaction)
