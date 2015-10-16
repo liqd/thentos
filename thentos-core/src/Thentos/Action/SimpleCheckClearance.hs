@@ -70,7 +70,7 @@ newtype UnsafeAction e a =
 
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
 assertAuth :: (e ~ ActionError e') => Action e Bool -> Action e ()
-assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcBottom)
+assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcTop)
 
 isUserLoggedIn :: Action e Bool
 isUserLoggedIn = doesUserHaveRole RoleUser
