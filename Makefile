@@ -13,6 +13,9 @@ clean:
 	find thentos-*/ -name '*.dyn_o' -exec rm -f {} \;
 	find thentos-*/ -name '*.dyn_hi' -exec rm -f {} \;
 
+
+# weed out dead library dependencies.
+
 build-packunused:
 	cabal get packunused || (echo "rm stale copy of packunused?"; false)
 	cd packunused-* && \
@@ -38,10 +41,16 @@ build-packunused:
 
 packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.packunused
 
+
+# hlint
+
 %.hlint:
 	cd $* && make hlint
 
 hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
+
+
+# scratch
 
 install2:
 	cd thentos-core && \
