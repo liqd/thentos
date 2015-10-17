@@ -52,23 +52,39 @@ hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
 
 # sensei / seito
 
-# a ghcid-based method for running the test suite blindingly fast
-# rather than just the type checker painfully slowly.
+# ABSTRACT: a ghcid-based method for running the test suite blindingly
+# fast rather than just the type checker painfully slowly.
 #
-# you need to install https://github.com/hspec/sensei first.  run
-# 'make sensei' in a new terminal at the beginning of your session and
-# keep it running.  it will re-run the test suite every time something
-# changes, or if you hit 'return'.  you can also run 'make seito' to
-# print the last test run to stdout.  (this is most useful if you want
-# to integrate sensei into your editor/ide.)
+# QUICK INTRO: you need to install https://github.com/hspec/sensei
+# first.  run 'make sensei' in a new terminal at the beginning of your
+# session and keep it running.  it will re-run the test suite every
+# time something changes, or if you hit 'return'.  you can also run
+# 'make seito' to print the last test run to stdout.  (this is most
+# useful if you want to integrate sensei into your editor/ide.)
 #
-# for optimal results, you will want to invoke sensei with the
-# '--match' argument.  hspec arguments can be passed to 'make sensei'
-# via the SENSEI_ARGS shell variable.  see sensei and hspec docs for
-# details.
+# OTHER PACKAGES: sensei does not watch other packages (for deeper
+# reasons).  in order to be able to react to changes to the core from
+# the test suite, these make rules drop thentos-core and thentos-test
+# from the package database and add their source trees to the list of
+# watched files.
+#
+# NOTE: if you want to work with package thentos-adhocracy, these
+# rules need to be updated!
+#
+# OPTIMIZATION: for optimal results, you will want to invoke sensei
+# with the '--match' argument.  hspec arguments can be passed to 'make
+# sensei' via the SENSEI_ARGS shell variable.  see sensei and hspec
+# docs for details.
 
 sensei:
-	cabal exec -- sensei -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
+	cabal sandbox hc-pkg -- unregister --force thentos-tests
+	cabal sandbox hc-pkg -- unregister --force thentos-core
+	cd thentos-tests && cabal clean
+	cd thentos-core && cabal clean
+	cabal exec -- sensei \
+	  -i./thentos-core/src/ \
+	  -i./thentos-tests/src/ \
+	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
 
 seito:
 	sleep 0.2 && seito
