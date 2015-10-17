@@ -50,6 +50,30 @@ packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.p
 hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
 
 
+# sensei / seito
+
+# a ghcid-based method for running the test suite blindingly fast
+# rather than just the type checker painfully slowly.
+#
+# you need to install https://github.com/hspec/sensei first.  run
+# 'make sensei' in a new terminal at the beginning of your session and
+# keep it running.  it will re-run the test suite every time something
+# changes, or if you hit 'return'.  you can also run 'make seito' to
+# print the last test run to stdout.  (this is most useful if you want
+# to integrate sensei into your editor/ide.)
+#
+# for optimal results, you will want to invoke sensei with the
+# '--match' argument.  hspec arguments can be passed to 'make sensei'
+# via the SENSEI_ARGS shell variable.  see sensei and hspec docs for
+# details.
+
+sensei:
+	cabal exec -- sensei -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
+
+seito:
+	sleep 0.2 && seito
+
+
 # scratch
 
 install2:
