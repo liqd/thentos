@@ -83,6 +83,7 @@ sensei:
 	cd thentos-core && cabal clean
 	cabal exec -- sensei \
 	  -i./thentos-core/src/ \
+	  -i./thentos-core/src-devel/ \
 	  -i./thentos-tests/src/ \
 	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
 
