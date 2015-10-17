@@ -77,8 +77,8 @@ hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
 # docs for details.
 
 sensei:
-	cabal sandbox hc-pkg -- unregister --force thentos-tests
-	cabal sandbox hc-pkg -- unregister --force thentos-core
+	cabal sandbox hc-pkg -- unregister --force thentos-tests || true
+	cabal sandbox hc-pkg -- unregister --force thentos-core || true
 	cd thentos-tests && cabal clean
 	cd thentos-core && cabal clean
 	cabal exec -- sensei \
