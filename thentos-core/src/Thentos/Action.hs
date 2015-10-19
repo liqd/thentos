@@ -337,8 +337,7 @@ addService owner name desc = do
 addServicePrim ::
     UserId -> ServiceId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
-    -- FIXME LIO
-    --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
+    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
     query'P $ T.addService owner sid hashedKey name desc
@@ -346,7 +345,8 @@ addServicePrim owner sid name desc = do
 
 deleteService :: ServiceId -> Action e ()
 deleteService sid = do
-    guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
+    owner <- (^. serviceOwner) . snd <$> lookupService sid
+    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     query'P $ T.deleteService sid
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
