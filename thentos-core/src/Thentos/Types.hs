@@ -201,6 +201,13 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
+-- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Role'.)
+--
+-- Groups are opaque strings that services can use to manage authorizations for their users in
+-- thentos.  One reason why thentos offers this (rather than leaving the groups-to-users mapping to
+-- the internals of the service) is that this puts us in a position to do anonymized authentication:
+-- we can assert a request is issued by a user member in a certain group, but not leak the name of
+-- the user.
 newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
@@ -418,6 +425,7 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
+-- | Thentos-internal authorization classes.  (See 'Group' for service-side authorization classes.)
 data Role =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'

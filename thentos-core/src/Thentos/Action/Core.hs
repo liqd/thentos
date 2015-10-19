@@ -61,6 +61,14 @@ newtype ActionState =
       }
   deriving (Typeable, Generic)
 
+-- | The 'Action' monad transformer stack.  It contains:
+--
+--     - 'LIO' as a base monad.
+--     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
+--       authorization errors that must not be catchable from inside an 'Action'.)
+--     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
+--       will have authorized effect.  Since it is contained in a reader, actions have not the power
+--       to change it.
 newtype Action e a =
     Action
       { fromAction :: ReaderT ActionState (EitherT (ThentosError e) (LIO DCLabel)) a
@@ -144,14 +152,6 @@ runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent
 runActionInThentosSessionE :: (Show e, Typeable e) =>
     ThentosSessionToken -> ActionState -> Action e a -> IO (Either (ActionError e) a)
 runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
-
--- | Run an action followed by a second action. The second action is run
--- even if the first one throws an error.
-finally :: forall e a b . Action e a -> Action e b -> Action e a
-finally a sequel = do
-    r <- catchError a (\e -> sequel >> throwError e)
-    _ <- sequel
-    return r
 
 
 -- * labels, privileges and access rights.
