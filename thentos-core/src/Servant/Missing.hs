@@ -1,31 +1,38 @@
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-module Servant.Missing where
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE PolyKinds              #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeOperators          #-}
+module Servant.Missing (FormGet, FormPost, HasForm(..)) where
 
-import Servant
-import Servant.HTML.Blaze (HTML)
-import Servant.Server.Internal
+import           Data.String                   (fromString)
+import           GHC.TypeLits                  (KnownSymbol, symbolVal)
+import           Servant                       ((:>), Proxy (..))
+import           Servant.HTML.Blaze            (HTML)
+import           Servant.Server.Internal       (HasServer (..),
+                                                RouteResult (..),
+                                                Router (WithRequest), Router,
+                                                ServantErr (errBody),
+                                                addBodyCheck, err400,
+                                                methodRouter)
 
-import Control.Arrow (first)
-import Control.Monad.IO.Class
-import Text.Digestive
-import Network.Wai (Request, Response, responseLBS, requestBody)
-import Network.Wai.Parse (BackEnd, parseRequestBody)
-import Network.HTTP.Types (ok200, methodGet)
-import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Text.Blaze.Html5 as H
-import Text.Blaze.Html.Renderer.Utf8
-import qualified Data.Text.Encoding as T
-import Network.Wai.Digestive
-
-import Debug.Trace
+import           Control.Arrow                 (first)
+import           Control.Monad.IO.Class        (MonadIO, liftIO)
+import           Data.Text                     (Text)
+import qualified Data.Text                     as Text
+import qualified Data.Text.Encoding            as T
+import           Network.HTTP.Types            (methodGet, ok200)
+import           Network.Wai                   (Request, Response, requestBody,
+                                                responseLBS)
+import           Network.Wai.Parse             (BackEnd, parseRequestBody)
+import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+import qualified Text.Blaze.Html5              as H
+import           Text.Digestive                (Env, Form,
+                                                FormInput (TextInput), View,
+                                                fromPath, getForm, postForm)
 
 -- Combinators for digestive-functors
 --
@@ -34,11 +41,13 @@ import Debug.Trace
 -- of type 'a' in case the form can be validated; otherwise it automatically
 -- returns the HTML corresponding to the error.
 --
+-- Note that file uploads are not supported.
+--
 -- > type API = "form" :> FormGet "PersonForm" Html Person
 -- >       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
 -- >
 -- > server :: Server API
--- > server = () :<|> id
+-- > server = return () :<|> return
 -- >
 -- > data Person = Person { name :: String, age :: Int }
 -- >
@@ -48,66 +57,60 @@ import Debug.Trace
 -- >   where
 -- >     nonEmptyText = check "Cannot be empty" (not . Data.Text.null)
 -- >                  $ text Nothing
--- >     positiveInt  = check "Must be postive" (>= 0) $ stringRead Nothing
+-- >     positiveInt  = check "Must be positive" (>= 0) $ stringRead "Not a number" Nothing
 -- >
 -- > renderPersonForm :: View Html -> Html
 -- > renderPersonForm v = ...
 -- >
 -- > instance HasForm "PersonForm" Html Person where
--- >    isForm _   = personForm
--- >    formView _ = renderPersonForm
+-- >    isForm _      = personForm
+-- >    formView _    = renderPersonForm
+-- >    formBackend _ = <save files>
 
 data FormPost f v a
 data FormGet f v a
 
-toServantErr :: H.ToMarkup v => v -> ServantErr
-toServantErr v = err400 { errBody = renderHtml $ H.toHtml v }
-
-render :: H.Html -> RouteResult Response
-render x = Route $ responseLBS ok200 [] $ renderHtml x
 
 class HasForm f v a | f -> v, f -> a where
     isForm :: Monad m => Proxy f -> Form v m a
     formView :: Proxy f -> View v -> v
     formBackend :: Proxy f -> BackEnd FilePath
 
-instance (HasForm f v a, Show a, H.ToMarkup v, HasServer sublayout)
+instance (KnownSymbol f, HasForm f v a, Show a, H.ToMarkup v, HasServer sublayout)
          => HasServer (FormPost f v a :> sublayout) where
     type ServerT (FormPost f v a :> sub) m = a -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver $ go req)
       where
         fp = Proxy :: Proxy f
+        fname = fromString $ symbolVal (Proxy :: Proxy f)
+        toServantErr v = err400 { errBody = renderHtml $ H.toHtml v }
         go req = do
-           (v, a) <- runFormP req "test" (formBackend fp) (isForm fp)
+           (v, a) <- runFormP req fname (formBackend fp) (isForm fp)
            case a of
              Nothing -> return $ FailFatal (toServantErr $ formView fp v)
-             Just a' -> traceShow a $ return $ Route a'
+             Just a' -> return $ Route a'
 
-instance (HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v a) where
+instance (KnownSymbol f, HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v a) where
     type ServerT (FormGet f v a) m = m ()
     route _ sub = methodRouter methodGet (Proxy :: Proxy '[HTML]) ok200 go
       where
+        fname = fromString $ symbolVal (Proxy :: Proxy f)
         fp = Proxy :: Proxy f
         go = fmap (\_ -> do
-            v <- runFormG "test" $ isForm fp
+            v <- getForm fname $ isForm fp
             return . H.toHtml $ formView fp v) sub
 
-bfe :: MonadIO m => BackEnd a -> Request -> Env m
-bfe be req query = do
-    (q, _) <- liftIO $ parseRequestBody be req
-    liftIO $ putStrLn ("ReqBody " ++ show q)
-    liftIO $ putStrLn ("query " ++ show (fromPath query))
-    let q' = map (first T.decodeUtf8) q
-    let res = map (TextInput . T.decodeUtf8 . snd) $ filter (\(x,_) -> x == fromPath query) q'
-    liftIO $ putStrLn ("Res " ++ show res)
-    return $ res
 
-runFormG :: Monad m => Text -> Form v m a -> m (View v)
-runFormG = getForm
+backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m
+backendFormEnv be req query = do
+    (q, _) <- liftIO $ parseRequestBody be req
+    return $ map (TextInput . T.decodeUtf8 . snd)
+           $ filter (\(x,_) -> x == fromPath query)
+           $ map (first T.decodeUtf8) q
 
 runFormP :: MonadIO m
-    => Request -> Text -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
-runFormP req name backend form = postForm name form $ \x -> case x of
-    MultiPart  -> trace "here1" $ bodyFormEnv backend req
-    UrlEncoded -> return $ bfe backend req
+         => Request -> Text -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
+runFormP req name backend form
+    = postForm name form $ \_ -> return $ backendFormEnv backend req
+
