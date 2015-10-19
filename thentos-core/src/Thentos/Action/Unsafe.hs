@@ -1,3 +1,5 @@
+{-# LANGUAGE Unsafe                      #-}
+
 {-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE FlexibleContexts            #-}
