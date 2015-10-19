@@ -10,7 +10,7 @@ import LIO.DCLabel (toCNF)
 import Test.Hspec (Spec, SpecWith, describe, it, before, hspec)
 
 import Thentos.Action.Core
-import Thentos.Action.SimpleCheckClearance
+import Thentos.Action.SimpleAuth
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
@@ -28,7 +28,7 @@ spec = do
           withResource connPool createGod
           return actionState
 
-    describe "Thentos.Action.SimpleCheckClearance" . before mkActionState $ specWithActionState
+    describe "Thentos.Action.SimpleAuth" . before mkActionState $ specWithActionState
 
 type Act = Action (ActionError Void)
 

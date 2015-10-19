@@ -96,7 +96,7 @@ import qualified Data.Text as ST
 
 import LIO.Missing
 import Thentos.Action.Core
-import Thentos.Action.SimpleCheckClearance
+import Thentos.Action.SimpleAuth
 import Thentos.Types
 import Thentos.Util
 

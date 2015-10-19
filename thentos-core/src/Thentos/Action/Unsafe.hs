@@ -30,7 +30,7 @@ import System.Log (Priority(DEBUG, CRITICAL))
 import qualified Data.Thyme as Thyme
 
 import Thentos.Action.Core
-import Thentos.Action.SimpleCheckClearance
+import Thentos.Action.SimpleAuth
 import Thentos.Config
 import Thentos.Smtp as TS
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
