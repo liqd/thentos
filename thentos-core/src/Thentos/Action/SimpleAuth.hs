@@ -58,7 +58,7 @@ newtype UnsafeAction e a =
 -- * authorization predicates
 
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
-assertAuth :: (e ~ ActionError e') => Action e Bool -> Action e ()
+assertAuth :: Action e Bool -> Action e ()
 assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcTop)
 
 hasUserId :: UserId -> Action e Bool
@@ -75,11 +75,11 @@ hasRole role = guardWriteOk (role %% role)
 
 -- | Run an 'UnsafeAction' in a safe 'Action' with extra authorization checks (performed through
 -- 'assertAuth').
-guardedUnsafeAction :: (e ~ ActionError e') => Action e Bool -> UnsafeAction e a -> Action e a
+guardedUnsafeAction :: Action e Bool -> UnsafeAction e a -> Action e a
 guardedUnsafeAction utest uaction = assertAuth utest >> unsafeAction uaction
 
 -- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
-unsafeAction :: (e ~ ActionError e') => UnsafeAction e a -> Action e a
+unsafeAction :: UnsafeAction e a -> Action e a
 unsafeAction uaction = construct deconstruct
   where
     construct io = Action . ReaderT $ EitherT . ioTCB . io
