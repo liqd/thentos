@@ -3,12 +3,11 @@
 
 module Thentos.Action.SimpleCheckClearanceSpec where
 
-import Control.Exception (SomeException)
 import Data.Pool (withResource)
 import Data.String.Conversions (cs)
 import Data.Void (Void)
 import LIO.DCLabel (toCNF)
-import Test.Hspec (Spec, SpecWith, describe, it, before, shouldThrow, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, before, hspec)
 
 import Thentos.Action.Core
 import Thentos.Action.SimpleCheckClearance
@@ -47,8 +46,9 @@ specWithActionState :: SpecWith ActionState
 specWithActionState = describe "Thentos.Action.SimpleCheckClearance" $ do
     describe "assertAuth" $ do
         it "throws an error on False" $ \sta -> do
-            runAction sta (assertAuth $ pure False :: Action (ActionError Void) ())
-                `shouldThrow` (\(_ :: SomeException) -> True)
+            Left (ActionErrorAnyLabel _)
+                <- runActionE sta (assertAuth $ pure False :: Action (ActionError Void) ())
+            return ()
         it "returns () on True" $ \sta -> do
             runAction sta (assertAuth $ pure True :: Action (ActionError Void) ())
 
@@ -71,6 +71,7 @@ specWithActionState = describe "Thentos.Action.SimpleCheckClearance" $ do
             return ()
         it "can distinguish uid and sid" $ \sta -> do
             False <- runAction sta (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
+            return ()
 
     describe "hasRole" $ do
         it "returns True if role is present" $ \sta -> do
@@ -88,8 +89,9 @@ specWithActionState = describe "Thentos.Action.SimpleCheckClearance" $ do
             3 <- runAction sta (guardedUnsafeAction (pure True) (pure 3) :: Act Int)
             return ()
         it "throws an error otherwise" $ \sta -> do
-            runAction sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
-                `shouldThrow` (\(_ :: SomeException) -> True)
+            Left (ActionErrorAnyLabel _)
+                <- runActionE sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
+            return ()
 
     describe "unsafeAction" $ do
         it "translates an UnsafeAction into an Action, unsafely" $ \sta -> do
