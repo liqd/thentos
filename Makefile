@@ -93,8 +93,7 @@ seito:
 	sleep 0.2 && seito
 
 sensei-update-cabal_macros:
-	cd thentos-core && cabal install
-	cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
+	cd thentos-core && cabal install && cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
 
 
 # scratch
