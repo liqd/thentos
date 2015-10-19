@@ -33,6 +33,9 @@ spec = do
 
 type Act = Action (ActionError Void)
 
+setTwoRoles :: Action e ()
+setTwoRoles = grantAccessRights'P [RoleAdmin, RoleUser]
+
 setClearanceUid :: Integer -> Action e ()
 setClearanceUid uid = grantAccessRights'P [toCNF . UserA . UserId $ uid, toCNF RoleUser]
 
@@ -41,7 +44,7 @@ setClearanceSid sid = grantAccessRights'P [toCNF . ServiceA . ServiceId . cs . s
 
 
 specWithActionState :: SpecWith ActionState
-specWithActionState = describe "Thentos.Action.SimpleCheckClearanceSpec" $ do
+specWithActionState = describe "Thentos.Action.SimpleCheckClearance" $ do
     describe "assertAuth" $ do
         it "throws an error on False" $ \sta -> do
             runAction sta (assertAuth $ pure False :: Action (ActionError Void) ())
@@ -66,14 +69,18 @@ specWithActionState = describe "Thentos.Action.SimpleCheckClearanceSpec" $ do
             False <- runAction sta (hasServiceId (ServiceId "3") :: Act Bool)
             False <- runAction sta (setClearanceSid 5 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
+        it "can distinguish uid and sid" $ \sta -> do
+            False <- runAction sta (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
 
     describe "hasRole" $ do
         it "returns True if role is present" $ \sta -> do
             True <- runAction sta (setClearanceUid 3 >> hasRole RoleUser :: Act Bool)
             True <- runAction sta (setClearanceUid 5 >> hasRole RoleUser :: Act Bool)
+            True <- runAction sta (setTwoRoles >> hasRole RoleUser :: Act Bool)
             return ()
         it "returns False if role is missing" $ \sta -> do
             False <- runAction sta (hasRole RoleUser :: Act Bool)
+            False <- runAction sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
             return ()
 
     describe "guardedUnsafeAction" $ do
