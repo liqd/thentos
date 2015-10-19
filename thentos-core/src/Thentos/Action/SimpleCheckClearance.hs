@@ -1,20 +1,12 @@
 {-# LANGUAGE Unsafe                      #-}
 
-{-# LANGUAGE ConstraintKinds             #-}
-{-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveDataTypeable          #-}
 {-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
-{-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE InstanceSigs                #-}
-{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TypeFamilies                #-}
-{-# LANGUAGE TypeOperators               #-}
-{-# LANGUAGE UndecidableInstances        #-}
 
 {-| Simplified access to 'Action' with guarded exits.
 
