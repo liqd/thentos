@@ -75,6 +75,7 @@ library
     , Thentos.Config
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
+    , Thentos.Frontend.HandlersS
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.Types
