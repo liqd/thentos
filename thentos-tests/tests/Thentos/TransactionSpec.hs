@@ -337,7 +337,7 @@ agentRolesSpec = describe "agentRoles" $ do
         x `shouldBe` Right []
 
         Right _ <- runVoidedQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "name" "desc"
+            addService testUid sid testHashedSecret "name" "desc"
         roles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
         roles `shouldBe` Right []
   where
@@ -386,7 +386,7 @@ assignRoleSpec = describe "assignRole" $ do
   where
     sid = "sid"
     addTestService connPool = void . runVoidedQuery connPool $
-        addService (UserA testUid) sid testHashedSecret "name" "desc"
+        addService testUid sid testHashedSecret "name" "desc"
 
 unassignRoleSpec :: SpecWith (Pool Connection)
 unassignRoleSpec = describe "unassignRole" $ do
@@ -417,7 +417,7 @@ unassignRoleSpec = describe "unassignRole" $ do
   where
     sid = "sid"
     addTestService connPool = void . runVoidedQuery connPool $
-        addService (UserA testUid) sid testHashedSecret "name" "desc"
+        addService testUid sid testHashedSecret "name" "desc"
 
 emailChangeRequestSpec :: SpecWith (Pool Connection)
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
@@ -462,7 +462,7 @@ addServiceSpec = describe "addService" $ do
         Right _ <- runPooledQuery connPool $ addUserPrim (Just uid) user True
         rowCountShouldBe connPool "services" 0
         Right _ <- runPooledQuery connPool $
-            addService (UserA uid) sid testHashedSecret name description
+            addService uid sid testHashedSecret name description
         [(owner', sid', key', name', desc')] <- doQuery connPool
             [sql| SELECT owner_user, id, key, name, description
                   FROM services |] ()
@@ -471,22 +471,6 @@ addServiceSpec = describe "addService" $ do
         key' `shouldBe` testHashedSecret
         name' `shouldBe` name
         desc' `shouldBe` description
-
-    it "allows a service's owner to be a service" $ \connPool -> do
-        let childSid = "child_sid"
-            childName = "child service"
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runPooledQuery connPool $
-            addService (UserA testUid) sid testHashedSecret name description
-        Right _ <- runPooledQuery connPool $
-            addService (ServiceA sid) childSid testHashedSecret childName "foo"
-        rowCountShouldBe connPool "services" 2
-        [(sid', name')] <- doQuery connPool
-            [sql| SELECT id, name
-                  FROM services
-                  WHERE owner_service = ? |] (Only sid)
-        sid' `shouldBe` childSid
-        name' `shouldBe` childName
 
   where
     sid = ServiceId "serviceid1"
@@ -500,7 +484,7 @@ deleteServiceSpec = describe "deleteService" $ do
     it "deletes a service" $ \connPool -> do
         Right _ <- runPooledQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runPooledQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "" ""
+            addService testUid sid testHashedSecret "" ""
         Right _ <- runPooledQuery connPool $ deleteService sid
         rowCountShouldBe connPool "services" 0
 
@@ -515,14 +499,14 @@ lookupServiceSpec = describe "lookupService" $ do
     it "looks up a service"  $ \connPool -> do
         Right _ <- runPooledQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runPooledQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "name" "desc"
+            addService testUid sid testHashedSecret "name" "desc"
 
         Right (sid', service) <- runPooledQuery connPool $ lookupService sid
         service ^. serviceKey `shouldBe` testHashedSecret
         sid' `shouldBe` sid
         service ^. serviceName `shouldBe` name
         service ^. serviceDescription `shouldBe` desc
-        service ^. serviceOwner `shouldBe` UserA testUid
+        service ^. serviceOwner `shouldBe` testUid
   where
     sid = ServiceId "blablabla"
     name = "name"
@@ -555,7 +539,7 @@ startThentosSessionSpec = describe "startThentosSession" $ do
         let sid = "sid"
         void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
         Right _ <- runPooledQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "name" "desc"
+            addService testUid sid testHashedSecret "name" "desc"
         Right () <- runVoidedQuery connPool $ startThentosSession tok (ServiceA sid) period
         [Only sid'] <- doQuery connPool [sql| SELECT sid
                                          FROM thentos_sessions
@@ -589,7 +573,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
 
         let tok2 = "anothertoken"
         Right _ <- runPooledQuery connPool $
-            addService (UserA userId) sid testHashedSecret "name" "desc"
+            addService userId sid testHashedSecret "name" "desc"
         Right _ <- runVoidedQuery connPool $ startThentosSession tok2 (ServiceA sid) period
         Right (tok2', sess) <- runVoidedQuery connPool $ lookupThentosSession tok2
         tok2' `shouldBe` tok2
@@ -634,9 +618,9 @@ serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $
     it "gets the names of all services that a thentos session is signed into" $ \conn -> do
         let go = void . runVoidedQuery conn
         go $ addUserPrim (Just testUid) testUser True
-        go $ addService (UserA testUid) "sid1" testHashedSecret "s1-name" "s1-desc"
-        go $ addService (UserA testUid) "sid2" testHashedSecret "s2-name" "s2-desc"
-        go $ addService (UserA testUid) "sid3" testHashedSecret "s3-name" "s3-desc"
+        go $ addService testUid "sid1" testHashedSecret "s1-name" "s1-desc"
+        go $ addService testUid "sid2" testHashedSecret "s2-name" "s2-desc"
+        go $ addService testUid "sid3" testHashedSecret "s3-name" "s3-desc"
         go $ startThentosSession thentosSessionToken (UserA testUid) period
         go $ startServiceSession thentosSessionToken "sst1" "sid1" period
         go $ startServiceSession thentosSessionToken "sst2" "sid2" period
@@ -654,7 +638,7 @@ startServiceSessionSpec = describe "startServiceSession" $ do
         void $ runVoidedQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runVoidedQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "" ""
+            addService testUid sid testHashedSecret "" ""
         void $ runVoidedQuery connPool $
             startServiceSession thentosSessionToken serviceSessionToken sid period
         rowCountShouldBe connPool "service_sessions" 1
@@ -671,7 +655,7 @@ endServiceSessionSpec = describe "endServiceSession" $ do
         void $ runVoidedQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runVoidedQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "" ""
+            addService testUid sid testHashedSecret "" ""
         void $ runVoidedQuery connPool $
             startServiceSession thentosSessionToken serviceSessionToken sid period
         rowCountShouldBe connPool "service_sessions" 1
@@ -690,7 +674,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
         void $ runVoidedQuery connPool $
             startThentosSession thentosSessionToken (UserA testUid) period
         void $ runVoidedQuery connPool $
-            addService (UserA testUid) sid testHashedSecret "" ""
+            addService testUid sid testHashedSecret "" ""
         void $ runVoidedQuery connPool $
             startServiceSession thentosSessionToken serviceSessionToken sid period
         Right (tok, sess) <- runVoidedQuery connPool $ lookupServiceSession serviceSessionToken
@@ -753,7 +737,7 @@ addContextSpec = describe "addContext" $ do
     it "adds a context to the DB" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()  <- runVoidedQuery connPool $
-                        addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         cxt ^. contextService `shouldBe` servId
@@ -775,7 +759,7 @@ addContextSpec = describe "addContext" $ do
     it "throws ContextNameAlreadyExists if the name is not unique" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()  <- runVoidedQuery connPool $
-                        addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedSecret "sName" "sDescription"
         Right _   <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Left err  <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         err `shouldBe` ContextNameAlreadyExists
@@ -785,7 +769,7 @@ deleteContextSpec = describe "deleteContext" $ do
     it "deletes a context from the DB" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()  <- runVoidedQuery connPool $
-                        addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()  <- runPooledQuery connPool . deleteContext $ cxt ^. contextId
@@ -801,7 +785,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
         Right persona <- runPooledQuery connPool $ addPersona persName uid
         Right ()      <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
@@ -814,7 +798,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
         Right persona <- runPooledQuery connPool $ addPersona persName uid
         Right ()      <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
@@ -826,7 +810,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona  <- runPooledQuery connPool $ addPersona persName uid
         Right persona' <- runPooledQuery connPool $ addPersona "MyMyMy" uid
         Right ()  <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()  <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
@@ -837,7 +821,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         let persona = Persona (PersonaId 5904) persName uid
         Right ()  <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $ cxt ^. contextId
         err `shouldBe` NoSuchPersona
@@ -846,7 +830,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
         Right persona <- runPooledQuery connPool $ addPersona persName uid
         Right ()      <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $ ContextId 1525
         err `shouldBe` NoSuchContext
 
@@ -856,7 +840,7 @@ unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
         Right persona <- runPooledQuery connPool $ addPersona persName uid
         Right ()      <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
@@ -882,7 +866,7 @@ findPersonaSpec = describe "findPersona" $ do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
         Right persona <- runPooledQuery connPool $ addPersona persName uid
         Right ()      <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
@@ -893,7 +877,7 @@ findPersonaSpec = describe "findPersona" $ do
         Right uid   <- runVoidedQuery connPool $ addUser (head testUsers)
         Right _     <- runPooledQuery connPool $ addPersona persName uid
         Right ()    <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right mPers <- runPooledQuery connPool . findPersona uid $ cxt ^. contextId
         mPers `shouldBe` Nothing
@@ -903,7 +887,7 @@ contextsForServiceSpec = describe "contextsForService" $ do
     it "finds contexts registered for a service" $ \connPool -> do
         Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()   <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt1 <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right cxt2 <- runPooledQuery connPool $ addContext servId "MeinMoabit"
                             "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
@@ -913,9 +897,9 @@ contextsForServiceSpec = describe "contextsForService" $ do
     it "doesn't return contexts registered for other services" $ \connPool -> do
         Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()   <- runVoidedQuery connPool $
-                            addService (UserA uid) servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedSecret "sName" "sDescription"
         Right ()   <- runVoidedQuery connPool $
-                            addService (UserA uid) "sid2" testHashedSecret "s2Name" "s2Description"
+                            addService uid "sid2" testHashedSecret "s2Name" "s2Description"
         Right _    <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
         Right _    <- runPooledQuery connPool $ addContext servId "MeinMoabit"
                             "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
@@ -1010,7 +994,7 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
         Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
         hashedKey <- hashServiceKey "secret"
         Right _ <- runVoidedQuery connPool $
-            addService (UserA testUid) sid hashedKey "sName" "sDescription"
+            addService testUid sid hashedKey "sName" "sDescription"
 
         Right _ <- runVoidedQuery connPool $ startThentosSession tTok1 (UserA testUid) laterTimeout
         Right _ <- runVoidedQuery connPool $ startThentosSession tTok2 (UserA testUid) laterTimeout

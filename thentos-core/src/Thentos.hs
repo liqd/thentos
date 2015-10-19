@@ -173,4 +173,4 @@ autocreateMissingServices cfg = do
     allSids          = maybeToList mDefaultProxySid ++ proxySids
     mDefaultProxySid = ServiceId <$> cfg >>. (Proxy :: Proxy '["proxy", "service_id"])
     proxySids        = Map.keys $ getProxyConfigMap cfg
-    agent            = UserA $ UserId 0
+    agent            = UserId 0

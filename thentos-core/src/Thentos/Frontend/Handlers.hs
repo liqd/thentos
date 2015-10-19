@@ -281,7 +281,7 @@ serviceCreate = runAsUser $ \ _ fsl -> do
     runPageletForm serviceCreateForm
                    (serviceCreatePagelet tok) DashboardTabOwnServices
                    $ \ (name, description) -> do
-        eResult <- snapRunActionE $ addService (UserA $ fsl ^. fslUserId) name description
+        eResult <- snapRunActionE $ addService (fsl ^. fslUserId) name description
         case eResult of
             Right (sid, key) -> do
                 sendFrontendMsgs
