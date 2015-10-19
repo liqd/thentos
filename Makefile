@@ -81,7 +81,7 @@ sensei:
 	cabal sandbox hc-pkg -- unregister --force thentos-core || true
 	cd thentos-tests && cabal clean
 	cd thentos-core && cabal clean
-	@echo "if you get CPP-related errors, try `make sensei-update-cabal_macros`."
+	@echo "if you get CPP-related errors, try 'make sensei-update-cabal_macros'."
 	cabal exec -- sensei \
 	  -i./thentos-core/src/ \
 	  -i./thentos-core/src-devel/ \
@@ -93,8 +93,7 @@ seito:
 	sleep 0.2 && seito
 
 sensei-update-cabal_macros:
-	cd thentos-core && cabal install
-	cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
+	cd thentos-core && cabal install && cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
 
 
 # scratch

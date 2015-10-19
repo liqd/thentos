@@ -91,6 +91,13 @@
   (major1) == 1 && (major2) <  2 || \
   (major1) == 1 && (major2) == 2 && (minor) <= 0)
 
+/* package cond-0.4.1.1 */
+#define VERSION_cond "0.4.1.1"
+#define MIN_VERSION_cond(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  4 || \
+  (major1) == 0 && (major2) == 4 && (minor) <= 1)
+
 /* package configifier-0.0.5 */
 #define VERSION_configifier "0.0.5"
 #define MIN_VERSION_configifier(major1,major2,minor) (\
@@ -525,5 +532,5 @@
   (major1) == 2 && (major2) <  25 || \
   (major1) == 2 && (major2) == 25 && (minor) <= 0)
 
-#define CURRENT_PACKAGE_KEY "thent_1ovKESpwULT2SOP0MifGpS"
+#define CURRENT_PACKAGE_KEY "thent_5qZjBG12hRo6BZenNLBH2v"
 
