@@ -33,6 +33,8 @@ tryGuardWrite label onSuccess onFailure = do
       Left e -> onFailure e
       Right () -> onSuccess
 
+-- | Test whether guard-write against a given label violates current clearance.  In other words:
+-- whether given label can flow to clearance.
 guardWriteOk :: MonadLIO l m => l -> m Bool
 guardWriteOk l = tryGuardWrite l (pure True) (\_ -> pure False)
 
