@@ -28,7 +28,7 @@ spec = do
           withResource connPool createGod
           return actionState
 
-    describe "Thentos.Action" . before mkActionState $ specWithActionState
+    describe "Thentos.Action.SimpleCheckClearance" . before mkActionState $ specWithActionState
 
 type Act = Action (ActionError Void)
 
@@ -43,7 +43,7 @@ setClearanceSid sid = grantAccessRights'P [toCNF . ServiceA . ServiceId . cs . s
 
 
 specWithActionState :: SpecWith ActionState
-specWithActionState = describe "Thentos.Action.SimpleCheckClearance" $ do
+specWithActionState = do
     describe "assertAuth" $ do
         it "throws an error on False" $ \sta -> do
             Left (ActionErrorAnyLabel _)
