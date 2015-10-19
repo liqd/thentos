@@ -351,14 +351,13 @@ deleteService sid = do
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
 -- to the config which will automatically spring into life if the config is read.
-autocreateServiceIfMissing'P ::
-    UserId -> ServiceId -> Action e ()
+autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e ()
 autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
     \case NoSuchService -> do
             logger'P DEBUG $ "autocreating service with ID " ++ show sid
             void $ addServicePrim owner sid (ServiceName "autocreated")
                                   (ServiceDescription "autocreated")
-          e                                            -> throwError e
+          e -> throwError e
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: UserId -> ServiceId -> Action e [Group]
