@@ -11,7 +11,7 @@
 {-| Simplified access to 'Action' with guarded exits.
 
 -}
-module Thentos.Action.SimpleCheckClearance
+module Thentos.Action.SimpleAuth
   ( UnsafeAction(..)
   , assertAuth
   , hasUserId

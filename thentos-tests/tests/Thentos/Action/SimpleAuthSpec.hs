@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
-module Thentos.Action.SimpleCheckClearanceSpec where
+module Thentos.Action.SimpleAuthSpec where
 
 import Data.Pool (withResource)
 import Data.String.Conversions (cs)

@@ -62,7 +62,7 @@ library
     , ThentosDocs
     , Thentos.Action
     , Thentos.Action.Core
-    , Thentos.Action.SimpleCheckClearance
+    , Thentos.Action.SimpleAuth
     , Thentos.Action.Unsafe
     , Thentos.Backend.Api.Auth
     , Thentos.Backend.Api.Docs.Common
