@@ -8,6 +8,7 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -22,7 +23,7 @@ import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Crypto.Random (ChaChaDRG, drgNew)
+import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)

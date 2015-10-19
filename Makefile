@@ -13,6 +13,9 @@ clean:
 	find thentos-*/ -name '*.dyn_o' -exec rm -f {} \;
 	find thentos-*/ -name '*.dyn_hi' -exec rm -f {} \;
 
+
+# weed out dead library dependencies.
+
 build-packunused:
 	cabal get packunused || (echo "rm stale copy of packunused?"; false)
 	cd packunused-* && \
@@ -38,10 +41,63 @@ build-packunused:
 
 packunused: thentos-core.packunused thentos-tests.packunused thentos-adhocracy.packunused
 
+
+# hlint
+
 %.hlint:
 	cd $* && make hlint
 
 hlint: thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
+
+
+# sensei / seito
+
+# ABSTRACT: a ghcid-based method for running the test suite blindingly
+# fast rather than just the type checker painfully slowly.
+#
+# QUICK INTRO: you need to install https://github.com/hspec/sensei
+# first.  run 'make sensei' in a new terminal at the beginning of your
+# session and keep it running.  it will re-run the test suite every
+# time something changes, or if you hit 'return'.  you can also run
+# 'make seito' to print the last test run to stdout.  (this is most
+# useful if you want to integrate sensei into your editor/ide.)
+#
+# OTHER PACKAGES: sensei does not watch other packages (for deeper
+# reasons).  in order to be able to react to changes to the core from
+# the test suite, these make rules drop thentos-core and thentos-test
+# from the package database and add their source trees to the list of
+# watched files.
+#
+# NOTE: if you want to work with package thentos-adhocracy, these
+# rules need to be updated!
+#
+# OPTIMIZATION: for optimal results, you will want to invoke sensei
+# with the '--match' argument.  hspec arguments can be passed to 'make
+# sensei' via the SENSEI_ARGS shell variable.  see sensei and hspec
+# docs for details.
+
+sensei:
+	cabal sandbox hc-pkg -- unregister --force thentos-tests || true
+	cabal sandbox hc-pkg -- unregister --force thentos-core || true
+	cd thentos-tests && cabal clean
+	cd thentos-core && cabal clean
+	@echo "if you get CPP-related errors, try `make sensei-update-cabal_macros`."
+	cabal exec -- sensei \
+	  -i./thentos-core/src/ \
+	  -i./thentos-core/src-devel/ \
+	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
+	  -i./thentos-tests/src/ \
+	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
+
+seito:
+	sleep 0.2 && seito
+
+sensei-update-cabal_macros:
+	cd thentos-core && cabal install
+	cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
+
+
+# scratch
 
 install2:
 	cd thentos-core && \

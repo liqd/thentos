@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -27,7 +28,7 @@ import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
 import Control.Monad (void, when, forever)
-import Crypto.Random (ChaChaDRG, drgNew)
+import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight)
 import Data.Maybe (maybeToList)
