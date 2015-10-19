@@ -42,7 +42,7 @@ import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
 import System.IO.Temp (createTempDirectory)
-import System.Process
+import System.Process (callCommand)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson

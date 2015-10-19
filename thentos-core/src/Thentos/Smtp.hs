@@ -32,9 +32,9 @@ sendMail config mName address subject message = do
     case r of
         Right (out, err) -> do
             unless (SB.null out) .
-                logger WARNING $ "sendmail produced output on std out: " ++ cs out
+                logger WARNING $ "sendmail produced output on stdout: " ++ cs out
             unless (SB.null err) .
-                logger WARNING $ "sendmail produced output on std err: " ++ cs err
+                logger WARNING $ "sendmail produced output on stderr: " ++ cs err
             return $ Right ()
         Left (e :: IOException) ->
             return . Left . SendmailError $ "IO error running sendmail: " ++ show e
