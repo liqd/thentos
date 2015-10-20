@@ -57,6 +57,7 @@ library
     , http-types >=0.8.6 && <0.9
     , lifted-base >=0.2.3.6 && <0.3
     , lio >=0.11.5.0 && <0.12
+    , mockery >=0.3.2 && <0.4
     , network >=2.6.2.1 && <2.7
     , postgresql-simple >=0.4.10 && <0.5
     , process >=1.2.3.0 && <1.3
