@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     confirmed  bool        NOT NULL,
     created    timestamptz NOT NULL DEFAULT now()
 );
+
 CREATE TABLE IF NOT EXISTS user_confirmation_tokens (
     id         bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token      text        NOT NULL UNIQUE,
