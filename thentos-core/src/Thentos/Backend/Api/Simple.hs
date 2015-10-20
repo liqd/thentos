@@ -95,7 +95,7 @@ type ThentosService =
 
 thentosService :: ServerT ThentosService (Action Void)
 thentosService =
-         (\ (uid, sn, sd) -> addService (UserA uid) sn sd)
+         (\ (uid, sn, sd) -> addService uid sn sd)
     :<|> deleteService
     :<|> allServiceIds
 

@@ -114,7 +114,7 @@ spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \ sta -> do
             let addsvc name desc = runClearanceE (UserA godUid %% UserA godUid) sta
-                    $ addService (UserA (UserId 0)) name desc
+                    $ addService (UserId 0) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
             Right (service2_id, _s2_key) <- addsvc "different name" "different description"
             service1 <- runPrivs [RoleAdmin] sta $ lookupService service1_id
@@ -128,7 +128,7 @@ spec_service = describe "service" $ do
 
     describe "autocreateServiceIfMissing" $ do
         it "adds service if missing" $ \ sta -> do
-            let owner = UserA $ UserId 0
+            let owner = UserId 0
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldNotContain` [sid]
@@ -137,7 +137,7 @@ spec_service = describe "service" $ do
             allSids' `shouldContain` [sid]
 
         it "does nothing if service exists" $ \ sta -> do
-            let owner = UserA $ UserId 0
+            let owner = UserId 0
             (sid, _) <- runPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"
             allSids <- runPrivs [RoleAdmin] sta allServiceIds

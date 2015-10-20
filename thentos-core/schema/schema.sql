@@ -34,12 +34,10 @@ CREATE TABLE IF NOT EXISTS user_roles (
 
 CREATE TABLE IF NOT EXISTS services (
     id            text       PRIMARY KEY,
-    owner_user    bigint     REFERENCES users (id),
-    owner_service text       REFERENCES services (id),
+    owner_user    bigint     NOT NULL REFERENCES users (id),
     name          text       NOT NULL,
     description   text       NOT NULL,
-    key           text       NOT NULL,
-    CHECK ((owner_user IS NULL) <> (owner_service IS NULL))
+    key           text       NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS service_roles (

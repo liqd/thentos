@@ -329,13 +329,13 @@ lookupService :: ServiceId -> Action e (ServiceId, Service)
 lookupService sid = query'P $ T.lookupService sid
 
 addService ::
-    Agent -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
+    UserId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addService owner name desc = do
     sid <- freshServiceId
     addServicePrim owner sid name desc
 
 addServicePrim ::
-    Agent -> ServiceId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
+    UserId -> ServiceId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
     -- FIXME LIO
     --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
@@ -352,7 +352,7 @@ deleteService sid = do
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
 -- to the config which will automatically spring into life if the config is read.
 autocreateServiceIfMissing'P ::
-    Agent -> ServiceId -> Action e ()
+    UserId -> ServiceId -> Action e ()
 autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
     \case NoSuchService -> do
             logger'P DEBUG $ "autocreating service with ID " ++ show sid

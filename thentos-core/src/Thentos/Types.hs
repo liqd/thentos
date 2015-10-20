@@ -169,7 +169,7 @@ instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 data Service =
     Service
       { _serviceKey            :: !(HashedSecret ServiceKey)
-      , _serviceOwner          :: !Agent
+      , _serviceOwner          :: !UserId
       , _serviceThentosSession :: !(Maybe ThentosSessionToken)
           -- ^ Used by the service to authenticate in communication with thentos.
       , _serviceName           :: !ServiceName
