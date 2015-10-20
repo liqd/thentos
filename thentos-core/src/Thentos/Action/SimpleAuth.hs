@@ -14,6 +14,7 @@
 module Thentos.Action.SimpleAuth
   ( UnsafeAction(..)
   , assertAuth
+  , hasAgent
   , hasUserId
   , hasServiceId
   , hasRole
@@ -60,6 +61,10 @@ newtype UnsafeAction e a =
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
 assertAuth :: Action e Bool -> Action e ()
 assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcTop)
+
+hasAgent :: Agent -> Action e Bool
+hasAgent (UserA u) = hasUserId u
+hasAgent (ServiceA s) = hasServiceId s
 
 hasUserId :: UserId -> Action e Bool
 hasUserId uid = guardWriteOk (UserA uid %% UserA uid)

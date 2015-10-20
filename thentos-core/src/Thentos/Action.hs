@@ -467,8 +467,8 @@ _startThentosSessionByAgent agent = do
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
 -- 'RoleAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
-serviceNamesFromThentosSession tok =
-    -- FIXME: privilege checks punted until the LIO story is clearer
+serviceNamesFromThentosSession tok = do
+    lookupThentosSession tok >>= \sess -> assertAuth $ hasAgent (sess ^. thSessAgent)
     query'P $ T.serviceNamesFromThentosSession tok
 
 
