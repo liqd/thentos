@@ -37,11 +37,10 @@ import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 
 import Network.HTTP.Types.Header (Header)
-import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
-import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
-import System.IO.Temp (createTempDirectory)
+import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
+                          setLevel, setHandlers)
 import System.Process (callCommand)
 
 import qualified Data.Aeson as Aeson
@@ -128,14 +127,13 @@ persName = "MyOtherSelf"
 
 -- * runners
 
--- | Run an action, logging everything with 'DEBUG' level to a temp file.
+-- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
 withLogger :: IO a -> IO a
 withLogger action = do
     let loglevel = DEBUG
         fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     removeAllHandlers
-    tmp <- createTempDirectory "/tmp/" "_thentos_test_"
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler (tmp </> "everything.log")  loglevel
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./everything.log" loglevel
     updateGlobalLogger loggerName $ setLevel DEBUG . setHandlers [fHandler]
     result <- action
     removeAllHandlers
