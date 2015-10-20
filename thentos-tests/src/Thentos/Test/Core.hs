@@ -35,13 +35,13 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
-
 import Network.HTTP.Types.Header (Header)
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
 import System.Process (callCommand)
+import Test.Mockery.Directory (inTempDirectory)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -127,9 +127,12 @@ persName = "MyOtherSelf"
 
 -- * runners
 
--- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
 withLogger :: IO a -> IO a
-withLogger action = do
+withLogger = inTempDirectory . withLogger'
+
+-- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
+withLogger' :: IO a -> IO a
+withLogger' action = do
     let loglevel = DEBUG
         fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     removeAllHandlers
@@ -139,14 +142,17 @@ withLogger action = do
     removeAllHandlers
     return result
 
--- | Start and shutdown webdriver on localhost:4451, running the action in between.
 withWebDriver :: WD.WD r -> IO r
-withWebDriver = withWebDriverAt "localhost" 4451
+withWebDriver = inTempDirectory . withWebDriver'
+
+-- | Start and shutdown webdriver on localhost:4451, running the action in between.
+withWebDriver' :: WD.WD r -> IO r
+withWebDriver' = withWebDriverAt' "localhost" 4451
 
 -- | Start and shutdown webdriver on the specified host and port, running the
 -- action in between.
-withWebDriverAt :: String -> Int -> WD.WD r -> IO r
-withWebDriverAt host port action = WD.runSession wdConfig . WD.finallyClose $ do
+withWebDriverAt' :: String -> Int -> WD.WD r -> IO r
+withWebDriverAt' host port action = WD.runSession wdConfig . WD.finallyClose $ do
      -- running `WD.closeOnException` here is not
      -- recommended, as it hides all hspec errors behind an
      -- uninformative java exception.
@@ -160,28 +166,37 @@ withWebDriverAt host port action = WD.runSession wdConfig . WD.finallyClose $ do
             , WD.wdPort = port
             }
 
+withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend feConfig as = inTempDirectory . withFrontend' feConfig as
+
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend feConfig as action =
+withFrontend' :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend' feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
--- | Run a @hspec-wai@ @Session@ with the backend @Application@.
 withBackend :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend beConfig as action =
+withBackend beConfig as = inTempDirectory . withBackend' beConfig as
+
+-- | Run a @hspec-wai@ @Session@ with the backend @Application@.
+withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
+withBackend' beConfig as action =
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
             killThread
             (const action)
 
+withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
+
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend dbname test = do
+withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend' dbname test = do
     st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
-    withFrontend defaultFrontendConfig st
-        $ withBackend defaultBackendConfig st
+    withFrontend' defaultFrontendConfig st
+        $ withBackend' defaultBackendConfig st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
                 `finally` destroyAllResources connPool
 
