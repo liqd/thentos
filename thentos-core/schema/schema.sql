@@ -97,3 +97,17 @@ CREATE TABLE IF NOT EXISTS service_sessions (
     thentos_session_token text        NOT NULL REFERENCES thentos_sessions (token) ON DELETE CASCADE,
     meta                  text        NOT NULL
 );
+
+-- A persona can be a member of any number of groups
+CREATE TABLE IF NOT EXISTS persona_groups (
+    pid bigint NOT NULL REFERENCES personas (id) ON DELETE CASCADE,
+    grp text   NOT NULL,
+    UNIQUE (pid, grp)
+);
+
+-- Groups can be members of other groups (any member of supergroup is also a member of subgroup)
+CREATE TABLE IF NOT EXISTS group_tree (
+    supergroup text NOT NULL,
+    subgroup   text NOT NULL,
+    UNIQUE (supergroup, subgroup)
+);
