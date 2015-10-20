@@ -357,33 +357,40 @@ contextsForService sid = map mkContext <$>
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
 addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()
-addPersonaToGroup pid group = void $
+addPersonaToGroup pid group = catchViolation catcher' . void $
     execT [sql| INSERT INTO persona_groups (pid, grp) VALUES (?, ?) |] (pid, group)
+  where
+    catcher' _ (UniqueViolation "persona_groups_pid_grp_key") = return ()
+    catcher' e _                                              = throwIO e
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
 removePersonaFromGroup :: PersonaId -> Group -> ThentosQuery e ()
 removePersonaFromGroup pid group = void $
     execT [sql| DELETE FROM persona_groups WHERE pid = ? AND grp = ? |] (pid, group)
 
--- | Add a group (subgroup) to another group (supergroup). If subgroup is already a direct
--- member of supergroup, do nothing. Throws 'GroupMembershipLoop' if adding the relation would
--- cause a loop, i.e., if supergroup is a direct or indirect member of subgroup.
+-- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
+-- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
+-- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
 addGroupToGroup :: Group -> Group -> ThentosQuery e ()
 addGroupToGroup subgroup supergroup = do
-    -- Find all groups in which subgroup is a member and make sure that supergroup is not one
+    -- Find all groups in which supergroup is a member and make sure that subgroup is not one
     -- of them
     res <- queryT [sql| WITH RECURSIVE groups(name) AS (
             SELECT ?
             UNION
-            SELECT subgroup FROM group_tree, groups WHERE supergroup = name
+            SELECT supergroup FROM group_tree, groups WHERE subgroup = name
         ) SELECT count(*) FROM groups WHERE name = ?
-    |] (subgroup, supergroup)
+    |] (supergroup, subgroup)
     case res of
         [Only (count :: Int)] ->
             when (count > 0) . throwError $ GroupMembershipLoop subgroup supergroup
         _                     -> impossible "addGroupToGroup: count didn't return a single result"
-    void $ execT [sql| INSERT INTO group_tree (subgroup, supergroup) VALUES (?, ?) |]
-                 (subgroup, supergroup)
+    catchViolation catcher' . void $
+        execT [sql| INSERT INTO group_tree (subgroup, supergroup) VALUES (?, ?) |]
+              (subgroup, supergroup)
+  where
+    catcher' _ (UniqueViolation "group_tree_supergroup_subgroup_key") = return ()
+    catcher' e _                                                      = throwIO e
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing.
@@ -400,7 +407,7 @@ personaGroups pid = map fromOnly <$>
             SELECT grp FROM persona_groups WHERE pid = ?
             UNION
             -- Recursive term
-            SELECT subgroup FROM group_tree, groups WHERE supergroup = name
+            SELECT supergroup FROM group_tree, groups WHERE subgroup = name
         ) SELECT name FROM groups ORDER BY name
     |] (Only pid)
 

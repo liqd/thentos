@@ -50,6 +50,11 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     unregisterPersonaFromContextSpec
     findPersonaSpec
     contextsForServiceSpec
+    addPersonaToGroupSpec
+    removePersonaFromGroupSpec
+    addGroupToGroupSpec
+    removeGroupFromGroupSpec
+    personaGroupsSpec
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
@@ -710,7 +715,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     sid = "sid"
 
 
--- * persona and context
+-- * personas, contexts, and groups
 
 addPersonaSpec :: SpecWith (Pool Connection)
 addPersonaSpec = describe "addPersona" $ do
@@ -921,6 +926,127 @@ contextsForServiceSpec = describe "contextsForService" $ do
                             "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
         Right contexts <- runPooledQuery connPool $ contextsForService "sid2"
         contexts `shouldBe` []
+
+addPersonaToGroupSpec :: SpecWith (Pool Connection)
+addPersonaToGroupSpec = describe "addPersonaToGroup" $ do
+    it "adds a persona to a group" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        rowCountShouldBe connPool "persona_groups" 0
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
+        [(pid, grp)] <- doQuery connPool [sql| SELECT pid, grp FROM persona_groups |] ()
+        pid `shouldBe` persona ^. personaId
+        grp `shouldBe` ("dummy" :: Group)
+
+    it "no-op if the persona is already a member of the group" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
+        rowCountShouldBe connPool "persona_groups" 1
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
+        rowCountShouldBe connPool "persona_groups" 1
+
+removePersonaFromGroupSpec :: SpecWith (Pool Connection)
+removePersonaFromGroupSpec = describe "removePersonaFromGroup" $ do
+    it "removes a persona from a group" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
+        Right ()      <- runVoidedQuery connPool $
+            removePersonaFromGroup (persona ^. personaId) "dummy"
+        rowCountShouldBe connPool "persona_groups" 0
+
+    it "no-op if the persona is not a member of the group" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        Right ()      <- runVoidedQuery connPool $
+            removePersonaFromGroup (persona ^. personaId) "dummy"
+        return ()
+
+addGroupToGroupSpec :: SpecWith (Pool Connection)
+addGroupToGroupSpec = describe "addGroupToGroup" $ do
+    it "adds a group to another group" $ \connPool -> do
+        rowCountShouldBe connPool "group_tree" 0
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        [(supergroup, subgroup)] <- doQuery connPool
+            [sql| SELECT supergroup, subgroup FROM group_tree |] ()
+        supergroup `shouldBe` ("user" :: Group)
+        subgroup `shouldBe` ("admin" :: Group)
+
+    it "no-op if subgroup is already a direct member of supergroup" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        rowCountShouldBe connPool "group_tree" 1
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        rowCountShouldBe connPool "group_tree" 1
+
+    it "throws GroupMembershipLoop if a direct loop would result" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        Left err <- runVoidedQuery connPool $ addGroupToGroup "user" "admin"
+        err `shouldBe` GroupMembershipLoop "user" "admin"
+
+    it "throws GroupMembershipLoop if an indirect loop would result" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "trustedUser"
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "trustedUser" "user"
+        Left err <- runVoidedQuery connPool $ addGroupToGroup "user" "admin"
+        err `shouldBe` GroupMembershipLoop "user" "admin"
+
+removeGroupFromGroupSpec :: SpecWith (Pool Connection)
+removeGroupFromGroupSpec = describe "removeGroupFromGroup" $ do
+    it "removes a group from another group" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        rowCountShouldBe connPool "group_tree" 1
+        Right () <- runVoidedQuery connPool $ removeGroupFromGroup "admin" "user"
+        rowCountShouldBe connPool "group_tree" 0
+
+    it "no-op if subgroup is not a direct member of supergroup" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ removeGroupFromGroup "admin" "user"
+        return ()
+
+    it "no-op if the relation is the other way around" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
+        rowCountShouldBe connPool "group_tree" 1
+        Right () <- runVoidedQuery connPool $ removeGroupFromGroup "user" "admin"
+        rowCountShouldBe connPool "group_tree" 1
+
+personaGroupsSpec :: SpecWith (Pool Connection)
+personaGroupsSpec = describe "personaGroups" $ do
+    it "lists all groups a persona belongs to" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        let pid = persona ^. personaId
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "user"
+        Right groups  <- runVoidedQuery connPool $ personaGroups pid
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user"]
+
+    it "includes indirect group memberships" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        let pid = persona ^. personaId
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
+        Right ()      <- runVoidedQuery connPool $ addGroupToGroup "admin" "trustedUser"
+        Right ()      <- runVoidedQuery connPool $ addGroupToGroup "trustedUser" "user"
+        Right groups  <- runVoidedQuery connPool $ personaGroups pid
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user", "trustedUser"]
+
+    it "eliminates duplicates" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        let pid = persona ^. personaId
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
+        Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "user"
+        Right ()      <- runVoidedQuery connPool $ addGroupToGroup "admin" "trustedUser"
+        Right ()      <- runVoidedQuery connPool $ addGroupToGroup "trustedUser" "user"
+        Right groups  <- runVoidedQuery connPool $ personaGroups pid
+        length groups `shouldBe` length (Set.fromList groups)
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user", "trustedUser"]
+
+    it "lists no groups if a persona doesn't belong to any" $ \connPool -> do
+        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right persona <- runVoidedQuery connPool $ addPersona persName uid
+        let pid = persona ^. personaId
+        Right groups  <- runVoidedQuery connPool $ personaGroups pid
+        length groups `shouldBe` 0
 
 
 -- * Garbage collection
