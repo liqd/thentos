@@ -21,7 +21,7 @@ where
 
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (bracket)
+import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
@@ -30,7 +30,7 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
-import Data.Pool (Pool, withResource)
+import Data.Pool (Pool, withResource, destroyAllResources)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
@@ -184,7 +184,8 @@ withFrontendAndBackend dbname test = do
     st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
     withFrontend defaultFrontendConfig st
         $ withBackend defaultBackendConfig st
-            $ withResource connPool $ \conn -> liftIO (createGod conn) >> test st
+            $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
+                `finally` destroyAllResources connPool
 
 defaultBackendConfig :: HttpConfig
 defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
