@@ -51,12 +51,12 @@ import qualified Data.Attoparsec.ByteString as AP
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
-import Thentos (createConnPoolAndInitDb)
-import Thentos.Action hiding (addUser)
 import Thentos.Action.Core
+import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos (createConnPoolAndInitDb)
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
@@ -126,7 +126,7 @@ persName :: PersonaName
 persName = "MyOtherSelf"
 
 
--- * test logger
+-- * runners
 
 -- | Run an action, logging everything with 'DEBUG' level to a temp file.
 withLogger :: IO a -> IO a
@@ -143,12 +143,12 @@ withLogger action = do
 
 -- | Start and shutdown webdriver on localhost:4451, running the action in between.
 withWebDriver :: WD.WD r -> IO r
-withWebDriver = withWebDriver' "localhost" 4451
+withWebDriver = withWebDriverAt "localhost" 4451
 
 -- | Start and shutdown webdriver on the specified host and port, running the
 -- action in between.
-withWebDriver' :: String -> Int -> WD.WD r -> IO r
-withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
+withWebDriverAt :: String -> Int -> WD.WD r -> IO r
+withWebDriverAt host port action = WD.runSession wdConfig . WD.finallyClose $ do
      -- running `WD.closeOnException` here is not
      -- recommended, as it hides all hspec errors behind an
      -- uninformative java exception.
@@ -193,6 +193,9 @@ defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Pro
 defaultFrontendConfig :: HttpConfig
 defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
 
+
+-- * set up state
+
 -- | Create an @ActionState@ with a connection to an empty DB and the specified
 -- config.
 createActionState :: String -> ThentosConfig -> IO ActionState
@@ -208,7 +211,6 @@ createDb dbname = do
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
                <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
     createConnPoolAndInitDb $ cs dbname
-
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
