@@ -59,9 +59,6 @@ import qualified Generics.Generic.Aeson as Aeson
 
 -- * user
 
--- | (user groups (the data that services want to store and retrieve in thentos) and session tokens
--- of all active sessions are stored in assoc lists rather than maps.  this saves us explicit json
--- instances for now.)
 data User =
     User
       { _userName            :: !UserName
@@ -209,18 +206,11 @@ instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 -- we can assert a request is issued by a user member in a certain group, but not leak the name of
 -- the user.
 newtype Group = Group { fromGroup :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
+    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
-instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON Group where parseJSON = Aeson.withText "group string" (pure . Group)
 
-data GroupNode =
-        GroupG { fromGroupG :: Group }
-      | GroupU { fromGroupU :: UserId }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic)
-
-instance Aeson.FromJSON GroupNode where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON GroupNode where toJSON = Aeson.gtoJson
+instance Aeson.ToJSON Group where toJSON (Group name) = Aeson.toJSON name
 
 
 -- * persona and context
@@ -432,12 +422,6 @@ data Role =
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
     -- 'Role'.)
 
-  | RoleOwnsUsers
-    -- ^ Can do anything to map 'dbUsers' in 'DB'
-
-  | RoleOwnsUnconfirmedUsers
-    -- ^ Can do anything to map 'dbUnConfirmedUsers' in 'DB'
-
   | RoleUser
     -- ^ Can sign up with services
 
@@ -446,6 +430,9 @@ data Role =
 
   | RoleServiceAdmin
     -- ^ Can create (and manage her own) services
+
+  | RoleGroupAdmin
+    -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
@@ -547,6 +534,7 @@ data ThentosError e =
     | NoSuchPersona
     | NoSuchContext
     | MultiplePersonasPerContext
+    | GroupMembershipLoop Group Group
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService

@@ -262,7 +262,7 @@ unregisterUserFromService uid sid = void $
     execT [sql| DELETE FROM user_services WHERE uid = ? AND sid = ? |] (uid, sid)
 
 
--- * persona and context
+-- * personas, contexts, and groups
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
@@ -348,6 +348,62 @@ contextsForService sid = map mkContext <$>
            (Only sid)
   where
     mkContext (cxtId, name, description, url) = Context cxtId sid name description url
+
+-- | Add a persona to a group. If the persona is already a member of the group, do nothing.
+addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()
+addPersonaToGroup pid group = catchViolation catcher' . void $
+    execT [sql| INSERT INTO persona_groups (pid, grp) VALUES (?, ?) |] (pid, group)
+  where
+    catcher' _ (UniqueViolation "persona_groups_pid_grp_key") = return ()
+    catcher' e _                                              = throwIO e
+
+-- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
+removePersonaFromGroup :: PersonaId -> Group -> ThentosQuery e ()
+removePersonaFromGroup pid group = void $
+    execT [sql| DELETE FROM persona_groups WHERE pid = ? AND grp = ? |] (pid, group)
+
+-- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
+-- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
+-- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
+addGroupToGroup :: Group -> Group -> ThentosQuery e ()
+addGroupToGroup subgroup supergroup = do
+    -- Find all groups in which supergroup is a member and make sure that subgroup is not one
+    -- of them
+    res <- queryT [sql| WITH RECURSIVE groups(name) AS (
+            SELECT ?
+            UNION
+            SELECT supergroup FROM group_tree, groups WHERE subgroup = name
+        ) SELECT count(*) FROM groups WHERE name = ?
+    |] (supergroup, subgroup)
+    case res of
+        [Only (count :: Int)] ->
+            when (count > 0) . throwError $ GroupMembershipLoop subgroup supergroup
+        _                     -> impossible "addGroupToGroup: count didn't return a single result"
+    catchViolation catcher' . void $
+        execT [sql| INSERT INTO group_tree (subgroup, supergroup) VALUES (?, ?) |]
+              (subgroup, supergroup)
+  where
+    catcher' _ (UniqueViolation "group_tree_supergroup_subgroup_key") = return ()
+    catcher' e _                                                      = throwIO e
+
+-- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
+-- member of supergroup, do nothing.
+removeGroupFromGroup :: Group -> Group -> ThentosQuery e ()
+removeGroupFromGroup subgroup supergroup = void $ execT
+    [sql| DELETE FROM group_tree WHERE subgroup = ? AND supergroup = ? |] (subgroup, supergroup)
+
+-- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
+-- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
+personaGroups :: PersonaId -> ThentosQuery e [Group]
+personaGroups pid = map fromOnly <$>
+    queryT [sql| WITH RECURSIVE groups(name) AS (
+            -- Non-recursive term
+            SELECT grp FROM persona_groups WHERE pid = ?
+            UNION
+            -- Recursive term
+            SELECT supergroup FROM group_tree, groups WHERE subgroup = name
+        ) SELECT name FROM groups ORDER BY name
+    |] (Only pid)
 
 
 -- * thentos and service session
@@ -455,7 +511,7 @@ endServiceSession token = do
         _ -> impossible "multiple service sessions with same token"
 
 
--- * agents, roles, and groups
+-- * agents and roles
 
 -- | Add a new role to the roles defined for an 'Agent'.  If 'Role' is already assigned to
 -- 'Agent', do nothing.

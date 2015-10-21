@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     confirmed  bool        NOT NULL,
     created    timestamptz NOT NULL DEFAULT now()
 );
+
 CREATE TABLE IF NOT EXISTS user_confirmation_tokens (
     id         bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     token      text        NOT NULL UNIQUE,
@@ -94,4 +95,18 @@ CREATE TABLE IF NOT EXISTS service_sessions (
     period                interval    NOT NULL,
     thentos_session_token text        NOT NULL REFERENCES thentos_sessions (token) ON DELETE CASCADE,
     meta                  text        NOT NULL
+);
+
+-- A persona can be a member of any number of groups
+CREATE TABLE IF NOT EXISTS persona_groups (
+    pid bigint NOT NULL REFERENCES personas (id) ON DELETE CASCADE,
+    grp text   NOT NULL,
+    UNIQUE (pid, grp)
+);
+
+-- Groups can be members of other groups (any member of subgroup is also a member of supergroup)
+CREATE TABLE IF NOT EXISTS group_tree (
+    supergroup text NOT NULL,
+    subgroup   text NOT NULL,
+    UNIQUE (supergroup, subgroup)
 );

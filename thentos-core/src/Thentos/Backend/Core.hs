@@ -49,6 +49,7 @@ import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString.Char8 as SBS
+import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Header as HttpTypes
 
 import System.Log.Missing (logger)
@@ -140,6 +141,9 @@ thentosErrorInfo other e = f e
     f MultiplePersonasPerContext =
         (Nothing, err400, "Sybil attack prevention: "
             <> "cannot register multiple personas of the same user for the same context")
+    f (GroupMembershipLoop subgroup supergroup) =
+        (Nothing, err400, ST.concat ["Adding ", cshow subgroup, " to ", cshow supergroup,
+                                     " would result in a group membership loop"])
     f OperationNotPossibleInServiceSession =
         (Nothing, err404, "operation not possible in service session")
     f ServiceAlreadyExists =
