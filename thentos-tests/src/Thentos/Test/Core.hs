@@ -21,7 +21,7 @@ where
 
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
-import Control.Exception (bracket)
+import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
@@ -30,19 +30,18 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
-import Data.Pool (Pool, withResource)
+import Data.Pool (Pool, withResource, destroyAllResources)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
-
 import Network.HTTP.Types.Header (Header)
-import System.FilePath ((</>))
 import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler)
-import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger, setLevel, setHandlers)
-import System.IO.Temp (createTempDirectory)
+import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
+                          setLevel, setHandlers)
 import System.Process (callCommand)
+import Test.Mockery.Directory (inTempDirectory)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Parser as Aeson
@@ -51,12 +50,12 @@ import qualified Data.Attoparsec.ByteString as AP
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
-import Thentos (createConnPoolAndInitDb)
-import Thentos.Action hiding (addUser)
 import Thentos.Action.Core
+import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos (createConnPoolAndInitDb)
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
@@ -126,29 +125,34 @@ persName :: PersonaName
 persName = "MyOtherSelf"
 
 
--- * test logger
+-- * runners
 
--- | Run an action, logging everything with 'DEBUG' level to a temp file.
 withLogger :: IO a -> IO a
-withLogger action = do
+withLogger = inTempDirectory . withLogger'
+
+-- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
+withLogger' :: IO a -> IO a
+withLogger' action = do
     let loglevel = DEBUG
         fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
     removeAllHandlers
-    tmp <- createTempDirectory "/tmp/" "_thentos_test_"
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler (tmp </> "everything.log")  loglevel
+    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./everything.log" loglevel
     updateGlobalLogger loggerName $ setLevel DEBUG . setHandlers [fHandler]
     result <- action
     removeAllHandlers
     return result
 
--- | Start and shutdown webdriver on localhost:4451, running the action in between.
 withWebDriver :: WD.WD r -> IO r
-withWebDriver = withWebDriver' "localhost" 4451
+withWebDriver = inTempDirectory . withWebDriver'
+
+-- | Start and shutdown webdriver on localhost:4451, running the action in between.
+withWebDriver' :: WD.WD r -> IO r
+withWebDriver' = withWebDriverAt' "localhost" 4451
 
 -- | Start and shutdown webdriver on the specified host and port, running the
 -- action in between.
-withWebDriver' :: String -> Int -> WD.WD r -> IO r
-withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
+withWebDriverAt' :: String -> Int -> WD.WD r -> IO r
+withWebDriverAt' host port action = WD.runSession wdConfig . WD.finallyClose $ do
      -- running `WD.closeOnException` here is not
      -- recommended, as it hides all hspec errors behind an
      -- uninformative java exception.
@@ -162,35 +166,48 @@ withWebDriver' host port action = WD.runSession wdConfig . WD.finallyClose $ do
             , WD.wdPort = port
             }
 
+withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend feConfig as = inTempDirectory . withFrontend' feConfig as
+
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend feConfig as action =
+withFrontend' :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend' feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
--- | Run a @hspec-wai@ @Session@ with the backend @Application@.
 withBackend :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend beConfig as action =
+withBackend beConfig as = inTempDirectory . withBackend' beConfig as
+
+-- | Run a @hspec-wai@ @Session@ with the backend @Application@.
+withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
+withBackend' beConfig as action =
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
             killThread
             (const action)
 
+withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
+
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend dbname test = do
+withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
+withFrontendAndBackend' dbname test = do
     st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
-    withFrontend defaultFrontendConfig st
-        $ withBackend defaultBackendConfig st
-            $ withResource connPool $ \conn -> liftIO (createGod conn) >> test st
+    withFrontend' defaultFrontendConfig st
+        $ withBackend' defaultBackendConfig st
+            $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
+                `finally` destroyAllResources connPool
 
 defaultBackendConfig :: HttpConfig
 defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
 
 defaultFrontendConfig :: HttpConfig
 defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
+
+
+-- * set up state
 
 -- | Create an @ActionState@ with a connection to an empty DB and the specified
 -- config.
@@ -207,7 +224,6 @@ createDb dbname = do
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
                <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
     createConnPoolAndInitDb $ cs dbname
-
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
