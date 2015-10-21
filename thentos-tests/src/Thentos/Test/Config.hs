@@ -7,7 +7,7 @@
 module Thentos.Test.Config
 where
 
-import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO))
+import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), cfgify)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection)
@@ -15,8 +15,6 @@ import Database.PostgreSQL.Simple (Connection)
 import Thentos.Types
 import Thentos.Config
 import Thentos (createDefaultUser)
-
-import Thentos.Test.Utils
 
 
 thentosTestConfig :: ThentosConfig

@@ -22,7 +22,7 @@ packages:
   extra-dep: true
 extra-deps:
 - attoparsec-0.13.0.1
-- configifier-0.0.5
+- configifier-0.0.6
 - digestive-functors-0.8.0.0
 - digestive-functors-blaze-0.6.0.6
 - digestive-functors-snap-0.6.1.3

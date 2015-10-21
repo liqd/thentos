@@ -98,12 +98,12 @@
   (major1) == 0 && (major2) <  4 || \
   (major1) == 0 && (major2) == 4 && (minor) <= 1)
 
-/* package configifier-0.0.5 */
-#define VERSION_configifier "0.0.5"
+/* package configifier-0.0.6 */
+#define VERSION_configifier "0.0.6"
 #define MIN_VERSION_configifier(major1,major2,minor) (\
   (major1) <  0 || \
   (major1) == 0 && (major2) <  0 || \
-  (major1) == 0 && (major2) == 0 && (minor) <= 5)
+  (major1) == 0 && (major2) == 0 && (minor) <= 6)
 
 /* package containers-0.5.6.2 */
 #define VERSION_containers "0.5.6.2"
@@ -378,6 +378,13 @@
   (major1) == 0 && (major2) <  4 || \
   (major1) == 0 && (major2) == 4 && (minor) <= 0)
 
+/* package template-haskell-2.10.0.0 */
+#define VERSION_template_haskell "2.10.0.0"
+#define MIN_VERSION_template_haskell(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  10 || \
+  (major1) == 2 && (major2) == 10 && (minor) <= 0)
+
 /* package text-1.2.1.3 */
 #define VERSION_text "1.2.1.3"
 #define MIN_VERSION_text(major1,major2,minor) (\
@@ -532,5 +539,5 @@
   (major1) == 2 && (major2) <  25 || \
   (major1) == 2 && (major2) == 25 && (minor) <= 0)
 
-#define CURRENT_PACKAGE_KEY "thent_5qZjBG12hRo6BZenNLBH2v"
+#define CURRENT_PACKAGE_KEY "thent_JoQTMpY0d8mD7lqLMRsgql"
 
