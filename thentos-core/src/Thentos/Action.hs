@@ -49,6 +49,11 @@ module Thentos.Action
     , unregisterPersonaFromContext
     , findPersona
     , contextsForService
+    , addPersonaToGroup
+    , removePersonaFromGroup
+    , addGroupToGroup
+    , removeGroupFromGroup
+    , personaGroups
 
     , defaultSessionTimeout
     , lookupThentosSession
@@ -642,7 +647,7 @@ removeGroupFromGroup subgroup supergroup = do
 personaGroups :: Persona -> Action e [Group]
 personaGroups persona = do
     assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole RoleGroupAdmin
-    query'P $ T.personaGroups (persona ^. personaUid)
+    query'P $ T.personaGroups (persona ^. personaId)
 
 
 -- * agents and roles
