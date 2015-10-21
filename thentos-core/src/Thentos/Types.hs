@@ -425,14 +425,6 @@ data Role =
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
     -- 'Role'.)
 
-  | RoleOwnsUsers
-    -- ^ Can do anything to map 'dbUsers' in 'DB'
-    -- FIXME No we need this role? (not used anywhere, conceptually unclear)
-
-  | RoleOwnsUnconfirmedUsers
-    -- ^ Can do anything to map 'dbUnConfirmedUsers' in 'DB'
-    -- FIXME No we need this role? (not used anywhere, conceptually unclear)
-
   | RoleUser
     -- ^ Can sign up with services
 
