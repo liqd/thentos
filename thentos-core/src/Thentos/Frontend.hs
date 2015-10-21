@@ -1,3 +1,163 @@
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+
+module Thentos.Frontend where
+
+import GHC.TypeLits (Symbol)
+import Servant hiding (serveDirectory)
+import Servant.HTML.Blaze
+import Network.Wai
+import Servant.Server.Internal.Router
+import Servant.Server.Internal.RoutingApplication
+import System.Log.Logger
+import System.IO (stderr)
+
+import qualified Servant.Utils.StaticFiles as StaticFiles
+import qualified Text.Blaze.Html5 as H
+
+import System.Log.Missing
+import Thentos.Action.Core
+import Thentos.Backend.Core
+import Thentos.Config
+import Thentos.Frontend.Handlers
+import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.Pages
+import Thentos.Frontend.State
+import Thentos.Types
+
+-- FIXME: imported for testing only >>>
+
+import Control.Concurrent.Async (concurrently)
+import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Concurrent (ThreadId, threadDelay, forkIO)
+import Control.Exception (finally)
+import Control.Monad (void, when, forever)
+import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
+import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Either (isRight)
+import Data.Maybe (maybeToList)
+import Data.Monoid ((<>))
+import Data.Pool (Pool, createPool, withResource)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (SBS, cs)
+import Data.Void (Void)
+import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
+import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
+import Text.Show.Pretty (ppShow)
+import Thentos.Transaction.Core (createDB, runThentosQuery, ThentosQuery)
+import Language.Haskell.TH (Q, Exp, runIO)
+import Language.Haskell.TH.Quote (dataToExpQ)
+import qualified Network.HTTP.Media               as M
+
+import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
+import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
+                          setLevel, setHandlers)
+import System.Log.Missing (loggerName, logger, Prio(..))
+
+-- FIXME: <<< imported for testing only
+
+
+runFrontend :: HttpConfig -> ActionState -> IO ()
+runFrontend config aState = do
+    logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
+    serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config
+
+type FrontendH =
+       "user" :> UserH
+  :<|> "dashboard" :> Get '[HTML] H.Html
+
+-- FIXME: there was a problem with Raw and Enter that has been solved in
+-- https://github.com/haskell-servant/servant/pull/178, but we don't have that change yet in our
+-- branch.  we can use 'serveDirectoryWith' as soon as that is merged.
+--   :<|> ServeDirectory "snap/static"
+  :<|> "screen.css" :> Get '[TextCss] String
+
+data TextCss
+
+instance Accept TextCss where
+    contentType _ = "text" M.// "css" M./: ("charset", "utf-8")
+
+instance MimeRender TextCss String where
+    mimeRender _ = cs
+
+
+frontendH :: ServerT FrontendH FAction
+frontendH =
+       userH
+  :<|> renderDashboard DashboardTabDetails userDisplayPagelet
+  :<|> return $(runIO (readFile "snap/static/screen.css") >>= dataToExpQ (const Nothing))
+
+
+type UserH =
+       UserRegisterH
+  :<|> UserRegisterConfirmH
+  :<|> UserLoginH
+
+userH :: ServerT UserH FAction
+userH =
+       userRegisterH
+  :<|> userRegisterConfirmH
+  :<|> userLoginH
+
+
+
+----------------------------------------------------------------------
+-- FIXME: the rest here is testing...
+
+-- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
+-- is empty. Tables already existing in the DB won't be touched. The DB itself must already exist.
+createConnPoolAndInitDb :: SBS -> IO (Pool Connection)
+createConnPoolAndInitDb dbName = do
+    connPool <- createPool createConn close
+                           1    -- # of stripes (sub-pools)
+                           60   -- close unused connections after .. secs
+                           100  -- max number of active connections
+    withResource connPool createDB
+    return connPool
+  where
+    createConn = connectPostgreSQL $ "dbname=" <> dbName
+
+
+main :: IO ()
+main = do
+    config :: ThentosConfig <- getConfig "/home/mf/thentos/thentos-core/devel2.config"
+    rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
+    let dbName = config >>. (Proxy :: Proxy '["database", "name"])
+    connPool <- createConnPoolAndInitDb $ cs dbName
+    let actionState = ActionState (connPool, rng, config)
+        Just (feConfig :: HttpConfig) = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+
+    do -- logger
+      let loglevel = DEBUG
+      removeAllHandlers
+      let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+      sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stderr loglevel
+      updateGlobalLogger loggerName $
+        System.Log.Logger.setLevel loglevel . setHandlers [sHandler]
+
+    runFrontend feConfig actionState
+
+    logger INFO "Press ^C to abort."
+
+
+
+
+
+{- old module:
+
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -90,3 +250,5 @@ routes = [ -- default entry point
          -- 404 error page if no other route exists
          , ("", H.unknownPath)
          ]
+
+-}

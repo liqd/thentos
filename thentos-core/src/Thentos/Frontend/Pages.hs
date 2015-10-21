@@ -165,8 +165,8 @@ data DashboardTab =
 
 -- * register (thentos)
 
-userRegisterPage :: ST -> ST -> View Html -> Html
-userRegisterPage csrfToken formAction v = basePagelet "Create User" $ do
+userRegisterPage :: ST -> View Html -> ST -> Html
+userRegisterPage csrfToken v formAction = basePagelet "Create User" $ do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.p $ do
@@ -202,13 +202,10 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 -- * login (thentos)
 
-userLoginPage :: Maybe ST -> ST -> ST -> View Html -> Html
-userLoginPage mMsg csrfToken formAction v = basePagelet "Thentos Login" $ do
+userLoginPage :: ST -> View Html -> ST -> Html
+userLoginPage csrfToken v formAction = basePagelet "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
-        case mMsg of
-            Just msg -> H.p $ H.text msg
-            Nothing  -> return ()
         H.table $ do
             H.tr $ do
                 H.td $ label "usernamme" v "Username"

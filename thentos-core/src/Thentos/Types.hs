@@ -19,12 +19,11 @@
 module Thentos.Types where
 
 import Control.Exception (Exception)
-import Control.Monad (when, unless, mzero)
-import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad (when, unless, mzero)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
-import Data.Function (on)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -32,10 +31,12 @@ import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
+import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.String (IsString)
+import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
 import Data.Typeable (Typeable)
@@ -49,6 +50,7 @@ import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
                        queryPairs, parseURI, laxURIParserOptions, authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
+import Web.HttpApiData (parseQueryParam)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
@@ -142,6 +144,10 @@ instance Aeson.ToJSON UserEmail
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
+
+instance FromHttpApiData ConfirmationToken where
+    parseQueryParam tok = ConfirmationToken <$>
+        either (Left . cs . show) (Right . id) (decodeUtf8' $ cs tok)
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)

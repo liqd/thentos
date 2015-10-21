@@ -314,6 +314,7 @@ addCorsHeaders policy app req respond = app req $
 
 -- * warp
 
+-- FIXME: move this to a module for use both by frontend and backend.
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
 runWarpWithCfg cfg = runSettings settings
   where

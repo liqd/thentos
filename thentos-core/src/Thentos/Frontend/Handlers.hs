@@ -1,75 +1,102 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Thentos.Frontend.Handlers where
 
-import Control.Applicative ((<|>))
-import Control.Lens ((^.), (.~), (%~))
-import Control.Monad (when)
-import Control.Monad.State.Class (gets)
-import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Functor.Infix ((<$$>))
-import Data.Monoid ((<>))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
-import Data.Text.Encoding (decodeUtf8')
-import Data.Void (Void)
-import Snap.Core
-    ( Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect'
-    , rqMethod, urlDecode, setHeader, setResponseCode
-    )
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (csrfToken)
-import System.Log.Missing (logger)
-import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
-import Text.Digestive.View (View)
+import Control.Lens
+import Control.Monad.Except (catchError, throwError)
+import Control.Monad.Reader
+import Control.Monad.State (gets, modify)
+import Control.Monad.Trans.Class (lift)
+import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Monoid
+import Data.String.Conversions
+import Data.Void
+import GHC.TypeLits (Symbol)
+import Servant
+import Servant.HTML.Blaze
+import Servant.Missing
+import System.Log
+import System.Log.Missing
+import Text.Blaze.Html
+import Text.Digestive.Blaze.Html5
+import Text.Digestive.View
 import URI.ByteString
-    ( parseURI, laxURIParserOptions, uriQueryL, queryPairsL, RelativeRef(..), Query(..) )
 
 import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
 
-import Snap.Missing (blaze)
-import Thentos.Action as A
+import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
-import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
+import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
+
+import qualified Thentos.Action.Unsafe as U
+import qualified Thentos.Action.SimpleAuth as U
+
+
+-- * types
+
+type HtmlForm (name :: Symbol) typ =
+       FormGet name H.Html typ
+  :<|> FormPost name H.Html typ :> Post '[HTML] H.Html
+
+htmlForm :: (typ -> FAction Html) -> ServerT (HtmlForm name typ) FAction
+htmlForm postHandler = return () :<|> postHandler
+
+
+-- * helpers
+
+getFrontendConfig :: FAction HttpConfig
+getFrontendConfig = do
+    Just (feConfig :: HttpConfig)
+        <- (\c -> Tagged <$> c >>. (Proxy :: Proxy '["frontend"]))
+            <$> lift (U.unsafeAction U.getConfig)
+    return feConfig
 
 
 -- * register (thentos)
 
-userRegister :: FH ()
-userRegister = do
-    runPageForm userRegisterForm userRegisterPage $
-            \ (userFormData :: UserFormData) -> do
-        smtpConfig :: SmtpConfig <- Tagged . (>>. (Proxy :: Proxy '["smtp"])) <$> gets (^. cfg)
-        eResult <- snapRunActionE $ addUnconfirmedUser userFormData
-        case eResult of
-            Right (_, token) -> do
-                feConfig <- gets (^. frontendCfg)
-                snapRunAction $ sendUserConfirmationMail smtpConfig userFormData
-                    (urlConfirm feConfig "/user/register_confirm" (fromConfirmationToken token))
-                blaze userRegisterRequestedPage
-            Left (ActionErrorThentos UserEmailAlreadyExists) -> do
-                snapRunAction $ sendUserExistsMail smtpConfig (udEmail userFormData)
-                blaze userRegisterRequestedPage
-            Left e -> logger INFO (show e) >> crash 400 "Registration failed."
+type UserRegisterH = "register" :> HtmlForm "UserRegister" UserFormData
 
-sendUserConfirmationMail :: SmtpConfig -> UserFormData -> ST -> Action Void ()
-sendUserConfirmationMail smtpConfig user callbackUrl = do
-    sendMail'P smtpConfig Nothing (udEmail user) subject message
+instance HasForm "UserRegister" H.Html UserFormData where
+    formAction _  = "/user/register"
+    isForm _      = userRegisterForm
+    formView _    = userRegisterPage "csrftok"
+    formBackend _ = error "HasForm UserRegister formBackend: impossible"
+
+userRegisterH :: ServerT UserRegisterH FAction
+userRegisterH = htmlForm $ \userFormData -> do
+    fcfg <- getFrontendConfig
+    (_, tok) <- lift $ addUnconfirmedUser userFormData
+    let url = emailConfirmUrl fcfg "/user/register_confirm" tok
+
+    sendUserConfirmationMail userFormData url
+    return userRegisterRequestedPage
+
+sendUserConfirmationMail :: UserFormData -> ST -> FAction ()
+sendUserConfirmationMail user callbackUrl = lift . U.unsafeAction $
+    U.sendMail Nothing (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
-sendUserExistsMail :: SmtpConfig -> UserEmail -> Action Void ()
-sendUserExistsMail smtpConfig address = do
-    sendMail'P smtpConfig Nothing address subject message
+sendUserExistsMail :: UserEmail -> FAction ()
+sendUserExistsMail address = lift . U.unsafeAction $
+    U.sendMail Nothing address subject message
   where
     message = "Someone tried to sign up to Thentos with your email address"
                 <> "\nThis is a reminder that you already have a Thentos"
@@ -79,71 +106,63 @@ sendUserExistsMail smtpConfig address = do
     subject = "Attempted Thentos Signup"
 
 
+type UserRegisterConfirmH = "register_confirm" :>
+    QueryParam "token" ConfirmationToken :> Get '[HTML] Html
+
 defaultUserRoles :: [Role]
 defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
 
-userRegisterConfirm :: FH ()
-userRegisterConfirm = do
-    mTokenBS <- (>>= urlDecode) <$> getParam "token"
-    case ConfirmationToken <$$> (decodeUtf8' <$> mTokenBS) of
-        Just (Right token) -> do
-            eResult <- snapRunActionE $ confirmNewUser token
-            case eResult of
-                Right (uid, sessTok) -> do
-                    logger DEBUG $ "registered new user: " ++ show uid
-                    mapM_ (snapRunAction'P . assignRole (UserA uid)) defaultUserRoles
-                    sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
-                    userLoginCallAction $ return (uid, sessTok)
-                Left e@(ActionErrorThentos NoSuchPendingUserConfirmation) -> do
-                    logger INFO $ show e
-                    crash 400 "Finalizing registration failed: unknown token."
-                Left e -> do
-                    logger CRITICAL $ "unreachable: " ++ show e
-                    crash 400 "Finializing registration failed."
-        Just (Left unicodeError) -> do
-            crash' 400 unicodeError "Bad user confirmation link."
-        Nothing -> do
-            crash 400 "No confirmation token."
+userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction
+userRegisterConfirmH Nothing = crash FActionErrorNoToken
+userRegisterConfirmH (Just token) = do
+    (uid, sessTok) <- lift $ do
+        U.unsafeAction . U.logger DEBUG $ "received user register confirm token: " ++ show token
+        (_uid, _sessTok) <- confirmNewUser token
+        U.unsafeAction . U.logger DEBUG $ "registered new user: " ++ show _uid
+        grantAccessRights'P [RoleAdmin]
+        mapM_ (assignRole (UserA _uid)) $ defaultUserRoles
+        return (_uid, _sessTok)
+
+    sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
+    userFinishLogin (uid, sessTok)
 
 
 -- * login (thentos)
 
-userLogin :: FH ()
-userLogin = do
-    mMsg :: Maybe ST <- cs <$$> getParam "error_msg"
-    runPageForm userLoginForm (userLoginPage mMsg) $ \ (username, password) -> do
-        sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
-        userLoginCallAction $ startThentosSessionByUserName username password
+type UserLoginH = "login" :> HtmlForm "UserLogin" (UserName, UserPass)
+
+instance HasForm "UserLogin" H.Html (UserName, UserPass) where
+    formAction _  = "/user/login"
+    isForm _      = userLoginForm
+    formView _    = userLoginPage "csrftok"
+    formBackend _ = error "HasForm UserLogin formBackend: impossible"
+
+userLoginH :: ServerT UserLoginH FAction
+userLoginH = htmlForm $ \(uname, passwd) -> do
+    sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
+    (lift (startThentosSessionByUserName uname passwd) >>= userFinishLogin)
+        `catchError` \case
+            BadCredentials -> do
+                sendFrontendMsgs [FrontendMsgError "Bad username or password."]
+                redirectRR $ RelativeRef Nothing "/user/login" (Query []) Nothing
+            e -> throwError e
+
+-- | If action yields uid and session token, login.  Otherwise, redirect to login page with a
+-- message that asks to try again.
+userFinishLogin :: (UserId, ThentosSessionToken) -> FAction Html
+userFinishLogin (uid, tok) = do
+    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid)
+    redirectToDashboardOrService
 
 
--- | If user name and password match, login.  Otherwise, redirect to
--- login page with a message that asks to try again.
-userLoginCallAction :: Action Void (UserId, ThentosSessionToken) -> FH ()
-userLoginCallAction action = do
-    eResult <- snapRunActionE action
-      -- FIXME[mf]: Create transaction
-      -- 'CheckPasswordWithLabel', then call that with
-      -- 'allowNothing' and 'thentosPublic'.
-    case eResult of
-        Right (uid, sessionToken) -> do
-            modifySessionData' $ fsdLogin .~ Just (FrontendSessionLoginData sessionToken uid)
-            redirectToDashboardOrService
-        Left (ActionErrorThentos BadCredentials) -> redirectRR
-            (RelativeRef Nothing "/user/login" (Query [("error_msg", "Bad username or password.")]) Nothing)
-                  -- FIXME: this error passing method has been
-                  -- deprecated by the 'FrontendMsg' queue in the snap
-                  -- state.  almost, that is: currently, messages are
-                  -- only displayed inside the dashboard, but this
-                  -- here is before login.  anyway, there should be
-                  -- one way of doing this, not two.
-        Left e -> crash500 $ "userLoginCallAction: unexpected error: " ++ show e
-            -- FIXME: this should be handled.  we should
-            -- always allow transactions / actions to throw
-            -- errors.
+
+-- next: redirects seem to not work at all, but crash..  why?
+
 
 
 -- * forgot password
 
+{-
 resetPassword :: FH ()
 resetPassword = do
     runPageForm resetPasswordForm resetPasswordPage $ \ address -> do
@@ -154,10 +173,10 @@ resetPassword = do
             Right (user, token) -> do
                 snapRunAction $ sendPasswordResetMail
                     (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
-                    (urlConfirm feConfig "/user/reset_password" (fromPasswordResetToken token))
+                    (emailConfirmUrl feConfig "/user/reset_password" token)
                 blaze resetPasswordRequestedPage
             Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
-            Left e -> crash500 ("resetPassword" :: ST, e)
+            Left e -> crash $ FActionError500 ("resetPassword" :: ST, e)
 
 sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action Void ()
 sendPasswordResetMail smtpConfig user callbackUrl = do
@@ -189,14 +208,13 @@ resetPasswordConfirm = do
                     -- (taking it from the request would be insecure!)
 
                     redirect' "/dashboard" 303
-                Left (ActionErrorThentos NoSuchToken) -> crash 400 "No such reset token."
+                Left (ActionErrorThentos NoSuchToken) -> crash FActionErrorNoToken
                 Left e -> do
-                    logger WARNING (show e)
-                    crash 400 "Change password: error."
+                    crash $ FActionError500 "Change password: error."
 
         -- error cases
-        (Just (Left _)) -> crash 400 "Bad request: bad reset token."
-        Nothing         -> crash 200 "Bad request: reset password, but no token."
+        (Just (Left _)) -> crash FActionErrorNoToken
+        Nothing         -> crash FActionErrorNoToken
 
 
 -- * logout (thentos)
@@ -211,7 +229,7 @@ userLogoutConfirm = runAsUser $ \ _ fsl -> do
     tok <- with sess csrfToken
     case eServiceNames of
         Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames tok)
-        Left e -> crash500 e
+        Left e -> crash $ FActionError500 e
 
 userLogoutDone :: FH ()
 userLogoutDone = runAsUser $ \ _ fsl -> do
@@ -231,11 +249,11 @@ emailUpdate = runAsUser $ \ _ fsl -> do
         feConfig <- gets (^. frontendCfg)
         eResult <- snapRunActionE $
             requestUserEmailChange (fsl ^. fslUserId) newEmail
-                (urlConfirm feConfig "/user/update_email_confirm" . fromConfirmationToken)
+                (emailConfirmUrl feConfig "/user/update_email_confirm")
         case eResult of
             Right ()                                         -> emailSent
             Left (ActionErrorThentos UserEmailAlreadyExists) -> emailSent
-            Left e                                           -> crash500 e
+            Left e                                           -> crash $ FActionError500 e
   where
     emailSent = do
         sendFrontendMsgs $
@@ -254,10 +272,10 @@ emailUpdateConfirm = do
             case eResult of
                 Right ()          -> sendFrontendMsg (FrontendMsgSuccess "Change email: success!") >> redirect' "/dashboard" 303
                 Left (ActionErrorThentos NoSuchToken)
-                                  -> crash 400 "Change email: no such token."
-                Left e            -> crash500 e
-        Just (Left _unicodeError) -> crash 400 "Change email: bad token."
-        Nothing                   -> crash 400 "Change email: missing token."
+                                  -> crash FActionErrorNoToken
+                Left e            -> crash $ FActionError500 e
+        Just (Left _unicodeError) -> crash FActionErrorNoToken
+        Nothing                   -> crash FActionErrorNoToken
 
 passwordUpdate :: FH ()
 passwordUpdate = runAsUser $ \ _ fsl -> do
@@ -270,7 +288,7 @@ passwordUpdate = runAsUser $ \ _ fsl -> do
             Right () -> sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard" 303
             Left (ActionErrorThentos BadCredentials)
                      -> sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password" 303
-            Left e   -> crash500 e
+            Left e   -> crash $ FActionError500 e
 
 
 -- * services
@@ -297,13 +315,13 @@ serviceCreate = runAsUser $ \ _ fsl -> do
 -- session state.)
 serviceRegister :: FH ()
 serviceRegister = runAsUser $ \ _ fsl -> do
-    ServiceLoginState sid rr <- getServiceLoginState >>= maybe (crash 400 "Service login: no state.") return
+    ServiceLoginState sid rr <- getServiceLoginState >>= maybe (crash $ FActionError500 "Service login: no state.") return
 
     let present :: ST -> View H.Html -> FH ()
         present formAction view = do
             (_, user)    <- snapRunAction (lookupConfirmedUser (fsl ^. fslUserId))
             (_, service) <- snapRunActionE (lookupService sid)
-                        >>= either (\ e -> crash' 400 e "Service registration: misconfigured service (no service id).") return
+                        >>= either (\ e -> crash $ FActionError500 (e, "Service registration: misconfigured service (no service id).")) return
             -- FIXME: we are doing a lookup on the service table, but
             -- the service may have an opinion on whether the user is
             -- allowed to look it up.  the user needs to present a
@@ -322,7 +340,7 @@ serviceRegister = runAsUser $ \ _ fsl -> do
                 -- wonder what's hidden in the '_'.  No
                 -- lazyless counter-magic is involved.)
 
-                Left e -> crash' 400 e "Service registration: error."
+                Left e -> crash $ FActionError500 (e, "Service registration: error.")
                 -- ("Unknown service id" should have been
                 -- caught in the "render form" case.  Perhaps
                 -- the user has tampered with the cookie?)
@@ -366,8 +384,8 @@ serviceLogin = do
                     meCallback <- parseURI laxURIParserOptions <$$> getParam "redirect"
                     case meCallback of
                         Just (Right callback) -> redirectURI $ f callback
-                        Just (Left _)         -> crash 400 $ "Service login: malformed callback url."
-                        Nothing               -> crash 400 $ "Service login: no callback url."
+                        Just (Left _)         -> crash FActionErrorServiceLoginNoCallbackUrl
+                        Nothing               -> crash FActionErrorServiceLoginNoCallbackUrl
 
                 -- case C: user is logged into thentos, but not
                 -- registered with service.  redirect to service
@@ -380,30 +398,25 @@ serviceLogin = do
                 -- corrupted by the user/adversary?).  report error to
                 -- log file and user.
                 Left e -> do
-                    logger INFO $ show e
-                    crash 400 "Service login: could not initiate session."
+                    crash $ FActionError500 "Service login: could not initiate session."
 
     runAsUserOrNot (\ _ -> loggedIn) notLoggedIn
+-}
 
 
 -- | If a service login state exists, consume it, jump back to the
 -- service, and log in.  If not, jump to `/dashboard`.
-redirectToDashboardOrService :: FH ()
+redirectToDashboardOrService :: FAction H.Html
 redirectToDashboardOrService = do
     mCallback <- popServiceLoginState
     case mCallback of
         Just (ServiceLoginState _ rr) -> redirectRR rr
-        Nothing                       -> redirect' "/dashboard" 303
-
-
--- | Return 404 Not Found error.
-unknownPath :: FH ()
-unknownPath = do
-    modifyResponse $ setResponseCode 404
-    blaze notFoundPage
+        Nothing                       -> redirect' "/dashboard"
 
 
 -- * Cache control
+
+{-
 
 -- | Disable response caching. The wrapped handler can overwrite this by
 -- setting its own cache control headers.
@@ -437,3 +450,5 @@ disableCaching h = do
     addCacheControlHeaders =
         modifyResponse $ setHeader "Cache-Control" "no-cache, no-store, must-revalidate"
                        . setHeader "Expires" "0"
+
+-}

@@ -9,41 +9,45 @@
 
 module Thentos.Frontend.State where
 
+import Control.Monad.Except (throwError)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.Trans.State (StateT, runStateT, get, gets, put)
 import Data.Char (ord)
 import Data.Functor.Infix ((<$$>))
-import Data.String.Conversions (SBS)
-import Data.Void (Void)
+import Data.Monoid ((<>))
+import Data.String.Conversions (SBS, ST, cs)
 import LIO (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
 import Servant (Proxy(Proxy), ServantErr, (:>), serve, HasServer, ServerT, Server)
+import Servant.Server (errHeaders, err303, err400, err404, err500)
 import Servant.Server.Internal.Enter ((:~>)(Nat), Enter, enter)
 import Servant.Session (SSession)
+import System.Log (Priority(DEBUG, ERROR))
 import Web.Cookie (SetCookie, def, setCookieName)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
-import Thentos.Types (ThentosSessionToken)
+import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
 import Thentos.Util
 import Thentos.Action.Core
-import Thentos.Backend.Core (baseActionErrorToServantErr)
+import Thentos.Backend.Core
 import Thentos.Frontend.Types
 
 
 -- * types
 
-type FAction = StateT FrontendSessionData (Action Void)
+type FAction = StateT FrontendSessionData (Action FActionError)
 
--- FIXME: where do we put frontend errors?  and where backend errors?  how do we handle them?
+-- FIXME: EU-required user notifications about cookies
+-- FUTUREWORK: more efficient refresh (only if changed or after 20% of the age has been passed)
 
 runFActionE :: FrontendSessionData -> ActionState -> FAction a
-            -> IO (Either (ActionError Void) (a, FrontendSessionData))
+            -> IO (Either (ActionError FActionError) (a, FrontendSessionData))
 runFActionE fState aState fServer = runActionE aState $ runStateT fServer fState
 
 
@@ -51,6 +55,45 @@ type FSession        = Session IO () FrontendSessionData
 type FSessionMap     = Vault.Key FSession -> Maybe FSession
 type FSessionStore   = SessionStore IO () FrontendSessionData
 type FServantSession = SSession IO () FrontendSessionData
+
+
+-- * errors
+
+data FActionError =
+    FActionError303 SBS
+  | FActionErrorNoToken
+  | FActionErrorCreateService
+  | FActionErrorServiceLoginNoCbUrl
+  | FActionError500 String
+  deriving (Eq, Show)
+
+crash :: FActionError -> FAction a
+crash = lift . throwError . OtherError
+
+fActionErrorToServantErr :: ActionError FActionError -> IO ServantErr
+fActionErrorToServantErr = errorInfoToServantErr mkServantErr .
+                                    actionErrorInfo (thentosErrorInfo f)
+  where
+    f :: FActionError -> (Maybe (Priority, String), ServantErr, ST)
+    f (FActionError303 uri) =
+        (Nothing, err303 { errHeaders = [("Location", uri)] }, "redirect: " <> cs uri)
+    f e@FActionErrorNoToken =
+        (Just (DEBUG, show e), err400, "email confirmation url broken: no token.")
+    f e@FActionErrorCreateService =
+        (Just (DEBUG, show e), err400, "could not create service.")
+    f e@FActionErrorServiceLoginNoCbUrl =
+        (Just (DEBUG, show e), err400, "no or broken callback url.")
+    f e@(FActionError500 _) =
+        (Just (ERROR, show e), err500, "we are very sorry.")
+
+
+-- FIXME: thentos errors (other than 'OtherError's) are rendered as json, i think.  something is
+-- still off here...
+
+-- FIXME: read up on related code in Thentos.Backend.Core for info on how to render html pages here.
+-- 403: blaze permissionDeniedPage
+-- 404: blaze notFoundPage
+-- all other cases: blaze . errorPage . cs $ usrMsg
 
 
 -- * middleware
@@ -90,18 +133,17 @@ serveFAction _ fServer aState = thentosSessionMiddleware >>= \(mw, key) -> retur
     server' key smap = enter nt fServer
       where
         nt :: FAction :~> ExceptT ServantErr IO
-        nt = enterFAction aState baseActionErrorToServantErr key smap
-
+        nt = enterFAction aState fActionErrorToServantErr key smap
 
 enterFAction ::
        ActionState
-    -> (ActionError Void -> IO ServantErr)
+    -> (ActionError FActionError -> IO ServantErr)
     -> Vault.Key FSession
     -> FSessionMap
     -> FAction :~> ExceptT ServantErr IO
 enterFAction aState toServantErr key smap = Nat $ ExceptT . (>>= fmapLM toServantErr) . run
   where
-    run :: forall a. FAction a -> IO (Either (ActionError Void) a)
+    run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
     run fServer = fst <$$> runFActionE emptyFrontendSessionData aState fServer'
       where
         fServer' :: FAction a
