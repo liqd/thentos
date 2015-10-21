@@ -38,8 +38,8 @@ import           Text.Digestive                (Env, Form,
 
 -- Combinators for digestive-functors
 --
--- The 'FormGet' combinator returns the HTML for the form, and takes a unit
--- handler. The 'FormPost f v a' combinator provides an argument for the handler
+-- The 'FormGet' combinator takes a unit handler and returns the HTML for the form.
+-- The 'FormPost f v a' combinator provides an argument for the handler
 -- of type 'a' in case the form can be validated; otherwise it automatically
 -- returns the HTML corresponding to the error.
 --
@@ -117,4 +117,3 @@ runFormP :: MonadIO m
          => Request -> Text -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
 runFormP req name backend form
     = postForm name form $ \_ -> return $ backendFormEnv backend req
-
