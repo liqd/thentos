@@ -55,12 +55,11 @@ library
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
     , LIO.Missing
-    , Snap.Inline
     , Servant.Missing
+    , Snap.Inline
     , Snap.Missing
     , System.Log.Missing
     , Thentos
-    , ThentosDocs
     , Thentos.Action
     , Thentos.Action.Core
     , Thentos.Action.SimpleAuth
@@ -73,6 +72,7 @@ library
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
     , Thentos.Config
+    , ThentosDocs
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
@@ -135,8 +135,8 @@ library
     , sandi >=0.3.5 && <0.4
     , scrypt >=0.5.0 && <0.6
     , servant ==0.5
-    , servant-docs ==0.5
     , servant-blaze ==0.5
+    , servant-docs ==0.5
     , servant-server ==0.5
     , servant-session ==0.5
     , snap >=0.14.0.6 && <0.15
