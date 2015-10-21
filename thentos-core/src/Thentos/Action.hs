@@ -39,7 +39,6 @@ module Thentos.Action
     , addService
     , deleteService
     , autocreateServiceIfMissing'P
-    , userGroups
 
     , addPersona
     , deletePersona
@@ -363,20 +362,6 @@ autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
             void $ addServicePrim owner sid (ServiceName "autocreated")
                                   (ServiceDescription "autocreated")
           e -> throwError e
-
--- | List all group leafs a user is member in on some service.
-userGroups :: UserId -> ServiceId -> Action e [Group]
-userGroups uid sid = do
-    taintMsg "userGroups" (UserA uid \/ ServiceA sid %% False)
-    (_, service) <- query'P $ T.lookupService sid
-    return $ flattenGroups service uid
-  where
-    --- | For a given service and user id, look up all groups the user has in the context of that service
-    --- from the service's group tree, and collect them into a list.
-    --- FIXME For now, this just returns an empty list since there is no code to define groups or
-    --- assign users to groups.
-    flattenGroups :: Service -> UserId -> [Group]
-    flattenGroups _ _ = []
 
 
 -- * thentos session

@@ -164,13 +164,16 @@ findDefaultServiceIdAndTarget conf = do
 createCustomHeaders ::
     ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
-createCustomHeaders adapter (Just tok) sid = do
+createCustomHeaders adapter (Just tok) _sid = do
     cfg <- getConfig'P
     (uid, user) <- validateThentosUserSession tok
     grantAccessRights'P [UserA uid]
-    groups <- userGroups uid sid
+    -- FIXME We may want to sent a persona's groups to the service (personaGroups action), but
+    -- currently the Proxy doesn't know about personas and it's unclear whether/how services
+    -- will use that info anyway
+    --groups <- userGroups uid sid
     return [ (renderHeader adapter ThentosHeaderUser, renderUser adapter cfg uid user)
-           , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
+    --       , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
 
 -- | Throw an Internal Server Error if the proxied app is unreachable.
