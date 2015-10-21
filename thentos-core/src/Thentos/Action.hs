@@ -547,7 +547,7 @@ getServiceSessionMetadata :: ServiceSessionToken -> Action e ServiceSessionMetad
 getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
 
 
--- * persona and context
+-- * personas, contexts, and groups
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
@@ -607,6 +607,44 @@ findPersona uid cxtId = do
 -- | List all contexts owned by a service. Anybody may do this.
 contextsForService :: ServiceId -> Action e [Context]
 contextsForService sid = query'P $ T.contextsForService sid
+
+-- | Add a persona to a group. If the persona is already a member of the group, do nothing.
+-- Only a GroupAdmin may do this.
+addPersonaToGroup :: PersonaId -> Group -> Action e ()
+addPersonaToGroup pid group = do
+    assertAuth $ hasRole RoleGroupAdmin
+    query'P $ T.addPersonaToGroup pid group
+
+-- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
+-- Only a GroupAdmin may do this.
+removePersonaFromGroup :: PersonaId -> Group -> Action e ()
+removePersonaFromGroup pid group = do
+    assertAuth $ hasRole RoleGroupAdmin
+    query'P $ T.removePersonaFromGroup pid group
+
+-- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
+-- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
+-- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
+-- Only a GroupAdmin may do this.
+addGroupToGroup :: Group -> Group -> Action e ()
+addGroupToGroup subgroup supergroup = do
+    assertAuth $ hasRole RoleGroupAdmin
+    query'P $ T.addGroupToGroup subgroup supergroup
+
+-- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
+-- member of supergroup, do nothing. Only a GroupAdmin may do this.
+removeGroupFromGroup :: Group -> Group -> Action e ()
+removeGroupFromGroup subgroup supergroup = do
+    assertAuth $ hasRole RoleGroupAdmin
+    query'P $ T.removeGroupFromGroup subgroup supergroup
+
+-- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
+-- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
+-- Only the user owning the persona or a GroupAdmin may do this.
+personaGroups :: Persona -> Action e [Group]
+personaGroups persona = do
+    assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole RoleGroupAdmin
+    query'P $ T.personaGroups (persona ^. personaUid)
 
 
 -- * agents and roles

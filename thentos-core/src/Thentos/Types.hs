@@ -423,9 +423,11 @@ data Role =
 
   | RoleOwnsUsers
     -- ^ Can do anything to map 'dbUsers' in 'DB'
+    -- FIXME No we need this role? (not used anywhere, conceptually unclear)
 
   | RoleOwnsUnconfirmedUsers
     -- ^ Can do anything to map 'dbUnConfirmedUsers' in 'DB'
+    -- FIXME No we need this role? (not used anywhere, conceptually unclear)
 
   | RoleUser
     -- ^ Can sign up with services
@@ -435,6 +437,9 @@ data Role =
 
   | RoleServiceAdmin
     -- ^ Can create (and manage her own) services
+
+  | RoleGroupAdmin
+    -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
 instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
