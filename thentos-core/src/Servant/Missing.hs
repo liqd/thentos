@@ -1,14 +1,17 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
+
 module Servant.Missing (FormGet, FormPost, HasForm(..)) where
 
 import           Data.String                   (fromString)
+import           Data.String.Conversions       (ST)
 import           GHC.TypeLits                  (KnownSymbol, symbolVal)
 import           Servant                       ((:>), Proxy (..))
 import           Servant.HTML.Blaze            (HTML)
@@ -41,7 +44,7 @@ import           Text.Digestive                (Env, Form,
 -- of type 'a' in case the form can be validated; otherwise it automatically
 -- returns the HTML corresponding to the error.
 --
--- Note that file uploads are not supported.
+-- Note that file uploads are not supported (requests containing files will crash).
 --
 -- > type API = "form" :> FormGet "PersonForm" Html Person
 -- >       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
@@ -49,46 +52,59 @@ import           Text.Digestive                (Env, Form,
 -- > server :: Server API
 -- > server = return () :<|> return
 -- >
--- > data Person = Person { name :: String, age :: Int }
+-- > data Person = Person { name :: ST, age :: Int }
+-- >     deriving (Eq, Show, Generic, FromJSON, ToJSON)
 -- >
--- > personForm :: Monad m => Form Html m Person
+-- > personForm :: Monad m => Form H.Html m Person
 -- > personForm = Person <$> "name" .: nonEmptyText
 -- >                     <*> "age"  .: positiveInt
 -- >   where
--- >     nonEmptyText = check "Cannot be empty" (not . Data.Text.null)
+-- >     nonEmptyText = check "Cannot be empty" (not . Text.null)
 -- >                  $ text Nothing
--- >     positiveInt  = check "Must be positive" (>= 0) $ stringRead "Not a number" Nothing
+-- >     positiveInt  = check "Must be positive" (> 0)
+-- >                  $ stringRead "Not a number" Nothing
 -- >
--- > renderPersonForm :: View Html -> Html
--- > renderPersonForm v = ...
+-- > renderPersonForm :: View H.Html -> ST -> H.Html
+-- > renderPersonForm v action = form v action $ do
+-- >     H.p $ do
+-- >         label "name" v "Name"
+-- >         inputText "name" v
+-- >         errorList "name" v
+-- >     H.p $ do
+-- >         label "age" v "Age"
+-- >         inputText "age" v
+-- >         errorList "age" v
+-- >     inputSubmit "submit"
 -- >
--- > instance HasForm "PersonForm" Html Person where
--- >    isForm _      = personForm
--- >    formView _    = renderPersonForm
--- >    formBackend _ = <save files>
+-- > instance HasForm "test" H.Html Person where
+-- >     formAction _  = "post_target"
+-- >     isForm _      = personForm
+-- >     formView _    = renderPersonForm
+-- >     formBackend _ = error "No backend"
 
 data FormPost f v a
 data FormGet f v a
 
 
 class HasForm f v a | f -> v, f -> a where
+    formAction :: Proxy f -> ST
     isForm :: Monad m => Proxy f -> Form v m a
-    formView :: Proxy f -> View v -> v
+    formView :: Proxy f -> View v -> ST -> v
     formBackend :: Proxy f -> BackEnd FilePath
 
-instance (KnownSymbol f, HasForm f v a, Show a, H.ToMarkup v, HasServer sublayout)
+instance (KnownSymbol f, HasForm f v a, H.ToMarkup v, HasServer sublayout)
          => HasServer (FormPost f v a :> sublayout) where
     type ServerT (FormPost f v a :> sub) m = a -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver $ go req)
       where
         fp = Proxy :: Proxy f
-        fname = fromString $ symbolVal (Proxy :: Proxy f)
+        fname = fromString $ symbolVal fp
         toServantErr v = err400 { errBody = renderHtml $ H.toHtml v }
         go req = do
            (v, a) <- runFormP req fname (formBackend fp) (isForm fp)
            case a of
-             Nothing -> return $ FailFatal (toServantErr $ formView fp v)
+             Nothing -> return $ FailFatal (toServantErr $ formView fp v (formAction fp))
              Just a' -> return $ Route a'
 
 instance (KnownSymbol f, HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v a) where
@@ -99,14 +115,16 @@ instance (KnownSymbol f, HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v 
         fp = Proxy :: Proxy f
         go = fmap (\_ -> do
             v <- getForm fname $ isForm fp
-            return . H.toHtml $ formView fp v) sub
+            return . H.toHtml $ formView fp v (formAction fp)) sub
 
 
 backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m
 backendFormEnv be req query = do
-    (q, _) <- liftIO $ parseRequestBody be req
+    q <- liftIO (parseRequestBody be req) >>=
+          \case (q, []) -> return q
+                (_, _:_) -> error "servant-digestive-functors: file upload not implemented."
     return $ map (TextInput . T.decodeUtf8 . snd)
-           $ filter (\(x,_) -> x == fromPath query)
+           $ filter ((== fromPath query) . fst)
            $ map (first T.decodeUtf8) q
 
 runFormP :: MonadIO m

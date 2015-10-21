@@ -17,16 +17,17 @@ import           Control.Monad.IO.Class        (liftIO)
 import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.ByteString.Lazy.Char8    (unpack)
 import qualified Data.Text                     as Text
+import           Data.String.Conversions       (ST)
 import           GHC.Generics                  (Generic)
 import           Network.Wai.Test              (simpleBody)
-import           Test.Hspec
+import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain)
 import           Test.Hspec.Wai                (get, postHtmlForm,
                                                 shouldRespondWith, with)
 import qualified Text.Blaze.Html               as H
-import           Text.Blaze.Html.Renderer.Utf8
+import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import qualified Text.Blaze.Html5              as H
-import           Text.Digestive
-import           Text.Digestive.Blaze.Html5
+import           Text.Digestive                (Form, View, check, text, (.:), getForm, stringRead)
+import           Text.Digestive.Blaze.Html5    (form, inputSubmit, inputText, label, errorList)
 
 
 spec :: Spec
@@ -42,7 +43,8 @@ formSpec = describe "Forms" $ with (return $ serve api server) $ do
         it "returns the Html from 'formView'" $ do
             v <- getForm "test" personForm
             r <- get "form"
-            liftIO $ simpleBody r `shouldBe` renderHtml (renderPersonForm v)
+
+            liftIO $ simpleBody r `shouldBe` renderHtml (renderPersonForm v "post_target")
 
         it "responds with 200" $ do
             get "form" `shouldRespondWith` 200
@@ -65,7 +67,6 @@ formSpec = describe "Forms" $ with (return $ serve api server) $ do
                 `shouldRespondWith` 201
 
 
-
 type API = "form" :> (FormGet "test" H.Html Person
       :<|> FormPost "test" H.Html Person :> Post '[JSON] Person)
 
@@ -75,7 +76,7 @@ api = Proxy
 server :: Server API
 server = return () :<|> return
 
-data Person = Person { name :: Text.Text, age :: Int }
+data Person = Person { name :: ST, age :: Int }
     deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
 personForm :: Monad m => Form H.Html m Person
@@ -87,8 +88,8 @@ personForm = Person <$> "name" .: nonEmptyText
     positiveInt  = check "Must be positive" (> 0)
                  $ stringRead "Not a number" Nothing
 
-renderPersonForm :: View H.Html -> H.Html
-renderPersonForm v = form v "POST" $ do
+renderPersonForm :: View H.Html -> ST -> H.Html
+renderPersonForm v action = form v action $ do
     H.p $ do
         label "name" v "Name"
         inputText "name" v
@@ -100,6 +101,7 @@ renderPersonForm v = form v "POST" $ do
     inputSubmit "submit"
 
 instance HasForm "test" H.Html Person where
-   isForm _      = personForm
-   formView _    = renderPersonForm
-   formBackend _ = error "No backend"
+    formAction _  = "post_target"
+    isForm _      = personForm
+    formView _    = renderPersonForm
+    formBackend _ = error "No backend"
