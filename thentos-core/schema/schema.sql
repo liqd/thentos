@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS persona_groups (
     UNIQUE (pid, grp)
 );
 
--- Groups can be members of other groups (any member of supergroup is also a member of subgroup)
+-- Groups can be members of other groups (any member of subgroup is also a member of supergroup)
 CREATE TABLE IF NOT EXISTS group_tree (
     supergroup text NOT NULL,
     subgroup   text NOT NULL,
