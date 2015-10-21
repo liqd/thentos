@@ -208,10 +208,7 @@ instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 newtype Group = Group { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
-instance Aeson.FromJSON Group
-  where
-    parseJSON (String t) = return $ Group t
-    parseJSON bad        = fail $ "Not a valid group (expected a string): " ++ show bad
+instance Aeson.FromJSON Group where parseJSON = Aeson.withText "group string" (pure . Group)
 
 instance Aeson.ToJSON Group where toJSON (Group name) = Aeson.toJSON name
 
