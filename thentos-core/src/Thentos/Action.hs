@@ -337,8 +337,7 @@ addService owner name desc = do
 addServicePrim ::
     UserId -> ServiceId -> ServiceName -> ServiceDescription -> Action e (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
-    -- FIXME LIO
-    --guardWriteMsg "addServicePrim" (RoleAdmin \/ owner %% RoleAdmin /\ owner)
+    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     key <- freshServiceKey
     hashedKey <- hashServiceKey'P key
     query'P $ T.addService owner sid hashedKey name desc
@@ -346,19 +345,19 @@ addServicePrim owner sid name desc = do
 
 deleteService :: ServiceId -> Action e ()
 deleteService sid = do
-    guardWriteMsg "deleteService" (RoleAdmin \/ ServiceA sid %% RoleAdmin /\ ServiceA sid)
+    owner <- (^. serviceOwner) . snd <$> lookupService sid
+    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     query'P $ T.deleteService sid
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
 -- to the config which will automatically spring into life if the config is read.
-autocreateServiceIfMissing'P ::
-    UserId -> ServiceId -> Action e ()
+autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e ()
 autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
     \case NoSuchService -> do
             logger'P DEBUG $ "autocreating service with ID " ++ show sid
             void $ addServicePrim owner sid (ServiceName "autocreated")
                                   (ServiceDescription "autocreated")
-          e                                            -> throwError e
+          e -> throwError e
 
 -- | List all group leafs a user is member in on some service.
 userGroups :: UserId -> ServiceId -> Action e [Group]
@@ -468,8 +467,8 @@ _startThentosSessionByAgent agent = do
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
 -- 'RoleAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
-serviceNamesFromThentosSession tok =
-    -- FIXME: privilege checks punted until the LIO story is clearer
+serviceNamesFromThentosSession tok = do
+    lookupThentosSession tok >>= \sess -> assertAuth $ hasAgent (sess ^. thSessAgent)
     query'P $ T.serviceNamesFromThentosSession tok
 
 
@@ -552,14 +551,14 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
 -- Only the user owning the persona or an admin may do this.
-addPersona :: PersonaName -> UserId -> Action (ActionError e) Persona
+addPersona :: PersonaName -> UserId -> Action e Persona
 addPersona name uid = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
     query'P $ T.addPersona name uid
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 -- Only the user owning the persona or an admin may do this.
-deletePersona :: Persona -> Action (ActionError e) ()
+deletePersona :: Persona -> Action e ()
 deletePersona persona = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
     query'P . T.deletePersona $ persona ^. personaId
@@ -567,15 +566,14 @@ deletePersona persona = do
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 -- Only the service or an admin may do this.
-addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri
-    -> Action (ActionError e) Context
+addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> Action e Context
 addContext sid name desc url = do
     assertAuth (hasServiceId sid <||> hasRole RoleAdmin)
     query'P $ T.addContext sid name desc url
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 -- Only the service owning the context or an admin may do this.
-deleteContext :: Context -> Action (ActionError e) ()
+deleteContext :: Context -> Action e ()
 deleteContext context = do
     assertAuth (hasServiceId (context ^. contextService) <||> hasRole RoleAdmin)
     query'P . T.deleteContext $ context ^. contextId
@@ -585,21 +583,21 @@ deleteContext context = do
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
 -- Only the user owning the persona or an admin may do this.
-registerPersonaWithContext :: Persona -> ContextId -> Action (ActionError e) ()
+registerPersonaWithContext :: Persona -> ContextId -> Action e ()
 registerPersonaWithContext persona cxtId = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
     query'P $ T.registerPersonaWithContext persona cxtId
 
 -- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
-unregisterPersonaFromContext :: Persona -> ContextId -> Action (ActionError e) ()
+unregisterPersonaFromContext :: Persona -> ContextId -> Action e ()
 unregisterPersonaFromContext persona cxtId = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
     query'P $ T.unregisterPersonaFromContext (persona ^. personaId) cxtId
 
 -- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
-findPersona :: UserId -> ContextId -> Action (ActionError e) (Maybe Persona)
+findPersona :: UserId -> ContextId -> Action e (Maybe Persona)
 findPersona uid cxtId = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
     query'P $ T.findPersona uid cxtId
