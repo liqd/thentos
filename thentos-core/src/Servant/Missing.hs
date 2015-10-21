@@ -8,79 +8,71 @@
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
 
-module Servant.Missing (FormGet, FormPost, HasForm(..)) where
+{-| Combinators for digestive-functors
 
-import           Data.String                   (fromString)
-import           Data.String.Conversions       (ST)
-import           GHC.TypeLits                  (KnownSymbol, symbolVal)
-import           Servant                       ((:>), Proxy (..))
-import           Servant.HTML.Blaze            (HTML)
-import           Servant.Server.Internal       (HasServer (..),
-                                                RouteResult (..),
-                                                Router (WithRequest), Router,
-                                                ServantErr (errBody),
-                                                addBodyCheck, err400,
-                                                methodRouter)
+The 'FormGet' combinator takes a unit handler and returns the HTML for the form.
+The 'FormPost f v a' combinator provides an argument for the handler
+of type 'a' in case the form can be validated; otherwise it automatically
+returns the HTML corresponding to the error.
+
+Note that file uploads are not supported (requests containing files will crash).
+
+> type API = "form" :> FormGet "PersonForm" Html Person
+>       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
+>
+> server :: Server API
+> server = return () :<|> return
+>
+> data Person = Person { name :: ST, age :: Int }
+>     deriving (Eq, Show, Generic, FromJSON, ToJSON)
+>
+> personForm :: Monad m => Form H.Html m Person
+> personForm = Person <$> "name" .: nonEmptyText
+>                     <*> "age"  .: positiveInt
+>   where
+>     nonEmptyText = check "Cannot be empty" (not . Text.null)
+>                  $ text Nothing
+>     positiveInt  = check "Must be positive" (> 0)
+>                  $ stringRead "Not a number" Nothing
+>
+> renderPersonForm :: View H.Html -> ST -> H.Html
+> renderPersonForm v action = form v action $ do
+>     H.p $ do
+>         label "name" v "Name"
+>         inputText "name" v
+>         errorList "name" v
+>     H.p $ do
+>         label "age" v "Age"
+>         inputText "age" v
+>         errorList "age" v
+>     inputSubmit "submit"
+>
+> instance HasForm "test" H.Html Person where
+>     formAction _  = "post_target"
+>     isForm _      = personForm
+>     formView _    = renderPersonForm
+>     formBackend _ = error "No backend"
+-}
+module Servant.Missing (FormGet, FormPost, HasForm(..)) where
 
 import           Control.Arrow                 (first)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
-import           Data.Text                     (Text)
-import qualified Data.Text                     as Text
+import           Data.String.Conversions       (ST)
+import           Data.String                   (fromString)
 import qualified Data.Text.Encoding            as T
+import           GHC.TypeLits                  (KnownSymbol, symbolVal)
 import           Network.HTTP.Types            (methodGet, ok200)
-import           Network.Wai                   (Request, Response, requestBody,
-                                                responseLBS)
 import           Network.Wai.Parse             (BackEnd, parseRequestBody)
-import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+import           Network.Wai                   (Request)
+import           Servant.HTML.Blaze            (HTML)
+import           Servant                       ((:>), Proxy (..))
+import           Servant.Server.Internal       (RouteResult (..), Router(WithRequest),
+                                                HasServer (..), ServantErr (errBody),
+                                                addBodyCheck, err400, methodRouter)
 import qualified Text.Blaze.Html5              as H
-import           Text.Digestive                (Env, Form,
-                                                FormInput (TextInput), View,
+import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+import           Text.Digestive                (Env, Form, FormInput(TextInput), View,
                                                 fromPath, getForm, postForm)
-
--- Combinators for digestive-functors
---
--- The 'FormGet' combinator returns the HTML for the form, and takes a unit
--- handler. The 'FormPost f v a' combinator provides an argument for the handler
--- of type 'a' in case the form can be validated; otherwise it automatically
--- returns the HTML corresponding to the error.
---
--- Note that file uploads are not supported (requests containing files will crash).
---
--- > type API = "form" :> FormGet "PersonForm" Html Person
--- >       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
--- >
--- > server :: Server API
--- > server = return () :<|> return
--- >
--- > data Person = Person { name :: ST, age :: Int }
--- >     deriving (Eq, Show, Generic, FromJSON, ToJSON)
--- >
--- > personForm :: Monad m => Form H.Html m Person
--- > personForm = Person <$> "name" .: nonEmptyText
--- >                     <*> "age"  .: positiveInt
--- >   where
--- >     nonEmptyText = check "Cannot be empty" (not . Text.null)
--- >                  $ text Nothing
--- >     positiveInt  = check "Must be positive" (> 0)
--- >                  $ stringRead "Not a number" Nothing
--- >
--- > renderPersonForm :: View H.Html -> ST -> H.Html
--- > renderPersonForm v action = form v action $ do
--- >     H.p $ do
--- >         label "name" v "Name"
--- >         inputText "name" v
--- >         errorList "name" v
--- >     H.p $ do
--- >         label "age" v "Age"
--- >         inputText "age" v
--- >         errorList "age" v
--- >     inputSubmit "submit"
--- >
--- > instance HasForm "test" H.Html Person where
--- >     formAction _  = "post_target"
--- >     isForm _      = personForm
--- >     formView _    = renderPersonForm
--- >     formBackend _ = error "No backend"
 
 data FormPost f v a
 data FormGet f v a
@@ -128,7 +120,6 @@ backendFormEnv be req query = do
            $ map (first T.decodeUtf8) q
 
 runFormP :: MonadIO m
-         => Request -> Text -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
+         => Request -> ST -> BackEnd FilePath -> Form v m a -> m (View v, Maybe a)
 runFormP req name backend form
     = postForm name form $ \_ -> return $ backendFormEnv backend req
-

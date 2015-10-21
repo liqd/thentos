@@ -10,24 +10,23 @@
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 module Servant.MissingSpec (spec) where
 
-import           Servant
-import           Servant.Missing
-
 import           Control.Monad.IO.Class        (liftIO)
 import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.ByteString.Lazy.Char8    (unpack)
-import qualified Data.Text                     as Text
 import           Data.String.Conversions       (ST)
+import qualified Data.Text                     as Text
 import           GHC.Generics                  (Generic)
 import           Network.Wai.Test              (simpleBody)
+import           Servant                       (Proxy(Proxy), Post, JSON, Server,
+                                                (:>), (:<|>)((:<|>)), serve)
+import           Servant.Missing
 import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain)
-import           Test.Hspec.Wai                (get, postHtmlForm,
-                                                shouldRespondWith, with)
+import           Test.Hspec.Wai                (get, postHtmlForm, shouldRespondWith, with)
+import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html               as H
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
-import qualified Text.Blaze.Html5              as H
-import           Text.Digestive                (Form, View, check, text, (.:), getForm, stringRead)
 import           Text.Digestive.Blaze.Html5    (form, inputSubmit, inputText, label, errorList)
+import           Text.Digestive                (Form, View, check, text, (.:), getForm, stringRead)
 
 
 spec :: Spec
