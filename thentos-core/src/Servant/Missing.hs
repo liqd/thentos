@@ -1,11 +1,13 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PolyKinds              #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE TypeOperators          #-}
+
 module Servant.Missing (FormGet, FormPost, HasForm(..)) where
 
 import           Data.String                   (fromString)
@@ -41,7 +43,7 @@ import           Text.Digestive                (Env, Form,
 -- of type 'a' in case the form can be validated; otherwise it automatically
 -- returns the HTML corresponding to the error.
 --
--- Note that file uploads are not supported.
+-- Note that file uploads are not supported (wai requests containing files will crash).
 --
 -- > type API = "form" :> FormGet "PersonForm" Html Person
 -- >       :<|> "form" :> FormPost "PersonForm" Html Person :> Post '[HTML] Person
@@ -104,7 +106,9 @@ instance (KnownSymbol f, HasForm f v a, H.ToMarkup v) => HasServer (FormGet f v 
 
 backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m
 backendFormEnv be req query = do
-    (q, _) <- liftIO $ parseRequestBody be req
+    q <- liftIO (parseRequestBody be req) >>=
+          \case (q, []) -> return q
+                (_, _:_) -> error "servant-digestive-functors: file upload not implemented."
     return $ map (TextInput . T.decodeUtf8 . snd)
            $ filter (\(x,_) -> x == fromPath query)
            $ map (first T.decodeUtf8) q
