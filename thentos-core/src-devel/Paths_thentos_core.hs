@@ -5,8 +5,12 @@
 --     2. http://neilmitchell.blogspot.de/2008/02/adding-data-files-using-cabal.html
 module Paths_thentos_core where
 
+import Distribution.Version (Version(Version))
 import System.FilePath ((</>))
 import Paths_thentos_core_aux (getBuildTimeCurrentDirectory)
 
 getDataFileName :: FilePath -> IO FilePath
 getDataFileName = return . (($(getBuildTimeCurrentDirectory) </> "thentos-core") </>)
+
+version :: Version
+version = Version [] []

@@ -60,18 +60,19 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: (Show e, Typeable e) =>
-    ActionState ->
+enterAction :: forall s e. (Show e, Typeable e) =>
+    s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
-    Maybe ThentosSessionToken -> Action e :~> ExceptT ServantErr IO
-enterAction state toServantErr mTok = Nat $ ExceptT . run toServantErr
+    Maybe ThentosSessionToken -> Action e s :~> ExceptT ServantErr IO
+    -- FIXME: 'ThentosSessionToken' should probably to into @polyState@?
+enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
-        -> Action e a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e) . runActionE state . (updatePrivs mTok >>)
+        -> Action e s a -> IO (Either ServantErr a)
+    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs mTok >>)
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action e ()
+    updatePrivs :: Maybe ThentosSessionToken -> Action e s ()
     updatePrivs (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
     updatePrivs Nothing    = return ()
 
@@ -83,15 +84,6 @@ newtype ErrorMessage = ErrorMessage { fromErrorMessage :: ST }
 
 instance ToJSON ErrorMessage where
     toJSON (ErrorMessage msg) = object ["status" .= String "error", "error" .= msg]
-
--- | Construct a ServantErr that looks as our errors should.
--- Status code and reason phrase are taken from the base error given as first argument.
--- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
-mkServantErr :: ServantErr -> ST -> ServantErr
-mkServantErr baseErr msg = baseErr
-    { errBody = encode $ ErrorMessage msg
-    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
-    }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 
@@ -109,6 +101,19 @@ errorInfoToServantErr mkServant (l, se, x) = do
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
                                  actionErrorInfo (thentosErrorInfo absurd)
+  where
+    -- | Construct a ServantErr that looks as our errors should.
+    -- Status code and reason phrase are taken from the base error given as first argument.
+    -- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
+    mkServantErr :: ServantErr -> ST -> ServantErr
+    mkServantErr baseErr msg = baseErr
+        { errBody = encode $ ErrorMessage msg
+        , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+        }
+
+    -- | header setting the Content-Type to JSON.
+    contentTypeJsonHeader ::  Header
+    contentTypeJsonHeader = ("Content-Type", "application/json")  -- FIXME: do "application/json; charset=utf-8" here?
 
 actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
 actionErrorInfo thentosInfo e =
@@ -264,10 +269,6 @@ instance HasLink sub => HasLink (ThentosAssertHeaders :> sub) where
 
 -- * response headers
 
--- | header setting the Content-Type to JSON.
-contentTypeJsonHeader ::  Header
-contentTypeJsonHeader = ("Content-Type", "application/json")
-
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --
 -- FUTURE WORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
@@ -311,6 +312,7 @@ addCorsHeaders policy app req respond = app req $
 
 -- * warp
 
+-- FIXME: move this to a module for use both by frontend and backend.
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
 runWarpWithCfg cfg = runSettings settings
   where

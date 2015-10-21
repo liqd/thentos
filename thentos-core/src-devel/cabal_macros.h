@@ -77,6 +77,13 @@
   (major1) == 0 && (major2) <  8 || \
   (major1) == 0 && (major2) == 8 && (minor) <= 1)
 
+/* package blaze-markup-0.7.0.2 */
+#define VERSION_blaze_markup "0.7.0.2"
+#define MIN_VERSION_blaze_markup(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  7 || \
+  (major1) == 0 && (major2) == 7 && (minor) <= 0)
+
 /* package bytestring-0.10.6.0 */
 #define VERSION_bytestring "0.10.6.0"
 #define MIN_VERSION_bytestring(major1,major2,minor) (\
@@ -112,6 +119,13 @@
   (major1) == 0 && (major2) <  5 || \
   (major1) == 0 && (major2) == 5 && (minor) <= 6)
 
+/* package cookie-0.4.1.6 */
+#define VERSION_cookie "0.4.1.6"
+#define MIN_VERSION_cookie(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  4 || \
+  (major1) == 0 && (major2) == 4 && (minor) <= 1)
+
 /* package cryptonite-0.6 */
 #define VERSION_cryptonite "0.6"
 #define MIN_VERSION_cryptonite(major1,major2,minor) (\
@@ -132,13 +146,6 @@
   (major1) <  0 || \
   (major1) == 0 && (major2) <  6 || \
   (major1) == 0 && (major2) == 6 && (minor) <= 0)
-
-/* package digestive-functors-snap-0.6.1.3 */
-#define VERSION_digestive_functors_snap "0.6.1.3"
-#define MIN_VERSION_digestive_functors_snap(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  6 || \
-  (major1) == 0 && (major2) == 6 && (minor) <= 1)
 
 /* package directory-1.2.2.0 */
 #define VERSION_directory "1.2.2.0"
@@ -189,12 +196,26 @@
   (major1) == 0 && (major2) <  2 || \
   (major1) == 0 && (major2) == 2 && (minor) <= 0)
 
+/* package hastache-0.6.1 */
+#define VERSION_hastache "0.6.1"
+#define MIN_VERSION_hastache(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  6 || \
+  (major1) == 0 && (major2) == 6 && (minor) <= 1)
+
 /* package hslogger-1.2.9 */
 #define VERSION_hslogger "1.2.9"
 #define MIN_VERSION_hslogger(major1,major2,minor) (\
   (major1) <  1 || \
   (major1) == 1 && (major2) <  2 || \
   (major1) == 1 && (major2) == 2 && (minor) <= 9)
+
+/* package http-api-data-0.1.1.1 */
+#define VERSION_http_api_data "0.1.1.1"
+#define MIN_VERSION_http_api_data(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  1 || \
+  (major1) == 0 && (major2) == 1 && (minor) <= 1)
 
 /* package http-client-0.4.23 */
 #define VERSION_http_client "0.4.23"
@@ -266,6 +287,13 @@
   (major1) == 2 && (major2) <  2 || \
   (major1) == 2 && (major2) == 2 && (minor) <= 1)
 
+/* package network-uri-2.6.0.3 */
+#define VERSION_network_uri "2.6.0.3"
+#define MIN_VERSION_network_uri(major1,major2,minor) (\
+  (major1) <  2 || \
+  (major1) == 2 && (major2) <  6 || \
+  (major1) == 2 && (major2) == 6 && (minor) <= 0)
+
 /* package old-locale-1.0.0.7 */
 #define VERSION_old_locale "1.0.0.7"
 #define MIN_VERSION_old_locale(major1,major2,minor) (\
@@ -329,6 +357,13 @@
   (major1) == 0 && (major2) <  5 || \
   (major1) == 0 && (major2) == 5 && (minor) <= 0)
 
+/* package servant-blaze-0.5 */
+#define VERSION_servant_blaze "0.5"
+#define MIN_VERSION_servant_blaze(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  5 || \
+  (major1) == 0 && (major2) == 5 && (minor) <= 0)
+
 /* package servant-docs-0.5 */
 #define VERSION_servant_docs "0.5"
 #define MIN_VERSION_servant_docs(major1,major2,minor) (\
@@ -349,27 +384,6 @@
   (major1) <  0 || \
   (major1) == 0 && (major2) <  5 || \
   (major1) == 0 && (major2) == 5 && (minor) <= 0)
-
-/* package snap-0.14.0.6 */
-#define VERSION_snap "0.14.0.6"
-#define MIN_VERSION_snap(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  14 || \
-  (major1) == 0 && (major2) == 14 && (minor) <= 0)
-
-/* package snap-core-0.9.8.0 */
-#define VERSION_snap_core "0.9.8.0"
-#define MIN_VERSION_snap_core(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  9 || \
-  (major1) == 0 && (major2) == 9 && (minor) <= 8)
-
-/* package snap-server-0.9.5.1 */
-#define VERSION_snap_server "0.9.5.1"
-#define MIN_VERSION_snap_server(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  9 || \
-  (major1) == 0 && (major2) == 9 && (minor) <= 5)
 
 /* package string-conversions-0.4 */
 #define VERSION_string_conversions "0.4"
@@ -427,12 +441,40 @@
   (major1) == 0 && (major2) <  1 || \
   (major1) == 0 && (major2) == 1 && (minor) <= 9)
 
+/* package vault-0.3.0.4 */
+#define VERSION_vault "0.3.0.4"
+#define MIN_VERSION_vault(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  3 || \
+  (major1) == 0 && (major2) == 3 && (minor) <= 0)
+
 /* package wai-3.0.3.0 */
 #define VERSION_wai "3.0.3.0"
 #define MIN_VERSION_wai(major1,major2,minor) (\
   (major1) <  3 || \
   (major1) == 3 && (major2) <  0 || \
   (major1) == 3 && (major2) == 0 && (minor) <= 3)
+
+/* package wai-digestive-functors-0.3 */
+#define VERSION_wai_digestive_functors "0.3"
+#define MIN_VERSION_wai_digestive_functors(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  3 || \
+  (major1) == 0 && (major2) == 3 && (minor) <= 0)
+
+/* package wai-extra-3.0.10 */
+#define VERSION_wai_extra "3.0.10"
+#define MIN_VERSION_wai_extra(major1,major2,minor) (\
+  (major1) <  3 || \
+  (major1) == 3 && (major2) <  0 || \
+  (major1) == 3 && (major2) == 0 && (minor) <= 10)
+
+/* package wai-session-0.3.2 */
+#define VERSION_wai_session "0.3.2"
+#define MIN_VERSION_wai_session(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  3 || \
+  (major1) == 0 && (major2) == 3 && (minor) <= 2)
 
 /* package warp-3.1.3 */
 #define VERSION_warp "3.1.3"
@@ -539,5 +581,5 @@
   (major1) == 2 && (major2) <  25 || \
   (major1) == 2 && (major2) == 25 && (minor) <= 0)
 
-#define CURRENT_PACKAGE_KEY "thent_JoQTMpY0d8mD7lqLMRsgql"
+#define CURRENT_PACKAGE_KEY "8I1VnrvOi2aLwdwbE9ap8e"
 

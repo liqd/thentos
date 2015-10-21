@@ -18,6 +18,11 @@ cabal-version:       >= 1.18
 data-files:
     schema/schema.sql
     schema/wipe.sql
+    frontend/static/screen.css
+    frontend/static/screen2.css
+
+extra-source-files:
+    frontend/static/screen.css
 
 Source-Repository head
   type: git
@@ -30,18 +35,8 @@ flag with-thentos-executable
   default: False
 
 flag development
--- JS files are loaded dynamically upon recompilation of purescript modules
--- rather than only during cabal builds.
-  description: Development mode
+  description: Development mode tweaks cabal search behavior with Paths.hs and cabal_macros.h
   default: False
-
--- snap-development mode seems to have issues:
--- https://groups.google.com/forum/#!topic/snap_framework/7fWgxMxjNWE
--- https://groups.google.com/forum/#!topic/snap_framework/NnjKNYU5yeI
--- https://groups.google.com/forum/#!topic/snap_framework/A459Gt8kr0U
-Flag snap-development
-  Description: build the snap frontend in development (interpreted) mode
-  Default: False
 
 library
   default-language:
@@ -55,17 +50,9 @@ library
           -auto-all -caf-all -fforce-recomp
   if flag(development)
     cpp-options: -DDEVELOPMENT
-  if flag(snap-development)
-    build-depends:
-      snap-loader-dynamic == 0.10.*
-    cpp-options: -DDEVELOPMENT -w
-    ghc-options: -w
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
     , LIO.Missing
-    , Servant.Missing
-    , Snap.Inline
-    , Snap.Missing
     , System.Log.Missing
     , Thentos
     , Thentos.Action
@@ -85,6 +72,7 @@ library
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.State
+    , Thentos.Frontend.TH
     , Thentos.Frontend.Types
     , Thentos.Smtp
     , Thentos.Transaction
@@ -116,7 +104,6 @@ library
     , cryptonite >=0.6 && <0.8
     , digestive-functors >=0.8.0.0 && <0.9
     , digestive-functors-blaze >=0.6.0.6 && <0.7
-    , digestive-functors-snap >=0.6.1.3 && <0.7
     , directory >=1.2.2.0 && <1.3
     , either >=4.4.1 && <4.5
     , email-validate >=2.1.3 && <2.2
@@ -126,6 +113,7 @@ library
     , generic-aeson >=0.2.0.7 && <0.3
     , hastache >= 0.6.1 && <0.7
     , hslogger >=1.2.9 && <1.3
+    , http-api-data >=0.1 && <0.2
     , http-client >=0.4.22 && <0.5
     , http-media >=0.6.2 && <0.7
     , http-reverse-proxy >=0.4.2 && <0.5
@@ -151,9 +139,6 @@ library
     , servant-docs ==0.5
     , servant-server ==0.5
     , servant-session ==0.5
-    , snap >=0.14.0.6 && <0.15
-    , snap-core >=0.9.8.0 && <0.10
-    , snap-server >=0.9.5.1 && <0.10
     , string-conversions >=0.4 && <0.5
     , template-haskell >=2.10 && <2.11
     , text >=1.2.1.3 && <1.3
@@ -193,8 +178,3 @@ executable thentos
     , thentos-core
   if flag(development)
     cpp-options: -DDEVELOPMENT
-  if flag(snap-development)
-    build-depends:
-      snap-loader-dynamic == 0.10.*
-    cpp-options: -DDEVELOPMENT -w
-    ghc-options: -w

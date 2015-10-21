@@ -1,44 +1,82 @@
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE DeriveGeneric          #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
 module Thentos.Frontend.Types where
 
-import Control.Concurrent.MVar (MVar)
 import Control.Lens (makeLenses)
 import Control.Monad (mzero)
-import "cryptonite" Crypto.Random (ChaChaDRG)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.Pool (Pool)
-import Data.String.Conversions (ST, cs)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (ST, LT, SBS, LBS, cs)
 import GHC.Generics (Generic)
-import Snap.Snaplet.Session.SessionManager (SessionManager)
-import Snap.Snaplet (Snaplet, Handler)
+import Servant.API (Accept (..), MimeRender (..))
+import Servant.HTML.Blaze (HTML)
+import Text.Blaze.Html (Html, ToMarkup, toHtml)
+import Text.Blaze.Html.Renderer.Pretty (renderHtml)
 import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
-import Database.PostgreSQL.Simple (Connection)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
+import qualified Network.HTTP.Media as Media
 
-import Thentos.Config
 import Thentos.Types
+import Thentos.Action.Core (Action)
 
-data FrontendApp =
-    FrontendApp
-      { _connPool :: Pool Connection
-      , _rng :: MVar ChaChaDRG
-      , _cfg :: ThentosConfig
-      , _sess :: Snaplet SessionManager
-      , _frontendCfg :: HttpConfig
-      }
 
-makeLenses ''FrontendApp
+-- * content types
 
-type FH = Handler FrontendApp FrontendApp
+-- | Html content type with pretty printing.  (See also: package servant-blaze.)
+type HTM = PrettyHTML
+
+renderHTM :: Html -> LBS
+renderHTM = cs . renderHtml
+
+data PrettyHTML
+
+instance Accept PrettyHTML where
+    contentType _ = contentType (Proxy :: Proxy HTML)
+
+instance {-# OVERLAPPABLE #-} ToMarkup a => MimeRender PrettyHTML a where
+    mimeRender _ = renderHTM . toHtml
+
+instance {-# OVERLAPPING #-} MimeRender PrettyHTML Html where
+    mimeRender _ = renderHTM
+
+
+data TextCss
+
+instance Accept TextCss where
+    contentType _ = "text" Media.// "css" Media./: ("charset", "utf-8")
+
+instance MimeRender TextCss LBS    where mimeRender _ = id
+instance MimeRender TextCss SBS    where mimeRender _ = cs
+instance MimeRender TextCss ST     where mimeRender _ = cs
+instance MimeRender TextCss LT     where mimeRender _ = cs
+instance MimeRender TextCss String where mimeRender _ = cs
+
+
+-- * frontend actions
+
+type FAction = Action FActionError FrontendSessionData
+
+data FActionError =
+    FActionError303 SBS
+  | FActionError404
+  | FActionErrorNoToken
+  | FActionErrorCreateService
+  | FActionErrorServiceLoginNoCbUrl
+  | FActionError500 String
+  deriving (Eq, Show)
+
+
+-- * session state
 
 data FrontendSessionData =
     FrontendSessionData
@@ -53,16 +91,28 @@ emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
 
 data FrontendSessionLoginData =
     FrontendSessionLoginData
-        { _fslToken  :: ThentosSessionToken
-        , _fslUserId :: UserId
+        { _fslToken        :: ThentosSessionToken
+        , _fslUserId       :: UserId
+        , _fslDashboardTab :: Maybe DashboardTab
         }
   deriving (Show, Eq, Generic)
+
+data DashboardTab =
+    DashboardTabDetails
+  | DashboardTabServices
+  | DashboardTabOwnServices
+  | DashboardTabUsers
+  | DashboardTabLogout
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 
 instance FromJSON FrontendSessionLoginData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
+
+instance FromJSON DashboardTab where parseJSON = Aeson.gparseJson
+instance ToJSON DashboardTab where toJSON = Aeson.gtoJson
 
 -- | If a user comes from a service login and is sent to the "register
 -- with a new service" page because no valid 'ServiceAccount' exists
@@ -76,7 +126,7 @@ instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
 data ServiceLoginState =
     ServiceLoginState
         { _fslServiceId :: ServiceId
-        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@
+        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@  FIXME: give this a better name.
         }
   deriving (Show, Eq, Generic)
 

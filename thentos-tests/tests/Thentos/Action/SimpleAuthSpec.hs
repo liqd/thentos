@@ -30,15 +30,15 @@ spec = do
 
     describe "Thentos.Action.SimpleAuth" . before mkActionState $ specWithActionState
 
-type Act = Action (ActionError Void)
+type Act = Action (ActionError Void) ()
 
-setTwoRoles :: Action e ()
+setTwoRoles :: Action e s ()
 setTwoRoles = grantAccessRights'P [toCNF RoleAdmin, toCNF RoleUser]
 
-setClearanceUid :: Integer -> Action e ()
+setClearanceUid :: Integer -> Action e s ()
 setClearanceUid uid = grantAccessRights'P [toCNF . UserA . UserId $ uid, toCNF RoleUser]
 
-setClearanceSid :: Integer -> Action e ()
+setClearanceSid :: Integer -> Action e s ()
 setClearanceSid sid = grantAccessRights'P [toCNF . ServiceA . ServiceId . cs . show $ sid]
 
 
@@ -46,54 +46,58 @@ specWithActionState :: SpecWith ActionState
 specWithActionState = do
     describe "assertAuth" $ do
         it "throws an error on False" $ \sta -> do
-            Left (ActionErrorAnyLabel _)
-                <- runActionE sta (assertAuth $ pure False :: Action (ActionError Void) ())
+            (Left (ActionErrorAnyLabel _), ())
+                <- runActionE () sta (assertAuth $ pure False :: Act ())
             return ()
         it "returns () on True" $ \sta -> do
-            runAction sta (assertAuth $ pure True :: Action (ActionError Void) ())
+            fst <$> runAction () sta (assertAuth $ pure True :: Act ())
 
     describe "hasUserId" $ do
         it "returns True on if uid matches" $ \sta -> do
-            True <- runAction sta (setClearanceUid 3 >> hasUserId (UserId 3) :: Act Bool)
+            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasUserId (UserId 3) :: Act Bool)
             return ()
         it "returns False on if uid does not match" $ \sta -> do
-            False <- runAction sta (hasUserId (UserId 3) :: Act Bool)
-            False <- runAction sta (setClearanceUid 5 >> hasUserId (UserId 3) :: Act Bool)
+            (False, ()) <- runAction () sta (hasUserId (UserId 3) :: Act Bool)
+            (False, ()) <- runAction () sta (setClearanceUid 5 >> hasUserId (UserId 3) :: Act Bool)
             return ()
 
     describe "hasServiceId" $ do
         it "returns True on if sid matches" $ \sta -> do
-            True <- runAction sta (setClearanceSid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
+            (True, ()) <- runAction () sta
+                (setClearanceSid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
         it "returns False on if sid does not match" $ \sta -> do
-            False <- runAction sta (hasServiceId (ServiceId "3") :: Act Bool)
-            False <- runAction sta (setClearanceSid 5 >> hasServiceId (ServiceId "3") :: Act Bool)
+            (False, ()) <- runAction () sta
+                (hasServiceId (ServiceId "3") :: Act Bool)
+            (False, ()) <- runAction () sta
+                (setClearanceSid 5 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
         it "can distinguish uid and sid" $ \sta -> do
-            False <- runAction sta (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
+            (False, ()) <- runAction () sta
+                (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
 
     describe "hasRole" $ do
         it "returns True if role is present" $ \sta -> do
-            True <- runAction sta (setClearanceUid 3 >> hasRole RoleUser :: Act Bool)
-            True <- runAction sta (setClearanceUid 5 >> hasRole RoleUser :: Act Bool)
-            True <- runAction sta (setTwoRoles >> hasRole RoleUser :: Act Bool)
+            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasRole RoleUser :: Act Bool)
+            (True, ()) <- runAction () sta (setClearanceUid 5 >> hasRole RoleUser :: Act Bool)
+            (True, ()) <- runAction () sta (setTwoRoles >> hasRole RoleUser :: Act Bool)
             return ()
         it "returns False if role is missing" $ \sta -> do
-            False <- runAction sta (hasRole RoleUser :: Act Bool)
-            False <- runAction sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
+            (False, ()) <- runAction () sta (hasRole RoleUser :: Act Bool)
+            (False, ()) <- runAction () sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
             return ()
 
     describe "guardedUnsafeAction" $ do
         it "runs unsafe action if predicate is satisfied" $ \sta -> do
-            3 <- runAction sta (guardedUnsafeAction (pure True) (pure 3) :: Act Int)
+            (3, ()) <- runAction () sta (guardedUnsafeAction (pure True) (pure 3) :: Act Int)
             return ()
         it "throws an error otherwise" $ \sta -> do
-            Left (ActionErrorAnyLabel _)
-                <- runActionE sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
+            (Left (ActionErrorAnyLabel _), ())
+                <- runActionE () sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
             return ()
 
     describe "unsafeAction" $ do
         it "translates an UnsafeAction into an Action, unsafely" $ \sta -> do
-            4 <- runAction sta (unsafeAction (pure 4) :: Act Int)
+            (4, ()) <- runAction () sta (unsafeAction (pure 4) :: Act Int)
             return ()

@@ -59,7 +59,7 @@ type Api =
 
 api :: ActionState -> Server Api
 api actionState@(ActionState (_, _, cfg)) =
-       (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
+       (\mTok -> enter (enterAction () actionState baseActionErrorToServantErr mTok) thentosBasic)
   :<|> Purs.api cfg
 
 -- * combinators
@@ -70,7 +70,7 @@ type ThentosBasic =
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
 
-thentosBasic :: ServerT ThentosBasic (Action Void)
+thentosBasic :: ServerT ThentosBasic (Action Void ())
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -87,7 +87,7 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
 
-thentosUser :: ServerT ThentosUser (Action Void)
+thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
        addUser
   :<|> (\ (LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
@@ -108,7 +108,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService (Action Void)
+thentosService :: ServerT ThentosService (Action Void ())
 thentosService =
          (\ (uid, sn, sd) -> addService uid sn sd)
     :<|> deleteService
@@ -122,7 +122,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession (Action Void)
+thentosThentosSession :: ServerT ThentosThentosSession (Action Void ())
 thentosThentosSession =
        startThentosSession
   :<|> existsThentosSession
@@ -138,7 +138,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession (Action Void)
+thentosServiceSession :: ServerT ThentosServiceSession (Action Void ())
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata

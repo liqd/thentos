@@ -7,10 +7,12 @@
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE InstanceSigs                #-}
+{-# LANGUAGE LambdaCase                  #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE TupleSections               #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
@@ -18,11 +20,13 @@
 module Thentos.Action.Core
 where
 
+import Control.Arrow (first)
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
+import Control.Monad.State (MonadState, StateT(StateT), runStateT)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Pool (Pool, withResource)
@@ -64,20 +68,25 @@ newtype ActionState =
 -- | The 'Action' monad transformer stack.  It contains:
 --
 --     - 'LIO' as a base monad.
+--     - A state of polymorphic type (for use e.g. by the frontend handlers to store cookies etc.)
 --     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
 --       authorization errors that must not be catchable from inside an 'Action'.)
 --     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
---       will have authorized effect.  Since it is contained in a reader, actions have not the power
---       to change it.
-newtype Action e a =
+--       will have authorized effect.  Since it is contained in a reader, actions to not have the
+--       power to corrupt it.
+newtype Action e s a =
     Action
-      { fromAction :: ReaderT ActionState (EitherT (ThentosError e) (LIO DCLabel)) a
+      { fromAction :: ReaderT ActionState
+                          (EitherT (ThentosError e)
+                              (StateT s
+                                  (LIO DCLabel))) a
       }
   deriving ( Functor
            , Applicative
            , Monad
            , MonadReader ActionState
            , MonadError (ThentosError e)
+           , MonadState s
            , Typeable
            , Generic
            )
@@ -98,60 +107,85 @@ data ActionError e =
 
 instance (Show e, Typeable e) => Exception (ActionError e)
 
-instance MonadLIO DCLabel (Action e) where
-    liftLIO lio = Action . ReaderT $ \ _ -> EitherT (Right <$> lio)
+instance MonadLIO DCLabel (Action e s) where
+    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> StateT (\s -> (,s) <$> lio))
 
 
 -- * running actions
 
 -- | Call 'runActionE' and throw 'Left' values.
-runAction :: (Show e, Typeable e) => ActionState -> Action e a -> IO a
-runAction state action = runActionE state action >>= either throwIO return
+runAction :: (Show e, Typeable e) => s -> ActionState -> Action e s a -> IO (a, s)
+runAction polyState actionState action = do
+    (e, s) <- runActionE polyState actionState action
+    either throwIO (return . (,s)) e
 
 runActionWithPrivs :: (Show e, Typeable e) =>
-    [CNF] -> ActionState -> Action e a -> IO a
-runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
+    [CNF] -> s -> ActionState -> Action e s a -> IO (a, s)
+runActionWithPrivs ars polyState actionState action = do
+    (e, s) <- runActionWithPrivsE ars polyState actionState action
+    either throwIO (return . (,s)) e
 
 runActionWithClearance :: (Show e, Typeable e) =>
-    DCLabel -> ActionState -> Action e a -> IO a
-runActionWithClearance label state action = runActionWithClearanceE label state action >>= either throwIO return
+    DCLabel -> s -> ActionState -> Action e s a -> IO (a, s)
+runActionWithClearance label polyState actionState action = do
+    (e, s) <- runActionWithClearanceE label polyState actionState action
+    either throwIO (return . (,s)) e
 
 runActionAsAgent :: (Show e, Typeable e) =>
-    Agent -> ActionState -> Action e a -> IO a
-runActionAsAgent agent state action = runActionAsAgentE agent state action >>= either throwIO return
+    Agent -> s -> ActionState -> Action e s a -> IO (a, s)
+runActionAsAgent agent polyState actionState action = do
+    (e, s) <- runActionAsAgentE agent polyState actionState action
+    either throwIO (return . (,s)) e
 
 runActionInThentosSession :: (Show e, Typeable e) =>
-    ThentosSessionToken -> ActionState -> Action e a -> IO a
-runActionInThentosSession tok state action = runActionInThentosSessionE tok state action >>= either throwIO return
+    ThentosSessionToken -> s -> ActionState -> Action e s a -> IO (a, s)
+runActionInThentosSession tok polyState actionState action = do
+    (e, s) <- runActionInThentosSessionE tok polyState actionState action
+    either throwIO (return . (,s)) e
 
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
 -- executed, and the label has not been guarded by any action yet.
-runActionE :: (Show e, Typeable e) =>
-    ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionE state action = catchUnknown
+--
+-- Updates to the polymorphic state inside the action are effective in the result if there are no
+-- exceptions or if a `ThentosError` is thrown, but NOT if any other exceptions (such as
+-- 'AnyLabelError') are thrown.
+runActionE :: forall s e a. (Show e, Typeable e) =>
+    s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionE polyState actionState action = catchUnknown
   where
+    inner :: Action e s a -> IO (Either (ThentosError e) a, s)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
+          . (`runStateT` polyState)
           . eitherT (return . Left) (return . Right)
-          $ fromAction action `runReaderT` state
-    catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
-    catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
+          . (`runReaderT` actionState)
+          . fromAction
+
+    catchAnyLabelError = (first (fmapL ActionErrorThentos) <$> inner action)
+        `catch` \e -> return (Left $ ActionErrorAnyLabel e, polyState)
+
+    catchUnknown = catchAnyLabelError
+        `catch` \e -> return (Left $ ActionErrorUnknown e, polyState)
 
 runActionWithPrivsE :: (Show e, Typeable e) =>
-    [CNF] -> ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
+    [CNF] -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionWithPrivsE ars ps as =
+    runActionE ps as . (grantAccessRights'P ars >>)
 
 runActionWithClearanceE :: (Show e, Typeable e) =>
-    DCLabel -> ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionWithClearanceE label state = runActionE state . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
+    DCLabel -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionWithClearanceE label ps as =
+    runActionE ps as . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
 
 runActionAsAgentE :: (Show e, Typeable e) =>
-    Agent -> ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionAsAgentE agent state = runActionE state . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
+    Agent -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionAsAgentE agent ps as =
+    runActionE ps as . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
 
 runActionInThentosSessionE :: (Show e, Typeable e) =>
-    ThentosSessionToken -> ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
+    ThentosSessionToken -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionInThentosSessionE tok ps as =
+    runActionE ps as . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
 
 
 -- * labels, privileges and access rights.
@@ -177,20 +211,20 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 -- individual access rights:
 --
 -- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
-grantAccessRights'P :: [CNF] -> Action e ()
+grantAccessRights'P :: [CNF] -> Action e s ()
 grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
   where
     c :: DCLabel
     c = foldl' lub dcBottom [ ar %% ar | ar <- ars ]
 
 -- | Construct a 'DCLabel' from agent's roles.
-accessRightsByAgent'P :: Agent -> Action e [CNF]
+accessRightsByAgent'P :: Agent -> Action e s [CNF]
 accessRightsByAgent'P agent = makeAccessRights <$> query'P (T.agentRoles agent)
   where
     makeAccessRights :: [Role] -> [CNF]
     makeAccessRights roles = toCNF agent : map toCNF roles
 
-accessRightsByThentosSession'P :: ThentosSessionToken -> Action e [CNF]
+accessRightsByThentosSession'P :: ThentosSessionToken -> Action e s [CNF]
 accessRightsByThentosSession'P tok = do
     (_, session) <- query'P (T.lookupThentosSession tok)
     accessRightsByAgent'P $ session ^. thSessAgent
@@ -198,37 +232,37 @@ accessRightsByThentosSession'P tok = do
 
 -- * TCB business
 
-query'P :: ThentosQuery e v -> Action e v
+query'P :: ThentosQuery e v -> Action e s v
 query'P u = do
     ActionState (connPool, _, _) <- Action ask
     result <- liftLIO . ioTCB . withResource connPool $ \conn -> runThentosQuery conn u
     either throwError return result
 
-getConfig'P :: Action e ThentosConfig
+getConfig'P :: Action e s ThentosConfig
 getConfig'P = (\ (ActionState (_, _, c)) -> c) <$> Action ask
 
-getCurrentTime'P :: Action e Timestamp
+getCurrentTime'P :: Action e s Timestamp
 getCurrentTime'P = Timestamp <$> liftLIO (ioTCB Thyme.getCurrentTime)
 
 -- | A relative of 'cprgGenerate' from crypto-random that lives in
 -- 'Action'.
-genRandomBytes'P :: Int -> Action e SBS
+genRandomBytes'P :: Int -> Action e s SBS
 genRandomBytes'P i = do
     let f :: ChaChaDRG -> (ChaChaDRG, SBS)
         f r = case randomBytesGenerate i r of (output, r') -> (r', output)
     ActionState (_, mr, _) <- Action ask
     liftLIO . ioTCB . modifyMVar mr $ return . f
 
-makeUserFromFormData'P :: UserFormData -> Action e User
+makeUserFromFormData'P :: UserFormData -> Action e s User
 makeUserFromFormData'P = liftLIO . ioTCB . makeUserFromFormData
 
-hashUserPass'P :: UserPass -> Action e (HashedSecret UserPass)
+hashUserPass'P :: UserPass -> Action e s (HashedSecret UserPass)
 hashUserPass'P = liftLIO . ioTCB . hashUserPass
 
-hashServiceKey'P :: ServiceKey -> Action e (HashedSecret ServiceKey)
+hashServiceKey'P :: ServiceKey -> Action e s (HashedSecret ServiceKey)
 hashServiceKey'P = liftLIO . ioTCB . hashServiceKey
 
-sendMail'P :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> Action e ()
+sendMail'P :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> Action e s ()
 sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
     result <- sendMail config mName address subject msg
     case result of
@@ -239,18 +273,18 @@ sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
 
 -- | Render a Hastache template for plain-text output (none of the characters in context variables
 -- will be escaped).
-renderTextTemplate'P :: ST -> MuContext IO -> Action e LT
+renderTextTemplate'P :: ST -> MuContext IO -> Action e s LT
 renderTextTemplate'P template context =
     liftLIO . ioTCB $ hastacheStr hastacheCfg template context
   where
     hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
 
-logger'P :: Priority -> String -> Action e ()
+logger'P :: Priority -> String -> Action e s ()
 logger'P prio = liftLIO . ioTCB . logger prio
 
 -- | (This type signature could be greatly simplified, but that would also make it less explanatory.)
-logIfError'P :: forall m l e v f
-    . (m ~ Action f, Monad m, MonadLIO l m, MonadError e m, Show e, Show f)
+logIfError'P :: forall m l e v f s
+    . (m ~ Action f s, Monad m, MonadLIO l m, MonadError e m, Show e, Show f)
     => m v -> m v
 logIfError'P = (`catchError` f)
   where
@@ -262,13 +296,13 @@ logIfError'P = (`catchError` f)
 -- * better label errors
 
 -- | Call 'taint', but log a more informative error in case of fail.
-taintMsg :: String -> DCLabel -> Action e ()
+taintMsg :: String -> DCLabel -> Action e s ()
 taintMsg msg l = do
     tryTaint l (return ()) $ \ (e :: AnyLabelError) -> do
         logger'P DEBUG $ ("taintMsg:\n    " ++ msg ++ "\n    " ++ show e)
         liftLIO $ taint l
 
-guardWriteMsg :: String -> DCLabel -> Action e ()
+guardWriteMsg :: String -> DCLabel -> Action e s ()
 guardWriteMsg msg l = do
     tryGuardWrite l (return ()) $ \ (e :: AnyLabelError) -> do
         logger'P DEBUG $ "guardWrite:\n    " ++ msg ++ "\n    " ++ show e
