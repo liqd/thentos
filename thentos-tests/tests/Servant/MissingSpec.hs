@@ -23,7 +23,6 @@ import           Servant.Missing
 import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain)
 import           Test.Hspec.Wai                (get, postHtmlForm, shouldRespondWith, with)
 import qualified Text.Blaze.Html5              as H
-import qualified Text.Blaze.Html               as H
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Digestive.Blaze.Html5    (form, inputSubmit, inputText, label, errorList)
 import           Text.Digestive                (Form, View, check, text, (.:), getForm, stringRead)
