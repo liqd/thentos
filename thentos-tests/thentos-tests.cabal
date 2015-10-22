@@ -95,6 +95,7 @@ test-suite tests
   build-depends:
       aeson >=0.8.0.2 && <0.9
     , base >=4.8.1.0 && <5
+    , bytestring
     , containers >=0.5.6.2 && <0.6
     , hspec >=2.1.10 && <2.3
     , hspec-wai >=0.6.3 && <0.7
@@ -106,6 +107,12 @@ test-suite tests
     , QuickCheck >=2.8.1 && <2.9
     , resource-pool >=0.2.3.2 && <0.3
     , string-conversions >=0.4 && <0.5
+    , servant
+    , servant-server
+    , servant-blaze
+    , digestive-functors
+    , digestive-functors-blaze
+    , blaze-html
     , text >=1.2.1.3 && <1.3
     , thentos-core >=0.0.1.1 && <0.1
     , thentos-tests >=0.0.1.1 && <0.1
