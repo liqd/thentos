@@ -458,7 +458,8 @@ _startThentosSessionByAgent agent = do
 -- 'RoleAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e [ServiceName]
 serviceNamesFromThentosSession tok = do
-    lookupThentosSession tok >>= \sess -> assertAuth $ hasAgent (sess ^. thSessAgent)
+    assertAuth $ hasRole RoleAdmin
+            <||> (hasAgent . (^. thSessAgent) =<< lookupThentosSession tok)
     query'P $ T.serviceNamesFromThentosSession tok
 
 
