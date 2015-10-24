@@ -48,11 +48,6 @@ spec_frontendState = do
         liftIO $ simpleBody gresp2 `shouldBe`
             (cs . show . fmap show $ [FrontendMsgSuccess "ping", FrontendMsgSuccess "heya"])
 
-{-
-    it "something about exceptions..." $ do
-        pending
--}
-
 
 getCookie :: SResponse -> RequestHeaders
 getCookie = fmap f . simpleHeaders
