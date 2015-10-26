@@ -78,7 +78,7 @@ done
 
 cabal install --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable "$CABAL_ARGS" $SOURCES_STR
+      -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
 cabal install \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable "$CABAL_ARGS" $SOURCES_STR
+      -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
