@@ -380,28 +380,22 @@ api manager actionState =
 
 -- * handler
 
--- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
--- If A3 reponds with a error, user creation is aborted.
+-- | Add a user in Thentos, but not yet in A3. Only after the Thentos user has been activated
+-- (confirmed), a corresponding persona is created in A3, which, from A3's viewpoint, is a user.
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    cfg <- AC.getConfig'P
-    uid <- createUserInA3'P user
-    void $ A.addUnconfirmedUserWithId user uid
-    let userPath = userIdToPath cfg uid
-        typedPath          = TypedPath userPath CTUser
-        -- Mimic cache-control info returned from the A3 backend
-        changedDescendants = [ a3backendPath cfg ""
-                             , a3backendPath cfg "principals/"
-                             , a3backendPath cfg "principals/users/"
-                             , a3backendPath cfg "principals/groups/"
-                             ]
-        created            = [userPath]
-        modified           = [ a3backendPath cfg "principals/users/"
-                             , a3backendPath cfg "principals/groups/authenticated/"
-                             ]
-        removed            = []
-    return $ TypedPathWithCacheControl typedPath changedDescendants created modified removed
+    (uid, confToken) <- A.addUnconfirmedUser user
+    sendUserConfirmationMail user uid confToken
+    -- FIXME Which path should we return here, considering that no A3 user exists yet?!
+    let dummyPath = a3backendPath config ""
+    return $ TypedPathWithCacheControl dummyPath [] [] [] []
+    -- FIXME We correctly return empty cache-control info since the A3 DB isn't (yet) changed,
+    -- but normally the A3 backend would return the following info if a new user is created:
+    -- changedDescendants: "", "principals/", "principals/users/", "principals/groups/"
+    -- created: userPath
+    -- modified: "principals/users/", "principals/groups/authenticated/"
+    -- Find out if not returning this stuff leads to problems in the A3 frontend!
 
 -- | Activate a new user. The activation request is first sent to the A3 backend.
 -- If the backend successfully activates the user, we then activate them also in Thentos.
@@ -459,7 +453,19 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 
 -- * helper actions
 
+sendUserConfirmationMail :: UserFormData -> UserId -> ConfirmationToken -> Action Void
+sendUserConfirmationMail user uid confToken = do
+    cfg <- AC.getConfig'P
+    smtpCfg :: SmtpConfig <- Tagged . (>>. (Proxy :: Proxy '["smtp"])) $ cfg
+    accountVerificationCfg :: AccountVerificationConfig <- Tagged .
+        (>>. (Proxy :: Proxy '["mail", "account_verification"])) cfg
+    let subject = accountVerificationCfg >>. (Proxy :: Proxy '["subject"])
+        body    = accountVerificationCfg >>. (Proxy :: Proxy '["body"])
+    -- TODO template-process body
+    sendMail'P smtpConfig Nothing (udName user) (udEmail user) subject message
+
 -- | Create a user in A3 and return the user ID.
+-- TODO Adapt to create a persona instead and integrate
 createUserInA3'P :: UserFormData -> A3Action UserId
 createUserInA3'P user = do
     config <- AC.getConfig'P
@@ -468,7 +474,8 @@ createUserInA3'P user = do
                 mkUserCreationRequestForA3 config user
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
-        throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
+        throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $
+            Client.responseBody a3resp
     extractUserId a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
