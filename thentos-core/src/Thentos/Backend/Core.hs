@@ -70,11 +70,11 @@ enterAction state toServantErr mTok = Nat $ ExceptT . run toServantErr
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
         -> Action e a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e) . runActionE state . updatePrivs mTok
+    run e = (>>= fmapLM e) . runActionE state . (updatePrivs mTok >>)
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action e a -> Action e a
-    updatePrivs (Just tok) action = (accessRightsByThentosSession'P tok >>= grantAccessRights'P) >> action
-    updatePrivs Nothing    action = action
+    updatePrivs :: Maybe ThentosSessionToken -> Action e ()
+    updatePrivs (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
+    updatePrivs Nothing    = return ()
 
 
 -- * error handling
