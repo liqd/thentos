@@ -130,7 +130,7 @@ type LogConfig' =
     :*> ("level" :> Prio)
 
 type MailConfig = Tagged (ToConfigCode MailConfig')
-type MailConfig' = "account_verification" :> AccountVerificationConfig
+type MailConfig' = "account_verification" :> AccountVerificationConfig'
 
 type AccountVerificationConfig = Tagged (ToConfigCode AccountVerificationConfig')
 type AccountVerificationConfig' =
@@ -138,7 +138,7 @@ type AccountVerificationConfig' =
   :*> ("body"    :> ST)
 
 defaultMailConfig :: ToConfig (ToConfigCode MailConfig') Maybe
-defaultMailConfig = undefined -- Just defaultAccountVerificationConfig
+defaultMailConfig = Just defaultAccountVerificationConfig
 
 defaultAccountVerificationConfig :: ToConfig (ToConfigCode AccountVerificationConfig') Maybe
 defaultAccountVerificationConfig =
