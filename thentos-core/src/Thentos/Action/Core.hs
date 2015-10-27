@@ -28,8 +28,9 @@ import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Pool (Pool, withResource)
 import Data.EitherR (fmapL)
 import Data.List (foldl')
-import Data.String.Conversions (ST, SBS)
+import Data.String.Conversions (LT, ST, SBS)
 import Data.Typeable (Typeable)
+import Database.PostgreSQL.Simple (Connection)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
                  guardWrite)
@@ -37,9 +38,8 @@ import LIO.Label (lub)
 import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
-import Database.PostgreSQL.Simple (Connection)
-
 import System.Log (Priority(DEBUG, CRITICAL))
+import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
 import qualified Data.Thyme as Thyme
 
@@ -236,6 +236,14 @@ sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
         Left (SendmailError s) -> do
             logger CRITICAL $ "error sending mail: " ++ s
             throwIO $ ErrorCall "error sending email"
+
+-- | Render a Hastache template for plain-text output (none of the characters in context variables
+-- will be escaped).
+renderTextTemplate'P :: ST -> MuContext IO -> Action e LT
+renderTextTemplate'P template context =
+    liftLIO . ioTCB $ hastacheStr hastacheCfg template context
+  where
+    hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
 
 logger'P :: Priority -> String -> Action e ()
 logger'P prio = liftLIO . ioTCB . logger prio
