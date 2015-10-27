@@ -12,9 +12,19 @@ author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
 maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
-build-type:          Simple
+build-type:          Custom
 cabal-version:       >= 1.18
-data-files:          schema/schema.sql schema/wipe.sql
+
+data-files:
+    schema/schema.sql
+    schema/wipe.sql
+    js/*.js
+    js/*.html
+
+extra-source-files:
+    purescript/bower.json
+    purescript/build-js.sh
+    purescript/src/Main.purs
 
 Source-Repository head
   type: git
@@ -27,6 +37,12 @@ flag with-thentos-executable
   default: False
 
 flag with-build-docs-executable
+  default: False
+
+flag development
+-- JS files are loaded dynamically upon recompilation of purescript modules
+-- rather than only during cabal builds.
+  description: Development mode
   default: False
 
 -- snap-development mode seems to have issues:
@@ -47,6 +63,8 @@ library
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
   if flag(snap-development)
     build-depends:
       snap-loader-dynamic == 0.10.*
@@ -84,6 +102,7 @@ library
     , Thentos.Transaction.Core
     , Thentos.Types
     , Thentos.Util
+    , Paths
   other-modules:
       Paths_thentos_core
   build-depends:
@@ -181,6 +200,8 @@ executable thentos
   build-depends:
       base
     , thentos-core
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
   if flag(snap-development)
     build-depends:
       snap-loader-dynamic == 0.10.*

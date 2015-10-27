@@ -22,7 +22,7 @@ import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
-import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
@@ -32,6 +32,7 @@ import Network.HTTP.Types.Status ()
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
 import Thentos.Action.Core
+import Thentos.Util (getJsDir)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
@@ -42,7 +43,8 @@ defaultApp = do
     db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod db
-    return $! serveApi db
+    jsDir <- getJsDir
+    return $! serveApi db jsDir
 
 tests :: IO ()
 tests = hspec spec
@@ -54,7 +56,12 @@ godHeaders = unsafePerformIO $ newIORef []
 spec :: Spec
 spec = do
 
-    with defaultApp $ describe "Thentos.Backend.Api.Simple" $ do
+    describe "Thentos.Backend.Api.Simple" . with defaultApp $ do
+        specRest
+        specPurescript
+
+specRest :: SpecWith Application
+specRest= do
         describe "headers" $ do
             it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
                 hdr <- liftIO ctHeader
@@ -84,7 +91,6 @@ spec = do
                     hdr <- liftIO ctHeader
                     request "GET" resource hdr "" `shouldRespondWith` 200
 
-
             describe "ReqBody UserFormData :> Post UserId" $ do
                 it "writes a new user to the database" $ do
                     hdr <- liftIO ctHeader
@@ -99,7 +105,6 @@ spec = do
 
                 it "can only be called by admins" $
                         \ _ -> pendingWith "test missing."
-
 
             describe "Capture \"userid\" UserId :> Delete" $ do
                 it "removes an existing user from the database" $ do
@@ -119,7 +124,6 @@ spec = do
                     hdr <- liftIO ctHeader
                     request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
-
         describe "thentos_session" $ do
 
             describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
@@ -137,6 +141,18 @@ spec = do
                     hdr <- liftIO ctHeader
                     request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
                         `shouldRespondWith` "false" { matchStatus = 200 }
+
+
+specPurescript :: SpecWith Application
+specPurescript = do
+        describe "purescript" $ do
+            describe "/js/*.js" $ do
+
+                it "is available" $ do
+                    liftIO $ pendingWith "no test" :: WaiSession ()
+
+                it "has the right content type" $ do
+                    liftIO $ pendingWith "no test" :: WaiSession ()
 
 
 postDefaultUser :: WaiSession SResponse

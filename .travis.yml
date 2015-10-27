@@ -35,6 +35,8 @@ before_install:
     - cd ../..
 
 install:
+    - npm install -g pulp@4.4.1
+    - npm install -g purescript@0.7.5-rc.2
     - travis_retry cabal update
     # We install hlint because we don't want to invalidate i's cache together
     # with the thentos cache

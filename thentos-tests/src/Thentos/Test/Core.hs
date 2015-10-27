@@ -60,6 +60,7 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
+import Thentos.Util (getJsDir)
 
 import Thentos.Test.Config
 
@@ -182,8 +183,9 @@ withBackend beConfig as = inTempDirectory . withBackend' beConfig as
 
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
 withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend' beConfig as action =
-    bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
+withBackend' beConfig as action = do
+    jsDir <- getJsDir
+    bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as jsDir)
             killThread
             (const action)
 
