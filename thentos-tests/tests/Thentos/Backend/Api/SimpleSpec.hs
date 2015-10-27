@@ -17,12 +17,12 @@ import Control.Monad (void)
 import Control.Monad.State (liftIO)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
-import Data.IORef
-import Data.String.Conversions (cs)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef)
+import Data.String.Conversions (LBS, cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldContain, pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
@@ -149,10 +149,12 @@ specPurescript = do
             describe "/js/*.js" $ do
 
                 it "is available" $ do
-                    liftIO $ pendingWith "no test" :: WaiSession ()
+                    request "GET" "/js/thentos.js" [] ""
+                        `shouldRespondWith` 200
 
                 it "has the right content type" $ do
-                    liftIO $ pendingWith "no test" :: WaiSession ()
+                    resp <- request "GET" "/js/thentos.js" [] ""
+                    liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
 
 
 postDefaultUser :: WaiSession SResponse
