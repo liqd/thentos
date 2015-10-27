@@ -69,6 +69,7 @@ thentosBasic =
 
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
+  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] ThentosSessionToken
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
@@ -76,6 +77,7 @@ type ThentosUser =
 thentosUser :: ServerT ThentosUser (Action Void)
 thentosUser =
        addUser
+  :<|> (\ (LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
   :<|> deleteUser
   :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
   :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser

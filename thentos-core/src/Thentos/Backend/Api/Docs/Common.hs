@@ -83,10 +83,13 @@ instance ToSample Agent where
 instance ToSample ThentosSessionToken where
     toSamples _ = Docs.singleSample "abde1234llkjh"
 
--- FIXME: long request bodys should be pretty-printed
+instance ToSample LoginFormData where
+    toSamples _ = second (uncurry LoginFormData)
+                    <$> toSamples (Proxy :: Proxy (UserName, UserPass))
+
 instance ToSample UserFormData where
-    toSamples _ = let curry3 f (a, b, c) = f a b c
-                  in second (curry3 UserFormData)
+    toSamples _ = let uncurry3 f (a, b, c) = f a b c
+                  in second (uncurry3 UserFormData)
                     <$> toSamples (Proxy :: Proxy (UserName, UserPass, UserEmail))
 
 instance ToSample UserPass where
