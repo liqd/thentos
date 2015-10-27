@@ -1,6 +1,6 @@
 [submodule "submodules/servant"]
 	path = submodules/servant
-	url = https://github.com/zerobuzz/servant.git
+	url = https://github.com/liqd/servant.git
 	ignore = dirty
 [submodule "submodules/pronk"]
 	path = submodules/pronk
