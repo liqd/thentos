@@ -41,7 +41,7 @@ import Servant.Docs.Internal (HasDocs(..), sampleByteStrings, response, respType
 import Servant.API ((:>))
 import Servant.API.ContentTypes (AllCTRender, AllMimeRender, allMime, IsNonEmpty)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
-import Servant.Server.Internal (methodRouter, Router(..), RouteResult(Route, FailFatal))
+import Servant.Server.Internal (methodRouter, Router'(WithRequest), RouteResult(Route, FailFatal))
 import Servant.Server.Internal.RoutingApplication (addMethodCheck)
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
         errHeaders)

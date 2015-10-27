@@ -66,7 +66,7 @@ import           Network.Wai.Parse             (BackEnd, parseRequestBody)
 import           Network.Wai                   (Request)
 import           Servant.HTML.Blaze            (HTML)
 import           Servant                       ((:>), Proxy (..))
-import           Servant.Server.Internal       (RouteResult (..), Router(WithRequest),
+import           Servant.Server.Internal       (RouteResult (..), Router'(WithRequest),
                                                 HasServer (..), ServantErr (errBody),
                                                 addBodyCheck, err400, methodRouter)
 import qualified Text.Blaze.Html5              as H

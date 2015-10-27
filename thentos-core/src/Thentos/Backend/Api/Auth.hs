@@ -44,7 +44,7 @@ module Thentos.Backend.Api.Auth where
 import Data.Proxy (Proxy(Proxy))
 import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, route)
-import Servant.Server.Internal (Router(WithRequest), passToServer)
+import Servant.Server.Internal (Router'(WithRequest), passToServer)
 
 import Thentos.Backend.Core
 import Thentos.Types
