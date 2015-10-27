@@ -40,9 +40,10 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     ) where
 
 import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad (when, unless, mzero, void)
+import Control.Monad (when, unless, mzero)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
                    withObject)
+
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
@@ -53,14 +54,16 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai (Application)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
+import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
+import Text.Hastache (MuType(MuVariable))
+import Text.Hastache.Context (mkStrContext)
 import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
@@ -385,11 +388,12 @@ api manager actionState =
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    (uid, confToken) <- A.addUnconfirmedUser user
-    sendUserConfirmationMail user uid confToken
+    confToken <- snd <$> A.addUnconfirmedUser user
+    config    <- AC.getConfig'P
+    sendUserConfirmationMail config user confToken
     -- FIXME Which path should we return here, considering that no A3 user exists yet?!
     let dummyPath = a3backendPath config ""
-    return $ TypedPathWithCacheControl dummyPath [] [] [] []
+    return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
     -- FIXME We correctly return empty cache-control info since the A3 DB isn't (yet) changed,
     -- but normally the A3 backend would return the following info if a new user is created:
     -- changedDescendants: "", "principals/", "principals/users/", "principals/groups/"
@@ -401,6 +405,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
 -- If the backend successfully activates the user, we then activate them also in Thentos.
 activate :: ActivationRequest -> A3Action RequestResult
 activate ar@(ActivationRequest p) = AC.logIfError'P $ do
+    -- TODO adapt
     AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
     reqResult <- activateUserInA3'P ar
     case reqResult of
@@ -453,21 +458,27 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 
 -- * helper actions
 
-sendUserConfirmationMail :: UserFormData -> UserId -> ConfirmationToken -> Action Void
-sendUserConfirmationMail user uid confToken = do
-    cfg <- AC.getConfig'P
-    smtpCfg :: SmtpConfig <- Tagged . (>>. (Proxy :: Proxy '["smtp"])) $ cfg
-    accountVerificationCfg :: AccountVerificationConfig <- Tagged .
-        (>>. (Proxy :: Proxy '["mail", "account_verification"])) cfg
-    let subject = accountVerificationCfg >>. (Proxy :: Proxy '["subject"])
-        body    = accountVerificationCfg >>. (Proxy :: Proxy '["body"])
-    -- TODO template-process body
-    sendMail'P smtpConfig Nothing (udName user) (udEmail user) subject message
+sendUserConfirmationMail :: ThentosConfig -> UserFormData -> ConfirmationToken -> A3Action ()
+sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
+    let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
+        accountVerificationCfg :: AccountVerificationConfig = Tagged $ cfg
+            >>. (Proxy :: Proxy '["mail", "account_verification"])
+        subject      = accountVerificationCfg >>. (Proxy :: Proxy '["subject"])
+        bodyTemplate = accountVerificationCfg >>. (Proxy :: Proxy '["body"])
+    body <- AC.renderTextTemplate'P bodyTemplate (mkStrContext context)
+    AC.sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
+  where
+    context "user_name"      = MuVariable . fromUserName $ udName user
+    context "activation_url" = MuVariable $ (exposeUrl feHttp) <//> "/activate/" <//> confToken
+    context _                = error "sendUserConfirmationMail: no such context"
+    feHttp      = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+                      Nothing -> error "sendUserConfirmationMail: frontend not configured!"
+                      Just v -> Tagged v
 
 -- | Create a user in A3 and return the user ID.
 -- TODO Adapt to create a persona instead and integrate
-createUserInA3'P :: UserFormData -> A3Action UserId
-createUserInA3'P user = do
+_createUserInA3'P :: UserFormData -> A3Action UserId
+_createUserInA3'P user = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
                 (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
