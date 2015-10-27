@@ -32,6 +32,7 @@ SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 DIR=`pwd`
 SANDBOX="$DIR/.cabal-sandbox"
 CABAL_ARGS=""
+CABAL_VERBOSITY="-v"
 
 usage () {
     echo "thentos-install.sh [-c <CABAL-OPTS>]"
@@ -76,9 +77,14 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-cabal install --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
+echo -e "\n\nbuilding dependencies...\n" >&2
+cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
-cabal install \
+
+echo -e "\n\nbuilding thentos-* packages...\n" >&2
+cabal install $CABAL_VERBOSITY \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+
+echo "all done!" >&2
