@@ -24,7 +24,6 @@ module Thentos.Action
     , addUser
     , deleteUser
     , addUnconfirmedUser
-    , addUnconfirmedUserWithId
     , confirmNewUser
     , confirmNewUserById
     , addPasswordResetToken
@@ -189,15 +188,6 @@ addUnconfirmedUser userData = do
     user <- makeUserFromFormData'P userData
     uid  <- query'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
-
--- | Initiate email-verified user creation, assigning a specific ID to the new user.
--- If the ID is already in use, an error is thrown. Does not require any privileges.
-addUnconfirmedUserWithId :: UserFormData -> UserId -> Action e ConfirmationToken
-addUnconfirmedUserWithId userData userId = do
-    tok  <- freshConfirmationToken
-    user <- makeUserFromFormData'P userData
-    query'P $ T.addUnconfirmedUserWithId tok user userId
-    return tok
 
 -- | Finish email-verified user creation.
 --

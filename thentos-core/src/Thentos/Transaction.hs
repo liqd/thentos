@@ -106,15 +106,6 @@ addUnconfirmedUserPrim token user mUid = do
 addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
 addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 
--- | Add a new unconfirmed user, assigning a specific ID to the new user.
--- Ensures that ID, user name and email address are unique.
---
--- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend context
--- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
--- would leak information about the (non-)existence of IDs in our db.
-addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
-addUnconfirmedUserWithId token user uid = void $ addUnconfirmedUserPrim token user $ Just uid
-
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration timeout token = do
     res <- queryT [sql|
