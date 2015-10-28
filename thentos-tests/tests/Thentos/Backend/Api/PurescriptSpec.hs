@@ -16,15 +16,15 @@ module Thentos.Backend.Api.PurescriptSpec (spec, tests)
 where
 
 import Control.Monad.State (liftIO)
+import Data.Configifier ((>>.))
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody)
+import Servant.API ((:<|>)((:<|>)))
+import Servant.Server (serve, Server)
 import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
 import Test.Hspec.Wai (shouldRespondWith, with, request)
-import Servant.Server (serve, Server)
-import Servant.API ((:<|>)((:<|>)))
-import Data.Proxy (Proxy(Proxy))
-import Data.Configifier ((>>.))
 
 import Thentos.Action.Core
 

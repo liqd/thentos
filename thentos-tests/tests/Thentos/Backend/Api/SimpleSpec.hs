@@ -13,36 +13,36 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
-import Control.Monad (void)
 import Control.Monad.State (liftIO)
+import Control.Monad (void)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
-import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.String.Conversions (cs)
+import Network.HTTP.Types.Header (Header)
+import Network.HTTP.Types.Status ()
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
-import Network.HTTP.Types.Header (Header)
+import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
-import System.IO.Unsafe (unsafePerformIO)
-import Network.HTTP.Types.Status ()
 
+import Thentos.Action.Core
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
-import Thentos.Action.Core
 
-import Thentos.Test.Core
 import Thentos.Test.Config
+import Thentos.Test.Core
 
 
 defaultApp :: IO Application
 defaultApp = do
-    db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    as@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
-    writeIORef godHeaders . snd =<< loginAsGod db
-    return $! serveApi db
+    writeIORef godHeaders . snd =<< loginAsGod as
+    return $! serveApi as
 
 tests :: IO ()
 tests = hspec spec
