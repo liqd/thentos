@@ -77,6 +77,9 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
+echo -e "\n\nbuilding thentos-purescript...\n" >&2
+./thentos-purescript/build.sh
+
 echo -e "\n\nbuilding dependencies...\n" >&2
 cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
