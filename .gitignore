@@ -15,3 +15,9 @@ add-source-timestamps
 /misc/selenium/*.jar
 /misc/selenium/C:*
 .vim.custom
+bower_components/
+node_modules/
+output/
+.psci*
+thentos-core/js/*.js
+/src/.webpack.js

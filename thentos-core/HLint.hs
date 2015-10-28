@@ -9,6 +9,8 @@ import "hint" HLint.HLint
 -- >>> module  ::= 'Thentos.Backend.Api.Adhocracy3'
 -- >>> pattern ::= '"' string '"'
 
+ignore "Redundant lambda" = Thentos.Backend.Api.Simple
+ignore "Redundant bracket" = Thentos.Backend.Api.Simple
 ignore "Redundant $"
 ignore "Redundant do"
 ignore "Use ."

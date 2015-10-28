@@ -110,6 +110,18 @@ migration script should be named `migrate-<hash1>-<hash2>.sql`, where
 the `hash1` and `hash2` are commits that contain ./schema/schema.sql
 in the before-version and the now-version, resp.
 
+## purescript frontend
+
+`/thentos-purescript` contains frontend code to be run in the browser.
+It can be distributed via the `thentos-core` module
+`Thentos.Backend.Api.Purescript` (see test suite for examples).
+`./misc/thentos-install.sh` should build everything for you.  To watch
+it, make sure that the `purescript` field in `devel.config` is aimed
+in the right direction and open browser at the backend under `/js/`.
+
+Continuous compilation (aka `--watch`) is supported: Simply run
+`/thentos-purescript/build.sh -i`.
+
 ## Adding new dependencies
 
 If you need a new dependency (not yet listed in `thentos.cabal`), first add
