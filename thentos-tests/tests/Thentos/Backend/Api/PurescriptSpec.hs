@@ -70,7 +70,7 @@ defaultApp havePurescript = do
 type Api = Simple.Api :<|> Purescript.Api
 
 api :: Bool -> ActionState -> Server Api
-api havePurescript  as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
+api havePurescript as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
   where
     pursDir :: Maybe FilePath
     pursDir = if havePurescript
