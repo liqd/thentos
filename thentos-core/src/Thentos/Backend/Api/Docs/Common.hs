@@ -80,6 +80,9 @@ instance ToCapture (Capture "uid" UserId) where
 instance ToSample Agent where
     toSamples _ = Docs.singleSample . UserA . UserId $ 0
 
+instance ToSample ConfirmationToken where
+    toSamples _ = Docs.singleSample "LXkVof_5sITwOjxV0x215W7W"
+
 instance ToSample ThentosSessionToken where
     toSamples _ = Docs.singleSample "abde1234llkjh"
 

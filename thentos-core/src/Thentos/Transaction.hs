@@ -120,21 +120,9 @@ finishUserRegistration timeout token = do
         RETURNING id;
     |] (timeout, token, token, timeout)
     case res of
-        [] -> throwError NoSuchToken
+        [] -> throwError NoSuchPendingUserConfirmation
         [Only uid] -> return uid
         _ -> impossible "repeated user confirmation token"
-
--- | Confirm a user based on the 'UserId' rather than the 'ConfirmationToken.'
-finishUserRegistrationById :: UserId -> ThentosQuery e ()
-finishUserRegistrationById uid = do
-    c <- execT [sql|
-    UPDATE users SET confirmed = true WHERE id = ?;
-    DELETE FROM user_confirmation_tokens WHERE id = ?;
-    |] (uid, uid)
-    case c of
-        1 -> return ()
-        0 -> throwError NoSuchPendingUserConfirmation
-        _ -> impossible "finishUserRegistrationById: id uniqueness violation"
 
 -- | Add a password reset token.  Return the user whose password this token can change.
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User

@@ -39,8 +39,9 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
-import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad (when, unless, mzero)
+import Control.Lens ((^.))
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad (when, mzero)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
                    withObject)
 
@@ -264,7 +265,7 @@ passwordAcceptable pass
 -- ** other types
 
 data ActivationRequest =
-    ActivationRequest Path
+    ActivationRequest ConfirmationToken
   deriving (Eq, Show, Typeable, Generic)
 
 data LoginRequest =
@@ -287,14 +288,15 @@ data RequestResult =
   deriving (Eq, Show, Typeable, Generic)
 
 instance ToJSON ActivationRequest where
-    toJSON (ActivationRequest p) = object ["path" .= p]
+    toJSON (ActivationRequest (ConfirmationToken confToken)) =
+        object ["path" .= ("/activate/" <> confToken)]
 
 instance FromJSON ActivationRequest where
     parseJSON = withObject "activation request" $ \v -> do
         p :: ST <- v .: "path"
-        unless ("/activate/" `ST.isPrefixOf` p) $
-            fail $ "ActivationRequest with malformed path: " ++ show p
-        return . ActivationRequest . Path $ p
+        case ST.stripPrefix "/activate/" p of
+            Just confToken -> return . ActivationRequest . ConfirmationToken $ confToken
+            Nothing        -> fail $ "ActivationRequest with malformed path: " ++ show p
 
 instance ToJSON LoginRequest where
     toJSON (LoginByName  n p) = object ["name"  .= n, "password" .= p]
@@ -401,21 +403,23 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     -- modified: "principals/users/", "principals/groups/authenticated/"
     -- Find out if not returning this stuff leads to problems in the A3 frontend!
 
--- | Activate a new user. The activation request is first sent to the A3 backend.
--- If the backend successfully activates the user, we then activate them also in Thentos.
+-- | Activate a new user. This also creates a persona with the same name in the A3 backend,
+-- so that the user is able to log into A3. The user's actual password and email address are
+-- only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
-activate ar@(ActivationRequest p) = AC.logIfError'P $ do
-    -- TODO adapt
-    AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
-    reqResult <- activateUserInA3'P ar
-    case reqResult of
-        RequestSuccess path _a3tok -> do
-            uid  <- userIdFromPath path
-            stok <- A.confirmNewUserById uid
-            return $ RequestSuccess path stok
-        RequestError errMsg        -> throwError . OtherError $ GenericA3Error errMsg
+activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
+    AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
+    (uid, stok) <- A.confirmNewUser confToken
+    -- TODO Promote access right to run as that user
+    user    <- snd <$> A.lookupConfirmedUser uid
+    persona <- A.addPersona (PersonaName . fromUserName $ user ^. userName) uid
+    path    <- createUserInA3'P persona
+    -- TODO store mapping between personaId and path
+    pure $ RequestSuccess path stok
 
 -- | Log a user in.
+-- TODO use mapping between personaId and path to find the user to login;
+-- likewise when forwarding request headers
 login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
@@ -430,6 +434,8 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
+-- TODO adapt
+-- TODO Before changing the password, try to activate the user in case they weren't yet activated.
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
@@ -437,23 +443,10 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     case reqResult of
         RequestSuccess userPath _a3tok -> do
             uid  <- userIdFromPath userPath
-            stok <- confirmUserUser uid `catchError` handle uid
+            A._changePasswordUnconditionally uid pass
+            stok <- A.startThentosSessionByUserId uid pass
             return $ RequestSuccess userPath stok
         RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
-  where
-    confirmUserUser uid = do
-        -- Before changing the password, try to activate the user in case they weren't yet activated.
-        -- FIXME once the switch-to-SQL branch is merged: instead of brute-forcing activation
-        -- and catching the resulting error, define and use a (trans)action to look up the
-        -- activation status of an uid (active/inactive/unknown)
-        stok <- A.confirmNewUserById uid
-        A._changePasswordUnconditionally uid pass
-        return stok
-    handle uid NoSuchPendingUserConfirmation = do
-        -- User is already activated, just change the password and log them in
-        A._changePasswordUnconditionally uid pass
-        A.startThentosSessionByUserId uid pass
-    handle _ e                                           = throwError e
 
 
 -- * helper actions
@@ -475,31 +468,20 @@ sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
                       Nothing -> error "sendUserConfirmationMail: frontend not configured!"
                       Just v -> Tagged v
 
--- | Create a user in A3 and return the user ID.
--- TODO Adapt to create a persona instead and integrate
-_createUserInA3'P :: UserFormData -> A3Action UserId
-_createUserInA3'P user = do
+-- | Create a user in A3 from a persona and return the user path.
+createUserInA3'P :: Persona -> A3Action Path
+createUserInA3'P persona = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
                 (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
-                mkUserCreationRequestForA3 config user
+                mkUserCreationRequestForA3 config persona
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
         throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $
             Client.responseBody a3resp
-    extractUserId a3resp
+    extractUserPath a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
-
--- | Activate a user in A3 and return the response received from A3.
-activateUserInA3'P :: ActivationRequest -> A3Action RequestResult
-activateUserInA3'P actReq = do
-    config <- AC.getConfig'P
-    let a3req = fromMaybe (error "activateUserInA3'P: mkRequestForA3 failed, check config!") $
-                mkRequestForA3 config "/activate_account" actReq
-    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . OtherError . A3BackendInvalidJson) return $
-        (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
 
 -- | Send a password reset request to A3 and return the response.
 resetPasswordInA3'P :: Path -> A3Action RequestResult
@@ -526,14 +508,18 @@ a3corsPolicy = CorsPolicy
 
 -- * low-level helpers
 
--- | Create a user creation request to be sent to the A3 backend. The actual user password is
--- replaced by a dummy, as A3 doesn't have to know it.
-mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
-mkUserCreationRequestForA3 config user = do
-    let user'  = UserFormData { udName     = udName user,
-                                udEmail    = udEmail user,
-                                udPassword = "dummypass" }
-    mkRequestForA3 config "/principals/users" $ A3UserWithPass user'
+-- | Convert a persona into a user creation request to be sent to the A3 backend.
+-- The name of the persona is used as user name. The email address is set to a unique dummy
+-- value and the password is set to a dummy value.
+mkUserCreationRequestForA3 :: ThentosConfig -> Persona -> Maybe Client.Request
+mkUserCreationRequestForA3 config persona = do
+    let user  = UserFormData { udName     = UserName . fromPersonaName $ persona ^. personaName,
+                               udEmail    = email,
+                               udPassword = "dummypass" }
+    mkRequestForA3 config "/principals/users" $ A3UserWithPass user
+  where
+    email = fromMaybe (error "mkUserCreationRequestForA3: couldn't create dummy email")
+                      (parseUserEmail $ cshow (persona ^. personaId) <> "@example.org")
 
 -- | Make a POST request to be sent to the A3 backend. Returns 'Nothing' if the 'ThentosConfig'
 -- lacks a correctly configured proxy.
@@ -555,12 +541,12 @@ mkRequestForA3 config route dat = do
         , Client.checkStatus = \_ _ _ -> Nothing
         }
 
--- | Extract the user ID from an A3 response received for a user creation request.
-extractUserId :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m UserId
-extractUserId resp = do
+-- | Extract the user path from an A3 response received for a user creation request.
+extractUserPath :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m Path
+extractUserPath resp = do
     resource <- either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
-    userIdFromPath $ tpPath resource
+    pure $ tpPath resource
 
 sendRequest :: Client.Request -> IO (Client.Response LBS)
 sendRequest req = Client.newManager Client.defaultManagerSettings >>= Client.httpLbs req

@@ -55,6 +55,7 @@ library
     , http-client >=0.4.22 && <0.5
     , http-conduit >=2.1.8 && <2.2
     , http-types >=0.8.6 && <0.9
+    , lens >=4.12.3 && <4.13
     , lio >=0.11.5.0 && <0.12
     , mtl >=2.2.1 && <2.3
     , pretty-show >=1.6.8.2 && <1.7

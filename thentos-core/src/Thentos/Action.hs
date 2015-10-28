@@ -25,7 +25,6 @@ module Thentos.Action
     , deleteUser
     , addUnconfirmedUser
     , confirmNewUser
-    , confirmNewUserById
     , addPasswordResetToken
     , resetPassword
     , changePassword
@@ -189,7 +188,8 @@ addUnconfirmedUser userData = do
     uid  <- query'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
 
--- | Finish email-verified user creation.
+-- | Finish email-verified user creation. Throws 'NoSuchPendingUserConfirmation' if the
+-- token doesn't exist or is expired.
 --
 -- SECURITY: As a caller, you have to make sure the token has been produced by the legitimate
 -- recipient of a confirmation email.  Authentication can only be provided by this api **after** the
@@ -202,20 +202,6 @@ confirmNewUser token = do
     uid <- query'P $ T.finishUserRegistration expiryPeriod token
     sessionToken <- _startThentosSessionByAgent (UserA uid)
     return (uid, sessionToken)
-
-
--- | Finish email-verified user creation, identifying the user by their 'UserId' and ignoring the
--- 'ConfirmationToken'.
---
--- SECURITY: As a caller, you have to make sure that the user credentials have indeed been properly
--- verified before calling this function. This function accepts that as a fact, but cannot in any
--- way check it.
---
--- See also: 'addUnconfirmedUser'.
-confirmNewUserById :: UserId -> Action e ThentosSessionToken
-confirmNewUserById uid = do
-    query'P $ T.finishUserRegistrationById uid
-    _startThentosSessionByAgent (UserA uid)
 
 
 -- ** password reset
