@@ -16,11 +16,12 @@ module Thentos.Backend.Api.PurescriptSpec (spec, tests)
 where
 
 import Control.Monad.State (liftIO)
+import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleBody)
+import Network.Wai.Test (simpleBody, simpleHeaders)
 import Servant.API ((:<|>)((:<|>)), (:>))
 import Servant.Server (serve, Server)
 import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
@@ -59,8 +60,12 @@ specPurescript = do
 
             it "has the right content type" $ do
                 resp <- request "GET" "/js/thentos.js" [] ""
-                liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
+                liftIO $ simpleHeaders resp
+                    `shouldContain` [(mk "Content-Type", "application/javascript")]
 
+            it "contains a purescript main function" $ do
+                resp <- request "GET" "/js/thentos.js" [] ""
+                liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
