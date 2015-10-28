@@ -410,7 +410,8 @@ activate :: ActivationRequest -> A3Action RequestResult
 activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
     (uid, stok) <- A.confirmNewUser confToken
-    -- TODO Promote access right to run as that user
+    -- Promote access rights so we can look up the user and create a persona
+    AC.grantAccessRights'P [UserA uid]
     user    <- snd <$> A.lookupConfirmedUser uid
     persona <- A.addPersona (PersonaName . fromUserName $ user ^. userName) uid
     path    <- createUserInA3'P persona
@@ -462,7 +463,7 @@ sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
     AC.sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
   where
     context "user_name"      = MuVariable . fromUserName $ udName user
-    context "activation_url" = MuVariable $ (exposeUrl feHttp) <//> "/activate/" <//> confToken
+    context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
     context _                = error "sendUserConfirmationMail: no such context"
     feHttp      = case cfg >>. (Proxy :: Proxy '["frontend"]) of
                       Nothing -> error "sendUserConfirmationMail: frontend not configured!"
@@ -518,8 +519,9 @@ mkUserCreationRequestForA3 config persona = do
                                udPassword = "dummypass" }
     mkRequestForA3 config "/principals/users" $ A3UserWithPass user
   where
-    email = fromMaybe (error "mkUserCreationRequestForA3: couldn't create dummy email")
-                      (parseUserEmail $ cshow (persona ^. personaId) <> "@example.org")
+    rawEmail = (cshow . fromPersonaId $ persona ^. personaId) <> "@example.org"
+    email    = fromMaybe (error $ "mkUserCreationRequestForA3: couldn't create dummy email") $
+                         parseUserEmail rawEmail
 
 -- | Make a POST request to be sent to the A3 backend. Returns 'Nothing' if the 'ThentosConfig'
 -- lacks a correctly configured proxy.
