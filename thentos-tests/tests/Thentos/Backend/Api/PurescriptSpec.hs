@@ -21,7 +21,7 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody)
-import Servant.API ((:<|>)((:<|>)))
+import Servant.API ((:<|>)((:<|>)), (:>))
 import Servant.Server (serve, Server)
 import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
 import Test.Hspec.Wai (shouldRespondWith, with, request)
@@ -46,19 +46,19 @@ specPurescript = do
     context "When purescript path not given in config" . with (defaultApp False) $ do
         describe "*.js" $ do
             it "is not available" $ do
-                request "GET" "/thentos.js" [] ""
+                request "GET" "/js/thentos.js" [] ""
                     `shouldRespondWith` 404
 
     -- The following assumes that you have installed thentos-purescript and pointed thentos there in
     -- the `purescript` field in config.
     context "When path given in config" . with (defaultApp True) $ do
-        describe "*.js" $ do
+        describe "/js/*.js" $ do
             it "is available" $ do
-                request "GET" "/thentos.js" [] ""
+                request "GET" "/js/thentos.js" [] ""
                     `shouldRespondWith` 200
 
             it "has the right content type" $ do
-                resp <- request "GET" "/thentos.js" [] ""
+                resp <- request "GET" "/js/thentos.js" [] ""
                 liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
 
 
@@ -67,7 +67,7 @@ defaultApp havePurescript = do
     as <- createActionState "test_thentos" thentosTestConfig
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 
-type Api = Simple.Api :<|> Purescript.Api
+type Api = Simple.Api :<|> "js" :> Purescript.Api
 
 api :: Bool -> ActionState -> Server Api
 api havePurescript as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
