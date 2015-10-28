@@ -44,25 +44,25 @@ data LoginRequestBody = LoginRequestBody
     }
 
 instance loginRequestBodyToJSON :: ToJSON LoginRequestBody where
-  toJSON (LoginRequestBody { user: n, pass: p }) = object ["ldName" .= n, "ldPassword" .= p]
+    toJSON (LoginRequestBody { user: n, pass: p }) = object ["ldName" .= n, "ldPassword" .= p]
 
 loginUser :: forall ajax eff. Username -> Password
     -> Aff (ajax :: AJAX | eff) (Either ThentosError ThentosSessionToken)
 loginUser username password = do
-  let body = encode $ LoginRequestBody { user: username, pass: password }
-  res <- affjax defRq
-    { method = POST
-    , url = "/user/login"
-    , content = Just body
-    }
-  return if res.status == StatusCode 201
-    then case eitherDecode res.response of
-      Right v -> Right v
-      Left e  -> Left $ DecodeError $ "error decoding response: " ++ show (Tuple res.response e)
-    else
-      Left $ ConnectionError $ "server responsed with error: " ++ show res.status
+    let body = encode $ LoginRequestBody { user: username, pass: password }
+    res <- affjax defRq
+        { method = POST
+        , url = "/user/login"
+        , content = Just body
+        }
+    return if res.status == StatusCode 201
+        then case eitherDecode res.response of
+            Right v -> Right v
+            Left e  -> Left $ DecodeError $ "error decoding response: " ++ show (Tuple res.response e)
+        else
+            Left $ ConnectionError $ "server responsed with error: " ++ show res.status
 
 main :: forall ajax err2 console. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE) Unit
 main = do
-  log "Hello sailor!"
-  runAff throwException print $ loginUser "god" "god"
+    log "Hello sailor!"
+    runAff throwException print $ loginUser "god" "god"
