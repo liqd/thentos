@@ -77,10 +77,6 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-echo -e "\n\nconfiguring thentos-core (needed at this point in order to compile purescript code)...\n" >&2
-cd thentos-core && \
-      cabal configure $CABAL_VERBOSITY -fwith-thentos-executable
-
 echo -e "\n\nbuilding dependencies...\n" >&2
 cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \

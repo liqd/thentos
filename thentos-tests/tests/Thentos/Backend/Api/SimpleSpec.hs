@@ -22,7 +22,7 @@ import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
 import Network.HTTP.Types.Header (Header)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldContain, pendingWith, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
@@ -32,7 +32,6 @@ import Network.HTTP.Types.Status ()
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
 import Thentos.Action.Core
-import Thentos.Util (getJsDir)
 
 import Thentos.Test.Core
 import Thentos.Test.Config
@@ -43,8 +42,7 @@ defaultApp = do
     db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod db
-    jsDir <- getJsDir
-    return $! serveApi db jsDir
+    return $! serveApi db
 
 tests :: IO ()
 tests = hspec spec
@@ -54,10 +52,7 @@ godHeaders = unsafePerformIO $ newIORef []
 {-# NOINLINE godHeaders #-}
 
 spec :: Spec
-spec = do
-    describe "Thentos.Backend.Api.Simple" . with defaultApp $ do
-        specRest
-        specPurescript
+spec = describe "Thentos.Backend.Api.Simple" $ with defaultApp specRest
 
 specRest :: SpecWith Application
 specRest= do
@@ -139,19 +134,6 @@ specRest= do
                 hdr <- liftIO ctHeader
                 request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
                     `shouldRespondWith` "false" { matchStatus = 200 }
-
-
-specPurescript :: SpecWith Application
-specPurescript = do
-    describe "purescript" $ do
-        describe "/js/*.js" $ do
-            it "is available" $ do
-                request "GET" "/js/thentos.js" [] ""
-                    `shouldRespondWith` 200
-
-            it "has the right content type" $ do
-                resp <- request "GET" "/js/thentos.js" [] ""
-                liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
 
 
 postDefaultUser :: WaiSession SResponse

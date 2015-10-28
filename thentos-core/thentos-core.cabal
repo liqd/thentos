@@ -12,19 +12,12 @@ author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
 maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
-build-type:          Custom
+build-type:          Simple
 cabal-version:       >= 1.18
 
 data-files:
     schema/schema.sql
     schema/wipe.sql
-    js/*.js
-    js/*.html
-
-extra-source-files:
-    purescript/bower.json
-    purescript/build-js.sh
-    purescript/src/Main.purs
 
 Source-Repository head
   type: git

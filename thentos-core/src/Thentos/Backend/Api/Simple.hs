@@ -20,9 +20,8 @@ import Control.Lens ((^.))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON, Raw)
+import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
-import Servant.Utils.StaticFiles (serveDirectory)
 import System.Log.Logger (Priority(INFO))
 
 import System.Log.Missing (logger)
@@ -32,28 +31,24 @@ import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-import Thentos.Util (getJsDir)
 
 
 -- * main
 
 runApi :: HttpConfig -> ActionState -> IO ()
 runApi cfg asg = do
-    jsDir <- getJsDir
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg jsDir
+    runWarpWithCfg cfg $ serveApi asg
 
-serveApi :: ActionState -> FilePath -> Application
-serveApi actionState jsDir = addCacheControlHeaders . serve (Proxy :: Proxy Api) $ api actionState jsDir
+serveApi :: ActionState -> Application
+serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
 type Api =
-       (ThentosAssertHeaders :> ThentosAuth :> ThentosBasic)
-  :<|> ("js" :> ThentosFrontend)
+    ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
-api :: ActionState -> FilePath -> Server Api
-api actionState jsDir =
-       (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
-  :<|> thentosFrontend jsDir
+api :: ActionState -> Server Api
+api actionState =
+    (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
 
 
 -- * combinators
@@ -137,11 +132,3 @@ thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
-
-
--- * frontend
-
-type ThentosFrontend = Raw
-
-thentosFrontend :: FilePath -> Server ThentosFrontend
-thentosFrontend = serveDirectory
