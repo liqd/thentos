@@ -12,6 +12,7 @@ copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Authentication
 build-type:          Simple
 cabal-version:       >= 1.18
+data-files:          schema/schema-a3.sql
 
 Source-Repository head
   type: git
