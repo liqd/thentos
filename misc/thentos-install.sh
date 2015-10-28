@@ -32,7 +32,7 @@ SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 DIR=`pwd`
 SANDBOX="$DIR/.cabal-sandbox"
 CABAL_ARGS=""
-CABAL_VERBOSITY="-v"
+CABAL_VERBOSITY=""
 
 usage () {
     echo "thentos-install.sh [-c <CABAL-OPTS>]"
@@ -77,13 +77,17 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
+echo -e "\n\nconfiguring thentos-core (needed at this point in order to compile purescript code)...\n" >&2
+cd thentos-core && \
+      cabal configure $CABAL_VERBOSITY -fwith-thentos-executable
+
 echo -e "\n\nbuilding dependencies...\n" >&2
 cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
 
 echo -e "\n\nbuilding thentos-* packages...\n" >&2
-cabal install $CABAL_VERBOSITY \
+cabal install $CABAL_VERBOSITY -j2 --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
 
