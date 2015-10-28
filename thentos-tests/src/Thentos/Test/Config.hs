@@ -34,6 +34,8 @@ frontend:
     expose_port: 7119
     expose_host: "127.0.0.1"
 
+purescript: ../thentos-purescript/static
+
 smtp:
     sender_name: "Thentos"
     sender_address: "thentos@thentos.org"

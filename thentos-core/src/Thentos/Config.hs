@@ -47,6 +47,7 @@ type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
       Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
+  :*> Maybe ("purescript"   :> ST                    :>: "File system location of frontend code")
   :*> Maybe ("proxy"        :> ProxyConfig'          :>: "The default proxied app.")
   :*> Maybe ("proxies"      :> [ProxyConfig']        :>: "A list of proxied apps.")
   :*>       ("smtp"         :> SmtpConfig'           :>: "Sending email.")
@@ -63,6 +64,7 @@ type ThentosConfig' =
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
       NothingO
+  :*> NothingO
   :*> NothingO
   :*> NothingO
   :*> NothingO

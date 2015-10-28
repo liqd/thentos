@@ -97,6 +97,7 @@ test-suite tests
     , base >=4.8.1.0 && <5
     , blaze-html
     , bytestring
+    , configifier >=0.0.6 && <0.1
     , containers >=0.5.6.2 && <0.6
     , cookie >=0.4.1.6 && <4.2
     , digestive-functors
