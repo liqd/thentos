@@ -14,11 +14,16 @@ import Network.HTTP.Types (RequestHeaders, methodGet, methodPost)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders, SResponse)
 import Servant (Proxy(Proxy), ServerT, Capture, Post, Get, JSON, (:<|>)((:<|>)), (:>))
-import Test.Hspec (Spec, SpecWith, hspec, before, describe, it, shouldBe)
+import Test.Hspec (Spec, hspec, before, describe, it, shouldBe, shouldContain)
 import Test.Hspec.Wai (request)
+import Servant.Server.Internal.ServantErr
+import Data.CaseInsensitive (mk)
 
+import Thentos.Action.Core
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
+import Thentos.Types
+
 import Thentos.Test.Config
 import Thentos.Test.Core
 
@@ -27,26 +32,33 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "Thentos.Frontend.State" . before testApp $ do
+spec = describe "Thentos.Frontend.State" $ do
     spec_frontendState
 
-spec_frontendState :: SpecWith Application
+spec_frontendState :: Spec
 spec_frontendState = do
+    describe "fActionErrorToServantErr" $ do
+        it "redirects with correct status and location header." $ do
+            e <- fActionErrorToServantErr (ActionErrorThentos . OtherError . FActionError303 $ "/there")
+            errHTTPCode e `shouldBe` 303
+            errHeaders e `shouldContain` [(mk "Location", "/there")]
 
-    it "is initialized with empty message queue" $ do
-        resp <- request methodGet "" [] ""
-        liftIO $ simpleBody resp `shouldBe` "[]"
+    describe "the FAction monad" . before testApp $ do
+        it "is initialized with empty message queue" $ do
+            resp <- request methodGet "" [] ""
+            liftIO $ simpleBody resp `shouldBe` "[]"
 
-    it "posts accumulate into message queue" $ do
-        presp <- request methodPost "heya" [] ""
-        gresp <- request methodGet "" (getCookie presp) ""
-        liftIO $ simpleBody gresp `shouldBe`
-            (cs . show . fmap show $ [FrontendMsgSuccess "heya"])
+        it "posts accumulate into message queue" $ do
+            presp <- request methodPost "heya" [] ""
+            gresp <- request methodGet "" (getCookie presp) ""
+            liftIO $ simpleBody gresp `shouldBe`
+                (cs . show . fmap show $ [FrontendMsgSuccess "heya"])
 
-        presp2 <- request methodPost "ping" (getCookie gresp) ""
-        gresp2 <- request methodGet "" (getCookie presp2) ""
-        liftIO $ simpleBody gresp2 `shouldBe`
-            (cs . show . fmap show $ [FrontendMsgSuccess "ping", FrontendMsgSuccess "heya"])
+            presp2 <- request methodPost "ping" (getCookie gresp) ""
+            gresp2 <- request methodGet "" (getCookie presp2) ""
+            liftIO $ simpleBody gresp2 `shouldBe`
+                (cs . show . fmap show $ [FrontendMsgSuccess "ping", FrontendMsgSuccess "heya"])
+
 
 
 getCookie :: SResponse -> RequestHeaders
