@@ -68,6 +68,5 @@ specRedirect = do
     describe "redirect'" . with appRedirect $ do
         it "gets you there" $ do
             resp <- request "GET" "/here" [] ""
-            liftIO $ print resp
             liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 303
             liftIO $ simpleHeaders resp `shouldContain` [(mk "Location", "/there")]

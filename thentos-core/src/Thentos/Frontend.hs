@@ -15,6 +15,8 @@
 
 module Thentos.Frontend where
 
+import Control.Monad.IO.Class
+import Data.String.Conversions
 import GHC.TypeLits (Symbol)
 import Servant hiding (serveDirectory)
 import Servant.HTML.Blaze
@@ -26,7 +28,9 @@ import System.IO (stderr)
 
 import qualified Servant.Utils.StaticFiles as StaticFiles
 import qualified Text.Blaze.Html5 as H
+import qualified Data.ByteString.Lazy.Char8 as LBS
 
+import Servant.Missing
 import System.Log.Missing
 import Thentos.Action.Core
 import Thentos.Backend.Core
@@ -35,6 +39,7 @@ import Thentos.Frontend.Handlers
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State
+import Thentos.Frontend.TH
 import Thentos.Types
 
 -- FIXME: imported for testing only >>>
@@ -70,6 +75,8 @@ import System.Log.Missing (loggerName, logger, Prio(..))
 -- FIXME: <<< imported for testing only
 
 
+-- * driver
+
 runFrontend :: HttpConfig -> ActionState -> IO ()
 runFrontend config aState = do
     logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
@@ -78,28 +85,42 @@ runFrontend config aState = do
 type FrontendH =
        "user" :> UserH
   :<|> "dashboard" :> Get '[HTML] H.Html
-
--- FIXME: there was a problem with Raw and Enter that has been solved in
--- https://github.com/haskell-servant/servant/pull/178, but we don't have that change yet in our
--- branch.  we can use 'serveDirectoryWith' as soon as that is merged.
---   :<|> ServeDirectory "snap/static"
-  :<|> "screen.css" :> Get '[TextCss] String
-
-data TextCss
-
-instance Accept TextCss where
-    contentType _ = "text" M.// "css" M./: ("charset", "utf-8")
-
-instance MimeRender TextCss String where
-    mimeRender _ = cs
-
+  :<|> StaticContent
 
 frontendH :: ServerT FrontendH FAction
 frontendH =
        userH
   :<|> renderDashboard DashboardTabDetails userDisplayPagelet
-  :<|> return $(runIO (readFile "snap/static/screen.css") >>= dataToExpQ (const Nothing))
+  :<|> staticContent
 
+
+-- * static content
+
+-- | Instead of ServeDirectory, we bake all static content into the executable.  This helps to
+-- minimize the number of moving parts in the deployment.
+type StaticContent =
+       "screen.css" :> Get '[TextCss] LBS
+
+staticContent :: forall m. Applicative m => ServerT StaticContent m
+staticContent =
+       l $(loadStaticContent "screen.css")
+  where
+    l = pure . LBS.pack
+
+-- | FIXME: move this type upstream?
+data TextCss
+
+instance Accept TextCss where
+    contentType _ = "text" M.// "css" M./: ("charset", "utf-8")
+
+instance MimeRender TextCss LBS    where mimeRender _ = id
+instance MimeRender TextCss SBS    where mimeRender _ = cs
+instance MimeRender TextCss ST     where mimeRender _ = cs
+instance MimeRender TextCss LT     where mimeRender _ = cs
+instance MimeRender TextCss String where mimeRender _ = cs
+
+
+-- * /user
 
 type UserH =
        UserRegisterH

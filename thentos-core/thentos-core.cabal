@@ -19,6 +19,9 @@ data-files:
     schema/schema.sql
     schema/wipe.sql
 
+extra-source-files:
+    frontend/static/screen.css
+
 Source-Repository head
   type: git
   location: https://github.com/liqd/thentos
@@ -90,6 +93,7 @@ library
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
     , Thentos.Frontend.State
+    , Thentos.Frontend.TH
     , Thentos.Frontend.Types
     , Thentos.Smtp
     , Thentos.Transaction
