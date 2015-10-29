@@ -90,7 +90,9 @@ instance ToJSON ErrorMessage where
 -- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
 mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
-    {errBody = encode $ ErrorMessage msg, errHeaders = [contentTypeJsonHeader]}
+    { errBody = encode $ ErrorMessage msg
+    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+    }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 
