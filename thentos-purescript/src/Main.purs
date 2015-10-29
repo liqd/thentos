@@ -23,6 +23,8 @@ import Network.HTTP.RequestHeader
 import Network.HTTP.StatusCode (StatusCode(StatusCode))
 import Prelude
 
+import qualified IFrameStressTest as IFrameStressTest
+
 
 defRq :: AffjaxRequest Unit
 defRq = defaultRequest { headers = [ContentType applicationJSON, Accept applicationJSON] }
@@ -62,7 +64,8 @@ loginUser username password = do
         else
             Left $ ConnectionError $ "server responsed with error: " ++ show res.status
 
-main :: forall ajax err2 console. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE) Unit
+-- main :: forall ajax err2 console eff. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE | eff) Unit
 main = do
     log "Hello sailor!"
     runAff throwException print $ loginUser "god" "god"
+    IFrameStressTest.main

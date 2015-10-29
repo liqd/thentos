@@ -5,11 +5,12 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 
 case "$1" in
     "")
+        npm install virtual-dom
         pulp dep install
-        pulp build -O --to ./static/thentos.js
+        pulp browserify -O --to ./static/thentos.js
         ;;
     "-i")
-        pulp --watch build --to ./static/thentos.js
+        pulp --watch browserify --to ./static/thentos.js
         ;;
     *)
         echo "usage: $0 [-i]" >&2
