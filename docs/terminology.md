@@ -77,6 +77,9 @@ FIXME: not sure if nyms are the right tool to achieve this moderator /
 contributor double-role distinctions.  perhaps roles alone can do that
 when exposed to the UI?
 
+FIXME: see also:
+https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-15
+
 
 ### Role
 
@@ -106,22 +109,22 @@ groups.)
 
 ### User (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-14
 
 
 ### Group (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-16
 
 
 ### Process Role (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-17
 
 
 ### Permission (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-19.
 
 
 ## FIXME:
