@@ -95,6 +95,21 @@ seito:
 sensei-update-cabal_macros:
 	cd thentos-core && cabal install && cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
 
+# FIXME: before committing this, take out code common to sensei and repl.  (only diffrence: sensei/ghci)
+# also, this does not work well together with the Paths_* desaster.
+repl:
+	cabal sandbox hc-pkg -- unregister --force thentos-tests || true
+	cabal sandbox hc-pkg -- unregister --force thentos-core || true
+	cd thentos-tests && cabal clean
+	cd thentos-core && cabal clean
+	@echo "if you get CPP-related errors, try 'make sensei-update-cabal_macros'."
+	cabal exec -- ghci \
+	  -i./thentos-core/src/ \
+	  -i./thentos-core/src-devel/ \
+	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
+	  -i./thentos-tests/src/ \
+	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
+
 
 # scratch
 
