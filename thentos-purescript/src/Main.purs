@@ -69,3 +69,4 @@ main = do
     log "Hello sailor!"
     runAff throwException print $ loginUser "god" "god"
     IFrameStressTest.main
+    LoginIndicator.main
