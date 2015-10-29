@@ -106,15 +106,22 @@ groups.)
 
 ### User (Adhocracy3)
 
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
+
 
 ### Group (Adhocracy3)
 
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
 
-### Role (Adhocracy3)
+
+### Process Role (Adhocracy3)
+
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
 
 
 ### Permission (Adhocracy3)
 
+See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie.
 
 
 ## FIXME:
@@ -125,3 +132,5 @@ what about these terms?:
 
 - authorization error
 - authorization
+- identification
+- qualification (in the sense of berlin servicekonto)
