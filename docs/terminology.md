@@ -109,22 +109,26 @@ groups.)
 
 ### User (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-14
+Like thentos user.  See
+https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-14
 
 
 ### Group (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-16
+Like thentos role.  See
+https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-16
 
 
 ### Process Role (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-17
+Time-aware set of adhocracy permissions.  See
+https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-17
 
 
 ### Permission (Adhocracy3)
 
-See https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-19.
+Like thentos permission.  See
+https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-19.
 
 
 ## FIXME:
