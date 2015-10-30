@@ -86,14 +86,19 @@ fActionErrorToServantErr = errorInfoToServantErr mkServantErr .
     f e@(FActionError500 _) =
         (Just (ERROR, show e), err500, "we are very sorry.")
 
+    mkServantErr :: ServantErr -> ST -> ServantErr
+    mkServantErr baseErr msg = baseErr
+        { errBody = encode $ ErrorMessage msg
+        , errHeaders = ("Content-Type", "text/html; charset=utf-8") : errHeaders baseErr
+        }
 
--- FIXME: thentos errors (other than 'OtherError's) are rendered as json, i think.  something is
--- still off here...
 
 -- FIXME: read up on related code in Thentos.Backend.Core for info on how to render html pages here.
 -- 403: blaze permissionDeniedPage
 -- 404: blaze notFoundPage
 -- all other cases: blaze . errorPage . cs $ usrMsg
+
+-- FIXME: rename this module: Frontend.State -> Frontend.Core
 
 
 -- * middleware

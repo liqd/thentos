@@ -85,15 +85,6 @@ newtype ErrorMessage = ErrorMessage { fromErrorMessage :: ST }
 instance ToJSON ErrorMessage where
     toJSON (ErrorMessage msg) = object ["status" .= String "error", "error" .= msg]
 
--- | Construct a ServantErr that looks as our errors should.
--- Status code and reason phrase are taken from the base error given as first argument.
--- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
-mkServantErr :: ServantErr -> ST -> ServantErr
-mkServantErr baseErr msg = baseErr
-    { errBody = encode $ ErrorMessage msg
-    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
-    }
-
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 
 -- | Log things, and construct a 'ServantErr'.
@@ -110,6 +101,19 @@ errorInfoToServantErr mkServant (l, se, x) = do
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
                                  actionErrorInfo (thentosErrorInfo absurd)
+  where
+    -- | Construct a ServantErr that looks as our errors should.
+    -- Status code and reason phrase are taken from the base error given as first argument.
+    -- The message given as second argument is wrapped into a 'ErrorMessage' JSON object.
+    mkServantErr :: ServantErr -> ST -> ServantErr
+    mkServantErr baseErr msg = baseErr
+        { errBody = encode $ ErrorMessage msg
+        , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+        }
+
+    -- | header setting the Content-Type to JSON.
+    contentTypeJsonHeader ::  Header
+    contentTypeJsonHeader = ("Content-Type", "application/json")  -- FIXME: do "application/json; charset=utf-8" here?
 
 actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
 actionErrorInfo thentosInfo e =
@@ -266,10 +270,6 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
 
 
 -- * response headers
-
--- | header setting the Content-Type to JSON.
-contentTypeJsonHeader ::  Header
-contentTypeJsonHeader = ("Content-Type", "application/json")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --
