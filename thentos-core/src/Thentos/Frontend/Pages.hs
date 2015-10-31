@@ -202,8 +202,10 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 -- * login (thentos)
 
-userLoginPage :: ST -> View Html -> ST -> Html
-userLoginPage csrfToken v formAction = basePagelet "Thentos Login" $ do
+userLoginPage :: ST -> [FrontendMsg] -> View Html -> ST -> Html
+userLoginPage csrfToken msgs v formAction = basePagelet "Thentos Login" $ do
+    H.pre $ do
+        H.string $ show msgs
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.table $ do

@@ -142,7 +142,7 @@ type UserLoginH = "login" :> HtmlForm "UserLogin" (UserName, UserPass)
 instance HasForm "UserLogin" H.Html (UserName, UserPass) where
     formAction _  = "/user/login"
     isForm _      = userLoginForm
-    formView _    = userLoginPage "csrftok"
+    formView _    = userLoginPage "csrftok" []  -- messages.  we need access to FAction for that, and also for csrf token!
     formBackend _ = error "HasForm UserLogin formBackend: impossible"
 
 userLoginH :: ServerT UserLoginH FAction
