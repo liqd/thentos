@@ -70,6 +70,7 @@ import System.Log.Formatter (simpleLogFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
+import qualified System.Log.Missing as Log (logger)
 import System.Log.Missing (loggerName, logger, Prio(..))
 
 -- FIXME: <<< imported for testing only
@@ -79,7 +80,7 @@ import System.Log.Missing (loggerName, logger, Prio(..))
 
 runFrontend :: HttpConfig -> ActionState -> IO ()
 runFrontend config aState = do
-    logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
+    Log.logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
     serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config
 
 type FrontendH =
@@ -161,7 +162,7 @@ main = do
 
     runFrontend feConfig actionState
 
-    logger INFO "Press ^C to abort."
+    Log.logger INFO "Press ^C to abort."
 
 
 

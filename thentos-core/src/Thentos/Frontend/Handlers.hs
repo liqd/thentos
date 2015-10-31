@@ -25,8 +25,6 @@ import GHC.TypeLits (Symbol)
 import Servant
 import Servant.HTML.Blaze
 import Servant.Missing
-import System.Log
-import System.Log.Missing
 import Text.Blaze.Html
 import Text.Digestive.Blaze.Html5
 import Text.Digestive.View
@@ -44,8 +42,27 @@ import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
 
-import qualified Thentos.Action.Unsafe as U
+import qualified System.Log
+import qualified System.Log.Missing
 import qualified Thentos.Action.SimpleAuth as U
+import qualified Thentos.Action.Unsafe as U
+
+
+-- * helpers
+
+-- FIXME these need to be replaced.
+
+liftU :: U.UnsafeAction FActionError a -> FAction a
+liftU = lift . U.unsafeAction
+
+loggerF :: (Show v) => v -> FAction ()
+loggerF = lift . loggerA
+
+loggerA :: (Show v) => v -> Action FActionError ()
+loggerA = U.unsafeAction . loggerU
+
+loggerU :: (Show v) => v -> U.UnsafeAction FActionError ()
+loggerU = U.logger System.Log.DEBUG . show
 
 
 -- * forms
@@ -71,23 +88,22 @@ instance HasForm "UserRegister" H.Html UserFormData where
 userRegisterH :: ServerT UserRegisterH FAction
 userRegisterH = htmlForm $ \userFormData -> do
     fcfg <- getFrontendConfig
-    (_, tok) <- lift $ do
-        U.unsafeAction $ U.logger DEBUG ("registering new user: " ++ show (udName userFormData))
-        addUnconfirmedUser userFormData
+    loggerF ("registering new user: " ++ show (udName userFormData))
+    (_, tok) <- lift $ addUnconfirmedUser userFormData
     let url = emailConfirmUrl fcfg "/user/register_confirm" tok
 
     sendUserConfirmationMail userFormData url
     return userRegisterRequestedPage
 
 sendUserConfirmationMail :: UserFormData -> ST -> FAction ()
-sendUserConfirmationMail user callbackUrl = lift . U.unsafeAction $
+sendUserConfirmationMail user callbackUrl = liftU $
     U.sendMail Nothing (udEmail user) subject message
   where
     message = "Please go to " <> callbackUrl <> " to confirm your account."
     subject = "Thentos account creation confirmation"
 
 sendUserExistsMail :: UserEmail -> FAction ()
-sendUserExistsMail address = lift . U.unsafeAction $
+sendUserExistsMail address = liftU $
     U.sendMail Nothing address subject message
   where
     message = "Someone tried to sign up to Thentos with your email address"
@@ -108,9 +124,9 @@ userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction
 userRegisterConfirmH Nothing = crash FActionErrorNoToken
 userRegisterConfirmH (Just token) = do
     (uid, sessTok) <- lift $ do
-        U.unsafeAction . U.logger DEBUG $ "received user register confirm token: " ++ show token
+        loggerA $ "received user register confirm token: " ++ show token
         (_uid, _sessTok) <- confirmNewUser token
-        U.unsafeAction . U.logger DEBUG $ "registered new user: " ++ show _uid
+        loggerA $ "registered new user: " ++ show _uid
         grantAccessRights'P [RoleAdmin]
         mapM_ (assignRole (UserA _uid)) $ defaultUserRoles
         return (_uid, _sessTok)
