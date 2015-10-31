@@ -19,7 +19,6 @@ import Control.Monad.IO.Class
 import Data.String.Conversions
 import GHC.TypeLits (Symbol)
 import Servant hiding (serveDirectory)
-import Servant.HTML.Blaze
 import Network.Wai
 import Servant.Server.Internal.Router
 import Servant.Server.Internal.RoutingApplication
@@ -40,6 +39,7 @@ import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State
 import Thentos.Frontend.TH
+import Thentos.Frontend.Types
 import Thentos.Types
 
 -- FIXME: imported for testing only >>>
@@ -83,13 +83,15 @@ runFrontend config aState = do
     serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config
 
 type FrontendH =
-       "user" :> UserH
-  :<|> "dashboard" :> Get '[HTML] H.Html
+       Get '[HTM] H.Html
+  :<|> "user" :> UserH
+  :<|> "dashboard" :> Get '[HTM] H.Html
   :<|> StaticContent
 
 frontendH :: ServerT FrontendH FAction
 frontendH =
-       userH
+       redirect' "/dashboard"
+  :<|> userH
   :<|> renderDashboard DashboardTabDetails userDisplayPagelet
   :<|> staticContent
 
@@ -106,18 +108,6 @@ staticContent =
        l $(loadStaticContent "screen.css")
   where
     l = pure . LBS.pack
-
--- | FIXME: move this type upstream?
-data TextCss
-
-instance Accept TextCss where
-    contentType _ = "text" M.// "css" M./: ("charset", "utf-8")
-
-instance MimeRender TextCss LBS    where mimeRender _ = id
-instance MimeRender TextCss SBS    where mimeRender _ = cs
-instance MimeRender TextCss ST     where mimeRender _ = cs
-instance MimeRender TextCss LT     where mimeRender _ = cs
-instance MimeRender TextCss String where mimeRender _ = cs
 
 
 -- * /user

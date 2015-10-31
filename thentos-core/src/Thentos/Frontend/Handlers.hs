@@ -48,24 +48,14 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
--- * types
+-- * forms
 
 type HtmlForm (name :: Symbol) typ =
-       FormGet name H.Html typ
-  :<|> FormPost name H.Html typ :> Post '[HTML] H.Html
+       FormGet HTM name H.Html typ
+  :<|> FormPost HTM name H.Html typ :> Post '[HTM] H.Html
 
 htmlForm :: (typ -> FAction Html) -> ServerT (HtmlForm name typ) FAction
 htmlForm postHandler = return () :<|> postHandler
-
-
--- * helpers
-
-getFrontendConfig :: FAction HttpConfig
-getFrontendConfig = do
-    Just (feConfig :: HttpConfig)
-        <- (\c -> Tagged <$> c >>. (Proxy :: Proxy '["frontend"]))
-            <$> lift (U.unsafeAction U.getConfig)
-    return feConfig
 
 
 -- * register (thentos)
@@ -81,7 +71,9 @@ instance HasForm "UserRegister" H.Html UserFormData where
 userRegisterH :: ServerT UserRegisterH FAction
 userRegisterH = htmlForm $ \userFormData -> do
     fcfg <- getFrontendConfig
-    (_, tok) <- lift $ addUnconfirmedUser userFormData
+    (_, tok) <- lift $ do
+        U.unsafeAction $ U.logger DEBUG ("registering new user: " ++ show (udName userFormData))
+        addUnconfirmedUser userFormData
     let url = emailConfirmUrl fcfg "/user/register_confirm" tok
 
     sendUserConfirmationMail userFormData url
@@ -107,7 +99,7 @@ sendUserExistsMail address = lift . U.unsafeAction $
 
 
 type UserRegisterConfirmH = "register_confirm" :>
-    QueryParam "token" ConfirmationToken :> Get '[HTML] Html
+    QueryParam "token" ConfirmationToken :> Get '[HTM] Html
 
 defaultUserRoles :: [Role]
 defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]

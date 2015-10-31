@@ -14,6 +14,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.Trans.State (StateT, runStateT, get, gets, put)
 import Data.Char (ord)
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
@@ -34,13 +35,16 @@ import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
-import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
-import Thentos.Util
 import Thentos.Action.Core
 import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.Frontend.Types
+import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
+import Thentos.Util
 
 import qualified Thentos.Frontend.Pages as Pages
+import qualified Thentos.Action.Unsafe as U
+import qualified Thentos.Action.SimpleAuth as U
 
 
 -- * types
@@ -185,3 +189,10 @@ cookieToFSession r = (lift . liftLIO . ioTCB) r >>= maybe (return ()) put
 -- | Read 'FrontendSessionData' from 'FAction' and write back into servant-session state.
 cookieFromFSession :: (FrontendSessionData -> IO ()) -> FAction ()
 cookieFromFSession w = get >>= lift . liftLIO . ioTCB . w
+
+getFrontendConfig :: FAction HttpConfig
+getFrontendConfig = do
+    Just (feConfig :: HttpConfig)
+        <- (\c -> Tagged <$> c >>. (Proxy :: Proxy '["frontend"]))
+            <$> lift (U.unsafeAction U.getConfig)
+    return feConfig

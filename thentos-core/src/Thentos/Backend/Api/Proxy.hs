@@ -20,16 +20,14 @@ module Thentos.Backend.Api.Proxy where
 import Control.Exception (SomeException)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
-import Data.Aeson (encode)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Data.Void (Void)
 import Network.HTTP.ReverseProxy
-import Network.HTTP.Types (status500)
 import Servant.API (Raw)
-import Servant.Server.Internal.ServantErr (responseServantErr)
+import Servant.Server.Internal.ServantErr (responseServantErr, err500)
 import Servant.Server (Server, HasServer(..), ServantErr)
 import System.Log.Logger (Priority(DEBUG, WARNING))
 import System.Log.Missing (logger)
@@ -180,5 +178,4 @@ createCustomHeaders adapter (Just tok) _sid = do
 err500onExc :: SomeException -> S.Application
 err500onExc exc _ sendResponse = do
     logger WARNING $ "Couldn't call proxied app: " <> show exc
-    sendResponse $ S.responseLBS
-        status500 [contentTypeJsonHeader] (encode $ ErrorMessage "internal error")
+    sendResponse $ responseServantErr err500

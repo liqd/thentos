@@ -11,7 +11,6 @@
 module Servant.MissingSpec (spec) where
 
 import           Control.Monad.IO.Class        (liftIO)
-import           Data.Aeson                    (FromJSON, ToJSON)
 import           Data.ByteString.Lazy.Char8    (unpack)
 import           Data.String.Conversions       (ST)
 import qualified Data.Text                     as Text
@@ -19,13 +18,15 @@ import           GHC.Generics                  (Generic)
 import           Network.Wai.Test              (simpleBody)
 import           Servant                       (Proxy(Proxy), Post, JSON, Server,
                                                 (:>), (:<|>)((:<|>)), serve)
-import           Servant.Missing
+import           Servant.HTML.Blaze            (HTML)
 import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain)
 import           Test.Hspec.Wai                (get, postHtmlForm, shouldRespondWith, with)
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import           Text.Digestive.Blaze.Html5    (form, inputSubmit, inputText, label, errorList)
 import           Text.Digestive                (Form, View, check, text, (.:), getForm, stringRead)
+
+import           Servant.Missing
 
 
 spec :: Spec
@@ -65,8 +66,8 @@ formSpec = describe "Forms" $ with (return $ serve api server) $ do
                 `shouldRespondWith` 201
 
 
-type API = "form" :> (FormGet "test" H.Html Person
-      :<|> FormPost "test" H.Html Person :> Post '[JSON] Person)
+type API = "form" :> (FormGet HTML "test" H.Html Person
+      :<|> FormPost HTML "test" H.Html Person :> Post '[HTML] Person)
 
 api :: Proxy API
 api = Proxy
@@ -75,7 +76,10 @@ server :: Server API
 server = return () :<|> return
 
 data Person = Person { name :: ST, age :: Int }
-    deriving (Eq, Show, Generic, FromJSON, ToJSON)
+    deriving (Eq, Show, Generic)
+
+instance H.ToMarkup Person where
+    toMarkup (Person n a) = H.div $ H.text n >> H.string (show a)
 
 personForm :: Monad m => Form H.Html m Person
 personForm = Person <$> "name" .: nonEmptyText
