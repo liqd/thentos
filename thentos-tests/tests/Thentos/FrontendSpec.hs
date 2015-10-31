@@ -55,7 +55,7 @@ spec = describe "selenium grid" $ do
     spec_failOnCsrf
 
   -- (this is a separate top-level test case because it changes the DB
-  -- state and gets the other tests confused.)
+  -- state and gets the other tests confused.)  FIXME: this shouldn't be necessary!
   describe "update user" . around (withFrontendAndBackend "test_thentos") $ do
     spec_updateSelf
 
@@ -71,10 +71,10 @@ spec_createUser = describe "create user" $ do
             WD.openPageSync (cs $ exposeUrl defaultFrontendConfig)
             WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
 
-            fill "/user/register.name" myUsername
-            fill "/user/register.password1" myPassword
-            fill "/user/register.password2" myPassword
-            fill "/user/register.email" myEmail
+            fill "UserRegister.name" myUsername
+            fill "UserRegister.password1" myPassword
+            fill "UserRegister.password2" myPassword
+            fill "UserRegister.email" myEmail
 
             WD.findElem (WD.ById "create_user_submit") >>= WD.clickSync
             WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Please check your email"
