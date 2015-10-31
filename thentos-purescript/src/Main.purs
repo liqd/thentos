@@ -5,6 +5,7 @@ import Control.Monad.Eff
 import Control.Monad.Eff.Class
 import Control.Monad.Eff.Console (CONSOLE(), log, print)
 import Control.Monad.Eff.Exception
+import Control.Monad.Eff.Random (RANDOM())
 import Data.Array (zipWith, range, length)
 import Data.Either
 import Data.Foreign.Class
@@ -12,6 +13,7 @@ import Data.Foreign hiding (parseJSON)
 import Data.Generic
 import Data.Maybe
 import Data.Tuple
+import Halogen (HalogenEffects())
 import Network.HTTP.Affjax
 import Network.HTTP.Affjax.Request
 import Network.HTTP.Affjax.Response
@@ -47,7 +49,7 @@ data LoginRequestBody = LoginRequestBody
 instance showLoginRequestBody :: Show LoginRequestBody where
     show (LoginRequestBody { user: n, pass: p }) = "{\"ldName\": " ++ show n ++ ", \"ldPassword\": " ++ show p ++ "}"
 
-loginUser :: forall ajax eff. Username -> Password
+loginUser :: forall eff. Username -> Password
     -> Aff (ajax :: AJAX | eff) (Either ThentosError ThentosSessionToken)
 loginUser username password = do
     let body :: String
@@ -70,9 +72,12 @@ loginUser username password = do
             Left $ ConnectionError $ "server responsed with error: " ++ show res.status
 -}
 
--- main :: forall ajax err2 console eff. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE | eff) Unit
+main :: forall eff.
+    Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
 main = do
     log "Hello sailor!"
     runAff throwException print $ loginUser "god" "god"
-    IFrameStressTest.main
+    IFrameStressTest.counterMain "body"
+    IFrameStressTest.counterMain "#id2"
+    IFrameStressTest.counterMain "#id3"
     LoginIndicator.main

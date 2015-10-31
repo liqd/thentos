@@ -1,51 +1,50 @@
--- | copied from https://github.com/slamdata/purescript-halogen/blob/95e7eca7587e21fd24dcf87e9b995d495a2efc8b/examples/counter/src/Counter.purs
 module IFrameStressTest where
 
-import Prelude
-
 import Control.Monad.Aff (Aff(), runAff, later')
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-
+import Control.Monad.Eff.Random (RANDOM(), randomInt)
 import Halogen
-import Halogen.Util (appendToBody)
+import Halogen.Util (appendTo)
+import Prelude
+
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
+import qualified DOM.HTML.Types as D
 
-newtype State = State Int
 
-initialState :: State
-initialState = State 0
+-- counter
 
-data Query a = Tick a
+newtype CounterState = CounterState Int
 
-ui :: forall g. (Functor g) => Component State Query g
-ui = component render eval
+initialCounterState :: CounterState
+initialCounterState = CounterState 0
+
+data CounterQuery a = Tick a
+
+counterUI :: forall g. (Functor g) => Component CounterState CounterQuery g
+counterUI = component render eval
   where
+    render :: CounterState -> ComponentHTML CounterQuery
+    render (CounterState n) = H.div_ [H.text ("[counter=" ++ show n ++ "]")]
 
-  render :: State -> ComponentHTML Query
-  render (State n) =
-    H.div_
-      [ H.h1
-          [ P.id_ "header" ]
-          [ H.text "counter" ]
-      , H.p_
-          [ H.text (show n) ]
-      ]
+    eval :: Natural CounterQuery (ComponentDSL CounterState CounterQuery g)
+    eval (Tick next) = do
+        modify (\(CounterState n) -> CounterState (n + 1))
+        pure next
 
-  eval :: Natural Query (ComponentDSL State Query g)
-  eval (Tick next) = do
-    modify (\(State n) -> State (n + 1))
-    pure next
+counterRunner :: forall eff. String -> Aff (HalogenEffects (random :: RANDOM | eff)) Unit
+counterRunner widgetRoot = do
+    { node: node, driver: driver } <- runUI counterUI initialCounterState
+    appendTo widgetRoot node
+    i <- liftEff $ randomInt 500 2000
+    setInterval i $ driver (action Tick)
+  where
+    setInterval :: forall e a. Int -> Aff e a -> Aff e Unit
+    setInterval ms a = later' ms $ do
+      a
+      setInterval ms a
 
--- | Run the app
--- main :: Eff (HalogenEffects ()) Unit
-main = runAff throwException (const (pure unit)) $ do
-  { node: node, driver: driver } <- runUI ui initialState
-  appendToBody node
-  setInterval 1000 $ driver (action Tick)
-
-setInterval :: forall e a. Int -> Aff e a -> Aff e Unit
-setInterval ms a = later' ms $ do
-  a
-  setInterval ms a
+counterMain :: forall eff. String -> Eff (HalogenEffects (random :: RANDOM | eff)) Unit
+counterMain = runAff throwException (const (pure unit)) <<< counterRunner
