@@ -77,6 +77,7 @@ import           Text.Digestive                (Env, Form, FormInput(TextInput),
 data FormPost (contentTypes :: *) f v a
 data FormGet (contentTypes :: *) f v a
 
+-- FIXME: @v ~ H.Html` may be hardwired into this module in some places, and left variable in others.
 class HasForm f v a | f -> v, f -> a where
     formAction :: Proxy f -> ST
     isForm :: Monad m => Proxy f -> Form v m a
@@ -95,19 +96,19 @@ instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a, H.ToMarkup v, HasS
         go req = do
            (v, a) <- runFormP req fname (formBackend fp) (isForm fp)
            case a of
-             Nothing -> return $ FailFatal (toServantErr $ formView fp v (formAction fp))
+             Nothing -> return . FailFatal . toServantErr $ formView fp v (formAction fp)
              Just a' -> return $ Route a'
 
 instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a, H.ToMarkup v)
       => HasServer (FormGet ct f v a) where
     type ServerT (FormGet ct f v a) m = m ()
-    route _ sub = methodRouter methodGet (Proxy :: Proxy '[ct]) ok200 go
+    route _ sub = methodRouter methodGet (Proxy :: Proxy '[ct]) ok200 (go <$> sub)
       where
         fname = fromString $ symbolVal (Proxy :: Proxy f)
         fp = Proxy :: Proxy f
-        go = fmap (\_ -> do
+        go _ = do
             v <- getForm fname $ isForm fp
-            return . H.toHtml $ formView fp v (formAction fp)) sub
+            return . H.toHtml $ formView fp v (formAction fp)
 
 
 backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m
