@@ -120,7 +120,7 @@ it, make sure that the `purescript` field in `devel.config` is aimed
 in the right direction and open browser at the backend under `/js/`.
 
 Continuous compilation (aka `--watch`) is supported: Simply run
-`/thentos-purescript/build.sh -i`.
+`/thentos-purescript/build.sh watch`.
 
 ## Adding new dependencies
 
