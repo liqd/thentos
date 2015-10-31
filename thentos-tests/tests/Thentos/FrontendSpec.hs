@@ -321,15 +321,15 @@ wdLogin feConfig (UserName uname) (UserPass upass) = do
     WD.setImplicitWait 200
     WD.openPageSync (cs $ exposeUrl feConfig <//> "/user/login")
 
-    fill "/user/login.name" uname
-    fill "/user/login.password" upass
+    fill "UserLogin.name" uname
+    fill "UserLogin.password" upass
 
     WD.findElem (WD.ById "login_submit") >>= WD.clickSync
-    return $ C.Status 200 "Ok."  -- FIXME: we need a man in the middle
+    return $ C.Status 200 "Ok."  -- (we need a man in the middle
                                  -- between browser and http server
                                  -- that we can ask for things
                                  -- happening between the two.
-                                 -- selenium doesn't allow that.
+                                 -- selenium doesn't allow that.)
 
 wdLogout :: HttpConfig -> WD.WD C.Status
 wdLogout feConfig = do
@@ -340,7 +340,7 @@ wdLogout feConfig = do
         return $ C.Status 400 "Perhaps we are already logged out?"
     buttonIsThere el = do
         WD.clickSync el
-        return $ C.Status 200 "Ok."  -- FIXME: as in wdLogin
+        return $ C.Status 200 "Ok."  -- (see comment in wdLogin.)
 
 
 isLoggedIn :: HttpConfig -> WD.WD ()
