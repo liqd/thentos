@@ -10,7 +10,6 @@ import Data.Either
 import Data.Foreign.Class
 import Data.Foreign hiding (parseJSON)
 import Data.Generic
-import Data.JSON
 import Data.Maybe
 import Data.Tuple
 import Network.HTTP.Affjax
@@ -23,8 +22,8 @@ import Network.HTTP.RequestHeader
 import Network.HTTP.StatusCode (StatusCode(StatusCode))
 import Prelude
 
+import qualified Error as Error
 import qualified IFrameStressTest as IFrameStressTest
-
 
 defRq :: AffjaxRequest Unit
 defRq = defaultRequest { headers = [ContentType applicationJSON, Accept applicationJSON] }
@@ -45,24 +44,31 @@ data LoginRequestBody = LoginRequestBody
     , pass :: Password
     }
 
-instance loginRequestBodyToJSON :: ToJSON LoginRequestBody where
-    toJSON (LoginRequestBody { user: n, pass: p }) = object ["ldName" .= n, "ldPassword" .= p]
+instance showLoginRequestBody :: Show LoginRequestBody where
+    show (LoginRequestBody { user: n, pass: p }) = "{\"ldName\": " ++ show n ++ ", \"ldPassword\": " ++ show p ++ "}"
 
 loginUser :: forall ajax eff. Username -> Password
     -> Aff (ajax :: AJAX | eff) (Either ThentosError ThentosSessionToken)
 loginUser username password = do
-    let body = encode $ LoginRequestBody { user: username, pass: password }
+    let body :: String
+        body = show $ LoginRequestBody { user: username, pass: password }
+
     res <- affjax defRq
         { method = POST
         , url = "/user/login"
         , content = Just body
         }
     return if res.status == StatusCode 201
+            then Right res.response
+            else Error.throwJS res.status
+
+{-
         then case eitherDecode res.response of
             Right v -> Right v
             Left e  -> Left $ DecodeError $ "error decoding response: " ++ show (Tuple res.response e)
         else
             Left $ ConnectionError $ "server responsed with error: " ++ show res.status
+-}
 
 -- main :: forall ajax err2 console eff. Eff (ajax :: AJAX, err :: EXCEPTION, console :: CONSOLE | eff) Unit
 main = do
