@@ -9,15 +9,16 @@ module Thentos.Frontend.StateSpec where
 
 import Control.Lens ((^.), (%~))
 import Control.Monad.State (modify, gets, liftIO)
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST, LBS, cs)
 import Network.HTTP.Types (RequestHeaders, methodGet, methodPost)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleBody, simpleHeaders, SResponse)
+import Network.Wai.Test (SResponse, simpleBody, simpleHeaders, simpleStatus)
 import Servant (Proxy(Proxy), ServerT, Capture, Post, Get, JSON, (:<|>)((:<|>)), (:>))
-import Test.Hspec (Spec, hspec, before, describe, it, shouldBe, shouldContain)
+import Test.Hspec (Spec, hspec, before, describe, it, shouldBe, shouldContain, pendingWith)
 import Test.Hspec.Wai (request)
-import Servant.Server.Internal.ServantErr
-import Data.CaseInsensitive (mk)
+import Servant.Server.Internal.ServantErr (errHTTPCode, errHeaders, errBody)
+
+import qualified Network.HTTP.Types.Status as C
 
 import Thentos.Action.Core
 import Thentos.Frontend.State
@@ -37,11 +38,16 @@ spec = describe "Thentos.Frontend.State" $ do
 
 spec_frontendState :: Spec
 spec_frontendState = do
-    describe "fActionErrorToServantErr" $ do
+    describe "fActionServantErr" $ do
         it "redirects with correct status and location header." $ do
-            e <- fActionErrorToServantErr (ActionErrorThentos . OtherError . FActionError303 $ "/there")
+            e <- fActionServantErr (ActionErrorThentos . OtherError . FActionError303 $ "/there")
             errHTTPCode e `shouldBe` 303
-            errHeaders e `shouldContain` [(mk "Location", "/there")]
+            errHeaders e `shouldContain` [("Location", "/there")]
+
+        it "renders 404 correctly." $ do
+            e <- fActionServantErr . ActionErrorThentos . OtherError $ FActionError404
+            errHTTPCode e `shouldBe` 404
+            cs (errBody e) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
     describe "the FAction monad" . before testApp $ do
         it "is initialized with empty message queue" $ do
@@ -59,6 +65,14 @@ spec_frontendState = do
             liftIO $ simpleBody gresp2 `shouldBe`
                 (cs . show . fmap show $ [FrontendMsgSuccess "ping", FrontendMsgSuccess "heya"])
 
+        it "renders 404 correctly." $ do
+            resp <- request methodGet "/wef/yo" [] ""
+            liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 404
+            liftIO $ pendingWith "rendering of implicit servant 404 (thrown by `HasServer (:>)`) defunct."
+
+            -- FIXME: the code in '' is in place.  it would be easy to get this to work with a
+            -- catch-all combinator (https://github.com/haskell-servant/servant/issues/257).
+            liftIO $ cs (simpleBody resp) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
 
 getCookie :: SResponse -> RequestHeaders

@@ -22,10 +22,12 @@ import LIO.TCB (ioTCB)
 import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
 import Servant (Proxy(Proxy), ServantErr, (:>), serve, HasServer, ServerT, Server)
-import Servant.Server (errHeaders, err303, err400, err500)
+import Servant.Server (errHTTPCode, errHeaders, errBody, err303, err404, err400, err500)
 import Servant.Server.Internal.Enter ((:~>)(Nat), Enter, enter)
 import Servant.Session (SSession)
 import System.Log (Priority(DEBUG, ERROR))
+import Text.Blaze.Html (Html)
+import Text.Blaze.Html.Renderer.Pretty (renderHtml)
 import Web.Cookie (SetCookie, def, setCookieName)
 
 import qualified Data.ByteString as SBS
@@ -37,6 +39,8 @@ import Thentos.Util
 import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Frontend.Types
+
+import qualified Thentos.Frontend.Pages as Pages
 
 
 -- * types
@@ -61,6 +65,7 @@ type FServantSession = SSession IO () FrontendSessionData
 
 data FActionError =
     FActionError303 SBS
+  | FActionError404
   | FActionErrorNoToken
   | FActionErrorCreateService
   | FActionErrorServiceLoginNoCbUrl
@@ -70,13 +75,15 @@ data FActionError =
 crash :: FActionError -> FAction a
 crash = lift . throwError . OtherError
 
-fActionErrorToServantErr :: ActionError FActionError -> IO ServantErr
-fActionErrorToServantErr = errorInfoToServantErr mkServantErr .
+fActionServantErr :: ActionError FActionError -> IO ServantErr
+fActionServantErr = errorInfoToServantErr mkServantErr .
                                     actionErrorInfo (thentosErrorInfo f)
   where
     f :: FActionError -> (Maybe (Priority, String), ServantErr, ST)
     f (FActionError303 uri) =
         (Nothing, err303 { errHeaders = [("Location", uri)] }, "redirect: " <> cs uri)
+    f FActionError404 =
+        (Nothing, err404, "page not found.")
     f e@FActionErrorNoToken =
         (Just (DEBUG, show e), err400, "email confirmation url broken: no token.")
     f e@FActionErrorCreateService =
@@ -88,17 +95,14 @@ fActionErrorToServantErr = errorInfoToServantErr mkServantErr .
 
     mkServantErr :: ServantErr -> ST -> ServantErr
     mkServantErr baseErr msg = baseErr
-        { errBody = encode $ ErrorMessage msg
+        { errBody = cs . renderHtml $ makeErrorPage (errHTTPCode baseErr) msg
         , errHeaders = ("Content-Type", "text/html; charset=utf-8") : errHeaders baseErr
         }
 
-
--- FIXME: read up on related code in Thentos.Backend.Core for info on how to render html pages here.
--- 403: blaze permissionDeniedPage
--- 404: blaze notFoundPage
--- all other cases: blaze . errorPage . cs $ usrMsg
-
--- FIXME: rename this module: Frontend.State -> Frontend.Core
+    makeErrorPage :: Int -> ST -> Html
+    makeErrorPage 403 = const Pages.permissionDeniedPage
+    makeErrorPage 404 = const Pages.notFoundPage
+    makeErrorPage _   = Pages.errorPage . cs
 
 
 -- * middleware
@@ -138,15 +142,14 @@ serveFAction _ fServer aState = thentosSessionMiddleware >>= \(mw, key) -> retur
     server' key smap = enter nt fServer
       where
         nt :: FAction :~> ExceptT ServantErr IO
-        nt = enterFAction aState fActionErrorToServantErr key smap
+        nt = enterFAction aState key smap
 
 enterFAction ::
        ActionState
-    -> (ActionError FActionError -> IO ServantErr)
     -> Vault.Key FSession
     -> FSessionMap
     -> FAction :~> ExceptT ServantErr IO
-enterFAction aState toServantErr key smap = Nat $ ExceptT . (>>= fmapLM toServantErr) . run
+enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM  fActionServantErr) . run
   where
     run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
     run fServer = fst <$$> runFActionE emptyFrontendSessionData aState fServer'
