@@ -93,7 +93,7 @@ frontendH :: ServerT FrontendH FAction
 frontendH =
        redirect' "/dashboard"
   :<|> userH
-  :<|> renderDashboard DashboardTabDetails userDisplayPagelet
+  :<|> renderDashboard DashboardTabDetails userDisplaySnippet
   :<|> staticContent
 
 
@@ -251,8 +251,8 @@ routes = [ -- default entry point
              -- the routing table and the call to the
              -- dashboardPagelet.)
 
-         , ("/dashboard/details",     renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
-         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ P.userServicesDisplayPagelet)
+         , ("/dashboard/details",     renderDashboard P.DashboardTabDetails P.userDisplaySnippet)
+         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ P.userServicesDisplaySnippet)
          , ("/dashboard/ownservices", H.serviceCreate)
          , ("/dashboard/users",       renderDashboard P.DashboardTabUsers $ \ _ _ -> "nothing here yet!")
 

@@ -236,7 +236,7 @@ userLogoutConfirm = runAsUser $ \ _ fsl -> do
     eServiceNames <- snapRunActionE $ serviceNamesFromThentosSession (fsl ^. fslToken)
     tok <- with sess csrfToken
     case eServiceNames of
-        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmPagelet "/user/logout" serviceNames tok)
+        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames tok)
         Left e -> crash $ FActionError500 e
 
 userLogoutDone :: FH ()
@@ -252,7 +252,7 @@ emailUpdate :: FH ()
 emailUpdate = runAsUser $ \ _ fsl -> do
     tok <- with sess csrfToken
     runPageletForm emailUpdateForm
-                   (emailUpdatePagelet tok) DashboardTabDetails
+                   (emailUpdateSnippet tok) DashboardTabDetails
                    $ \ newEmail -> do
         feConfig <- gets (^. frontendCfg)
         eResult <- snapRunActionE $
@@ -289,7 +289,7 @@ passwordUpdate :: FH ()
 passwordUpdate = runAsUser $ \ _ fsl -> do
     tok <- with sess csrfToken
     runPageletForm passwordUpdateForm
-                   (passwordUpdatePagelet tok) DashboardTabDetails
+                   (passwordUpdateSnippet tok) DashboardTabDetails
                    $ \ (oldPw, newPw) -> do
         eResult <- snapRunActionE $ changePassword (fsl ^. fslUserId) oldPw newPw
         case eResult of
@@ -305,7 +305,7 @@ serviceCreate :: FH ()
 serviceCreate = runAsUser $ \ _ fsl -> do
     tok <- with sess csrfToken
     runPageletForm serviceCreateForm
-                   (serviceCreatePagelet tok) DashboardTabOwnServices
+                   (serviceCreateSnippet tok) DashboardTabOwnServices
                    $ \ (name, description) -> do
         eResult <- snapRunActionE $ addService (fsl ^. fslUserId) name description
         case eResult of

@@ -5,15 +5,10 @@
 -- | This module provides 'Html' pages and 'Form's (disgetive-functor thingies that parse filled-out
 -- forms).  The pages come in three flavours:
 --
--- 1. *Complete pages* (starting with html tag and without holes);
---
--- 2. *Pagelets* (functions that return *complete pages*, but contain holes that need to be filled
+-- - *Pages* (starting with html tag and without holes);
+-- - *Pagelets* (functions that return *complete pages*, but contain holes that need to be filled
 --    with the function's 'Html' argument(s));
---
--- 3. *Snippets*: 'Html' elements for filling holes in pagelets or other snippets.
---
--- FIXME: go through this modules and call all snippets snippets (they are currently called
--- pagelets).
+-- - *Snippets*: 'Html' elements for filling holes in pagelets or other snippets.
 module Thentos.Frontend.Pages
     ( dashboardPagelet
     , DashboardTab(..)
@@ -31,18 +26,18 @@ module Thentos.Frontend.Pages
     , resetPasswordConfirmPage
     , resetPasswordConfirmForm
 
-    , userLogoutConfirmPagelet
+    , userLogoutConfirmSnippet
     , userLogoutDonePage
 
-    , userDisplayPagelet
-    , userServicesDisplayPagelet
-    , userUpdatePagelet
-    , emailUpdatePagelet
+    , userDisplaySnippet
+    , userServicesDisplaySnippet
+    , userUpdateSnippet
+    , emailUpdateSnippet
     , emailUpdateForm
-    , passwordUpdatePagelet
+    , passwordUpdateSnippet
     , passwordUpdateForm
 
-    , serviceCreatePagelet
+    , serviceCreateSnippet
     , serviceCreateForm
     , serviceRegisterPage
     , serviceRegisterForm
@@ -52,7 +47,7 @@ module Thentos.Frontend.Pages
     , permissionDeniedPage
     , notFoundPage
     , confirmationMailSentPage
-    , confirmationMailSentPagelet
+    , confirmationMailSentSnippet
     ) where
 
 import Control.Lens ((^.))
@@ -95,9 +90,11 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
 
 -- | Protect a form from CSRF attacks by including a secret token as a hidden
 -- field.
+-- XXX replace
 csrfProofForm :: ST -> View Html -> ST -> Html -> Html
 csrfProofForm csrfToken v action html = form v action (html <> makeCsrfField csrfToken)
 
+-- XXX replace
 makeCsrfField :: ST -> Html
 makeCsrfField csrfToken =
     H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
@@ -271,8 +268,8 @@ resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
 
 -- * logout (thentos)
 
-userLogoutConfirmPagelet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
-userLogoutConfirmPagelet formAction serviceNames csrfToken _ _ = do
+userLogoutConfirmSnippet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
+userLogoutConfirmSnippet formAction serviceNames csrfToken _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -296,8 +293,8 @@ userLogoutDonePage = basePagelet "Thentos Logout" $ do
 
 -- * update user
 
-userDisplayPagelet :: User -> rs -> Html
-userDisplayPagelet user _ = do
+userDisplaySnippet :: User -> rs -> Html
+userDisplaySnippet user _ = do
     H.table $ do
         H.tr $ do
             H.td . H.text $ "name"
@@ -329,8 +326,8 @@ userDisplayPagelet user _ = do
 
 
 -- | (this is just a dummy.)
-userServicesDisplayPagelet :: u -> rs -> Html
-userServicesDisplayPagelet _ _ = do
+userServicesDisplaySnippet :: u -> rs -> Html
+userServicesDisplaySnippet _ _ = do
     H.table $ do
         H.tr $ do
             H.td . H.ol $ mapM_ H.li ["Evil Corp.", "Facebook", H.b "Faceboot", "mein.berlin.de"]
@@ -341,8 +338,8 @@ userServicesDisplayPagelet _ _ = do
                 H.tr $ H.td "Session expires: " >> H.td "in a month"
 
 
-userUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
-userUpdatePagelet csrfToken formAction v _ _ = do
+userUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
+userUpdateSnippet csrfToken formAction v _ _ = do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.p $ do
@@ -351,8 +348,8 @@ userUpdatePagelet csrfToken formAction v _ _ = do
         inputSubmit "Update User Data" ! A.id "update_user_submit"
 
 
-passwordUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
-passwordUpdatePagelet csrfToken formAction v _ _ = do
+passwordUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
+passwordUpdateSnippet csrfToken formAction v _ _ = do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.p $ do
@@ -373,8 +370,8 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
-emailUpdatePagelet csrfToken formAction v _ _ = do
+emailUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
+emailUpdateSnippet csrfToken formAction v _ _ = do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.p $ do
@@ -388,8 +385,8 @@ emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 -- * services
 
-serviceCreatePagelet :: ST -> ST -> View Html -> u -> rs -> Html
-serviceCreatePagelet csrfToken formAction v _ _ = basePagelet "Create Service" $ do
+serviceCreateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
+serviceCreateSnippet csrfToken formAction v _ _ = basePagelet "Create Service" $ do
     childErrorList "" v
     csrfProofForm csrfToken v formAction $ do
         H.p $ do
@@ -450,8 +447,8 @@ notFoundPage = basePagelet "Not Found" $ H.p "The requested page does not exist.
 confirmationMailSentPage :: ST -> ST -> ST -> Html
 confirmationMailSentPage title msg1 msg2 = basePagelet title $ confirmationMailSentBody msg1 msg2
 
-confirmationMailSentPagelet :: ST -> ST -> u -> rs -> Html
-confirmationMailSentPagelet msg1 msg2 _ _ = confirmationMailSentBody msg1 msg2
+confirmationMailSentSnippet :: ST -> ST -> u -> rs -> Html
+confirmationMailSentSnippet msg1 msg2 _ _ = confirmationMailSentBody msg1 msg2
 
 confirmationMailSentBody :: ST -> ST -> Html
 confirmationMailSentBody msg1 msg2 = H.p . H.text . ST.unlines $
@@ -461,7 +458,7 @@ confirmationMailSentBody msg1 msg2 = H.p . H.text . ST.unlines $
     []
 
 
--- ** form field tests
+-- ** form field validation
 
 validateNonEmpty :: (Monoid v, IsString v, Monad m) => v -> Form v m ST -> Form v m ST
 validateNonEmpty fieldName = check (fieldName <> " must not be empty") (not . ST.null)
