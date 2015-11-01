@@ -96,8 +96,8 @@ data FormGet (fn :: Symbol)
 
 class HasForm fn where
     type FormRendered fn
-    type FormContent fn
     type FormContentType fn
+    type FormContent fn
     type FormActionState fn
 
     formAction :: Proxy fn -> ST

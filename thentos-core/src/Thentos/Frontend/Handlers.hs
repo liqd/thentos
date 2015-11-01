@@ -67,36 +67,15 @@ type HtmlForm (name :: Symbol) =
        FormGet name
   :<|> FormPost name :> Post '[HTM] H.Html
 
-{-
-htmlForm :: forall name typ. HasForm name
-    => (typ -> FAction H.Html) -> ServerT (HtmlForm name) FAction
-
-htmlForm :: forall t (m :: * -> *) t1 t2 s (m1 :: * -> *).
-                  (Control.Monad.State.Class.MonadState t2 m,
-                   Control.Monad.State.Class.MonadState s m1) =>
-                  (t -> m H.Html) -> m1 s :<|> (Either t1 t -> m H.Html)
--}
-
-htmlForm :: forall fn. HasForm fn
-    => (FormContent fn -> FAction H.Html) -> ServerT (HtmlForm fn) FAction
-htmlForm postHandler = get :<|> postHandler'
+htmlForm :: forall fn.
+        (HasForm fn, FormRendered fn ~ H.Html, FormActionState fn ~ FrontendSessionData)
+      => Proxy fn -> (FormContent fn -> FAction H.Html) -> ServerT (HtmlForm fn) FAction
+htmlForm proxy postHandler = get :<|> postHandler'
   where
-{-
-    postHandler' :: ( t ~ (ServerT (FormPost name :> Post '[HTM] H.Html) FAction)
-                    , t ~ (Either (View H.Html) typ -> ServerT (Post '[HTM] H.Html) FAction)
-                    ) => t
--}
     postHandler' (Right t) = postHandler t
     postHandler' (Left v)  = do
         state <- get
-        let act :: ST
-            act = formAction (Proxy :: Proxy fn)
-
-            fv :: H.Html
-            fv = undefined (v, state, act)  -- formView (Proxy :: Proxy name) state v _
-
-        return fv
-
+        return $ formView proxy state v (formAction proxy)
 
 
 -- * register (thentos)
@@ -104,9 +83,9 @@ htmlForm postHandler = get :<|> postHandler'
 type UserRegisterH = "register" :> HtmlForm "UserRegister"
 
 instance HasForm "UserRegister" where
-    type FormRendered "UserRegister"    = H.Html
+    type FormRendered    "UserRegister" = H.Html
     type FormContentType "UserRegister" = HTM
-    type FormContent "UserRegister"     = UserFormData
+    type FormContent     "UserRegister" = UserFormData
     type FormActionState "UserRegister" = FrontendSessionData
 
     formAction _  = "/user/register"
@@ -115,7 +94,7 @@ instance HasForm "UserRegister" where
     formBackend _ = error "HasForm UserRegister formBackend: impossible"
 
 userRegisterH :: ServerT UserRegisterH FAction
-userRegisterH = htmlForm $ \userFormData -> do
+userRegisterH = htmlForm (Proxy :: Proxy "UserRegister") $ \userFormData -> do
     fcfg <- getFrontendConfig
     loggerF ("registering new user: " ++ show (udName userFormData))
     (_, tok) <- lift $ addUnconfirmedUser userFormData
@@ -169,9 +148,9 @@ userRegisterConfirmH (Just token) = do
 type UserLoginH = "login" :> HtmlForm "UserLogin"
 
 instance HasForm "UserLogin" where
-    type FormRendered "UserLogin"    = H.Html
+    type FormRendered    "UserLogin" = H.Html
     type FormContentType "UserLogin" = HTM
-    type FormContent "UserLogin"     = (UserName, UserPass)
+    type FormContent     "UserLogin" = (UserName, UserPass)
     type FormActionState "UserLogin" = FrontendSessionData
 
     formAction _  = "/user/login"
@@ -180,7 +159,7 @@ instance HasForm "UserLogin" where
     formBackend _ = error "HasForm UserLogin formBackend: impossible"
 
 userLoginH :: ServerT UserLoginH FAction
-userLoginH = htmlForm $ \(uname, passwd) -> do
+userLoginH = htmlForm (Proxy :: Proxy "UserLogin") $ \(uname, passwd) -> do
     (lift (startThentosSessionByUserName uname passwd) >>= userFinishLogin)
         `catchError` \case
             BadCredentials -> do
