@@ -14,7 +14,7 @@
 
 module Thentos.Frontend.Handlers where
 
-import Control.Lens ((.~))
+import Control.Lens ((.~), (^.))
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.Reader (lift)
 import Control.Monad.State (get, modify)
@@ -92,7 +92,7 @@ instance HasForm "UserRegister" where
 
     formAction _  = "/user/register"
     isForm _      = userRegisterForm
-    formView _ _  = userRegisterPage "csrftok"
+    formView _    = userRegisterPage
     formBackend _ = error "HasForm UserRegister formBackend: impossible"
 
 userRegisterH :: ServerT UserRegisterH FAction
@@ -100,7 +100,7 @@ userRegisterH = htmlForm (Proxy :: Proxy "UserRegister") $ \userFormData -> do
     fcfg <- getFrontendConfig
     loggerF ("registering new user: " ++ show (udName userFormData))
     (_, tok) <- lift $ addUnconfirmedUser userFormData
-    let url = emailConfirmUrl fcfg "/user/register_confirm" tok
+    let url = emailConfirmUrl fcfg "/user/register_confirm" (fromConfirmationToken tok)
 
     sendUserConfirmationMail userFormData url
     return userRegisterRequestedPage
@@ -157,7 +157,7 @@ instance HasForm "UserLogin" where
 
     formAction _  = "/user/login"
     isForm _      = userLoginForm
-    formView _ _  = userLoginPage "csrftok" []  -- messages.  we need access to FAction for that, and also for csrf token!
+    formView _    = userLoginPage
     formBackend _ = error "HasForm UserLogin formBackend: impossible"
 
 userLoginH :: ServerT UserLoginH FAction
@@ -178,35 +178,42 @@ userFinishLogin (uid, tok) = do
     redirectToDashboardOrService
 
 
-
--- next: redirects seem to not work at all, but crash..  why?
-
-
-
 -- * forgot password
 
-{-
-resetPassword :: FH ()
-resetPassword = do
-    runPageForm resetPasswordForm resetPasswordPage $ \ address -> do
-        config :: ThentosConfig <- gets (^. cfg)
-        feConfig <- gets (^. frontendCfg)
-        eToken   <- snapRunActionE $ addPasswordResetToken address
-        case eToken of
-            Right (user, token) -> do
-                snapRunAction $ sendPasswordResetMail
-                    (Tagged $ config >>. (Proxy :: Proxy '["smtp"])) user
-                    (emailConfirmUrl feConfig "/user/reset_password" token)
-                blaze resetPasswordRequestedPage
-            Left (ActionErrorThentos NoSuchUser) -> blaze resetPasswordRequestedPage
-            Left e -> crash $ FActionError500 ("resetPassword" :: ST, e)
+type ResetPasswordH = "reset_password_request" :> HtmlForm "ResetPassword"
 
-sendPasswordResetMail :: SmtpConfig -> User -> ST -> Action Void ()
-sendPasswordResetMail smtpConfig user callbackUrl = do
-    sendMail'P smtpConfig Nothing (user ^. userEmail) subject message
+instance HasForm "ResetPassword" where
+    type FormRendered    "ResetPassword" = H.Html
+    type FormContentType "ResetPassword" = HTM
+    type FormContent     "ResetPassword" = UserEmail
+    type FormActionState "ResetPassword" = FrontendSessionData
+
+    formAction _  = "/user/reset_password_request"
+    isForm _      = resetPasswordForm
+    formView _    = resetPasswordPage
+    formBackend _ = error "HasForm ResetPassword formBackend: impossible"
+
+resetPasswordH :: ServerT ResetPasswordH FAction
+resetPasswordH = htmlForm (Proxy :: Proxy "ResetPassword") $ \userEmail -> do
+    fcfg <- getFrontendConfig
+    loggerF ("password reset request: " ++ show userEmail)
+    (do
+        (user, token) <- lift $ addPasswordResetToken userEmail
+        let url = emailConfirmUrl fcfg "/user/reset_password" (fromPasswordResetToken token)
+        lift $ sendPasswordResetMail user url
+        return resetPasswordRequestedPage)
+      `catchError` \case
+        NoSuchUser -> return resetPasswordRequestedPage  -- FIXME: send out warning, too?
+        e -> throwError e
+
+sendPasswordResetMail :: User -> ST -> Action FActionError ()
+sendPasswordResetMail user callbackUrl = U.unsafeAction $ do
+    U.sendMail Nothing (user ^. userEmail) subject message
   where
     message = "To set a new password, go to " <> callbackUrl
     subject = "Thentos Password Reset"
+
+{-
 
 resetPasswordConfirm :: FH ()
 resetPasswordConfirm = do

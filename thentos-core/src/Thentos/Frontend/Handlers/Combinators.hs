@@ -209,8 +209,8 @@ popAllFrontendMsgs = state $ \s -> (s ^. fsdMessages, fsdMessages .~ [] $ s)
 
 -- * uri manipulation
 
-emailConfirmUrl :: HttpConfig -> ST -> ConfirmationToken -> ST
-emailConfirmUrl feConfig path (ConfirmationToken token) = exposeUrl feConfig <//> toST ref
+emailConfirmUrl :: HttpConfig -> ST -> ST -> ST
+emailConfirmUrl feConfig path token = exposeUrl feConfig <//> toST ref
   where
     ref   = RelativeRef Nothing (cs path) (Query query) Nothing
     query = [("token", urlEncode False . encodeUtf8 $ token)]

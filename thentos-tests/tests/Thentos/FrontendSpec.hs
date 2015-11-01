@@ -9,8 +9,8 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec,
-                   pendingWith)
+import Test.Hspec (Spec, SpecWith, hspec, around, describe, it,
+                   shouldBe, shouldContain, shouldSatisfy, pendingWith)
 
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
@@ -35,10 +35,11 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "selenium grid" $ do
-  describe "many tests" . around (withFrontendAndBackend "test_thentos") $ do
+  describe "many tests" . around (withLogger . withFrontendAndBackend "test_thentos") $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos
+    spec_updateSelf
     spec_logOutOfThentos
     spec_redirectWhenNotLoggedIn
     spec_dontRedirectWhenLoggedIn
@@ -53,11 +54,6 @@ spec = describe "selenium grid" $ do
     spec_logOutOfService
     spec_browseMyServices
     spec_failOnCsrf
-
-  -- (this is a separate top-level test case because it changes the DB
-  -- state and gets the other tests confused.)  FIXME: this shouldn't be necessary!
-  describe "update user" . around (withFrontendAndBackend "test_thentos") $ do
-    spec_updateSelf
 
 
 spec_createUser :: SpecWith ActionState
@@ -168,7 +164,7 @@ spec_updateSelf = describe "update self" $ do
 spec_logIntoThentos :: SpecWith ActionState
 spec_logIntoThentos = it "log into thentos" $ \_ -> withWebDriver $ do
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "Login successful"
+    WD.getSource >>= liftIO . (`shouldContain` ("Login successful" :: String)) . cs
 
 
 spec_logOutOfThentos :: SpecWith ActionState
@@ -176,7 +172,7 @@ spec_logOutOfThentos = it "log out of thentos" $ \_ -> withWebDriver $ do
     -- logout when logged in
     wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout defaultFrontendConfig >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= \s -> liftIO $ s `shouldSatisfy` ST.isInfixOf "You have been logged out"
+    WD.getSource >>= liftIO . (`shouldContain` ("You have been logged out" :: String)) . cs
 
     -- logout when already logged out
     wdLogout defaultFrontendConfig >>= liftIO . (`shouldBe` 400) . C.statusCode

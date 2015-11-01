@@ -88,16 +88,15 @@ basePagelet' title mHeadings body = H.docTypeHtml $ do
         H.h1 $ H.text title
         body
 
--- | Protect a form from CSRF attacks by including a secret token as a hidden
--- field.
--- XXX replace
-csrfProofForm :: ST -> View Html -> ST -> Html -> Html
-csrfProofForm csrfToken v action html = form v action (html <> makeCsrfField csrfToken)
+-- | Protect a form from CSRF attacks by including a secret token as a hidden field.
+csrfProofForm :: FrontendSessionData -> View Html -> ST -> Html -> Html
+csrfProofForm _ v action = form v action . (<> csrfField)
+  where
+    csrfToken :: ST
+    csrfToken = "wef"  -- FIXME: get from state
 
--- XXX replace
-makeCsrfField :: ST -> Html
-makeCsrfField csrfToken =
-    H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
+    csrfField :: Html
+    csrfField = H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
 
 
 -- * dashboard
@@ -162,10 +161,10 @@ data DashboardTab =
 
 -- * register (thentos)
 
-userRegisterPage :: ST -> View Html -> ST -> Html
-userRegisterPage csrfToken v formAction = basePagelet "Create User" $ do
+userRegisterPage :: FrontendSessionData -> View Html -> ST -> Html
+userRegisterPage fsd v formAction = basePagelet "Create User" $ do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "User name:"
             inputText "name" v
@@ -199,12 +198,14 @@ userRegisterRequestedPage = confirmationMailSentPage "Create User"
 
 -- * login (thentos)
 
-userLoginPage :: ST -> [FrontendMsg] -> View Html -> ST -> Html
-userLoginPage csrfToken msgs v formAction = basePagelet "Thentos Login" $ do
-    H.pre $ do
-        H.string $ show msgs
+userLoginPage :: FrontendSessionData -> View Html -> ST -> Html
+userLoginPage fsd v formAction = basePagelet "Thentos Login" $ do
+    H.pre $
+        H.string $ show (fsd ^. fsdMessages)  -- FIXME: print messages in basePagelet!  this way
+                                              -- it's easier to guarantee we don't lose messages
+                                              -- anywhere.
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.table $ do
             H.tr $ do
                 H.td $ label "usernamme" v "Username"
@@ -230,10 +231,10 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordPage :: ST -> ST -> View Html -> Html
-resetPasswordPage csrfToken formAction v = basePagelet "Thentos Login" $ do
+resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
+resetPasswordPage fsd v formAction = basePagelet "Thentos Login" $ do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             H.text "You can send yourself an email with a link to the password reset page."
         H.p $ do
@@ -244,10 +245,10 @@ resetPasswordPage csrfToken formAction v = basePagelet "Thentos Login" $ do
 resetPasswordForm :: Monad m => Form Html m UserEmail
 resetPasswordForm = "email" .: validateEmail (text Nothing)
 
-resetPasswordConfirmPage :: ST -> ST -> View Html -> Html
-resetPasswordConfirmPage csrfToken formAction v = basePagelet "Thentos Login" $ do
+resetPasswordConfirmPage :: FrontendSessionData -> ST -> View Html -> Html
+resetPasswordConfirmPage fsd formAction v = basePagelet "Thentos Login" $ do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "password1" v "New password: "
             inputPassword "password1" v
@@ -269,7 +270,7 @@ resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
 -- * logout (thentos)
 
 userLogoutConfirmSnippet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
-userLogoutConfirmSnippet formAction serviceNames csrfToken _ _ = do
+userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -281,7 +282,8 @@ userLogoutConfirmSnippet formAction serviceNames csrfToken _ _ = do
         H.td $ do
             H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
                 H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
-                makeCsrfField csrfToken
+                -- makeCsrfField csrfToken
+                -- FIXME: do we need csrf protection here?  if so: did this every work?
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
@@ -338,20 +340,20 @@ userServicesDisplaySnippet _ _ = do
                 H.tr $ H.td "Session expires: " >> H.td "in a month"
 
 
-userUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
-userUpdateSnippet csrfToken formAction v _ _ = do
+userUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
+userUpdateSnippet fsd formAction v _ _ = do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "User name: "
             inputText "name" v
         inputSubmit "Update User Data" ! A.id "update_user_submit"
 
 
-passwordUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
-passwordUpdateSnippet csrfToken formAction v _ _ = do
+passwordUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
+passwordUpdateSnippet fsd formAction v _ _ = do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "old_password" v "Current Password: "
             inputPassword "old_password" v
@@ -370,10 +372,10 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
-emailUpdateSnippet csrfToken formAction v _ _ = do
+emailUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
+emailUpdateSnippet fsd formAction v _ _ = do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "email" v "Email Address: "
             inputText "email" v
@@ -385,10 +387,10 @@ emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 -- * services
 
-serviceCreateSnippet :: ST -> ST -> View Html -> u -> rs -> Html
-serviceCreateSnippet csrfToken formAction v _ _ = basePagelet "Create Service" $ do
+serviceCreateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
+serviceCreateSnippet fsd formAction v _ _ = basePagelet "Create Service" $ do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "Service name:"
             inputText "name" v
@@ -405,10 +407,10 @@ serviceCreateForm =
 
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
-serviceRegisterPage :: ST -> ST -> View Html -> ServiceId -> Service -> User -> Html
-serviceRegisterPage csrfToken formAction v sid service user = basePagelet "Register with Service" $ do
+serviceRegisterPage :: FrontendSessionData -> ST -> View Html -> ServiceId -> Service -> User -> Html
+serviceRegisterPage fsd formAction v sid service user = basePagelet "Register with Service" $ do
     childErrorList "" v
-    csrfProofForm csrfToken v formAction $ do
+    csrfProofForm fsd v formAction $ do
         H.hr
         H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
         H.p $ "Your email: " <> H.text (fromUserEmail $ user ^. userEmail)
