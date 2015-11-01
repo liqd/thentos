@@ -15,7 +15,7 @@ module Thentos.Frontend.Handlers where
 import Control.Lens
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.Reader
-import Control.Monad.State (gets, modify)
+import Control.Monad.State (get, gets, modify)
 import Control.Monad.Trans.Class (lift)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid
@@ -68,21 +68,21 @@ loggerU = U.logger System.Log.DEBUG . show
 -- * forms
 
 type HtmlForm (name :: Symbol) typ =
-       FormGet HTM name H.Html typ
+       FormGet HTM name H.Html typ FrontendSessionData
   :<|> FormPost HTM name H.Html typ :> Post '[HTM] H.Html
 
 htmlForm :: (typ -> FAction Html) -> ServerT (HtmlForm name typ) FAction
-htmlForm postHandler = return () :<|> postHandler
+htmlForm postHandler = get :<|> postHandler
 
 
 -- * register (thentos)
 
 type UserRegisterH = "register" :> HtmlForm "UserRegister" UserFormData
 
-instance HasForm "UserRegister" H.Html UserFormData where
+instance HasForm "UserRegister" H.Html UserFormData FrontendSessionData where
     formAction _  = "/user/register"
     isForm _      = userRegisterForm
-    formView _    = userRegisterPage "csrftok"
+    formView _ _  = userRegisterPage "csrftok"
     formBackend _ = error "HasForm UserRegister formBackend: impossible"
 
 userRegisterH :: ServerT UserRegisterH FAction
@@ -139,15 +139,14 @@ userRegisterConfirmH (Just token) = do
 
 type UserLoginH = "login" :> HtmlForm "UserLogin" (UserName, UserPass)
 
-instance HasForm "UserLogin" H.Html (UserName, UserPass) where
+instance HasForm "UserLogin" H.Html (UserName, UserPass) FrontendSessionData where
     formAction _  = "/user/login"
     isForm _      = userLoginForm
-    formView _    = userLoginPage "csrftok" []  -- messages.  we need access to FAction for that, and also for csrf token!
+    formView _ _  = userLoginPage "csrftok" []  -- messages.  we need access to FAction for that, and also for csrf token!
     formBackend _ = error "HasForm UserLogin formBackend: impossible"
 
 userLoginH :: ServerT UserLoginH FAction
 userLoginH = htmlForm $ \(uname, passwd) -> do
-    sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
     (lift (startThentosSessionByUserName uname passwd) >>= userFinishLogin)
         `catchError` \case
             BadCredentials -> do
@@ -159,6 +158,7 @@ userLoginH = htmlForm $ \(uname, passwd) -> do
 -- message that asks to try again.
 userFinishLogin :: (UserId, ThentosSessionToken) -> FAction Html
 userFinishLogin (uid, tok) = do
+    sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
     modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid)
     redirectToDashboardOrService
 

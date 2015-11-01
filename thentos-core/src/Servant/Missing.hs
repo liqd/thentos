@@ -11,6 +11,18 @@
 
 {-| Combinators for digestive-functors
 
+
+**FIXME:**
+
+- the following example is not working any more.  update from specs module.
+- rename 'isForm'.  it's not a boolean.  better names:
+    formAction => servantFromAction
+    isForm => servantForm
+    formView => servantRenderForm
+    formBackend => servantFormBackend
+- replace single-letter names with something more speaking.
+- @v ~ H.Html` may be hardwired into this module in some places, and left variable in others.
+
 The 'FormGet' combinator takes a unit handler and returns the HTML for the form.
 The 'FormPost f v a' combinator provides an argument for the handler
 of type 'a' in case the form can be validated; otherwise it automatically
@@ -51,13 +63,14 @@ Note that file uploads are not supported (requests containing files will crash).
 > instance HasForm "test" H.Html Person where
 >     formAction _  = "post_target"
 >     isForm _      = personForm
->     formView _    = renderPersonForm
+>     formView _    = \v a -> return $ renderPersonForm v a
 >     formBackend _ = error "No backend"
 -}
 module Servant.Missing (FormGet, FormPost, HasForm(..)) where
 
 import           Control.Arrow                 (first)
 import           Control.Monad.IO.Class        (MonadIO, liftIO)
+import           Control.Monad.Trans.Except    (ExceptT)
 import           Data.String.Conversions       (ST)
 import           Data.String                   (fromString)
 import qualified Data.Text.Encoding            as T
@@ -74,17 +87,20 @@ import qualified Text.Blaze.Html5              as H
 import           Text.Digestive                (Env, Form, FormInput(TextInput), View,
                                                 fromPath, getForm, postForm)
 
-data FormPost (contentTypes :: *) f v a
-data FormGet (contentTypes :: *) f v a
 
--- FIXME: @v ~ H.Html` may be hardwired into this module in some places, and left variable in others.
-class HasForm f v a | f -> v, f -> a where
+import Servant.Server.Internal.RoutingApplication
+
+
+data FormPost (contentTypes :: *) f v a
+data FormGet (contentTypes :: *) f v a state
+
+class HasForm f v a state | f -> v, f -> a, f -> state where
     formAction :: Proxy f -> ST
     isForm :: Monad m => Proxy f -> Form v m a
-    formView :: Proxy f -> View v -> ST -> v
+    formView :: Proxy f -> (Maybe state) -> View v -> ST -> v
     formBackend :: Proxy f -> BackEnd FilePath
 
-instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a, H.ToMarkup v, HasServer sublayout)
+instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v, HasServer sublayout)
          => HasServer (FormPost ct f v a :> sublayout) where
     type ServerT (FormPost ct f v a :> sub) m = a -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
@@ -96,19 +112,24 @@ instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a, H.ToMarkup v, HasS
         go req = do
            (v, a) <- runFormP req fname (formBackend fp) (isForm fp)
            case a of
-             Nothing -> return . FailFatal . toServantErr $ formView fp v (formAction fp)
+             Nothing -> do
+                 -- state <- getState
+                 return . FailFatal . toServantErr $ formView fp {- (Just state) -} Nothing v (formAction fp)  -- FIXME: strip Maybe off state.
              Just a' -> return $ Route a'
 
-instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a, H.ToMarkup v)
-      => HasServer (FormGet ct f v a) where
-    type ServerT (FormGet ct f v a) m = m ()
+instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v)
+      => HasServer (FormGet ct f v a state) where
+    type ServerT (FormGet ct f v a state) m = m state
     route _ sub = methodRouter methodGet (Proxy :: Proxy '[ct]) ok200 (go <$> sub)
       where
         fname = fromString $ symbolVal (Proxy :: Proxy f)
         fp = Proxy :: Proxy f
-        go _ = do
+
+        go :: serv ~ ExceptT ServantErr IO => ServerT (FormGet ct f v a state) serv -> serv H.Html
+        go sub = do
+            state <- sub
             v <- getForm fname $ isForm fp
-            return . H.toHtml $ formView fp v (formAction fp)
+            return . H.toHtml $ formView fp (Just state) v (formAction fp)
 
 
 backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m
