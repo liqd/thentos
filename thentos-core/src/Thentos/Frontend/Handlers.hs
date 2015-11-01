@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
@@ -12,38 +14,29 @@
 
 module Thentos.Frontend.Handlers where
 
-import Control.Lens
+import Control.Lens ((.~))
 import Control.Monad.Except (catchError, throwError)
-import Control.Monad.Reader
-import Control.Monad.State (get, gets, modify)
-import Control.Monad.Trans.Class (lift)
-import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Monoid
-import Data.String.Conversions
-import Data.Void
+import Control.Monad.Reader (lift)
+import Control.Monad.State (get, modify)
+import Data.String.Conversions (ST, (<>))
+import Data.Proxy (Proxy(Proxy))
 import GHC.TypeLits (Symbol)
-import Servant
-import Servant.HTML.Blaze
-import Servant.Missing
-import Text.Blaze.Html
-import Text.Digestive.Blaze.Html5
-import Text.Digestive.View
-import URI.ByteString
+import Servant.Missing (HasForm(..), FormGet, FormPost)
+import Servant (QueryParam, (:<|>)((:<|>)), (:>), Get, Post, ServerT)
+import Text.Digestive.View (View)
+import URI.ByteString (RelativeRef(RelativeRef), Query(Query))
 
+import qualified System.Log
 import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Action
 import Thentos.Action.Core
-import Thentos.Config
-import Thentos.Frontend.Pages
 import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.Pages
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
 
-import qualified System.Log
-import qualified System.Log.Missing
 import qualified Thentos.Action.SimpleAuth as U
 import qualified Thentos.Action.Unsafe as U
 
@@ -71,8 +64,24 @@ type HtmlForm (name :: Symbol) typ =
        FormGet HTM name H.Html typ FrontendSessionData
   :<|> FormPost HTM name H.Html typ :> Post '[HTM] H.Html
 
-htmlForm :: (typ -> FAction Html) -> ServerT (HtmlForm name typ) FAction
-htmlForm postHandler = get :<|> postHandler
+htmlForm :: forall (name :: Symbol) typ. HasForm name H.Html typ FrontendSessionData
+    => (typ -> FAction H.Html) -> ServerT (HtmlForm name typ) FAction
+htmlForm postHandler = get :<|> postHandler'
+  where
+    postHandler' :: ( t ~ (ServerT (FormPost HTM name H.Html typ :> Post '[HTM] H.Html) FAction)
+                    , t ~ (Either (View H.Html) typ -> ServerT (Post '[HTM] H.Html) FAction)
+                    ) => t
+    postHandler' (Right t) = postHandler t
+    postHandler' (Left v)  = do
+        state <- get
+        let act :: ST
+            act = formAction (Proxy :: Proxy name)
+
+            fv :: H.Html
+            fv = undefined (v, state, act)  -- formView (Proxy :: Proxy name) state v _
+
+        return fv
+
 
 
 -- * register (thentos)
@@ -115,7 +124,7 @@ sendUserExistsMail address = liftU $
 
 
 type UserRegisterConfirmH = "register_confirm" :>
-    QueryParam "token" ConfirmationToken :> Get '[HTM] Html
+    QueryParam "token" ConfirmationToken :> Get '[HTM] H.Html
 
 defaultUserRoles :: [Role]
 defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
@@ -156,7 +165,7 @@ userLoginH = htmlForm $ \(uname, passwd) -> do
 
 -- | If action yields uid and session token, login.  Otherwise, redirect to login page with a
 -- message that asks to try again.
-userFinishLogin :: (UserId, ThentosSessionToken) -> FAction Html
+userFinishLogin :: (UserId, ThentosSessionToken) -> FAction H.Html
 userFinishLogin (uid, tok) = do
     sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
     modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid)

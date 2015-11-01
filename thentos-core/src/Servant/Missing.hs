@@ -79,16 +79,13 @@ import           Network.HTTP.Types            (methodGet, ok200)
 import           Network.Wai.Parse             (BackEnd, parseRequestBody)
 import           Network.Wai                   (Request)
 import           Servant                       ((:>), Proxy (..))
-import           Servant.API.ContentTypes      (MimeRender, mimeRender)
+import           Servant.API.ContentTypes      (MimeRender)
 import           Servant.Server.Internal       (RouteResult (..), Router'(WithRequest),
-                                                HasServer (..), ServantErr (errBody),
-                                                addBodyCheck, err400, methodRouter)
+                                                HasServer (..), ServantErr,
+                                                addBodyCheck, methodRouter)
 import qualified Text.Blaze.Html5              as H
 import           Text.Digestive                (Env, Form, FormInput(TextInput), View,
                                                 fromPath, getForm, postForm)
-
-
-import Servant.Server.Internal.RoutingApplication
 
 
 data FormPost (contentTypes :: *) f v a
@@ -97,25 +94,22 @@ data FormGet (contentTypes :: *) f v a state
 class HasForm f v a state | f -> v, f -> a, f -> state where
     formAction :: Proxy f -> ST
     isForm :: Monad m => Proxy f -> Form v m a
-    formView :: Proxy f -> (Maybe state) -> View v -> ST -> v
+    formView :: Proxy f -> state -> View v -> ST -> v
     formBackend :: Proxy f -> BackEnd FilePath
 
 instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v, HasServer sublayout)
          => HasServer (FormPost ct f v a :> sublayout) where
-    type ServerT (FormPost ct f v a :> sub) m = a -> ServerT sub m
+    type ServerT (FormPost ct f v a :> sub) m = Either (View v) a -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver $ go req)
       where
         fp = Proxy :: Proxy f
         fname = fromString $ symbolVal fp
-        toServantErr v = err400 { errBody = mimeRender (Proxy :: Proxy ct) $ H.toHtml v }
         go req = do
-           (v, a) <- runFormP req fname (formBackend fp) (isForm fp)
-           case a of
-             Nothing -> do
-                 -- state <- getState
-                 return . FailFatal . toServantErr $ formView fp {- (Just state) -} Nothing v (formAction fp)  -- FIXME: strip Maybe off state.
-             Just a' -> return $ Route a'
+           (v :: View v, ma) <- runFormP req fname (formBackend fp) (isForm fp)
+           return . Route $ case ma of
+             Just a  -> Right a
+             Nothing -> Left v
 
 instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v)
       => HasServer (FormGet ct f v a state) where
@@ -126,10 +120,10 @@ instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v
         fp = Proxy :: Proxy f
 
         go :: serv ~ ExceptT ServantErr IO => ServerT (FormGet ct f v a state) serv -> serv H.Html
-        go sub = do
-            state <- sub
+        go stateAction = do
+            state <- stateAction
             v <- getForm fname $ isForm fp
-            return . H.toHtml $ formView fp (Just state) v (formAction fp)
+            return . H.toHtml $ formView fp state v (formAction fp)
 
 
 backendFormEnv :: MonadIO m => BackEnd a -> Request -> Env m

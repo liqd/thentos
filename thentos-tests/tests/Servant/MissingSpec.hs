@@ -25,7 +25,7 @@ import           Servant                       (Proxy(Proxy), Get, Post, JSON, S
                                                 (:>), (:<|>)((:<|>)), serve)
 import           Servant.HTML.Blaze            (HTML)
 import           System.IO.Unsafe              (unsafePerformIO)
-import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain, pendingWith)
+import           Test.Hspec                    (Spec, describe, context, it, shouldBe, shouldContain)
 import           Test.Hspec.Wai                (get, post, postHtmlForm, shouldRespondWith, with)
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html.Renderer.Utf8 (renderHtml)
@@ -82,7 +82,7 @@ api :: Proxy API
 api = Proxy
 
 server :: Server API
-server = return () :<|> return  -- (\(Just page) -> return page)
+server = return () :<|> (\(Right page) -> return page)
 
 data Person = Person { name :: ST, age :: Int }
     deriving (Eq, Show, Generic)
@@ -149,7 +149,6 @@ formSpecWithAppState = describe "Forms with state" $ with (clearGS >> return (se
     context "FormPost" $ do
         let go i = do
             r <- postHtmlForm "form" [("test.name", "mr. young"), ("test.age", "1")]
-            liftIO $ pendingWith "not implemented."
             liftIO $ cs (simpleBody r) `shouldContain` ("<p>Just " ++ show i ++ "</p>")
 
         it "handles state correctly" $ do
@@ -171,10 +170,8 @@ type APIWAS =
 serverWas :: Server APIWAS
 serverWas = (getGS :<|> postHandler) :<|> (getGS :<|> incGS)
   where
-    postHandler = return
-
---    postHandler Nothing = Left <$> getGS
---    postHandler (Just page) = return $ Right page
+    postHandler Nothing = Left <$> getGS
+    postHandler (Just page) = return $ Right page
 
 renderPersonFormWas :: Maybe Int -> View H.Html -> ST -> H.Html
 renderPersonFormWas state v action = form v action $ do
