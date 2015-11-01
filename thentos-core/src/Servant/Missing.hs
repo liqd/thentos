@@ -74,7 +74,7 @@ import           Control.Monad.Trans.Except    (ExceptT)
 import           Data.String.Conversions       (ST)
 import           Data.String                   (fromString)
 import qualified Data.Text.Encoding            as T
-import           GHC.TypeLits                  (KnownSymbol, symbolVal)
+import           GHC.TypeLits                  (KnownSymbol, Symbol, symbolVal)
 import           Network.HTTP.Types            (methodGet, ok200)
 import           Network.Wai.Parse             (BackEnd, parseRequestBody)
 import           Network.Wai                   (Request)
@@ -86,9 +86,6 @@ import           Servant.Server.Internal       (RouteResult (..), Router'(WithRe
 import qualified Text.Blaze.Html5              as H
 import           Text.Digestive                (Env, Form, FormInput(TextInput), View,
                                                 fromPath, getForm, postForm)
-
-import GHC.TypeLits (Symbol)
-
 
 
 data FormPost (fn :: Symbol)

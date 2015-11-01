@@ -63,6 +63,8 @@ loggerU = U.logger System.Log.DEBUG . show
 
 -- * forms
 
+-- FIXME: 'HtmlForm', 'htmlForm' should go to servant-digestive package, (requires generalization).
+
 type HtmlForm (name :: Symbol) =
        FormGet name
   :<|> FormPost name :> Post '[HTM] H.Html
