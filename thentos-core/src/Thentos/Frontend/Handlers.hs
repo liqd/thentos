@@ -23,7 +23,6 @@ import Data.Proxy (Proxy(Proxy))
 import GHC.TypeLits (Symbol)
 import Servant.Missing (HasForm(..), FormGet, FormPost)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), Get, Post, ServerT)
-import Text.Digestive.View (View)
 import URI.ByteString (RelativeRef(RelativeRef), Query(Query))
 
 import qualified System.Log
@@ -39,6 +38,10 @@ import Thentos.Types
 
 import qualified Thentos.Action.SimpleAuth as U
 import qualified Thentos.Action.Unsafe as U
+
+
+-- import Text.Digestive.View (View)
+-- import qualified Control.Monad.State.Class
 
 
 -- * helpers
@@ -60,22 +63,34 @@ loggerU = U.logger System.Log.DEBUG . show
 
 -- * forms
 
-type HtmlForm (name :: Symbol) typ =
-       FormGet HTM name H.Html typ FrontendSessionData
-  :<|> FormPost HTM name H.Html typ :> Post '[HTM] H.Html
+type HtmlForm (name :: Symbol) =
+       FormGet name
+  :<|> FormPost name :> Post '[HTM] H.Html
 
-htmlForm :: forall (name :: Symbol) typ. HasForm name H.Html typ FrontendSessionData
-    => (typ -> FAction H.Html) -> ServerT (HtmlForm name typ) FAction
+{-
+htmlForm :: forall name typ. HasForm name
+    => (typ -> FAction H.Html) -> ServerT (HtmlForm name) FAction
+
+htmlForm :: forall t (m :: * -> *) t1 t2 s (m1 :: * -> *).
+                  (Control.Monad.State.Class.MonadState t2 m,
+                   Control.Monad.State.Class.MonadState s m1) =>
+                  (t -> m H.Html) -> m1 s :<|> (Either t1 t -> m H.Html)
+-}
+
+htmlForm :: forall fn. HasForm fn
+    => (FormContent fn -> FAction H.Html) -> ServerT (HtmlForm fn) FAction
 htmlForm postHandler = get :<|> postHandler'
   where
-    postHandler' :: ( t ~ (ServerT (FormPost HTM name H.Html typ :> Post '[HTM] H.Html) FAction)
+{-
+    postHandler' :: ( t ~ (ServerT (FormPost name :> Post '[HTM] H.Html) FAction)
                     , t ~ (Either (View H.Html) typ -> ServerT (Post '[HTM] H.Html) FAction)
                     ) => t
+-}
     postHandler' (Right t) = postHandler t
     postHandler' (Left v)  = do
         state <- get
         let act :: ST
-            act = formAction (Proxy :: Proxy name)
+            act = formAction (Proxy :: Proxy fn)
 
             fv :: H.Html
             fv = undefined (v, state, act)  -- formView (Proxy :: Proxy name) state v _
@@ -86,9 +101,14 @@ htmlForm postHandler = get :<|> postHandler'
 
 -- * register (thentos)
 
-type UserRegisterH = "register" :> HtmlForm "UserRegister" UserFormData
+type UserRegisterH = "register" :> HtmlForm "UserRegister"
 
-instance HasForm "UserRegister" H.Html UserFormData FrontendSessionData where
+instance HasForm "UserRegister" where
+    type FormRendered "UserRegister"    = H.Html
+    type FormContentType "UserRegister" = HTM
+    type FormContent "UserRegister"     = UserFormData
+    type FormActionState "UserRegister" = FrontendSessionData
+
     formAction _  = "/user/register"
     isForm _      = userRegisterForm
     formView _ _  = userRegisterPage "csrftok"
@@ -146,9 +166,14 @@ userRegisterConfirmH (Just token) = do
 
 -- * login (thentos)
 
-type UserLoginH = "login" :> HtmlForm "UserLogin" (UserName, UserPass)
+type UserLoginH = "login" :> HtmlForm "UserLogin"
 
-instance HasForm "UserLogin" H.Html (UserName, UserPass) FrontendSessionData where
+instance HasForm "UserLogin" where
+    type FormRendered "UserLogin"    = H.Html
+    type FormContentType "UserLogin" = HTM
+    type FormContent "UserLogin"     = (UserName, UserPass)
+    type FormActionState "UserLogin" = FrontendSessionData
+
     formAction _  = "/user/login"
     isForm _      = userLoginForm
     formView _ _  = userLoginPage "csrftok" []  -- messages.  we need access to FAction for that, and also for csrf token!

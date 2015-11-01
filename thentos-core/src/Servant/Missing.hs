@@ -87,42 +87,61 @@ import qualified Text.Blaze.Html5              as H
 import           Text.Digestive                (Env, Form, FormInput(TextInput), View,
                                                 fromPath, getForm, postForm)
 
+import GHC.TypeLits (Symbol)
 
-data FormPost (contentTypes :: *) f v a
-data FormGet (contentTypes :: *) f v a state
 
-class HasForm f v a state | f -> v, f -> a, f -> state where
-    formAction :: Proxy f -> ST
-    isForm :: Monad m => Proxy f -> Form v m a
-    formView :: Proxy f -> state -> View v -> ST -> v
-    formBackend :: Proxy f -> BackEnd FilePath
 
-instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v, HasServer sublayout)
-         => HasServer (FormPost ct f v a :> sublayout) where
-    type ServerT (FormPost ct f v a :> sub) m = Either (View v) a -> ServerT sub m
+data FormPost (fn :: Symbol)
+data FormGet (fn :: Symbol)
+
+class HasForm fn where
+    type FormRendered fn
+    type FormContent fn
+    type FormContentType fn
+    type FormActionState fn
+
+    formAction :: Proxy fn -> ST
+    isForm :: Monad m => Proxy fn -> Form (FormRendered fn) m (FormContent fn)
+    formView :: Proxy fn -> (FormActionState fn) -> View (FormRendered fn) -> ST -> FormRendered fn
+    formBackend :: Proxy fn -> BackEnd FilePath
+
+instance ( HasForm fn
+         , KnownSymbol fn
+         , MimeRender (FormContentType fn) H.Html
+         , H.ToMarkup (FormRendered fn)
+         , HasServer sublayout
+         )
+         => HasServer (FormPost fn :> sublayout) where
+    type ServerT (FormPost fn :> sub) m = Either (View (FormRendered fn)) (FormContent fn) -> ServerT sub m
     route _ subserver = WithRequest $ \req ->
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver $ go req)
       where
-        fp = Proxy :: Proxy f
-        fname = fromString $ symbolVal fp
+        fp = Proxy :: Proxy fn
+        fn = fromString $ symbolVal fp
+
+        go :: Request -> IO (RouteResult (Either (View (FormRendered fn)) (FormContent fn)))
         go req = do
-           (v :: View v, ma) <- runFormP req fname (formBackend fp) (isForm fp)
+           (v :: View (FormRendered fn), ma) <- runFormP req fn (formBackend fp) (isForm fp)
            return . Route $ case ma of
              Just a  -> Right a
              Nothing -> Left v
 
-instance (MimeRender ct H.Html, KnownSymbol f, HasForm f v a state, H.ToMarkup v)
-      => HasServer (FormGet ct f v a state) where
-    type ServerT (FormGet ct f v a state) m = m state
-    route _ sub = methodRouter methodGet (Proxy :: Proxy '[ct]) ok200 (go <$> sub)
+instance ( HasForm fn
+         , KnownSymbol fn
+         , MimeRender (FormContentType fn) H.Html
+         , H.ToMarkup (FormRendered fn)
+         )
+      => HasServer (FormGet fn) where
+    type ServerT (FormGet fn) m = m (FormActionState fn)
+    route _ sub = methodRouter methodGet (Proxy :: Proxy '[FormContentType fn]) ok200 (go <$> sub)
       where
-        fname = fromString $ symbolVal (Proxy :: Proxy f)
-        fp = Proxy :: Proxy f
+        fp = Proxy :: Proxy fn
+        fn = fromString $ symbolVal (Proxy :: Proxy fn)
 
-        go :: serv ~ ExceptT ServantErr IO => ServerT (FormGet ct f v a state) serv -> serv H.Html
+        go :: serv ~ ExceptT ServantErr IO => ServerT (FormGet fn) serv -> serv H.Html
         go stateAction = do
             state <- stateAction
-            v <- getForm fname $ isForm fp
+            v <- getForm fn $ isForm fp
             return . H.toHtml $ formView fp state v (formAction fp)
 
 
