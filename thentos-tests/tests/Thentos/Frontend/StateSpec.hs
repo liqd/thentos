@@ -68,10 +68,10 @@ spec_frontendState = do
         it "renders 404 correctly." $ do
             resp <- request methodGet "/wef/yo" [] ""
             liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 404
-            liftIO $ pendingWith "rendering of implicit servant 404 (thrown by `HasServer (:>)`) defunct."
+            liftIO $ pendingWith "rendering of implicit servant 404 (thrown by `HasServer (:>)`) cannot be customized."
 
-            -- FIXME: the code in '' is in place.  it would be easy to get this to work with a
-            -- catch-all combinator (https://github.com/haskell-servant/servant/issues/257).
+            -- FIXME: it would be easy to get this to work with a catch-all combinator
+            -- (https://github.com/haskell-servant/servant/issues/257), or in a small middleware.
             liftIO $ cs (simpleBody resp) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
 
