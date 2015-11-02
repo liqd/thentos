@@ -44,23 +44,6 @@ import qualified Thentos.Action.Unsafe as U
 -- import qualified Control.Monad.State.Class
 
 
--- * helpers
-
--- FIXME: these need to be replaced.
-
-liftU :: U.UnsafeAction FActionError a -> FAction a
-liftU = lift . U.unsafeAction
-
-loggerF :: (Show v) => v -> FAction ()
-loggerF = lift . loggerA
-
-loggerA :: (Show v) => v -> Action FActionError ()
-loggerA = U.unsafeAction . loggerU
-
-loggerU :: (Show v) => v -> U.UnsafeAction FActionError ()
-loggerU = U.logger System.Log.DEBUG . show
-
-
 -- * forms
 
 -- FIXME: 'HtmlForm', 'htmlForm' should go to servant-digestive package, (requires generalization).
@@ -174,8 +157,14 @@ userLoginH = htmlForm (Proxy :: Proxy "UserLogin") $ \(uname, passwd) -> do
 userFinishLoginH :: (UserId, ThentosSessionToken) -> FAction H.Html
 userFinishLoginH (uid, tok) = do
     sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
-    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid Nothing)
+    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid (Just DashboardTabDetails))
     redirectToDashboardOrService
+
+
+@@
+-- redirectToDashboardOrService is called, the redirect to dashboard is reached, but when the
+-- dashboard is hit, the state doesn't appear to be intact: both fsdLogin and fsdMessage behave
+-- consistent with being empty.
 
 
 -- * forgot password

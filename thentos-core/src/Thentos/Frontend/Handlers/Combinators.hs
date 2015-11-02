@@ -49,6 +49,23 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
+-- * helpers
+
+-- FIXME: these need to be replaced.
+
+liftU :: U.UnsafeAction FActionError a -> FAction a
+liftU = lift . U.unsafeAction
+
+loggerF :: (Show v) => v -> FAction ()
+loggerF = lift . loggerA
+
+loggerA :: (Show v) => v -> Action FActionError ()
+loggerA = U.unsafeAction . loggerU
+
+loggerU :: (Show v) => v -> U.UnsafeAction FActionError ()
+loggerU = U.logger System.Log.DEBUG . show
+
+
 -- * dashboard construction
 
 -- | Call 'renderDashboard'' to construct a dashboard page and render it in the frontend monad.
@@ -124,7 +141,9 @@ getServiceLoginState :: FAction (Maybe ServiceLoginState)
 getServiceLoginState = gets (^. fsdServiceLoginState)
 
 sendFrontendMsgs :: [FrontendMsg] -> FAction ()
-sendFrontendMsgs msgs = modify $ fsdMessages %~ (++ msgs)
+sendFrontendMsgs msgs = do
+    loggerF msgs
+    modify $ fsdMessages %~ (++ msgs)
 
 sendFrontendMsg :: FrontendMsg -> FAction ()
 sendFrontendMsg = sendFrontendMsgs . (:[])

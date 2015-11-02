@@ -162,9 +162,15 @@ spec_updateSelf = describe "update self" $ do
 
 
 spec_logIntoThentos :: SpecWith ActionState
-spec_logIntoThentos = it "log into thentos" $ \_ -> withWebDriver $ do
-    wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
-    WD.getSource >>= liftIO . (`shouldContain` ("Login successful" :: String)) . cs
+spec_logIntoThentos = describe "log into thentos" $ do
+    describe "with good credentials" $ do
+        it "gets you to dashboard" $ \_ -> withWebDriver $ do
+            wdLogin defaultFrontendConfig godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.getSource >>= liftIO . (`shouldContain` ("Login successful" :: String)) . cs
+    describe "with bad credentials" $ do
+        it "gets you back to the login page with a message" $ \_ -> withWebDriver $ do
+            wdLogin defaultFrontendConfig "9187" "916" >>= liftIO . (`shouldBe` 200) . C.statusCode
+            WD.getSource >>= liftIO . (`shouldContain` ("Bad username or password" :: String)) . cs
 
 
 spec_logOutOfThentos :: SpecWith ActionState
