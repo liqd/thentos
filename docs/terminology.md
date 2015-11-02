@@ -15,7 +15,7 @@ accessible for everybody who gets in contact with thentos.
 
 Unless stated otherwise, all terms relate to concepts as implemented
 in thentos.  Having that said, as
-[Adhocracy 3](https://github.com/liqd/adhocracy3) is the first web app to
+[Adhocracy3](https://github.com/liqd/adhocracy3) is the first web app to
 use thentos, we are covering the terminology for that, too.  Other web
 apps will have different terms and concepts, and this document may be
 extended in the future to cover more of them.
