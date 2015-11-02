@@ -340,8 +340,8 @@ emailUpdateForm :: Monad m => Form Html m UserEmail
 emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 
-passwordUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
-passwordUpdateSnippet fsd formAction v _ _ = do
+passwordUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
+passwordUpdateSnippet fsd v formAction _ _ = do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do

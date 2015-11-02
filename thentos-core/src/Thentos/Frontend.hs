@@ -120,6 +120,9 @@ type UserH =
   :<|> ResetPasswordRequestH
   :<|> ResetPasswordH
   :<|> UserLogoutH
+  :<|> EmailUpdateH
+  :<|> EmailUpdateConfirmH
+  :<|> PasswordUpdateH
 
 userH :: ServerT UserH FAction
 userH =
@@ -129,6 +132,9 @@ userH =
   :<|> resetPasswordRequestH
   :<|> resetPasswordH
   :<|> userLogoutH
+  :<|> emailUpdateH
+  :<|> emailUpdateConfirmH
+  :<|> passwordUpdateH
 
 
 ----------------------------------------------------------------------

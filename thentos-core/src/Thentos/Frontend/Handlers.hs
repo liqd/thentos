@@ -263,7 +263,7 @@ userLogoutDoneH = runAsUserOrLogin $ \_ fsl -> do
 
 -- * user update
 
-type EmailUpdateH = "" :> HtmlForm "EmailUpdate"
+type EmailUpdateH = "update_email" :> HtmlForm "EmailUpdate"
 
 instance HasForm "EmailUpdate" where
     type FormRendered    "EmailUpdate" = H.Html
@@ -281,7 +281,6 @@ emailUpdateH :: ServerT EmailUpdateH FAction
 emailUpdateH = htmlForm (Proxy :: Proxy "EmailUpdate") $ \userEmail -> do
     loggerF ("email change request: " ++ show userEmail)
     fcfg <- getFrontendConfig
-
     let go = do
           runAsUserOrLogin $ \_ fsl -> lift
               . requestUserEmailChange (fsl ^. fslUserId) userEmail
@@ -300,37 +299,45 @@ emailUpdateH = htmlForm (Proxy :: Proxy "EmailUpdate") $ \userEmail -> do
         redirect' "/dashboard"
 
 
-{-
+type EmailUpdateConfirmH = "update_email_confirm" :>
+    QueryParam "token" ConfirmationToken :> Get '[HTM] H.Html
 
-emailUpdateConfirm :: FH ()
-emailUpdateConfirm = do
-    mToken <- (>>= urlDecode) <$> getParam "token"
-    let meToken = ConfirmationToken <$$> decodeUtf8' <$> mToken
-    case meToken of
-        Just (Right token) -> do
-            eResult <- snapRunActionE $ confirmUserEmailChange token
-            case eResult of
-                Right ()          -> sendFrontendMsg (FrontendMsgSuccess "Change email: success!") >> redirect' "/dashboard" 303
-                Left (ActionErrorThentos NoSuchToken)
-                                  -> crash FActionErrorNoToken
-                Left e            -> crash $ FActionError500 e
-        Just (Left _unicodeError) -> crash FActionErrorNoToken
-        Nothing                   -> crash FActionErrorNoToken
+emailUpdateConfirmH :: ServerT EmailUpdateConfirmH FAction
+emailUpdateConfirmH Nothing = crash FActionErrorNoToken
+emailUpdateConfirmH (Just token) = go `catchError`
+      \case NoSuchToken -> crash FActionErrorNoToken
+            e           -> throwError e
+  where
+    go = do
+        lift $ confirmUserEmailChange token
+        sendFrontendMsg (FrontendMsgSuccess "Change email: success!")
+        redirect' "/dashboard"
 
-passwordUpdate :: FH ()
-passwordUpdate = runAsUser $ \ _ fsl -> do
-    tok <- with sess csrfToken
-    runPageletForm passwordUpdateForm
-                   (passwordUpdateSnippet tok) DashboardTabDetails
-                   $ \ (oldPw, newPw) -> do
-        eResult <- snapRunActionE $ changePassword (fsl ^. fslUserId) oldPw newPw
-        case eResult of
-            Right () -> sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard" 303
-            Left (ActionErrorThentos BadCredentials)
-                     -> sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password" 303
-            Left e   -> crash $ FActionError500 e
 
--}
+type PasswordUpdateH = "update_password" :> HtmlForm "PasswordUpdate"
+
+instance HasForm "PasswordUpdate" where
+    type FormRendered    "PasswordUpdate" = H.Html
+    type FormContentType "PasswordUpdate" = HTM
+    type FormContent     "PasswordUpdate" = (UserPass, UserPass)
+    type FormActionState "PasswordUpdate" = FrontendSessionData
+
+    formAction _  = "/user/update_password"
+    isForm _      = passwordUpdateForm
+    formView _    = \fsd v action -> renderDashboard'' $ passwordUpdateSnippet fsd v action  -- FIXME: modify $ fslDashboardTab .~ DashBoardDetails
+    formBackend _ = error "HasForm PasswordUpdate formBackend: impossible"
+
+
+passwordUpdateH :: ServerT PasswordUpdateH FAction
+passwordUpdateH = htmlForm (Proxy :: Proxy "PasswordUpdate") $ \(oldPass, newPass) -> do
+    loggerF ("password change request.")
+    let go = runAsUserOrLogin $ \_ fsl -> lift $ changePassword (fsl ^. fslUserId) oldPass newPass
+        worked = sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard"
+        didn't = sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password"
+
+    (go >> worked) `catchError`
+      \case BadCredentials -> didn't
+            e              -> throwError e
 
 
 -- * services
