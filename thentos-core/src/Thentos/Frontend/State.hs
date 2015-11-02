@@ -173,7 +173,7 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM  fActionServantErr) .
     updatePrivs = gets l >>= lift . updatePrivs'
       where
         l :: FrontendSessionData -> Maybe ThentosSessionToken
-        l (FrontendSessionData (Just (FrontendSessionLoginData t _)) _ _) = Just t
+        l (FrontendSessionData (Just (FrontendSessionLoginData t _ _)) _ _) = Just t
         l _ = Nothing
 
     updatePrivs' :: Maybe ThentosSessionToken -> Action e ()

@@ -76,16 +76,28 @@ emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
 
 data FrontendSessionLoginData =
     FrontendSessionLoginData
-        { _fslToken  :: ThentosSessionToken
-        , _fslUserId :: UserId
+        { _fslToken        :: ThentosSessionToken
+        , _fslUserId       :: UserId
+        , _fslDashboardTab :: DashboardTab
         }
   deriving (Show, Eq, Generic)
+
+data DashboardTab =
+    DashboardTabDetails
+  | DashboardTabServices
+  | DashboardTabOwnServices
+  | DashboardTabUsers
+  | DashboardTabLogout
+  deriving (Eq, Ord, Show, Read, Enum, Bounded, Generic)
 
 instance FromJSON FrontendSessionData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionData where toJSON = Aeson.gtoJson
 
 instance FromJSON FrontendSessionLoginData where parseJSON = Aeson.gparseJson
 instance ToJSON FrontendSessionLoginData where toJSON = Aeson.gtoJson
+
+instance FromJSON DashboardTab where parseJSON = Aeson.gparseJson
+instance ToJSON DashboardTab where toJSON = Aeson.gtoJson
 
 -- | If a user comes from a service login and is sent to the "register
 -- with a new service" page because no valid 'ServiceAccount' exists

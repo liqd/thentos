@@ -150,14 +150,6 @@ dashboardPagelet msgs availableRoles ((==) -> isActive) body =
     linkUrl DashboardTabUsers       = "/dashboard/users"         -- FIXME: not implemented
     linkUrl DashboardTabLogout      = "/user/logout"
 
-data DashboardTab =
-    DashboardTabDetails
-  | DashboardTabServices
-  | DashboardTabOwnServices
-  | DashboardTabUsers
-  | DashboardTabLogout
-  deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable)
-
 
 -- * register (thentos)
 
@@ -372,8 +364,8 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
-emailUpdateSnippet fsd formAction v _ _ = do
+emailUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
+emailUpdateSnippet fsd v formAction _ _ = do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do

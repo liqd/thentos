@@ -249,27 +249,16 @@ userLogoutH :: ServerT UserLogoutH FAction
 userLogoutH = userLogoutConfirm :<|> userLogoutDone
 
 userLogoutConfirm :: FAction H.Html
-userLogoutConfirm = runAsUser loggedIn loggedOut
-  where
-    loggedIn :: FrontendSessionData -> FrontendSessionLoginData -> FAction H.Html
-    loggedIn _ fsl = do
-        serviceNames <- lift $ serviceNamesFromThentosSession (fsl ^. fslToken)
-        -- FIXME: do we need csrf protection for this?
-        renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
-
-    loggedOut :: FAction H.Html
-    loggedOut = redirect' "/user/login"
+userLogoutConfirm = runAsUserOrLogin $ \_ fsl -> do
+    serviceNames <- lift $ serviceNamesFromThentosSession (fsl ^. fslToken)
+    -- FIXME: do we need csrf protection for this?
+    renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
 
 userLogoutDone :: FAction H.Html
-userLogoutDone = runAsUser loggedIn loggedOut
-  where
-    loggedIn _ fsl = do
-        lift $ endThentosSession (fsl ^. fslToken)
-        modify $ fsdLogin .~ Nothing
-        return userLogoutDonePage
-
-    loggedOut :: FAction H.Html
-    loggedOut = redirect' "/user/login"
+userLogoutDone = runAsUserOrLogin $ \_ fsl -> do
+    lift $ endThentosSession (fsl ^. fslToken)
+    modify $ fsdLogin .~ Nothing
+    return userLogoutDonePage
 
 
 -- * user update

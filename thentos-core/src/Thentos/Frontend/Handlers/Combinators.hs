@@ -156,7 +156,7 @@ runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a)
 runAsUser loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- get
     case sessionData ^. fsdLogin of
-        Just sessionLoginData@(FrontendSessionLoginData tok uid)  -> do
+        Just sessionLoginData@(FrontendSessionLoginData tok uid _)  -> do
             lift $ accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
             loggedInHandler sessionData sessionLoginData
         Nothing -> loggedOutHandler
