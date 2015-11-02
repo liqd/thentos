@@ -39,6 +39,7 @@ spec = describe "selenium grid" $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos
+{-
     spec_updateSelf
     spec_logOutOfThentos
     spec_redirectWhenNotLoggedIn
@@ -54,6 +55,7 @@ spec = describe "selenium grid" $ do
     spec_logOutOfService
     spec_browseMyServices
     spec_failOnCsrf
+-}
 
 
 spec_createUser :: SpecWith ActionState

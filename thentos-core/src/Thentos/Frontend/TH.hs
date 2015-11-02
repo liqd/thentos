@@ -2,12 +2,16 @@
 
 module Thentos.Frontend.TH where
 
-import System.FilePath ((</>))
 import Language.Haskell.TH (Q, Exp, runIO)
 import Language.Haskell.TH.Quote (dataToExpQ)
+import System.FilePath ((</>))
+import System.IO.Unsafe (unsafePerformIO)
 
+import Paths_thentos_core (getDataFileName)
+
+{-# NOINLINE staticContentRoot #-}
 staticContentRoot :: FilePath
-staticContentRoot = "frontend/static/"
+staticContentRoot = unsafePerformIO $ getDataFileName "frontend/static/"
 
 loadStaticContent :: FilePath -> Q Exp
 loadStaticContent filePath =

@@ -83,6 +83,7 @@ sensei:
 	cd thentos-core && cabal clean
 	@echo "if you get CPP-related errors, try 'make sensei-update-cabal_macros'."
 	cabal exec -- sensei \
+	  -ignore-dot-ghci \
 	  -i./thentos-core/src/ \
 	  -i./thentos-core/src-devel/ \
 	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
@@ -104,11 +105,13 @@ repl:
 	cd thentos-core && cabal clean
 	@echo "if you get CPP-related errors, try 'make sensei-update-cabal_macros'."
 	cabal exec -- ghci \
+	  -ignore-dot-ghci \
 	  -i./thentos-core/src/ \
 	  -i./thentos-core/src-devel/ \
 	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
 	  -i./thentos-tests/src/ \
-	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
+	  -i./thentos-tests/tests/ \
+	  ./thentos-core/src/Thentos/Frontend.hs $(SENSEI_ARGS)
 
 
 # scratch
