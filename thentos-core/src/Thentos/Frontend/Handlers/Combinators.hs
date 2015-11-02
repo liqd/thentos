@@ -150,16 +150,15 @@ runAsUserOrLogin :: (FrontendSessionData -> FrontendSessionLoginData -> FAction 
 runAsUserOrLogin = (`runAsUser` redirect' "/user/login")
 
 -- | Runs a given handler with the credentials and the session data of the currently logged-in user.
--- If not logged in, call a default handler that runs without any special clearance.
+-- If not logged in, call a default handler that runs without any special clearance.  (NOTE:
+-- Clearance modification does not happen here, but in 'enterFAction'.)
 runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a)
       -> FAction a -> FAction a
 runAsUser loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- get
     case sessionData ^. fsdLogin of
-        Just sessionLoginData@(FrontendSessionLoginData tok uid _)  -> do
-            lift $ accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
-            loggedInHandler sessionData sessionLoginData
-        Nothing -> loggedOutHandler
+        Just sessionLoginData -> loggedInHandler sessionData sessionLoginData
+        Nothing               -> loggedOutHandler
 
 
 -- * session management
@@ -202,8 +201,8 @@ sendFrontendMsgs msgs = modify $ fsdMessages %~ (++ msgs)
 sendFrontendMsg :: FrontendMsg -> FAction ()
 sendFrontendMsg = sendFrontendMsgs . (:[])
 
-popAllFrontendMsgs :: FAction [FrontendMsg]
-popAllFrontendMsgs = state $ \s -> (s ^. fsdMessages, fsdMessages .~ [] $ s)
+clearAllFrontendMsgs :: FAction ()
+clearAllFrontendMsgs = state $ \s -> ((), fsdMessages .~ [] $ s)
 
 
 -- * uri manipulation

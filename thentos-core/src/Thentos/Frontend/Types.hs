@@ -78,7 +78,7 @@ data FrontendSessionLoginData =
     FrontendSessionLoginData
         { _fslToken        :: ThentosSessionToken
         , _fslUserId       :: UserId
-        , _fslDashboardTab :: DashboardTab
+        , _fslDashboardTab :: Maybe DashboardTab
         }
   deriving (Show, Eq, Generic)
 
