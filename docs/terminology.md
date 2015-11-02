@@ -88,7 +88,7 @@ There are two related use cases:
 There are many possible security requirements involving personas, from
 secrecy of specific information about the user (usually the user wants
 that) to authenticity and uniqueness of the anonymized user (such as
-sybil attack, or sock puppet countermeasures; usually the web app
+sybil attack, or sockpuppet countermeasures; usually the web app
 wants that).
 
 
@@ -127,14 +127,15 @@ than that.  For example, when programming an action, it lets express
 logic along the following lines:
 
     - user X requests the list of connected web apps;
-    - service Y gets notified that a user with group Y wants to view
+    - service Y gets notified that a user with group Z wants to view
       its profile;
-    - service Y clears its profile for 'can be viewed by X'.
+    - service Y clears its profile for 'can be viewed by user X'
+      (without ever learning 'X').
     - user X gets a response.
 
-Obviously, this can be expressed in any web framework.  The benefit of
-a good IFC system is that it lets you do so in a very concise and
-robust way.
+Arguably, this can be expressed in other web frameworks as well.  The
+benefit of a good IFC system is that it lets you do so in a very
+concise and robust way.
 
 Thentos uses [lio](https://hackage.haskell.org/package/lio) for IFC.
 
@@ -145,14 +146,11 @@ When writing an action, the programmer can check things like that the
 performing user is logged in, has a given user id, or is part of a
 user group.
 
-If the check fails, an authorization error occurs.  This can be quite
-harmless and handled without appearing as an error on the user
-interface.  For example, if the user mis-spells their user name during
-login, a good login system will catch the authorization error and
-present a deliberately vague message: "user name *or* password are
-wrong", to make it harder to guess and confirm user names.
+If the check fails, an authorization error occurs.
 
-In thentos, auth checks are implemented in terms of IFC.
+In thentos, auth checks are implemented in terms of IFC.  Conversely,
+it is not possible to implement IFC in terms of auth checks: auth
+checks are strictly less expressive.
 
 
 ### Permission
@@ -170,23 +168,26 @@ checks (see above).
 
 ### Identification
 
-Identification is the process of recording user attributes or
-disseminating them from thentos to web apps.  Examples for user
-attributes are user name, residential address, or persona name.
+Identification is the process of recording user information or
+disseminating it from thentos to web apps.  Examples for user
+information are user name, residential address, or persona name.
 
 
 ### Qualification
 
-Qualification is the process of establishing that the identification
-information is valid.  Examples: confirmation by link in email;
-captchas; sms-tan; registration with government-issued electronic
-identity card.
+Qualification is a process of establishing that the identification
+information is valid or correct.  There are many options here, and the
+precise meaning of "valid" and "correct" depends on the particular
+process.
+
+Examples: confirmation by link in email; captchas; sms-tan;
+registration with government-issued electronic identity card.
 
 
 ### Authentication
 
 Authentication is the process of establishing that an identification
-is reliable.  Password checks or tan-generator devices are
+is reliable.  Password checks or tan-generating devices are
 authentication mechanisms.  Authentication is conceptually different
 from identification, but the two really only make sense together.
 
@@ -195,18 +196,19 @@ from identification, but the two really only make sense together.
 
 A user group is a set that contains users and other user groups.
 
-Motivation: User groups are needed for giving permissions to many
-users in one atomic operation.  An example for why groups of groups
+Motivation: User groups are needed for granting certain access privileges to many
+users at once.  An example for why groups of groups
 can be useful: consider the groups `user`, `confirmed user`, `admin`.
-An `admin` is a `confirmed user` with something extra.  Groups of
+An `admin` is a `confirmed user` with something extra,
+and every `confirmed user` is a `user` with something extra.  Groups of
 groups allow us to construct a group by expressing that directly.
 
 
 ### Persona Group
 
 Persona groups are very similar to user groups.  In fact, while they still live
-inside thentos, they are the equivalent of user groups for web apps.  Where
-user groups are about users, persona groups are about personas.  And where a user group is
+inside thentos, they are the equivalent of user groups for web apps.  While
+user groups are about users, persona groups are about personas.  And while a user group is
 valid in a thentos installation globally, a persona group is local to a web
 app registered with thentos.  (If thentos only serves one web app,
 this is not much of a distinction.  But if there are many web apps
@@ -226,7 +228,7 @@ https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-term
 
 ### Group (Adhocracy3)
 
-Has the same double-correspondence from thentos user groups and
+Has the same double-correspondence to thentos user groups and
 thentos persona groups.
 
 See
