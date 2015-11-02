@@ -117,13 +117,18 @@ type UserH =
        UserRegisterH
   :<|> UserRegisterConfirmH
   :<|> UserLoginH
+  :<|> ResetPasswordRequestH
+  :<|> ResetPasswordH
+  :<|> UserLogoutH
 
 userH :: ServerT UserH FAction
 userH =
        userRegisterH
   :<|> userRegisterConfirmH
   :<|> userLoginH
-
+  :<|> resetPasswordRequestH
+  :<|> resetPasswordH
+  :<|> userLogoutH
 
 
 ----------------------------------------------------------------------

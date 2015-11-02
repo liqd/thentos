@@ -46,7 +46,7 @@ import qualified Thentos.Action.Unsafe as U
 
 -- * helpers
 
--- FIXME these need to be replaced.
+-- FIXME: these need to be replaced.
 
 liftU :: U.UnsafeAction FActionError a -> FAction a
 liftU = lift . U.unsafeAction
@@ -180,21 +180,21 @@ userFinishLogin (uid, tok) = do
 
 -- * forgot password
 
-type ResetPasswordH = "reset_password_request" :> HtmlForm "ResetPassword"
+type ResetPasswordRequestH = "reset_password_request" :> HtmlForm "ResetPasswordRequest"
 
-instance HasForm "ResetPassword" where
-    type FormRendered    "ResetPassword" = H.Html
-    type FormContentType "ResetPassword" = HTM
-    type FormContent     "ResetPassword" = UserEmail
-    type FormActionState "ResetPassword" = FrontendSessionData
+instance HasForm "ResetPasswordRequest" where
+    type FormRendered    "ResetPasswordRequest" = H.Html
+    type FormContentType "ResetPasswordRequest" = HTM
+    type FormContent     "ResetPasswordRequest" = UserEmail
+    type FormActionState "ResetPasswordRequest" = FrontendSessionData
 
     formAction _  = "/user/reset_password_request"
-    isForm _      = resetPasswordForm
-    formView _    = resetPasswordPage
-    formBackend _ = error "HasForm ResetPassword formBackend: impossible"
+    isForm _      = resetPasswordRequestForm
+    formView _    = resetPasswordRequestPage
+    formBackend _ = error "HasForm ResetPasswordRequest formBackend: impossible"
 
-resetPasswordH :: ServerT ResetPasswordH FAction
-resetPasswordH = htmlForm (Proxy :: Proxy "ResetPassword") $ \userEmail -> do
+resetPasswordRequestH :: ServerT ResetPasswordRequestH FAction
+resetPasswordRequestH = htmlForm (Proxy :: Proxy "ResetPasswordRequest") $ \userEmail -> do
     fcfg <- getFrontendConfig
     loggerF ("password reset request: " ++ show userEmail)
     (do
@@ -213,59 +213,63 @@ sendPasswordResetMail user callbackUrl = U.unsafeAction $ do
     message = "To set a new password, go to " <> callbackUrl
     subject = "Thentos Password Reset"
 
-{-
 
-resetPasswordConfirm :: FH ()
-resetPasswordConfirm = do
-    mToken <- (>>= urlDecode) <$> getParam "token"
-    let meToken = PasswordResetToken <$$> decodeUtf8' <$> mToken
+type ResetPasswordH =
+      "reset_password" :> QueryParam "token" PasswordResetToken :> HtmlForm "ResetPassword"
 
-    runPageForm resetPasswordConfirmForm resetPasswordConfirmPage $ \ password -> case meToken of
-        -- process reset form input
-        (Just (Right token)) -> do
-            eResult <- snapRunActionE $ A.resetPassword token password
-            case eResult of
-                Right () -> do
-                    sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
+instance HasForm "ResetPassword" where
+    type FormRendered    "ResetPassword" = H.Html
+    type FormContentType "ResetPassword" = HTM
+    type FormContent     "ResetPassword" = UserPass
+    type FormActionState "ResetPassword" = FrontendSessionData
 
-                    -- FIXME: what we would like to do here is login
-                    -- the user right away:
-                    --
-                    -- >>> userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
-                    --
-                    -- But we need the uid for that, and we need to
-                    -- find it under the confirmation token in the DB
-                    -- (taking it from the request would be insecure!)
+    formAction _  = "/user/reset_password"
+    isForm _      = resetPasswordForm
+    formView _    = resetPasswordPage
+    formBackend _ = error "HasForm ResetPassword formBackend: impossible"
 
-                    redirect' "/dashboard" 303
-                Left (ActionErrorThentos NoSuchToken) -> crash FActionErrorNoToken
-                Left e -> do
-                    crash $ FActionError500 "Change password: error."
+resetPasswordH :: ServerT ResetPasswordH FAction
+resetPasswordH Nothing = error "crash FActionErrorNoToken"  -- FIXME: types
+resetPasswordH (Just tok) = htmlForm (Proxy :: Proxy "ResetPassword") $ \password -> do
+    fcfg <- getFrontendConfig
+    lift $ resetPassword tok password
 
-        -- error cases
-        (Just (Left _)) -> crash FActionErrorNoToken
-        Nothing         -> crash FActionErrorNoToken
+    sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
+    redirect' "/dashboard"
+
+    -- FIXME: what we would like to do here is login the user right away, with something like
+    -- userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
 
 
 -- * logout (thentos)
 
-userLogout :: FH ()
-userLogout = method GET  userLogoutConfirm
-         <|> method POST userLogoutDone
+type UserLogoutH = "logout" :> (Get '[HTM] H.Html :<|> Post '[HTM] H.Html)
 
-userLogoutConfirm :: FH ()
-userLogoutConfirm = runAsUser $ \ _ fsl -> do
-    eServiceNames <- snapRunActionE $ serviceNamesFromThentosSession (fsl ^. fslToken)
-    tok <- with sess csrfToken
-    case eServiceNames of
-        Right serviceNames -> renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames tok)
-        Left e -> crash $ FActionError500 e
+userLogoutH :: ServerT UserLogoutH FAction
+userLogoutH = userLogoutConfirm :<|> userLogoutDone
 
-userLogoutDone :: FH ()
-userLogoutDone = runAsUser $ \ _ fsl -> do
-    snapRunAction $ endThentosSession (fsl ^. fslToken)
-    modifySessionData' $ fsdLogin .~ Nothing
-    blaze userLogoutDonePage
+userLogoutConfirm :: FAction H.Html
+userLogoutConfirm = runAsUser loggedIn loggedOut
+  where
+    loggedIn :: FrontendSessionData -> FrontendSessionLoginData -> FAction H.Html
+    loggedIn _ fsl = do
+        serviceNames <- lift $ serviceNamesFromThentosSession (fsl ^. fslToken)
+        -- FIXME: do we need csrf protection for this?
+        renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
+
+    loggedOut :: FAction H.Html
+    loggedOut = redirect' "/user/login"
+
+userLogoutDone :: FAction H.Html
+userLogoutDone = runAsUser loggedIn loggedOut
+  where
+    loggedIn _ fsl = do
+        lift $ endThentosSession (fsl ^. fslToken)
+        modify $ fsdLogin .~ Nothing
+        return userLogoutDonePage
+
+    loggedOut :: FAction H.Html
+    loggedOut = redirect' "/user/login"
 
 
 -- * user update
@@ -291,6 +295,8 @@ emailUpdate = runAsUser $ \ _ fsl -> do
             FrontendMsgSuccess "It will be activated once you process the confirmation email." :
             []
         redirect' "/dashboard" 303
+
+{-
 
 emailUpdateConfirm :: FH ()
 emailUpdateConfirm = do

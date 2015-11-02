@@ -152,6 +152,10 @@ instance FromHttpApiData ConfirmationToken where
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
+instance FromHttpApiData PasswordResetToken where
+    parseQueryParam tok = PasswordResetToken <$>
+        either (Left . cs . show) (Right . id) (decodeUtf8' $ cs tok)
+
 -- | Information required to create a new User
 data UserFormData =
     UserFormData

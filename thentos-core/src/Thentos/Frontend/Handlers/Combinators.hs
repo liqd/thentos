@@ -22,15 +22,6 @@ import Data.Text.Encoding (encodeUtf8)
 import Data.Void (Void)
 import LIO.Error (AnyLabelError)
 import Network.HTTP.Types (urlEncode)
-{-
-import Snap.Core
-    ( getResponse, finishWith, urlEncode, getParam
-    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
-    )
-import Snap.Inline (blanketCSRF)
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
--}
 import Servant hiding (URI)
 import System.Log.Missing (logger)
 import System.Log (Priority(DEBUG, CRITICAL, INFO))
@@ -46,7 +37,6 @@ import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
 import LIO.Missing
--- import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
@@ -59,6 +49,18 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
+{-
+import Snap.Core
+    ( getResponse, finishWith, urlEncode, getParam
+    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
+    )
+import Snap.Inline (blanketCSRF)
+import Snap.Snaplet (Handler, with)
+import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
+-- import Snap.Missing (blaze)
+-}
+
+
 -- * dashboard construction
 
 -- | Call 'buildDashboard' to consruct a dashboard page and render it into the application monad.
@@ -68,7 +70,7 @@ renderDashboard tab pagelet = renderDashboard' tab (\u -> return . pagelet u)
 -- | Like 'buildDashboard', but take a pagelet builder instead of a pagelet.
 renderDashboard' :: DashboardTab -> (User -> [Role] -> FAction H.Html) -> FAction H.Html
 renderDashboard' tab pageletBuilder = do
-    runAsUser $ \_ sessionLoginData -> do
+    runAsUserOrLogin $ \_ sessionLoginData -> do
         msgs <- popAllFrontendMsgs
         let uid = sessionLoginData ^. fslUserId
         (_, user) <- lift $ lookupConfirmedUser uid
@@ -143,22 +145,19 @@ runHandlerForm f handler a = do
 
 -- * authentication
 
--- | Call 'runAsUserOrNot', and redirect to login page if not logged
--- in.
-runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a) -> FAction a
-runAsUser = (`runAsUserOrNot` redirect' "/user/login")
+-- | Call 'runAsUser', and redirect to login page if not logged in.
+runAsUserOrLogin :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a) -> FAction a
+runAsUserOrLogin = (`runAsUser` redirect' "/user/login")
 
--- | Runs a given handler with the credentials and the session data of
--- the currently logged-in user.  If not logged in, call a default
--- handler that runs without any special clearance.
--- We don't have to verify that the user matches the session, since both are
--- stored in encrypted in the session cookie, so they cannot be manipulated
--- by the user.
-runAsUserOrNot :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a) -> FAction a -> FAction a
-runAsUserOrNot loggedInHandler loggedOutHandler = do
+-- | Runs a given handler with the credentials and the session data of the currently logged-in user.
+-- If not logged in, call a default handler that runs without any special clearance.
+runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a)
+      -> FAction a -> FAction a
+runAsUser loggedInHandler loggedOutHandler = do
     sessionData :: FrontendSessionData <- get
     case sessionData ^. fsdLogin of
-        Just sessionLoginData -> do
+        Just sessionLoginData@(FrontendSessionLoginData tok uid)  -> do
+            lift $ accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
             loggedInHandler sessionData sessionLoginData
         Nothing -> loggedOutHandler
 

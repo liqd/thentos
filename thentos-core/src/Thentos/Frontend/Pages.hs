@@ -20,11 +20,11 @@ module Thentos.Frontend.Pages
     , userLoginPage
     , userLoginForm
 
+    , resetPasswordRequestPage
+    , resetPasswordRequestForm
+    , resetPasswordRequestedPage
     , resetPasswordPage
     , resetPasswordForm
-    , resetPasswordRequestedPage
-    , resetPasswordConfirmPage
-    , resetPasswordConfirmForm
 
     , userLogoutConfirmSnippet
     , userLogoutDonePage
@@ -203,7 +203,7 @@ userLoginPage fsd v formAction = basePagelet "Thentos Login" $ do
     H.pre $
         H.string $ show (fsd ^. fsdMessages)  -- FIXME: print messages in basePagelet!  this way
                                               -- it's easier to guarantee we don't lose messages
-                                              -- anywhere.
+                                              -- anywhere.  (see also: 'renderDashboard')
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.table $ do
@@ -231,8 +231,8 @@ userLoginForm = (,)
 
 -- * forgot password
 
-resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
-resetPasswordPage fsd v formAction = basePagelet "Thentos Login" $ do
+resetPasswordRequestPage :: FrontendSessionData -> View Html -> ST -> Html
+resetPasswordRequestPage fsd v formAction = basePagelet "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -242,11 +242,15 @@ resetPasswordPage fsd v formAction = basePagelet "Thentos Login" $ do
             inputText "email" v
         inputSubmit "Send"
 
-resetPasswordForm :: Monad m => Form Html m UserEmail
-resetPasswordForm = "email" .: validateEmail (text Nothing)
+resetPasswordRequestForm :: Monad m => Form Html m UserEmail
+resetPasswordRequestForm = "email" .: validateEmail (text Nothing)
 
-resetPasswordConfirmPage :: FrontendSessionData -> ST -> View Html -> Html
-resetPasswordConfirmPage fsd formAction v = basePagelet "Thentos Login" $ do
+resetPasswordRequestedPage :: Html
+resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
+    "Thank you for your password reset request." "the process"
+
+resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
+resetPasswordPage fsd v formAction = basePagelet "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -257,14 +261,10 @@ resetPasswordConfirmPage fsd formAction v = basePagelet "Thentos Login" $ do
             inputPassword "password2" v
         inputSubmit "Set your new password"
 
-resetPasswordConfirmForm :: Monad m => Form Html m UserPass
-resetPasswordConfirmForm = validate validatePass $ (,)
+resetPasswordForm :: Monad m => Form Html m UserPass
+resetPasswordForm = validate validatePass $ (,)
     <$> (UserPass <$> "password1" .: validateNonEmpty "password" (text Nothing))
     <*> (UserPass <$> "password2" .: validateNonEmpty "password" (text Nothing))
-
-resetPasswordRequestedPage :: Html
-resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
-    "Thank you for your password reset request." "the process"
 
 
 -- * logout (thentos)
