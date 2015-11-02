@@ -11,7 +11,9 @@ systems use different abstractions and thus use the same names with
 different meaning without always being aware of the differences.
 
 This document is attempt to establish common terminology and make it
-accessible for everybody who gets in contact with thentos.
+accessible for everybody who gets in contact with thentos.  In order
+to minimize forward references, it is organized semantically, not
+alphabetically.
 
 Unless stated otherwise, all terms relate to concepts as implemented
 in thentos.  Having that said, as
@@ -107,6 +109,88 @@ expose the user id to it, which would break the pseudonymity use case
 of personas.
 
 
+### Action
+
+A user can perform out actions.  An action is characterized by a
+result value extracted from thentos and/or connected web apps, and the
+effect that it has on them.
+
+Everything the user does is at some point, under the hood, an action.
+An action may carry out authorization checks in order to decide
+whether a user is allowed to perform it (see above).
+
+
+### Information flow control (IFC)
+
+IFC can be used to express simple permissions, but is more powerful
+than that.  For example, when programming an action, it lets express
+logic along the following lines:
+
+    - user X requests the list of connected web apps;
+    - service Y gets notified that a user with group Y wants to view
+      its profile;
+    - service Y clears its profile for 'can be viewed by X'.
+    - user X gets a response.
+
+Obviously, this can be expressed in any web framework.  The benefit of
+a good IFC system is that it lets you do so in a very concise and
+robust way.
+
+Thentos uses [lio](https://hackage.haskell.org/package/lio) for IFC.
+
+
+### Authorization check
+
+When writing an action, the programmer can check things like that the
+performing user is logged in, has a given user id, or is part of a
+user group.
+
+If the check fails, an authorization error occurs.  This can be quite
+harmless and handled without appearing as an error on the user
+interface.  For example, if the user mis-spells their user name during
+login, a good login system will catch the authorization error and
+present a deliberately vague message: "user name *or* password are
+wrong", to make it harder to guess and confirm user names.
+
+In thentos, auth checks are implemented in terms of IFC.
+
+
+### Permission
+
+A common notion of permission is that of an object that groups an
+action (the thing that is allowed to to) and another object (the thing
+that it is allowed to do it to).  Permissions can be assigned to users
+(or groups, see below) to express that the user may perform an action
+on an object.
+
+In thentos, permissions do not occur as a concept.  Instead, we use a
+more powerful notions of information flow control and authorization
+checks (see above).
+
+
+### Identification
+
+Identification is the process of recording user attributes or
+disseminating them from thentos to web apps.  Examples for user
+attributes are user name, residential address, or persona name.
+
+
+### Qualification
+
+Qualification is the process of establishing that the identification
+information is valid.  Examples: confirmation by link in email;
+captchas; sms-tan; registration with government-issued electronic
+identity card.
+
+
+### Authentication
+
+Authentication is the process of establishing that an identification
+is reliable.  Password checks or tan-generator devices are
+authentication mechanisms.  Authentication is conceptually different
+from identification, but the two really only make sense together.
+
+
 ### User Group
 
 A user group is a set that contains users and other user groups.
@@ -116,29 +200,6 @@ users in one atomic operation.  An example for why groups of groups
 can be useful: consider the groups `user`, `confirmed user`, `admin`.
 An `admin` is a `confirmed user` with something extra.  Groups of
 groups allow us to construct a group by expressing that directly.
-
-
-### Action
-
-FIXME.
-
-
-### Authorization check
-
-FIXME: explain the idea of `assertAuth`, `isUser`, `hasRole`.
-
-
-### Information flow control (IFC)
-
-FIXME.
-
-
-### Permission
-
-Permissions are not used as a concept in thentos.  Instead, we use a
-more powerful notion of information flow control (IFC), and,
-implemented in terms of IFC, the notion of authorization checks.  See
-above.
 
 
 ### Persona Group
@@ -187,13 +248,3 @@ https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-term
 
 Like thentos permission.  See
 https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-19.
-
-
-## FIXME:
-
-should we make this an alphabetical list?
-
-what about these terms?:
-
-- identification
-- qualification (in the sense of berlin servicekonto)
