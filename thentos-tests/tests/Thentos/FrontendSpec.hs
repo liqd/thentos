@@ -65,7 +65,7 @@ spec_createUser = describe "create user" $ do
     it "fill out form." $ \(ActionState (connPool, _, _)) -> do
         withWebDriver $ do
             WD.openPageSync (cs $ exposeUrl defaultFrontendConfig)
-            WD.findElem (WD.ByLinkText "Register new user") >>= WD.clickSync
+            WD.findElem (WD.ById "login_create_new") >>= WD.clickSync
 
             fill "UserRegister.name" myUsername
             fill "UserRegister.password1" myPassword

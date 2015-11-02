@@ -8,7 +8,7 @@
 module Thentos.Frontend.Handlers.Combinators where
 
 import Control.Concurrent.MVar (MVar)
-import Control.Lens ((^.), (%~), (.~))
+import Control.Lens ((^.), (%~), (.~), _Just)
 import Control.Monad.Except (liftIO, throwError, catchError)
 import Control.Monad.State.Class (get, gets, modify, state)
 import Control.Monad.Trans.Class (lift)
@@ -134,7 +134,7 @@ clearAllFrontendMsgs = state $ \s -> ((), fsdMessages .~ [] $ s)
 
 -- | If logged in: set current dashboard tab.
 setCurrentDashboardTab :: DashboardTab -> FAction ()
-setCurrentDashboardTab tab = modify $ error "setCurrentDashboardTab"
+setCurrentDashboardTab tab = modify $ (fsdLogin . _Just . fslDashboardTab) .~ Just tab
 
 
 -- * uri manipulation
