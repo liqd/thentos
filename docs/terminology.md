@@ -15,10 +15,19 @@ accessible for everybody who gets in contact with thentos.
 
 Unless stated otherwise, all terms relate to concepts as implemented
 in thentos.  Having that said, as
-https://github.com/liqd/adhocracy3.mercator is the first web app to
+[Adhocracy 3](https://github.com/liqd/adhocracy3) is the first web app to
 use thentos, we are covering the terminology for that, too.  Other web
 apps will have different terms and concepts, and this document may be
 extended in the future to cover more of them.
+
+
+### Web App, or App, or Service
+
+These terms are used synonymously.  They refer to the software that
+wants users to be managed and interoperates with thentos to get that
+job done.
+
+Example: Adhocracy.
 
 
 ### User
@@ -35,72 +44,109 @@ called actions.  An attempted action may trigger an authorization
 error (see below).
 
 
-### Nym
+### Persona
 
-FIXME: used to be called persona in thentos, too.  fisx likes 'nym'
-better: less overloading, shorter, prettier.  should we have a vote on
-renaming it?  other options: pseudonym, nick, identity.
+Motivation: A person may want to assume different identities at
+different times.  A simple way to achieve that would be to create many
+users, but on the other hand some things like residential address or
+system notifications, should be shared between those identities.
 
-A person may want to assume different identities at different times.
-A simple way to achieve that would be to create many users, but on the
-other hand some things like residential address or system
-notifications, should be shared between those identities.
+'Persona' is a technical concept to meet these needs.  Depending on
+the specifics, the UI may look very different, ranging from "user has
+an anonymity button" to "admin manages privacy setting in a
+configuration file".  This document is only about the technical terms,
+not how they are exposed to the user.
 
-A nym is like a login name, but one user can have a list of many nyms.
-Web app can be set up to have access to the nym, but not the user name
+A persona is like a login name, but one user can have a list of many personas.
+Web app can be set up to have access to the persona, but not the user name
 or any of the other data stored with the user.
 
-A nym is something intended direct for manipulation by the user (the
+A persona is something intended direct for manipulation by the user (the
 real person, not the structure).  There may be a pull-down menu behind
 the "you are logged in as..." button the upper right corner that lets
-you pick which nym you want to be.
+you pick which persona you want to be.
 
 There are two related use cases:
 
-*Pseudonymity:* Consider a discussion forum web app.  In some
-contributions, a user may want to use her real name to leverage or
-increase her reputation in the community.  In others, possibly even
-under the same discussion, she may want to remain anonymous.  This can
-be achieved by using two nyms: one identical to the user's real name,
-and one generated at random.
+- *Pseudonymity:* Consider a discussion forum web app.  In some
+  contributions, a user may want to use her real name to leverage or
+  increase her reputation in the community.  In others, possibly even
+  under the same discussion, she may want to remain anonymous.  This can
+  be achieved by using two personas: one identical to the user's real name,
+  and one generated at random.
 
-*The Moderator who also wants to engage in a debate:* If the same user
-enters a channel where she acts as moderator, she wants to have
-different controls in the UI from ordinary users (e.g., she doesn't
-want to be able to accidentally write a comment, but she needs to be
-able to delete comments of others).
+- *Doing different things in the same place:* Example: If the same user
+  enters a channel where she acts as moderator, she wants to have
+  different controls in the UI from ordinary users (e.g., she doesn't
+  want to be able to accidentally write a comment, but she needs to be
+  able to delete comments of others).
+  This can be achieved by registering several personas with the same web
+  app, and having them assigned different persona groups (see below).
 
-This can be achieved by registering several nyms with the same web
-app, and having them assigned different roles (see below).
-
-FIXME: not sure if nyms are the right tool to achieve this moderator /
-contributor double-role distinctions.  perhaps roles alone can do that
-when exposed to the UI?
-
-FIXME: see also:
-https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-15
+There are many possible security requirements involving personas, from
+secrecy of specific information about the user (usually the user wants
+that) to authenticity and uniqueness of the anonymized user (such as
+sybil attack, or sock puppet countermeasures; usually the web app
+wants that).
 
 
-### Role
+### Context, or App Context
 
-A role is a set that contains users and other roles.
+A context is an opaque string that identifies something in the app
+that determines persona selection.
+
+Example: An app is hosting a number of discussion threads
+simultaneously, and users are to create one new persona for each
+thread.
+
+There is a mapping from `(user, app, context)` to `persona` that
+allows the system to do this.
+
+NOTE: This mapping must not be managed by the app, because that would
+expose the user id to it, which would break the pseudonymity use case
+of personas.
+
+
+### User Group
+
+A user group is a set that contains users and other user groups.
+
+Motivation: User groups are needed for giving permissions to many
+users in one atomic operation.  An example for why groups of groups
+can be useful: consider the groups `user`, `confirmed user`, `admin`.
+An `admin` is a `confirmed user` with something extra.  Groups of
+groups allow us to construct a group by expressing that directly.
+
+
+### Action
+
+FIXME.
+
+
+### Authorization check
+
+FIXME: explain the idea of `assertAuth`, `isUser`, `hasRole`.
+
+
+### Information flow control (IFC)
+
+FIXME.
 
 
 ### Permission
 
-A permission is just a bit that tells you if an action is allowed or
-not.  A permission can be assigned to a user or a role.
+Permissions are not used as a concept in thentos.  Instead, we use a
+more powerful notion of information flow control (IFC), and,
+implemented in terms of IFC, the notion of authorization checks.  See
+above.
 
-If permission X is assigned to role Q, then all users member in role Q
-are allowed to perform action X.
 
+### Persona Group
 
-### Group
-
-Groups are very similar to roles.  In fact while they still live
-inside thentos, they are the equivalent of roles in web apps.  Where
-roles are about users, groups are about nyms.  And where a role is
-valid in a thentos installation globally, a group is local to a web
+Persona groups are very similar to user groups.  In fact, while they still live
+inside thentos, they are the equivalent of user groups for web apps.  Where
+user groups are about users, persona groups are about personas.  And where a user group is
+valid in a thentos installation globally, a persona group is local to a web
 app registered with thentos.  (If thentos only serves one web app,
 this is not much of a distinction.  But if there are many web apps
 sharing the same thentos server, each of them can manage their own
@@ -109,19 +155,31 @@ groups.)
 
 ### User (Adhocracy3)
 
-Like thentos user.  See
+This corresponds both to thentos user (in the sense that adhocracy
+does the same things with it that thentos does), and to thentos
+persona (in the sense that there is a one-on-one mapping).
+
+See
 https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-14
 
 
 ### Group (Adhocracy3)
 
-Like thentos role.  See
+Has the same double-correspondence from thentos user groups and
+thentos persona groups.
+
+See
 https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-16
 
 
 ### Process Role (Adhocracy3)
 
-Time-aware set of adhocracy permissions.  See
+Time-aware set of adhocracy permissions.  Thentos does not need to
+(and therefore should not) know about adhocracy roles.
+
+Example: "group X has permission Y in process phase Z."
+
+See
 https://cms.liqd.net/intranet/copy_of_projekte/adhocracy-3/grundkonzept-und-terminologie#section-17
 
 
@@ -137,7 +195,5 @@ should we make this an alphabetical list?
 
 what about these terms?:
 
-- authorization error
-- authorization
 - identification
 - qualification (in the sense of berlin servicekonto)
