@@ -49,98 +49,26 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
-{-
-import Snap.Core
-    ( getResponse, finishWith, urlEncode, getParam
-    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
-    )
-import Snap.Inline (blanketCSRF)
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
--- import Snap.Missing (blaze)
--}
-
-
 -- * dashboard construction
 
--- | Call 'buildDashboard' to consruct a dashboard page and render it into the application monad.
-renderDashboard :: DashboardTab -> (User -> [Role] -> H.Html) -> FAction H.Html
-renderDashboard tab pagelet = renderDashboard' tab (\u -> return . pagelet u)
+-- | Call 'renderDashboard'' to construct a dashboard page and render it in the frontend monad.
+renderDashboard :: (User -> [Role] -> H.Html) -> FAction H.Html
+renderDashboard pagelet = renderDashboard' (\u -> return . pagelet u)
 
--- | Like 'buildDashboard', but take a pagelet builder instead of a pagelet.
-renderDashboard' :: DashboardTab -> (User -> [Role] -> FAction H.Html) -> FAction H.Html
-renderDashboard' tab pageletBuilder = do
-    runAsUserOrLogin $ \_ sessionLoginData -> do
-        msgs <- popAllFrontendMsgs
-        let uid = sessionLoginData ^. fslUserId
-        (_, user) <- lift $ lookupConfirmedUser uid
-        roles     <- lift $ agentRoles (UserA uid)
-        dashboardPagelet msgs roles tab <$> pageletBuilder user roles
+-- | Like 'renderDashboard', but take a pagelet builder instead of a pagelet.
+renderDashboard' :: (User -> [Role] -> FAction H.Html) -> FAction H.Html
+renderDashboard' pageletBuilder = do
+    runAsUserOrLogin $ \fsd sessionLoginData -> do
+        (uid, user) <- lift $ lookupConfirmedUser (sessionLoginData ^. fslUserId)
+        roles       <- lift $ agentRoles (UserA uid)
+        clearAllFrontendMsgs
+        dashboardPagelet fsd roles <$> pageletBuilder user roles
 
-
--- * form rendering and processing
-
-{-
--- | Take a form, a pagelet matching this form, a dashboard tab to render it in, and an action to be
--- performed on the form data once submitted.  Depending on the 'runForm' result, either render the
--- form or process it calling the action.  (The formAction passed to 'runForm' is the URI of the
--- current request.)
-runPageletForm :: forall v a .
-       Form v FH a  -- ^ result constructor
-    -> (ST -> View v -> User -> [Role] -> H.Html)  -- ^ dashboard tab contents
-    -> DashboardTab  -- ^ dashboard tab identifier
-    -> (a -> FH ())  -- ^ result consumer
-    -> FH ()
-runPageletForm f pagelet = runPageletForm' f (\formAction v u -> return . pagelet formAction v u)
-
--- | Like 'runPageletForm', but takes a page builder instead of a page (this is more for internal
--- use).
-runPageletForm' :: forall v a .
-       Form v FH a
-    -> (ST -> View v -> User -> [Role] -> FH H.Html) -> DashboardTab
-    -> (a -> FH ())
-    -> FH ()
-runPageletForm' f buildPagelet tab = runPageForm' f buildPage
-  where
-    buildPage :: ST -> View v -> FH H.Html
-    buildPage formAction = buildDashboard' tab . buildPagelet formAction
-
--- | Full-page version of 'runPageletForm'.
-runPageForm :: forall v a .
-       Form v FH a
-    -> (ST -> ST -> View v -> H.Html)
-    -> (a -> FH ())
-    -> FH ()
-runPageForm f page a = do
-    tok <- with sess csrfToken
-    runPageForm' f (\formAction -> return . page tok formAction) a
-
--- | Full-page version of 'runPageletForm''.
-runPageForm' :: forall v a .
-       Form v FH a
-    -> (ST -> View v -> FH H.Html)
-    -> (a -> FH ())
-    -> FH ()
-runPageForm' f buildPage = runHandlerForm f handler
-  where
-    handler :: ST -> View v -> FH ()
-    handler formAction view = buildPage formAction view >>= blaze
-
--- | Version of of 'runPageletForm'' that takes a handler rather than a pagelet, and calls that in
--- order to render the empty form.  (For symmetry, the function name could be primed, but there is
--- no non-monadic way to call a handler, so there is only one version of @runHandlerForm@.)
-runHandlerForm :: forall v a b .
-       Form v FH a
-    -> (ST -> View v -> FH b)
-    -> (a -> FH b)
-    -> FH b
-runHandlerForm f handler a = do
-    formAction <- cs <$> getsRequest rqURI
-    (view, mResult) <- logger DEBUG "[formDriver: runForm]" >> runForm formAction f
-    case mResult of
-        Nothing -> handler formAction view
-        Just result -> logger DEBUG "[formDriver: action]" >> a result
--}
+-- | FIXME!  (if we actually need this...?)
+renderDashboard'' :: (User -> [Role] -> H.Html) -> H.Html
+renderDashboard'' pageletBuilder =
+    dashboardPagelet emptyFrontendSessionData [minBound..] $
+        pageletBuilder (error "renderDashboard''uid") (error "renderDashboard''roles")
 
 
 -- * authentication
@@ -203,6 +131,10 @@ sendFrontendMsg = sendFrontendMsgs . (:[])
 
 clearAllFrontendMsgs :: FAction ()
 clearAllFrontendMsgs = state $ \s -> ((), fsdMessages .~ [] $ s)
+
+-- | If logged in: set current dashboard tab.
+setCurrentDashboardTab :: DashboardTab -> FAction ()
+setCurrentDashboardTab tab = modify $ error "setCurrentDashboardTab"
 
 
 -- * uri manipulation

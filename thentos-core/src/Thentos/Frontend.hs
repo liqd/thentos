@@ -93,7 +93,7 @@ frontendH :: ServerT FrontendH FAction
 frontendH =
        redirect' "/dashboard"
   :<|> userH
-  :<|> renderDashboard DashboardTabDetails userDisplaySnippet
+  :<|> (setCurrentDashboardTab DashboardTabDetails >> renderDashboard userDisplaySnippet)
   :<|> staticContent
 
 

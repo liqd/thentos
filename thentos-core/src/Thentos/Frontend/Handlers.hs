@@ -72,7 +72,7 @@ type HtmlForm (name :: Symbol) =
 htmlForm :: forall fn.
         (HasForm fn, FormRendered fn ~ H.Html, FormActionState fn ~ FrontendSessionData)
       => Proxy fn -> (FormContent fn -> FAction H.Html) -> ServerT (HtmlForm fn) FAction
-htmlForm proxy postHandler = get :<|> postHandler'
+htmlForm proxy postHandler = (clearAllFrontendMsgs >> get) :<|> postHandler'
   where
     postHandler' (Right t) = postHandler t
     postHandler' (Left v)  = do
@@ -103,7 +103,7 @@ userRegisterH = htmlForm (Proxy :: Proxy "UserRegister") $ \userFormData -> do
     let url = emailConfirmUrl fcfg "/user/register_confirm" (fromConfirmationToken tok)
 
     sendUserConfirmationMail userFormData url
-    return userRegisterRequestedPage
+    userRegisterRequestedPage <$> get
 
 sendUserConfirmationMail :: UserFormData -> ST -> FAction ()
 sendUserConfirmationMail user callbackUrl = liftU $
@@ -142,7 +142,7 @@ userRegisterConfirmH (Just token) = do
         return (_uid, _sessTok)
 
     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
-    userFinishLogin (uid, sessTok)
+    userFinishLoginH (uid, sessTok)
 
 
 -- * login (thentos)
@@ -162,7 +162,7 @@ instance HasForm "UserLogin" where
 
 userLoginH :: ServerT UserLoginH FAction
 userLoginH = htmlForm (Proxy :: Proxy "UserLogin") $ \(uname, passwd) -> do
-    (lift (startThentosSessionByUserName uname passwd) >>= userFinishLogin)
+    (lift (startThentosSessionByUserName uname passwd) >>= userFinishLoginH)
         `catchError` \case
             BadCredentials -> do
                 sendFrontendMsgs [FrontendMsgError "Bad username or password."]
@@ -171,10 +171,10 @@ userLoginH = htmlForm (Proxy :: Proxy "UserLogin") $ \(uname, passwd) -> do
 
 -- | If action yields uid and session token, login.  Otherwise, redirect to login page with a
 -- message that asks to try again.
-userFinishLogin :: (UserId, ThentosSessionToken) -> FAction H.Html
-userFinishLogin (uid, tok) = do
+userFinishLoginH :: (UserId, ThentosSessionToken) -> FAction H.Html
+userFinishLoginH (uid, tok) = do
     sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
-    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid)
+    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid Nothing)
     redirectToDashboardOrService
 
 
@@ -201,9 +201,9 @@ resetPasswordRequestH = htmlForm (Proxy :: Proxy "ResetPasswordRequest") $ \user
         (user, token) <- lift $ addPasswordResetToken userEmail
         let url = emailConfirmUrl fcfg "/user/reset_password" (fromPasswordResetToken token)
         lift $ sendPasswordResetMail user url
-        return resetPasswordRequestedPage)
+        resetPasswordRequestedPage <$> get)
       `catchError` \case
-        NoSuchUser -> return resetPasswordRequestedPage  -- FIXME: send out warning, too?
+        NoSuchUser -> resetPasswordRequestedPage <$> get  -- FIXME: send out warning, too?
         e -> throwError e
 
 sendPasswordResetMail :: User -> ST -> Action FActionError ()
@@ -233,12 +233,11 @@ resetPasswordH Nothing = error "crash FActionErrorNoToken"  -- FIXME: types
 resetPasswordH (Just tok) = htmlForm (Proxy :: Proxy "ResetPassword") $ \password -> do
     fcfg <- getFrontendConfig
     lift $ resetPassword tok password
-
     sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
-    redirect' "/dashboard"
 
     -- FIXME: what we would like to do here is login the user right away, with something like
     -- userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+    redirect' "/dashboard"
 
 
 -- * logout (thentos)
@@ -246,44 +245,60 @@ resetPasswordH (Just tok) = htmlForm (Proxy :: Proxy "ResetPassword") $ \passwor
 type UserLogoutH = "logout" :> (Get '[HTM] H.Html :<|> Post '[HTM] H.Html)
 
 userLogoutH :: ServerT UserLogoutH FAction
-userLogoutH = userLogoutConfirm :<|> userLogoutDone
+userLogoutH = userLogoutConfirmH :<|> userLogoutDoneH
 
-userLogoutConfirm :: FAction H.Html
-userLogoutConfirm = runAsUserOrLogin $ \_ fsl -> do
+userLogoutConfirmH :: FAction H.Html
+userLogoutConfirmH = runAsUserOrLogin $ \_ fsl -> do
     serviceNames <- lift $ serviceNamesFromThentosSession (fsl ^. fslToken)
     -- FIXME: do we need csrf protection for this?
-    renderDashboard DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
+    setCurrentDashboardTab DashboardTabLogout
+    renderDashboard (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
 
-userLogoutDone :: FAction H.Html
-userLogoutDone = runAsUserOrLogin $ \_ fsl -> do
+userLogoutDoneH :: FAction H.Html
+userLogoutDoneH = runAsUserOrLogin $ \_ fsl -> do
     lift $ endThentosSession (fsl ^. fslToken)
     modify $ fsdLogin .~ Nothing
-    return userLogoutDonePage
+    userLogoutDonePage <$> get
 
 
 -- * user update
 
-emailUpdate :: FH ()
-emailUpdate = runAsUser $ \ _ fsl -> do
-    tok <- with sess csrfToken
-    runPageletForm emailUpdateForm
-                   (emailUpdateSnippet tok) DashboardTabDetails
-                   $ \ newEmail -> do
-        feConfig <- gets (^. frontendCfg)
-        eResult <- snapRunActionE $
-            requestUserEmailChange (fsl ^. fslUserId) newEmail
-                (emailConfirmUrl feConfig "/user/update_email_confirm")
-        case eResult of
-            Right ()                                         -> emailSent
-            Left (ActionErrorThentos UserEmailAlreadyExists) -> emailSent
-            Left e                                           -> crash $ FActionError500 e
+type EmailUpdateH = "" :> HtmlForm "EmailUpdate"
+
+instance HasForm "EmailUpdate" where
+    type FormRendered    "EmailUpdate" = H.Html
+    type FormContentType "EmailUpdate" = HTM
+    type FormContent     "EmailUpdate" = UserEmail
+    type FormActionState "EmailUpdate" = FrontendSessionData
+
+    formAction _  = "/user/reset_password_request"
+    isForm _      = emailUpdateForm
+    formView _    = \fsd v action -> renderDashboard'' $ emailUpdateSnippet fsd v action  -- FIXME: modify $ fslDashboardTab .~ DashBoardDetails
+    formBackend _ = error "HasForm EmailUpdate formBackend: impossible"
+
+-- FIXME: csrf?
+emailUpdateH :: ServerT EmailUpdateH FAction
+emailUpdateH = htmlForm (Proxy :: Proxy "EmailUpdate") $ \userEmail -> do
+    loggerF ("email change request: " ++ show userEmail)
+    fcfg <- getFrontendConfig
+
+    let go = do
+          runAsUserOrLogin $ \_ fsl -> lift
+              . requestUserEmailChange (fsl ^. fslUserId) userEmail
+                  $ emailConfirmUrl fcfg "/user/update_email_confirm" . fromConfirmationToken
+          emailSent
+
+    go `catchError`
+        \case UserEmailAlreadyExists -> emailSent
+              e                      -> throwError e
   where
     emailSent = do
         sendFrontendMsgs $
             FrontendMsgSuccess "Your new email address has been stored." :
             FrontendMsgSuccess "It will be activated once you process the confirmation email." :
             []
-        redirect' "/dashboard" 303
+        redirect' "/dashboard"
+
 
 {-
 
@@ -315,8 +330,12 @@ passwordUpdate = runAsUser $ \ _ fsl -> do
                      -> sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password" 303
             Left e   -> crash $ FActionError500 e
 
+-}
+
 
 -- * services
+
+{-
 
 serviceCreate :: FH ()
 serviceCreate = runAsUser $ \ _ fsl -> do

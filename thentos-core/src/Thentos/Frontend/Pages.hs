@@ -11,7 +11,6 @@
 -- - *Snippets*: 'Html' elements for filling holes in pagelets or other snippets.
 module Thentos.Frontend.Pages
     ( dashboardPagelet
-    , DashboardTab(..)
 
     , userRegisterPage
     , userRegisterForm
@@ -31,7 +30,6 @@ module Thentos.Frontend.Pages
 
     , userDisplaySnippet
     , userServicesDisplaySnippet
-    , userUpdateSnippet
     , emailUpdateSnippet
     , emailUpdateForm
     , passwordUpdateSnippet
@@ -55,7 +53,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
-import Data.Typeable (Typeable)
 import Text.Blaze.Html (Html, (!), ToValue(toValue))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit, childErrorList)
 import Text.Digestive.Form (Form, check, validate, text, (.:))
@@ -73,18 +70,19 @@ import Thentos.Types
 -- * base
 
 -- | Call 'basePagelet'' without optional headings.
-basePagelet :: ST -> Html -> Html
-basePagelet title = basePagelet' title Nothing
+basePagelet :: FrontendSessionData -> ST -> Html -> Html
+basePagelet fsd title = basePagelet' fsd title Nothing
 
 -- | Create an html document with default headings from title,
 -- optional headings, and body.
-basePagelet' :: ST -> Maybe Html -> Html -> Html
-basePagelet' title mHeadings body = H.docTypeHtml $ do
+basePagelet' :: FrontendSessionData -> ST -> Maybe Html -> Html -> Html
+basePagelet' fsd title mHeadings body = H.docTypeHtml $ do
     H.head $ do
         H.title $ H.text title
         H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
         fromMaybe (return ()) mHeadings
     H.body $ do
+        H.div . H.ul . mapM_ (H.li . H.string . show) $ (fsd ^. fsdMessages)
         H.h1 $ H.text title
         body
 
@@ -105,10 +103,9 @@ csrfProofForm _ v action = form v action . (<> csrfField)
 -- logged in.  The dashboard body shows further specifics.  It is the
 -- caller's responsibility to make sure that dashboard state and body
 -- correspond.
-dashboardPagelet :: [FrontendMsg] -> [Role] -> DashboardTab -> Html -> Html
-dashboardPagelet msgs availableRoles ((==) -> isActive) body =
-    basePagelet "Thentos Dashboard" $ do
-        H.div . H.ul . mapM_ (H.li . H.string . show) $ msgs
+dashboardPagelet :: FrontendSessionData -> [Role] -> Html -> Html
+dashboardPagelet fsd availableRoles body =
+    basePagelet fsd "Thentos Dashboard" $ do
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
         H.div H.! A.class_ "dashboard_body" $ body
   where
@@ -121,7 +118,9 @@ dashboardPagelet msgs availableRoles ((==) -> isActive) body =
         available = all (`elem` availableRoles) (needsRoles tab)
 
         className :: H.AttributeValue
-        className = if isActive tab then "active_tab_header" else "inactive_tab_header"
+        className = if ((fsd ^. fsdLogin) >>= (^. fslDashboardTab)) == Just tab
+            then "active_tab_header"
+            else "inactive_tab_header"
 
         linkt :: Html
         linkt = H.text . linkText $ tab
@@ -154,7 +153,7 @@ dashboardPagelet msgs availableRoles ((==) -> isActive) body =
 -- * register (thentos)
 
 userRegisterPage :: FrontendSessionData -> View Html -> ST -> Html
-userRegisterPage fsd v formAction = basePagelet "Create User" $ do
+userRegisterPage fsd v formAction = basePagelet fsd "Create User" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -183,19 +182,15 @@ userRegisterForm = validate validateUserData $ (,,,)
         | otherwise            = Error "Passwords don't match"
 
 
-userRegisterRequestedPage :: Html
-userRegisterRequestedPage = confirmationMailSentPage "Create User"
+userRegisterRequestedPage :: FrontendSessionData -> Html
+userRegisterRequestedPage fsd = confirmationMailSentPage fsd "Create User"
     "Thank you for your registration." "your registration"
 
 
 -- * login (thentos)
 
 userLoginPage :: FrontendSessionData -> View Html -> ST -> Html
-userLoginPage fsd v formAction = basePagelet "Thentos Login" $ do
-    H.pre $
-        H.string $ show (fsd ^. fsdMessages)  -- FIXME: print messages in basePagelet!  this way
-                                              -- it's easier to guarantee we don't lose messages
-                                              -- anywhere.  (see also: 'renderDashboard')
+userLoginPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.table $ do
@@ -224,7 +219,7 @@ userLoginForm = (,)
 -- * forgot password
 
 resetPasswordRequestPage :: FrontendSessionData -> View Html -> ST -> Html
-resetPasswordRequestPage fsd v formAction = basePagelet "Thentos Login" $ do
+resetPasswordRequestPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -237,12 +232,12 @@ resetPasswordRequestPage fsd v formAction = basePagelet "Thentos Login" $ do
 resetPasswordRequestForm :: Monad m => Form Html m UserEmail
 resetPasswordRequestForm = "email" .: validateEmail (text Nothing)
 
-resetPasswordRequestedPage :: Html
-resetPasswordRequestedPage = confirmationMailSentPage "Password Reset"
+resetPasswordRequestedPage :: FrontendSessionData -> Html
+resetPasswordRequestedPage fsd = confirmationMailSentPage fsd "Password Reset"
     "Thank you for your password reset request." "the process"
 
 resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
-resetPasswordPage fsd v formAction = basePagelet "Thentos Login" $ do
+resetPasswordPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -279,8 +274,8 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
-userLogoutDonePage :: Html
-userLogoutDonePage = basePagelet "Thentos Logout" $ do
+userLogoutDonePage :: FrontendSessionData -> Html
+userLogoutDonePage fsd = basePagelet fsd "Thentos Logout" $ do
     H.p "You have been logged out of Thentos."
     H.p $ H.a ! A.href "/user/login" $ "Log back in"
 
@@ -332,14 +327,17 @@ userServicesDisplaySnippet _ _ = do
                 H.tr $ H.td "Session expires: " >> H.td "in a month"
 
 
-userUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
-userUpdateSnippet fsd formAction v _ _ = do
+emailUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
+emailUpdateSnippet fsd v formAction _ _ = do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
-            label "name" v "User name: "
-            inputText "name" v
-        inputSubmit "Update User Data" ! A.id "update_user_submit"
+            label "email" v "Email Address: "
+            inputText "email" v
+        inputSubmit "Update Email Address" ! A.id "update_email_submit"
+
+emailUpdateForm :: Monad m => Form Html m UserEmail
+emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 
 passwordUpdateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
@@ -364,23 +362,10 @@ passwordUpdateForm = validate validatePassChange $ (,,)
     <*> (UserPass <$> "new_password2" .: validateNonEmpty "password" (text Nothing))
 
 
-emailUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
-emailUpdateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
-    csrfProofForm fsd v formAction $ do
-        H.p $ do
-            label "email" v "Email Address: "
-            inputText "email" v
-        inputSubmit "Update Email Address" ! A.id "update_email_submit"
-
-emailUpdateForm :: Monad m => Form Html m UserEmail
-emailUpdateForm = "email" .: validateEmail (text Nothing)
-
-
 -- * services
 
 serviceCreateSnippet :: FrontendSessionData -> ST -> View Html -> u -> rs -> Html
-serviceCreateSnippet fsd formAction v _ _ = basePagelet "Create Service" $ do
+serviceCreateSnippet fsd formAction v _ _ = basePagelet fsd "Create Service" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
@@ -400,7 +385,7 @@ serviceCreateForm =
 -- (this is an empty form for now, but in the future, the user will
 -- want to decide what data to pass on to the service here.)
 serviceRegisterPage :: FrontendSessionData -> ST -> View Html -> ServiceId -> Service -> User -> Html
-serviceRegisterPage fsd formAction v sid service user = basePagelet "Register with Service" $ do
+serviceRegisterPage fsd formAction v sid service user = basePagelet fsd "Register with Service" $ do
     childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.hr
@@ -422,7 +407,9 @@ serviceRegisterForm = pure ()
 -- ** error / status reports to the user
 
 errorPage :: String -> Html
-errorPage = basePagelet "Error" . errorHtml
+errorPage = basePagelet fsd "Error" . errorHtml
+  where
+    fsd = emptyFrontendSessionData
 
 errorPagelet :: u -> rs -> String -> Html
 errorPagelet _ _ = errorHtml
@@ -431,15 +418,19 @@ errorHtml :: String -> Html
 errorHtml = H.string . ("*** error: " ++) . show
 
 permissionDeniedPage :: Html
-permissionDeniedPage = basePagelet' "Permission Denied"
-                                    Nothing
-                                    (H.a ! A.href "/dashboard" $ "Back to dashboard")
+permissionDeniedPage = basePagelet' fsd "Permission Denied" Nothing
+    (H.a ! A.href "/dashboard" $ "Back to dashboard")
+  where
+    fsd = emptyFrontendSessionData
 
 notFoundPage :: Html
-notFoundPage = basePagelet "Not Found" $ H.p "The requested page does not exist."
+notFoundPage = basePagelet fsd "Not Found" $ H.p "The requested page does not exist."
+  where
+    fsd = emptyFrontendSessionData
 
-confirmationMailSentPage :: ST -> ST -> ST -> Html
-confirmationMailSentPage title msg1 msg2 = basePagelet title $ confirmationMailSentBody msg1 msg2
+confirmationMailSentPage :: FrontendSessionData -> ST -> ST -> ST -> Html
+confirmationMailSentPage fsd title msg1 msg2 =
+    basePagelet fsd title $ confirmationMailSentBody msg1 msg2
 
 confirmationMailSentSnippet :: ST -> ST -> u -> rs -> Html
 confirmationMailSentSnippet msg1 msg2 _ _ = confirmationMailSentBody msg1 msg2
