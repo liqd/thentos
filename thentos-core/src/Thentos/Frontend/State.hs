@@ -153,7 +153,7 @@ enterFAction ::
     -> Vault.Key FSession
     -> FSessionMap
     -> FAction :~> ExceptT ServantErr IO
-enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM  fActionServantErr) . run
+enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . run
   where
     run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
     run fServer = fst <$$> runFActionE emptyFrontendSessionData aState fServer'
