@@ -1,17 +1,18 @@
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE StandaloneDeriving                       #-}
-{-# LANGUAGE TupleSections                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE InstanceSigs              #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE ViewPatterns              #-}
+{-# OPTIONS_GHC -fno-warn-orphans      #-}
 
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
 where
@@ -25,11 +26,13 @@ import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
 import Data.String.Conversions (LBS, ST, cs)
+import GHC.Stack (CallStack)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
+import System.Process (readProcess)
 import Test.Hspec (Spec, describe, hspec, it, shouldBe, shouldSatisfy, around_)
 import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (Arbitrary(..), property)
@@ -116,17 +119,10 @@ spec =
                     [ "content_type" .= String "adhocracy_core.resources.principal.IUser"
                     , "path"         .= String "http://127.0.0.1:6541/principals/users/0000111/"
                     ]
-                a3loginSuccess = encodePretty $ object
-                    [ "status"     .= String "success"
-                    , "user_path"  .= String "http://127.0.0.1:7118/principals/users/0000111/"
-                    , "user_token" .= String "bla-bla-valid-token-blah"
-                    ]
                 smartA3backend = routingReplyServer Nothing $ Map.fromList
-                    [ ("/path/principals/users", (status200, a3userCreated))
-                    , ("/path/activate_account", (status200, a3loginSuccess))
-                    ]
+                    [ ("/path/principals/users", (status200, a3userCreated)) ]
 
-            around_ (withApp smartA3backend) $ do
+            around_ (withLogger . withApp smartA3backend) $ do
                 it "works" $ do
                     let name    = "Anna Müller"
                         pass    = "EckVocUbs3"
@@ -134,9 +130,16 @@ spec =
                     -- Appending trailing newline since servant-server < 0.4.1 couldn't handle it
                     rsp <- request "POST" "/principals/users" [ctJson] $ reqBody  <> "\n"
                     shouldBeStatusXWithCustomMessages 200 (simpleStatus rsp) (simpleBody rsp)
-                        -- path should contain the uid returned by A3, but using our endpoint
-                        -- prefix instead of the one from A3
-                        ["http://127.0.0.1:7118/principals/users/0000111"]
+                        -- The returned path is now just a dummy that uses our endpoint prefix
+                        -- (not the one from A3)
+                        ["http://127.0.0.1:7118/"]
+
+                    -- Find the confirmation token. We use a system call to "grep" it ouf the
+                    -- log file, which is ugly but works, while reading the log file within
+                    -- Haskell doesn't (openFile: resource busy (file is locked)).
+                    let actPrefix = ":7119/activate/"
+                    actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
+                    let confToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
 
                     -- Make sure that we cannot log in since the account isn't yet active
                     let loginReq = mkLoginRequest name pass
@@ -145,7 +148,7 @@ spec =
 
                     -- Activate user
                     let actReq = encodePretty $ object
-                            [ "path" .= String "/activate/random-path" ]
+                            [ "path" .= String ("/activate/" <> confToken) ]
                     actRsp <- request "POST" "activate_account" [ctJson] actReq
                     liftIO $ Status.statusCode (simpleStatus actRsp) `shouldBe` 200
 
@@ -226,7 +229,8 @@ spec =
 
 -- | Compare the response status with an expected status code and check that the response
 -- body is a JSON object that contains all of the specified custom strings.
-shouldBeStatusXWithCustomMessages :: MonadIO m => Int -> Status.Status -> LBS -> [ST] -> m ()
+shouldBeStatusXWithCustomMessages :: MonadIO m => (?loc :: CallStack) =>
+    Int -> Status.Status -> LBS -> [ST] -> m ()
 shouldBeStatusXWithCustomMessages expectedCode rstStatus rspBody customMessages = do
     liftIO $ Status.statusCode rstStatus `shouldBe` expectedCode
     -- Response body should be parseable as JSON
@@ -237,7 +241,8 @@ shouldBeStatusXWithCustomMessages expectedCode rstStatus rspBody customMessages 
 
 -- | Like 'shouldBeStatusXWithCustomMessage', with the expected code set tu 400.
 -- We check the custom messages and the quoted string "error" are present in the JSON body.
-shouldBeErr400WithCustomMessage :: MonadIO m => Status.Status -> LBS -> ST -> m ()
+shouldBeErr400WithCustomMessage :: MonadIO m => (?loc :: CallStack) =>
+    Status.Status -> LBS -> ST -> m ()
 shouldBeErr400WithCustomMessage rstStatus rspBody customMessage =
     shouldBeStatusXWithCustomMessages 400 rstStatus rspBody ["\"error\"", customMessage]
 
