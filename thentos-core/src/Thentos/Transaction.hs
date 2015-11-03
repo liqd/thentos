@@ -245,12 +245,14 @@ unregisterUserFromService uid sid = void $
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
-addPersona :: PersonaName -> UserId -> ThentosQuery e Persona
-addPersona name uid = do
-    res <- queryT [sql| INSERT INTO personas (name, uid) VALUES (?, ?) RETURNING id |]
-                  (name, uid)
+addPersona :: PersonaName -> UserId -> Maybe Uri -> ThentosQuery e Persona
+addPersona name uid mExternalUrl = do
+    res <- queryT [sql| INSERT INTO personas (name, uid, external_url)
+                        VALUES (?, ?, ?)
+                        RETURNING id |]
+                  (name, uid, mExternalUrl)
     case res of
-        [Only persId] -> return $ Persona persId name uid
+        [Only persId] -> return $ Persona persId name uid mExternalUrl
         _             -> impossible "addContext didn't return a single ID"
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
@@ -310,12 +312,12 @@ unregisterPersonaFromContext persId cxtId = void $
 -- Find the persona that a user wants to use for a context (if any).
 findPersona :: UserId -> ContextId -> ThentosQuery e (Maybe Persona)
 findPersona uid cxtId = do
-    res <- queryT [sql| SELECT pers.id, pers.name
+    res <- queryT [sql| SELECT pers.id, pers.name, pers.external_url
                         FROM personas pers, personas_per_context pc
                         WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
                   (uid, cxtId)
     case res of
-        [(persId, name)] -> return . Just $ Persona persId name uid
+        [(persId, name, mExternalUrl)] -> return . Just $ Persona persId name uid mExternalUrl
         []               -> return Nothing
         -- This is not 'impossible', since the constraint is enforced by us, not by the DB
         _                -> error "findPersona: multiple personas per context"

@@ -518,10 +518,10 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
 -- Only the user owning the persona or an admin may do this.
-addPersona :: PersonaName -> UserId -> Action e Persona
-addPersona name uid = do
+addPersona :: PersonaName -> UserId -> Maybe Uri -> Action e Persona
+addPersona name uid mExternalUrl = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
-    query'P $ T.addPersona name uid
+    query'P $ T.addPersona name uid mExternalUrl
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 -- Only the user owning the persona or an admin may do this.

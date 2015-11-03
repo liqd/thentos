@@ -46,8 +46,8 @@ import Servant.API (FromHttpApiData)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
-import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
-                       queryPairs, parseURI, laxURIParserOptions, authorityHost,
+import URI.ByteString (URI, URIParseError, uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
+                       queryPairs, parseURI, laxURIParserOptions, serializeURI', authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 
 import qualified Crypto.Scrypt as Scrypt
@@ -224,9 +224,10 @@ newtype PersonaName = PersonaName { fromPersonaName :: ST }
               ToField)
 
 data Persona = Persona
-  { _personaId   :: PersonaId
-  , _personaName :: PersonaName
-  , _personaUid  :: UserId
+  { _personaId          :: PersonaId
+  , _personaName        :: PersonaName
+  , _personaUid         :: UserId
+  , _personaExternalUrl :: Maybe Uri
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
@@ -453,6 +454,30 @@ instance FromField Role where
 
 
 -- * uri
+
+-- | Wrapper around 'URI' with additional instance definitions.
+newtype Uri = Uri { fromUri :: URI }
+    deriving (Eq, Ord)
+
+parseUri :: SBS -> Either URIParseError Uri
+parseUri bs = Uri <$> parseURI laxURIParserOptions bs
+
+instance Aeson.FromJSON Uri
+  where
+    parseJSON = Aeson.withText "URI string" $ either (fail . show) return . parseUri . cs
+
+instance Aeson.ToJSON Uri where toJSON (Uri uri) = Aeson.toJSON (cs $ serializeURI' uri :: ST)
+
+instance Show Uri where
+    show (Uri uri) = cs $ serializeURI' uri
+
+instance FromField Uri where
+    fromField f Nothing = returnError UnexpectedNull f ""
+    fromField f (Just bs) = either (returnError ConversionFailed f . show) return $ parseUri bs
+
+instance ToField Uri where
+    toField (Uri uri) = toField (cs $ serializeURI' uri :: ST)
+
 
 data ProxyUri = ProxyUri { proxyHost :: SBS
                          , proxyPort :: Int
