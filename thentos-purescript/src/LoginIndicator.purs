@@ -1,6 +1,7 @@
 module LoginIndicator where
 
 import Control.Monad.Aff (Aff(), runAff, later')
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Data.Functor (($>))
@@ -8,7 +9,7 @@ import Data.Generic
 import Data.List
 import Data.Void
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
-import Halogen.Util (appendToBody)
+import Halogen.Util (appendTo)
 import Prelude
 
 import qualified Data.Array as Array
@@ -107,10 +108,11 @@ ui = component render eval
         f Logout            st@(LoggedOut _)  = warnJS "already logged out!" st
 
 
-main :: forall eff. Eff (HalogenEffects eff) Unit
-main = runAff throwException (const (pure unit)) $ do
+main :: forall eff. String -> Eff (HalogenEffects eff) Unit
+main selector = runAff throwException (const (pure unit)) $ do
   { node: node, driver: driver } <- runUI ui initialState
-  appendToBody node
+  liftEff $ appendTo selector node
+
 {-
   setInterval 900 $ toList ((\ q -> driver (action (\next -> Query next q))) <$>
       [ Logout

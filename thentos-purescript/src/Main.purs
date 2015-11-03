@@ -27,6 +27,10 @@ import Prelude
 import qualified Error as Error
 import qualified IFrameStressTest as IFrameStressTest
 
+
+foreign import publish :: forall a. String -> String -> a -> forall eff. Eff eff Unit
+
+
 defRq :: AffjaxRequest Unit
 defRq = defaultRequest { headers = [ContentType applicationJSON, Accept applicationJSON] }
 
@@ -72,12 +76,17 @@ loginUser username password = do
             Left $ ConnectionError $ "server responsed with error: " ++ show res.status
 -}
 
+
 main :: forall eff.
     Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
 main = do
-    log "Hello sailor!"
+    log "initializing thentos-purescript..."
+
+    publish "Main" "counter" IFrameStressTest.counterMain
+    publish "Main" "indicator" LoginIndicator.main
+
+    IFrameStressTest.counterMain "body" (\_ -> unit)
+    IFrameStressTest.counterMain "#id1" (\_ -> unit)
+    LoginIndicator.main "#id2"
+
     runAff throwException print $ loginUser "god" "god"
-    IFrameStressTest.counterMain "body"
-    IFrameStressTest.counterMain "#id2"
-    IFrameStressTest.counterMain "#id3"
-    LoginIndicator.main

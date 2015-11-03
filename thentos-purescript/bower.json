@@ -1,22 +1,22 @@
 {
-    "name": "thentos-purescript",
-    "version": "1.0.0",
-    "moduleType": [
-        "node"
-    ],
-    "ignore": [
-        "**/.*",
-        "node_modules",
-        "bower_components",
-        "output"
-    ],
-    "dependencies": {
-        "purescript-affjax": "~0.8.0",
-        "purescript-console": "~0.1.1",
-        "purescript-exceptions": "~0.3.0",
-        "purescript-generics": "~0.6.1",
-        "purescript-halogen": "~0.5.2",
-        "purescript-lists": "~0.7.0",
-        "purescript-random": "~0.2.0"
-    }
+  "name": "thentos-purescript",
+  "version": "1.0.0",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-affjax": "~0.8.0",
+    "purescript-console": "~0.1.1",
+    "purescript-exceptions": "~0.3.0",
+    "purescript-generics": "~0.6.1",
+    "purescript-lists": "~0.7.0",
+    "purescript-random": "~0.2.0",
+    "purescript-halogen": "https://github.com/liqd/purescript-halogen.git#11c2af9244651ad4cd5025f4b64b73b343f73d9e"
+  }
 }

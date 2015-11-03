@@ -83,6 +83,8 @@ import Thentos.Util
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 
+import qualified Thentos.Backend.Api.Purescript
+
 
 -- * data types
 
@@ -362,6 +364,7 @@ type ThentosApi =
 
 type Api =
        ThentosApi
+  :<|> "js" :> Thentos.Backend.Api.Purescript.Api
   :<|> ServiceProxy
 
 thentosApi :: AC.ActionState -> Server ThentosApi
@@ -375,6 +378,7 @@ thentosApi actionState = enter (enterAction actionState a3ActionErrorToServantEr
 api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState =
        thentosApi actionState
+  :<|> Thentos.Backend.Api.Purescript.api (Just "/home/mf/thentos/thentos-purescript/static/")
   :<|> serviceProxy manager a3ProxyAdapter actionState
 
 
