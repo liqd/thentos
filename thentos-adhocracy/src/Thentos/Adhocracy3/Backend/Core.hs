@@ -90,6 +90,8 @@ a3Info ae = case ae of
         (Just (ERROR, show e), err500, "exception in a3 backend")
     f e@(A3BackendInvalidJson _) =
         (Just (ERROR, show e), err500, "exception in a3 backend: received bad json")
+    f e@(A3UriParseError _) =
+        (Just (ERROR, show e), err500, "exception in a3 backend: received unparsable URL")
 
 impossible :: String -> a
 impossible = error

@@ -9,6 +9,7 @@ module Thentos.Util
     , verifyPass
     , verifyKey
     , makeUserFromFormData
+    , mailEncode
     , cshow
     , readsPrecEnumBoundedShow
     , fmapLM
@@ -18,10 +19,12 @@ module Thentos.Util
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
-import Data.String.Conversions (ConvertibleStrings, ST, cs)
+import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
+import Network.HTTP.Types (urlEncode)
 
 import qualified Crypto.Scrypt as Scrypt
+import qualified Data.Text as ST
 
 import Thentos.Types
 
@@ -63,6 +66,15 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
+
+-- * networking
+
+-- | Encode a bytestring in such a way that it can be used as local part in an email address.
+-- This is done by percent-encoding the input in such a way that it could be used in a query string
+-- and additionally replacing every "." by "+", since the local address part cannot contain
+-- multiple subsequent dots or start or end with a dot.
+mailEncode :: ConvertibleStrings s SBS => s -> ST
+mailEncode = ST.replace "." "+" . cs . urlEncode True . cs
 
 
 -- * misc

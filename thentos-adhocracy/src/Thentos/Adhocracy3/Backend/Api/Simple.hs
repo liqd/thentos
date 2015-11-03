@@ -40,7 +40,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     ) where
 
 import Control.Lens ((^.))
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError, throwError, void)
 import Control.Monad (when, mzero)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
                    withObject)
@@ -412,10 +412,13 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     (uid, stok) <- A.confirmNewUser confToken
     -- Promote access rights so we can look up the user and create a persona
     AC.grantAccessRights'P [UserA uid]
-    user    <- snd <$> A.lookupConfirmedUser uid
-    persona <- A.addPersona (PersonaName . fromUserName $ user ^. userName) uid
-    path    <- createUserInA3'P persona
-    -- TODO store mapping between personaId and path
+    user <- snd <$> A.lookupConfirmedUser uid
+    let persName = PersonaName . fromUserName $ user ^. userName
+    path <- createUserInA3'P persName
+    externalUrl <- case parseUri . cs $ fromPath path of
+        Left err  -> throwError . OtherError $ A3UriParseError err
+        Right uri -> pure uri
+    void . A.addPersona persName uid $ Just externalUrl
     pure $ RequestSuccess path stok
 
 -- | Log a user in.
@@ -435,8 +438,8 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
--- TODO adapt
--- TODO Before changing the password, try to activate the user in case they weren't yet activated.
+-- FIXME Adapt to new user management (user is now stored in Thentos with a corresponding persona
+-- in A3 for activated users only.)
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
@@ -469,13 +472,13 @@ sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
                       Nothing -> error "sendUserConfirmationMail: frontend not configured!"
                       Just v -> Tagged v
 
--- | Create a user in A3 from a persona and return the user path.
-createUserInA3'P :: Persona -> A3Action Path
-createUserInA3'P persona = do
+-- | Create a user in A3 from a persona name and return the user path.
+createUserInA3'P :: PersonaName -> A3Action Path
+createUserInA3'P persName = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
                 (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
-                mkUserCreationRequestForA3 config persona
+                mkUserCreationRequestForA3 config persName
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
         throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $
@@ -509,17 +512,17 @@ a3corsPolicy = CorsPolicy
 
 -- * low-level helpers
 
--- | Convert a persona into a user creation request to be sent to the A3 backend.
--- The name of the persona is used as user name. The email address is set to a unique dummy
--- value and the password is set to a dummy value.
-mkUserCreationRequestForA3 :: ThentosConfig -> Persona -> Maybe Client.Request
-mkUserCreationRequestForA3 config persona = do
-    let user  = UserFormData { udName     = UserName . fromPersonaName $ persona ^. personaName,
+-- | Convert a persona name into a user creation request to be sent to the A3 backend.
+-- The persona name is used as user name. The email address is set to a unique dummy value
+-- and the password is set to a dummy value.
+mkUserCreationRequestForA3 :: ThentosConfig -> PersonaName -> Maybe Client.Request
+mkUserCreationRequestForA3 config persName = do
+    let user  = UserFormData { udName     = UserName $ fromPersonaName persName,
                                udEmail    = email,
                                udPassword = "dummypass" }
     mkRequestForA3 config "/principals/users" $ A3UserWithPass user
   where
-    rawEmail = (cshow . fromPersonaId $ persona ^. personaId) <> "@example.org"
+    rawEmail = cs (mailEncode $ fromPersonaName persName) <> "@example.org"
     email    = fromMaybe (error $ "mkUserCreationRequestForA3: couldn't create dummy email") $
                          parseUserEmail rawEmail
 
