@@ -40,7 +40,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     ) where
 
 import Control.Lens ((^.))
-import Control.Monad.Except (MonadError, throwError, void)
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, mzero)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
                    withObject)
@@ -418,7 +418,12 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     externalUrl <- case parseUri . cs $ fromPath path of
         Left err  -> throwError . OtherError $ A3UriParseError err
         Right uri -> pure uri
-    void . A.addPersona persName uid $ Just externalUrl
+    persona <- A.addPersona persName uid $ Just externalUrl
+    config  <- AC.getConfig'P
+    defaultProxySid <- maybe (error "A3 proxy not configured") return $
+        ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
+    -- Register persona for the default ("") context of the default service (= A3)
+    A.registerPersonaWithContext persona defaultProxySid ""
     pure $ RequestSuccess path stok
 
 -- | Log a user in.
