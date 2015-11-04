@@ -550,31 +550,31 @@ addContext sid name desc mUrl = do
 deleteContext :: Context -> Action e ()
 deleteContext context = do
     assertAuth (hasServiceId (context ^. contextService) <||> hasRole RoleAdmin)
-    query'P . T.deleteContext $ context ^. contextId
+    query'P $ T.deleteContext (context ^. contextService) (context ^. contextName)
 
 -- | Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
 -- Only the user owning the persona or an admin may do this.
-registerPersonaWithContext :: Persona -> ContextId -> Action e ()
-registerPersonaWithContext persona cxtId = do
+registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> Action e ()
+registerPersonaWithContext persona sid cname = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
-    query'P $ T.registerPersonaWithContext persona cxtId
+    query'P $ T.registerPersonaWithContext persona sid cname
 
 -- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
-unregisterPersonaFromContext :: Persona -> ContextId -> Action e ()
-unregisterPersonaFromContext persona cxtId = do
+unregisterPersonaFromContext :: Persona -> ServiceId -> ContextName -> Action e ()
+unregisterPersonaFromContext persona sid cname = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
-    query'P $ T.unregisterPersonaFromContext (persona ^. personaId) cxtId
+    query'P $ T.unregisterPersonaFromContext (persona ^. personaId) sid cname
 
 -- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
-findPersona :: UserId -> ContextId -> Action e (Maybe Persona)
-findPersona uid cxtId = do
+findPersona :: UserId -> ServiceId -> ContextName -> Action e (Maybe Persona)
+findPersona uid sid cname = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
-    query'P $ T.findPersona uid cxtId
+    query'P $ T.findPersona uid sid cname
 
 -- | List all contexts owned by a service. Anybody may do this.
 contextsForService :: ServiceId -> Action e [Context]

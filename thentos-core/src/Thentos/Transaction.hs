@@ -1,7 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE FlexibleContexts    #-}
 
 module Thentos.Transaction
 where
@@ -278,20 +279,33 @@ addContext sid name desc mUrl = do
         _            -> impossible "addContext didn't return a single ID"
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
-deleteContext :: ContextId -> ThentosQuery e ()
-deleteContext cxtId = do
-    rows <- execT [sql| DELETE FROM contexts WHERE id = ? |] (Only cxtId)
+deleteContext :: ServiceId -> ContextName -> ThentosQuery e ()
+deleteContext sid cname = do
+    rows <- execT [sql| DELETE FROM contexts WHERE owner_service = ? AND name = ? |]
+                  (sid, cname)
     case rows of
         1 -> return ()
         0 -> throwError NoSuchContext
-        _ -> impossible "deleteContext: unique constraint on id violated"
+        _ -> impossible "deleteContext: unique constraint on owner_service + name violated"
+
+-- Retrieve 'ContextId' based on 'ServiceId' and 'ContextName'.
+-- Throws 'NoSuchContext' if the combination doesn't exist.
+findContextId :: ServiceId -> ContextName -> ThentosQuery e (Maybe ContextId)
+findContextId sid cname = do
+    res <- queryT [sql| SELECT id FROM contexts WHERE owner_service = ? AND name = ? |]
+                  (sid, cname)
+    case res of
+        [Only cxtId] -> pure $ Just cxtId
+        [] -> pure Nothing
+        _  -> impossible "findContextId: unique constraint on owner_service + name violated"
 
 -- Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
-registerPersonaWithContext :: Persona -> ContextId -> ThentosQuery e ()
-registerPersonaWithContext persona cxtId = do
+registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> ThentosQuery e ()
+registerPersonaWithContext persona sid cname = do
+    cxtId <- findContextId sid cname >>= maybe (throwError NoSuchContext) pure
     -- Check that user has no registered personas for that context yet
     res <- queryT [sql| SELECT count(*)
                         FROM personas pers, personas_per_context pc
@@ -305,18 +319,21 @@ registerPersonaWithContext persona cxtId = do
 
 -- Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context.
-unregisterPersonaFromContext :: PersonaId -> ContextId -> ThentosQuery e ()
-unregisterPersonaFromContext persId cxtId = void $
-    execT [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
-          (persId, cxtId)
+unregisterPersonaFromContext :: PersonaId -> ServiceId -> ContextName -> ThentosQuery e ()
+unregisterPersonaFromContext persId sid cname = findContextId sid cname >>=
+    \case Just cxtId -> void $ execT
+                [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
+                (persId, cxtId)
+          Nothing    -> pure ()
 
 -- Find the persona that a user wants to use for a context (if any).
-findPersona :: UserId -> ContextId -> ThentosQuery e (Maybe Persona)
-findPersona uid cxtId = do
+findPersona :: UserId -> ServiceId -> ContextName -> ThentosQuery e (Maybe Persona)
+findPersona uid sid cname = do
     res <- queryT [sql| SELECT pers.id, pers.name, pers.external_url
-                        FROM personas pers, personas_per_context pc
-                        WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
-                  (uid, cxtId)
+                        FROM personas pers, personas_per_context pc, contexts cxt
+                        WHERE pers.id = pc.persona_id AND pc.context_id = cxt.id
+                              AND pers.uid = ? AND cxt.owner_service = ? AND cxt.name = ? |]
+                  (uid, sid, cname)
     case res of
         [(persId, name, mExternalUrl)] -> return . Just $ Persona persId name uid mExternalUrl
         []               -> return Nothing

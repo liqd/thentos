@@ -64,10 +64,12 @@ CREATE TABLE IF NOT EXISTS personas (
 
 CREATE TABLE IF NOT EXISTS contexts (
     id            serial    PRIMARY KEY,
-    name          text      NOT NULL UNIQUE,
+    name          text      NOT NULL,
     owner_service text      NOT NULL REFERENCES services (id),
     description   text      NOT NULL,
-    url           text
+    url           text,
+    UNIQUE (owner_service, name),
+    UNIQUE (owner_service, url)
 );
 
 -- Which persona should be used for which context?

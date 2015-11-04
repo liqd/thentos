@@ -730,12 +730,12 @@ deleteContextSpec = describe "deleteContext" $ do
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()  <- runPooledQuery connPool . deleteContext $ cxt ^. contextId
+        Right _   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()  <- runPooledQuery connPool $ deleteContext servId "sName"
         rowCountShouldBe connPool "contexts" 0
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
-        Left err <- runVoidedQuery connPool . deleteContext $ ContextId 1525
+        Left err <- runVoidedQuery connPool $ deleteContext servId "not-a-context"
         err `shouldBe` NoSuchContext
 
 registerPersonaWithContextSpec :: SpecWith (Pool Connection)
@@ -746,8 +746,8 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
         Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
-                            $ cxt ^. contextId
+        Right ()      <- runPooledQuery connPool $
+                            registerPersonaWithContext persona servId cxtName
         [(pid, cid)] <- doQuery connPool
                             [sql| SELECT persona_id, context_id FROM personas_per_context |] ()
         cid `shouldBe` cxt ^. contextId
@@ -758,11 +758,11 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
-                            $ cxt ^. contextId
-        Left err      <- runVoidedQuery connPool . registerPersonaWithContext persona $
-                            cxt ^. contextId
+        Right _       <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()      <- runPooledQuery connPool $
+                            registerPersonaWithContext persona servId cxtName
+        Left err      <- runVoidedQuery connPool $
+                            registerPersonaWithContext persona servId cxtName
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws MultiplePersonasPerContext if the user registered another persona" $ \connPool -> do
@@ -771,21 +771,18 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona' <- runPooledQuery connPool $ addPersona "MyMyMy" uid Nothing
         Right ()  <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()  <- runPooledQuery connPool . registerPersonaWithContext persona
-                            $ cxt ^. contextId
-        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona' $
-                        cxt ^. contextId
+        Right _   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right ()  <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
+        Left err  <- runVoidedQuery connPool $ registerPersonaWithContext persona' servId cxtName
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws NoSuchPersona if the persona doesn't exist" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         let persona = Persona (PersonaId 5904) persName uid Nothing
-        Right ()  <- runVoidedQuery connPool $
+        Right () <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $
-                        cxt ^. contextId
+        Right _  <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Left err <- runVoidedQuery connPool $ registerPersonaWithContext persona servId cxtName
         err `shouldBe` NoSuchPersona
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
@@ -793,7 +790,8 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $ ContextId 1525
+        Left err      <- runVoidedQuery connPool $
+                            registerPersonaWithContext persona servId "not-a-context"
         err `shouldBe` NoSuchContext
 
 unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
@@ -803,20 +801,19 @@ unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
-                            $ cxt ^. contextId
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right ()  <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
         [Only entryCount]  <- doQuery connPool countEntries (Only $ cxt ^. contextId)
         entryCount `shouldBe` (1 :: Int)
-        Right ()      <- runPooledQuery connPool . unregisterPersonaFromContext
-                            (persona ^. personaId) $ cxt ^. contextId
+        Right ()      <- runPooledQuery connPool $ unregisterPersonaFromContext
+                            (persona ^. personaId) servId cxtName
         [Only entryCount'] <- doQuery connPool countEntries (Only $ cxt ^. contextId)
         entryCount' `shouldBe` (0 :: Int)
 
     it "is a no-op if persona and context don't exist" $ \connPool -> do
         rowCountShouldBe connPool "personas_per_context" 0
-        Right ()      <- runPooledQuery connPool . unregisterPersonaFromContext
-                            (PersonaId 5432) $ ContextId 1525
+        Right ()      <- runPooledQuery connPool $ unregisterPersonaFromContext
+                            (PersonaId 5432) servId "no-such-context"
         rowCountShouldBe connPool "personas_per_context" 0
 
   where
@@ -829,10 +826,9 @@ findPersonaSpec = describe "findPersona" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
-                            $ cxt ^. contextId
-        Right mPers   <- runPooledQuery connPool . findPersona uid $ cxt ^. contextId
+        Right _     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()    <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
+        Right mPers <- runPooledQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Just persona
 
     it "doesn't find a persona if none was registered" $ \connPool -> do
@@ -840,8 +836,8 @@ findPersonaSpec = describe "findPersona" $ do
         Right _     <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()    <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right mPers <- runPooledQuery connPool . findPersona uid $ cxt ^. contextId
+        Right _     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right mPers <- runPooledQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Nothing
 
 contextsForServiceSpec :: SpecWith (Pool Connection)
