@@ -675,34 +675,52 @@ deletePersonaSpec = describe "deletePersona" $ do
 
 addContextSpec :: SpecWith (Pool Connection)
 addContextSpec = describe "addContext" $ do
-    it "adds a context to the DB" $ \connPool -> do
+    it "adds a context with URL to the DB" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         cxt ^. contextService `shouldBe` servId
         cxt ^. contextName `shouldBe` cxtName
         cxt ^. contextDescription `shouldBe` cxtDesc
-        cxt ^. contextUrl `shouldBe` cxtUrl
+        cxt ^. contextUrl `shouldBe` Just cxtUrl
         [(id', name, sid, desc, url)] <- doQuery connPool
             [sql| SELECT id, name, owner_service, description, url FROM contexts |] ()
         id' `shouldBe` cxt ^. contextId
         name `shouldBe` cxtName
         sid `shouldBe` servId
         desc `shouldBe` cxtDesc
-        url `shouldBe` cxtUrl
+        url `shouldBe` Just cxtUrl
+
+    it "adds a context without URL to the DB" $ \connPool -> do
+        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        Right ()  <- runVoidedQuery connPool $
+                        addService uid servId testHashedSecret "sName" "sDescription"
+        rowCountShouldBe connPool "contexts" 0
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        cxt ^. contextService `shouldBe` servId
+        cxt ^. contextName `shouldBe` cxtName
+        cxt ^. contextDescription `shouldBe` cxtDesc
+        cxt ^. contextUrl `shouldBe` Nothing
+        [(id', name, sid, desc, url)] <- doQuery connPool
+            [sql| SELECT id, name, owner_service, description, url FROM contexts |] ()
+        id' `shouldBe` cxt ^. contextId
+        name `shouldBe` cxtName
+        sid `shouldBe` servId
+        desc `shouldBe` cxtDesc
+        url `shouldBe` (Nothing :: Maybe ProxyUri)
 
     it "throws NoSuchService if the context belongs to a non-existent service" $ \connPool -> do
-        Left err <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Left err <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         err `shouldBe` NoSuchService
 
     it "throws ContextNameAlreadyExists if the name is not unique" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
-        Right _   <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
-        Left err  <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right _   <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Left err  <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc Nothing
         err `shouldBe` ContextNameAlreadyExists
 
 deleteContextSpec :: SpecWith (Pool Connection)
@@ -712,7 +730,7 @@ deleteContextSpec = describe "deleteContext" $ do
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()  <- runPooledQuery connPool . deleteContext $ cxt ^. contextId
         rowCountShouldBe connPool "contexts" 0
 
@@ -727,7 +745,7 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
         [(pid, cid)] <- doQuery connPool
@@ -740,10 +758,11 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
-        Left err      <- runVoidedQuery connPool . registerPersonaWithContext persona $ cxt ^. contextId
+        Left err      <- runVoidedQuery connPool . registerPersonaWithContext persona $
+                            cxt ^. contextId
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws MultiplePersonasPerContext if the user registered another persona" $ \connPool -> do
@@ -752,10 +771,11 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         Right persona' <- runPooledQuery connPool $ addPersona "MyMyMy" uid Nothing
         Right ()  <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()  <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
-        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona' $ cxt ^. contextId
+        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona' $
+                        cxt ^. contextId
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws NoSuchPersona if the persona doesn't exist" $ \connPool -> do
@@ -763,8 +783,9 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         let persona = Persona (PersonaId 5904) persName uid Nothing
         Right ()  <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
-        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $ cxt ^. contextId
+        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Left err  <- runVoidedQuery connPool . registerPersonaWithContext persona $
+                        cxt ^. contextId
         err `shouldBe` NoSuchPersona
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
@@ -782,7 +803,7 @@ unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
         [Only entryCount]  <- doQuery connPool countEntries (Only $ cxt ^. contextId)
@@ -808,7 +829,7 @@ findPersonaSpec = describe "findPersona" $ do
         Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()      <- runPooledQuery connPool . registerPersonaWithContext persona
                             $ cxt ^. contextId
         Right mPers   <- runPooledQuery connPool . findPersona uid $ cxt ^. contextId
@@ -819,7 +840,7 @@ findPersonaSpec = describe "findPersona" $ do
         Right _     <- runPooledQuery connPool $ addPersona persName uid Nothing
         Right ()    <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
+        Right cxt   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right mPers <- runPooledQuery connPool . findPersona uid $ cxt ^. contextId
         mPers `shouldBe` Nothing
 
@@ -829,9 +850,9 @@ contextsForServiceSpec = describe "contextsForService" $ do
         Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()   <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt1 <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
-        Right cxt2 <- runPooledQuery connPool $ addContext servId "MeinMoabit"
-                            "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
+        Right cxt1 <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right cxt2 <- runPooledQuery connPool . addContext servId "MeinMoabit"
+                            "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
         Right contexts <- runPooledQuery connPool $ contextsForService servId
         Set.fromList contexts `shouldBe` Set.fromList [cxt1, cxt2]
 
@@ -841,9 +862,9 @@ contextsForServiceSpec = describe "contextsForService" $ do
                             addService uid servId testHashedSecret "sName" "sDescription"
         Right ()   <- runVoidedQuery connPool $
                             addService uid "sid2" testHashedSecret "s2Name" "s2Description"
-        Right _    <- runPooledQuery connPool $ addContext servId cxtName cxtDesc cxtUrl
-        Right _    <- runPooledQuery connPool $ addContext servId "MeinMoabit"
-                            "Another context" $ ProxyUri "example.org" 80 "/mmoabit"
+        Right _    <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right _    <- runPooledQuery connPool . addContext servId "MeinMoabit"
+                            "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
         Right contexts <- runPooledQuery connPool $ contextsForService "sid2"
         contexts `shouldBe` []
 

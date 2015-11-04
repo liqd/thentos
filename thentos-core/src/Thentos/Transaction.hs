@@ -266,14 +266,15 @@ deletePersona persId = do
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
-addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> ThentosQuery e Context
-addContext sid name desc url = do
+addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri ->
+    ThentosQuery e Context
+addContext sid name desc mUrl = do
     res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
                         VALUES (?, ?, ?, ?)
                         RETURNING id |]
-                  (sid, name, desc, url)
+                  (sid, name, desc, mUrl)
     case res of
-        [Only cxtId] -> return $ Context cxtId sid name desc url
+        [Only cxtId] -> return $ Context cxtId sid name desc mUrl
         _            -> impossible "addContext didn't return a single ID"
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
@@ -328,7 +329,7 @@ contextsForService sid = map mkContext <$>
     queryT [sql| SELECT id, name, description, url FROM contexts WHERE owner_service = ? |]
            (Only sid)
   where
-    mkContext (cxtId, name, description, url) = Context cxtId sid name description url
+    mkContext (cxtId, name, description, mUrl) = Context cxtId sid name description mUrl
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
 addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()

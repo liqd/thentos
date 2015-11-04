@@ -83,9 +83,9 @@ makeMain commandSwitch =
     let dbName = config >>. (Proxy :: Proxy '["database", "name"])
     connPool <- createConnPoolAndInitDb $ cs dbName
     let actionState = ActionState (connPool, rng, config)
-        log_path = config >>. (Proxy :: Proxy '["log", "path"])
-        log_level = config >>. (Proxy :: Proxy '["log", "level"])
-    configLogger log_path log_level
+        logPath     = config >>. (Proxy :: Proxy '["log", "path"])
+        logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
+    configLogger logPath logLevel
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))

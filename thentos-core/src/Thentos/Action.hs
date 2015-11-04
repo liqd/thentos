@@ -81,7 +81,7 @@ where
 
 import Control.Conditional ((<||>))
 import Control.Lens ((^.))
-import Control.Monad (unless, void)
+import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
@@ -329,15 +329,22 @@ deleteService sid = do
     assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     query'P $ T.deleteService sid
 
--- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
--- to the config which will automatically spring into life if the config is read.
+-- | Autocreate a service with a specific ID if it doesn't exist yet. Moreover, if no contexts
+-- have been defined for the service yet, a default context with empty name is automatically
+-- created.
+--
+-- This allows adding services to the config which will automatically spring into life if the
+-- config is read.
 autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e ()
-autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
-    \case NoSuchService -> do
-            logger'P DEBUG $ "autocreating service with ID " ++ show sid
-            void $ addServicePrim owner sid (ServiceName "autocreated")
-                                  (ServiceDescription "autocreated")
-          e -> throwError e
+autocreateServiceIfMissing'P owner sid = do
+    void (lookupService sid) `catchError`
+        \case NoSuchService -> do
+                logger'P DEBUG $ "autocreating service with ID " ++ show sid
+                void $ addServicePrim owner sid "autocreated" "autocreated"
+              e -> throwError e
+    contexts <- contextsForService sid
+    when (null contexts) . void $ addContext sid "" "default context" Nothing
+    pure ()
 
 
 -- * thentos session
@@ -533,10 +540,10 @@ deletePersona persona = do
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 -- Only the service or an admin may do this.
-addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> Action e Context
-addContext sid name desc url = do
+addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri -> Action e Context
+addContext sid name desc mUrl = do
     assertAuth (hasServiceId sid <||> hasRole RoleAdmin)
-    query'P $ T.addContext sid name desc url
+    query'P $ T.addContext sid name desc mUrl
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 -- Only the service owning the context or an admin may do this.

@@ -422,8 +422,6 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess path stok
 
 -- | Log a user in.
--- TODO use mapping between personaId and path to find the user to login;
--- likewise when forwarding request headers
 login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
@@ -431,6 +429,7 @@ login r = AC.logIfError'P $ do
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
+    -- TODO return the persona's external URL, delete userIdToPath
     return $ RequestSuccess (userIdToPath config uid) stok
 
 -- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user

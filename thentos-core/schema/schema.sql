@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS contexts (
     name          text      NOT NULL UNIQUE,
     owner_service text      NOT NULL REFERENCES services (id),
     description   text      NOT NULL,
-    url           text      NOT NULL
+    url           text
 );
 
 -- Which persona should be used for which context?

@@ -247,7 +247,7 @@ data Context = Context
   , _contextService     :: ServiceId
   , _contextName        :: ContextName
   , _contextDescription :: ContextDescription
-  , _contextUrl         :: ProxyUri
+  , _contextUrl         :: Maybe ProxyUri
   } deriving (Eq, Show, Typeable, Generic)
 
 instance Ord Context where
