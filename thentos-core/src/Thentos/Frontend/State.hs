@@ -156,7 +156,7 @@ enterFAction ::
 enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . run
   where
     run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
-    run fServer = fst <$$> runFActionE emptyFrontendSessionData aState fServer'
+    run fServer = fst <$$> runFActionE (emptyFrontendSessionData "csrfToken") aState fServer'
       where
         fServer' :: FAction a
         fServer' = do

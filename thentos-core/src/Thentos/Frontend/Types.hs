@@ -71,7 +71,7 @@ data FrontendSessionData =
         }
   deriving (Show, Eq, Generic)
 
-emptyFrontendSessionData :: FrontendSessionData
+emptyFrontendSessionData :: CsrfToken -> FrontendSessionData
 emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
 
 data FrontendSessionLoginData =
@@ -111,9 +111,11 @@ instance ToJSON DashboardTab where toJSON = Aeson.gtoJson
 data ServiceLoginState =
     ServiceLoginState
         { _fslServiceId :: ServiceId
-        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@
+        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@  FIXME: give this a better name.
         }
   deriving (Show, Eq, Generic)
+
+type CsrfToken = ST
 
 instance ToJSON ServiceLoginState where
     toJSON (ServiceLoginState mSid rr) = Aeson.toJSON (mSid, rr')
