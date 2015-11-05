@@ -109,9 +109,9 @@ ui = component render eval
 
 
 main :: forall eff. String -> Eff (HalogenEffects eff) Unit
-  { node: node, driver: driver } <- runUI ui initialState
-  liftEff $ appendTo selector node
 main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
+    { node: node, driver: driver } <- runUI ui initialState
+    liftEff $ appendTo selector node
 
 {-
   setInterval 900 $ toList ((\ q -> driver (action (\next -> Query next q))) <$>
@@ -128,6 +128,6 @@ main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
 
 setInterval :: forall e a. Int -> List (Aff e a) -> Aff e Unit
 setInterval ms Nil = pure unit
-setInterval ms (Cons a as) = later' ms $ do
-  a
-  setInterval ms as
+setInterval ms (Cons action as) = later' ms $ do
+    action
+    setInterval ms as
