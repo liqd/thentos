@@ -13,7 +13,8 @@ import Data.Foreign hiding (parseJSON)
 import Data.Generic
 import Data.Maybe
 import Data.Tuple
-import Halogen (HalogenEffects())
+import Halogen (HalogenEffects(), action)
+import Halogen.Util (onLoad)
 import Network.HTTP.Affjax
 import Network.HTTP.Affjax.Request
 import Network.HTTP.Affjax.Response
@@ -85,9 +86,16 @@ main = do
     publish "Main" "counter" IFrameStressTest.counterMain
     publish "Main" "indicator" LoginIndicator.main
 
-    IFrameStressTest.counterMain "body" (liftEff $ log "tick-handler")
-    IFrameStressTest.counterMain "body" (return unit)
-    LoginIndicator.main "body"
+    onLoad $ do
+        IFrameStressTest.counterMain "body" (liftEff $ log "tick-handler")
+        runAff throwException (const (pure unit)) $ do
+            (Tuple canceler driver) <- IFrameStressTest.counterRunner "#id1" (return unit)
+            later' 3000 $ driver (action IFrameStressTest.Clear)
+            later' 3000 $ do
+                cancel canceler (error "jargh!")
+                -- FIXME: dom-gc: killing the async job doesn't remove the widget's dom elements from the page, we need to do this manually!
+
+        LoginIndicator.main "#id2"
 
     runAff throwException print $ loginUser "god" "god"
 
