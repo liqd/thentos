@@ -26,7 +26,7 @@ import Network.HTTP.StatusCode (StatusCode(StatusCode))
 import Prelude
 
 import qualified Error as Error
-import qualified IFrameStressTest as IFrameStressTest
+import qualified Counter as Counter
 
 
 foreign import publish :: forall a. String -> String -> a -> forall eff. Eff eff Unit
@@ -82,10 +82,10 @@ main :: forall eff.
     Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
 main = do
     log "initializing thentos-purescript..."
-    publish "Main" "counter" IFrameStressTest.counterMain
-    publish "Main" "counter_" IFrameStressTest.counterRunner
-    publish "Main" "tick" (action IFrameStressTest.Tick)
-    publish "Main" "clear" (action IFrameStressTest.Clear)
+    publish "Main" "counter" Counter.counterMain
+    publish "Main" "counter_" Counter.counterRunner
+    publish "Main" "tick" (action Counter.Tick)
+    publish "Main" "clear" (action Counter.Clear)
     publish "Main" "indicator" LoginIndicator.main
 
     -- main0
@@ -96,10 +96,10 @@ main0 :: forall eff.
     Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
 main0 = do
     onLoad $ do
-        IFrameStressTest.counterMain "body" (liftEff $ log "tick-handler")
+        Counter.counterMain "body" (liftEff $ log "tick-handler")
         runAff throwException (const (pure unit)) $ do
-            (Tuple canceler driver) <- IFrameStressTest.counterRunner "#id1" (return unit)
-            later' 3000 $ driver (action IFrameStressTest.Clear)
+            (Tuple canceler driver) <- Counter.counterRunner "#id1" (return unit)
+            later' 3000 $ driver (action Counter.Clear)
             later' 3000 $ do
                 cancel canceler (error "jargh!")
                 -- FIXME: dom-gc: killing the async job doesn't remove the widget's dom elements from the page, we need to do this manually!

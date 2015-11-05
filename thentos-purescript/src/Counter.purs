@@ -1,4 +1,4 @@
-module IFrameStressTest where
+module Counter where
 
 import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later', liftEff')
 import Control.Monad.Aff.Class (MonadAff)
