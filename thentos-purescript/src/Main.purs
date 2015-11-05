@@ -82,10 +82,19 @@ main :: forall eff.
     Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
 main = do
     log "initializing thentos-purescript..."
-
     publish "Main" "counter" IFrameStressTest.counterMain
+    publish "Main" "counter_" IFrameStressTest.counterRunner
+    publish "Main" "tick" (action IFrameStressTest.Tick)
+    publish "Main" "clear" (action IFrameStressTest.Clear)
     publish "Main" "indicator" LoginIndicator.main
 
+    -- main0
+
+    log "initialization of thentos-purescript complete!"
+
+main0 :: forall eff.
+    Eff (HalogenEffects (ajax :: AJAX, console :: CONSOLE, random :: RANDOM | eff)) Unit
+main0 = do
     onLoad $ do
         IFrameStressTest.counterMain "body" (liftEff $ log "tick-handler")
         runAff throwException (const (pure unit)) $ do
@@ -98,5 +107,3 @@ main = do
         LoginIndicator.main "#id2"
 
     runAff throwException print $ loginUser "god" "god"
-
-    log "initialization of thentos-purescript complete!"
