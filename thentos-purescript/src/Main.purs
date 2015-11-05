@@ -85,8 +85,10 @@ main = do
     publish "Main" "counter" IFrameStressTest.counterMain
     publish "Main" "indicator" LoginIndicator.main
 
-    IFrameStressTest.counterMain "body" (\_ -> unit)
-    IFrameStressTest.counterMain "#id1" (\_ -> unit)
-    LoginIndicator.main "#id2"
+    IFrameStressTest.counterMain "body" (liftEff $ log "tick-handler")
+    IFrameStressTest.counterMain "body" (return unit)
+    LoginIndicator.main "body"
 
     runAff throwException print $ loginUser "god" "god"
+
+    log "initialization of thentos-purescript complete!"

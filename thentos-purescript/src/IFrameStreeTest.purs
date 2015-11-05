@@ -1,6 +1,6 @@
 module IFrameStressTest where
 
-import Control.Monad.Aff (Aff(), runAff, later', liftEff')
+import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later', liftEff')
 import Control.Monad.Aff.Console (log, print)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
@@ -11,7 +11,7 @@ import Data.Either (Either(Right, Left))
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
                 component, modify, runUI, action)
 import Halogen.Util (appendTo)
-import Prelude (Show, Functor, (++), Unit(), show, pure, const, bind, unit, (+), ($), (>>=))
+import Prelude (Show, Functor, (++), Unit(), show, pure, const, bind, unit, (+), ($), (>>=), (<<<))
 import Prim (Boolean(), Int(), String())
 
 import qualified Halogen.HTML.Indexed as H
@@ -39,20 +39,39 @@ counterUI = component render eval
         modify (\(CounterState n) -> CounterState (n + 1))
         pure next
 
-counterRunner :: forall eff. String -> (Unit -> Unit) -> Aff (HalogenEffects (random :: RANDOM, console :: CONSOLE | eff)) Unit
-counterRunner selector callback = do
+verbose :: Boolean
+verbose = true
+
+type CounterEffects eff = HalogenEffects (console :: CONSOLE, random :: RANDOM | eff)
+
+counterRunner ::  forall eff a.
+    String ->
+    Aff (CounterEffects eff) a ->
+    Aff (CounterEffects eff) (Canceler (CounterEffects eff))
+counterRunner selector callback = forkAff $ do
     { node: node, driver: driver } <- runUI counterUI initialCounterState
     liftEff $ appendTo selector node
     i <- liftEff $ randomInt 500 2000
     setInterval i $ driver (action Tick)
   where
-    setInterval :: forall e a. Int -> Aff (console :: CONSOLE | e) a -> Aff (console :: CONSOLE | e) Unit
-    setInterval ms a = later' ms $ do
-      liftEff $ do
-          log "calling callback:"
-          return $ callback unit
-      a
-      setInterval ms a
+    _log :: forall eff. String -> Aff (console :: CONSOLE | eff) Unit
+    _log s = if verbose then log s >>= \_ -> pure unit else pure unit
 
-counterMain :: forall eff. String -> (Unit -> Unit) -> Eff (HalogenEffects (random :: RANDOM, console :: CONSOLE | eff)) Unit
-counterMain selector callback = runAff throwException (const (pure unit)) (counterRunner selector callback)
+    setInterval :: forall a.
+          Int ->
+          Aff (CounterEffects eff) a ->
+          Aff (CounterEffects eff) Unit
+    setInterval ms action = later' ms $ do
+        _log "[counter: tick!]"
+        callback
+        action
+        setInterval ms action
+
+-- TODO: variant of counterRunner with sync callback (in Eff) that doesn't need to return.
+
+counterMain :: forall eff a.
+    String ->
+    Aff (CounterEffects eff) a ->
+    Eff (CounterEffects eff) Unit
+counterMain selector callback = runAff throwException (const (pure unit))
+    (counterRunner selector callback)

@@ -1,6 +1,6 @@
 module LoginIndicator where
 
-import Control.Monad.Aff (Aff(), runAff, later')
+import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
@@ -109,9 +109,9 @@ ui = component render eval
 
 
 main :: forall eff. String -> Eff (HalogenEffects eff) Unit
-main selector = runAff throwException (const (pure unit)) $ do
   { node: node, driver: driver } <- runUI ui initialState
   liftEff $ appendTo selector node
+main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
 
 {-
   setInterval 900 $ toList ((\ q -> driver (action (\next -> Query next q))) <$>
