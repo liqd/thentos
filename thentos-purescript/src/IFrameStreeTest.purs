@@ -1,14 +1,18 @@
 module IFrameStressTest where
 
-import Control.Monad.Aff (Aff(), runAff, later')
+import Control.Monad.Aff (Aff(), runAff, later', liftEff')
+import Control.Monad.Aff.Console (log, print)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (CONSOLE(), log, print)
+import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Control.Monad.Eff.Random (RANDOM(), randomInt)
-import Halogen
+import Data.Either (Either(Right, Left))
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
+                component, modify, runUI, action)
 import Halogen.Util (appendTo)
-import Prelude
+import Prelude (Show, Functor, (++), Unit(), show, pure, const, bind, unit, (+), ($), (>>=))
+import Prim (Boolean(), Int(), String())
 
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
