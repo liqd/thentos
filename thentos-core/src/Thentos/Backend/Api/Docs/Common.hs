@@ -43,7 +43,7 @@ import Thentos.Types
 
 -- * docs via http
 
-type RestDocs api = api :<|> RestDocs' api
+type RestDocs api = RestDocs' api :<|> api
 type RestDocs' api = "docs" :> "md" :> Get '[PlainText] Docs.API
 
 -- FIXME: move upstream to servant-docs

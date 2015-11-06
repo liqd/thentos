@@ -48,8 +48,8 @@ type Api = RestDocs (ThentosAssertHeaders :> ThentosAuth :> ThentosBasic)
 
 api :: ActionState -> Server Api
 api actionState =
-       (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
-  :<|> restDocs (Proxy :: Proxy Api)
+       restDocs (Proxy :: Proxy Api)
+  :<|> (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
 
 
 -- * combinators
