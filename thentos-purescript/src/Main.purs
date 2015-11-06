@@ -27,6 +27,7 @@ import Prelude
 
 import qualified Error as Error
 import qualified Counter as Counter
+import qualified IFramesDemo as IFramesDemo
 
 
 foreign import publish :: forall a. String -> String -> a -> forall eff. Eff eff Unit
@@ -87,6 +88,7 @@ main = do
     publish "Main" "tick" (action Counter.Tick)
     publish "Main" "clear" (action Counter.Clear)
     publish "Main" "indicator" LoginIndicator.main
+    publish "IFrames" "main" IFramesDemo.main
 
     -- main0
 
