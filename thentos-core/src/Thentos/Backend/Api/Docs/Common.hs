@@ -56,12 +56,10 @@ instance ToSample API where
 
 restDocs :: forall api m. (HasDocs (RestDocs api), Monad m)
          => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
-restDocs = return . Docs.docs
+restDocs = return . prettyMimeRender . Docs.docs
 
 
 -- * Pretty-printing
-
--- FIXME: is this section obsoleted by younger features in servant-docs?
 
 prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
 prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
