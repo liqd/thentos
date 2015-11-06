@@ -10,19 +10,21 @@
 
 module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
 
-import Control.Lens ((&), (%~))
 import Control.Arrow (second)
+import Control.Lens ((&), (%~), (.~))
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
-import Data.Maybe (fromMaybe)
 import Data.Map (Map)
-import Data.String.Conversions (LBS)
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (LBS)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>))
-import Servant.Docs
-    ( ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs, docsFor)
+import Servant.API.ContentTypes (AllMimeRender, allMime, IsNonEmpty)
+import Servant.Docs.Internal (Method(DocPOST), sampleByteStrings,
+                              response, respTypes, respBody, respStatus, single, method)
+import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs, docsFor)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -35,6 +37,8 @@ import Thentos.Types
 
 
 -- * Pretty-printing
+
+-- FIXME: is this section obsoleted by younger features in servant-docs?
 
 prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
 prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
@@ -147,3 +151,14 @@ instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
                \ * is any string except \"Service\" or \"Session\", the request\
                \ will be rejected."
         title = "Request Headers"
+
+
+instance (ToSample a, IsNonEmpty cts, AllMimeRender cts a) => HasDocs (Post200 cts a) where
+    docsFor Proxy (endpoint, action) _ = single endpoint' action'
+      where
+        endpoint' = endpoint & method .~ DocPOST
+        action' = action & response.respBody .~ sampleByteStrings t p
+                         & response.respTypes .~ allMime t
+                         & response.respStatus .~ 200
+        t = Proxy :: Proxy cts
+        p = Proxy :: Proxy a
