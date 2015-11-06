@@ -1,15 +1,18 @@
+{-# LANGUAGE AllowAmbiguousTypes                      #-}
 {-# LANGUAGE CPP                                      #-}
 {-# LANGUAGE DataKinds                                #-}
+{-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Docs.Common (prettyMimeRender) where
+module Thentos.Backend.Api.Docs.Common (RestDocs, restDocs, prettyMimeRender) where
 
 import Control.Arrow (second)
 import Control.Lens ((&), (%~), (.~))
@@ -21,11 +24,12 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, (<>))
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
-import Servant.API (Capture, (:>), Post)
-import Servant.API.ContentTypes (AllMimeRender, allMime, IsNonEmpty)
-import Servant.Docs.Internal (Method(DocPOST), API(API), sampleByteStrings,
-                              response, respTypes, respBody, respStatus, single, method)
-import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs, docsFor)
+import Servant.API (Capture, (:>), Post, Get, (:<|>), MimeRender(mimeRender))
+import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
+import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
+                     docsFor, emptyAPI)
+import Servant.Docs.Internal (API(API), response, respStatus)
+import Servant.Server (ServerT)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -35,6 +39,24 @@ import qualified Servant.Docs as Docs
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Types
+
+
+-- * docs via http
+
+type RestDocs api = api :<|> RestDocs' api
+type RestDocs' api = "docs" :> "md" :> Get '[PlainText] Docs.API
+
+-- FIXME: move upstream to servant-docs
+instance MimeRender PlainText API where
+    mimeRender _ = mimeRender (Proxy :: Proxy PlainText) . Docs.markdown
+
+-- FIXME: move upstream to servant-docs
+instance ToSample API where
+    toSamples _ = [("empty", emptyAPI)]
+
+restDocs :: forall api m. (HasDocs (RestDocs api), Monad m)
+         => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
+restDocs = return . Docs.docs
 
 
 -- * Pretty-printing
@@ -160,4 +182,4 @@ instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
         case docsFor (Proxy :: Proxy (Post cts a)) (endpoint, action) opts of
             API intros singleton -> API intros $ mutate <$> singleton
       where
-        mutate action = action & response . respStatus .~ 200
+        mutate = (& response . respStatus .~ 200)

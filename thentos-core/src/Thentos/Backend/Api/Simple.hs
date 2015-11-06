@@ -23,11 +23,13 @@ import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
+import Servant.Docs (docs)
 
 import System.Log.Missing (logger)
 import Thentos.Action
 import Thentos.Action.Core (ActionState, Action)
 import Thentos.Backend.Api.Auth
+import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
@@ -43,12 +45,12 @@ runApi cfg asg = do
 serveApi :: ActionState -> Application
 serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
 
-type Api =
-    ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
+type Api = RestDocs (ThentosAssertHeaders :> ThentosAuth :> ThentosBasic)
 
 api :: ActionState -> Server Api
 api actionState =
-    (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
+       (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
+  :<|> restDocs (Proxy :: Proxy Api)
 
 
 -- * combinators
