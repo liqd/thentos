@@ -39,7 +39,6 @@ library
   exposed-modules:
       Thentos.Adhocracy3
     , Thentos.Adhocracy3.Backend.Core
-    , Thentos.Adhocracy3.Backend.Api.Docs.Simple
     , Thentos.Adhocracy3.Backend.Api.Simple
     , Thentos.Adhocracy3.Types
   build-depends:

@@ -53,11 +53,12 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai (Application)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
+import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
+import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
@@ -70,11 +71,14 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Types.Status as Status
+import qualified Servant.Docs as Docs
 import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
+import Thentos.Backend.Api.Docs.Common (RestDocs, restDocs)
+import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
@@ -343,7 +347,9 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi manager asg
 
 serveApi :: Client.Manager -> AC.ActionState -> Application
-serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api manager
+serveApi manager astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
+    serve (Proxy :: Proxy (RestDocs Api))
+        (api manager astate :<|> restDocs (Proxy :: Proxy (RestDocs Api)))
 
 
 -- * api
@@ -355,10 +361,14 @@ serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve 
 type ThentosApi =
        "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass
                                :> Post200 '[JSON] TypedPathWithCacheControl
-  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post200 '[JSON] RequestResult
-  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
-  :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest :> Post200 '[JSON] RequestResult
+  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest
+                               :> Post200 '[JSON] RequestResult
 
 type Api =
        ThentosApi
@@ -584,3 +594,34 @@ userIdFromPath (Path s) = do
     rawId <- maybe (throwError $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
+
+
+-- * servant docs
+
+instance ToSample A3UserNoPass
+
+instance ToSample A3UserWithPass
+
+instance ToSample a => ToSample (A3Resource a)
+
+instance ToSample TypedPath
+
+instance ToSample Path where
+    toSamples _ = Docs.singleSample $ Path "/proposals/environment"
+
+instance ToSample TypedPathWithCacheControl
+
+instance ToSample ActivationRequest
+
+-- FIXME: split up LoginRequest into two separate types for login by email
+-- and login by user name, in order to provide a correct example for
+-- login_email request body
+instance ToSample LoginRequest
+
+instance ToSample RequestResult where
+    toSamples _ = [ ("Success", RequestSuccess (Path "somepath") "sometoken")]
+
+instance ToSample PasswordResetRequest
+
+instance ToSample ContentType where
+    toSamples _ = Docs.singleSample CTUser

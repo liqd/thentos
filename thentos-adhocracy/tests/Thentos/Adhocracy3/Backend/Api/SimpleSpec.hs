@@ -18,8 +18,8 @@ where
 
 import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.Aeson (Value(String), object, (.=))
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson (Value(String), object, (.=))
 import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
@@ -42,10 +42,13 @@ import qualified Network.HTTP.Types.Status as Status
 import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
+
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.Network
+import Thentos.Test.DefaultSpec
+
 
 tests :: IO ()
 tests = hspec spec
@@ -53,6 +56,8 @@ tests = hspec spec
 spec :: Spec
 spec =
     describe "Thentos.Backend.Api.Adhocracy3" $ do
+        with setupBackend specHasRestDocs
+
         describe "A3UserNoPass" $ do
             it "has invertible *JSON instances" . property $
                 let (===) (Right (A3UserNoPass (UserFormData n _ e)))
@@ -222,6 +227,7 @@ spec =
 
     ctJson = ("Content-Type", "application/json")
 
+
 -- * helper functions
 
 -- | Compare the response status with an expected status code and check that the response
@@ -284,6 +290,7 @@ withApp app test = bracket
     (const test)
   where
     settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
+
 
 -- * instances
 
