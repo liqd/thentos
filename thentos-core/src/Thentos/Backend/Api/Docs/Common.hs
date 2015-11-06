@@ -1,9 +1,10 @@
+{-# LANGUAGE CPP                                      #-}
 {-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE MultiParamTypeClasses                    #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
@@ -17,12 +18,12 @@ import Data.Aeson.Utils (decodeV)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS)
+import Data.String.Conversions (LBS, (<>))
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
-import Servant.API (Capture, (:>))
+import Servant.API (Capture, (:>), Post)
 import Servant.API.ContentTypes (AllMimeRender, allMime, IsNonEmpty)
-import Servant.Docs.Internal (Method(DocPOST), sampleByteStrings,
+import Servant.Docs.Internal (Method(DocPOST), API(API), sampleByteStrings,
                               response, respTypes, respBody, respStatus, single, method)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs, docsFor)
 
@@ -50,8 +51,8 @@ prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprint
 
 pprintJson :: LBS -> LBS
 pprintJson raw = encodePretty' (defConfig {confCompare = compare})
-           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:\
-                           \ Non-invertible ToJSON instance detected: " ++ show raw)
+           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:" ++
+                           " Non-invertible ToJSON instance detected: " ++ show raw)
            . (decodeV :: LBS -> Maybe Aeson.Value)
            $ raw
 
@@ -135,11 +136,11 @@ instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
       where
         intros = [Docs.DocIntro title [text]]
         title = "Authentication"
-        text = "To call any of this API's endpoints as a User or Service,\
-               \ your request has to contain an HTTP header with the name\
-               \ 'X-Thentos-Session' and with the value set to a valid session\
-               \ token. Session tokens can be acquired by authenticating to\
-               \ the /thentos_session endpoint."
+        text = "To call any of this API's endpoints as a User or Service," <>
+               " your request has to contain an HTTP header with the name" <>
+               " 'X-Thentos-Session' and with the value set to a valid session" <>
+               " token. Session tokens can be acquired by authenticating to" <>
+               " the /thentos_session endpoint."
         -- FIXME: is there any way to link to the endpoints we're referring to?
 
 
@@ -147,18 +148,16 @@ instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
     docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
-        text = "If a request has a headers starting with \"X-Thentos-\\*\" where\
-               \ * is any string except \"Service\" or \"Session\", the request\
-               \ will be rejected."
+        text = "If a request has a headers starting with \"X-Thentos-\\*\" where" <>
+               " * is any string except \"Service\" or \"Session\", the request" <>
+               " will be rejected."
         title = "Request Headers"
 
 
-instance (ToSample a, IsNonEmpty cts, AllMimeRender cts a) => HasDocs (Post200 cts a) where
-    docsFor Proxy (endpoint, action) _ = single endpoint' action'
+instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
+      => HasDocs (Post200 cts a) where
+    docsFor Proxy (endpoint, action) opts =
+        case docsFor (Proxy :: Proxy (Post cts a)) (endpoint, action) opts of
+            API intros singleton -> API intros $ mutate <$> singleton
       where
-        endpoint' = endpoint & method .~ DocPOST
-        action' = action & response.respBody .~ sampleByteStrings t p
-                         & response.respTypes .~ allMime t
-                         & response.respStatus .~ 200
-        t = Proxy :: Proxy cts
-        p = Proxy :: Proxy a
+        mutate action = action & response . respStatus .~ 200
