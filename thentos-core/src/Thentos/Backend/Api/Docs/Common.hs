@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
@@ -15,13 +16,16 @@
 module Thentos.Backend.Api.Docs.Common (RestDocs, restDocs, prettyMimeRender) where
 
 import Control.Arrow (second)
+import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
+import "cryptonite" Crypto.Random (drgNew)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, (<>))
+import Data.String.Conversions (ST, LBS, (<>))
+import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>), Post, Get, (:<|>), MimeRender(mimeRender))
@@ -30,6 +34,7 @@ import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples),
                      docsFor, emptyAPI)
 import Servant.Docs.Internal (API(API), response, respStatus)
 import Servant.Server (ServerT)
+import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -39,6 +44,10 @@ import qualified Servant.Docs as Docs
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Types
+
+import qualified LIO.Missing
+import qualified Thentos.Action as Action
+import qualified Thentos.Action.Core as Action
 
 
 -- * docs via http
@@ -88,25 +97,40 @@ pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response 
       where pprint = fromMaybe id (Map.lookup mType pprinters)
 
 
+-- * generating sample tokens
+
+runTokenBuilder :: Action.Action Void a -> [(ST, a)]
+runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
+    Action.runActionWithClearance LIO.Missing.dcTop runTokenBuilderState action
+
+{-# NOINLINE runTokenBuilderState #-}
+runTokenBuilderState :: Action.ActionState
+runTokenBuilderState = unsafePerformIO $ do
+    rng  <- drgNew >>= newMVar
+    conn <- pure $ error "runTokenBuilder: no db"
+    cfg  <- pure $ error "runTokenBuilder: no config"
+    return $ Action.ActionState (conn, rng, cfg)
+
+
 -- * instances for servant-docs
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
-    toCapture _ = DocCapture "token" "Thentos Session Token"
+    toCapture _ = DocCapture "token" "session token for session with thentos"
 
 instance ToCapture (Capture "token" ServiceSessionToken) where
-    toCapture _ = DocCapture "token" "Service Session Token"
+    toCapture _ = DocCapture "token" "session token for thentos-managed session with service"
 
 instance ToCapture (Capture "sid" ServiceId) where
-    toCapture _ = DocCapture "sid" "Service ID"
+    toCapture _ = DocCapture "sid" "service ID"
 
 instance ToCapture (Capture "uid" UserId) where
-    toCapture _ = DocCapture "uid" "User ID"
+    toCapture _ = DocCapture "uid" "user ID"
 
 instance ToSample Agent where
     toSamples _ = Docs.singleSample . UserA . UserId $ 0
 
 instance ToSample ThentosSessionToken where
-    toSamples _ = Docs.singleSample "abde1234llkjh"
+    toSamples _ = runTokenBuilder Action.freshSessionToken
 
 instance ToSample LoginFormData where
     toSamples _ = second (uncurry LoginFormData)
@@ -121,32 +145,37 @@ instance ToSample UserPass where
     toSamples _ = Docs.singleSample $ UserPass "secret"
 
 instance ToSample UserName where
-    toSamples _ = Docs.singleSample $ UserName "Alice"
+    toSamples _ = Docs.singleSample $ UserName "alice"
 
 instance ToSample UserEmail where
-    toSamples _ = Docs.singleSample $ fromMaybe (error "ToSample UserEmail instance broken")
-                                  (parseUserEmail "alice@example.com")
+    toSamples _ = Docs.singleSample . (\(Just e) -> e) $ parseUserEmail "alice@example.com"
 
 instance ToSample UserId where
     toSamples _ = Docs.singleSample $ UserId 12
 
+instance ToSample ConfirmationToken where
+    toSamples _ = runTokenBuilder Action.freshConfirmationToken
+
+instance ToSample PasswordResetToken where
+    toSamples _ = runTokenBuilder Action.freshPasswordResetToken
+
 instance ToSample ServiceId where
-    toSamples _ = Docs.singleSample "23t92ege0n"
+    toSamples _ = runTokenBuilder Action.freshServiceId
 
 instance ToSample ServiceKey where
-    toSamples _ = Docs.singleSample "yd090129rj"
+    toSamples _ = runTokenBuilder Action.freshServiceKey
 
 instance ToSample ServiceName where
-    toSamples _ = Docs.singleSample "Example Service"
+    toSamples _ = Docs.singleSample "Evil Corp."
 
 instance ToSample ServiceDescription where
-    toSamples _ = Docs.singleSample "serve as an example"
+    toSamples _ = Docs.singleSample "Making the worse a little better every day."
 
 instance ToSample ServiceSessionMetadata where
     toSamples _ = second ServiceSessionMetadata <$> toSamples (Proxy :: Proxy UserName)
 
 instance ToSample ServiceSessionToken where
-    toSamples _ = Docs.singleSample $ ServiceSessionToken "abde1234llkjh"
+    toSamples _ = runTokenBuilder Action.freshServiceSessionToken
 
 instance ToSample ByUserOrServiceId
 
@@ -159,18 +188,15 @@ instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
         text = "To call any of this API's endpoints as a User or Service," <>
                " your request has to contain an HTTP header with the name" <>
                " 'X-Thentos-Session' and with the value set to a valid session" <>
-               " token. Session tokens can be acquired by authenticating to" <>
-               " the /thentos_session endpoint."
-        -- FIXME: is there any way to link to the endpoints we're referring to?
+               " token."
 
 
 instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
     docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
       where
         intros = [Docs.DocIntro title [text]]
-        text = "If a request has a headers starting with \"X-Thentos-\\*\" where" <>
-               " * is any string except \"Service\" or \"Session\", the request" <>
-               " will be rejected."
+        text = "If a request has  headers starting with \"X-Thentos-\\*\" with" <>
+               " unknown \"*\", the response will be an error."
         title = "Request Headers"
 
 
