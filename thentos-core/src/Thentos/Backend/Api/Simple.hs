@@ -23,7 +23,6 @@ import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
-import Servant.Docs (docs)
 
 import System.Log.Missing (logger)
 import Thentos.Action
