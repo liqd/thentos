@@ -22,15 +22,14 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders)
-import Servant.API ((:<|>)((:<|>)), (:>))
+import Servant.API ((:>))
 import Servant.Server (serve, Server)
-import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
+import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain, pending)
 import Test.Hspec.Wai (shouldRespondWith, with, request)
 
 import Thentos.Action.Core
 
 import qualified Thentos.Backend.Api.Purescript as Purescript
-import qualified Thentos.Backend.Api.Simple as Simple
 
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -67,15 +66,19 @@ specPurescript = do
                 resp <- request "GET" "/js/thentos.js" [] ""
                 liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
 
+    context "When reading purescript file system location from config" $ do
+        it "honours the config" $ do
+            pending
+
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
     as <- createActionState "test_thentos" thentosTestConfig
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 
-type Api = Simple.Api :<|> "js" :> Purescript.Api
+type Api = "js" :> Purescript.Api
 
 api :: Bool -> ActionState -> Server Api
-api havePurescript as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
+api havePurescript (ActionState (_, _, cfg)) = Purescript.api' pursDir
   where
     pursDir :: Maybe FilePath
     pursDir = if havePurescript

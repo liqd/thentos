@@ -30,7 +30,7 @@ import qualified Servant.Docs as Docs
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Core (ActionState, Action)
+import Thentos.Action.Core (ActionState(ActionState), Action)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -38,6 +38,7 @@ import Thentos.Config
 import Thentos.Types
 
 import qualified Paths
+import qualified Thentos.Backend.Api.Purescript as Purs
 
 
 -- * main
@@ -52,12 +53,14 @@ serveApi astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
     in serve p (restDocs p :<|> api astate)
 
-type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
+type Api =
+       ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
+  :<|> "js" :> Purs.Api
 
 api :: ActionState -> Server Api
-api actionState =
-      \mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic
-
+api actionState@(ActionState (_, _, cfg)) =
+       (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
+  :<|> Purs.api cfg
 
 -- * combinators
 
