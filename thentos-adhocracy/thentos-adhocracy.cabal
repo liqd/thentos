@@ -38,6 +38,8 @@ library
     , Thentos.Adhocracy3.Backend.Core
     , Thentos.Adhocracy3.Backend.Api.Simple
     , Thentos.Adhocracy3.Types
+  other-modules:
+      Paths_thentos_adhocracy
   build-depends:
     -- losely based on: https://www.stackage.org/lts-3.5/cabal.config
       aeson >=0.8.0.2 && <0.9
@@ -50,8 +52,10 @@ library
     , http-client >=0.4.22 && <0.5
     , http-conduit >=2.1.8 && <2.2
     , http-types >=0.8.6 && <0.9
+    , lens >=4.12.3 && <4.13
     , lio >=0.11.5.0 && <0.12
     , mtl >=2.2.1 && <2.3
+    , network-uri >=2.6 && <2.7
     , pretty-show >=1.6.8.2 && <1.7
     , safe >=0.3.9 && <0.4
     , servant ==0.5

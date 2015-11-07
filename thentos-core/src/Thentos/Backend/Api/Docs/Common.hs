@@ -13,7 +13,13 @@
 
 {-# OPTIONS -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Docs.Common (RestDocs, restDocs, prettyMimeRender) where
+module Thentos.Backend.Api.Docs.Common
+    ( RestDocs
+    , HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo)
+    , restDocs
+    , prettyMimeRender
+    )
+where
 
 import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
@@ -21,10 +27,12 @@ import Control.Lens ((&), (%~), (.~))
 import "cryptonite" Crypto.Random (drgNew)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
+import Data.List (sort)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, (<>))
+import Data.String.Conversions (ST, LBS)
+import Data.Version (Version)
 import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
@@ -52,20 +60,48 @@ import qualified Thentos.Action.Core as Action
 
 -- * docs via http
 
+-- FIXME: move MimeRender, ToSample API instances and HasDocExtras class upstream to servant-docs
+
 type RestDocs api = RestDocs' api :<|> api
 type RestDocs' api = "docs" :> "md" :> Get '[PlainText] Docs.API
 
--- FIXME: move upstream to servant-docs
 instance MimeRender PlainText API where
     mimeRender _ = mimeRender (Proxy :: Proxy PlainText) . Docs.markdown
 
--- FIXME: move upstream to servant-docs
 instance ToSample API where
     toSamples _ = [("empty", emptyAPI)]
 
-restDocs :: forall api m. (HasDocs (RestDocs api), Monad m)
+class HasDocs api => HasDocExtras api where
+    getCabalVersion :: Proxy api -> Version
+    getTitle :: Proxy api -> String
+
+    getIntros :: Proxy api -> [Docs.DocIntro]
+    getIntros _ = mempty
+
+    getExtraInfo :: Proxy api -> Docs.ExtraInfo api
+    getExtraInfo _ = mempty
+
+restDocs :: forall api m. (HasDocs (RestDocs api), HasDocExtras (RestDocs api), Monad m)
          => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
-restDocs = return . prettyMimeRender . Docs.docs
+restDocs proxy = return . prettyMimeRender . hackTogetherSomeReasonableOrder $
+    Docs.docsWith
+        (Docs.DocOptions 2)
+        (intro : getIntros proxy)
+        (getExtraInfo proxy)
+        proxy
+  where
+    intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalVersion proxy]
+
+hackTogetherSomeReasonableOrder :: Docs.API -> Docs.API
+hackTogetherSomeReasonableOrder (API intros endpoints) = API (f <$> sort intros) endpoints
+  where
+    f di@(Docs.DocIntro title desc) = Docs.DocIntro (g title) desc
+      where
+        g ('@':'@':x) = h $ dropWhile (`elem` (".0123456789" :: String)) x
+        g _ = error $ "hackTogetherSomeReasonableOrder/g: " ++ show di
+
+        h ('@':'@':x) = x
+        h _ = error $ "hackTogetherSomeReasonableOrder/h: " ++ show di
 
 
 -- * Pretty-printing
@@ -181,23 +217,21 @@ instance ToSample ByUserOrServiceId
 
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
-    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
+    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intro:)
       where
-        intros = [Docs.DocIntro title [text]]
-        title = "Authentication"
-        text = "To call any of this API's endpoints as a User or Service," <>
-               " your request has to contain an HTTP header with the name" <>
-               " 'X-Thentos-Session' and with the value set to a valid session" <>
-               " token."
+        intro = Docs.DocIntro "@@1.2@@Authentication" [unlines desc]
+        desc = [ "To call any of this API's endpoints as a User or Service,"
+               , "your request has to contain an HTTP header with the name"
+               , "'X-Thentos-Session' and with the value set to a valid session"
+               , "token."
+               ]
 
 
 instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
-    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intros ++)
+    docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intro:)
       where
-        intros = [Docs.DocIntro title [text]]
-        text = "If a request has  headers starting with \"X-Thentos-\\*\" with" <>
-               " unknown \"*\", the response will be an error."
-        title = "Request Headers"
+        intro = Docs.DocIntro "@@1.1@@Request Headers" [unlines desc]
+        desc = ["If a request has an unknown header with prefix \"X-Thentos-\"."]
 
 
 instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)

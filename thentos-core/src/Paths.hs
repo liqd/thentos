@@ -1,9 +1,11 @@
 {-# LANGUAGE CPP #-}
-module Paths (getDataFileName) where
+module Paths (getDataFileName, P.version) where
 
-#if !DEVELOPMENT
-import Paths_thentos_core
-#else
+import qualified Paths_thentos_core as P
+
 getDataFileName :: FilePath -> IO FilePath
+#if DEVELOPMENT
 getDataFileName x = return $ "thentos-core/" ++ x
+#else
+getDataFileName = P.getDataFileName
 #endif

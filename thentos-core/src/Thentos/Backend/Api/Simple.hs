@@ -14,15 +14,19 @@
 {-# LANGUAGE TypeSynonymInstances                     #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Thentos.Backend.Api.Simple where
 
-import Control.Lens ((^.))
+import Control.Lens ((^.), (&), (<>~))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
+
+import qualified Servant.Docs as Docs
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -33,6 +37,8 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
+import qualified Paths
+
 
 -- * main
 
@@ -42,14 +48,15 @@ runApi cfg asg = do
     runWarpWithCfg cfg $ serveApi asg
 
 serveApi :: ActionState -> Application
-serveApi = addCacheControlHeaders . serve (Proxy :: Proxy Api) . api
+serveApi astate = addCacheControlHeaders $
+    let p = Proxy :: Proxy (RestDocs Api)
+    in serve p (restDocs p :<|> api astate)
 
-type Api = RestDocs (ThentosAssertHeaders :> ThentosAuth :> ThentosBasic)
+type Api = ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
 
 api :: ActionState -> Server Api
 api actionState =
-       restDocs (Proxy :: Proxy Api)
-  :<|> (\mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic)
+      \mTok -> enter (enterAction actionState baseActionErrorToServantErr mTok) thentosBasic
 
 
 -- * combinators
@@ -133,3 +140,26 @@ thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
+
+
+-- * servant docs
+
+instance HasDocExtras (RestDocs Api) where
+    getCabalVersion _ = Paths.version
+    getTitle _ = "The thentos API family: Core"
+    getIntros _ =
+        [ Docs.DocIntro "@@0.2@@Overview" [unlines $
+            [ "`Core` is a simple, general-purpose user management protocol"
+            , "that supports using one identity for multiple services.  It has"
+            , "all the expected basic features like email confirmation, password"
+            , "reset, change of user data.  Furthermore, it allows to create services,"
+            , "register users with services, and manage the user's service login"
+            , "sessions."
+            ]]]
+
+    getExtraInfo _ = mconcat
+        [ Docs.extraInfo (Proxy :: Proxy (ThentosAssertHeaders :> ThentosAuth :>
+                                            "service" :> Get '[JSON] [ServiceId]))
+                $ Docs.defAction & Docs.notes <>~
+            [Docs.DocNote "delete a service and unregister all its users" []]
+        ]

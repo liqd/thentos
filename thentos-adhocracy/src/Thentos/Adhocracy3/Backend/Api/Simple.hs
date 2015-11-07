@@ -39,6 +39,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
+import Control.Lens ((&), (<>~))
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad (when, unless, mzero, void)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
@@ -77,13 +78,15 @@ import qualified URI.ByteString as URI
 import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
-import Thentos.Backend.Api.Docs.Common (RestDocs, restDocs)
+import Thentos.Backend.Api.Docs.Common
+    (RestDocs, HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo), restDocs)
 import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
 
+import qualified Paths_thentos_adhocracy as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 
@@ -597,6 +600,59 @@ userIdFromPath (Path s) = do
 
 
 -- * servant docs
+
+instance HasDocExtras (RestDocs Api) where
+    getCabalVersion _ = Paths.version
+    getTitle _ = "The thentos API family: Adhocracy3 Proxy"
+    getIntros _ =
+        [ Docs.DocIntro "@@0.2@@Overview" [unlines $
+            [ "Adhocracy3 has a basic user management built-in.  In order for thentos"
+            , "to have minimal impact on the existing code base, it can be deployed"
+            , "as a reverse proxy and mimic the built-in user management rest api."
+            , "This way, the frontend does not need to change at all to use the old"
+            , "features of the new user management system.  The impact of new"
+            , "features to the frontend can be kept at a minimum."
+            , ""
+            , "What follows is the fully compatible adhocracy3 user management rest"
+            , "api.  Any deviation should be considered an error and reported in a"
+            , "later version of this document."
+            ]]]
+
+    getExtraInfo _ = mconcat
+        [ Docs.extraInfo (Proxy :: Proxy ("principals" :> "users" :> ReqBody '[JSON] A3UserWithPass
+                               :> Post200 '[JSON] TypedPathWithCacheControl))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "request creation of a new account" [unlines $
+                [ "When the user-creation form is filled out with login name, email, and"
+                , "password, this end-point is used to post the form content and trigger"
+                , "the email confirmation procedure."
+                ]
+            ]]
+        , Docs.extraInfo (Proxy :: Proxy ("activate_account" :> ReqBody '[JSON] ActivationRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "email-click account activation" [unlines $
+                [ "The confirmation email contains a link to this end-point."
+                , "The path contains a token can only be learned from receiving"
+                , "(or intercepting) the email."
+                ]
+            ]]
+        , Docs.extraInfo (Proxy :: Proxy ("login_username" :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "login with user name" []
+            ]
+        , Docs.extraInfo (Proxy :: Proxy ("login_email" :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "login with user email" []
+            ]
+        , Docs.extraInfo (Proxy :: Proxy ("password_reset" :> ReqBody '[JSON] PasswordResetRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "reset password" []
+            ]
+        ]
 
 instance ToSample A3UserNoPass
 

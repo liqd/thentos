@@ -42,8 +42,10 @@ import Servant.Server.Internal (methodRouter, Router'(WithRequest), RouteResult(
 import Servant.Server.Internal.RoutingApplication (addMethodCheck)
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
         errHeaders)
+import Servant.Utils.Links (HasLink(MkLink, toLink), linkURI)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
+import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 
 import qualified Data.ByteString.Char8 as SBS
 import qualified Data.Text as ST
@@ -190,6 +192,10 @@ instance (AllCTRender ctypes a) => HasServer (Post200 ctypes a) where
     type ServerT (Post200 ctypes a) m = m a
     route Proxy = methodRouter methodPost (Proxy :: Proxy ctypes) ok200
 
+instance HasLink (Post200 ctypes a) where
+    type MkLink (Post200 ctypes a) = URI
+    toLink _ = linkURI
+
 
 -- * request headers
 
@@ -250,6 +256,10 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
        subserver `addMethodCheck` return (case badHeaders $ requestHeaders request of
           []  -> Route ()
           bad -> FailFatal err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad})
+
+instance HasLink sub => HasLink (ThentosAssertHeaders :> sub) where
+    type MkLink (ThentosAssertHeaders :> sub) = MkLink sub
+    toLink _ = toLink (Proxy :: Proxy sub)
 
 
 -- * response headers
