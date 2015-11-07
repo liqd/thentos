@@ -352,7 +352,7 @@ runBackend cfg asg = do
 serveApi :: Client.Manager -> AC.ActionState -> Application
 serveApi manager astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (restDocs p :<|> api manager astate)
+    in serve p (pure (restDocs p) :<|> api manager astate)
 
 
 -- * api

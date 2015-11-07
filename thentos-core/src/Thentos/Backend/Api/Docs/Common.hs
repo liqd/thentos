@@ -41,7 +41,6 @@ import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
                      docsFor, emptyAPI)
 import Servant.Docs.Internal (API(API), response, respStatus)
-import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Data.Aeson as Aeson
@@ -81,9 +80,9 @@ class HasDocs api => HasDocExtras api where
     getExtraInfo :: Proxy api -> Docs.ExtraInfo api
     getExtraInfo _ = mempty
 
-restDocs :: forall api m. (HasDocs (RestDocs api), HasDocExtras (RestDocs api), Monad m)
-         => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
-restDocs proxy = return . prettyMimeRender . hackTogetherSomeReasonableOrder $
+restDocs :: forall api. (HasDocs (RestDocs api), HasDocExtras (RestDocs api))
+         => Proxy (RestDocs api) -> API
+restDocs proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
     Docs.docsWith
         (Docs.DocOptions 2)
         (intro : getIntros proxy)

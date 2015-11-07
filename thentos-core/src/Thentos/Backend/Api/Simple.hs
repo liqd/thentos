@@ -51,7 +51,7 @@ runApi cfg asg = do
 serveApi :: ActionState -> Application
 serveApi astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (restDocs p :<|> api astate)
+    in serve p (pure (restDocs p) :<|> api astate)
 
 type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
