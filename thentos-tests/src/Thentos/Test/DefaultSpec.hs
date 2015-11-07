@@ -26,7 +26,7 @@ import qualified Data.ByteString.Lazy as LBS
 specHasRestDocs :: SpecWith Application
 specHasRestDocs = do
     describe "`RestDocs`" $ do
-        let bodyNonEmpty resp = liftIO $ simpleBody resp `shouldSatisfy` ((>0) . LBS.length)
+        let bodyNonEmpty resp = liftIO $ simpleBody resp `shouldSatisfy` ((>100) . LBS.length)
 
         it "has markdown" $ do
             get "/docs/md" `shouldRespondWith` 200
