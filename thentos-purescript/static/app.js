@@ -3,12 +3,12 @@ window.state = {};
 window.onload = function () {
     console.log('initializing some app...');
 
-    PS['Main'].indicator("body")();
+    PS['Main'].indicator("#id1")();
 
-    var counterSync  = PS['Main'].counter("body")(function () {
+    var counterSync  = PS['Main'].counter("#id2")(function () {
         console.log('tyck!');
     });
-    var counterAsync = PS['Main'].counter_("body")(function () {
+    var counterAsync = PS['Main'].counter_("#id3")(function () {
         console.log('tack!');
     });
 
