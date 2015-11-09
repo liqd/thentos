@@ -731,7 +731,7 @@ deleteContextSpec = describe "deleteContext" $ do
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right _   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()  <- runPooledQuery connPool $ deleteContext servId "sName"
+        Right ()  <- runPooledQuery connPool $ deleteContext servId cxtName
         rowCountShouldBe connPool "contexts" 0
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
