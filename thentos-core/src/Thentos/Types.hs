@@ -462,21 +462,24 @@ newtype Uri = Uri { fromUri :: URI }
 parseUri :: SBS -> Either URIParseError Uri
 parseUri bs = Uri <$> parseURI laxURIParserOptions bs
 
+renderUri :: Uri -> SBS
+renderUri (Uri uri) = serializeURI' uri
+
 instance Aeson.FromJSON Uri
   where
     parseJSON = Aeson.withText "URI string" $ either (fail . show) return . parseUri . cs
 
-instance Aeson.ToJSON Uri where toJSON (Uri uri) = Aeson.toJSON (cs $ serializeURI' uri :: ST)
+instance Aeson.ToJSON Uri where toJSON uri = Aeson.toJSON (cs $ renderUri uri :: ST)
 
 instance Show Uri where
-    show (Uri uri) = cs $ serializeURI' uri
+    show = cs . renderUri
 
 instance FromField Uri where
     fromField f Nothing = returnError UnexpectedNull f ""
     fromField f (Just bs) = either (returnError ConversionFailed f . show) return $ parseUri bs
 
 instance ToField Uri where
-    toField (Uri uri) = toField (cs $ serializeURI' uri :: ST)
+    toField uri = toField (cs $ renderUri uri :: ST)
 
 
 data ProxyUri = ProxyUri { proxyHost :: SBS

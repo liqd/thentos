@@ -419,23 +419,25 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
         Left err  -> throwError . OtherError $ A3UriParseError err
         Right uri -> pure uri
     persona <- A.addPersona persName uid $ Just externalUrl
-    config  <- AC.getConfig'P
-    defaultProxySid <- maybe (error "A3 proxy not configured") return $
-        ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
+    sid     <- a3ServiceId
     -- Register persona for the default ("") context of the default service (= A3)
-    A.registerPersonaWithContext persona defaultProxySid ""
+    A.registerPersonaWithContext persona sid ""
     pure $ RequestSuccess path stok
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
-    config <- AC.getConfig'P
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
-    -- TODO return the persona's external URL, delete userIdToPath
-    return $ RequestSuccess (userIdToPath config uid) stok
+    sid <- a3ServiceId
+    -- Find the user's default ("") persona and return its external URL as user path
+    persona <- fromMaybe (error "login: no default persona found for user") <$>
+                         A.findPersona uid sid ""
+    let userUrl = fromMaybe (error "login: no external URL stored for user's default persona") $
+                            persona ^. personaExternalUrl
+    return $ RequestSuccess (Path . cs . renderUri $ userUrl) stok
 
 -- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user
 -- has clicked on the link in a reset-password mail sent by the A3 backend. To check whether the
@@ -490,6 +492,13 @@ createUserInA3'P persName = do
     extractUserPath a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
+
+-- | Find the ServiceId of the A3 backend, which should be registered as default proxied app.
+a3ServiceId :: A3Action ServiceId
+a3ServiceId = do
+    config  <- AC.getConfig'P
+    maybe (error "a3ServiceId: A3 proxy not configured") return $
+        ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
 
 -- | Send a password reset request to A3 and return the response.
 resetPasswordInA3'P :: Path -> A3Action RequestResult
@@ -575,6 +584,7 @@ renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it.
+-- TODO Convert into action and return external URL of default persona
 a3RenderUser :: ThentosConfig -> UserId -> User -> SBS
 a3RenderUser cfg uid _ = cs . fromPath $ userIdToPath cfg uid
 
