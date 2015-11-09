@@ -18,6 +18,7 @@ module Thentos.Backend.Api.Docs.Common
     , HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo)
     , restDocs
     , prettyMimeRender
+    , hackTogetherSomeReasonableOrder
     )
 where
 
@@ -91,6 +92,17 @@ restDocs proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
   where
     intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalVersion proxy]
 
+-- | The `servant-docs` package does offer a way to explicitly order intros (I'm not even sure if
+-- the implicit order is deterministic).  This function allows you to write intros with titles of
+-- the form @\@\@...\@\@@, where @...@ contains section numbers composed of digits and dots.  It
+-- will call 'sort' on the list of intros then then chop of the section numbers off the intro
+-- titles.  This way, the section numbers determine the order, and even if you don't provide section
+-- headings, everything will still work, and the intro list will be deterministic (even though not
+-- always meaningful).
+--
+-- The name of this function suggests that there may be a better way to solve this.  (For one, the
+-- section numbers are ordered lexicographically, not numerically: @compare "\@\@0.1\@\@"
+-- "\@\@0\@\@" == LT@.)
 hackTogetherSomeReasonableOrder :: Docs.API -> Docs.API
 hackTogetherSomeReasonableOrder (API intros endpoints) = API (f <$> sort intros) endpoints
   where
