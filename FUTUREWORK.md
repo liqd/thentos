@@ -19,3 +19,6 @@ useful as reference in the future.
   manage to weave in blind signature schemes intelligently.
 
 - https://hacks.mozilla.org/2015/09/subresource-integrity-in-firefox-43/
+
+- https://github.com/bitc/purescript-bundle-fast (better compilation
+  time for purescript?)
