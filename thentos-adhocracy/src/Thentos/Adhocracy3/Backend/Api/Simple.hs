@@ -425,15 +425,19 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.grantAccessRights'P [UserA uid]
     user <- snd <$> A.lookupConfirmedUser uid
     let persName = PersonaName . fromUserName $ user ^. userName
-    path <- createUserInA3'P persName
-    externalUrl <- case parseUri . cs $ fromPath path of
+    path   <- createUserInA3'P persName
+    config <- AC.getConfig'P
+    -- Make user path relative to our exposed URL instead of the proxied A3 backend URL
+    let localPath = snd $ ST.breakOn "/principals/users/" $ fromPath path
+        fullPath  = a3backendPath config localPath
+    externalUrl <- case parseUri . cs $ fromPath fullPath  of
         Left err  -> throwError . OtherError $ A3UriParseError err
         Right uri -> pure uri
     persona <- A.addPersona persName uid $ Just externalUrl
     sid     <- a3ServiceId
     -- Register persona for the default ("") context of the default service (= A3)
     A.registerPersonaWithContext persona sid ""
-    pure $ RequestSuccess path stok
+    pure $ RequestSuccess fullPath stok
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
