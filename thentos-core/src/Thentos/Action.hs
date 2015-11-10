@@ -429,12 +429,13 @@ validateThentosUserSession tok = do
         UserA uid  -> query'P $ T.lookupConfirmedUser uid
         ServiceA _ -> throwError NoSuchThentosSession
 
--- | Open a session for any agent.
+-- | Open a session for any agent. Also promotes the access rights accordingly.
 -- NOTE: This should only be called after verifying the agent's credentials
 _startThentosSessionByAgent :: Agent -> Action e ThentosSessionToken
 _startThentosSessionByAgent agent = do
     tok <- freshSessionToken
     query'P $ T.startThentosSession tok agent defaultSessionTimeout
+    grantAccessRights'P [agent]
     return tok
 
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
