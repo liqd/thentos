@@ -38,8 +38,6 @@ import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Data.Void (Void)
-import Servant.API ((:<|>)((:<|>)), (:>))
-import Servant.Server (Server, serve)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -48,7 +46,6 @@ import qualified Data.Map as Map
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
 import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
-import Thentos.Backend.Core (runWarpWithCfg)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -57,7 +54,6 @@ import Thentos.Types
 import Thentos.Util
 
 import qualified Thentos.Backend.Api.Simple as Simple
-import qualified Thentos.Backend.Api.Purescript as Purescript
 import qualified Thentos.Transaction as T
 
 
@@ -66,7 +62,7 @@ import qualified Thentos.Transaction as T
 main :: IO ()
 main = makeMain $ \ actionState mBeConfig mFeConfig -> do
     let backend = maybe (return ())
-            (\cfg -> runWarpWithCfg cfg $ serve (Proxy :: Proxy Api) (api actionState))
+            (`Simple.runApi` actionState)
             mBeConfig
     let frontend = maybe (return ())
             (`runFrontend` actionState)
@@ -109,17 +105,6 @@ makeMain commandSwitch =
                 removeAllHandlers
 
     run `finally` finalize
-
-
--- * rest api composition
-
-type Api = Simple.Api :<|> "js" :> Purescript.Api
-
-api :: ActionState -> Server Api
-api as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
-  where
-    pursDir :: Maybe FilePath
-    pursDir = cs <$> cfg >>. (Proxy :: Proxy '["purescript"])
 
 
 -- * helpers

@@ -35,6 +35,7 @@ import Thentos.Types
 
 import Thentos.Test.Config
 import Thentos.Test.Core
+import Thentos.Test.DefaultSpec
 
 
 defaultApp :: IO Application
@@ -55,7 +56,9 @@ spec :: Spec
 spec = describe "Thentos.Backend.Api.Simple" $ with defaultApp specRest
 
 specRest :: SpecWith Application
-specRest= do
+specRest = do
+    specHasRestDocs
+
     describe "headers" $ do
         it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
             hdr <- liftIO ctHeader

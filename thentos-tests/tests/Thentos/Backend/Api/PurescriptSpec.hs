@@ -20,17 +20,19 @@ import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
+import Data.String (fromString)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders)
-import Servant.API ((:<|>)((:<|>)), (:>))
+import Servant.API ((:>))
 import Servant.Server (serve, Server)
-import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
-import Test.Hspec.Wai (shouldRespondWith, with, request)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
+import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain)
+import Test.Hspec.Wai (shouldRespondWith, with, get)
 
 import Thentos.Action.Core
 
 import qualified Thentos.Backend.Api.Purescript as Purescript
-import qualified Thentos.Backend.Api.Simple as Simple
 
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -47,7 +49,7 @@ specPurescript = do
     context "When purescript path not given in config" . with (defaultApp False) $ do
         describe "*.js" $ do
             it "is not available" $ do
-                request "GET" "/js/thentos.js" [] ""
+                get "/js/thentos.js"
                     `shouldRespondWith` 404
 
     -- The following assumes that you have installed thentos-purescript and pointed thentos there in
@@ -55,29 +57,37 @@ specPurescript = do
     context "When path given in config" . with (defaultApp True) $ do
         describe "/js/*.js" $ do
             it "is available" $ do
-                request "GET" "/js/thentos.js" [] ""
+                get "/js/thentos.js"
                     `shouldRespondWith` 200
 
             it "has the right content type" $ do
-                resp <- request "GET" "/js/thentos.js" [] ""
+                resp <- get "/js/thentos.js"
                 liftIO $ simpleHeaders resp
                     `shouldContain` [(mk "Content-Type", "application/javascript")]
 
             it "contains a purescript main function" $ do
-                resp <- request "GET" "/js/thentos.js" [] ""
+                resp <- get "/js/thentos.js"
                 liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
+
+    context "When reading purescript file system location from config"
+        . around_ withLogger
+        . with (defaultApp True) $ do
+        it "honours the config" $ do
+            let body :: String = "9VA4I5xpOAXRE"
+                file :: FilePath = "honour-it.js"
+                Just (path :: FilePath) = cs <$> (thentosTestConfig >>. (Proxy :: Proxy '["purescript"]))
+            liftIO $ do
+                createDirectoryIfMissing True path
+                writeFile (path </> file) body
+            get (cs $ "/js" </> file) `shouldRespondWith` fromString body
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
     as <- createActionState "test_thentos" thentosTestConfig
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 
-type Api = Simple.Api :<|> "js" :> Purescript.Api
+type Api = "js" :> Purescript.Api
 
 api :: Bool -> ActionState -> Server Api
-api havePurescript as@(ActionState (_, _, cfg)) = Simple.api as :<|> Purescript.api pursDir
-  where
-    pursDir :: Maybe FilePath
-    pursDir = if havePurescript
-        then cs <$> (cfg >>. (Proxy :: Proxy '["purescript"]))
-        else Nothing
+api True (ActionState (_, _, cfg)) = Purescript.api cfg
+api False _ = Purescript.api' Nothing
