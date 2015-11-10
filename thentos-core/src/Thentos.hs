@@ -30,6 +30,7 @@ import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
 import Control.Monad (void, when, forever)
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
+import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight)
 import Data.Maybe (maybeToList)
@@ -38,7 +39,6 @@ import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Data.Void (Void)
-import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -54,7 +54,7 @@ import Thentos.Transaction.Core (createDB, runThentosQuery, ThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
-import qualified Thentos.Backend.Api.Simple (runApi)
+import qualified Thentos.Backend.Api.Simple as Simple
 import qualified Thentos.Transaction as T
 
 
@@ -63,7 +63,7 @@ import qualified Thentos.Transaction as T
 main :: IO ()
 main = makeMain $ \ actionState mBeConfig mFeConfig -> do
     let backend = maybe (return ())
-            (`Thentos.Backend.Api.Simple.runApi` actionState)
+            (`Simple.runApi` actionState)
             mBeConfig
     let frontend = maybe (return ())
             (`runFrontend` actionState)

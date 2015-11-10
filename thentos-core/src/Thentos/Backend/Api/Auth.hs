@@ -44,7 +44,8 @@ module Thentos.Backend.Api.Auth where
 import Data.Proxy (Proxy(Proxy))
 import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, route)
-import Servant.Server.Internal (Router(WithRequest), passToServer)
+import Servant.Server.Internal (Router'(WithRequest), passToServer)
+import Servant.Utils.Links (HasLink(MkLink, toLink))
 
 import Thentos.Backend.Core
 import Thentos.Types
@@ -56,3 +57,7 @@ instance HasServer sub => HasServer (ThentosAuth :> sub) where
   type ServerT (ThentosAuth :> sub) m = Maybe ThentosSessionToken -> ServerT sub m
   route Proxy sub = WithRequest $ \ request -> route (Proxy :: Proxy sub)
       (passToServer sub $ lookupThentosHeaderSession renderThentosHeaderName request)
+
+instance HasLink sub => HasLink (ThentosAuth :> sub) where
+    type MkLink (ThentosAuth :> sub) = MkLink sub
+    toLink _ = toLink (Proxy :: Proxy sub)

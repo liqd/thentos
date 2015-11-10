@@ -13,36 +13,37 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
-import Control.Monad (void)
 import Control.Monad.State (liftIO)
+import Control.Monad (void)
+import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
-import Data.IORef
 import Data.String.Conversions (cs)
+import Network.HTTP.Types.Header (Header)
+import Network.HTTP.Types.Status ()
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, SResponse)
-import Network.HTTP.Types.Header (Header)
-import Test.Hspec (Spec, describe, it, shouldBe, pendingWith, hspec)
+import System.IO.Unsafe (unsafePerformIO)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
-import System.IO.Unsafe (unsafePerformIO)
-import Network.HTTP.Types.Status ()
 
+import Thentos.Action.Core
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
-import Thentos.Action.Core
 
-import Thentos.Test.Core
 import Thentos.Test.Config
+import Thentos.Test.Core
+import Thentos.Test.DefaultSpec
 
 
 defaultApp :: IO Application
 defaultApp = do
-    db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    as@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
-    writeIORef godHeaders . snd =<< loginAsGod db
-    return $! serveApi db
+    writeIORef godHeaders . snd =<< loginAsGod as
+    return $! serveApi as
 
 tests :: IO ()
 tests = hspec spec
@@ -52,91 +53,90 @@ godHeaders = unsafePerformIO $ newIORef []
 {-# NOINLINE godHeaders #-}
 
 spec :: Spec
-spec = do
+spec = describe "Thentos.Backend.Api.Simple" $ with defaultApp specRest
 
-    with defaultApp $ describe "Thentos.Backend.Api.Simple" $ do
-        describe "headers" $ do
-            it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
+specRest :: SpecWith Application
+specRest = do
+    specHasRestDocs
+
+    describe "headers" $ do
+        it "bad unknown headers matching /X-Thentos-*/ yields an error response." $ do
+            hdr <- liftIO ctHeader
+            let headers = ("X-Thentos-No-Such-Header", "3"):hdr
+            request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
+
+    describe "user" $ do
+        describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
+            let resource = "/user/0/name"
+            it "yields a name" $ do
                 hdr <- liftIO ctHeader
-                let headers = ("X-Thentos-No-Such-Header", "3"):hdr
-                request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
+                request "GET" resource hdr "" `shouldRespondWith` "\"god\""
 
-        describe "user" $ do
-            describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
-                let resource = "/user/0/name"
-                it "yields a name" $ do
-                    hdr <- liftIO ctHeader
-                    request "GET" resource hdr "" `shouldRespondWith` "\"god\""
+            it "can be called by user herself" $
+                    \ _ -> pendingWith "test missing."
 
-                it "can be called by user herself" $
-                        \ _ -> pendingWith "test missing."
+            it "can be called by admin" $ do
+                hdr <- liftIO ctHeader
+                request "GET" resource hdr "" `shouldRespondWith` 200
 
-                it "can be called by admin" $ do
-                    hdr <- liftIO ctHeader
-                    request "GET" resource hdr "" `shouldRespondWith` 200
+            it "can not be called by other (non-admin) users" $
+                    \ _ -> pendingWith "test missing."
 
-                it "can not be called by other (non-admin) users" $
-                        \ _ -> pendingWith "test missing."
+        describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
+            let resource = "/user/0/email"
+            it "yields an email address" $ do
+                hdr <- liftIO ctHeader
+                request "GET" resource hdr "" `shouldRespondWith` 200
 
-            describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
-                let resource = "/user/0/email"
-                it "yields an email address" $ do
-                    hdr <- liftIO ctHeader
-                    request "GET" resource hdr "" `shouldRespondWith` 200
+        describe "ReqBody UserFormData :> Post UserId" $ do
+            it "writes a new user to the database" $ do
+                hdr <- liftIO ctHeader
+                response1 <- postDefaultUser
+                return response1 `shouldRespondWith` 201
 
+                let (uid :: Int) = read . cs $ simpleBody response1
+                response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
-            describe "ReqBody UserFormData :> Post UserId" $ do
-                it "writes a new user to the database" $ do
-                    hdr <- liftIO ctHeader
-                    response1 <- postDefaultUser
-                    return response1 `shouldRespondWith` 201
+                let Right name = decodeLenient $ simpleBody response2
+                liftIO $ name `shouldBe` udName defaultUserData
 
-                    let (uid :: Int) = read . cs $ simpleBody response1
-                    response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
+            it "can only be called by admins" $
+                    \ _ -> pendingWith "test missing."
 
-                    let Right name = decodeLenient $ simpleBody response2
-                    liftIO $ name `shouldBe` udName defaultUserData
+        describe "Capture \"userid\" UserId :> Delete" $ do
+            it "removes an existing user from the database" $ do
+                hdr <- liftIO ctHeader
+                response1 <- postDefaultUser
+                let (uid :: Int) = read . cs $ simpleBody response1
+                request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
+                    `shouldRespondWith` 200
+                void $ request "DELETE" ("/user/" <> cs (show uid)) hdr ""
+                request "GET" ("/user/" <> cs (show uid) <> "/name") hdr ""
+                    `shouldRespondWith` 404
 
-                it "can only be called by admins" $
-                        \ _ -> pendingWith "test missing."
+            it "can only be called by admins and the user herself" $
+                    \ _ -> pendingWith "test missing."
 
+            it "if user does not exist, responds with a 404" $ do
+                hdr <- liftIO ctHeader
+                request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
-            describe "Capture \"userid\" UserId :> Delete" $ do
-                it "removes an existing user from the database" $ do
-                    hdr <- liftIO ctHeader
-                    response1 <- postDefaultUser
-                    let (uid :: Int) = read . cs $ simpleBody response1
-                    request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
-                        `shouldRespondWith` 200
-                    void $ request "DELETE" ("/user/" <> cs (show uid)) hdr ""
-                    request "GET" ("/user/" <> cs (show uid) <> "/name") hdr ""
-                        `shouldRespondWith` 404
+    describe "thentos_session" $ do
+        describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
+            it "returns true if session is active" $ do
+                hdr <- liftIO ctHeader
+                response1 <- postDefaultUser
+                let uid = read . cs $ simpleBody response1
+                response2 <- request "POST" "/thentos_session" hdr $
+                    Aeson.encode $ ByUser (UserId uid, udPassword defaultUserData)
+                request "GET" "/thentos_session/" hdr (simpleBody response2)
+                    `shouldRespondWith` "true" { matchStatus = 200 }
 
-                it "can only be called by admins and the user herself" $
-                        \ _ -> pendingWith "test missing."
-
-                it "if user does not exist, responds with a 404" $ do
-                    hdr <- liftIO ctHeader
-                    request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
-
-
-        describe "thentos_session" $ do
-
-            describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
-                it "returns true if session is active" $ do
-                    hdr <- liftIO ctHeader
-                    response1 <- postDefaultUser
-                    let uid = read . cs $ simpleBody response1
-                    response2 <- request "POST" "/thentos_session" hdr $
-                        Aeson.encode $ ByUser (UserId uid, udPassword defaultUserData)
-                    request "GET" "/thentos_session/" hdr (simpleBody response2)
-                        `shouldRespondWith` "true" { matchStatus = 200 }
-
-                it "returns false if session is does not exist" $ do
-                    void postDefaultUser
-                    hdr <- liftIO ctHeader
-                    request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
-                        `shouldRespondWith` "false" { matchStatus = 200 }
+            it "returns false if session is does not exist" $ do
+                void postDefaultUser
+                hdr <- liftIO ctHeader
+                request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
+                    `shouldRespondWith` "false" { matchStatus = 200 }
 
 
 postDefaultUser :: WaiSession SResponse

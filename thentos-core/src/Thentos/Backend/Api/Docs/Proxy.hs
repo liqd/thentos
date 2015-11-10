@@ -19,16 +19,15 @@ import Thentos.Backend.Api.Proxy (ServiceProxy)
 
 instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
     docsFor _ dat opt = docsFor (Proxy :: Proxy sublayout) dat opt
-                        & Docs.apiIntros %~ (intros ++)
+                        & Docs.apiIntros %~ (++ intros)
       where
-        intros = [Docs.DocIntro title [text]]
-        text = "All requests that are not handled by the endpoints listed\
-               \ below are handled as follows:\
-               \ We extract the Thentos Session Token (X-Thentos-Session) from\
-               \ the request headers\
-               \ and forward the request to the service, adding\
-               \ X-Thentos-User and X-Thentos-Groups with the appropriate\
-               \ data to the request headers. If the request does not include\
-               \ a valid session token, it is rejected. Responses from the\
-               \ service are returned unmodified."
-        title = "Authenticating Proxy"
+        intros = [Docs.DocIntro "@@1.3@@Authenticating Proxy" [unlines desc]]
+        desc = [ "All requests that are not handled by the endpoints listed"
+               , "below are handled as follows:"
+               , "We extract the Thentos Session Token (X-Thentos-Session) from"
+               , "the request headers and forward the request to the service, adding"
+               , "X-Thentos-User and X-Thentos-Groups with the appropriate"
+               , "data to the request headers. If the request does not include"
+               , "a valid session token, it is rejected. Responses from the"
+               , "service are returned unmodified."
+               ]

@@ -158,6 +158,16 @@ data UserFormData =
 instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
 
+data LoginFormData =
+    LoginFormData
+        { ldName     :: !UserName
+        , ldPassword :: !UserPass
+        }
+    deriving (Eq, Typeable, Generic)
+
+instance Aeson.FromJSON LoginFormData where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON LoginFormData where toJSON = Aeson.gtoJson
+
 
 -- * service
 
