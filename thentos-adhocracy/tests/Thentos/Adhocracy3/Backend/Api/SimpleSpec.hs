@@ -160,7 +160,6 @@ spec =
 
                     -- Make sure that we can log in now
                     loginRsp2 <- request "POST" "login_username" [ctJson] loginReq
-                    -- TODO Why is this 401 Unauthorized??
                     liftIO $ Status.statusCode (simpleStatus loginRsp2) `shouldBe` 200
 
         describe "activate_account" $ with setupBackend $ do
