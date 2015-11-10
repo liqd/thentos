@@ -17,6 +17,6 @@
     "purescript-generics": "~0.6.1",
     "purescript-lists": "~0.7.0",
     "purescript-random": "~0.2.0",
-    "purescript-halogen": "https://github.com/liqd/purescript-halogen.git#11c2af9244651ad4cd5025f4b64b73b343f73d9e"
+    "purescript-halogen": "https://github.com/slamdata/purescript-halogen.git"
   }
 }
