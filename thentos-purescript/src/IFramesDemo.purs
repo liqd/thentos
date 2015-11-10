@@ -101,7 +101,7 @@ type IFDEffects eff = HalogenEffects eff
 runner ::  forall eff. Aff (IFDEffects eff) (Canceler (IFDEffects eff))
 runner = do
     { node: node, driver: driver } <- runUI ui initialIFDState
-    liftEff $ appendToBody node
+    appendToBody node
     forkAff $ pure unit
 
 main :: forall eff. Eff (IFDEffects eff) Unit

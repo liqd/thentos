@@ -61,7 +61,7 @@ counterRunner ::  forall eff a.
     Aff (CounterEffects eff) (Tuple (Canceler (CounterEffects eff)) (CounterDriver eff))
 counterRunner selector callback = do
     { node: node, driver: driver } <- runUI counterUI (initialCounterState (void callback))
-    liftEff $ appendTo selector node
+    appendTo selector node
     i <- liftEff $ randomInt 100 700
     canceler <- forkAff $ setInterval i $ driver (action Tick)
     pure (Tuple canceler driver)

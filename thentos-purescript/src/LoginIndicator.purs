@@ -111,7 +111,7 @@ ui = component render eval
 main :: forall eff. String -> Eff (HalogenEffects eff) Unit
 main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui initialState
-    liftEff $ appendTo selector node
+    appendTo selector node
 
 {-
   setInterval 900 $ toList ((\ q -> driver (action (\next -> Query next q))) <$>
