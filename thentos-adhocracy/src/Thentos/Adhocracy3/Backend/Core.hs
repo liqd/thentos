@@ -3,12 +3,10 @@
 module Thentos.Adhocracy3.Backend.Core
     ( mkSimpleA3Error
     , a3ActionErrorToServantErr
-    , a3BaseActionErrorToServantErr
     )
     where
 
 import Data.String.Conversions (ST)
-import Data.Void (Void, absurd)
 import Servant.Server (ServantErr)
 import Servant.Server.Internal.ServantErr (err400, err401, err500, errBody, errHeaders)
 import System.Log.Logger (Priority(DEBUG, ERROR, CRITICAL))
@@ -23,10 +21,6 @@ import Thentos.Adhocracy3.Types
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
 a3ActionErrorToServantErr e = do
     errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info $ e
-
-a3BaseActionErrorToServantErr :: AC.ActionError Void -> IO ServantErr
-a3BaseActionErrorToServantErr e = do
-    errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info absurd $ e
 
 -- Construct a simple A3-style error wrapping a single error. 'aeName' is set to "thentos" and
 -- 'aeLocation' to "body". Useful for cases where all we really have is a description.
@@ -92,6 +86,10 @@ a3Info ae = case ae of
         (Just (ERROR, show e), err500, "exception in a3 backend: received bad json")
     f e@(A3UriParseError _) =
         (Just (ERROR, show e), err500, "exception in a3 backend: received unparsable URL")
+    f e@(A3NoDefaultPersona _ _) =
+        (Just (ERROR, show e), err500, "no default persona found for user")
+    f e@(A3PersonaLacksExternalUrl) =
+        (Just (ERROR, show e), err500, "no external URL stored for persona")
 
 impossible :: String -> a
 impossible = error

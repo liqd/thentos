@@ -37,6 +37,8 @@ data ThentosA3Error =
     | A3BackendErrorResponse Int LBS
     | A3BackendInvalidJson String
     | A3UriParseError URIParseError
+    | A3NoDefaultPersona UserId ServiceId
+    | A3PersonaLacksExternalUrl
   deriving (Eq, Show, Read, Typeable)
 
 instance Exception ThentosA3Error

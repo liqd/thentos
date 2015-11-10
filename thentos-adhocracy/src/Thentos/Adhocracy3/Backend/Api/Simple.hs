@@ -65,7 +65,6 @@ import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
 import Text.Hastache (MuType(MuVariable))
 import Text.Hastache.Context (mkStrContext)
-import Text.Printf (printf)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -431,21 +430,16 @@ login r = AC.logIfError'P $ do
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
-    sid <- a3ServiceId
-    -- Find the user's default ("") persona and return its external URL as user path
-    persona <- fromMaybe (error "login: no default persona found for user") <$>
-                         A.findPersona uid sid ""
-    let userUrl = fromMaybe (error "login: no external URL stored for user's default persona") $
-                            persona ^. personaExternalUrl
-    return $ RequestSuccess (Path . cs . renderUri $ userUrl) stok
+    userUrl <- externalUrlOfDefaultPersona uid
+    return $ RequestSuccess (Path $ cs userUrl) stok
 
 -- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user
 -- has clicked on the link in a reset-password mail sent by the A3 backend. To check whether the
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
--- FIXME Adapt to new user management (user is now stored in Thentos with a corresponding persona
--- in A3 for activated users only.)
+-- FIXME Issue #321: Process is now broken, adapt to new user management (user is now stored in
+-- Thentos with a corresponding persona in A3 for activated users only.)
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
@@ -499,6 +493,16 @@ a3ServiceId = do
     config  <- AC.getConfig'P
     maybe (error "a3ServiceId: A3 proxy not configured") return $
         ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
+
+-- | Return the external URL of a user's default ("") persona, in rendered form.
+externalUrlOfDefaultPersona :: UserId -> A3Action SBS
+externalUrlOfDefaultPersona uid = do
+    sid     <- a3ServiceId
+    persona <- A.findPersona uid sid "" >>=
+               maybe (throwError . OtherError $ A3NoDefaultPersona uid sid) pure
+    userUrl <- maybe (throwError $ OtherError A3PersonaLacksExternalUrl) pure $
+                     persona ^. personaExternalUrl
+    pure $ renderUri userUrl
 
 -- | Send a password reset request to A3 and return the response.
 resetPasswordInA3'P :: Path -> A3Action RequestResult
@@ -570,11 +574,11 @@ sendRequest :: Client.Request -> IO (Client.Response LBS)
 sendRequest req = Client.newManager Client.defaultManagerSettings >>= Client.httpLbs req
 
 -- | A3-specific ProxyAdapter.
-a3ProxyAdapter :: ProxyAdapter
+a3ProxyAdapter :: ProxyAdapter ThentosA3Error
 a3ProxyAdapter = ProxyAdapter
-  { renderHeader = renderA3HeaderName
-  , renderUser   = a3RenderUser
-  , renderError  = a3BaseActionErrorToServantErr
+  { renderHeader     = renderA3HeaderName
+  , renderUserAction = a3RenderUserAction
+  , renderError      = a3ActionErrorToServantErr
   }
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
@@ -583,14 +587,9 @@ renderA3HeaderName ThentosHeaderSession = mk "X-User-Token"
 renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
--- | Render the user as A3 expects it.
--- TODO Convert into action and return external URL of default persona
-a3RenderUser :: ThentosConfig -> UserId -> User -> SBS
-a3RenderUser cfg uid _ = cs . fromPath $ userIdToPath cfg uid
-
-userIdToPath :: ThentosConfig -> UserId -> Path
-userIdToPath config (UserId i) = a3backendPath config $
-    cs (printf "principals/users/%7.7i/" i :: String)
+-- | Render the user as A3 expects it. We return the external URL of the user's default persona.
+a3RenderUserAction :: UserId -> User -> AC.Action ThentosA3Error SBS
+a3RenderUserAction uid _ = externalUrlOfDefaultPersona uid
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
 a3backendPath :: ThentosConfig -> ST -> Path
