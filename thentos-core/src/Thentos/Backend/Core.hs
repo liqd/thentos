@@ -19,7 +19,6 @@
 module Thentos.Backend.Core
 where
 
-import Control.Lens ((&), (.~))
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
@@ -36,17 +35,17 @@ import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(..))
-import Servant.Docs.Internal (HasDocs(..), sampleByteStrings, response, respTypes, respBody,
-        respStatus, single, method, Method(DocPOST), ToSample(..))
 import Servant.API ((:>))
-import Servant.API.ContentTypes (AllCTRender, AllMimeRender, allMime, IsNonEmpty)
+import Servant.API.ContentTypes (AllCTRender)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (methodRouter, Router'(WithRequest), RouteResult(Route, FailFatal))
 import Servant.Server.Internal.RoutingApplication (addMethodCheck)
 import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
         errHeaders)
+import Servant.Utils.Links (HasLink(MkLink, toLink), linkURI)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
+import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 
 import qualified Data.ByteString.Char8 as SBS
 import qualified Data.Text as ST
@@ -189,20 +188,14 @@ thentosErrorInfo other e = f e
 data Post200 (contentTypes :: [*]) a
     deriving Typeable
 
-instance ( AllCTRender ctypes a ) => HasServer (Post200 ctypes a) where
+instance (AllCTRender ctypes a) => HasServer (Post200 ctypes a) where
     type ServerT (Post200 ctypes a) m = m a
     route Proxy = methodRouter methodPost (Proxy :: Proxy ctypes) ok200
 
-instance (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
-    => HasDocs (Post200 cts a) where
-  docsFor Proxy (endpoint, action) _ = single endpoint' action'
+instance HasLink (Post200 ctypes a) where
+    type MkLink (Post200 ctypes a) = URI
+    toLink _ = linkURI
 
-    where endpoint' = endpoint & method .~ DocPOST
-          action' = action & response.respBody .~ sampleByteStrings t p
-                           & response.respTypes .~ allMime t
-                           & response.respStatus .~ 200
-          t = Proxy :: Proxy cts
-          p = Proxy :: Proxy a
 
 -- * request headers
 
@@ -263,6 +256,10 @@ instance (HasServer subserver) => HasServer (ThentosAssertHeaders :> subserver)
        subserver `addMethodCheck` return (case badHeaders $ requestHeaders request of
           []  -> Route ()
           bad -> FailFatal err400 { errBody = cs $ "Unknown thentos header fields: " ++ show bad})
+
+instance HasLink sub => HasLink (ThentosAssertHeaders :> sub) where
+    type MkLink (ThentosAssertHeaders :> sub) = MkLink sub
+    toLink _ = toLink (Proxy :: Proxy sub)
 
 
 -- * response headers

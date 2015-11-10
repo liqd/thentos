@@ -39,6 +39,7 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
+import Control.Lens ((&), (<>~))
 import Control.Monad.Except (MonadError, catchError, throwError)
 import Control.Monad (when, unless, mzero, void)
 import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
@@ -53,11 +54,12 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, SBS, ST, cs)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
-import Network.Wai (Application)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
+import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
+import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
@@ -70,16 +72,21 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Types.Status as Status
+import qualified Servant.Docs as Docs
 import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
+import Thentos.Backend.Api.Docs.Common
+    (RestDocs, HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo), restDocs)
+import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
 
+import qualified Paths_thentos_adhocracy as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 
@@ -345,7 +352,9 @@ runBackend cfg asg = do
     runWarpWithCfg cfg $ serveApi manager asg
 
 serveApi :: Client.Manager -> AC.ActionState -> Application
-serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve (Proxy :: Proxy Api) . api manager
+serveApi manager astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
+    let p = Proxy :: Proxy (RestDocs Api)
+    in serve p (pure (restDocs p) :<|> api manager astate)
 
 
 -- * api
@@ -357,10 +366,14 @@ serveApi manager = addCorsHeaders a3corsPolicy . addCacheControlHeaders . serve 
 type ThentosApi =
        "principals" :> "users" :> ReqBody '[JSON] A3UserWithPass
                                :> Post200 '[JSON] TypedPathWithCacheControl
-  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest :> Post200 '[JSON] RequestResult
-  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
-  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest :> Post200 '[JSON] RequestResult
-  :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest :> Post200 '[JSON] RequestResult
+  :<|> "activate_account"      :> ReqBody '[JSON] ActivationRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "login_username"        :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "login_email"           :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult
+  :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest
+                               :> Post200 '[JSON] RequestResult
 
 type Api =
        ThentosApi
@@ -588,3 +601,87 @@ userIdFromPath (Path s) = do
     rawId <- maybe (throwError $ MalformedUserPath s) return $
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
+
+
+-- * servant docs
+
+instance HasDocExtras (RestDocs Api) where
+    getCabalVersion _ = Paths.version
+    getTitle _ = "The thentos API family: Adhocracy3 Proxy"
+    getIntros _ =
+        [ Docs.DocIntro "@@0.2@@Overview" [unlines $
+            [ "Adhocracy3 has a basic user management built-in.  In order for thentos"
+            , "to have minimal impact on the existing code base, it can be deployed"
+            , "as a reverse proxy and mimic the built-in user management rest api."
+            , "This way, the frontend does not need to change at all to use the old"
+            , "features of the new user management system.  The impact of new"
+            , "features to the frontend can be kept at a minimum."
+            , ""
+            , "What follows is the fully compatible adhocracy3 user management rest"
+            , "api.  Any deviation should be considered an error and reported in a"
+            , "later version of this document."
+            ]]]
+
+    getExtraInfo _ = mconcat
+        [ Docs.extraInfo (Proxy :: Proxy ("principals" :> "users" :> ReqBody '[JSON] A3UserWithPass
+                               :> Post200 '[JSON] TypedPathWithCacheControl))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "request creation of a new account" [unlines $
+                [ "When the user-creation form is filled out with login name, email, and"
+                , "password, this end-point is used to post the form content and trigger"
+                , "the email confirmation procedure."
+                ]
+            ]]
+        , Docs.extraInfo (Proxy :: Proxy ("activate_account" :> ReqBody '[JSON] ActivationRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "email-click account activation" [unlines $
+                [ "The confirmation email contains a link to this end-point."
+                , "The path contains a token can only be learned from receiving"
+                , "(or intercepting) the email."
+                ]
+            ]]
+        , Docs.extraInfo (Proxy :: Proxy ("login_username" :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "login with user name" []
+            ]
+        , Docs.extraInfo (Proxy :: Proxy ("login_email" :> ReqBody '[JSON] LoginRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "login with user email" []
+            ]
+        , Docs.extraInfo (Proxy :: Proxy ("password_reset" :> ReqBody '[JSON] PasswordResetRequest
+                               :> Post200 '[JSON] RequestResult))
+                $ Docs.defAction & Docs.notes <>~
+            [ Docs.DocNote "reset password" []
+            ]
+        ]
+
+instance ToSample A3UserNoPass
+
+instance ToSample A3UserWithPass
+
+instance ToSample a => ToSample (A3Resource a)
+
+instance ToSample TypedPath
+
+instance ToSample Path where
+    toSamples _ = Docs.singleSample $ Path "/proposals/environment"
+
+instance ToSample TypedPathWithCacheControl
+
+instance ToSample ActivationRequest
+
+-- FIXME: split up LoginRequest into two separate types for login by email
+-- and login by user name, in order to provide a correct example for
+-- login_email request body
+instance ToSample LoginRequest
+
+instance ToSample RequestResult where
+    toSamples _ = [ ("Success", RequestSuccess (Path "somepath") "sometoken")]
+
+instance ToSample PasswordResetRequest
+
+instance ToSample ContentType where
+    toSamples _ = Docs.singleSample CTUser
