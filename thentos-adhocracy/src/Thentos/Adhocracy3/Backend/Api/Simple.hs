@@ -389,9 +389,9 @@ thentosApi actionState = enter (enterAction actionState a3ActionErrorToServantEr
   :<|> resetPassword
 
 api :: Client.Manager -> AC.ActionState -> Server Api
-api manager actionState =
+api manager actionState@(AC.ActionState (_, _, cfg)) =
        thentosApi actionState
-  :<|> Thentos.Backend.Api.Purescript.api (Just "/home/mf/thentos/thentos-purescript/static/")
+  :<|> Thentos.Backend.Api.Purescript.api cfg
   :<|> serviceProxy manager a3ProxyAdapter actionState
 
 
