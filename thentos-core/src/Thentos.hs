@@ -21,6 +21,7 @@ module Thentos
     , makeMain
     , createConnPoolAndInitDb
     , createDefaultUser
+    , autocreateMissingServices
     ) where
 
 import Control.Concurrent.Async (concurrently)

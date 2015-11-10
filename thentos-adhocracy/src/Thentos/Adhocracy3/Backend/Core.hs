@@ -88,7 +88,7 @@ a3Info ae = case ae of
         (Just (ERROR, show e), err500, "exception in a3 backend: received unparsable URL")
     f e@(A3NoDefaultPersona _ _) =
         (Just (ERROR, show e), err500, "no default persona found for user")
-    f e@(A3PersonaLacksExternalUrl) =
+    f e@A3PersonaLacksExternalUrl =
         (Just (ERROR, show e), err500, "no external URL stored for persona")
 
 impossible :: String -> a

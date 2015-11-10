@@ -42,6 +42,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as Status
 
+import Thentos
 import Thentos.Action.Core
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
@@ -154,6 +155,7 @@ spec =
 
                     -- Make sure that we can log in now
                     loginRsp2 <- request "POST" "login_username" [ctJson] loginReq
+                    -- TODO Why is this 401 Unauthorized??
                     liftIO $ Status.statusCode (simpleStatus loginRsp2) `shouldBe` 200
 
         describe "activate_account" $ with setupBackend $ do
@@ -220,10 +222,11 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        db@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
+        as@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
-        return $! serveApi mgr db
+        runActionWithPrivs [RoleAdmin] as $ autocreateMissingServices thentosTestConfig
+        return $! serveApi mgr as
 
     ctJson = ("Content-Type", "application/json")
 
