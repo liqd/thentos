@@ -108,6 +108,7 @@ this repository:
 * `thentos-core`: the core package
 * `thentos-tests`: tests for `thentos-core`
 * `thentos-adhocracy`: integration with the Adhocracy software
+* `thentos-purescript`: code to run in the browser
 * ...
 
 You'll need to build `thentos-core` in any case. `thentos-tests` is only
@@ -129,6 +130,8 @@ user name and skip setting the shell variable.)
 
 ### Stack
 
+(Will not build purescript; see next section.)
+
 Download [stack](https://github.com/commercialhaskell/stack/wiki/Downloads).
 Then run `stack setup` to install the right ghc version, `stack build` to
 install and build all packages, and `stack test` to run the tests, all from
@@ -143,6 +146,18 @@ $ stack build --flag thentos-core:with-thentos-executable
 which will drop it in `.stack-work/install/.../bin/thentos-core`.
 
 ### Cabal sandboxes
+
+Before you start, you need to have node, npm, pulp, and purescript
+installed.  One way to do this:
+
+```shell
+# apt-get install nodejs npm
+$ mkdir $HOME/opt
+$ cd $HOME/opt
+$ npm install pulp
+$ npm install purescript
+(then add $HOME/opt/node_modules/.bin to your $PATH)
+```
 
 We recommend building all required packages into the same sandbox using the
 provided script.

@@ -92,6 +92,8 @@ import qualified Paths_thentos_adhocracy as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 
+import qualified Thentos.Backend.Api.Purescript
+
 
 -- * data types
 
@@ -378,6 +380,7 @@ type ThentosApi =
 
 type Api =
        ThentosApi
+  :<|> "js" :> Thentos.Backend.Api.Purescript.Api
   :<|> ServiceProxy
 
 thentosApi :: AC.ActionState -> Server ThentosApi
@@ -389,8 +392,9 @@ thentosApi actionState = enter (enterAction actionState a3ActionErrorToServantEr
   :<|> resetPassword
 
 api :: Client.Manager -> AC.ActionState -> Server Api
-api manager actionState =
+api manager actionState@(AC.ActionState (_, _, cfg)) =
        thentosApi actionState
+  :<|> Thentos.Backend.Api.Purescript.api cfg
   :<|> serviceProxy manager a3ProxyAdapter actionState
 
 
