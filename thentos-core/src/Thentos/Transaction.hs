@@ -556,15 +556,21 @@ agentRoles agent = case agent of
 
 -- | Store the solution to a captcha in the DB. May throw 'CaptchaIdAlreadyExists'.
 storeCaptcha :: CaptchaId -> ST -> ThentosQuery e ()
-storeCaptcha _cid _solution = undefined  -- TODO
+storeCaptcha cid solution = void $
+    execT [sql| INSERT INTO captchas (id, solution) VALUES (?, ?) |] (cid, solution)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
 -- Calling this action deletes the referenced captcha from the DB, so every captcha must be
--- solved (or not) at first attempt. Throws 'NoSuchCaptchaKey' if the given 'CaptchaId' doesn't
+-- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
 -- exist in the DB (either because it never did or because it was deleted due to garbage collection
 -- or a prior call to this action).
 solveCaptcha :: CaptchaId -> ST -> ThentosQuery e Bool
-solveCaptcha _cid _solution = undefined  -- TODO
+solveCaptcha cid solution = do
+    res <- queryT [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+    case res of
+      [Only correct] -> pure $ solution == correct
+      []             -> throwError NoSuchCaptchaId
+      _              -> impossible "solveCaptcha: multiple results"
 
 
 -- * garbage collection

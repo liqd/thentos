@@ -683,7 +683,7 @@ makeCaptcha = do
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
 -- Calling this action deletes the referenced captcha from the DB, so every captcha must be
--- solved (or not) at first attempt. Throws 'NoSuchCaptchaKey' if the given 'CaptchaId' doesn't
+-- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
 -- exist in the DB (either because it never did or because it was deleted due to garbage collection
 -- or a prior call to this action). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e Bool

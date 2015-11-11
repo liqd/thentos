@@ -569,6 +569,8 @@ data ThentosError e =
     | UserIdAlreadyExists
     | PersonaNameAlreadyExists
     | ContextNameAlreadyExists
+    | CaptchaIdAlreadyExists
+    | NoSuchCaptchaId
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable
