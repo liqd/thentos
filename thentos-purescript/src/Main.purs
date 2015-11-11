@@ -109,3 +109,6 @@ main0 = do
         LoginIndicator.main "#id2"
 
     runAff throwException print $ loginUser "god" "god"
+
+
+@@@ -- let's see if we can make travis complain about this now.
