@@ -487,10 +487,8 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 sendUserConfirmationMail :: ThentosConfig -> UserFormData -> ConfirmationToken -> A3Action ()
 sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
     let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
-        accountVerificationCfg :: AccountVerificationConfig = Tagged $ cfg
-            >>. (Proxy :: Proxy '["mail", "account_verification"])
-        subject      = accountVerificationCfg >>. (Proxy :: Proxy '["subject"])
-        bodyTemplate = accountVerificationCfg >>. (Proxy :: Proxy '["body"])
+        subject      = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "body"])
     body <- AC.renderTextTemplate'P bodyTemplate (mkStrContext context)
     AC.sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
   where
