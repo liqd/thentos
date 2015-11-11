@@ -435,7 +435,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
     (uid, stok) <- A.confirmNewUser confToken
     -- Promote access rights so we can look up the user and create a persona
-    AC.grantAccessRights'P [UserA uid]
+    AC.accessRightsByAgent'P (UserA uid) >>= AC.grantAccessRights'P
     user <- snd <$> A.lookupConfirmedUser uid
     let persName = PersonaName . fromUserName $ user ^. userName
     exposedUri  <- createUserInA3'P persName >>= exposeUserUri

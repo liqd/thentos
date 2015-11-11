@@ -33,7 +33,7 @@ spec = do
 type Act = Action (ActionError Void)
 
 setTwoRoles :: Action e ()
-setTwoRoles = grantAccessRights'P [RoleAdmin, RoleUser]
+setTwoRoles = grantAccessRights'P [toCNF RoleAdmin, toCNF RoleUser]
 
 setClearanceUid :: Integer -> Action e ()
 setClearanceUid uid = grantAccessRights'P [toCNF . UserA . UserId $ uid, toCNF RoleUser]

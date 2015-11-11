@@ -167,7 +167,7 @@ createCustomHeaders ::
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do
     (uid, user) <- validateThentosUserSession tok
-    grantAccessRights'P [UserA uid]
+    accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
     renderedUser <- renderUserAction adapter uid user
     -- FIXME We may want to sent a persona's groups to the service (personaGroups action), but
     -- currently the Proxy doesn't know about personas and it's unclear whether/how services

@@ -27,6 +27,7 @@ import Data.Monoid ((<>))
 import Data.Pool (withResource)
 import Data.String.Conversions (LBS, ST, cs)
 import GHC.Stack (CallStack)
+import LIO.DCLabel (toCNF)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
 import Network.HTTP.Types (Status, status200, status400)
 import Network.Wai (Application)
@@ -229,7 +230,7 @@ spec =
         as@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
-        runActionWithPrivs [RoleAdmin] as $ autocreateMissingServices thentosTestConfig
+        runActionWithPrivs [toCNF RoleAdmin] as $ autocreateMissingServices thentosTestConfig
         return $! serveApi mgr as
 
     ctJson = ("Content-Type", "application/json")

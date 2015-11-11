@@ -35,7 +35,7 @@ import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
                  guardWrite)
 import LIO.Label (lub)
-import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
+import LIO.DCLabel (CNF, DCLabel, (%%), cFalse, toCNF)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 import System.Log (Priority(DEBUG, CRITICAL))
@@ -108,8 +108,8 @@ instance MonadLIO DCLabel (Action e) where
 runAction :: (Show e, Typeable e) => ActionState -> Action e a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
-runActionWithPrivs :: (ToCNF cnf, Show e, Typeable e) =>
-    [cnf] -> ActionState -> Action e a -> IO a
+runActionWithPrivs :: (Show e, Typeable e) =>
+    [CNF] -> ActionState -> Action e a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
 
 runActionWithClearance :: (Show e, Typeable e) =>
@@ -137,8 +137,8 @@ runActionE state action = catchUnknown
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
-runActionWithPrivsE :: (ToCNF cnf, Show e, Typeable e) =>
-    [cnf] -> ActionState -> Action e a -> IO (Either (ActionError e) a)
+runActionWithPrivsE :: (Show e, Typeable e) =>
+    [CNF] -> ActionState -> Action e a -> IO (Either (ActionError e) a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
 runActionWithClearanceE :: (Show e, Typeable e) =>
@@ -177,7 +177,7 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 -- individual access rights:
 --
 -- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
-grantAccessRights'P :: ToCNF cnf => [cnf] -> Action e ()
+grantAccessRights'P :: [CNF] -> Action e ()
 grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
   where
     c :: DCLabel
