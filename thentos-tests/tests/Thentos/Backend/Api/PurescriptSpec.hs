@@ -69,7 +69,7 @@ specPurescript = do
 
             it "is non-empty" $ do
                 resp <- get "/js/thentos.js"
-                liftIO $ (LBS.length $ simpleBody resp) `shouldNotBe` 0
+                liftIO $ LBS.length (simpleBody resp) `shouldNotBe` 0
 
     context "When reading purescript file system location from config"
         . around_ withLogger
