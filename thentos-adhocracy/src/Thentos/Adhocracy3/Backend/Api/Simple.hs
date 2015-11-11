@@ -15,6 +15,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
@@ -437,19 +438,25 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.grantAccessRights'P [UserA uid]
     user <- snd <$> A.lookupConfirmedUser uid
     let persName = PersonaName . fromUserName $ user ^. userName
-    path   <- createUserInA3'P persName
-    config <- AC.getConfig'P
-    -- Make user path relative to our exposed URL instead of the proxied A3 backend URL
-    let localPath = snd $ ST.breakOn "/principals/users/" $ fromPath path
-        fullPath  = a3backendPath config localPath
-    externalUrl <- case parseUri . cs $ fromPath fullPath  of
-        Left err  -> throwError . OtherError $ A3UriParseError err
-        Right uri -> pure uri
-    persona <- A.addPersona persName uid $ Just externalUrl
-    sid     <- a3ServiceId
-    -- Register persona for the default ("") context of the default service (= A3)
+    exposedUri  <- createUserInA3'P persName >>= exposeUserUri
+    persona     <- A.addPersona persName uid $ Just exposedUri
+    sid         <- a3ServiceId
+    -- Register persona for the default ("") context of the default service (A3)
     A.registerPersonaWithContext persona sid ""
-    pure $ RequestSuccess fullPath stok
+    pure $ RequestSuccess (Path . cs . renderUri $ exposedUri) stok
+
+-- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
+-- for @/principlas/users/...@.
+exposeUserUri :: Path -> A3Action Uri
+exposeUserUri (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
+    | ST.null localPath = do
+        throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
+    | otherwise = do
+        config <- AC.getConfig'P
+        let (Path fullPath) = a3backendPath config localPath
+        case parseUri $ cs fullPath  of
+            Left err  -> throwError . OtherError $ A3UriParseError err
+            Right uri -> pure uri
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
