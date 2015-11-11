@@ -16,10 +16,10 @@ THENTOS_PURESCRIPT_OPTS=""
 case "$1" in
     "dep")
         npm install virtual-dom
-        pulp dep install
+        time pulp dep install
         ;;
     "it")
-        pulp browserify $THENTOS_PURESCRIPT_OPTS --to ./static/thentos.js
+        time pulp browserify $THENTOS_PURESCRIPT_OPTS --to ./static/thentos.js
         ;;
     "watch")
         pulp --watch browserify --to ./static/thentos.js
