@@ -110,3 +110,9 @@ CREATE TABLE IF NOT EXISTS group_tree (
     subgroup   text NOT NULL,
     UNIQUE (supergroup, subgroup)
 );
+
+CREATE TABLE IF NOT EXISTS captchas (
+    id         text         PRIMARY KEY,
+    solution   text         NOT NULL,
+    timestamp  timestamptz  NOT NULL DEFAULT now()
+);
