@@ -399,7 +399,8 @@ api manager actionState@(AC.ActionState (_, _, cfg)) =
 -- * handler
 
 -- | Add a user in Thentos, but not yet in A3. Only after the Thentos user has been activated
--- (confirmed), a corresponding persona is created in A3, which, from A3's viewpoint, is a user.
+-- (confirmed), a persona is created in thentos together with a corresponding adhocracy user in A3
+-- that corresponds to that persona.
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
@@ -425,7 +426,7 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     -- (it's something that'll happen again in at least two more places, assuming we support
     -- single-page apps and server-page apps in core.)
 
--- | Activate a new user. This also creates a persona with the same name in the A3 backend,
+-- | Activate a new user. This also creates a persona and a corresponding adhocracy user in the A3 backend,
 -- so that the user is able to log into A3. The user's actual password and email address are
 -- only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
