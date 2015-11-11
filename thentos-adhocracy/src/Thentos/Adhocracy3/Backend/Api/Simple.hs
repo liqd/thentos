@@ -593,6 +593,7 @@ mkRequestForA3 config route dat = do
         }
 
 -- | Extract the user path from an A3 response received for a user creation request.
+-- FIXME: make use of servant-client for all rest communication with A3 backend!
 extractUserPath :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m Path
 extractUserPath resp = do
     resource <- either (throwError . OtherError . A3BackendInvalidJson) return $
