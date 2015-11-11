@@ -42,9 +42,8 @@ module Thentos.Adhocracy3.Backend.Api.Simple
 import Control.Lens ((^.), (&), (<>~))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, mzero)
-import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
-                   withObject)
-
+import Data.Aeson
+    (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object, withObject)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
@@ -64,8 +63,8 @@ import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
-import Text.Hastache (MuType(MuVariable))
 import Text.Hastache.Context (mkStrContext)
+import Text.Hastache (MuType(MuVariable))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -91,7 +90,6 @@ import Thentos.Util
 import qualified Paths_thentos_adhocracy as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
-
 import qualified Thentos.Backend.Api.Purescript
 
 
