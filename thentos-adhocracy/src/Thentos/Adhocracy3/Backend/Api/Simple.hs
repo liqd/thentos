@@ -408,15 +408,24 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     confToken <- snd <$> A.addUnconfirmedUser user
     config    <- AC.getConfig'P
     sendUserConfirmationMail config user confToken
-    -- FIXME Which path should we return here, considering that no A3 user exists yet?!
     let dummyPath = a3backendPath config ""
     return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
+
+    -- FIXME Which path should we return here, considering that no A3 user exists yet?!
+
     -- FIXME We correctly return empty cache-control info since the A3 DB isn't (yet) changed,
     -- but normally the A3 backend would return the following info if a new user is created:
     -- changedDescendants: "", "principals/", "principals/users/", "principals/groups/"
     -- created: userPath
     -- modified: "principals/users/", "principals/groups/authenticated/"
     -- Find out if not returning this stuff leads to problems in the A3 frontend!
+    --
+    -- possible solution: deliver thentos registration widget; disable all adhocracy frontend-code
+    -- that touches this end-point; provide user resources from outside of widgets only.
+
+    -- FIXME: write an action that wraps addUnconfirmedUser and sendUserConfirmationMail together?
+    -- (it's something that'll happen again in at least two more places, assuming we support
+    -- single-page apps and server-page apps in core.)
 
 -- | Activate a new user. This also creates a persona with the same name in the A3 backend,
 -- so that the user is able to log into A3. The user's actual password and email address are
