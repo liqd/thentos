@@ -57,7 +57,7 @@ specPurescript = do
     -- The following assumes that you have installed thentos-purescript and pointed thentos there in
     -- the `purescript` field in config.
     context "When path given in config" . with (defaultApp True) $ do
-        describe "/js/*.js" $ do
+        describe "/js/thentos.js" $ do
             it "is available" $ do
                 get "/js/thentos.js"
                     `shouldRespondWith` 200
