@@ -262,6 +262,7 @@ data Context = Context
 instance Ord Context where
     compare = compare `on` _contextId
 
+
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
@@ -529,6 +530,21 @@ stripTrailingSlash p = if "/" `ST.isSuffixOf` p then ST.init p else p
 -- and one '/' is inserted.
 (<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
 (cs -> p) <//> (cs -> p') = cs $ stripTrailingSlash p <> "/" <> stripLeadingSlash p'
+
+
+-- * binary data and captchas
+
+newtype ImageData = ImageData { fromImageData :: SBS }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+
+newtype CaptchaId = CaptchaId { fromCaptchaId :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+instance Aeson.FromJSON CaptchaId where
+    parseJSON = Aeson.withText "captcha ID string" (pure . CaptchaId)
+
+instance Aeson.ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
 
 
 -- * errors
