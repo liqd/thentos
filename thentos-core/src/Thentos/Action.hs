@@ -11,6 +11,7 @@
 
 module Thentos.Action
     ( freshRandomName
+    , freshRandom64
     , freshConfirmationToken
     , freshPasswordResetToken
     , freshServiceId
@@ -77,6 +78,9 @@ module Thentos.Action
     , unassignRole
     , agentRoles
 
+    , makeCaptcha
+    , solveCaptcha
+
     , collectGarbage
     )
 where
@@ -101,11 +105,13 @@ import qualified Data.Text as ST
 import LIO.Missing
 import Thentos.Action.Core
 import Thentos.Action.SimpleAuth
+import Thentos.Transaction.Core (ThentosQuery)
 import Thentos.Types
+import Thentos.Types.Opaque
 import Thentos.Util
 
+import qualified Thentos.Sybil.Captcha as Captcha
 import qualified Thentos.Transaction as T
-import Thentos.Transaction.Core (ThentosQuery)
 
 
 -- * randomness
@@ -121,6 +127,12 @@ import Thentos.Transaction.Core (ThentosQuery)
 -- such as Thunderbird.
 freshRandomName :: Action e ST
 freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> genRandomBytes'P 18
+
+-- | Generate 64 bytes of random data.
+freshRandom64 :: Action e Random64
+freshRandom64 = do
+    bytes <- genRandomBytes'P 64
+    maybe (error "freshRandom64: genRandomBytes'P broken") pure $ mkRandom64 bytes
 
 freshConfirmationToken :: Action e ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
@@ -139,6 +151,9 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: Action e ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
+
+freshCaptchaId :: Action e CaptchaId
+freshCaptchaId = CaptchaId <$> freshRandomName
 
 
 -- * user
@@ -654,6 +669,27 @@ agentRoles agent = do
     query'P (T.agentRoles agent)
 
 
+-- * Sybil attack prevention
+
+-- | Generate a captcha. Returns a pair of 'CaptchaId' and the binary image data in PNG format.
+-- The correct solution to the captcha is stored in the DB. Does not require any privileges.
+makeCaptcha :: Action e (CaptchaId, ImageData)
+makeCaptcha = do
+    cid    <- freshCaptchaId
+    random <- freshRandom64
+    let (imgdata, solution) = Captcha.generateCaptcha random
+    query'P $ T.storeCaptcha cid solution
+    pure (cid, imgdata)
+
+-- | Submit a solution to a captcha, returning whether or not the solution is correct.
+-- Calling this action deletes the referenced captcha from the DB, so every captcha must be
+-- solved (or not) at first attempt. Throws 'NoSuchCaptchaKey' if the given 'CaptchaId' doesn't
+-- exist in the DB (either because it never did or because it was deleted due to garbage collection
+-- or a prior call to this action). Does not require any privileges.
+solveCaptcha :: CaptchaId -> ST -> Action e Bool
+solveCaptcha cid solution = query'P $ T.solveCaptcha cid solution
+
+
 -- * garbage collection
 
 collectGarbage :: Exception (ActionError e) => Action e ()
@@ -665,11 +701,13 @@ collectGarbage = do
     query'P T.garbageCollectServiceSessions
 
     config <- getConfig'P
-    let userExpiry = config >>. (Proxy :: Proxy '["user_reg_expiration"])
+    let userExpiry     = config >>. (Proxy :: Proxy '["user_reg_expiration"])
         passwordExpiry = config >>. (Proxy :: Proxy '["pw_reset_expiration"])
-        emailExpiry = config >>. (Proxy :: Proxy '["email_change_expiration"])
+        emailExpiry    = config >>. (Proxy :: Proxy '["email_change_expiration"])
+        captchaExpiry  = config >>. (Proxy :: Proxy '["captcha_expiration"])
     query'P $ T.garbageCollectUnconfirmedUsers userExpiry
     query'P $ T.garbageCollectEmailChangeTokens emailExpiry
     query'P $ T.garbageCollectPasswordResetTokens passwordExpiry
+    query'P $ T.garbageCollectCaptchas captchaExpiry
 
     logger'P DEBUG "garbage collection complete!"
