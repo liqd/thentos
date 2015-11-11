@@ -26,9 +26,11 @@ case "$1" in
         ;;
     "clean")
         rm -rf ./output/
-        cd ./bower_components/
-        pulp dep uninstall * 2>/dev/null || true
-        cd ../
+        if [ -d ./bower_components/ ]; then
+            cd ./bower_components/
+            pulp dep uninstall * 2>/dev/null || true
+            cd ../
+        fi
         ;;
     *)
         echo "usage: $0 [dep|it|watch|clean]" >&2
