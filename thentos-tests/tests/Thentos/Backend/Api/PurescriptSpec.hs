@@ -27,8 +27,10 @@ import Servant.API ((:>))
 import Servant.Server (serve, Server)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
-import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain)
+import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain, shouldNotBe)
 import Test.Hspec.Wai (shouldRespondWith, with, get)
+
+import qualified Data.ByteString.Lazy as LBS
 
 import Thentos.Action.Core
 
@@ -55,7 +57,7 @@ specPurescript = do
     -- The following assumes that you have installed thentos-purescript and pointed thentos there in
     -- the `purescript` field in config.
     context "When path given in config" . with (defaultApp True) $ do
-        describe "/js/*.js" $ do
+        describe "/js/thentos.js" $ do
             it "is available" $ do
                 get "/js/thentos.js"
                     `shouldRespondWith` 200
@@ -65,9 +67,9 @@ specPurescript = do
                 liftIO $ simpleHeaders resp
                     `shouldContain` [(mk "Content-Type", "application/javascript")]
 
-            it "contains a purescript main function" $ do
+            it "is non-empty" $ do
                 resp <- get "/js/thentos.js"
-                liftIO $ cs (simpleBody resp) `shouldContain` ("PS[\"Main\"].main();" :: String)
+                liftIO $ LBS.length (simpleBody resp) `shouldNotBe` 0
 
     context "When reading purescript file system location from config"
         . around_ withLogger
