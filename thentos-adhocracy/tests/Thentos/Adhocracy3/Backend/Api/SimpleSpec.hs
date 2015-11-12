@@ -148,6 +148,8 @@ spec =
                     -- Find the confirmation token. We use a system call to "grep" it ouf the
                     -- log file, which is ugly but works, while reading the log file within
                     -- Haskell doesn't (openFile: resource busy (file is locked)).
+                    --
+                    -- (See FIXME comment about 'Chan' near 'withLogger'.)
                     let actPrefix = ":7119/activate/"
                     actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
                     let confToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)

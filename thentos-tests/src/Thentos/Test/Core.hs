@@ -144,6 +144,10 @@ withNoisyLogger = inTempDirectory . withNoisyLogger'
 -- test, everything will go to stderr immediately.
 --
 -- FIXME: include log contents in failing test cases.
+--
+-- FIXME: while we are at it, it would be really cool (and not that hard) to provide a log handler
+-- that logs into a 'Chan', and expose the Chan to the tests.  that would make it easy to use log
+-- file contents to formulate tests.
 withNoisyLogger' :: IO a -> IO a
 withNoisyLogger' = _withLogger True
 
