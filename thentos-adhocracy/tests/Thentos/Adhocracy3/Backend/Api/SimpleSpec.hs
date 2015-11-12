@@ -141,6 +141,10 @@ spec =
                         -- (not the one from A3)
                         ["http://127.0.0.1:7118/"]
 
+                        -- FIXME: we should change Thentos.Test.Config.{back,front}end to so that we
+                        -- can distinguish between bind url and exposed url.  i think this here
+                        -- needs to be the exposed url.
+
                     -- Find the confirmation token. We use a system call to "grep" it ouf the
                     -- log file, which is ugly but works, while reading the log file within
                     -- Haskell doesn't (openFile: resource busy (file is locked)).

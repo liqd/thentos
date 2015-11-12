@@ -233,6 +233,9 @@ newtype PersonaName = PersonaName { fromPersonaName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
+-- | *Note on the external url field:* Since personas are exposed to the service, it sometimes makes
+-- sense for a service to maintain its own data item for each persona in thentos.  The persona's
+-- external url can be used to point to that data item's rest url.
 data Persona = Persona
   { _personaId          :: PersonaId
   , _personaName        :: PersonaName

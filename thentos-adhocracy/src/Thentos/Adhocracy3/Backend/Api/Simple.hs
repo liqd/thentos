@@ -446,7 +446,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
--- for @/principlas/users/...@.
+-- for @/principlas/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where
@@ -628,7 +628,8 @@ renderA3HeaderName h                    = renderThentosHeaderName h
 a3RenderUserAction :: UserId -> User -> AC.Action ThentosA3Error SBS
 a3RenderUserAction uid _ = externalUrlOfDefaultPersona uid
 
--- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
+-- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
+-- exposed url.)
 a3backendPath :: ThentosConfig -> ST -> Path
 a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
   where
