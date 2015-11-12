@@ -450,16 +450,16 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where
-   f :: Path -> A3Action Uri
-   f (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
-    | ST.null localPath = do
-        throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
-    | otherwise = do
-        config <- AC.getConfig'P
-        let (Path fullPath) = a3backendPath config localPath
-        case parseUri $ cs fullPath  of
-            Left err  -> throwError . OtherError $ A3UriParseError err
-            Right uri -> pure uri
+    f :: Path -> A3Action Uri
+    f (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
+        | ST.null localPath = do
+            throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
+        | otherwise = do
+            config <- AC.getConfig'P
+            let (Path fullPath) = a3backendPath config localPath
+            case parseUri $ cs fullPath  of
+                Left err  -> throwError . OtherError $ A3UriParseError err
+                Right uri -> pure uri
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
