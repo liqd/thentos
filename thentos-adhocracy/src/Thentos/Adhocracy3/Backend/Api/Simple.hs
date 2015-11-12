@@ -438,17 +438,20 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.accessRightsByAgent'P (UserA uid) >>= AC.grantAccessRights'P
     user <- snd <$> A.lookupConfirmedUser uid
     let persName = PersonaName . fromUserName $ user ^. userName
-    exposedUri  <- createUserInA3'P persName >>= exposeUserUri
-    persona     <- A.addPersona persName uid $ Just exposedUri
+    externalUrl <- makeExternalUrl persName
+    persona     <- A.addPersona persName uid $ Just externalUrl
     sid         <- a3ServiceId
     -- Register persona for the default ("") context of the default service (A3)
     A.registerPersonaWithContext persona sid ""
-    pure $ RequestSuccess (Path . cs . renderUri $ exposedUri) stok
+    pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
 -- for @/principlas/users/...@.
-exposeUserUri :: Path -> A3Action Uri
-exposeUserUri (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
+makeExternalUrl :: PersonaName -> A3Action Uri
+makeExternalUrl pn = createUserInA3'P pn >>= f
+  where
+   f :: Path -> A3Action Uri
+   f (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
     | ST.null localPath = do
         throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
     | otherwise = do
