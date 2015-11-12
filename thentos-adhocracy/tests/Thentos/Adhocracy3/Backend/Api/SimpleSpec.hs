@@ -34,7 +34,7 @@ import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
 import System.Process (readProcess)
-import Test.Hspec (Spec, around_, describe, hspec, it, shouldBe, shouldSatisfy)
+import Test.Hspec (Spec, around_, describe, hspec, it, shouldBe, shouldSatisfy, pendingWith)
 import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (Arbitrary(..), property)
 
@@ -187,7 +187,6 @@ spec =
                 shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                     "\"User doesn't exist or password is wrong\""
 
-{- FIXME adapt code and test to handle password reset without A3
         describe "resetPassword" $ with setupBackend $ do
             let a3loginSuccess = encodePretty $ object
                     [ "status"     .= String "success"
@@ -196,6 +195,9 @@ spec =
                     ]
             around_ (withA3fake Nothing a3loginSuccess) $ do
                 it "changes the password if A3 signals success" $ do
+
+                    liftIO $ pendingWith "FIXME adapt code and test to handle password reset without A3"
+
                     let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
                     rsp <- request "POST" "password_reset" [ctJson] resetReq
                     liftIO $ Status.statusCode (simpleStatus rsp) `shouldBe` 200
@@ -208,11 +210,13 @@ spec =
                            [A3Error "path" "body" "This resource path does not exist."]
             around_ (withA3fake (Just status400) a3errMsg) $ do
                 it "passes the error on if A3 signals failure" $ do
+
+                    liftIO $ pendingWith "FIXME adapt code and test to handle password reset without A3"
+
                     let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
                     rsp <- request "POST" "password_reset" [ctJson] resetReq
                     shouldBeErr400WithCustomMessage (simpleStatus rsp) (simpleBody rsp)
                         "resource path does not exist"
--}
 
         describe "an arbitrary request" $ with setupBackend $ do
             it "rejects bad session token mimicking A3" $ do
