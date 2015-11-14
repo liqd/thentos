@@ -93,9 +93,6 @@ sensei:
 seito:
 	sleep 0.2 && seito
 
-sensei-update-cabal_macros:
-	cd thentos-core && cabal install && cp ./dist/*/build/autogen/cabal_macros.h ./src-devel/
-
 # FIXME: before committing this, take out code common to sensei and repl.  (only diffrence: sensei/ghci)
 # also, this does not work well together with the Paths_* desaster.
 repl:
