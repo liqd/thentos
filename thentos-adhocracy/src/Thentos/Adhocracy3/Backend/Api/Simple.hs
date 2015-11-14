@@ -383,7 +383,7 @@ type Api =
   :<|> ServiceProxy
 
 thentosApi :: AC.ActionState -> Server ThentosApi
-thentosApi actionState = enter (enterAction actionState a3ActionErrorToServantErr Nothing) $
+thentosApi actionState = enter (enterAction () actionState a3ActionErrorToServantErr Nothing) $
        addUser
   :<|> activate
   :<|> login
@@ -625,7 +625,7 @@ renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it. We return the external URL of the user's default persona.
-a3RenderUserAction :: UserId -> User -> AC.Action ThentosA3Error SBS
+a3RenderUserAction :: UserId -> User -> A3Action SBS
 a3RenderUserAction uid _ = externalUrlOfDefaultPersona uid
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns

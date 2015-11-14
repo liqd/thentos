@@ -91,8 +91,8 @@ makeMain commandSwitch =
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
-    runActionWithPrivs [toCNF RoleAdmin] actionState
-        (autocreateMissingServices config :: Action Void ())
+    runActionWithPrivs [toCNF RoleAdmin] () actionState
+        (autocreateMissingServices config :: Action Void () ())
 
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
@@ -118,7 +118,7 @@ makeMain commandSwitch =
 runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    runActionWithPrivs [toCNF RoleAdmin] actionState (collectGarbage :: Action Void ())
+    runActionWithPrivs [toCNF RoleAdmin] () actionState (collectGarbage :: Action Void () ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
@@ -165,7 +165,7 @@ createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
-autocreateMissingServices :: ThentosConfig -> Action Void ()
+autocreateMissingServices :: ThentosConfig -> Action Void s ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing'P agent) allSids
