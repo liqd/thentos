@@ -15,7 +15,7 @@ import Data.String.Conversions (ST, cs)
 import System.FilePath ((</>))
 import System.IO.Unsafe (unsafePerformIO)
 
-import Paths_thentos_core__ (getBuildRootDirectory)
+import Paths_thentos_core__ (getPackageSourceRoot)
 import Thentos.Config
 import Thentos (createDefaultUser)
 import Thentos.Types
@@ -36,7 +36,7 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "    expose_port: 7119" :
     "    expose_host: \"127.0.0.1\"" :
     "" :
-    ("purescript: " ++ $(getBuildRootDirectory) </> "../thentos-purescript/static") :
+    ("purescript: " ++ $(getPackageSourceRoot "thentos-purescript") </> "static") :
     "" :
     "smtp:" :
     "    sender_name: \"Thentos\"" :
