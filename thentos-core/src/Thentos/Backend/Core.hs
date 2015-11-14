@@ -101,11 +101,11 @@ type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 -- If any logging is to take place, it should take place here, not near the place where the error is
 -- thrown.
 errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
-errorInfoToServantErr mkServantErr (l, se, x) = do
+errorInfoToServantErr mkServErr (l, se, x) = do
     case l of
         Just (prio, msg) -> logger prio msg
         Nothing          -> return ()
-    return $ mkServantErr se x
+    return $ mkServErr se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .

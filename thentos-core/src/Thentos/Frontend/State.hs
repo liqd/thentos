@@ -55,7 +55,7 @@ crash :: FActionError -> FAction a
 crash = throwError . OtherError
 
 fActionServantErr :: ActionError FActionError -> IO ServantErr
-fActionServantErr = errorInfoToServantErr mkServantErr .
+fActionServantErr = errorInfoToServantErr mkServErr .
                                     actionErrorInfo (thentosErrorInfo f)
   where
     f :: FActionError -> (Maybe (Priority, String), ServantErr, ST)
@@ -72,8 +72,8 @@ fActionServantErr = errorInfoToServantErr mkServantErr .
     f e@(FActionError500 _) =
         (Just (ERROR, show e), err500, "we are very sorry.")
 
-    mkServantErr :: ServantErr -> ST -> ServantErr
-    mkServantErr baseErr msg = baseErr
+    mkServErr :: ServantErr -> ST -> ServantErr
+    mkServErr baseErr msg = baseErr
         { errBody = cs . renderHtml $ makeErrorPage (errHTTPCode baseErr) msg
         , errHeaders = ("Content-Type", "text/html; charset=utf-8") : errHeaders baseErr
         }

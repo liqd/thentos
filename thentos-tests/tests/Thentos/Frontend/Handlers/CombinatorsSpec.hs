@@ -7,40 +7,25 @@
 
 module Thentos.Frontend.Handlers.CombinatorsSpec where
 
-import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
-import Network.Wai
-import Network.Wai.Test (SResponse, simpleBody, simpleHeaders, simpleStatus)
-import Servant.API
-import Servant.API.ContentTypes
-import Servant.HTML.Blaze
-import Servant.Server
-import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldContain, shouldSatisfy, hspec, pending)
-import Test.Hspec.Wai
+import Network.Wai  (Application)
+import Network.Wai.Test (simpleHeaders, simpleStatus)
+import Servant.API ((:>), Get)
+import Servant.HTML.Blaze (HTML)
+import Servant.Server (ServerT)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, hspec)
+import Test.Hspec.Wai (with, request, liftIO)
 
-import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C
-import qualified Test.WebDriver as WD
-import qualified Test.WebDriver.Class as WD
 import qualified Text.Blaze.Html5 as H
 
-import Thentos.Action.Core
-import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
-import Thentos.Types
-import Thentos.Util
-
-import qualified Thentos.Transaction as T
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
-import Thentos.Test.Transaction
-import Thentos.Test.WebDriver.Missing as WD
 
 
 tests :: IO ()
