@@ -191,6 +191,12 @@ getConfig configFile = do
 -- the supported leaf types in the config structure.  we hope it'll
 -- get smaller over time.
 
+getBackendConfig :: ThentosConfig -> HttpConfig
+getBackendConfig cfg = (\(Just be) -> be) $ Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+
+getFrontendConfig :: ThentosConfig -> HttpConfig
+getFrontendConfig cfg = (\(Just fe) -> fe) $ Tagged <$> cfg >>. (Proxy :: Proxy '["frontend"])
+
 getProxyConfigMap :: ThentosConfig -> Map.Map ServiceId ProxyConfig
 getProxyConfigMap cfg = fromMaybe Map.empty $ (Map.fromList . fmap (exposeKey . Tagged)) <$>
       cfg >>. (Proxy :: Proxy '["proxies"])

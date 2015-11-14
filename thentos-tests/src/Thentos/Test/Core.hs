@@ -217,17 +217,11 @@ withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
 -- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
 withFrontendAndBackend' dbname test = do
-    st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
-    withFrontend' defaultFrontendConfig st
-        $ withBackend' defaultBackendConfig st
+    st@(ActionState (connPool, _, cfg)) <- createActionState dbname thentosTestConfig
+    withFrontend' (getFrontendConfig cfg) st
+        $ withBackend' (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
                 `finally` destroyAllResources connPool
-
-defaultBackendConfig :: HttpConfig
-defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
-
-defaultFrontendConfig :: HttpConfig
-defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
 
 
 -- * set up state
