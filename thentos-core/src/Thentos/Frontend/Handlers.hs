@@ -148,10 +148,19 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
     p userFormData = do
         fcfg <- getFrontendCfg
         loggerF ("registering new user: " ++ show (udName userFormData))
-        (_, tok) <- addUnconfirmedUser userFormData
-        let url = emailConfirmUrl fcfg "/user/register_confirm" (fromConfirmationToken tok)
 
-        sendUserConfirmationMail userFormData url
+        let happy = do
+                (_, tok) <- addUnconfirmedUser userFormData
+                let url = emailConfirmUrl fcfg "/user/register_confirm" (fromConfirmationToken tok)
+                sendUserConfirmationMail userFormData url
+        happy
+            `catchError`
+                \case UserEmailAlreadyExists -> sendUserExistsMail (udEmail userFormData)
+                      e -> throwError e
+
+                -- FIXME: there should be a nicer reaction if the user attempts to use a nick that
+                -- is already in use.
+
         userRegisterRequestedPage <$> get
 
 sendUserConfirmationMail :: UserFormData -> ST -> FAction ()
