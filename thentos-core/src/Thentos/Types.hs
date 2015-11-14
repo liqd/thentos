@@ -149,14 +149,14 @@ newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
 
 instance FromHttpApiData ConfirmationToken where
     parseQueryParam tok = ConfirmationToken <$>
-        either (Left . cs . show) (Right . id) (decodeUtf8' $ cs tok)
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
 
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
 instance FromHttpApiData PasswordResetToken where
     parseQueryParam tok = PasswordResetToken <$>
-        either (Left . cs . show) (Right . id) (decodeUtf8' $ cs tok)
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
 
 -- | Information required to create a new User
 data UserFormData =

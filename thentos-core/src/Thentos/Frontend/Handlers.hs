@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -126,7 +125,7 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
 -- FIXME: move this to servant-digestive-functors.
 formH :: forall payload.
      ST                                     -- ^ formAction
-  -> (Form H.Html FAction payload)          -- ^ processor I
+  -> Form H.Html FAction payload            -- ^ processor I
   -> (payload -> FAction H.Html)            -- ^ processor II
   -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
   -> ServerT (FormH payload) FAction
@@ -383,7 +382,7 @@ dashboardH =
        redirect' "/dashboard/details"
   :<|> (setTab DashboardTabDetails  >> renderDashboard userDisplaySnippet)
   :<|> (setTab DashboardTabServices >> renderDashboard userServicesDisplaySnippet)
-  :<|> (redirect' "/service/create")
+  :<|> redirect' "/service/create"
   :<|> (setTab DashboardTabUsers    >> renderDashboard (\ _ _ -> "nothing here yet!"))
 
 

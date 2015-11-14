@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
 

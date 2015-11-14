@@ -240,7 +240,8 @@ spec =
         as@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
-        runActionWithPrivs [toCNF RoleAdmin] as $ autocreateMissingServices thentosTestConfig
+        ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
+              autocreateMissingServices thentosTestConfig
         return $! serveApi mgr as
 
     ctJson = ("Content-Type", "application/json")

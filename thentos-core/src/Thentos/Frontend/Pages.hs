@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE ViewPatterns       #-}
 
 -- | This module provides 'Html' pages and 'Form's (disgetive-functor thingies that parse filled-out
 -- forms).  The pages come in three flavours:
