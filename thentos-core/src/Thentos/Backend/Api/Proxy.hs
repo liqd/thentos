@@ -27,12 +27,14 @@ import Data.String.Conversions (SBS, cs)
 import Data.Typeable (Typeable)
 import Data.Void (Void)
 import Network.HTTP.ReverseProxy
+import Network.HTTP.Types (status500)
 import Servant.API (Raw)
-import Servant.Server.Internal.ServantErr (responseServantErr, err500)
+import Servant.Server.Internal.ServantErr (responseServantErr)
 import Servant.Server (Server, HasServer(..), ServantErr)
 import System.Log.Logger (Priority(DEBUG, WARNING))
 import System.Log.Missing (logger)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C
@@ -175,8 +177,9 @@ createCustomHeaders adapter (Just tok) _sid = do
     --       , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
 
--- | Throw an Internal Server Error if the proxied app is unreachable.
+-- | Throw an internal server error if the proxied app is unreachable.
 err500onExc :: SomeException -> S.Application
 err500onExc exc _ sendResponse = do
     logger WARNING $ "Couldn't call proxied app: " <> show exc
-    sendResponse $ responseServantErr err500
+    sendResponse $ S.responseLBS
+        status500 [contentTypeJsonHeader] (Aeson.encode $ ErrorMessage "internal error")
