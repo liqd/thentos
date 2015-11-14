@@ -1,6 +1,8 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
-module Paths (getDataFileName, getBuildRootDirectory, version) where
+
+-- | Custom modifications to "Paths_thentos_core".
+module Paths_thentos_core__ (getDataFileName, getBuildRootDirectory, version) where
 
 -- | use this only for testing or build-time effects!
 import Paths.TH (getBuildRootDirectory)

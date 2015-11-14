@@ -6,7 +6,7 @@ import Language.Haskell.TH (Q, Exp, runIO)
 import Language.Haskell.TH.Quote (dataToExpQ)
 import System.FilePath ((</>))
 
-import Paths (getBuildRootDirectory)
+import Paths_thentos_core__ (getBuildRootDirectory)
 
 loadStaticContent :: FilePath -> Q Exp
 loadStaticContent filePath =
