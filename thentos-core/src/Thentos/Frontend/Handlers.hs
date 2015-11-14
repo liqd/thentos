@@ -46,22 +46,18 @@ where
 
 import Control.Arrow (first)
 import Control.Lens ((.~), (^.))
-import Control.Monad.Except (ExceptT, catchError, throwError, runExceptT)
+import Control.Monad.Except (catchError, throwError)
 import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.State (get, gets, modify)
+import Control.Monad.State (get, modify)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, (<>))
-import GHC.TypeLits (Symbol)
 import LIO.DCLabel (toCNF)
-import LIO (liftLIO)
-import LIO.TCB (ioTCB)
 import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
 import Network.Wai (Request, Middleware, requestMethod)
-import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT, ServantErr)
+import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
 import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
                                 route, addBodyCheck)
 import Text.Digestive (Env, Form, FormInput(TextInput), View, fromPath, getForm, postForm)
-import URI.ByteString (RelativeRef(RelativeRef), Query(Query))
 
 import qualified Servant
 import qualified Text.Blaze.Html5 as H
@@ -470,7 +466,8 @@ serviceLoginH (Just sid) (Just (Rr rr)) = do
     modify $ fsdServiceLoginState .~ Just sls
 
     runAsUserOrLogin $ \_ fsl -> do
-        ServiceSessionToken servSessTok <- startServiceSession (fsl ^. fslToken) sid
+        -- FIXME: (BUG, actually:) the token needs to be stored in the query of the redirect url.
+        ServiceSessionToken _ <- startServiceSession (fsl ^. fslToken) sid
           `catchError` \case NotRegisteredWithService
                                -> redirect' "/service/register"
                              e -> throwError e
