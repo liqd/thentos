@@ -69,12 +69,13 @@ hashUserPass = liftIO . TU.hashUserPass
 hashServiceKey :: ServiceKey -> UnsafeAction e s (HashedSecret ServiceKey)
 hashServiceKey = liftIO . TU.hashServiceKey
 
-sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> UnsafeAction e ()
-sendMail config mName address subject msg = liftIO $ do
-    result <- TS.sendMail config mName address subject msg
+sendMail :: Maybe UserName -> UserEmail -> ST -> ST -> UnsafeAction e s ()
+sendMail mName address subject msg = do
+    config <- (\(ActionState (_, _, c)) -> Tagged $ c >>. (Proxy :: Proxy '["smtp"])) <$> ask
+    result <- liftIO $ TS.sendMail config mName address subject msg
     case result of
         Right () -> return ()
-        Left (SendmailError s) -> do
+        Left (SendmailError s) -> liftIO $ do
             SLM.logger CRITICAL $ "error sending mail: " ++ s
             throwIO $ ErrorCall "error sending email"
 
