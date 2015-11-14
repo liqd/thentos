@@ -21,63 +21,61 @@ import Thentos (createDefaultUser)
 import Thentos.Types
 
 
+{-# NOINLINE thentosTestConfig #-}
 thentosTestConfig :: ThentosConfig
-thentosTestConfig = [cfgify|
-
-command: "run"
-
-backend:
-    bind_port: 7118
-    bind_host: "127.0.0.1"
-    expose_port: 7118
-    expose_host: "127.0.0.1"
-
-frontend:
-    bind_port: 7119
-    bind_host: "127.0.0.1"
-    expose_port: 7119
-    expose_host: "127.0.0.1"
-
-purescript: ../thentos-purescript/static
-
-smtp:
-    sender_name: "Thentos"
-    sender_address: "thentos@thentos.org"
-    sendmail_path: "/bin/cat"
-    sendmail_args: ["-t"]
-
-proxy:
-    service_id: "someid"
-    endpoint: http://127.0.0.1:8001/path
-
-default_user:
-    name: "god"
-    password: "god"
-    email: "postmaster@localhost"
-    roles: ["roleAdmin", "roleUser", "roleServiceAdmin", "roleUserAdmin"]
-
-user_reg_expiration: 30m
-pw_reset_expiration: 30m
-email_change_expiration: 30m
-gc_interval: 30m
-
-log:
-    path: ./log/thentos.log
-    level: DEBUG
-
-database:
-    name: unused
-
-mail:
-    account_verification:
-        subject: "Thentos: Aktivierung Ihres Nutzerkontos"
-        body: |
-            Hallo {{user_name}},
-
-            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren.
-
-            {{activation_url}}
-|]
+thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unlines $
+    "backend:" :
+    "    bind_port: 7118" :
+    "    bind_host: \"127.0.0.1\"" :
+    "    expose_port: 7118" :
+    "    expose_host: \"127.0.0.1\"" :
+    "" :
+    "frontend:" :
+    "    bind_port: 7119" :
+    "    bind_host: \"127.0.0.1\"" :
+    "    expose_port: 7119" :
+    "    expose_host: \"127.0.0.1\"" :
+    "" :
+    ("purescript: " ++ $(getPackageSourceRoot "thentos-purescript") </> "static") :
+    "" :
+    "smtp:" :
+    "    sender_name: \"Thentos\"" :
+    "    sender_address: \"thentos@thentos.org\"" :
+    "    sendmail_path: \"/bin/cat\"" :
+    "    sendmail_args: [\"-t\"]" :
+    "" :
+    "proxy:" :
+    "    service_id: \"someid\"" :
+    "    endpoint: http://127.0.0.1:8001/path" :
+    "" :
+    "default_user:" :
+    "    name: \"god\"" :
+    "    password: \"god\"" :
+    "    email: \"postmaster@localhost\"" :
+    "    roles: [\"roleAdmin\", \"roleUser\", \"roleServiceAdmin\", \"roleUserAdmin\"]" :
+    "" :
+    "user_reg_expiration: 30m" :
+    "pw_reset_expiration: 30m" :
+    "email_change_expiration: 30m" :
+    "gc_interval: 30m" :
+    "" :
+    "log:" :
+    "    path: ./log/thentos.log" :
+    "    level: DEBUG" :
+    "" :
+    "database:" :
+    "    name: unused" :
+    "" :
+    "mail:" :
+    "    account_verification:" :
+    "        subject: \"Thentos: Aktivierung Ihres Nutzerkontos\"" :
+    "        body: |" :
+    "            Hallo {{user_name}}," :
+    "" :
+    "            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren." :
+    "" :
+    "            {{activation_url}}" :
+    []
 
 
 godUid :: UserId
