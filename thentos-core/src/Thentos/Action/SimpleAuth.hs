@@ -89,8 +89,16 @@ guardedUnsafeAction :: Action e s Bool -> UnsafeAction e s a -> Action e s a
 guardedUnsafeAction utest uaction = assertAuth utest >> unsafeAction uaction
 
 -- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
-unsafeAction :: UnsafeAction e a -> Action e a
+unsafeAction :: forall e s a. UnsafeAction e s a -> Action e s a
 unsafeAction uaction = construct deconstruct
   where
-    construct io = Action . ReaderT $ EitherT . ioTCB . io
-    deconstruct = runEitherT . runReaderT (fromUnsafeAction uaction)
+    construct :: (s -> ActionState -> IO (Either (ThentosError e) a, s)) -> Action e s a
+    construct io = Action .
+        ReaderT $ \actionState ->
+            EitherT .
+                StateT $ \polyState ->
+                    ioTCB $ io polyState actionState
+
+    deconstruct :: s -> ActionState -> IO (Either (ThentosError e) a, s)
+    deconstruct polyState actionState =
+        runStateT (runEitherT (runReaderT (fromUnsafeAction uaction) actionState)) polyState

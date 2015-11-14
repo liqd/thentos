@@ -146,15 +146,26 @@ runActionInThentosSession tok polyState actionState action = do
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
 -- executed, and the label has not been guarded by any action yet.
-runActionE :: (Show e, Typeable e) =>
-    ActionState -> Action e a -> IO (Either (ActionError e) a)
-runActionE state action = catchUnknown
+--
+-- Updates to the polymorphic state inside the action are effective in the result if there are no
+-- exceptions or if a `ThentosError` is thrown, but NOT if any other exceptions (such as
+-- 'AnyLabelError') are thrown.
+runActionE :: forall s e a. (Show e, Typeable e) =>
+    s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
+runActionE polyState actionState action = catchUnknown
   where
+    inner :: Action e s a -> IO (Either (ThentosError e) a, s)
     inner = (`evalLIO` LIOState dcBottom dcBottom)
+          . (`runStateT` polyState)
           . eitherT (return . Left) (return . Right)
-          $ fromAction action `runReaderT` state
-    catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
-    catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
+          . (`runReaderT` actionState)
+          . fromAction
+
+    catchAnyLabelError = (first (fmapL ActionErrorThentos) <$> inner action)
+        `catch` \e -> return (Left $ ActionErrorAnyLabel e, polyState)
+
+    catchUnknown = catchAnyLabelError
+        `catch` \e -> return (Left $ ActionErrorUnknown e, polyState)
 
 runActionWithPrivsE :: (Show e, Typeable e) =>
     [CNF] -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)

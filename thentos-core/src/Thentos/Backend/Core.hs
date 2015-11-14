@@ -60,18 +60,19 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: (Show e, Typeable e) =>
-    ActionState ->
+enterAction :: forall s e. (Show e, Typeable e) =>
+    s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
-    Maybe ThentosSessionToken -> Action e :~> ExceptT ServantErr IO
-enterAction state toServantErr mTok = Nat $ ExceptT . run toServantErr
+    Maybe ThentosSessionToken -> Action e s :~> ExceptT ServantErr IO
+    -- FIXME: 'ThentosSessionToken' should probably to into @polyState@?
+enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
-        -> Action e a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e) . runActionE state . (updatePrivs mTok >>)
+        -> Action e s a -> IO (Either ServantErr a)
+    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs mTok >>)
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action e ()
+    updatePrivs :: Maybe ThentosSessionToken -> Action e s ()
     updatePrivs (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
     updatePrivs Nothing    = return ()
 
