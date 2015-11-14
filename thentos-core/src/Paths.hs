@@ -1,11 +1,20 @@
 {-# LANGUAGE CPP #-}
-module Paths (getDataFileName, P.version) where
+{-# LANGUAGE TemplateHaskell #-}
+module Paths (getDataFileName, getBuildRootDirectory, version) where
 
-import qualified Paths_thentos_core as P
+#if !DEVELOPMENT
+import Paths_thentos_core
+
+#else
+import Distribution.Version (Version(Version))
+import System.FilePath ((</>))
+
+import Paths.TH (getBuildRootDirectory)
 
 getDataFileName :: FilePath -> IO FilePath
-#if DEVELOPMENT
-getDataFileName x = return $ "thentos-core/" ++ x
-#else
-getDataFileName = P.getDataFileName
+getDataFileName = return . (($(getBuildRootDirectory) </> "thentos-core") </>)
+
+version :: Version
+version = Version [] []
+
 #endif

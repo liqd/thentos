@@ -86,8 +86,7 @@ sensei:
 	cabal exec -- sensei \
 	  -ignore-dot-ghci \
 	  -i./thentos-core/src/ \
-	  -i./thentos-core/src-devel/ \
-	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
+	  -optP-DDEVELOPMENT \
 	  -i./thentos-tests/src/ \
 	  -i./thentos-tests/tests/ ./thentos-tests/tests/Spec.hs $(SENSEI_ARGS)
 
@@ -108,8 +107,7 @@ repl:
 	cabal exec -- ghci \
 	  -ignore-dot-ghci \
 	  -i./thentos-core/src/ \
-	  -i./thentos-core/src-devel/ \
-	  -optP-include -optP./thentos-core/src-devel/cabal_macros.h \
+	  -optP-DDEVELOPMENT \
 	  -i./thentos-tests/src/ \
 	  -i./thentos-tests/tests/ \
 	  ./thentos-core/src/Thentos.hs $(SENSEI_ARGS)

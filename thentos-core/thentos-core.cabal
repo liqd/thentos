@@ -19,7 +19,6 @@ data-files:
     schema/schema.sql
     schema/wipe.sql
     frontend/static/screen.css
-    frontend/static/screen2.css
 
 extra-source-files:
     frontend/static/screen.css
