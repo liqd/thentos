@@ -7,11 +7,12 @@ module Thentos.ActionSpec where
 
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
-import Data.Either (isLeft, isRight)
-import Data.Pool (withResource)
-import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import Data.Either (isLeft, isRight)
+import Data.Functor.Infix ((<$$>))
+import Data.Pool (withResource)
+import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)

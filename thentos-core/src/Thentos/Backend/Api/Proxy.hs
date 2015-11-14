@@ -20,7 +20,6 @@ module Thentos.Backend.Api.Proxy where
 import Control.Exception (SomeException)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
-import Data.Aeson (encode)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -35,6 +34,7 @@ import Servant.Server (Server, HasServer(..), ServantErr)
 import System.Log.Logger (Priority(DEBUG, WARNING))
 import System.Log.Missing (logger)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C

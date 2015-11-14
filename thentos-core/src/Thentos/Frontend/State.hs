@@ -9,34 +9,41 @@
 
 module Thentos.Frontend.State where
 
-import Control.Monad.Trans.Class (lift)
+import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad.Trans.State (StateT, runStateT, get, gets, put)
+import Control.Monad.State (get, gets, put)
 import Data.Char (ord)
-import Data.Functor.Infix ((<$$>))
-import Data.String.Conversions (SBS)
-import Data.Void (Void)
+import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Monoid ((<>))
+import Data.String.Conversions (SBS, ST, cs)
 import LIO (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
 import Servant (Proxy(Proxy), ServantErr, (:>), serve, HasServer, ServerT, Server)
+import Servant.Server (errHTTPCode, errHeaders, errBody, err303, err404, err400, err500)
 import Servant.Server.Internal.Enter ((:~>)(Nat), Enter, enter)
 import Servant.Session (SSession)
+import System.Log (Priority(DEBUG, ERROR))
+import Text.Blaze.Html (Html)
+import Text.Blaze.Html.Renderer.Pretty (renderHtml)
 import Web.Cookie (SetCookie, def, setCookieName)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
-import Thentos.Types (ThentosSessionToken)
-import Thentos.Util
 import Thentos.Action.Core
-import Thentos.Backend.Core (baseActionErrorToServantErr)
+import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.Frontend.Types
+import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
+import Thentos.Util
 
+import qualified Thentos.Frontend.Pages as Pages
+import qualified Thentos.Action.Unsafe as U
+import qualified Thentos.Action.SimpleAuth as U
 
--- * types
 
 type FAction = StateT FrontendSessionData (Action Void)
 

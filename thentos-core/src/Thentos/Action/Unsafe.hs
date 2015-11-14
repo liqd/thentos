@@ -18,13 +18,14 @@ where
 
 import Control.Concurrent (modifyMVar)
 import Control.Exception (throwIO, ErrorCall(..))
-import Control.Monad.Except (MonadError, throwError, catchError)
+import Control.Monad.Except (throwError, catchError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ask)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS)
-import LIO.Core (MonadLIO)
 import System.Log (Priority(DEBUG, CRITICAL))
 
 import qualified Data.Thyme as Thyme

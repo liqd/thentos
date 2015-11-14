@@ -1,31 +1,38 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
-module Thentos.Frontend where
+module Thentos.Frontend (runFrontend) where
 
-import Data.ByteString (ByteString)
-import Data.Configifier ((>>.))
-import Data.Monoid ((<>))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
-import Snap.Core (ifTop, redirect')
-import Snap.Http.Server (defaultConfig, setBind, setPort, setVerbose)
-import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, wrapSite)
-import Snap.Util.FileServe (serveDirectory)
-import System.Log.Missing (logger)
-import System.Log (Priority(INFO))
+import Data.String.Conversions (LBS)
+import Servant hiding (serveDirectory)
+import System.Log.Logger (Priority(INFO))
 
-import qualified Thentos.Frontend.Handlers as H
-import qualified Thentos.Frontend.Pages as P
+import qualified Text.Blaze.Html5 as H
+import qualified Data.ByteString.Lazy.Char8 as LBS
 
-import Snap.Missing (serveSnaplet)
 import Thentos.Action.Core
+import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Frontend.Handlers
 import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.State
+import Thentos.Frontend.TH
 import Thentos.Frontend.Types
+
+import qualified System.Log.Missing as Log (logger)
+
 
 
 runFrontend :: HttpConfig -> ActionState -> IO ()

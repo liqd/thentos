@@ -37,7 +37,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
-import qualified Paths
+import qualified Paths_thentos_core__ as Paths
 import qualified Thentos.Backend.Api.Purescript as Purs
 
 

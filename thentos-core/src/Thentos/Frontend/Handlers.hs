@@ -1,44 +1,84 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE LambdaCase             #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
-module Thentos.Frontend.Handlers where
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
-import Control.Applicative ((<|>))
-import Control.Lens ((^.), (.~), (%~))
-import Control.Monad (when)
-import Control.Monad.State.Class (gets)
-import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Functor.Infix ((<$$>))
-import Data.Monoid ((<>))
+module Thentos.Frontend.Handlers
+  ( UserRegisterH
+  , UserRegisterConfirmH
+  , UserLoginH
+  , ResetPasswordRequestH
+  , ResetPasswordH
+  , UserLogoutH
+  , EmailUpdateH
+  , EmailUpdateConfirmH
+  , PasswordUpdateH
+  , DashboardH
+  , ServiceCreateH
+  , ServiceRegisterH
+  , ServiceLoginH
+
+  , userRegisterH
+  , userRegisterConfirmH
+  , userLoginH
+  , resetPasswordRequestH
+  , resetPasswordH
+  , userLogoutH
+  , emailUpdateH
+  , emailUpdateConfirmH
+  , passwordUpdateH
+  , dashboardH
+  , serviceCreateH
+  , serviceRegisterH
+  , serviceLoginH
+
+  , disableCaching
+  )
+where
+
+import Control.Arrow (first)
+import Control.Lens ((.~), (^.))
+import Control.Monad.Except (ExceptT, catchError, throwError, runExceptT)
+import Control.Monad.Identity (Identity, runIdentity)
+import Control.Monad.State (get, gets, modify)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
-import Data.Text.Encoding (decodeUtf8')
-import Data.Void (Void)
-import Snap.Core
-    ( Method(GET, HEAD, POST), method, modifyResponse, getParam, getRequest, redirect'
-    , rqMethod, urlDecode, setHeader, setResponseCode
-    )
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (csrfToken)
-import System.Log.Missing (logger)
-import System.Log (Priority(DEBUG, INFO, WARNING, CRITICAL))
-import Text.Digestive.View (View)
-import URI.ByteString
-    ( parseURI, laxURIParserOptions, uriQueryL, queryPairsL, RelativeRef(..), Query(..) )
+import Data.String.Conversions (ST, (<>))
+import GHC.TypeLits (Symbol)
+import LIO.DCLabel (toCNF)
+import LIO (liftLIO)
+import LIO.TCB (ioTCB)
+import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
+import Network.Wai (Request, Middleware, requestMethod)
+import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT, ServantErr)
+import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
+                                route, addBodyCheck)
+import Text.Digestive (Env, Form, FormInput(TextInput), View, fromPath, getForm, postForm)
+import URI.ByteString (RelativeRef(RelativeRef), Query(Query))
 
+import qualified Servant
 import qualified Text.Blaze.Html5 as H
+import qualified Data.Text.Encoding as STE
 
-import Snap.Missing (blaze)
-import Thentos.Action as A
+import Thentos.Action
 import Thentos.Action.Core
-import Thentos.Config
+import Thentos.Backend.Core (addHeadersToResponse)
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
+import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
+
+import qualified Thentos.Action.SimpleAuth as U
+import qualified Thentos.Action.Unsafe as U
+
 
 
 -- * register (thentos)
