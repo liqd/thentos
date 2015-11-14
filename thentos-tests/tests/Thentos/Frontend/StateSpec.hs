@@ -127,11 +127,11 @@ spec_frontendState = do
 
         it "rejects login requests of non-existent users" $ \astate -> do
             resp <- post astate (Just "bad") (Just "user")
-            (cs $ resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgError" :: String)
+            cs (resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgError" :: String)
 
         it "accepts login requests of existing users" $ \astate -> do
             resp <- post astate (Just "god") (Just "god")
-            (cs $ resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgSuccess" :: String)
+            cs (resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgSuccess" :: String)
 
 
 getCookie :: SResponse -> RequestHeaders
