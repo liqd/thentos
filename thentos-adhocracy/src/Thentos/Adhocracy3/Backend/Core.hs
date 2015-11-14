@@ -20,11 +20,10 @@ import Thentos.Backend.Core
 
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
-a3ActionErrorToServantErr e = do
-    errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info $ e
+a3ActionErrorToServantErr = errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info
 
--- Construct a simple A3-style error wrapping a single error. 'aeName' is set to "thentos" and
--- 'aeLocation' to "body". Useful for cases where all we really have is a description.
+-- | Construct a simple A3-style error wrapping a single error. 'aeName' is set to @thentos@ and
+-- 'aeLocation' to @body@. Useful for cases where all we really have is a description.
 mkSimpleA3Error :: ST -> A3Error
 mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescription = desc}
 

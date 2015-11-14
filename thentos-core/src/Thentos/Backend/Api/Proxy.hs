@@ -177,9 +177,9 @@ createCustomHeaders adapter (Just tok) _sid = do
     --       , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
 
--- | Throw an Internal Server Error if the proxied app is unreachable.
+-- | Throw an internal server error if the proxied app is unreachable.
 err500onExc :: SomeException -> S.Application
 err500onExc exc _ sendResponse = do
     logger WARNING $ "Couldn't call proxied app: " <> show exc
     sendResponse $ S.responseLBS
-        status500 [contentTypeJsonHeader] (encode $ ErrorMessage "internal error")
+        status500 [contentTypeJsonHeader] (Aeson.encode $ ErrorMessage "internal error")
