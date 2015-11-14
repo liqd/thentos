@@ -52,6 +52,8 @@ library
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
     , LIO.Missing
+    , Paths.TH
+    , Paths_thentos_core__
     , System.Log.Missing
     , Thentos
     , Thentos.Action
@@ -78,7 +80,6 @@ library
     , Thentos.Transaction.Core
     , Thentos.Types
     , Thentos.Util
-    , Paths_thentos_core__
   other-modules:
       Paths_thentos_core
   build-depends:

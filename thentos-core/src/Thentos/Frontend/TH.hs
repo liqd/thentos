@@ -10,5 +10,5 @@ import Paths_thentos_core__ (getBuildRootDirectory)
 
 loadStaticContent :: FilePath -> Q Exp
 loadStaticContent filePath =
-    runIO (readFile ($(getBuildRootDirectory) </> "thentos-core/frontend/static/" </> filePath))
+    runIO (readFile ($(getBuildRootDirectory) </> "frontend/static/" </> filePath))
         >>= dataToExpQ (const Nothing)
