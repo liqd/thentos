@@ -146,9 +146,9 @@ pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response 
 
 -- * generating sample tokens
 
-runTokenBuilder :: Action.Action Void a -> [(ST, a)]
+runTokenBuilder :: Action.Action Void () a -> [(ST, a)]
 runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
-    Action.runActionWithClearance LIO.Missing.dcTop runTokenBuilderState action
+    fst <$> Action.runActionWithClearance LIO.Missing.dcTop () runTokenBuilderState action
 
 {-# NOINLINE runTokenBuilderState #-}
 runTokenBuilderState :: Action.ActionState

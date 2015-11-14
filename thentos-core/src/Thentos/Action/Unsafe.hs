@@ -41,32 +41,32 @@ import Thentos.Util as TU
 import qualified System.Log.Missing as SLM
 
 
-query :: ThentosQuery e v -> UnsafeAction e v
+query :: ThentosQuery e v -> UnsafeAction e s v
 query u = do
     ActionState (connPool, _, _) <- UnsafeAction ask
     liftIO (withResource connPool (`runThentosQuery` u)) >>= either throwError return
 
-getConfig :: UnsafeAction e ThentosConfig
+getConfig :: UnsafeAction e s ThentosConfig
 getConfig = (\(ActionState (_, _, c)) -> c) <$> UnsafeAction ask
 
-getCurrentTime :: UnsafeAction e Timestamp
+getCurrentTime :: UnsafeAction e s Timestamp
 getCurrentTime = Timestamp <$> liftIO Thyme.getCurrentTime
 
 -- | A relative of 'cprgGenerate' from crypto-random.
-genRandomBytes :: Int -> UnsafeAction e SBS
+genRandomBytes :: Int -> UnsafeAction e s SBS
 genRandomBytes i = do
     let f :: ChaChaDRG -> (ChaChaDRG, SBS)
         f r = case randomBytesGenerate i r of (output, r') -> (r', output)
     ActionState (_, mr, _) <- UnsafeAction ask
     liftIO . modifyMVar mr $ return . f
 
-makeUserFromFormData :: UserFormData -> UnsafeAction e User
+makeUserFromFormData :: UserFormData -> UnsafeAction e s User
 makeUserFromFormData = liftIO . TU.makeUserFromFormData
 
-hashUserPass :: UserPass -> UnsafeAction e (HashedSecret UserPass)
+hashUserPass :: UserPass -> UnsafeAction e s (HashedSecret UserPass)
 hashUserPass = liftIO . TU.hashUserPass
 
-hashServiceKey :: ServiceKey -> UnsafeAction e (HashedSecret ServiceKey)
+hashServiceKey :: ServiceKey -> UnsafeAction e s (HashedSecret ServiceKey)
 hashServiceKey = liftIO . TU.hashServiceKey
 
 sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> UnsafeAction e ()
@@ -78,13 +78,10 @@ sendMail config mName address subject msg = liftIO $ do
             SLM.logger CRITICAL $ "error sending mail: " ++ s
             throwIO $ ErrorCall "error sending email"
 
-logger :: Priority -> String -> UnsafeAction e ()
+logger :: Priority -> String -> UnsafeAction e s ()
 logger prio = liftIO . SLM.logger prio
 
--- | (This type signature could be greatly simplified, but that would also make it less explanatory.)
-logIfError :: forall m l e v f
-    . (m ~ UnsafeAction f, Monad m, MonadLIO l m, MonadError e m, Show e, Show f)
-    => m v -> m v
+logIfError :: (Show e) => UnsafeAction e s v -> UnsafeAction e s v
 logIfError = (`catchError` f)
   where
     f e = do
