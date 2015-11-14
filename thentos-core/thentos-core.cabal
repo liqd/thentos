@@ -34,7 +34,7 @@ flag with-thentos-executable
   default: False
 
 flag development
-  description: Development mode tweaks cabal search behavior with Paths.hs and cabal_macros.h
+  description: Development mode tweaks cabal search behavior in Paths_thentos_core__
   default: False
 
 library
@@ -78,7 +78,7 @@ library
     , Thentos.Transaction.Core
     , Thentos.Types
     , Thentos.Util
-    , Paths
+    , Paths_thentos_core__
   other-modules:
       Paths_thentos_core
   build-depends:
