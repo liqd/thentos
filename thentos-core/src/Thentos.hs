@@ -91,7 +91,7 @@ makeMain commandSwitch =
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
-    runActionWithPrivs [toCNF RoleAdmin] () actionState
+    _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState
         (autocreateMissingServices config :: Action Void () ())
 
     let mBeConfig :: Maybe HttpConfig
@@ -118,7 +118,7 @@ makeMain commandSwitch =
 runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    runActionWithPrivs [toCNF RoleAdmin] () actionState (collectGarbage :: Action Void () ())
+    _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState (collectGarbage :: Action Void () ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
