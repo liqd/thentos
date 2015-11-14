@@ -7,11 +7,9 @@
 
 module Thentos.Frontend.Handlers.CombinatorsSpec where
 
-import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Data.CaseInsensitive (mk)
 import Data.Maybe (fromJust, isJust, listToMaybe)
-import Data.Proxy
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Network.Wai
 import Network.Wai.Test (SResponse, simpleBody, simpleHeaders, simpleStatus)

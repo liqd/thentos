@@ -92,11 +92,11 @@ type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 -- If any logging is to take place, it should take place here, not near the place where the error is
 -- thrown.
 errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
-errorInfoToServantErr mkServant (l, se, x) = do
+errorInfoToServantErr mkServantErr (l, se, x) = do
     case l of
         Just (prio, msg) -> logger prio msg
         Nothing          -> return ()
-    return $ mkServant se x
+    return $ mkServantErr se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
@@ -111,9 +111,13 @@ baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
         , errHeaders = contentTypeJsonHeader : errHeaders baseErr
         }
 
-    -- | header setting the Content-Type to JSON.
-    contentTypeJsonHeader ::  Header
-    contentTypeJsonHeader = ("Content-Type", "application/json")  -- FIXME: do "application/json; charset=utf-8" here?
+-- | header setting the Content-Type to JSON.
+--
+-- FIXME: why does this have to be set explicitly?  shouldn't it happen naturally from the type of
+-- the end-point?  (i guess not, because errors are not end-point specific.  still, is there a
+-- better way?)
+contentTypeJsonHeader ::  Header
+contentTypeJsonHeader = ("Content-Type", "application/json")  -- FIXME: do "application/json; charset=utf-8" here?
 
 actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
 actionErrorInfo thentosInfo e =
