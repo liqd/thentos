@@ -7,9 +7,7 @@
 module Thentos.Frontend.Handlers.Combinators where
 
 import Control.Lens ((^.), (%~), (.~), _Just)
-import Control.Monad.Except (throwError)
 import Control.Monad.State.Class (get, gets, modify, state)
-import Control.Monad.Trans.Class (lift)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
@@ -24,7 +22,7 @@ import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Pages
-import Thentos.Frontend.State
+import Thentos.Frontend.State (crash)
 import Thentos.Frontend.Types
 import Thentos.Types
 
@@ -129,10 +127,10 @@ emailConfirmUrl feConfig path token = exposeUrl feConfig <//> toST ref
     toST  = cs . toLazyByteString . serializeRelativeRef
 
 redirect' :: SBS -> FAction a
-redirect' = throwError . OtherError . FActionError303
+redirect' = crash . FActionError303
 
 redirectURI :: URI -> FAction a
-redirectURI ref = redirect' (cs . toLazyByteString . serializeURI $ ref)
+redirectURI = redirect' . cs . toLazyByteString . serializeURI
 
 redirectRR :: RelativeRef -> FAction a
-redirectRR ref = redirect' (cs . toLazyByteString . serializeRelativeRef $ ref)
+redirectRR = redirect' . cs . toLazyByteString . serializeRelativeRef

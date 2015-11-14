@@ -10,12 +10,10 @@
 module Thentos.Frontend.State where
 
 import Control.Monad.Except (throwError, catchError)
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.State (get, gets, put)
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Functor.Infix ((<$$>))
 import Data.Monoid ((<>))
 import Data.String.Conversions (SBS, ST, cs)
 import LIO (liftLIO)
@@ -54,7 +52,7 @@ import qualified Thentos.Action.SimpleAuth as U
 -- * errors
 
 crash :: FActionError -> FAction a
-crash = undefined -- lift . throwError . OtherError
+crash = throwError . OtherError
 
 fActionServantErr :: ActionError FActionError -> IO ServantErr
 fActionServantErr = errorInfoToServantErr mkServantErr .

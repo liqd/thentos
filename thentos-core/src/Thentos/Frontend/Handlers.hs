@@ -260,12 +260,12 @@ type ResetPasswordH =
       "reset_password" :> QueryParam "token" PasswordResetToken :> FormH UserPass
 
 resetPasswordH :: ServerT ResetPasswordH FAction
-resetPasswordH Nothing = error "crash FActionErrorNoToken"  -- FIXME: types
-resetPasswordH (Just tok) = formH "/usr/reset_password" resetPasswordForm p
+resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
                                             (showPageWithMessages resetPasswordPage)
   where
-    p :: UserPass -> FAction H.Html
-    p password = do
+    p :: Maybe PasswordResetToken -> UserPass -> FAction H.Html
+    p Nothing _ = crash FActionErrorNoToken
+    p (Just tok) password = do
         resetPassword tok password
         sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
 
