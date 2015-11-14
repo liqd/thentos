@@ -32,7 +32,9 @@ mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescr
 -- aborts at the first detected error.
 mkA3StyleServantErr :: ServantErr -> A3ErrorMessage -> ServantErr
 mkA3StyleServantErr baseErr err = baseErr
-    {errBody = encode $ err, errHeaders = [contentTypeJsonHeader]}
+    { errBody = encode $ err
+    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+    }
 
 mkA3 :: ErrorInfo ST -> ErrorInfo A3ErrorMessage
 mkA3 (p, se, msg) = (p, se, A3ErrorMessage [mkSimpleA3Error msg])
