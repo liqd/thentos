@@ -21,6 +21,7 @@ import Thentos (createDefaultUser)
 import Thentos.Types
 
 
+{-# NOINLINE thentosTestConfig #-}
 thentosTestConfig :: ThentosConfig
 thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unlines $
     "backend:" :

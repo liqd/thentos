@@ -11,7 +11,7 @@ module Thentos.Frontend.StateSpec where
 import Control.Lens ((^.), (%~))
 import Control.Monad (when)
 import Control.Monad.State (modify, gets, liftIO)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.String.Conversions (ST, LBS, SBS, cs)
 import Network.HTTP.Types (RequestHeaders, methodGet, methodPost)
 import Network.Wai (Application)
@@ -104,26 +104,26 @@ spec_frontendState = do
               where
                 p = AP.manyTill AP.anyChar $ do
                       AP.string fieldName
-                      AP.many' $ AP.satisfy (AP.isSpace)
+                      AP.many' $ AP.satisfy AP.isSpace
                       AP.string "must not be empty"
                       return ()
 
         it "rejects bad login requests" $ \astate -> do
             -- (just checking that parser works)
-            "ow!\n  must not be empty\n" `shouldSatisfy` (hasDfError "ow!")
-            "........" `shouldNotSatisfy` (hasDfError "ow!")
+            "ow!\n  must not be empty\n" `shouldSatisfy` hasDfError "ow!"
+            "........" `shouldNotSatisfy` hasDfError "ow!"
 
             resp <- post astate Nothing Nothing
-            (resp ^. Wreq.responseBody) `shouldSatisfy` (hasDfError "name")
-            (resp ^. Wreq.responseBody) `shouldSatisfy` (hasDfError "password")
+            (resp ^. Wreq.responseBody) `shouldSatisfy` hasDfError "name"
+            (resp ^. Wreq.responseBody) `shouldSatisfy` hasDfError "password"
 
             resp <- post astate (Just "god") Nothing
-            (resp ^. Wreq.responseBody) `shouldNotSatisfy` (hasDfError "name")
-            (resp ^. Wreq.responseBody) `shouldSatisfy` (hasDfError "password")
+            (resp ^. Wreq.responseBody) `shouldNotSatisfy` hasDfError "name"
+            (resp ^. Wreq.responseBody) `shouldSatisfy` hasDfError "password"
 
             resp <- post astate Nothing (Just "god")
-            (resp ^. Wreq.responseBody) `shouldSatisfy` (hasDfError "name")
-            (resp ^. Wreq.responseBody) `shouldNotSatisfy` (hasDfError "password")
+            (resp ^. Wreq.responseBody) `shouldSatisfy` hasDfError "name"
+            (resp ^. Wreq.responseBody) `shouldNotSatisfy` hasDfError "password"
 
         it "rejects login requests of non-existent users" $ \astate -> do
             resp <- post astate (Just "bad") (Just "user")
@@ -148,7 +148,7 @@ type TestApi =
 testApi :: ServerT TestApi FAction
 testApi = _post :<|> _read
   where
-    _post msg (maybe False id -> crash) = do
+    _post msg (fromMaybe False -> crash) = do
         modify $ fsdMessages %~ (FrontendMsgSuccess msg :)
         when crash $ redirect' "/wef"
     _read = gets ((cs . show <$>) . (^. fsdMessages))

@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP             #-}
+#if DEVELOPMENT
 {-# LANGUAGE TemplateHaskell #-}
+#endif
 
 -- | Custom modifications to "Paths_thentos_core".
 module Paths_thentos_core__ (getDataFileName, getBuildRootDirectory, version) where
