@@ -17,6 +17,8 @@ import System.FilePath ((</>))
 -- 1. Shell variable.  Example: CABAL_PACKAGE_SOURCE_ROOT_THENTOS_CORE for package thentos-core.
 -- 3. If current directory contains a directory with the same name as the package, take that.
 -- 2. Current directory.
+--
+-- WARNING: use this only for testing or build-time effects!
 getPackageSourceRoot :: FilePath -> Q Exp
 getPackageSourceRoot fp =
     runIO (head . catMaybes <$> sequence

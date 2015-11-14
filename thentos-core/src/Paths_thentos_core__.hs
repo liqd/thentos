@@ -28,7 +28,6 @@
 -- Related info: http://neilmitchell.blogspot.de/2008/02/adding-data-files-using-cabal.html
 module Paths_thentos_core__ (getDataFileName, getPackageSourceRoot, version) where
 
--- | use this only for testing or build-time effects!
 import Paths.TH (getPackageSourceRoot)
 
 #if !DEVELOPMENT
