@@ -88,7 +88,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Util
 
-import qualified Paths_thentos_adhocracy as Paths
+import qualified Paths_thentos_adhocracy__ as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Backend.Api.Purescript

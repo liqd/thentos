@@ -32,12 +32,14 @@ SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 DIR=`pwd`
 SANDBOX="$DIR/.cabal-sandbox"
 CABAL_ARGS=""
+NO_PURESCRIPT=""
 CABAL_VERBOSITY=""
 
 usage () {
-    echo "thentos-install.sh [-c <CABAL-OPTS>]"
+    echo "thentos-install.sh [-c <CABAL-OPTS>] [-p]"
     echo "  Installs thentos packages and their dependencies into a cabal"
     echo "  sandbox. Use it only from the thentos repo top-level dir."
+    echo "  '-p' means 'do not build purescript'."
     exit 1
 }
 
@@ -48,9 +50,11 @@ check_dir () {
     fi
 }
 
-while getopts :c: opt; do
+while getopts :c:p opt; do
     case $opt in
         c) CABAL_ARGS="$OPTARG"
+           ;;
+        p) NO_PURESCRIPT=1
            ;;
         *) echo "Invalid option: -$OPTARG" >&2
            usage
@@ -77,10 +81,12 @@ for s in ${SOURCES[@]}; do
     cd $DIR
 done
 
-echo -e "\n\nbuilding thentos-purescript...\n" >&2
-./thentos-purescript/build.sh clean
-./thentos-purescript/build.sh dep
-./thentos-purescript/build.sh it
+if [ "$NO_PURESCRIPT" == "" ]; then
+    echo -e "\n\nbuilding thentos-purescript...\n" >&2
+    ./thentos-purescript/build.sh clean
+    ./thentos-purescript/build.sh dep
+    ./thentos-purescript/build.sh it
+fi
 
 echo -e "\n\nbuilding dependencies...\n" >&2
 cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \

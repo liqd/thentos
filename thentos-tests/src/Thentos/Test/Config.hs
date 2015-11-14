@@ -13,6 +13,7 @@ import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection)
 
 import Thentos.Types
+import Paths_thentos_core__ (getPackageSourceRoot)
 import Thentos.Config
 import Thentos (createDefaultUser)
 
