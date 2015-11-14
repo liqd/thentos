@@ -147,8 +147,16 @@ instance Aeson.ToJSON UserEmail
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
 
+instance FromHttpApiData ConfirmationToken where
+    parseQueryParam tok = ConfirmationToken <$>
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
+
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+instance FromHttpApiData PasswordResetToken where
+    parseQueryParam tok = PasswordResetToken <$>
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
 
 -- | Information required to create a new User
 data UserFormData =
@@ -273,7 +281,9 @@ instance Ord Context where
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromJSON, ToJSON, FromField, ToField)
+    deriving ( Eq, Ord, Show, Read, Typeable, Generic, IsString
+             , FromHttpApiData, FromJSON, ToJSON, FromField, ToField
+             )
 
 data ThentosSession =
     ThentosSession
@@ -475,6 +485,14 @@ instance FromField Role where
 -- | Wrapper around 'URI' with additional instance definitions.
 newtype Uri = Uri { fromUri :: URI }
     deriving (Eq, Ord)
+
+newtype Rr = Rr { fromRr :: RelativeRef }
+    deriving (Eq, Ord)
+
+instance FromHttpApiData Rr where
+    parseQueryParam s = case decodeUtf8' $ cs s of
+        Right r -> fmapL (cs . show) $ Rr <$> parseRelativeRef laxURIParserOptions (cs r)
+        Left  e -> Left . cs . show $ e
 
 parseUri :: SBS -> Either URIParseError Uri
 parseUri bs = Uri <$> parseURI laxURIParserOptions bs

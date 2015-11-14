@@ -45,22 +45,51 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
-type FAction = StateT FrontendSessionData (Action Void)
+-- FIXME: EU-required user notifications about cookies
+-- FUTUREWORK: more efficient refresh (only if changed or after 20% of the age has been passed)
 
--- FIXME: where do we put frontend errors?  and where backend errors?  how do we handle them?
 
-runFActionE :: FrontendSessionData -> ActionState -> FAction a
-            -> IO (Either (ActionError Void) (a, FrontendSessionData))
-runFActionE fState aState fServer = runActionE aState $ runStateT fServer fState
+-- * errors
 
+crash :: FActionError -> FAction a
+crash = throwError . OtherError
+
+fActionServantErr :: ActionError FActionError -> IO ServantErr
+fActionServantErr = errorInfoToServantErr mkServantErr .
+                                    actionErrorInfo (thentosErrorInfo f)
+  where
+    f :: FActionError -> (Maybe (Priority, String), ServantErr, ST)
+    f (FActionError303 uri) =
+        (Nothing, err303 { errHeaders = [("Location", uri)] }, "redirect: " <> cs uri)
+    f FActionError404 =
+        (Nothing, err404, "page not found.")
+    f e@FActionErrorNoToken =
+        (Just (DEBUG, show e), err400, "email confirmation url broken: no token.")
+    f e@FActionErrorCreateService =
+        (Just (DEBUG, show e), err400, "could not create service.")
+    f e@FActionErrorServiceLoginNoCbUrl =
+        (Just (DEBUG, show e), err400, "no or broken callback url.")
+    f e@(FActionError500 _) =
+        (Just (ERROR, show e), err500, "we are very sorry.")
+
+    mkServantErr :: ServantErr -> ST -> ServantErr
+    mkServantErr baseErr msg = baseErr
+        { errBody = cs . renderHtml $ makeErrorPage (errHTTPCode baseErr) msg
+        , errHeaders = ("Content-Type", "text/html; charset=utf-8") : errHeaders baseErr
+        }
+
+    makeErrorPage :: Int -> ST -> Html
+    makeErrorPage 403 = const Pages.permissionDeniedPage
+    makeErrorPage 404 = const Pages.notFoundPage
+    makeErrorPage _   = Pages.errorPage . cs
+
+
+-- * middleware
 
 type FSession        = Session IO () FrontendSessionData
 type FSessionMap     = Vault.Key FSession -> Maybe FSession
 type FSessionStore   = SessionStore IO () FrontendSessionData
 type FServantSession = SSession IO () FrontendSessionData
-
-
--- * middleware
 
 setCookie :: SetCookie
 setCookie = def { setCookieName = "thentos" }  -- FIXME: make 'SetCookie' configurable with configifier.
@@ -97,19 +126,17 @@ serveFAction _ fServer aState = thentosSessionMiddleware >>= \(mw, key) -> retur
     server' key smap = enter nt fServer
       where
         nt :: FAction :~> ExceptT ServantErr IO
-        nt = enterFAction aState baseActionErrorToServantErr key smap
-
+        nt = enterFAction aState key smap
 
 enterFAction ::
        ActionState
-    -> (ActionError Void -> IO ServantErr)
     -> Vault.Key FSession
     -> FSessionMap
     -> FAction :~> ExceptT ServantErr IO
-enterFAction aState toServantErr key smap = Nat $ ExceptT . (>>= fmapLM toServantErr) . run
+enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . run
   where
-    run :: forall a. FAction a -> IO (Either (ActionError Void) a)
-    run fServer = fst <$$> runFActionE emptyFrontendSessionData aState fServer'
+    run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
+    run fServer = fst <$> runActionE emptyFrontendSessionData aState fServer'
       where
         fServer' :: FAction a
         fServer' = do
@@ -118,18 +145,22 @@ enterFAction aState toServantErr key smap = Nat $ ExceptT . (>>= fmapLM toServan
                 Just (lkup, ins) -> do
                     cookieToFSession (lkup ())
                     updatePrivs
-                    a <- fServer
-                    cookieFromFSession (ins ())
-                    return a
+                    fServer `finally`
+                        cookieFromFSession (ins ())
+
+    finally :: FAction a -> FAction b -> FAction a
+    finally action finalizer = do
+        a <- action `catchError` \e -> finalizer >> throwError e
+        finalizer >> return a
 
     updatePrivs :: FAction ()
-    updatePrivs = gets l >>= lift . updatePrivs'
+    updatePrivs = gets l >>= updatePrivs'
       where
         l :: FrontendSessionData -> Maybe ThentosSessionToken
-        l (FrontendSessionData (Just (FrontendSessionLoginData t _)) _ _) = Just t
+        l (FrontendSessionData (Just (FrontendSessionLoginData t _ _)) _ _) = Just t
         l _ = Nothing
 
-    updatePrivs' :: Maybe ThentosSessionToken -> Action e ()
+    updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
     updatePrivs' (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
     updatePrivs' Nothing    = return ()
 
@@ -137,8 +168,15 @@ enterFAction aState toServantErr key smap = Nat $ ExceptT . (>>= fmapLM toServan
 -- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no
 -- state, do nothing.
 cookieToFSession :: IO (Maybe FrontendSessionData) -> FAction ()
-cookieToFSession r = (lift . liftLIO . ioTCB) r >>= maybe (return ()) put
+cookieToFSession r = liftLIO (ioTCB r) >>= maybe (return ()) put
 
 -- | Read 'FrontendSessionData' from 'FAction' and write back into servant-session state.
 cookieFromFSession :: (FrontendSessionData -> IO ()) -> FAction ()
-cookieFromFSession w = get >>= lift . liftLIO . ioTCB . w
+cookieFromFSession w = get >>= liftLIO . ioTCB . w
+
+getFrontendCfg :: FAction HttpConfig
+getFrontendCfg = do
+    Just (feConfig :: HttpConfig)
+        <- (\c -> Tagged <$> c >>. (Proxy :: Proxy '["frontend"]))
+            <$> U.unsafeAction U.getConfig
+    return feConfig
