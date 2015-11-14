@@ -6,17 +6,18 @@ module Thentos.Adhocracy3.Backend.Core
     )
     where
 
+import Data.Aeson (encode)
 import Data.String.Conversions (ST)
-import Servant.Server (ServantErr)
 import Servant.Server.Internal.ServantErr (err400, err401, err500, errBody, errHeaders)
+import Servant.Server (ServantErr)
 import System.Log.Logger (Priority(DEBUG, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
-import qualified Thentos.Action.Core as AC
-import Thentos.Backend.Core
 
-import Data.Aeson (encode)
+import qualified Thentos.Action.Core as AC
 
 import Thentos.Adhocracy3.Types
+import Thentos.Backend.Core
+
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
 a3ActionErrorToServantErr e = do

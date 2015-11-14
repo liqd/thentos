@@ -2,23 +2,39 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 
 module Thentos.Frontend.StateSpec where
 
 import Control.Lens ((^.), (%~))
+import Control.Monad (when)
 import Control.Monad.State (modify, gets, liftIO)
-import Data.String.Conversions (ST, cs)
+import Data.Maybe (catMaybes, fromMaybe)
+import Data.String.Conversions (ST, LBS, SBS, cs)
 import Network.HTTP.Types (RequestHeaders, methodGet, methodPost)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleBody, simpleHeaders, SResponse)
-import Servant (Proxy(Proxy), ServerT, Capture, Post, Get, JSON, (:<|>)((:<|>)), (:>))
-import Test.Hspec (Spec, SpecWith, hspec, before, describe, it, shouldBe)
+import Network.Wai.Test (SResponse, simpleBody, simpleHeaders, simpleStatus)
+import Servant (Proxy(Proxy), ServerT, Capture, QueryParam, Post, Get, JSON, (:<|>)((:<|>)), (:>))
+import Test.Hspec (Spec, hspec, before, around, describe, it,
+                   shouldBe, shouldContain, shouldSatisfy, shouldNotSatisfy, pendingWith)
 import Test.Hspec.Wai (request)
+import Servant.Server.Internal.ServantErr (errHTTPCode, errHeaders, errBody)
 
+import qualified Data.Attoparsec.ByteString.Char8 as AP
+import qualified Data.Attoparsec.Combinator as AP
+import qualified Data.ByteString.Lazy as LBS
+import qualified Network.HTTP.Types.Status as HT
+import qualified Network.Wreq as Wreq
+
+import Thentos.Action.Core
+import Thentos.Config
+import Thentos.Frontend.Handlers.Combinators (redirect')
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
+import Thentos.Types
+
 import Thentos.Test.Config
 import Thentos.Test.Core
 

@@ -19,12 +19,11 @@
 module Thentos.Types where
 
 import Control.Exception (Exception)
-import Control.Monad (when, unless, mzero)
-import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad (when, unless, mzero)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
-import Data.Function (on)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -32,10 +31,13 @@ import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
+import Data.EitherR (fmapL)
+import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.String (IsString)
+import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
 import Data.Typeable (Typeable)
@@ -46,9 +48,11 @@ import Servant.API (FromHttpApiData)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
-import URI.ByteString (URI, URIParseError, uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
-                       queryPairs, parseURI, laxURIParserOptions, serializeURI', authorityHost,
-                       authorityPort, portNumber, hostBS, uriPath)
+import URI.ByteString (URI, RelativeRef, URIParseError,
+                       uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment, queryPairs,
+                       parseURI, parseRelativeRef, laxURIParserOptions, serializeURI',
+                       authorityHost, authorityPort, portNumber, hostBS, uriPath)
+import Web.HttpApiData (parseQueryParam)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson

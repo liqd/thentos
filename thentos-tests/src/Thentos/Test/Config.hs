@@ -1,21 +1,24 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Thentos.Test.Config
 where
 
-import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), cfgify)
-import Data.Maybe (fromMaybe)
-import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection)
+import Data.Configifier
+    ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), Source(YamlString), configify)
+import Data.Maybe (fromMaybe)
+import Data.String.Conversions (ST, cs)
+import System.FilePath ((</>))
+import System.IO.Unsafe (unsafePerformIO)
 
-import Thentos.Types
 import Paths_thentos_core__ (getPackageSourceRoot)
 import Thentos.Config
 import Thentos (createDefaultUser)
+import Thentos.Types
 
 
 thentosTestConfig :: ThentosConfig

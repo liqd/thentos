@@ -9,8 +9,8 @@ import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (fromJust, isJust, listToMaybe)
 import Data.String.Conversions (ST, cs)
-import Test.Hspec (Spec, SpecWith, around, describe, it, shouldBe, shouldSatisfy, hspec,
-                   pendingWith)
+import Test.Hspec (Spec, SpecWith, hspec, around, describe, it,
+                   shouldBe, shouldContain, shouldSatisfy, pendingWith)
 
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Status as C

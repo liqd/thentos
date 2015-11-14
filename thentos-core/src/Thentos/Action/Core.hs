@@ -7,10 +7,12 @@
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE InstanceSigs                #-}
+{-# LANGUAGE LambdaCase                  #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE TupleSections               #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE UndecidableInstances        #-}
@@ -18,11 +20,13 @@
 module Thentos.Action.Core
 where
 
+import Control.Arrow (first)
 import Control.Concurrent (MVar, modifyMVar)
 import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
+import Control.Monad.State (MonadState, StateT(StateT), runStateT)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Pool (Pool, withResource)

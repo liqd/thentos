@@ -1,52 +1,34 @@
 {-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TupleSections          #-}
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Control.Concurrent.MVar (MVar)
-import Control.Lens ((^.), (%~), (.~))
-import Control.Monad.Except (liftIO)
-import Control.Monad.State.Class (gets)
-import "cryptonite" Crypto.Random (ChaChaDRG)
-import Data.ByteString.Builder (Builder, toLazyByteString)
-import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
+import Control.Lens ((^.), (%~), (.~), _Just)
+import Control.Monad.State.Class (get, gets, modify, state)
+import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
-import Data.Void (Void)
-import LIO.Error (AnyLabelError)
-import Snap.Core
-    ( getResponse, finishWith, urlEncode, getParam
-    , rqURI, getsRequest, redirect', modifyResponse, setResponseStatus
-    )
-import Snap.Inline (blanketCSRF)
-import Snap.Snaplet (Handler, with)
-import Snap.Snaplet.Session (commitSession, setInSession, getFromSession, csrfToken)
-import System.Log.Missing (logger)
-import System.Log (Priority(DEBUG, CRITICAL, INFO))
-import Text.Digestive.Form (Form)
-import Text.Digestive.Snap (runForm)
+import Network.HTTP.Types (urlEncode)
+import System.Log (Priority(DEBUG))
 import Text.Digestive.View (View)
-import URI.ByteString
-    ( parseURI, parseRelativeRef, laxURIParserOptions, serializeURI, serializeRelativeRef
-    , URI(..), RelativeRef(..), URIParserOptions, Query(..)
-    )
+import URI.ByteString (serializeURI, serializeRelativeRef, URI(..), RelativeRef(..), Query(..))
 
-import qualified Data.Aeson as Aeson
 import qualified Text.Blaze.Html5 as H
 
-import LIO.Missing
-import Snap.Missing (blaze)
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Pages
+import Thentos.Frontend.State (crash)
 import Thentos.Frontend.Types
 import Thentos.Types
+
+import qualified Thentos.Action.Unsafe as U
+import qualified Thentos.Action.SimpleAuth as U
+
 
 
 -- * dashboard construction
