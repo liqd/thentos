@@ -15,18 +15,23 @@ import System.FilePath ((</>))
 -- determined as follows (first working method wins):
 --
 -- 1. Shell variable.  Example: CABAL_PACKAGE_SOURCE_ROOT_THENTOS_CORE for package thentos-core.
--- 3. If current directory contains a directory with the same name as the package, take that.
--- 2. Current directory.
+-- 2. If current directory contains a directory with the same name as the package, take that.
+-- 3. Like 2., but on *parent* directory.
+-- 4. Take current directory.
 --
 -- WARNING: use this only for testing or build-time effects!
 getPackageSourceRoot :: FilePath -> Q Exp
 getPackageSourceRoot fp =
     runIO (head . catMaybes <$> sequence
         [ lookupEnv (toShellVarName fp)
-        , exceptToMaybe $ getCurrentDirectory >>= canonicalizePath . (</> fp)
+        , perhaps fp
+        , perhaps $ ".." </> fp
         , Just <$> getCurrentDirectory
         ])
       >>= dataToExpQ (const Nothing)
+
+perhaps :: FilePath -> IO (Maybe FilePath)
+perhaps fp = exceptToMaybe $ getCurrentDirectory >>= canonicalizePath . (</> fp)
 
 exceptToMaybe :: IO a -> IO (Maybe a)
 exceptToMaybe a = (Just <$> a) `catch` \(_ :: SomeException) -> return Nothing
