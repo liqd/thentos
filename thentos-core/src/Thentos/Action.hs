@@ -11,7 +11,7 @@
 
 module Thentos.Action
     ( freshRandomName
-    , freshRandom64
+    , freshRandom20
     , freshConfirmationToken
     , freshPasswordResetToken
     , freshServiceId
@@ -128,11 +128,12 @@ import qualified Thentos.Transaction as T
 freshRandomName :: Action e ST
 freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> genRandomBytes'P 18
 
--- | Generate 64 bytes of random data.
-freshRandom64 :: Action e Random64
-freshRandom64 = do
-    bytes <- genRandomBytes'P 64
-    maybe (error "freshRandom64: genRandomBytes'P broken") pure $ mkRandom64 bytes
+-- | Generate 20 bytes of random data.
+-- For comparison: an UUID has 16 bytes, so that should be enough for all practical purposes.
+freshRandom20 :: Action e Random20
+freshRandom20 = do
+    bytes <- genRandomBytes'P 20
+    maybe (error "freshRandom20: genRandomBytes'P broken") pure $ mkRandom20 bytes
 
 freshConfirmationToken :: Action e ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
@@ -676,7 +677,7 @@ agentRoles agent = do
 makeCaptcha :: Action e (CaptchaId, ImageData)
 makeCaptcha = do
     cid    <- freshCaptchaId
-    random <- freshRandom64
+    random <- freshRandom20
     let (imgdata, solution) = Captcha.generateCaptcha random
     query'P $ T.storeCaptcha cid solution
     pure (cid, imgdata)

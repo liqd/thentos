@@ -11,5 +11,5 @@ import Thentos.Types.Opaque
 -- | Generate a captcha. Returns a pair of the binary image data in PNG format and the correct
 -- solution to the captcha.
 -- FIXME Implement by delegating to hs-captcha or whatever captcha library we'll end up using
-generateCaptcha :: Random64 -> (ImageData, ST)
+generateCaptcha :: Random20 -> (ImageData, ST)
 generateCaptcha _random = ("", "")

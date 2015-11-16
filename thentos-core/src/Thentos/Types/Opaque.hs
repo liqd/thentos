@@ -1,6 +1,6 @@
 -- | Types whose internal representation is not accessible.
 module Thentos.Types.Opaque
-    ( Random64, mkRandom64, fromRandom64
+    ( Random20, mkRandom20, fromRandom20
     )
 where
 
@@ -9,15 +9,16 @@ import Data.String.Conversions (SBS)
 import qualified Data.ByteString as SB
 
 
--- | 64 bytes of randomness.
-newtype Random64 = Random64 SBS
+-- | 20 bytes of randomness.
+-- For comparison: an UUID has 16 bytes, so that should be enough for all practical purposes.
+newtype Random20 = Random20 SBS
     deriving (Eq, Ord, Show)
 
--- | Construct a 'Random64' from a bytestring. Returns 'Just' a Random64 wrapping the input
--- if its length is 64, 'Nothing' otherwise.
-mkRandom64 :: SBS -> Maybe Random64
-mkRandom64 bs = if SB.length bs == 64 then Just $ Random64 bs else Nothing
+-- | Construct a 'Random20' from a bytestring. Returns 'Just' a Random20 wrapping the input
+-- if its length is 20, 'Nothing' otherwise.
+mkRandom20 :: SBS -> Maybe Random20
+mkRandom20 bs = if SB.length bs == 20 then Just $ Random20 bs else Nothing
 
--- | Extract the wrapped 64 bytes from a 'Random64'.
-fromRandom64 :: Random64 -> SBS
-fromRandom64 (Random64 bs) = bs
+-- | Extract the wrapped 20 bytes from a 'Random20'.
+fromRandom20 :: Random20 -> SBS
+fromRandom20 (Random20 bs) = bs
