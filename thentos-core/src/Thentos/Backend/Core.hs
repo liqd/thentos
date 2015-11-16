@@ -34,7 +34,7 @@ import Data.Void (Void, absurd)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
-import Network.Wai.Internal (Response(..))
+import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Servant.API ((:>))
 import Servant.API.ContentTypes (AllCTRender)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
@@ -313,7 +313,7 @@ addCorsHeaders policy app req respond = app req $
        , ("Access-Control-Allow-Origin", corsOrigin policy)
        ]
 
--- * warp
+-- * warp & wai
 
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
 runWarpWithCfg cfg = runSettings settings
@@ -327,3 +327,17 @@ runWarpWithCfg cfg = runSettings settings
     hostnameHack = fromString $ case cs $ cfg >>. (Proxy :: Proxy '["bind_host"]) of
         "localhost" -> "127.0.0.1"
         other       -> other
+
+-- | Write all requests and responses to log file with prio 'DEBUG'.  Since 'Response' does not have
+-- a 'Show' instance, we
+loggerMW :: Middleware
+loggerMW app req cont = do
+    logger DEBUG $ "serviceProxy response: " ++ show req
+    app req (\resp -> do
+        logger DEBUG $ "serviceProxy response: " ++ _show resp
+        cont resp)
+  where
+    _show (ResponseFile s hs fp mfpart) = "ResponseFile " ++ show (s, hs, fp, mfpart)
+    _show (ResponseBuilder s hs _) = "ResponseBuilder " ++ show (s, hs)
+    _show (ResponseStream s hs _) = "ResponseStream " ++ show (s, hs)
+    _show (ResponseRaw _ resp) = "ResponseRaw " ++ _show resp
