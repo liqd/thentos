@@ -55,11 +55,14 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     addGroupToGroupSpec
     removeGroupFromGroupSpec
     personaGroupsSpec
+    storeCaptchaSpec
+    solveCaptchaSpec
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
     garbageCollectThentosSessionsSpec
     garbageCollectServiceSessionsSpec
+    garbageCollectCaptchasSpec
     emailChangeRequestSpec
     addServiceSpec
     deleteServiceSpec
@@ -1033,6 +1036,56 @@ personaGroupsSpec = describe "personaGroups" $ do
         length groups `shouldBe` 0
 
 
+-- * Sybil attack prevention
+
+storeCaptchaSpec :: SpecWith (Pool Connection)
+storeCaptchaSpec = describe "storeCaptcha" $ do
+    it "stores a CaptchaId and solution" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        [(cid', solution')] <- doQuery connPool [sql| SELECT id, solution FROM captchas |] ()
+        cid' `shouldBe` cid
+        solution' `shouldBe` solution
+
+    it "throws CaptchaIdAlreadyExists when adding a CaptchaId twice" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        Left err <- runVoidedQuery connPool $ storeCaptcha cid "other text"
+        err `shouldBe` CaptchaIdAlreadyExists
+
+  where
+    cid      = "RandomId"
+    solution = "some text"
+
+solveCaptchaSpec :: SpecWith (Pool Connection)
+solveCaptchaSpec = describe "solveCaptcha" $ do
+    it "returns true and deletes entry if the solution is correct" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        rowCountShouldBe connPool "captchas" 1
+        Right res <- runVoidedQuery connPool $ solveCaptcha cid solution
+        res `shouldBe` True
+        rowCountShouldBe connPool "captchas" 0
+
+    it "returns false and deletes entry if the solution is wrong" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        rowCountShouldBe connPool "captchas" 1
+        Right res <- runVoidedQuery connPool $ solveCaptcha cid "wrong text"
+        res `shouldBe` False
+        rowCountShouldBe connPool "captchas" 0
+
+    it "throws NoSuchCaptchaId if the given CaptchaId doesn't exist" $ \connPool -> do
+        Left err <- runVoidedQuery connPool $ solveCaptcha cid solution
+        err `shouldBe` NoSuchCaptchaId
+
+    it "throws NoSuchCaptchaId if trying to solve the same captcha twice" $ \connPool -> do
+        Right ()   <- runVoidedQuery connPool $ storeCaptcha cid solution
+        Right True <- runVoidedQuery connPool $ solveCaptcha cid solution
+        Left err   <- runVoidedQuery connPool $ solveCaptcha cid solution
+        err `shouldBe` NoSuchCaptchaId
+
+  where
+    cid      = "RandomId"
+    solution = "some text"
+
+
 -- * Garbage collection
 
 garbageCollectUnconfirmedUsersSpec :: SpecWith (Pool Connection)
@@ -1139,6 +1192,20 @@ garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ d
     sTok2 = "service token 2"
     immediateTimeout = fromSeconds 0
     laterTimeout = fromMinutes 1
+
+garbageCollectCaptchasSpec :: SpecWith (Pool Connection)
+garbageCollectCaptchasSpec = describe "garbageCollectCaptchas" $ do
+    it "deletes all expired captchas" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha "cid-1" "solution-1"
+        Right () <- runVoidedQuery connPool $ storeCaptcha "cid-2" "solution-2"
+        rowCountShouldBe connPool "captchas" 2
+        Right () <- runVoidedQuery connPool $ garbageCollectCaptchas $ fromSeconds 0
+        rowCountShouldBe connPool "captchas" 0
+
+    it "only deletes expired captchas" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha "cid-1" "solution-1"
+        Right () <- runVoidedQuery connPool $ garbageCollectCaptchas $ fromHours 1
+        rowCountShouldBe connPool "captchas" 1
 
 
 -- * Utils

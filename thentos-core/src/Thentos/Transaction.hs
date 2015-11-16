@@ -566,7 +566,7 @@ storeCaptcha cid solution = void $
 -- or a prior call to this action).
 solveCaptcha :: CaptchaId -> ST -> ThentosQuery e Bool
 solveCaptcha cid solution = do
-    res <- queryT [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+    res <- queryT [sql| DELETE FROM captchas WHERE id = ? RETURNING solution |] (Only cid)
     case res of
       [Only correct] -> pure $ solution == correct
       []             -> throwError NoSuchCaptchaId
@@ -606,7 +606,8 @@ garbageCollectEmailChangeTokens timeout = void $ execT [sql|
 
 -- | Remove all expired captchas from db.
 garbageCollectCaptchas :: Timeout -> ThentosQuery e ()
-garbageCollectCaptchas _timeout = undefined  -- TODO
+garbageCollectCaptchas timeout = void $ execT
+    [sql| DELETE FROM captchas WHERE timestamp < now() - ?::interval; |] (Only timeout)
 
 
 -- * helpers
