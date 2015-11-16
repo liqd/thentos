@@ -1,3 +1,10 @@
+
+
+# STATUS OF THIS DOCUMENT
+
+DRAFT.  NOT ALL FEATURES MENTIONED ARE FULLY IMPLEMENTED.
+
+
 # Sybil attack countermeasures
 
 A Sybil attack is an attempt of a user to appear as more than one
@@ -36,7 +43,7 @@ collects IP addresses of all your users, and the javascript code that
 it loads into your browser is obfuscated and may generate additional
 data traces now or in the future.  Furthermore, even though it is
 probably slightly harder to crack than our built-in solution, there is
-on price difference for those who decide to counter Captcha security
+no price difference for those who decide to counter Captcha security
 between the two.
 
 
@@ -62,7 +69,10 @@ counter-measures are supported:
 
     1. you can upload a blacklist of email addresses that are not
        accepted for user registration.  registration attempts from
-       addresses on any list are silently dropped on the floor.  the
+       addresses on any list are silently dropped on the floor.  (this
+       comes at the risk of fending off legitimate users, with all the
+       usual implications of bad PR, smaller user base, and higher
+       support costs.  use this tool carefully!)
        blacklists can be csv or json.  in the latter case, they
        consist of only one row per email address.  `*` means *any
        sequence of characters or nothing*.  if two blacklists are
