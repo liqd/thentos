@@ -8,7 +8,7 @@
 
 -- | Custom modifications to the cabal-generated "Paths_thentos_core".
 --
--- Quick motivation: we run code in at least 4 different ways:
+-- Quick motivation: we run code in at least the following different ways:
 --
 --     - the deployed binary.
 --     - with hspec's sensei (via the `Makefile` rules in the git repo root).

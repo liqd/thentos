@@ -22,6 +22,7 @@ import System.Log.Logger (Priority(INFO))
 import qualified Text.Blaze.Html5 as H
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
+import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Config
@@ -31,14 +32,12 @@ import Thentos.Frontend.State
 import Thentos.Frontend.TH
 import Thentos.Frontend.Types
 
-import qualified System.Log.Missing as Log (logger)
-
 
 -- * driver
 
 runFrontend :: HttpConfig -> ActionState -> IO ()
 runFrontend config aState = do
-    Log.logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
+    logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
     serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
 
 type FrontendH =

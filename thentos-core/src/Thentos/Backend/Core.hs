@@ -24,7 +24,7 @@ import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
-import Data.List (nubBy)
+import Data.List (nub, nubBy)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
@@ -91,7 +91,7 @@ instance ToJSON ErrorMessage where
 mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
     { errBody = encode $ ErrorMessage msg
-    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+    , errHeaders = nub $ contentTypeJsonHeader : errHeaders baseErr
     }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
