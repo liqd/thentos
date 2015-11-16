@@ -162,7 +162,7 @@ thentosErrorInfo other e = f e
     f ContextNameAlreadyExists =
         (Nothing, err403, "context name already in use")
     f CaptchaIdAlreadyExists =
-        (Nothing, err400, "duplicate captcha ID")
+        (Nothing, err500, "duplicate captcha ID")
     f NoSuchCaptchaId =
         (Nothing, err400, "unknown captcha ID")
     f BadCredentials =
