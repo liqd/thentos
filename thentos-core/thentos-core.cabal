@@ -91,7 +91,6 @@ library
     , Thentos.Transaction
     , Thentos.Transaction.Core
     , Thentos.Types
-    , Thentos.Types.Opaque
     , Thentos.Util
     , Paths
   other-modules:

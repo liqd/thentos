@@ -107,7 +107,6 @@ import Thentos.Action.Core
 import Thentos.Action.SimpleAuth
 import Thentos.Transaction.Core (ThentosQuery)
 import Thentos.Types
-import Thentos.Types.Opaque
 import Thentos.Util
 
 import qualified Thentos.Sybil.Captcha as Captcha
