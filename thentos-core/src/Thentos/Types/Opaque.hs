@@ -6,7 +6,7 @@ where
 
 import Data.String.Conversions (SBS)
 
-import qualified Data.ByteString as SB
+import qualified Data.ByteString as SBS
 
 
 -- | 20 bytes of randomness.
@@ -17,7 +17,7 @@ newtype Random20 = Random20 SBS
 -- | Construct a 'Random20' from a bytestring. Returns 'Just' a Random20 wrapping the input
 -- if its length is 20, 'Nothing' otherwise.
 mkRandom20 :: SBS -> Maybe Random20
-mkRandom20 bs = if SB.length bs == 20 then Just $ Random20 bs else Nothing
+mkRandom20 bs = if SBS.length bs == 20 then Just $ Random20 bs else Nothing
 
 -- | Extract the wrapped 20 bytes from a 'Random20'.
 fromRandom20 :: Random20 -> SBS
