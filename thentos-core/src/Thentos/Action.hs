@@ -24,9 +24,7 @@ module Thentos.Action
     , addUser
     , deleteUser
     , addUnconfirmedUser
-    , addUnconfirmedUserWithId
     , confirmNewUser
-    , confirmNewUserById
     , addPasswordResetToken
     , resetPassword
     , changePassword
@@ -83,7 +81,7 @@ where
 
 import Control.Conditional ((<||>))
 import Control.Lens ((^.))
-import Control.Monad (unless, void)
+import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
@@ -190,16 +188,8 @@ addUnconfirmedUser userData = do
     uid  <- query'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
 
--- | Initiate email-verified user creation, assigning a specific ID to the new user.
--- If the ID is already in use, an error is thrown. Does not require any privileges.
-addUnconfirmedUserWithId :: UserFormData -> UserId -> Action e ConfirmationToken
-addUnconfirmedUserWithId userData userId = do
-    tok  <- freshConfirmationToken
-    user <- makeUserFromFormData'P userData
-    query'P $ T.addUnconfirmedUserWithId tok user userId
-    return tok
-
--- | Finish email-verified user creation.
+-- | Finish email-verified user creation. Throws 'NoSuchPendingUserConfirmation' if the
+-- token doesn't exist or is expired.
 --
 -- SECURITY: As a caller, you have to make sure the token has been produced by the legitimate
 -- recipient of a confirmation email.  Authentication can only be provided by this api **after** the
@@ -212,20 +202,6 @@ confirmNewUser token = do
     uid <- query'P $ T.finishUserRegistration expiryPeriod token
     sessionToken <- _startThentosSessionByAgent (UserA uid)
     return (uid, sessionToken)
-
-
--- | Finish email-verified user creation, identifying the user by their 'UserId' and ignoring the
--- 'ConfirmationToken'.
---
--- SECURITY: As a caller, you have to make sure that the user credentials have indeed been properly
--- verified before calling this function. This function accepts that as a fact, but cannot in any
--- way check it.
---
--- See also: 'addUnconfirmedUser'.
-confirmNewUserById :: UserId -> Action e ThentosSessionToken
-confirmNewUserById uid = do
-    query'P $ T.finishUserRegistrationById uid
-    _startThentosSessionByAgent (UserA uid)
 
 
 -- ** password reset
@@ -353,15 +329,22 @@ deleteService sid = do
     assertAuth (hasUserId owner <||> hasRole RoleAdmin)
     query'P $ T.deleteService sid
 
--- | Autocreate a service with a specific ID if it doesn't exist yet. This allows adding services
--- to the config which will automatically spring into life if the config is read.
+-- | Autocreate a service with a specific ID if it doesn't exist yet. Moreover, if no contexts
+-- have been defined for the service yet, a default context with empty name is automatically
+-- created.
+--
+-- This allows adding services to the config which will automatically spring into life if the
+-- config is read.
 autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e ()
-autocreateServiceIfMissing'P owner sid = void (lookupService sid) `catchError`
-    \case NoSuchService -> do
-            logger'P DEBUG $ "autocreating service with ID " ++ show sid
-            void $ addServicePrim owner sid (ServiceName "autocreated")
-                                  (ServiceDescription "autocreated")
-          e -> throwError e
+autocreateServiceIfMissing'P owner sid = do
+    void (lookupService sid) `catchError`
+        \case NoSuchService -> do
+                logger'P DEBUG $ "autocreating service with ID " ++ show sid
+                void $ addServicePrim owner sid "autocreated" "autocreated"
+              e -> throwError e
+    contexts <- contextsForService sid
+    when (null contexts) . void $ addContext sid "" "default context" Nothing
+    pure ()
 
 
 -- * thentos session
@@ -446,12 +429,13 @@ validateThentosUserSession tok = do
         UserA uid  -> query'P $ T.lookupConfirmedUser uid
         ServiceA _ -> throwError NoSuchThentosSession
 
--- | Open a session for any agent.
+-- | Open a session for any agent. Also promotes the access rights accordingly.
 -- NOTE: This should only be called after verifying the agent's credentials
 _startThentosSessionByAgent :: Agent -> Action e ThentosSessionToken
 _startThentosSessionByAgent agent = do
     tok <- freshSessionToken
     query'P $ T.startThentosSession tok agent defaultSessionTimeout
+    accessRightsByAgent'P agent >>= grantAccessRights'P
     return tok
 
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
@@ -542,10 +526,10 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
 -- Only the user owning the persona or an admin may do this.
-addPersona :: PersonaName -> UserId -> Action e Persona
-addPersona name uid = do
+addPersona :: PersonaName -> UserId -> Maybe Uri -> Action e Persona
+addPersona name uid mExternalUrl = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
-    query'P $ T.addPersona name uid
+    query'P $ T.addPersona name uid mExternalUrl
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 -- Only the user owning the persona or an admin may do this.
@@ -557,41 +541,41 @@ deletePersona persona = do
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 -- Only the service or an admin may do this.
-addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> Action e Context
-addContext sid name desc url = do
+addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri -> Action e Context
+addContext sid name desc mUrl = do
     assertAuth (hasServiceId sid <||> hasRole RoleAdmin)
-    query'P $ T.addContext sid name desc url
+    query'P $ T.addContext sid name desc mUrl
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 -- Only the service owning the context or an admin may do this.
 deleteContext :: Context -> Action e ()
 deleteContext context = do
     assertAuth (hasServiceId (context ^. contextService) <||> hasRole RoleAdmin)
-    query'P . T.deleteContext $ context ^. contextId
+    query'P $ T.deleteContext (context ^. contextService) (context ^. contextName)
 
 -- | Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
 -- Only the user owning the persona or an admin may do this.
-registerPersonaWithContext :: Persona -> ContextId -> Action e ()
-registerPersonaWithContext persona cxtId = do
+registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> Action e ()
+registerPersonaWithContext persona sid cname = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
-    query'P $ T.registerPersonaWithContext persona cxtId
+    query'P $ T.registerPersonaWithContext persona sid cname
 
 -- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
-unregisterPersonaFromContext :: Persona -> ContextId -> Action e ()
-unregisterPersonaFromContext persona cxtId = do
+unregisterPersonaFromContext :: Persona -> ServiceId -> ContextName -> Action e ()
+unregisterPersonaFromContext persona sid cname = do
     assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
-    query'P $ T.unregisterPersonaFromContext (persona ^. personaId) cxtId
+    query'P $ T.unregisterPersonaFromContext (persona ^. personaId) sid cname
 
 -- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
-findPersona :: UserId -> ContextId -> Action e (Maybe Persona)
-findPersona uid cxtId = do
+findPersona :: UserId -> ServiceId -> ContextName -> Action e (Maybe Persona)
+findPersona uid sid cname = do
     assertAuth (hasUserId uid <||> hasRole RoleAdmin)
-    query'P $ T.findPersona uid cxtId
+    query'P $ T.findPersona uid sid cname
 
 -- | List all contexts owned by a service. Anybody may do this.
 contextsForService :: ServiceId -> Action e [Context]

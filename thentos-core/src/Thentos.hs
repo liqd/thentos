@@ -21,6 +21,7 @@ module Thentos
     , makeMain
     , createConnPoolAndInitDb
     , createDefaultUser
+    , autocreateMissingServices
     ) where
 
 import Control.Concurrent.Async (concurrently)
@@ -38,6 +39,7 @@ import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Data.Void (Void)
+import LIO.DCLabel (toCNF)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
 import Text.Show.Pretty (ppShow)
 
@@ -83,13 +85,14 @@ makeMain commandSwitch =
     let dbName = config >>. (Proxy :: Proxy '["database", "name"])
     connPool <- createConnPoolAndInitDb $ cs dbName
     let actionState = ActionState (connPool, rng, config)
-        log_path = config >>. (Proxy :: Proxy '["log", "path"])
-        log_level = config >>. (Proxy :: Proxy '["log", "level"])
-    configLogger log_path log_level
+        logPath     = config >>. (Proxy :: Proxy '["log", "path"])
+        logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
+    configLogger logPath logLevel
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
-    runActionWithPrivs [RoleAdmin] actionState $ (autocreateMissingServices config :: Action Void ())
+    runActionWithPrivs [toCNF RoleAdmin] actionState
+        (autocreateMissingServices config :: Action Void ())
 
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
@@ -115,7 +118,7 @@ makeMain commandSwitch =
 runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    runActionWithPrivs [RoleAdmin] actionState (collectGarbage :: Action Void ())
+    runActionWithPrivs [toCNF RoleAdmin] actionState (collectGarbage :: Action Void ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB

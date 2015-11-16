@@ -15,6 +15,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | This is an implementation of
 -- git@github.com:liqd/adhocracy3.git:/docs/source/api/authentication_api.rst
@@ -39,11 +40,11 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
-import Control.Lens ((&), (<>~))
-import Control.Monad.Except (MonadError, catchError, throwError)
-import Control.Monad (when, unless, mzero, void)
-import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object,
-                   withObject)
+import Control.Lens ((^.), (&), (<>~))
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad (when, mzero)
+import Data.Aeson
+    (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.:), (.:?), (.=), object, withObject)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Functor.Infix ((<$$>))
@@ -63,7 +64,8 @@ import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
-import Text.Printf (printf)
+import Text.Hastache.Context (mkStrContext)
+import Text.Hastache (MuType(MuVariable))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -89,7 +91,6 @@ import Thentos.Util
 import qualified Paths_thentos_adhocracy as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
-
 import qualified Thentos.Backend.Api.Purescript
 
 
@@ -270,7 +271,7 @@ passwordAcceptable pass
 -- ** other types
 
 data ActivationRequest =
-    ActivationRequest Path
+    ActivationRequest ConfirmationToken
   deriving (Eq, Show, Typeable, Generic)
 
 data LoginRequest =
@@ -293,14 +294,15 @@ data RequestResult =
   deriving (Eq, Show, Typeable, Generic)
 
 instance ToJSON ActivationRequest where
-    toJSON (ActivationRequest p) = object ["path" .= p]
+    toJSON (ActivationRequest (ConfirmationToken confToken)) =
+        object ["path" .= ("/activate/" <> confToken)]
 
 instance FromJSON ActivationRequest where
     parseJSON = withObject "activation request" $ \v -> do
         p :: ST <- v .: "path"
-        unless ("/activate/" `ST.isPrefixOf` p) $
-            fail $ "ActivationRequest with malformed path: " ++ show p
-        return . ActivationRequest . Path $ p
+        case ST.stripPrefix "/activate/" p of
+            Just confToken -> return . ActivationRequest . ConfirmationToken $ confToken
+            Nothing        -> fail $ "ActivationRequest with malformed path: " ++ show p
 
 instance ToJSON LoginRequest where
     toJSON (LoginByName  n p) = object ["name"  .= n, "password" .= p]
@@ -397,57 +399,85 @@ api manager actionState@(AC.ActionState (_, _, cfg)) =
 
 -- * handler
 
--- | Add a user both in A3 and in Thentos. We allow A3 to choose the user ID.
--- If A3 reponds with a error, user creation is aborted.
+-- | Add a user in Thentos, but not yet in A3. Only after the Thentos user has been activated
+-- (confirmed), a persona is created in thentos together with a corresponding adhocracy user in A3
+-- that corresponds to that persona.
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    cfg <- AC.getConfig'P
-    uid <- createUserInA3'P user
-    void $ A.addUnconfirmedUserWithId user uid
-    let userPath = userIdToPath cfg uid
-        typedPath          = TypedPath userPath CTUser
-        -- Mimic cache-control info returned from the A3 backend
-        changedDescendants = [ a3backendPath cfg ""
-                             , a3backendPath cfg "principals/"
-                             , a3backendPath cfg "principals/users/"
-                             , a3backendPath cfg "principals/groups/"
-                             ]
-        created            = [userPath]
-        modified           = [ a3backendPath cfg "principals/users/"
-                             , a3backendPath cfg "principals/groups/authenticated/"
-                             ]
-        removed            = []
-    return $ TypedPathWithCacheControl typedPath changedDescendants created modified removed
+    confToken <- snd <$> A.addUnconfirmedUser user
+    config    <- AC.getConfig'P
+    sendUserConfirmationMail config user confToken
+    let dummyPath = a3backendPath config ""
+    return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
 
--- | Activate a new user. The activation request is first sent to the A3 backend.
--- If the backend successfully activates the user, we then activate them also in Thentos.
+    -- FIXME Which path should we return here, considering that no A3 user exists yet?!
+
+    -- FIXME We correctly return empty cache-control info since the A3 DB isn't (yet) changed,
+    -- but normally the A3 backend would return the following info if a new user is created:
+    -- changedDescendants: "", "principals/", "principals/users/", "principals/groups/"
+    -- created: userPath
+    -- modified: "principals/users/", "principals/groups/authenticated/"
+    -- Find out if not returning this stuff leads to problems in the A3 frontend!
+    --
+    -- possible solution: deliver thentos registration widget; disable all adhocracy frontend-code
+    -- that touches this end-point; provide user resources from outside of widgets only.
+
+    -- FIXME: write an action that wraps addUnconfirmedUser and sendUserConfirmationMail together?
+    -- (it's something that'll happen again in at least two more places, assuming we support
+    -- single-page apps and server-page apps in core.)
+
+-- | Activate a new user. This also creates a persona and a corresponding adhocracy user in the A3 backend,
+-- so that the user is able to log into A3. The user's actual password and email address are
+-- only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
-activate ar@(ActivationRequest p) = AC.logIfError'P $ do
-    AC.logger'P DEBUG . ("route activate:" <>) . cs . Aeson.encodePretty $ ActivationRequest p
-    reqResult <- activateUserInA3'P ar
-    case reqResult of
-        RequestSuccess path _a3tok -> do
-            uid  <- userIdFromPath path
-            stok <- A.confirmNewUserById uid
-            return $ RequestSuccess path stok
-        RequestError errMsg        -> throwError . OtherError $ GenericA3Error errMsg
+activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
+    AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
+    (uid, stok) <- A.confirmNewUser confToken
+    -- Promote access rights so we can look up the user and create a persona
+    AC.accessRightsByAgent'P (UserA uid) >>= AC.grantAccessRights'P
+    user <- snd <$> A.lookupConfirmedUser uid
+    let persName = PersonaName . fromUserName $ user ^. userName
+    externalUrl <- makeExternalUrl persName
+    persona     <- A.addPersona persName uid $ Just externalUrl
+    sid         <- a3ServiceId
+    -- Register persona for the default ("") context of the default service (A3)
+    A.registerPersonaWithContext persona sid ""
+    pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
+
+-- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
+-- for @/principlas/users/...@.  (Returns exposed url.)
+makeExternalUrl :: PersonaName -> A3Action Uri
+makeExternalUrl pn = createUserInA3'P pn >>= f
+  where
+    f :: Path -> A3Action Uri
+    f (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
+        | ST.null localPath = do
+            throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
+        | otherwise = do
+            config <- AC.getConfig'P
+            let (Path fullPath) = a3backendPath config localPath
+            case parseUri $ cs fullPath  of
+                Left err  -> throwError . OtherError $ A3UriParseError err
+                Right uri -> pure uri
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
 login r = AC.logIfError'P $ do
     AC.logger'P DEBUG "/login/"
-    config <- AC.getConfig'P
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
-    return $ RequestSuccess (userIdToPath config uid) stok
+    userUrl <- externalUrlOfDefaultPersona uid
+    return $ RequestSuccess (Path $ cs userUrl) stok
 
 -- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user
 -- has clicked on the link in a reset-password mail sent by the A3 backend. To check whether the
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
+-- FIXME Issue #321: Process is now broken, adapt to new user management (user is now stored in
+-- Thentos with a corresponding persona in A3 for activated users only.)
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     AC.logger'P DEBUG $ "route password_reset for path: " <> show path
@@ -455,50 +485,60 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
     case reqResult of
         RequestSuccess userPath _a3tok -> do
             uid  <- userIdFromPath userPath
-            stok <- confirmUserUser uid `catchError` handle uid
+            A._changePasswordUnconditionally uid pass
+            stok <- A.startThentosSessionByUserId uid pass
             return $ RequestSuccess userPath stok
         RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
-  where
-    confirmUserUser uid = do
-        -- Before changing the password, try to activate the user in case they weren't yet activated.
-        -- FIXME once the switch-to-SQL branch is merged: instead of brute-forcing activation
-        -- and catching the resulting error, define and use a (trans)action to look up the
-        -- activation status of an uid (active/inactive/unknown)
-        stok <- A.confirmNewUserById uid
-        A._changePasswordUnconditionally uid pass
-        return stok
-    handle uid NoSuchPendingUserConfirmation = do
-        -- User is already activated, just change the password and log them in
-        A._changePasswordUnconditionally uid pass
-        A.startThentosSessionByUserId uid pass
-    handle _ e                                           = throwError e
 
 
 -- * helper actions
 
--- | Create a user in A3 and return the user ID.
-createUserInA3'P :: UserFormData -> A3Action UserId
-createUserInA3'P user = do
+sendUserConfirmationMail :: ThentosConfig -> UserFormData -> ConfirmationToken -> A3Action ()
+sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
+    let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
+        subject      = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "body"])
+    body <- AC.renderTextTemplate'P bodyTemplate (mkStrContext context)
+    AC.sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
+  where
+    context "user_name"      = MuVariable . fromUserName $ udName user
+    context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
+    context _                = error "sendUserConfirmationMail: no such context"
+    feHttp      = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+                      Nothing -> error "sendUserConfirmationMail: frontend not configured!"
+                      Just v -> Tagged v
+
+-- | Create a user in A3 from a persona name and return the user path.
+createUserInA3'P :: PersonaName -> A3Action Path
+createUserInA3'P persName = do
     config <- AC.getConfig'P
     let a3req = fromMaybe
                 (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
-                mkUserCreationRequestForA3 config user
+                mkUserCreationRequestForA3 config persName
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
-        throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $ Client.responseBody a3resp
-    extractUserId a3resp
+        throwError . OtherError . A3BackendErrorResponse (responseCode a3resp) $
+            Client.responseBody a3resp
+    extractUserPath a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
 
--- | Activate a user in A3 and return the response received from A3.
-activateUserInA3'P :: ActivationRequest -> A3Action RequestResult
-activateUserInA3'P actReq = do
-    config <- AC.getConfig'P
-    let a3req = fromMaybe (error "activateUserInA3'P: mkRequestForA3 failed, check config!") $
-                mkRequestForA3 config "/activate_account" actReq
-    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . OtherError . A3BackendInvalidJson) return $
-        (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
+-- | Find the ServiceId of the A3 backend, which should be registered as default proxied app.
+a3ServiceId :: A3Action ServiceId
+a3ServiceId = do
+    config  <- AC.getConfig'P
+    maybe (error "a3ServiceId: A3 proxy not configured") return $
+        ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
+
+-- | Return the external URL of a user's default ("") persona, in rendered form.
+externalUrlOfDefaultPersona :: UserId -> A3Action SBS
+externalUrlOfDefaultPersona uid = do
+    sid     <- a3ServiceId
+    persona <- A.findPersona uid sid "" >>=
+               maybe (throwError . OtherError $ A3NoDefaultPersona uid sid) pure
+    userUrl <- maybe (throwError $ OtherError A3PersonaLacksExternalUrl) pure $
+                     persona ^. personaExternalUrl
+    pure $ renderUri userUrl
 
 -- | Send a password reset request to A3 and return the response.
 resetPasswordInA3'P :: Path -> A3Action RequestResult
@@ -525,14 +565,19 @@ a3corsPolicy = CorsPolicy
 
 -- * low-level helpers
 
--- | Create a user creation request to be sent to the A3 backend. The actual user password is
--- replaced by a dummy, as A3 doesn't have to know it.
-mkUserCreationRequestForA3 :: ThentosConfig -> UserFormData -> Maybe Client.Request
-mkUserCreationRequestForA3 config user = do
-    let user'  = UserFormData { udName     = udName user,
-                                udEmail    = udEmail user,
-                                udPassword = "dummypass" }
-    mkRequestForA3 config "/principals/users" $ A3UserWithPass user'
+-- | Convert a persona name into a user creation request to be sent to the A3 backend.
+-- The persona name is used as user name. The email address is set to a unique dummy value
+-- and the password is set to a dummy value.
+mkUserCreationRequestForA3 :: ThentosConfig -> PersonaName -> Maybe Client.Request
+mkUserCreationRequestForA3 config persName = do
+    let user  = UserFormData { udName     = UserName $ fromPersonaName persName,
+                               udEmail    = email,
+                               udPassword = "dummypass" }
+    mkRequestForA3 config "/principals/users" $ A3UserWithPass user
+  where
+    rawEmail = cs (mailEncode $ fromPersonaName persName) <> "@example.org"
+    email    = fromMaybe (error $ "mkUserCreationRequestForA3: couldn't create dummy email") $
+                         parseUserEmail rawEmail
 
 -- | Make a POST request to be sent to the A3 backend. Returns 'Nothing' if the 'ThentosConfig'
 -- lacks a correctly configured proxy.
@@ -554,22 +599,23 @@ mkRequestForA3 config route dat = do
         , Client.checkStatus = \_ _ _ -> Nothing
         }
 
--- | Extract the user ID from an A3 response received for a user creation request.
-extractUserId :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m UserId
-extractUserId resp = do
+-- | Extract the user path from an A3 response received for a user creation request.
+-- FIXME: make use of servant-client for all rest communication with A3 backend!
+extractUserPath :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m Path
+extractUserPath resp = do
     resource <- either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)
-    userIdFromPath $ tpPath resource
+    pure $ tpPath resource
 
 sendRequest :: Client.Request -> IO (Client.Response LBS)
 sendRequest req = Client.newManager Client.defaultManagerSettings >>= Client.httpLbs req
 
 -- | A3-specific ProxyAdapter.
-a3ProxyAdapter :: ProxyAdapter
+a3ProxyAdapter :: ProxyAdapter ThentosA3Error
 a3ProxyAdapter = ProxyAdapter
   { renderHeader = renderA3HeaderName
   , renderUser   = a3RenderUser
-  , renderError  = a3BaseActionErrorToServantErr
+  , renderError  = a3ActionErrorToServantErr
   }
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
@@ -578,15 +624,12 @@ renderA3HeaderName ThentosHeaderSession = mk "X-User-Token"
 renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
--- | Render the user as A3 expects it.
-a3RenderUser :: ThentosConfig -> UserId -> User -> SBS
-a3RenderUser cfg uid _ = cs . fromPath $ userIdToPath cfg uid
+-- | Render the user as A3 expects it. We return the external URL of the user's default persona.
+a3RenderUser :: UserId -> User -> AC.Action ThentosA3Error SBS
+a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 
-userIdToPath :: ThentosConfig -> UserId -> Path
-userIdToPath config (UserId i) = a3backendPath config $
-    cs (printf "principals/users/%7.7i/" i :: String)
-
--- | Convert a local file name into a absolute path relative to the A3 backend endpoint.
+-- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
+-- exposed url.)
 a3backendPath :: ThentosConfig -> ST -> Path
 a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
   where

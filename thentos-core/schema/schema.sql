@@ -55,18 +55,21 @@ CREATE TABLE IF NOT EXISTS user_services (
 );
 
 CREATE TABLE IF NOT EXISTS personas (
-    id         bigserial   PRIMARY KEY,
-    name       text        NOT NULL UNIQUE,
-    uid        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    created    timestamptz NOT NULL DEFAULT now()
+    id           bigserial   PRIMARY KEY,
+    name         text        NOT NULL UNIQUE,
+    uid          bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    external_url text                 UNIQUE,  -- e.g. A3 user path
+    created      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS contexts (
     id            serial    PRIMARY KEY,
-    name          text      NOT NULL UNIQUE,
+    name          text      NOT NULL,
     owner_service text      NOT NULL REFERENCES services (id),
     description   text      NOT NULL,
-    url           text      NOT NULL
+    url           text,
+    UNIQUE (owner_service, name),
+    UNIQUE (owner_service, url)
 );
 
 -- Which persona should be used for which context?
