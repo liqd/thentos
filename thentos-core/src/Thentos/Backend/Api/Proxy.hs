@@ -77,21 +77,21 @@ reverseProxyHandler adapter state req = do
 
 -- | Allows adapting a proxy for a specific use case.
 data ProxyAdapter e = ProxyAdapter
-  { renderHeader     :: RenderHeaderFun
-  , renderUserAction :: UserId -> User -> Action e SBS
-  , renderError      :: ActionError e -> IO ServantErr
+  { renderHeader :: RenderHeaderFun
+  , renderUser   :: UserId -> User -> Action e SBS
+  , renderError  :: ActionError e -> IO ServantErr
   }
 
 defaultProxyAdapter :: ProxyAdapter Void
 defaultProxyAdapter = ProxyAdapter
-  { renderHeader     = renderThentosHeaderName
-  , renderUserAction = defaultRenderUserAction
-  , renderError      = baseActionErrorToServantErr
+  { renderHeader = renderThentosHeaderName
+  , renderUser   = defaultRenderUser
+  , renderError  = baseActionErrorToServantErr
   }
 
 -- | Render the user by showing their name.
-defaultRenderUserAction :: UserId -> User -> Action e SBS
-defaultRenderUserAction _ user = pure . cs . fromUserName $ user ^. userName
+defaultRenderUser :: UserId -> User -> Action e SBS
+defaultRenderUser _ user = pure . cs . fromUserName $ user ^. userName
 
 prepareReq :: ProxyAdapter e -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
 prepareReq adapter proxyHdrs pathPrefix req
@@ -168,7 +168,7 @@ createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do
     (uid, user) <- validateThentosUserSession tok
     accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
-    renderedUser <- renderUserAction adapter uid user
+    renderedUser <- renderUser adapter uid user
     -- FIXME We may want to sent a persona's groups to the service (personaGroups action), but
     -- currently the Proxy doesn't know about personas and it's unclear whether/how services
     -- will use that info anyway

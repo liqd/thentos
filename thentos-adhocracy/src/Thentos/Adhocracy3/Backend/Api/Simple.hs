@@ -613,9 +613,9 @@ sendRequest req = Client.newManager Client.defaultManagerSettings >>= Client.htt
 -- | A3-specific ProxyAdapter.
 a3ProxyAdapter :: ProxyAdapter ThentosA3Error
 a3ProxyAdapter = ProxyAdapter
-  { renderHeader     = renderA3HeaderName
-  , renderUserAction = a3RenderUserAction
-  , renderError      = a3ActionErrorToServantErr
+  { renderHeader = renderA3HeaderName
+  , renderUser   = a3RenderUser
+  , renderError  = a3ActionErrorToServantErr
   }
 
 -- | Render Thentos/A3-specific custom headers using the names expected by A3.
@@ -625,8 +625,8 @@ renderA3HeaderName ThentosHeaderUser    = mk "X-User-Path"
 renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it. We return the external URL of the user's default persona.
-a3RenderUserAction :: UserId -> User -> AC.Action ThentosA3Error SBS
-a3RenderUserAction uid _ = externalUrlOfDefaultPersona uid
+a3RenderUser :: UserId -> User -> AC.Action ThentosA3Error SBS
+a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
