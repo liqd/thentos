@@ -58,6 +58,7 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "pw_reset_expiration: 30m" :
     "email_change_expiration: 30m" :
     "gc_interval: 30m" :
+    "captcha_expiration: 30m" :
     "" :
     "log:" :
     "    path: ./log/thentos.log" :
@@ -76,7 +77,6 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "" :
     "            {{activation_url}}" :
     []
-
 
 godUid :: UserId
 godUid = UserId 0

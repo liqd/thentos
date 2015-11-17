@@ -58,6 +58,7 @@ type ThentosConfig' =
   :*>       ("pw_reset_expiration" :> Timeout        :>:
       "Password registration token expiration period")
   :*>       ("email_change_expiration" :> Timeout    :>: "Email-change-token expiration period")
+  :*>       ("captcha_expiration"      :> Timeout    :>: "Captcha expiration period")
   :*> Maybe ("gc_interval"             :> Timeout    :>: "Garbage collection interval")
   :*>       ("log"          :> LogConfig'            :>: "Logging")
   :*>       ("mail"         :> MailConfig'           :>: "Mail templates")
@@ -72,6 +73,7 @@ defaultThentosConfig =
   :*> Just defaultSmtpConfig
   :*> Just defaultDatabaseConfig
   :*> NothingO
+  :*> Just (fromHours 1)
   :*> Just (fromHours 1)
   :*> Just (fromHours 1)
   :*> Just (fromHours 1)

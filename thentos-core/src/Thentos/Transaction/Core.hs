@@ -82,6 +82,7 @@ catcher e = f
     f (UniqueViolation "personas_name_key") = r PersonaNameAlreadyExists
     f (UniqueViolation "contexts_owner_service_name_key") = r ContextNameAlreadyExists
     f (UniqueViolation "user_confirmation_tokens_token_key") = r ConfirmationTokenAlreadyExists
+    f (UniqueViolation "captchas_pkey") = r CaptchaIdAlreadyExists
     f (ForeignKeyViolation "personas" "personas_uid_fkey") = r NoSuchUser
     f (ForeignKeyViolation "contexts" "contexts_owner_service_fkey") = r NoSuchService
     f (ForeignKeyViolation "thentos_sessions" "thentos_sessions_uid_fkey") = r NoSuchUser

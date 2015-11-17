@@ -76,6 +76,7 @@ library
     , Thentos.Frontend.TH
     , Thentos.Frontend.Types
     , Thentos.Smtp
+    , Thentos.Sybil.Captcha
     , Thentos.Transaction
     , Thentos.Transaction.Core
     , Thentos.Types
