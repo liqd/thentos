@@ -1,7 +1,3 @@
-[submodule "submodules/servant"]
-	path = submodules/servant
-	url = https://github.com/liqd/servant.git
-	ignore = dirty
 [submodule "submodules/pronk"]
 	path = submodules/pronk
 	url = https://github.com/liqd/pronk.git
