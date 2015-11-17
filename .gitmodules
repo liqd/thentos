@@ -3,3 +3,7 @@
 	url = https://github.com/liqd/pronk.git
 	branch = thentos-patches
 	ignore = dirty
+[submodule "submodules/servant"]
+	path = submodules/servant
+	url = https://github.com/liqd/servant
+	branch = package-servant-session+1
