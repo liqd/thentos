@@ -64,6 +64,16 @@ log:
 
 database:
     name: unused
+
+mail:
+    account_verification:
+        subject: "Thentos: Aktivierung Ihres Nutzerkontos"
+        body: |
+            Hallo {{user_name}},
+
+            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren.
+
+            {{activation_url}}
 |]
 
 

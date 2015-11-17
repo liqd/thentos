@@ -23,6 +23,7 @@ import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
+import Control.Monad (when)
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
@@ -36,10 +37,11 @@ import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
+import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter)
-import System.Log.Handler.Simple (formatter, fileHandler)
+import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
-                          setLevel, setHandlers)
+                          setLevel, addHandler)
 import System.Process (callCommand)
 import Test.Mockery.Directory (inTempDirectory)
 
@@ -132,12 +134,35 @@ withLogger = inTempDirectory . withLogger'
 
 -- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
 withLogger' :: IO a -> IO a
-withLogger' action = do
-    let loglevel = DEBUG
-        fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+withLogger' = _withLogger False
+
+withNoisyLogger :: IO a -> IO a
+withNoisyLogger = inTempDirectory . withNoisyLogger'
+
+-- | this is a workaround for the fact that log file contents is not included in the output of
+-- failing test cases.  If you replace the call to `withLogger` with one ot `withNoisyLogger` in a
+-- test, everything will go to stderr immediately.
+--
+-- FIXME: include log contents in failing test cases.
+--
+-- FIXME: while we are at it, it would be really cool (and not that hard) to provide a log handler
+-- that logs into a 'Chan', and expose the Chan to the tests.  that would make it easy to use log
+-- file contents to formulate tests.
+withNoisyLogger' :: IO a -> IO a
+withNoisyLogger' = _withLogger True
+
+_withLogger :: Bool -> IO a -> IO a
+_withLogger stderrAlways action = do
     removeAllHandlers
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler "./everything.log" loglevel
-    updateGlobalLogger loggerName $ setLevel DEBUG . setHandlers [fHandler]
+    updateGlobalLogger loggerName $ setLevel DEBUG
+
+    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+        addh h = addHandler $ h { formatter = fmt }
+
+    fileHandler "./everything.log" DEBUG >>= updateGlobalLogger loggerName . addh
+    when stderrAlways $
+        streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
+
     result <- action
     removeAllHandlers
     return result

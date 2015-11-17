@@ -112,8 +112,8 @@ import Servant.API (FromHttpApiData)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
-import URI.ByteString (uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
-                       queryPairs, parseURI, laxURIParserOptions, authorityHost,
+import URI.ByteString (URI, URIParseError, uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
+                       queryPairs, parseURI, laxURIParserOptions, serializeURI', authorityHost,
                        authorityPort, portNumber, hostBS, uriPath)
 
 import qualified Crypto.Scrypt as Scrypt
@@ -300,10 +300,14 @@ newtype PersonaName = PersonaName { fromPersonaName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
+-- | *Note on the external url field:* Since personas are exposed to the service, it sometimes makes
+-- sense for a service to maintain its own data item for each persona in thentos.  The persona's
+-- external url can be used to point to that data item's rest url.
 data Persona = Persona
-  { _personaId   :: PersonaId
-  , _personaName :: PersonaName
-  , _personaUid  :: UserId
+  { _personaId          :: PersonaId
+  , _personaName        :: PersonaName
+  , _personaUid         :: UserId
+  , _personaExternalUrl :: Maybe Uri
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
@@ -323,7 +327,7 @@ data Context = Context
   , _contextService     :: ServiceId
   , _contextName        :: ContextName
   , _contextDescription :: ContextDescription
-  , _contextUrl         :: ProxyUri
+  , _contextUrl         :: Maybe ProxyUri
   } deriving (Eq, Show, Typeable, Generic)
 
 instance Ord Context where
@@ -531,6 +535,33 @@ instance FromField Role where
 
 
 -- * uri
+
+-- | Wrapper around 'URI' with additional instance definitions.
+newtype Uri = Uri { fromUri :: URI }
+    deriving (Eq, Ord)
+
+parseUri :: SBS -> Either URIParseError Uri
+parseUri bs = Uri <$> parseURI laxURIParserOptions bs
+
+renderUri :: Uri -> SBS
+renderUri (Uri uri) = serializeURI' uri
+
+instance Aeson.FromJSON Uri
+  where
+    parseJSON = Aeson.withText "URI string" $ either (fail . show) return . parseUri . cs
+
+instance Aeson.ToJSON Uri where toJSON uri = Aeson.toJSON (cs $ renderUri uri :: ST)
+
+instance Show Uri where
+    show = cs . renderUri
+
+instance FromField Uri where
+    fromField f Nothing = returnError UnexpectedNull f ""
+    fromField f (Just bs) = either (returnError ConversionFailed f . show) return $ parseUri bs
+
+instance ToField Uri where
+    toField uri = toField (cs $ renderUri uri :: ST)
+
 
 data ProxyUri = ProxyUri { proxyHost :: SBS
                          , proxyPort :: Int

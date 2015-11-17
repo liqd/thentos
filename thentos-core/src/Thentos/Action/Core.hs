@@ -28,18 +28,18 @@ import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Pool (Pool, withResource)
 import Data.EitherR (fmapL)
 import Data.List (foldl')
-import Data.String.Conversions (ST, SBS)
+import Data.String.Conversions (LT, ST, SBS)
 import Data.Typeable (Typeable)
+import Database.PostgreSQL.Simple (Connection)
 import GHC.Generics (Generic)
 import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
                  guardWrite)
 import LIO.Label (lub)
-import LIO.DCLabel (CNF, ToCNF, DCLabel, (%%), toCNF, cFalse)
+import LIO.DCLabel (CNF, DCLabel, (%%), cFalse, toCNF)
 import LIO.Error (AnyLabelError)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
-import Database.PostgreSQL.Simple (Connection)
-
 import System.Log (Priority(DEBUG, CRITICAL))
+import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
 import qualified Data.Thyme as Thyme
 
@@ -108,8 +108,8 @@ instance MonadLIO DCLabel (Action e) where
 runAction :: (Show e, Typeable e) => ActionState -> Action e a -> IO a
 runAction state action = runActionE state action >>= either throwIO return
 
-runActionWithPrivs :: (ToCNF cnf, Show e, Typeable e) =>
-    [cnf] -> ActionState -> Action e a -> IO a
+runActionWithPrivs :: (Show e, Typeable e) =>
+    [CNF] -> ActionState -> Action e a -> IO a
 runActionWithPrivs ars state action = runActionWithPrivsE ars state action >>= either throwIO return
 
 runActionWithClearance :: (Show e, Typeable e) =>
@@ -137,8 +137,8 @@ runActionE state action = catchUnknown
     catchAnyLabelError = (fmapL ActionErrorThentos <$> inner) `catch` (return . Left . ActionErrorAnyLabel)
     catchUnknown = catchAnyLabelError `catch` (return . Left . ActionErrorUnknown)
 
-runActionWithPrivsE :: (ToCNF cnf, Show e, Typeable e) =>
-    [cnf] -> ActionState -> Action e a -> IO (Either (ActionError e) a)
+runActionWithPrivsE :: (Show e, Typeable e) =>
+    [CNF] -> ActionState -> Action e a -> IO (Either (ActionError e) a)
 runActionWithPrivsE ars state = runActionE state . (grantAccessRights'P ars >>)
 
 runActionWithClearanceE :: (Show e, Typeable e) =>
@@ -177,7 +177,7 @@ runActionInThentosSessionE tok state = runActionE state . ((accessRightsByThento
 -- individual access rights:
 --
 -- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
-grantAccessRights'P :: ToCNF cnf => [cnf] -> Action e ()
+grantAccessRights'P :: [CNF] -> Action e ()
 grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
   where
     c :: DCLabel
@@ -236,6 +236,14 @@ sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
         Left (SendmailError s) -> do
             logger CRITICAL $ "error sending mail: " ++ s
             throwIO $ ErrorCall "error sending email"
+
+-- | Render a Hastache template for plain-text output (none of the characters in context variables
+-- will be escaped).
+renderTextTemplate'P :: ST -> MuContext IO -> Action e LT
+renderTextTemplate'P template context =
+    liftLIO . ioTCB $ hastacheStr hastacheCfg template context
+  where
+    hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
 
 logger'P :: Priority -> String -> Action e ()
 logger'P prio = liftLIO . ioTCB . logger prio

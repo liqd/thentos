@@ -25,6 +25,7 @@ import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
+import Data.Typeable (Typeable)
 import Data.Void (Void)
 import Network.HTTP.ReverseProxy
 import Network.HTTP.Types (status500)
@@ -53,16 +54,16 @@ instance HasServer ServiceProxy where
     type ServerT ServiceProxy m = S.Application
     route Proxy = route (Proxy :: Proxy Raw)
 
-serviceProxy ::
-      C.Manager -> ProxyAdapter -> ActionState -> Server ServiceProxy
+serviceProxy :: (Show e, Typeable e) =>
+      C.Manager -> ProxyAdapter e -> ActionState -> Server ServiceProxy
 serviceProxy manager adapter state
     = waiProxyTo (reverseProxyHandler adapter state)
                  err500onExc
                  manager
 
 -- | Proxy or respond based on request headers.
-reverseProxyHandler ::
-      ProxyAdapter -> ActionState -> S.Request -> IO WaiProxyResponse
+reverseProxyHandler :: (Show e, Typeable e) =>
+      ProxyAdapter e -> ActionState -> S.Request -> IO WaiProxyResponse
 reverseProxyHandler adapter state req = do
     eRqMod <- runActionE state $ getRqMod adapter req
     case eRqMod of
@@ -75,13 +76,13 @@ reverseProxyHandler adapter state req = do
         Left e -> WPRResponse . responseServantErr <$> renderError adapter e
 
 -- | Allows adapting a proxy for a specific use case.
-data ProxyAdapter = ProxyAdapter
+data ProxyAdapter e = ProxyAdapter
   { renderHeader :: RenderHeaderFun
-  , renderUser   :: ThentosConfig -> UserId -> User -> SBS
-  , renderError  :: ActionError Void -> IO ServantErr
+  , renderUser   :: UserId -> User -> Action e SBS
+  , renderError  :: ActionError e -> IO ServantErr
   }
 
-defaultProxyAdapter :: ProxyAdapter
+defaultProxyAdapter :: ProxyAdapter Void
 defaultProxyAdapter = ProxyAdapter
   { renderHeader = renderThentosHeaderName
   , renderUser   = defaultRenderUser
@@ -89,10 +90,10 @@ defaultProxyAdapter = ProxyAdapter
   }
 
 -- | Render the user by showing their name.
-defaultRenderUser :: ThentosConfig -> UserId -> User -> SBS
-defaultRenderUser _ _ user = cs . fromUserName $ user ^. userName
+defaultRenderUser :: UserId -> User -> Action e SBS
+defaultRenderUser _ user = pure . cs . fromUserName $ user ^. userName
 
-prepareReq :: ProxyAdapter -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
+prepareReq :: ProxyAdapter e -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
 prepareReq adapter proxyHdrs pathPrefix req
     = req { S.requestHeaders = proxyHdrs <> newHdrs
           , S.rawPathInfo = newPath
@@ -122,7 +123,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 --
 -- The first parameter allows adapting a proxy for a specific use case.
 -- To get the default behavior, use 'defaultProxyAdapter'.
-getRqMod :: ProxyAdapter -> S.Request -> Action Void RqMod
+getRqMod :: ProxyAdapter e -> S.Request -> Action e RqMod
 getRqMod adapter req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
@@ -162,17 +163,17 @@ findDefaultServiceIdAndTarget conf = do
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
 createCustomHeaders ::
-    ProxyAdapter -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
+    ProxyAdapter e -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do
-    cfg <- getConfig'P
     (uid, user) <- validateThentosUserSession tok
-    grantAccessRights'P [UserA uid]
+    accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
+    renderedUser <- renderUser adapter uid user
     -- FIXME We may want to sent a persona's groups to the service (personaGroups action), but
     -- currently the Proxy doesn't know about personas and it's unclear whether/how services
     -- will use that info anyway
     --groups <- userGroups uid sid
-    return [ (renderHeader adapter ThentosHeaderUser, renderUser adapter cfg uid user)
+    return [ (renderHeader adapter ThentosHeaderUser, renderedUser)
     --       , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
 

@@ -61,6 +61,7 @@ type ThentosConfig' =
   :*>       ("captcha_expiration"      :> Timeout    :>: "Captcha expiration period")
   :*> Maybe ("gc_interval"             :> Timeout    :>: "Garbage collection interval")
   :*>       ("log"          :> LogConfig'            :>: "Logging")
+  :*>       ("mail"         :> MailConfig'           :>: "Mail templates")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -78,6 +79,7 @@ defaultThentosConfig =
   :*> Just (fromHours 1)
   :*> NothingO
   :*> Nothing
+  :*> Just defaultMailConfig
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
@@ -126,11 +128,26 @@ type DefaultUserConfig' =
   :*>       ("email"    :> UserEmail)
   :*> Maybe ("roles"    :> [Role])
 
-
 type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
         ("path" :> ST)
     :*> ("level" :> Prio)
+
+type MailConfig = Tagged (ToConfigCode MailConfig')
+type MailConfig' = "account_verification" :> AccountVerificationConfig'
+
+type AccountVerificationConfig = Tagged (ToConfigCode AccountVerificationConfig')
+type AccountVerificationConfig' =
+      ("subject" :> ST)
+  :*> ("body"    :> ST)
+
+defaultMailConfig :: ToConfig (ToConfigCode MailConfig') Maybe
+defaultMailConfig = Just defaultAccountVerificationConfig
+
+defaultAccountVerificationConfig :: ToConfig (ToConfigCode AccountVerificationConfig') Maybe
+defaultAccountVerificationConfig =
+      Just "Thentos account creation confirmation"
+  :*> Just "Please go to {{frontend_url}}{{activation_path}} to confirm your account."
 
 
 -- * leaf types

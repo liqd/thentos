@@ -78,6 +78,7 @@ for s in ${SOURCES[@]}; do
 done
 
 echo -e "\n\nbuilding thentos-purescript...\n" >&2
+./thentos-purescript/build.sh clean
 ./thentos-purescript/build.sh dep
 ./thentos-purescript/build.sh it
 

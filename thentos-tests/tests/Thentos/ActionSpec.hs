@@ -12,7 +12,7 @@ import Data.Pool (withResource)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
-import LIO.DCLabel (ToCNF, DCLabel, (%%))
+import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
 
@@ -212,10 +212,10 @@ runAsAgent :: Agent -> ActionState -> Action Void a -> IO a
 runAsAgent = runActionAsAgent
 
 runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO a
-runPrivs = runActionWithPrivs
+runPrivs xs = runActionWithPrivs (toCNF <$> xs)
 
 runPrivsE :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
-runPrivsE = runActionWithPrivsE
+runPrivsE xs = runActionWithPrivsE (toCNF <$> xs)
 
 runClearanceE :: DCLabel -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
 runClearanceE = runActionWithClearanceE

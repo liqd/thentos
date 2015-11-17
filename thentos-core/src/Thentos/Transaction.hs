@@ -1,7 +1,8 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE FlexibleContexts    #-}
 
 module Thentos.Transaction
 where
@@ -107,15 +108,6 @@ addUnconfirmedUserPrim token user mUid = do
 addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
 addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 
--- | Add a new unconfirmed user, assigning a specific ID to the new user.
--- Ensures that ID, user name and email address are unique.
---
--- BE CAREFUL regarding the source of the specified user ID. If it comes from a backend context
--- (such as the A3 backend), it should be safe. But if a user/external API can provide it, that
--- would leak information about the (non-)existence of IDs in our db.
-addUnconfirmedUserWithId :: ConfirmationToken -> User -> UserId -> ThentosQuery e ()
-addUnconfirmedUserWithId token user uid = void $ addUnconfirmedUserPrim token user $ Just uid
-
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration timeout token = do
     res <- queryT [sql|
@@ -130,21 +122,9 @@ finishUserRegistration timeout token = do
         RETURNING id;
     |] (timeout, token, token, timeout)
     case res of
-        [] -> throwError NoSuchToken
+        [] -> throwError NoSuchPendingUserConfirmation
         [Only uid] -> return uid
         _ -> impossible "repeated user confirmation token"
-
--- | Confirm a user based on the 'UserId' rather than the 'ConfirmationToken.'
-finishUserRegistrationById :: UserId -> ThentosQuery e ()
-finishUserRegistrationById uid = do
-    c <- execT [sql|
-    UPDATE users SET confirmed = true WHERE id = ?;
-    DELETE FROM user_confirmation_tokens WHERE id = ?;
-    |] (uid, uid)
-    case c of
-        1 -> return ()
-        0 -> throwError NoSuchPendingUserConfirmation
-        _ -> impossible "finishUserRegistrationById: id uniqueness violation"
 
 -- | Add a password reset token.  Return the user whose password this token can change.
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
@@ -267,12 +247,14 @@ unregisterUserFromService uid sid = void $
 
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
-addPersona :: PersonaName -> UserId -> ThentosQuery e Persona
-addPersona name uid = do
-    res <- queryT [sql| INSERT INTO personas (name, uid) VALUES (?, ?) RETURNING id |]
-                  (name, uid)
+addPersona :: PersonaName -> UserId -> Maybe Uri -> ThentosQuery e Persona
+addPersona name uid mExternalUrl = do
+    res <- queryT [sql| INSERT INTO personas (name, uid, external_url)
+                        VALUES (?, ?, ?)
+                        RETURNING id |]
+                  (name, uid, mExternalUrl)
     case res of
-        [Only persId] -> return $ Persona persId name uid
+        [Only persId] -> return $ Persona persId name uid mExternalUrl
         _             -> impossible "addContext didn't return a single ID"
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
@@ -286,31 +268,45 @@ deletePersona persId = do
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
-addContext :: ServiceId -> ContextName -> ContextDescription -> ProxyUri -> ThentosQuery e Context
-addContext sid name desc url = do
+addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri ->
+    ThentosQuery e Context
+addContext sid name desc mUrl = do
     res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
                         VALUES (?, ?, ?, ?)
                         RETURNING id |]
-                  (sid, name, desc, url)
+                  (sid, name, desc, mUrl)
     case res of
-        [Only cxtId] -> return $ Context cxtId sid name desc url
+        [Only cxtId] -> return $ Context cxtId sid name desc mUrl
         _            -> impossible "addContext didn't return a single ID"
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
-deleteContext :: ContextId -> ThentosQuery e ()
-deleteContext cxtId = do
-    rows <- execT [sql| DELETE FROM contexts WHERE id = ? |] (Only cxtId)
+deleteContext :: ServiceId -> ContextName -> ThentosQuery e ()
+deleteContext sid cname = do
+    rows <- execT [sql| DELETE FROM contexts WHERE owner_service = ? AND name = ? |]
+                  (sid, cname)
     case rows of
         1 -> return ()
         0 -> throwError NoSuchContext
-        _ -> impossible "deleteContext: unique constraint on id violated"
+        _ -> impossible "deleteContext: unique constraint on owner_service + name violated"
+
+-- Retrieve 'ContextId' based on 'ServiceId' and 'ContextName'.
+-- Throws 'NoSuchContext' if the combination doesn't exist.
+findContextId :: ServiceId -> ContextName -> ThentosQuery e (Maybe ContextId)
+findContextId sid cname = do
+    res <- queryT [sql| SELECT id FROM contexts WHERE owner_service = ? AND name = ? |]
+                  (sid, cname)
+    case res of
+        [Only cxtId] -> pure $ Just cxtId
+        [] -> pure Nothing
+        _  -> impossible "findContextId: unique constraint on owner_service + name violated"
 
 -- Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
 -- ('MultiplePersonasPerContext'). (As we currently allow only one persona per user and context.)
 -- Throws 'NoSuchPersona' or 'NoSuchContext' if one of the arguments doesn't exist.
-registerPersonaWithContext :: Persona -> ContextId -> ThentosQuery e ()
-registerPersonaWithContext persona cxtId = do
+registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> ThentosQuery e ()
+registerPersonaWithContext persona sid cname = do
+    cxtId <- findContextId sid cname >>= maybe (throwError NoSuchContext) pure
     -- Check that user has no registered personas for that context yet
     res <- queryT [sql| SELECT count(*)
                         FROM personas pers, personas_per_context pc
@@ -324,20 +320,23 @@ registerPersonaWithContext persona cxtId = do
 
 -- Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context.
-unregisterPersonaFromContext :: PersonaId -> ContextId -> ThentosQuery e ()
-unregisterPersonaFromContext persId cxtId = void $
-    execT [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
-          (persId, cxtId)
+unregisterPersonaFromContext :: PersonaId -> ServiceId -> ContextName -> ThentosQuery e ()
+unregisterPersonaFromContext persId sid cname = findContextId sid cname >>=
+    \case Just cxtId -> void $ execT
+                [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
+                (persId, cxtId)
+          Nothing    -> pure ()
 
 -- Find the persona that a user wants to use for a context (if any).
-findPersona :: UserId -> ContextId -> ThentosQuery e (Maybe Persona)
-findPersona uid cxtId = do
-    res <- queryT [sql| SELECT pers.id, pers.name
-                        FROM personas pers, personas_per_context pc
-                        WHERE pers.id = pc.persona_id AND pers.uid = ? AND pc.context_id = ? |]
-                  (uid, cxtId)
+findPersona :: UserId -> ServiceId -> ContextName -> ThentosQuery e (Maybe Persona)
+findPersona uid sid cname = do
+    res <- queryT [sql| SELECT pers.id, pers.name, pers.external_url
+                        FROM personas pers, personas_per_context pc, contexts cxt
+                        WHERE pers.id = pc.persona_id AND pc.context_id = cxt.id
+                              AND pers.uid = ? AND cxt.owner_service = ? AND cxt.name = ? |]
+                  (uid, sid, cname)
     case res of
-        [(persId, name)] -> return . Just $ Persona persId name uid
+        [(persId, name, mExternalUrl)] -> return . Just $ Persona persId name uid mExternalUrl
         []               -> return Nothing
         -- This is not 'impossible', since the constraint is enforced by us, not by the DB
         _                -> error "findPersona: multiple personas per context"
@@ -348,7 +347,7 @@ contextsForService sid = map mkContext <$>
     queryT [sql| SELECT id, name, description, url FROM contexts WHERE owner_service = ? |]
            (Only sid)
   where
-    mkContext (cxtId, name, description, url) = Context cxtId sid name description url
+    mkContext (cxtId, name, description, mUrl) = Context cxtId sid name description mUrl
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
 addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()
