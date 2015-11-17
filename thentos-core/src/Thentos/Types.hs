@@ -16,7 +16,74 @@
 {-# LANGUAGE ViewPatterns                #-}
 {-# LANGUAGE UndecidableInstances        #-}
 
-module Thentos.Types where
+module Thentos.Types
+    ( User(..)
+    , ServiceAccount(..), newServiceAccount
+    , UserId(..)
+    , UserName(..)
+    , UserPass(..)
+    , HashedSecret(..)
+    , UserEmail(..), parseUserEmail, fromUserEmail
+    , ConfirmationToken(..)
+    , PasswordResetToken(..)
+    , UserFormData (..)
+    , LoginFormData(..)
+
+    , Service(..)
+    , ServiceId(..)
+    , ServiceKey(..)
+    , ServiceName(..)
+    , ServiceDescription(..)
+    , Group(..)
+
+    , PersonaId(..)
+    , PersonaName(..)
+    , Persona(..)
+    , ContextId(..)
+    , ContextName(..)
+    , ContextDescription(..)
+    , Context(..)
+
+    , ThentosSessionToken(..)
+    , ThentosSession(..)
+    , ServiceSessionToken(..)
+    , ServiceSession(..)
+    , ServiceSessionMetadata(..)
+    , ByUserOrServiceId(..)
+
+    , Timestamp(..)
+    , Timeout(..), toSeconds
+    , fromMilliseconds, fromSeconds, fromMinutes, fromHours, fromDays
+    , timestampToString, timestampFromString
+    , timeoutToString, timeoutFromString
+    , secondsToString, secondsFromString
+
+    , Agent(..)
+    , Role(..)
+
+    , Uri(..), parseUri, renderUri
+    , ProxyUri(..), renderProxyUri, parseProxyUri
+    , (<//>), stripLeadingSlash, stripTrailingSlash
+
+    , Random20, mkRandom20, fromRandom20
+    , ImageData(..)
+    , CaptchaId(..)
+
+    , ThentosError(..)
+
+    , personaId, personaName, personaUid, personaExternalUrl
+    , contextDescription, contextId, contextName, contextService, contextUrl
+
+    , serviceDescription, serviceKey, serviceName, serviceOwner
+    , serviceThentosSession, serviceAnonymous
+
+    , srvSessEnd, srvSessExpirePeriod, srvSessMetadata, srvSessService
+    , srvSessStart, srvSessThentosSession
+
+    , thSessAgent, thSessEnd, thSessExpirePeriod, thSessStart
+    , userEmail, userName, userPassword
+    )
+where
 
 import Control.Exception (Exception)
 import Control.Monad (when, unless, mzero)
@@ -53,6 +120,7 @@ import URI.ByteString (URI, URIParseError, uriAuthority, uriQuery, uriScheme, sc
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
+import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -265,6 +333,7 @@ data Context = Context
 
 instance Ord Context where
     compare = compare `on` _contextId
+
 
 -- * thentos and service session
 
@@ -562,6 +631,38 @@ stripTrailingSlash p = if "/" `ST.isSuffixOf` p then ST.init p else p
 (cs -> p) <//> (cs -> p') = cs $ stripTrailingSlash p <> "/" <> stripLeadingSlash p'
 
 
+-- * randomness
+
+-- | 20 bytes of randomness.
+-- For comparison: an UUID has 16 bytes, so that should be enough for all practical purposes.
+newtype Random20 = Random20 SBS
+    deriving (Eq, Ord, Show)
+
+-- | Construct a 'Random20' from a bytestring. Returns 'Just' a Random20 wrapping the input
+-- if its length is 20, 'Nothing' otherwise.
+mkRandom20 :: SBS -> Maybe Random20
+mkRandom20 bs = if SBS.length bs == 20 then Just $ Random20 bs else Nothing
+
+-- | Extract the wrapped 20 bytes from a 'Random20'.
+fromRandom20 :: Random20 -> SBS
+fromRandom20 (Random20 bs) = bs
+
+
+-- * binary data and captchas
+
+newtype ImageData = ImageData { fromImageData :: SBS }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+
+newtype CaptchaId = CaptchaId { fromCaptchaId :: ST }
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+instance Aeson.FromJSON CaptchaId where
+    parseJSON = Aeson.withText "captcha ID string" (pure . CaptchaId)
+
+instance Aeson.ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
+
+
 -- * errors
 
 data ThentosError e =
@@ -584,6 +685,8 @@ data ThentosError e =
     | UserIdAlreadyExists
     | PersonaNameAlreadyExists
     | ContextNameAlreadyExists
+    | CaptchaIdAlreadyExists
+    | NoSuchCaptchaId
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable

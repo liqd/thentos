@@ -161,6 +161,10 @@ thentosErrorInfo other e = f e
         (Nothing, err403, "persona name already in use")
     f ContextNameAlreadyExists =
         (Nothing, err403, "context name already in use")
+    f CaptchaIdAlreadyExists =
+        (Nothing, err500, "duplicate captcha ID")
+    f NoSuchCaptchaId =
+        (Nothing, err400, "unknown captcha ID")
     f BadCredentials =
         (Just (INFO, show e), err401, "unauthorized")
     f BadAuthenticationHeaders =

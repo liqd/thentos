@@ -14,6 +14,7 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..))
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 
 import Thentos.Types
@@ -550,6 +551,27 @@ agentRoles agent = case agent of
         return $ map fromOnly roles
 
 
+-- * Sybil attack prevention
+
+-- | Store the solution to a captcha in the DB. May throw 'CaptchaIdAlreadyExists'.
+storeCaptcha :: CaptchaId -> ST -> ThentosQuery e ()
+storeCaptcha cid solution = void $
+    execT [sql| INSERT INTO captchas (id, solution) VALUES (?, ?) |] (cid, solution)
+
+-- | Submit a solution to a captcha, returning whether or not the solution is correct.
+-- Calling this action deletes the referenced captcha from the DB, so every captcha must be
+-- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
+-- exist in the DB (either because it never did or because it was deleted due to garbage collection
+-- or a prior call to this action).
+solveCaptcha :: CaptchaId -> ST -> ThentosQuery e Bool
+solveCaptcha cid solution = do
+    res <- queryT [sql| DELETE FROM captchas WHERE id = ? RETURNING solution |] (Only cid)
+    case res of
+      [Only correct] -> pure $ solution == correct
+      []             -> throwError NoSuchCaptchaId
+      _              -> impossible "solveCaptcha: multiple results"
+
+
 -- * garbage collection
 
 -- | Go through "thentos_sessions" table and find all expired sessions.
@@ -580,6 +602,11 @@ garbageCollectEmailChangeTokens :: Timeout -> ThentosQuery e ()
 garbageCollectEmailChangeTokens timeout = void $ execT [sql|
     DELETE FROM "email_change_tokens" WHERE timestamp < now() - ?::interval;
     |] (Only timeout)
+
+-- | Remove all expired captchas from db.
+garbageCollectCaptchas :: Timeout -> ThentosQuery e ()
+garbageCollectCaptchas timeout = void $ execT
+    [sql| DELETE FROM captchas WHERE timestamp < now() - ?::interval; |] (Only timeout)
 
 
 -- * helpers

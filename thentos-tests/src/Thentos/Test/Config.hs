@@ -55,6 +55,7 @@ default_user:
 user_reg_expiration: 30m
 pw_reset_expiration: 30m
 email_change_expiration: 30m
+captcha_expiration: 30m
 gc_interval: 30m
 
 log:
