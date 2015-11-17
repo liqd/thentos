@@ -61,6 +61,7 @@ module Thentos.Types
     , Agent(..)
     , Role(..)
 
+    , Uri(..), parseUri, renderUri
     , ProxyUri(..), renderProxyUri, parseProxyUri
     , (<//>), stripLeadingSlash, stripTrailingSlash
 
@@ -70,7 +71,7 @@ module Thentos.Types
 
     , ThentosError(..)
 
-    , personaId, personaName, personaUid
+    , personaId, personaName, personaUid, personaExternalUrl
     , contextDescription, contextId, contextName, contextService, contextUrl
 
     , serviceDescription, serviceKey, serviceName, serviceOwner
