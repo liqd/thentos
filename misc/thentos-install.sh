@@ -64,6 +64,7 @@ done
 
 check_dir
 
+git submodule sync
 git submodule update --init
 cabal sandbox init
 

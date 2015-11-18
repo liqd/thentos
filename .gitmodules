@@ -7,7 +7,3 @@
 	path = submodules/servant
 	url = https://github.com/liqd/servant
 	branch = package-servant-session+1
-[submodule "servant"]
-	path = servant
-	url = https://github.com/liqd/servant
-	branch = package-servant-session+1
