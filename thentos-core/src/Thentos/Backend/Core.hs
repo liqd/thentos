@@ -60,18 +60,18 @@ import Thentos.Util
 
 -- * action
 
-enterAction :: (Show e, Typeable e) =>
-    ActionState ->
+enterAction :: forall s e. (Show e, Typeable e) =>
+    s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
-    Maybe ThentosSessionToken -> Action e :~> ExceptT ServantErr IO
-enterAction state toServantErr mTok = Nat $ ExceptT . run toServantErr
+    Maybe ThentosSessionToken -> Action e s :~> ExceptT ServantErr IO
+enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
-        -> Action e a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e) . runActionE state . (updatePrivs mTok >>)
+        -> Action e s a -> IO (Either ServantErr a)
+    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs mTok >>)
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action e ()
+    updatePrivs :: Maybe ThentosSessionToken -> Action e s ()
     updatePrivs (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
     updatePrivs Nothing    = return ()
 
@@ -90,7 +90,7 @@ instance ToJSON ErrorMessage where
 mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
     { errBody = encode $ ErrorMessage msg
-    , errHeaders = contentTypeJsonHeader : errHeaders baseErr
+    , errHeaders = nubBy ((==) `on` fst) $ contentTypeJsonHeader : errHeaders baseErr
     }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
@@ -100,11 +100,11 @@ type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 -- If any logging is to take place, it should take place here, not near the place where the error is
 -- thrown.
 errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
-errorInfoToServantErr mkServant (l, se, x) = do
+errorInfoToServantErr mkServErr (l, se, x) = do
     case l of
         Just (prio, msg) -> logger prio msg
         Nothing          -> return ()
-    return $ mkServant se x
+    return $ mkServErr se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
@@ -315,6 +315,7 @@ addCorsHeaders policy app req respond = app req $
 
 -- * warp & wai
 
+-- FIXME: move this to a module for use both by frontend and backend.
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
 runWarpWithCfg cfg = runSettings settings
   where

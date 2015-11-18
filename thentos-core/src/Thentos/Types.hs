@@ -61,6 +61,7 @@ module Thentos.Types
     , Agent(..)
     , Role(..)
 
+    , RelRef(..)
     , Uri(..), parseUri, renderUri
     , ProxyUri(..), renderProxyUri, parseProxyUri
     , (<//>), stripLeadingSlash, stripTrailingSlash
@@ -86,12 +87,11 @@ module Thentos.Types
 where
 
 import Control.Exception (Exception)
-import Control.Monad (when, unless, mzero)
-import Control.Monad.Except (MonadError, throwError)
 import Control.Lens (makeLenses)
+import Control.Monad.Except (MonadError, throwError)
+import Control.Monad (when, unless, mzero)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
-import Data.Function (on)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -99,10 +99,13 @@ import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
 import Data.Char (isAlpha)
+import Data.EitherR (fmapL)
+import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.String (IsString)
+import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
 import Data.Typeable (Typeable)
@@ -113,9 +116,11 @@ import Servant.API (FromHttpApiData)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
-import URI.ByteString (URI, URIParseError, uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment,
-                       queryPairs, parseURI, laxURIParserOptions, serializeURI', authorityHost,
-                       authorityPort, portNumber, hostBS, uriPath)
+import URI.ByteString (URI, RelativeRef, URIParseError,
+                       uriAuthority, uriQuery, uriScheme, schemeBS, uriFragment, queryPairs,
+                       parseURI, parseRelativeRef, laxURIParserOptions, serializeURI',
+                       authorityHost, authorityPort, portNumber, hostBS, uriPath)
+import Web.HttpApiData (parseQueryParam)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
@@ -211,8 +216,16 @@ instance Aeson.ToJSON UserEmail
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
 
+instance FromHttpApiData ConfirmationToken where
+    parseQueryParam tok = ConfirmationToken <$>
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
+
 newtype PasswordResetToken = PasswordResetToken { fromPasswordResetToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+
+instance FromHttpApiData PasswordResetToken where
+    parseQueryParam tok = PasswordResetToken <$>
+        either (Left . cs . show) Right (decodeUtf8' $ cs tok)
 
 -- | Information required to create a new User
 data UserFormData =
@@ -338,7 +351,9 @@ instance Ord Context where
 -- * thentos and service session
 
 newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromJSON, ToJSON, FromField, ToField)
+    deriving ( Eq, Ord, Show, Read, Typeable, Generic, IsString
+             , FromHttpApiData, FromJSON, ToJSON, FromField, ToField
+             )
 
 data ThentosSession =
     ThentosSession
@@ -540,6 +555,14 @@ instance FromField Role where
 -- | Wrapper around 'URI' with additional instance definitions.
 newtype Uri = Uri { fromUri :: URI }
     deriving (Eq, Ord)
+
+newtype RelRef = RelRef { fromRelRef :: RelativeRef }
+    deriving (Eq, Ord)
+
+instance FromHttpApiData RelRef where
+    parseQueryParam s = case decodeUtf8' $ cs s of
+        Right r -> fmapL (cs . show) $ RelRef <$> parseRelativeRef laxURIParserOptions (cs r)
+        Left  e -> Left . cs . show $ e
 
 parseUri :: SBS -> Either URIParseError Uri
 parseUri bs = Uri <$> parseURI laxURIParserOptions bs

@@ -33,7 +33,7 @@ import Database.PostgreSQL.Simple.ToField (ToField(toField))
 import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Database.PostgreSQL.Simple.Types (Default(Default))
 
-import Paths_thentos_core
+import Paths_thentos_core__
 import Thentos.Types
 
 

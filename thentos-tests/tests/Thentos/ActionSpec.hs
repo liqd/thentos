@@ -7,11 +7,12 @@ module Thentos.ActionSpec where
 
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
-import Data.Either (isLeft, isRight)
-import Data.Pool (withResource)
-import Data.Void (Void)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import Data.Either (isLeft, isRight)
+import Data.Functor.Infix ((<$$>))
+import Data.Pool (withResource)
+import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
@@ -201,24 +202,25 @@ spec_session = describe "session" $ do
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
 
--- specialize to error type Void
-runA :: ActionState -> Action Void a -> IO a
-runA = runAction
+-- specialize to error type 'Void' and state '()'
+runA :: ActionState -> Action Void () a -> IO a
+runA = (fst <$$>) . runAction ()
 
-runAE :: ActionState -> Action Void a -> IO (Either (ActionError Void) a)
-runAE = runActionE
+runAE :: ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+runAE = (fst <$$>) . runActionE ()
 
-runAsAgent :: Agent -> ActionState -> Action Void a -> IO a
-runAsAgent = runActionAsAgent
+runAsAgent :: Agent -> ActionState -> Action Void () a -> IO a
+runAsAgent agent = (fst <$$>) . runActionAsAgent agent ()
 
-runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO a
-runPrivs xs = runActionWithPrivs (toCNF <$> xs)
+runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void () a -> IO a
+runPrivs xs = (fst <$$>) . runActionWithPrivs (toCNF <$> xs) ()
 
-runPrivsE :: ToCNF cnf => [cnf] -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
-runPrivsE xs = runActionWithPrivsE (toCNF <$> xs)
+runPrivsE :: ToCNF cnf
+        => [cnf] -> ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+runPrivsE xs = (fst <$$>) . runActionWithPrivsE (toCNF <$> xs) ()
 
-runClearanceE :: DCLabel -> ActionState -> Action Void a -> IO (Either (ActionError Void) a)
-runClearanceE = runActionWithClearanceE
+runClearanceE :: DCLabel -> ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+runClearanceE l = (fst <$$>) . runActionWithClearanceE l ()
 
-runClearance :: DCLabel -> ActionState -> Action Void a -> IO a
-runClearance = runActionWithClearance
+runClearance :: DCLabel -> ActionState -> Action Void () a -> IO a
+runClearance l = (fst <$$>) . runActionWithClearance l ()

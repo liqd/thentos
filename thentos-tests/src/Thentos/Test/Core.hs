@@ -28,11 +28,9 @@ import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
-import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource, destroyAllResources)
-import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
@@ -93,14 +91,14 @@ testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
-addTestUser :: Int -> Action Void (UserId, UserFormData, User)
+addTestUser :: Int -> Action Void s (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
     uid <- query'P $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
 -- them for use in test cases.
-initializeTestUsers :: Action Void [(UserId, UserFormData, User)]
+initializeTestUsers :: Action Void s [(UserId, UserFormData, User)]
 initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
@@ -219,17 +217,11 @@ withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
 -- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
 withFrontendAndBackend' dbname test = do
-    st@(ActionState (connPool, _, _)) <- createActionState dbname thentosTestConfig
-    withFrontend' defaultFrontendConfig st
-        $ withBackend' defaultBackendConfig st
+    st@(ActionState (connPool, _, cfg)) <- createActionState dbname thentosTestConfig
+    withFrontend' (getFrontendConfig cfg) st
+        $ withBackend' (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
                 `finally` destroyAllResources connPool
-
-defaultBackendConfig :: HttpConfig
-defaultBackendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
-
-defaultFrontendConfig :: HttpConfig
-defaultFrontendConfig = fromJust $ Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["frontend"])
 
 
 -- * set up state
@@ -243,6 +235,10 @@ createActionState dbname config = do
     return $ ActionState (connPool, rng, config)
 
 -- | Create a connection to an empty DB.
+--
+-- FIXME: the tests shouldn't have to pick a database name.  it should work like 'withLogger' in
+-- that it finds a free suitable database name, and garbage-collects the database when the test is
+-- done.
 createDb :: String -> IO (Pool Connection)
 createDb dbname = do
     wipe <- wipeFile
@@ -252,7 +248,9 @@ createDb dbname = do
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
-    (_, tok) <- runAction actionState $ (startThentosSessionByUserName godName godPass :: Action Void (UserId, ThentosSessionToken))
+    let action :: Action Void () (UserId, ThentosSessionToken)
+        action = startThentosSessionByUserName godName godPass
+    ((_, tok), _) <- runAction () actionState action
     let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
     return (tok, credentials)
 
@@ -262,9 +260,9 @@ loginAsGod actionState = do
 -- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
 -- objects and arrays.
 --
--- Once we don't need snap any more we can upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode'
--- instead of this: See 4b370592242d4e4367ca46d852109c3927210f4b.  (We haven't checked whether 0.9
--- would work with snap, but we might as well leave this in until snap is gone.)
+-- FIXME: upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode' instead of this: See
+-- 4b370592242d4e4367ca46d852109c3927210f4b.  for this to work, we need to either upgrade pronk
+-- (criterion in particular) benchmarking or, preferably, factor it out into a separate package.
 decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
 decodeLenient input = do
     v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)

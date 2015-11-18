@@ -1,92 +1,110 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
-module Thentos.Frontend where
+module Thentos.Frontend (runFrontend) where
 
-import Data.ByteString (ByteString)
-import Data.Configifier ((>>.))
-import Data.Monoid ((<>))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
-import Snap.Core (ifTop, redirect')
-import Snap.Http.Server (defaultConfig, setBind, setPort, setVerbose)
-import Snap.Snaplet.Session.Backends.CookieSession (initCookieSessionManager)
-import Snap.Snaplet (SnapletInit, makeSnaplet, nestSnaplet, addRoutes, wrapSite)
-import Snap.Util.FileServe (serveDirectory)
+import Data.String.Conversions (LBS)
+import Servant hiding (serveDirectory)
+import System.Log.Logger (Priority(INFO))
+
+import qualified Text.Blaze.Html5 as H
+import qualified Data.ByteString.Lazy.Char8 as LBS
+
 import System.Log.Missing (logger)
-import System.Log (Priority(INFO))
-
-import qualified Thentos.Frontend.Handlers as H
-import qualified Thentos.Frontend.Pages as P
-
-import Snap.Missing (serveSnaplet)
 import Thentos.Action.Core
+import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Frontend.Handlers
 import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.State
+import Thentos.Frontend.TH
 import Thentos.Frontend.Types
 
 
+-- * driver
+
 runFrontend :: HttpConfig -> ActionState -> IO ()
-runFrontend config asg = do
-    logger INFO $ "running frontend on " <> show (bindUrl config) <> "."
-    serveSnaplet snapConfig (frontendApp asg config)
+runFrontend config aState = do
+    logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
+    serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
+
+type FrontendH =
+       Get '[HTM] H.Html
+  :<|> "user" :> UserH
+  :<|> "service" :> ServiceH
+  :<|> "dashboard" :> DashboardH
+  :<|> StaticContent
+
+frontendH :: ServerT FrontendH FAction
+frontendH =
+       redirect' "/dashboard"
+  :<|> userH
+  :<|> serviceH
+  :<|> dashboardH
+  :<|> staticContent
+
+
+-- * static content
+
+-- | Instead of ServeDirectory, we bake all static content into the executable.  This helps to
+-- minimize the number of moving parts in the deployment.
+type StaticContent =
+       "screen.css" :> Get '[TextCss] LBS
+
+staticContent :: forall m. Applicative m => ServerT StaticContent m
+staticContent =
+       l $(loadStaticContent "screen.css")
   where
-    host :: ByteString = cs $ config >>. (Proxy :: Proxy '["bind_host"])
-    port :: Int = config >>. (Proxy :: Proxy '["bind_port"])
-    snapConfig = setPort port
-               . setBind host
-               . setVerbose False
-               $ defaultConfig
+    l = pure . LBS.pack
 
-frontendApp :: ActionState -> HttpConfig -> SnapletInit FrontendApp FrontendApp
-frontendApp (ActionState (st, rn, _cfg)) feConf =
-    makeSnaplet "Thentos" "The Thentos universal user management system" Nothing $ do
-        wrapSite H.disableCaching
-        wrapSite csrfify
-        addRoutes routes
-        FrontendApp st rn _cfg <$>
-            nestSnaplet "sess" sess
-               (initCookieSessionManager "site_key.txt" "sess" (Just 3600)) <*>
-            pure feConf
 
-routes :: [(ByteString, FH ())]
-routes = [ -- default entry point
-           ("", ifTop $ redirect' "/dashboard" 303)
+-- * /user
 
-           -- if not logged in
-         , ("user/register", H.userRegister)
-         , ("user/register_confirm", H.userRegisterConfirm)
-         , ("user/login", H.userLogin)
-         , ("user/reset_password_request", H.resetPassword)
-         , ("user/reset_password", H.resetPasswordConfirm)
+type UserH =
+       UserRegisterH
+  :<|> UserRegisterConfirmH
+  :<|> UserLoginH
+  :<|> ResetPasswordRequestH
+  :<|> ResetPasswordH
+  :<|> UserLogoutH
+  :<|> EmailUpdateH
+  :<|> EmailUpdateConfirmH
+  :<|> PasswordUpdateH
 
-           -- if logged in
-         , ("user/logout", H.userLogout)
-         , ("user/update_email", H.emailUpdate)
-         , ("user/update_email_confirm", H.emailUpdateConfirm)
-         , ("user/update_password", H.passwordUpdate)
+userH :: ServerT UserH FAction
+userH =
+       userRegisterH
+  :<|> userRegisterConfirmH
+  :<|> userLoginH
+  :<|> resetPasswordRequestH
+  :<|> resetPasswordH
+  :<|> userLogoutH
+  :<|> emailUpdateH
+  :<|> emailUpdateConfirmH
+  :<|> passwordUpdateH
 
-         , ("service/register", H.serviceRegister)
-         , ("service/login", H.serviceLogin)
 
-         , ("/dashboard", redirect' "/dashboard/details" 303)
-             -- (this could also look up the last page the user was
-             -- on, and navigate there.)
+-- * service
 
-             -- (dashboard should probably be a snaplet.  if only for
-             -- the routing table and the call to the
-             -- dashboardPagelet.)
+type ServiceH =
+       ServiceLoginH
+  :<|> ServiceRegisterH
+  :<|> ServiceCreateH
 
-         , ("/dashboard/details",     renderDashboard P.DashboardTabDetails P.userDisplayPagelet)
-         , ("/dashboard/services",    renderDashboard P.DashboardTabServices $ P.userServicesDisplayPagelet)
-         , ("/dashboard/ownservices", H.serviceCreate)
-         , ("/dashboard/users",       renderDashboard P.DashboardTabUsers $ \ _ _ -> "nothing here yet!")
-
-         -- static files
-         , ("", serveDirectory "snap/static")
-
-         -- 404 error page if no other route exists
-         , ("", H.unknownPath)
-         ]
+serviceH :: ServerT ServiceH FAction
+serviceH =
+       serviceLoginH
+  :<|> serviceRegisterH
+  :<|> serviceCreateH

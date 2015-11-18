@@ -6,24 +6,26 @@ module Thentos.Adhocracy3.Backend.Core
     )
     where
 
+import Data.Aeson (encode)
+import Data.Function (on)
+import Data.List (nubBy)
 import Data.String.Conversions (ST)
-import Servant.Server (ServantErr)
 import Servant.Server.Internal.ServantErr (err400, err401, err500, errBody, errHeaders)
+import Servant.Server (ServantErr)
 import System.Log.Logger (Priority(DEBUG, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
-import qualified Thentos.Action.Core as AC
-import Thentos.Backend.Core
 
-import Data.Aeson (encode)
+import qualified Thentos.Action.Core as AC
 
 import Thentos.Adhocracy3.Types
+import Thentos.Backend.Core
+
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
-a3ActionErrorToServantErr e = do
-    errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info $ e
+a3ActionErrorToServantErr = errorInfoToServantErr mkA3StyleServantErr . actionErrorA3Info a3Info
 
--- Construct a simple A3-style error wrapping a single error. 'aeName' is set to "thentos" and
--- 'aeLocation' to "body". Useful for cases where all we really have is a description.
+-- | Construct a simple A3-style error wrapping a single error. 'aeName' is set to @thentos@ and
+-- 'aeLocation' to @body@. Useful for cases where all we really have is a description.
 mkSimpleA3Error :: ST -> A3Error
 mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescription = desc}
 
@@ -32,7 +34,9 @@ mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescr
 -- aborts at the first detected error.
 mkA3StyleServantErr :: ServantErr -> A3ErrorMessage -> ServantErr
 mkA3StyleServantErr baseErr err = baseErr
-    {errBody = encode $ err, errHeaders = [contentTypeJsonHeader]}
+    { errBody = encode $ err
+    , errHeaders = nubBy ((==) `on` fst) $ contentTypeJsonHeader : errHeaders baseErr
+    }
 
 mkA3 :: ErrorInfo ST -> ErrorInfo A3ErrorMessage
 mkA3 (p, se, msg) = (p, se, A3ErrorMessage [mkSimpleA3Error msg])

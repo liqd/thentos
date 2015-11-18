@@ -20,7 +20,6 @@ module Thentos.Backend.Api.Proxy where
 import Control.Exception (SomeException)
 import Control.Lens ((^.))
 import Control.Monad.Except (throwError)
-import Data.Aeson (encode)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -37,6 +36,7 @@ import Servant.Server (Server, HasServer(..), ServantErr)
 import System.Log.Logger (Priority(DEBUG, WARNING))
 import System.Log.Missing (logger)
 
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import qualified Network.HTTP.Client as C
@@ -68,8 +68,8 @@ serviceProxy manager adapter state
 reverseProxyHandler :: (Show e, Typeable e) =>
       ProxyAdapter e -> ActionState -> S.Request -> IO WaiProxyResponse
 reverseProxyHandler adapter state req = do
-    eRqMod <- runActionE state $ getRqMod adapter req
-    case eRqMod of
+    eRqMod <- runActionE () state $ getRqMod adapter req
+    case fst eRqMod of
         Right (RqMod uri headers) -> do
           let proxyDest = ProxyDest { pdHost = cs $ proxyHost uri
                                     , pdPort = proxyPort uri }
@@ -81,7 +81,7 @@ reverseProxyHandler adapter state req = do
 -- | Allows adapting a proxy for a specific use case.
 data ProxyAdapter e = ProxyAdapter
   { renderHeader :: RenderHeaderFun
-  , renderUser   :: UserId -> User -> Action e SBS
+  , renderUser   :: UserId -> User -> Action e () SBS
   , renderError  :: ActionError e -> IO ServantErr
   }
 
@@ -93,7 +93,7 @@ defaultProxyAdapter = ProxyAdapter
   }
 
 -- | Render the user by showing their name.
-defaultRenderUser :: UserId -> User -> Action e SBS
+defaultRenderUser :: UserId -> User -> Action e () SBS
 defaultRenderUser _ user = pure . cs . fromUserName $ user ^. userName
 
 prepareReq :: ProxyAdapter e -> T.RequestHeaders -> BSC.ByteString -> S.Request -> S.Request
@@ -126,7 +126,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 --
 -- The first parameter allows adapting a proxy for a specific use case.
 -- To get the default behavior, use 'defaultProxyAdapter'.
-getRqMod :: ProxyAdapter e -> S.Request -> Action e RqMod
+getRqMod :: ProxyAdapter e -> S.Request -> Action e () RqMod
 getRqMod adapter req = do
     thentosConfig <- getConfig'P
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
@@ -147,7 +147,7 @@ getRqMod adapter req = do
 -- section in the config. An error is thrown if this section is missing or doesn't contain a match.
 -- For convenience, both service ID and target URL are returned.
 findTargetForServiceId ::
-    ServiceId -> ThentosConfig -> Action e (ServiceId, ProxyUri)
+    ServiceId -> ThentosConfig -> Action e () (ServiceId, ProxyUri)
 findTargetForServiceId sid conf = do
     target <- case Map.lookup sid (getProxyConfigMap conf) of
             Just proxy -> return $ extractTargetUrl proxy
@@ -156,7 +156,7 @@ findTargetForServiceId sid conf = do
 
 -- | Look up the service ID and target URL in the "proxy" section of the config.
 -- An error is thrown if that section is missing.
-findDefaultServiceIdAndTarget :: ThentosConfig -> Action e (ServiceId, ProxyUri)
+findDefaultServiceIdAndTarget :: ThentosConfig -> Action e () (ServiceId, ProxyUri)
 findDefaultServiceIdAndTarget conf = do
     defaultProxy <- maybe (throwError $ MissingServiceHeader) return $
         Tagged <$> conf >>. (Proxy :: Proxy '["proxy"])
@@ -166,7 +166,7 @@ findDefaultServiceIdAndTarget conf = do
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
 createCustomHeaders ::
-    ProxyAdapter e -> Maybe ThentosSessionToken -> ServiceId -> Action e T.RequestHeaders
+    ProxyAdapter e -> Maybe ThentosSessionToken -> ServiceId -> Action e () T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do
     (uid, user) <- validateThentosUserSession tok
@@ -180,9 +180,9 @@ createCustomHeaders adapter (Just tok) _sid = do
     --       , (renderHeader adapter ThentosHeaderGroups, cs $ show groups)
            ]
 
--- | Throw an Internal Server Error if the proxied app is unreachable.
+-- | Throw an internal server error if the proxied app is unreachable.
 err500onExc :: SomeException -> S.Application
 err500onExc exc _ sendResponse = do
     logger WARNING $ "Couldn't call proxied app: " <> show exc
     sendResponse $ S.responseLBS
-        status500 [contentTypeJsonHeader] (encode $ ErrorMessage "internal error")
+        status500 [contentTypeJsonHeader] (Aeson.encode $ ErrorMessage "internal error")

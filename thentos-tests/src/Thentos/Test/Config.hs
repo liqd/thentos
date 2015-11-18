@@ -1,81 +1,82 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Thentos.Test.Config
 where
 
-import Data.Configifier ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), cfgify)
-import Data.Maybe (fromMaybe)
-import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection)
+import Data.Configifier
+    ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), Source(YamlString), configify)
+import Data.Maybe (fromMaybe)
+import Data.String.Conversions (ST, cs)
+import System.FilePath ((</>))
+import System.IO.Unsafe (unsafePerformIO)
 
-import Thentos.Types
+import Paths_thentos_core__ (getPackageSourceRoot)
 import Thentos.Config
 import Thentos (createDefaultUser)
+import Thentos.Types
 
 
+{-# NOINLINE thentosTestConfig #-}
 thentosTestConfig :: ThentosConfig
-thentosTestConfig = [cfgify|
-
-command: "run"
-
-backend:
-    bind_port: 7118
-    bind_host: "127.0.0.1"
-    expose_port: 7118
-    expose_host: "127.0.0.1"
-
-frontend:
-    bind_port: 7119
-    bind_host: "127.0.0.1"
-    expose_port: 7119
-    expose_host: "127.0.0.1"
-
-purescript: ../thentos-purescript/static
-
-smtp:
-    sender_name: "Thentos"
-    sender_address: "thentos@thentos.org"
-    sendmail_path: "/bin/cat"
-    sendmail_args: ["-t"]
-
-proxy:
-    service_id: "someid"
-    endpoint: http://127.0.0.1:8001/path
-
-default_user:
-    name: "god"
-    password: "god"
-    email: "postmaster@localhost"
-    roles: ["roleAdmin", "roleUser", "roleServiceAdmin", "roleUserAdmin"]
-
-user_reg_expiration: 30m
-pw_reset_expiration: 30m
-email_change_expiration: 30m
-captcha_expiration: 30m
-gc_interval: 30m
-
-log:
-    path: ./log/thentos.log
-    level: DEBUG
-
-database:
-    name: unused
-
-mail:
-    account_verification:
-        subject: "Thentos: Aktivierung Ihres Nutzerkontos"
-        body: |
-            Hallo {{user_name}},
-
-            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren.
-
-            {{activation_url}}
-|]
-
+thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unlines $
+    "backend:" :
+    "    bind_port: 7118" :
+    "    bind_host: \"127.0.0.1\"" :
+    "    expose_port: 7118" :
+    "    expose_host: \"127.0.0.1\"" :
+    "" :
+    "frontend:" :
+    "    bind_port: 7119" :
+    "    bind_host: \"127.0.0.1\"" :
+    "    expose_port: 7119" :
+    "    expose_host: \"127.0.0.1\"" :
+    "" :
+    ("purescript: " ++ $(getPackageSourceRoot "thentos-purescript") </> "static") :
+    "" :
+    "smtp:" :
+    "    sender_name: \"Thentos\"" :
+    "    sender_address: \"thentos@thentos.org\"" :
+    "    sendmail_path: \"/bin/cat\"" :
+    "    sendmail_args: [\"-t\"]" :
+    "" :
+    "proxy:" :
+    "    service_id: \"someid\"" :
+    "    endpoint: http://127.0.0.1:8001/path" :
+    "" :
+    "default_user:" :
+    "    name: \"god\"" :
+    "    password: \"god\"" :
+    "    email: \"postmaster@localhost\"" :
+    "    roles: [\"roleAdmin\", \"roleUser\", \"roleServiceAdmin\", \"roleUserAdmin\"]" :
+    "" :
+    "user_reg_expiration: 30m" :
+    "pw_reset_expiration: 30m" :
+    "email_change_expiration: 30m" :
+    "gc_interval: 30m" :
+    "captcha_expiration: 30m" :
+    "" :
+    "log:" :
+    "    path: ./log/thentos.log" :
+    "    level: DEBUG" :
+    "" :
+    "database:" :
+    "    name: unused" :
+    "" :
+    "mail:" :
+    "    account_verification:" :
+    "        subject: \"Thentos: Aktivierung Ihres Nutzerkontos\"" :
+    "        body: |" :
+    "            Hallo {{user_name}}," :
+    "" :
+    "            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren." :
+    "" :
+    "            {{activation_url}}" :
+    []
 
 godUid :: UserId
 godUid = UserId 0

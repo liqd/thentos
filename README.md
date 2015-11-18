@@ -41,9 +41,9 @@ management.  You can:
 Thentos uses [PostgreSQL](http://postgresql.org/) for persistence
 (modules `Transaction*`), [lio](https://github.com/scslab/lio) for
 information flow control and authorization management (modules
-`Action*`), [servant](http://haskell-servant.github.io/) for rest APIs
-(modules `Backend.*`), and [snap](http://snapframework.com/) for
-HTML-form-based user interfaces (modules `Frontend.*`).
+`Action*`), and [servant](http://haskell-servant.github.io/) for rest
+APIs (modules `Backend.*`) and for HTML-form-based user interfaces
+(modules `Frontend.*`).
 
 Thentos is designed as both a library and an out-of-the-box web
 application and service.  You can use any of the parts that work for
@@ -57,8 +57,8 @@ you and build something completely different from them:
   to lio, rely on enforcement of the authorization policy implemented
   there, even if your own code is malicious),
 
-- use a collection of application-specific rest API handlers, snap
-  handlers, and blaze combinators to build your own web interfaces.
+- use a collection of application-specific servant handlers and blaze
+  combinators to build your own web interfaces.
 
 - ...
 
@@ -87,7 +87,7 @@ This is a possible quick walk through the code:
 - **Thentos.Backend...**: rest APIs based on servant and wai.
 
 - **Thentos.Frontend...**: browser frontend for direct
-    user-interaction based on snap.
+    user-interaction.
 
 
 Installation
