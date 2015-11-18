@@ -150,7 +150,7 @@ freshSessionToken = ThentosSessionToken <$> freshRandomName
 freshServiceSessionToken :: Action e s ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
-freshCaptchaId :: Action e CaptchaId
+freshCaptchaId :: Action e s CaptchaId
 freshCaptchaId = CaptchaId <$> freshRandomName
 
 
@@ -657,7 +657,7 @@ agentRoles agent = do
 
 -- | Generate a captcha. Returns a pair of 'CaptchaId' and the binary image data in PNG format.
 -- The correct solution to the captcha is stored in the DB. Does not require any privileges.
-makeCaptcha :: Action e (CaptchaId, ImageData)
+makeCaptcha :: Action e s (CaptchaId, ImageData)
 makeCaptcha = do
     cid    <- freshCaptchaId
     random <- freshRandom20
@@ -670,7 +670,7 @@ makeCaptcha = do
 -- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
 -- exist in the DB (either because it never did or because it was deleted due to garbage collection
 -- or a prior call to this action). Does not require any privileges.
-solveCaptcha :: CaptchaId -> ST -> Action e Bool
+solveCaptcha :: CaptchaId -> ST -> Action e s Bool
 solveCaptcha cid solution = query'P $ T.solveCaptcha cid solution
 
 

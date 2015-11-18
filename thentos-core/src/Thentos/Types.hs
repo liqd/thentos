@@ -61,6 +61,7 @@ module Thentos.Types
     , Agent(..)
     , Role(..)
 
+    , Rr(..)
     , Uri(..), parseUri, renderUri
     , ProxyUri(..), renderProxyUri, parseProxyUri
     , (<//>), stripLeadingSlash, stripTrailingSlash
