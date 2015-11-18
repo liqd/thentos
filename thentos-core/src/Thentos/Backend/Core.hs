@@ -24,7 +24,7 @@ import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
-import Data.List (nub, nubBy)
+import Data.List (nubBy)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
@@ -64,7 +64,6 @@ enterAction :: forall s e. (Show e, Typeable e) =>
     s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
     Maybe ThentosSessionToken -> Action e s :~> ExceptT ServantErr IO
-    -- FIXME: 'ThentosSessionToken' should probably to into @polyState@?
 enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
@@ -91,7 +90,7 @@ instance ToJSON ErrorMessage where
 mkServantErr :: ServantErr -> ST -> ServantErr
 mkServantErr baseErr msg = baseErr
     { errBody = encode $ ErrorMessage msg
-    , errHeaders = nub $ contentTypeJsonHeader : errHeaders baseErr
+    , errHeaders = nubBy ((==) `on` fst) $ contentTypeJsonHeader : errHeaders baseErr
     }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
@@ -270,11 +269,6 @@ instance HasLink sub => HasLink (ThentosAssertHeaders :> sub) where
 -- * response headers
 
 -- | header setting the Content-Type to JSON.
---
--- FIXME: why does this have to be set explicitly?  shouldn't it happen naturally from the type of
--- the end-point?  (i guess not, because errors are not end-point specific.  still, is there a
--- better way?)
--- FIXME: have "application/json; charset=utf-8" here?
 contentTypeJsonHeader ::  Header
 contentTypeJsonHeader = ("Content-Type", "application/json")
 

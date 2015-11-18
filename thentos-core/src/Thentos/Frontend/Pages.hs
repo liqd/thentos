@@ -268,7 +268,7 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
             H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
                 H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
                 -- makeCsrfField csrfToken
-                -- FIXME: do we need csrf protection here?  if so: did this every work?
+                -- FIXME: do we need csrf protection here?  if so: did this ever work?
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 

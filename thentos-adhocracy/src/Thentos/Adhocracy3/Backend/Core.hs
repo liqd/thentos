@@ -7,7 +7,8 @@ module Thentos.Adhocracy3.Backend.Core
     where
 
 import Data.Aeson (encode)
-import Data.List (nub)
+import Data.Function (on)
+import Data.List (nubBy)
 import Data.String.Conversions (ST)
 import Servant.Server.Internal.ServantErr (err400, err401, err500, errBody, errHeaders)
 import Servant.Server (ServantErr)
@@ -34,7 +35,7 @@ mkSimpleA3Error desc = A3Error {aeName = "thentos", aeLocation = "body", aeDescr
 mkA3StyleServantErr :: ServantErr -> A3ErrorMessage -> ServantErr
 mkA3StyleServantErr baseErr err = baseErr
     { errBody = encode $ err
-    , errHeaders = nub $ contentTypeJsonHeader : errHeaders baseErr
+    , errHeaders = nubBy ((==) `on` fst) $ contentTypeJsonHeader : errHeaders baseErr
     }
 
 mkA3 :: ErrorInfo ST -> ErrorInfo A3ErrorMessage

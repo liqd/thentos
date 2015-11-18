@@ -61,7 +61,7 @@ module Thentos.Types
     , Agent(..)
     , Role(..)
 
-    , Rr(..)
+    , RelRef(..)
     , Uri(..), parseUri, renderUri
     , ProxyUri(..), renderProxyUri, parseProxyUri
     , (<//>), stripLeadingSlash, stripTrailingSlash
@@ -556,12 +556,12 @@ instance FromField Role where
 newtype Uri = Uri { fromUri :: URI }
     deriving (Eq, Ord)
 
-newtype Rr = Rr { fromRr :: RelativeRef }
+newtype RelRef = RelRef { fromRelRef :: RelativeRef }
     deriving (Eq, Ord)
 
-instance FromHttpApiData Rr where
+instance FromHttpApiData RelRef where
     parseQueryParam s = case decodeUtf8' $ cs s of
-        Right r -> fmapL (cs . show) $ Rr <$> parseRelativeRef laxURIParserOptions (cs r)
+        Right r -> fmapL (cs . show) $ RelRef <$> parseRelativeRef laxURIParserOptions (cs r)
         Left  e -> Left . cs . show $ e
 
 parseUri :: SBS -> Either URIParseError Uri

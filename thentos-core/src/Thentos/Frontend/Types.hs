@@ -126,7 +126,9 @@ instance ToJSON DashboardTab where toJSON = Aeson.gtoJson
 data ServiceLoginState =
     ServiceLoginState
         { _fslServiceId :: ServiceId
-        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@  FIXME: give this a better name.
+        , _fslRR        :: RelativeRef  -- ^ e.g. @/service/login?...@
+            -- FIXME: give fslRR a better name.  something that explains the meaning of where it is
+            -- pointing.
         }
   deriving (Show, Eq, Generic)
 

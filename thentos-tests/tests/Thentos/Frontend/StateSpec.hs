@@ -123,9 +123,14 @@ spec_frontendState = do
             (resp3 ^. Wreq.responseBody) `shouldSatisfy` hasDfError "name"
             (resp3 ^. Wreq.responseBody) `shouldNotSatisfy` hasDfError "password"
 
-        it "rejects login requests of non-existent users" $ \astate -> do
+        it ("rejects login requests of non-existent users or " ++
+            "with wrong credentials (indistinguishably)") $ \astate -> do
             resp <- post astate (Just "bad") (Just "user")
             cs (resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgError" :: String)
+
+            pendingWith $
+                "part of this test not implemented: wrong credentials, " ++
+                "indistinguishability of the two cases"
 
         it "accepts login requests of existing users" $ \astate -> do
             resp <- post astate (Just "god") (Just "god")

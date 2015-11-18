@@ -19,7 +19,6 @@ import URI.ByteString (serializeURI, serializeRelativeRef, URI(..), RelativeRef(
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Action
-import Thentos.Action.Core
 import Thentos.Config
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State (crash)
@@ -38,10 +37,7 @@ liftU :: U.UnsafeAction FActionError FrontendSessionData a -> FAction a
 liftU = U.unsafeAction
 
 loggerF :: (Show v) => v -> FAction ()
-loggerF = loggerA
-
-loggerA :: (Show v) => v -> Action FActionError s ()
-loggerA = U.unsafeAction . loggerU
+loggerF = U.unsafeAction . loggerU
 
 loggerU :: (Show v) => v -> U.UnsafeAction FActionError s ()
 loggerU = U.logger System.Log.DEBUG . show

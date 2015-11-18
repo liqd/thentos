@@ -192,9 +192,9 @@ userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction
 userRegisterConfirmH Nothing = crash FActionErrorNoToken
 userRegisterConfirmH (Just token) = do
     (uid, sessTok) <- do
-        loggerA $ "received user register confirm token: " ++ show token
+        loggerF $ "received user register confirm token: " ++ show token
         (_uid, _sessTok) <- confirmNewUser token
-        loggerA $ "registered new user: " ++ show _uid
+        loggerF $ "registered new user: " ++ show _uid
         -- FIXME: we need a 'withAccessRights' for things like this.
         grantAccessRights'P [toCNF RoleAdmin]
         mapM_ (assignRole (UserA _uid)) $ defaultUserRoles
@@ -212,7 +212,7 @@ userLoginH :: ServerT UserLoginH FAction
 userLoginH = formH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
   where
     p :: (UserName, UserPass) -> FAction H.Html
-    p (uname, passwd) = do
+    p (uname, passwd) =
         (startThentosSessionByUserName uname passwd >>= userFinishLogin)
             `catchError` userFailLogin
 
@@ -275,7 +275,11 @@ resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
         sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
 
         -- FIXME: what we would like to do here is login the user right away, with something like
-        -- userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+        --
+        -- >>> userLoginCallAction $ (uid,) <$> startSessionNoPass (UserA uid)
+        --
+        -- this requires that 'resetPassword' returns the 'UserId' that we need for login, so for
+        -- now the user is force to do it manually, might be marginally more secure, too.
         redirect' "/dashboard"
 
 
@@ -365,8 +369,10 @@ passwordUpdateH = formH "/user/update_password" p1 p2 r
     p2 (oldPass, newPass) = do
         loggerF ("password change request." :: String)
         let go = runAsUserOrLogin $ \_ fsl -> changePassword (fsl ^. fslUserId) oldPass newPass
-            worked = sendFrontendMsg (FrontendMsgSuccess "Change password: success!") >> redirect' "/dashboard"
-            didn't = sendFrontendMsg (FrontendMsgError "Invalid old password.") >> redirect' "/user/update_password"
+            worked = sendFrontendMsg (FrontendMsgSuccess "Change password: success!")
+                >> redirect' "/dashboard"
+            didn't = sendFrontendMsg (FrontendMsgError "Invalid old password.")
+                >> redirect' "/user/update_password"
 
         (go >> worked) `catchError`
           \case BadCredentials -> didn't
@@ -445,7 +451,7 @@ serviceRegisterH = formH "/service/register" serviceRegisterForm (\() -> p) r
 
 type ServiceLoginH = "login"
                   :> QueryParam "serviceId" ServiceId
-                  :> QueryParam "redirect" Rr
+                  :> QueryParam "redirect" RelRef
                   :> Get
 
 -- | Coming from a service site, handle the authentication and redirect to service with valid
@@ -466,10 +472,10 @@ type ServiceLoginH = "login"
 -- from the address bar and send it to someone, they will get the same session.  The session token
 -- should be in a cookie, shouldn't it?"  (We will use some SSO protocol here that is not home
 -- cooked later; for prototype operations, this is not serious.)
-serviceLoginH :: Maybe ServiceId -> Maybe Rr -> FAction a
+serviceLoginH :: Maybe ServiceId -> Maybe RelRef -> FAction a
 serviceLoginH Nothing _ = crash $ FActionError500 "Service login: no Service ID."
 serviceLoginH _ Nothing = crash $ FActionError500 "Service login: no or malformed redirect URI"
-serviceLoginH (Just sid) (Just (Rr rr)) = do
+serviceLoginH (Just sid) (Just (RelRef rr)) = do
     let sls = ServiceLoginState sid rr
     loggerF $ "setServiceLoginState: " ++ show sls
     modify $ fsdServiceLoginState .~ Just sls
