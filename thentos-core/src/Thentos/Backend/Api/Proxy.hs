@@ -27,7 +27,9 @@ import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
 import Data.Typeable (Typeable)
 import Data.Void (Void)
-import Network.HTTP.ReverseProxy
+import Network.HTTP.ReverseProxy (waiProxyTo,
+    WaiProxyResponse(WPRModifiedRequest, WPRResponse),
+    ProxyDest(ProxyDest, pdHost, pdPort))
 import Network.HTTP.Types (status500)
 import Servant.API (Raw)
 import Servant.Server.Internal.ServantErr (responseServantErr)
@@ -57,7 +59,8 @@ instance HasServer ServiceProxy where
 serviceProxy :: (Show e, Typeable e) =>
       C.Manager -> ProxyAdapter e -> ActionState -> Server ServiceProxy
 serviceProxy manager adapter state
-    = waiProxyTo (reverseProxyHandler adapter state)
+    = loggerMW $
+      waiProxyTo (reverseProxyHandler adapter state)
                  err500onExc
                  manager
 
