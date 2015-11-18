@@ -329,7 +329,7 @@ runWarpWithCfg cfg = runSettings settings
         other       -> other
 
 -- | Write all requests and responses to log file with prio 'DEBUG'.  Since 'Response' does not have
--- a 'Show' instance, we
+-- a 'Show' instance, only dump the showable parts.
 loggerMW :: Middleware
 loggerMW app req cont = do
     logger DEBUG $ "serviceProxy response: " ++ show req
