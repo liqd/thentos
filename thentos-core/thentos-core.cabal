@@ -107,6 +107,7 @@ library
     , digestive-functors-blaze >=0.6.0.6 && <0.7
     , directory >=1.2.2.0 && <1.3
     , either >=4.4.1 && <4.5
+    , elocrypt >=0.4.1 && <0.5
     , email-validate >=2.1.3 && <2.2
     , errors ==2.0.0
     , filepath >=1.4.0.0 && <1.5
@@ -125,6 +126,7 @@ library
     , mime-mail >=0.4.10 && <0.5
     , MonadCatchIO-transformers >=0.3.1.3 && <0.4
     , monad-control >=1 && <1.1
+    , MonadRandom >=0.4 && <0.5
     , mtl >=2.2.1 && <2.3
     , network-uri >=2.6 && <2.7
     , old-locale >=1.0.0.7 && <1.1
