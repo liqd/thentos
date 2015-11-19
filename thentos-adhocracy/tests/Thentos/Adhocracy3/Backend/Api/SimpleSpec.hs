@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -21,10 +22,12 @@ import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson (Value(String), object, (.=))
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import GHC.Stack (CallStack)
 import LIO.DCLabel (toCNF)
@@ -237,12 +240,13 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        as@(ActionState (connPool, _, _)) <- createActionState "test_thentosa3" thentosTestConfig
+        as@(ActionState (connPool, _, cfg)) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
         ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
               autocreateMissingServices thentosTestConfig
-        return $! serveApi mgr as
+        let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+        return $! serveApi mgr beConfig as
 
     ctJson = ("Content-Type", "application/json")
 

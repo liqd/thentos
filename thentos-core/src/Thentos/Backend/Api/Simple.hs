@@ -49,12 +49,12 @@ import qualified Thentos.Backend.Api.Purescript as Purs
 runApi :: HttpConfig -> ActionState -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg
+    runWarpWithCfg cfg $ serveApi cfg asg
 
-serveApi :: ActionState -> Application
-serveApi astate = addCacheControlHeaders $
+serveApi :: HttpConfig -> ActionState -> Application
+serveApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (restDocs p :<|> api astate)
+    in serve p (restDocs cfg p :<|> api astate)
 
 type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
@@ -152,8 +152,11 @@ thentosServiceSession =
 -- * servant docs
 
 instance HasDocExtras (RestDocs Api) where
-    getCabalVersion _ = Paths.version
+    getCabalPackageName _ = "thentos-core"
+    getCabalPackageVersion _ = Paths.version
+
     getTitle _ = "The thentos API family: Core"
+
     getIntros _ =
         [ Docs.DocIntro "@@0.2@@Overview" [unlines $
             [ "`Core` is a simple, general-purpose user management protocol"

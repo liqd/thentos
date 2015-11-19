@@ -15,7 +15,7 @@
 
 module Thentos.Backend.Api.Docs.Common
     ( RestDocs
-    , HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo)
+    , HasDocExtras(getCabalPackageName, getCabalPackageVersion, getTitle, getIntros, getExtraInfo)
     , restDocs
     , prettyMimeRender
     , hackTogetherSomeReasonableOrder
@@ -33,7 +33,7 @@ import Data.List (sort)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, cs)
+import Data.String.Conversions (ST, LBS, cs, (<>))
 import Data.Version (Version)
 import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
@@ -51,6 +51,7 @@ import System.Log.Logger (Priority(DEBUG))
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
+import qualified Data.Text as ST
 import qualified Servant.Docs as Docs
 import qualified Servant.Docs.Internal as Docs
 import qualified Servant.Foreign as Foreign
@@ -60,6 +61,7 @@ import qualified Servant.PureScript as Purs
 import System.Log.Missing (logger)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.Types
 
 import qualified LIO.Missing
@@ -96,7 +98,9 @@ instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> Foreign.Req) where
     generateList _ = []
 
 class HasDocs api => HasDocExtras api where
-    getCabalVersion :: Proxy api -> Version
+    getCabalPackageName :: Proxy api -> ST  -- ^ the name of the source package delivering the api
+    getCabalPackageVersion :: Proxy api -> Version  -- ^ the package version
+
     getTitle :: Proxy api -> String
 
     getIntros :: Proxy api -> [Docs.DocIntro]
@@ -110,8 +114,8 @@ restDocs :: forall api m.
             , HasDocs (RestDocs api), HasDocExtras (RestDocs api)
             , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
             )
-         => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
-restDocs proxy = pure md :<|> pure js :<|> pure ng
+         => HttpConfig -> Proxy (RestDocs api) -> ServerT (RestDocs' api) m
+restDocs httpCfg proxy = pure md :<|> pure js :<|> pure ng
             :<|> pure pursUtilJS :<|> pure pursUtilPurs :<|> pure . purs
   where
     md :: Docs.API
@@ -122,22 +126,34 @@ restDocs proxy = pure md :<|> pure js :<|> pure ng
             (getExtraInfo proxy)
             proxy
       where
-        intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalVersion proxy]
+        intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
 
     p :: Proxy api
     p = Proxy
 
+    source :: ST -> ST
+    source mark = ST.unlines . (ST.stripEnd . (mark <>) <$>) $
+        "" :
+        "DO NOT EDIT!  THIS IS GENERATED REST API CLIENT CODE!" :
+        "" :
+        "source package: " <> getCabalPackageName proxy :
+        "source package version: " <> (cs . show . getCabalPackageVersion $ proxy) :
+        "source uri: " <> exposeUrl httpCfg :
+        "" :
+        []
+
     js :: ST
-    js = JS.jsForAPI p JS.vanillaJS
+    js = source "// " <> JS.jsForAPI p JS.vanillaJS
 
     ng :: ST
-    ng = JS.jsForAPI p $ JS.angular JS.defAngularOptions
+    ng = source "// " <> JS.jsForAPI p (JS.angular JS.defAngularOptions)
 
     pursUtilPurs, pursUtilJS :: ST
-    (pursUtilPurs, pursUtilJS) = Purs.generatePSUtilModule Purs.defaultSettings
+    (pursUtilPurs, pursUtilJS) = case Purs.generatePSUtilModule Purs.defaultSettings of
+        (p, j) -> (source "-- " <> p, source "// " <> j)
 
     purs :: ST -> ST
-    purs moduleName = Purs.generatePSModule Purs.defaultSettings (cs moduleName) p
+    purs moduleName = source "-- " <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) p
 
 
 -- | The `servant-docs` package does offer a way to explicitly order intros (I'm not even sure if
