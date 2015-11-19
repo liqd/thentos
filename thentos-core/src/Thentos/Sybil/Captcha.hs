@@ -1,13 +1,19 @@
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
 -- | This is a port of https://hackage.haskell.org/package/hs-captcha (which is based on
 -- http://libgd.github.io/) to diagrams.  The generated strings are beautified with elocrypt.
+-- See also: https://github.com/liqd/thentos/blob/master/docs/sybil.md
 module Thentos.Sybil.Captcha where
 
+import Codec.Picture (encodePng)
 import Control.Monad.Random (MonadRandom, StdGen, mkStdGen, evalRand)
 import Data.Char (ord)
 import Data.Elocrypt (mkPasswords)
 import Data.String.Conversions (ST, cs)
+import Diagrams.Backend.Rasterific
+import Diagrams.Prelude hiding (ImageData)
+import Graphics.SVGFonts
 
 import Thentos.Types
 
@@ -24,11 +30,25 @@ random20ToStdGen :: Random20 -> StdGen
 random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
 
 mkSolution :: MonadRandom m => m ST
-mkSolution = cs . unwords . take 3 <$> mkPasswords 5
+mkSolution = cs . unwords . take 3 <$> mkPasswords 4
 
 mkChallenge :: MonadRandom m => ST -> m ImageData
-mkChallenge = error "mkChallenge"
+mkChallenge solution = ImageData . cs . encodePng . renderDia Rasterific opts
+                    <$> (distortChallenge . clear . cs $ solution)
+  where
+    opts :: Options Rasterific V2 Double
+    opts = RasterificOptions spec
 
+    spec :: SizeSpec V2 Double
+    spec = mkWidth 200
+
+    clear :: (Renderable (Path V2 Double) b)
+          => String -> QDiagram b V2 Double Any
+    clear s = (strokeP $ textSVG' (TextOpts lin2 INSIDE_H KERN False 1 1) s)
+            # lw none # fc white
+
+distortChallenge :: MonadRandom m => QDiagram b V2 Double Any -> m (QDiagram b V2 Double Any)
+distortChallenge = pure  -- FIXME: this is the interesting part.
 
 
 {-
