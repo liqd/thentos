@@ -18,7 +18,7 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Lens ((^.), (&), (<>~))
+import Control.Lens ((^.), (&), (<>~), (%~), (.~))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
 import Network.Wai (Application)
@@ -27,6 +27,7 @@ import Servant.Server (ServerT, Server, serve, enter)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
+import qualified Servant.Foreign as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -51,7 +52,7 @@ runApi cfg asg = do
 serveApi :: ActionState -> Application
 serveApi astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (pure (restDocs p) :<|> api astate)
+    in serve p (restDocs p :<|> api astate)
 
 type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
@@ -61,6 +62,7 @@ api :: ActionState -> Server Api
 api actionState@(ActionState (_, _, cfg)) =
        (\mTok -> enter (enterAction () actionState baseActionErrorToServantErr mTok) thentosBasic)
   :<|> Purs.api cfg
+
 
 -- * combinators
 
@@ -166,3 +168,21 @@ instance HasDocExtras (RestDocs Api) where
                 $ Docs.defAction & Docs.notes <>~
             [Docs.DocNote "delete a service and unregister all its users" []]
         ]
+
+
+-- * servant foreign
+
+-- | (Foreign.Elem is not exported, so we need to be slightly more restrictive.)
+instance Foreign.HasForeign (Post200 '[JSON] a) where
+    type Foreign (Post200 '[JSON] a) = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAuth :> sub) where
+    type Foreign (ThentosAuth :> sub) = Foreign.Foreign sub
+    foreignFor Proxy = Foreign.foreignFor (Proxy :: Proxy sub)
+
+instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAssertHeaders :> sub) where
+    type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
+    foreignFor Proxy = Foreign.foreignFor (Proxy :: Proxy sub)

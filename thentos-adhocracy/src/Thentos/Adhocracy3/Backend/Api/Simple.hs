@@ -92,6 +92,7 @@ import qualified Paths_thentos_adhocracy__ as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Backend.Api.Purescript
+import qualified Thentos.Backend.Api.Simple ()
 
 
 -- * data types
@@ -356,7 +357,7 @@ runBackend cfg asg = do
 serveApi :: Client.Manager -> AC.ActionState -> Application
 serveApi manager astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (pure (restDocs p) :<|> api manager astate)
+    in serve p (restDocs p :<|> api manager astate)
 
 
 -- * api

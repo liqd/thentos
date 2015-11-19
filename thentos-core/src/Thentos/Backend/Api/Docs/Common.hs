@@ -25,6 +25,7 @@ where
 import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import "cryptonite" Crypto.Random (drgNew)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
@@ -32,23 +33,31 @@ import Data.List (sort)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS)
+import Data.String.Conversions (ST, LBS, cs)
 import Data.Version (Version)
 import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
-import Servant.API (Capture, (:>), Post, Get, (:<|>), MimeRender(mimeRender))
+import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
+import Servant.API.Capture ()
 import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
+import Servant.Docs.Internal (response, respStatus)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
                      docsFor, emptyAPI)
-import Servant.Docs.Internal (API(API), response, respStatus)
+import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
+import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Servant.Docs as Docs
+import qualified Servant.Docs.Internal as Docs
+import qualified Servant.Foreign as Foreign
+import qualified Servant.JS as JS
+import qualified Servant.PureScript as Purs
 
+import System.Log.Missing (logger)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Types
@@ -63,13 +72,28 @@ import qualified Thentos.Action.Core as Action
 -- FIXME: move MimeRender, ToSample API instances and HasDocExtras class upstream to servant-docs
 
 type RestDocs api = RestDocs' api :<|> api
-type RestDocs' api = "docs" :> "md" :> Get '[PlainText] Docs.API
+type RestDocs' api = "docs" :>
+      ("md"   :> Get '[PlainText] Docs.API
+  :<|> "js"   :> Get '[PlainText] ST
+  :<|> "ng"   :> Get '[PlainText] ST
+  :<|> "purs" :> "Util.js"   :> Get '[PlainText] ST
+  :<|> "purs" :> "Util.purs" :> Get '[PlainText] ST
+  :<|> "purs" :> Capture "ModuleName" ST :> Get '[PlainText] ST)
 
-instance MimeRender PlainText API where
+instance MimeRender PlainText Docs.API where
     mimeRender _ = mimeRender (Proxy :: Proxy PlainText) . Docs.markdown
 
-instance ToSample API where
+instance ToSample Docs.API where
     toSamples _ = [("empty", emptyAPI)]
+
+instance ToSample ST where
+    toSamples _ = [("empty", "")]
+
+-- | the 'Raw' endpoint has 'Foreign', but it is @Method -> Req@, which doesn't have a
+-- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @Foreign.Method@ is
+-- not exported, we keep it polymorphic.
+instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> Foreign.Req) where
+    generateList _ = []
 
 class HasDocs api => HasDocExtras api where
     getCabalVersion :: Proxy api -> Version
@@ -81,16 +105,40 @@ class HasDocs api => HasDocExtras api where
     getExtraInfo :: Proxy api -> Docs.ExtraInfo api
     getExtraInfo _ = mempty
 
-restDocs :: forall api. (HasDocs (RestDocs api), HasDocExtras (RestDocs api))
-         => Proxy (RestDocs api) -> API
-restDocs proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
-    Docs.docsWith
-        (Docs.DocOptions 2)
-        (intro : getIntros proxy)
-        (getExtraInfo proxy)
-        proxy
+restDocs :: forall api m.
+            ( Monad m
+            , HasDocs (RestDocs api), HasDocExtras (RestDocs api)
+            , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
+            )
+         => Proxy (RestDocs api) -> ServerT (RestDocs' api) m
+restDocs proxy = pure md :<|> pure js :<|> pure ng
+            :<|> pure pursUtilJS :<|> pure pursUtilPurs :<|> pure . purs
   where
-    intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalVersion proxy]
+    md :: Docs.API
+    md = prettyMimeRender . hackTogetherSomeReasonableOrder $
+        Docs.docsWith
+            (Docs.DocOptions 2)
+            (intro : getIntros proxy)
+            (getExtraInfo proxy)
+            proxy
+      where
+        intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalVersion proxy]
+
+    p :: Proxy api
+    p = Proxy
+
+    js :: ST
+    js = JS.jsForAPI p JS.vanillaJS
+
+    ng :: ST
+    ng = JS.jsForAPI p $ JS.angular JS.defAngularOptions
+
+    pursUtilPurs, pursUtilJS :: ST
+    (pursUtilPurs, pursUtilJS) = Purs.generatePSUtilModule Purs.defaultSettings
+
+    purs :: ST -> ST
+    purs moduleName = Purs.generatePSModule Purs.defaultSettings (cs moduleName) p
+
 
 -- | The `servant-docs` package does offer a way to explicitly order intros (I'm not even sure if
 -- the implicit order is deterministic).  This function allows you to write intros with titles of
@@ -104,7 +152,7 @@ restDocs proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
 -- section numbers are ordered lexicographically, not numerically: @compare "\@\@0.1\@\@"
 -- "\@\@0\@\@" == LT@.)
 hackTogetherSomeReasonableOrder :: Docs.API -> Docs.API
-hackTogetherSomeReasonableOrder (API intros endpoints) = API (f <$> sort intros) endpoints
+hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> sort intros) endpoints
   where
     f di@(Docs.DocIntro title desc) = Docs.DocIntro (g title) desc
       where
@@ -160,6 +208,9 @@ runTokenBuilderState = unsafePerformIO $ do
 
 
 -- * instances for servant-docs
+
+instance ToCapture (Capture "ModuleName" ST) where
+    toCapture _ = DocCapture "string" "purescript module name"
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "session token for session with thentos"
@@ -249,6 +300,6 @@ instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
       => HasDocs (Post200 cts a) where
     docsFor Proxy (endpoint, action) opts =
         case docsFor (Proxy :: Proxy (Post cts a)) (endpoint, action) opts of
-            API intros singleton -> API intros $ mutate <$> singleton
+            Docs.API intros singleton -> Docs.API intros $ mutate <$> singleton
       where
         mutate = (& response . respStatus .~ 200)
