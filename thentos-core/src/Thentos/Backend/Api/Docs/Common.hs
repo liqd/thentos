@@ -25,7 +25,6 @@ where
 import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import "cryptonite" Crypto.Random (drgNew)
 import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
 import Data.Aeson.Utils (decodeV)
@@ -46,7 +45,6 @@ import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples),
                      docsFor, emptyAPI)
 import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
-import System.Log.Logger (Priority(DEBUG))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as HM
@@ -58,7 +56,6 @@ import qualified Servant.Foreign as Foreign
 import qualified Servant.JS as JS
 import qualified Servant.PureScript as Purs
 
-import System.Log.Missing (logger)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
@@ -150,7 +147,7 @@ restDocs httpCfg proxy = pure md :<|> pure js :<|> pure ng
 
     pursUtilPurs, pursUtilJS :: ST
     (pursUtilPurs, pursUtilJS) = case Purs.generatePSUtilModule Purs.defaultSettings of
-        (p, j) -> (source "-- " <> p, source "// " <> j)
+        (p_, j_) -> (source "-- " <> p_, source "// " <> j_)
 
     purs :: ST -> ST
     purs moduleName = source "-- " <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) p

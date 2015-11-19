@@ -11,7 +11,7 @@ module Thentos.Backend.Api.Docs.Proxy where
 
 import Control.Lens ((&), (%~))
 import Data.Proxy (Proxy(Proxy))
-import Servant.API ((:<|>), (:>))
+import Servant.API ((:<|>))
 import Servant.Docs (HasDocs(..))
 
 import qualified Servant.Docs as Docs
