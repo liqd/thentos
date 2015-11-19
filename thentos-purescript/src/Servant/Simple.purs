@@ -8,110 +8,110 @@ import Network.HTTP.Method
 import Network.HTTP.RequestHeader
 import Util (encodeURIComponent)
 
-postUser :: forall eff. String -> Affjax eff Foreign
-postUser body = affjax $ defaultRequest
+postUser :: forall eff. String -> String -> Affjax eff Foreign
+postUser body headerxthentossession = affjax $ defaultRequest
     { method = POST
     , url = "/user"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-postUserLogin :: forall eff. String -> Affjax eff Foreign
-postUserLogin body = affjax $ defaultRequest
+postUserLogin :: forall eff. String -> String -> Affjax eff Foreign
+postUserLogin body headerxthentossession = affjax $ defaultRequest
     { method = POST
     , url = "/user/login"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-deleteUserByUidWithUid :: forall eff. String -> Affjax eff Foreign
-deleteUserByUidWithUid uid = affjax $ defaultRequest
+deleteUserByUidWithUid :: forall eff. String -> String -> Affjax eff Foreign
+deleteUserByUidWithUid uid headerxthentossession = affjax $ defaultRequest
     { method = DELETE
     , url = "/user/" <> encodeURIComponent uid <> ""
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 
-getUserByUidNameWithUid :: forall eff. String -> Affjax eff Foreign
-getUserByUidNameWithUid uid = affjax $ defaultRequest
+getUserByUidNameWithUid :: forall eff. String -> String -> Affjax eff Foreign
+getUserByUidNameWithUid uid headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/user/" <> encodeURIComponent uid <> "/name"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 
-getUserByUidEmailWithUid :: forall eff. String -> Affjax eff Foreign
-getUserByUidEmailWithUid uid = affjax $ defaultRequest
+getUserByUidEmailWithUid :: forall eff. String -> String -> Affjax eff Foreign
+getUserByUidEmailWithUid uid headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/user/" <> encodeURIComponent uid <> "/email"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 
-postService :: forall eff. String -> Affjax eff Foreign
-postService body = affjax $ defaultRequest
+postService :: forall eff. String -> String -> Affjax eff Foreign
+postService body headerxthentossession = affjax $ defaultRequest
     { method = POST
     , url = "/service"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-deleteServiceBySidWithSid :: forall eff. String -> Affjax eff Foreign
-deleteServiceBySidWithSid sid = affjax $ defaultRequest
+deleteServiceBySidWithSid :: forall eff. String -> String -> Affjax eff Foreign
+deleteServiceBySidWithSid sid headerxthentossession = affjax $ defaultRequest
     { method = DELETE
     , url = "/service/" <> encodeURIComponent sid <> ""
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 
-getService :: forall eff. Affjax eff Foreign
-getService = affjax $ defaultRequest
+getService :: forall eff. String -> Affjax eff Foreign
+getService headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/service"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 
-postThentos_session :: forall eff. String -> Affjax eff Foreign
-postThentos_session body = affjax $ defaultRequest
+postThentos_session :: forall eff. String -> String -> Affjax eff Foreign
+postThentos_session body headerxthentossession = affjax $ defaultRequest
     { method = POST
     , url = "/thentos_session"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-getThentos_session :: forall eff. String -> Affjax eff Foreign
-getThentos_session body = affjax $ defaultRequest
+getThentos_session :: forall eff. String -> String -> Affjax eff Foreign
+getThentos_session body headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/thentos_session"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-deleteThentos_session :: forall eff. String -> Affjax eff Foreign
-deleteThentos_session body = affjax $ defaultRequest
+deleteThentos_session :: forall eff. String -> String -> Affjax eff Foreign
+deleteThentos_session body headerxthentossession = affjax $ defaultRequest
     { method = DELETE
     , url = "/thentos_session"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-getService_session :: forall eff. String -> Affjax eff Foreign
-getService_session body = affjax $ defaultRequest
+getService_session :: forall eff. String -> String -> Affjax eff Foreign
+getService_session body headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/service_session"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-getService_sessionMeta :: forall eff. String -> Affjax eff Foreign
-getService_sessionMeta body = affjax $ defaultRequest
+getService_sessionMeta :: forall eff. String -> String -> Affjax eff Foreign
+getService_sessionMeta body headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/service_session/meta"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 
-deleteService_session :: forall eff. String -> Affjax eff Foreign
-deleteService_session body = affjax $ defaultRequest
+deleteService_session :: forall eff. String -> String -> Affjax eff Foreign
+deleteService_session body headerxthentossession = affjax $ defaultRequest
     { method = DELETE
     , url = "/service_session"
-    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json"]
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
 

@@ -19,7 +19,9 @@
 module Thentos.Backend.Api.Simple where
 
 import Control.Lens ((^.), (&), (<>~), (%~), (.~))
+import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.Void (Void)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
@@ -179,9 +181,13 @@ instance Foreign.HasForeign (Post200 '[JSON] a) where
         req & Foreign.funcName  %~ ("post200" :)
             & Foreign.reqMethod .~ "POST"
 
+-- FIXME: move this to module "Auth".
 instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAuth :> sub) where
     type Foreign (ThentosAuth :> sub) = Foreign.Foreign sub
-    foreignFor Proxy = Foreign.foreignFor (Proxy :: Proxy sub)
+    foreignFor Proxy req = Foreign.foreignFor (Proxy :: Proxy sub) $ req
+            & Foreign.reqHeaders <>~
+                [Foreign.HeaderArg . cs . foldedCase $
+                    renderThentosHeaderName ThentosHeaderSession]
 
 instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAssertHeaders :> sub) where
     type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
