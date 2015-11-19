@@ -138,6 +138,9 @@ library
     , servant ==0.5
     , servant-blaze ==0.5
     , servant-docs ==0.5
+    , servant-foreign ==0.5
+    , servant-js ==0.5
+    , servant-purescript ==0.1
     , servant-server ==0.5
     , servant-session ==0.5
     , string-conversions >=0.4 && <0.5
