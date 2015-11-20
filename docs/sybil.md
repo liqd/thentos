@@ -15,7 +15,7 @@ counter such attacks.
 ## Captchas
 
 Captchas are a tool for a web server to distinguish an algorithm from
-a human.  This is not directly a sybil attack countermeasuer (the same
+a human.  This is not directly a sybil attack countermeasure (the same
 human will still be a human if she registers twice), but some sybil
 attacks are launched by bot nets.
 
@@ -49,7 +49,7 @@ between the two.
 
 ## Looking for patterns in registration traffic and blacklists
 
-If, say, there are hundrets of emails creating accounts on the same
+If, say, there are hundreds of emails creating accounts on the same
 afternoon, and they all have the form `anon<a-few-digits>@yahoo.com`,
 then something is probably going wrong.
 
@@ -65,7 +65,7 @@ the analysis happens off-line with either office or scripting tools of
 your choice.
 
 If the analyst decides that there is a sybil attack, there two
-counter-measures are supported:
+countermeasures are supported:
 
     1. you can upload a blacklist of email addresses that are not
        accepted for user registration.  registration attempts from
@@ -82,6 +82,9 @@ counter-measures are supported:
     2. registration can be disallowed completely; either indefinitely
        (to be manually re-enabled), or for a pre-set time interval in
        hours or minutes.  *end-point: /blacklist/register/global*
+
+A web UI for managing analytics and blacklists is intended, but not
+scheduled for implementation yet.
 
 
 ## Other approaches (future work)
