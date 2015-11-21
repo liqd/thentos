@@ -30,7 +30,9 @@ random20ToStdGen :: Random20 -> StdGen
 random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
 
 mkSolution :: MonadRandom m => m ST
-mkSolution = cs . unwords . take 3 <$> mkPasswords 4
+mkSolution = cs . unwords <$> (sequence . replicate 3 $ mkPassword 4)
+  -- Use 'mkPassphrase' here once https://github.com/sgillespie/elocrypt/pull/5 is on hackage.  Do
+  -- not use `mkPasswords` unless https://github.com/sgillespie/elocrypt/pull/6 has been addressed.
 
 mkChallenge :: MonadRandom m => ST -> m ImageData
 mkChallenge solution = ImageData . cs . encodePng . renderDia Rasterific opts
