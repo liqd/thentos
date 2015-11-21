@@ -5,27 +5,19 @@
 
 module Thentos.Sybil.CaptchaSpec where
 
-import Control.Monad.IO.Class
-import Data.Aeson (decode, FromJSON)
-import Data.Pool (Pool)
-import Data.String.Conversions (SBS, cs)
-import Database.PostgreSQL.Simple (Connection, Only(..))
-import Database.PostgreSQL.Simple.SqlQQ (sql)
-import GHC.Generics (Generic)
-import LIO (canFlowTo, lub, glb)
-import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
-import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, SpecWith, before, context, describe, it, shouldBe, shouldNotBe)
-import Test.QuickCheck (property)
+import Control.Concurrent (forkIO)
+import Data.String.Conversions (cs)
+import System.IO (hFlush, hClose)
+import System.Process (runInteractiveCommand, system)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldNotBe)
+import Data.Word8
+import Control.Monad.Random
 
 import qualified Data.ByteString as SBS
 
 import Thentos.Sybil.Captcha
 import Thentos.Types
 
-import Thentos.Test.Arbitrary ()
-import Thentos.Test.Core
-import Thentos.Test.Transaction
 
 spec :: Spec
 spec = describe "Thentos.Sybil.Captcha" $ do
@@ -39,7 +31,23 @@ spec = describe "Thentos.Sybil.Captcha" $ do
         snd x `shouldNotBe` snd y
 
     it "writes pngs" $ do
-        let Just x = generateCaptcha <$> mkRandom20 "-------------------8"
-            binary :: SBS = fromImageData $ fst x
-        liftIO $ SBS.writeFile "/tmp/captcha.png" binary
-        SBS.length binary `shouldNotBe` 0
+        (img, _) <- generateCaptcha <$> mkRandom20'
+        previewImg img
+
+
+mkRandom20' :: IO Random20
+mkRandom20' = do
+    seed <- sequence $ replicate 20 (getRandom :: IO Word8)
+    case mkRandom20 $ SBS.pack seed of
+        Just r  -> return r
+        Nothing -> error "mkRandom20': unreached."
+
+previewImg :: ImageData -> IO ()
+previewImg (ImageData img) = do
+    _ <- forkIO $ do
+        _ <- system "killall feh 2>/dev/null"
+        (i, _, _, _) <- runInteractiveCommand "feh -"
+        SBS.hPutStr i img
+        hFlush i
+        hClose i
+    SBS.length img `shouldNotBe` 0
