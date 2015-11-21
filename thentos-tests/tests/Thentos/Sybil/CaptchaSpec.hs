@@ -1,17 +1,18 @@
-{-# LANGUAGE DeriveGeneric                            #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE QuasiQuotes                              #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Thentos.Sybil.CaptchaSpec where
 
+import Codec.Picture (decodePng)
 import Control.Concurrent (forkIO)
+import Control.Monad.Random (getRandom)
+import Control.Monad (when, void)
+import Data.Either (isRight)
 import Data.String.Conversions (cs)
+import Data.Word8 (Word8)
 import System.IO (hFlush, hClose)
 import System.Process (runInteractiveCommand, system)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldNotBe)
-import Data.Word8
-import Control.Monad.Random
 
 import qualified Data.ByteString as SBS
 
@@ -32,19 +33,20 @@ spec = describe "Thentos.Sybil.Captcha" $ do
 
     it "writes pngs" $ do
         (img, _) <- generateCaptcha <$> mkRandom20'
-        previewImg img
+        previewImg False img
+        (isRight . decodePng . fromImageData $ img) `shouldBe` True
 
 
 mkRandom20' :: IO Random20
 mkRandom20' = do
-    seed <- sequence $ replicate 20 (getRandom :: IO Word8)
+    seed <- replicate 20 (getRandom :: IO Word8)
     case mkRandom20 $ SBS.pack seed of
         Just r  -> return r
         Nothing -> error "mkRandom20': unreached."
 
-previewImg :: ImageData -> IO ()
-previewImg (ImageData img) = do
-    _ <- forkIO $ do
+previewImg :: Bool -> ImageData -> IO ()
+previewImg interactiveDevelopment (ImageData img) = do
+    when interactiveDevelopment . void . forkIO $ do
         _ <- system "killall feh 2>/dev/null"
         (i, _, _, _) <- runInteractiveCommand "feh -"
         SBS.hPutStr i img
