@@ -1,0 +1,31 @@
+digraph "Levels within LIO.Missing" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=dcBottom
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        2 [label=dcTop
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label=guardWriteOk
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=tryGuardWrite
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        5 [label=tryTaint
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    3 -> 4 [penwidth=1
+           ,color=chartreuse];
+}

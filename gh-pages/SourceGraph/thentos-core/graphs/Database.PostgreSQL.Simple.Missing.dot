@@ -1,0 +1,36 @@
+digraph "Diagram of: Database.PostgreSQL.Simple.Missing" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_T {
+        graph [label="Data: T"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=T
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    2 [label=interval
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    3 [label=intervalSeconds
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=seconds
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    5 [label=twoDigits
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 -> 4 [penwidth=1,color=black];
+    2 -> 5 [penwidth=1,color=black];
+    3 -> 2 [penwidth=1
+           ,color=chartreuse];
+    4 -> 1 [penwidth=2.386294361119891
+           ,color=black];
+    4 -> 5 [penwidth=1,color=black];
+}

@@ -1,0 +1,271 @@
+digraph "Import visualisation" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Database {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Database];
+        subgraph cluster_PostgreSQL {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=PostgreSQL];
+            subgraph cluster_Simple {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Simple];
+                1 [label=Missing
+                  ,fillcolor=cyan
+                  ,shape=tab];
+            }
+        }
+    }
+    subgraph cluster_LIO {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=LIO];
+        2 [label=Missing
+          ,fillcolor=cyan
+          ,shape=tab];
+    }
+    subgraph cluster_Paths {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Paths];
+        3 [label=TH
+          ,fillcolor=crimson
+          ,shape=tab];
+    }
+    subgraph cluster_System {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=System];
+        subgraph cluster_Log {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Log];
+            4 [label=Missing
+              ,fillcolor=cyan
+              ,shape=tab];
+        }
+    }
+    subgraph cluster_Thentos {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Thentos];
+        subgraph cluster_Action {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Action];
+            7 [label=Core
+              ,fillcolor=bisque
+              ,shape=tab];
+            8 [label=SimpleAuth
+              ,fillcolor=bisque
+              ,shape=tab];
+            9 [label=Unsafe
+              ,fillcolor=bisque
+              ,shape=tab];
+        }
+        subgraph cluster_Backend {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Backend];
+            subgraph cluster_Api {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Api];
+                subgraph cluster_Docs {
+                    graph [fillcolor=snow
+                          ,style=filled
+                          ,label=Docs];
+                    11 [label=Common
+                       ,fillcolor=bisque
+                       ,shape=tab];
+                    12 [label=Proxy
+                       ,fillcolor=crimson
+                       ,shape=tab];
+                }
+                10 [label=Auth
+                   ,fillcolor=bisque
+                   ,shape=tab];
+                13 [label=Proxy
+                   ,fillcolor=crimson
+                   ,shape=tab];
+                14 [label=Purescript
+                   ,fillcolor=bisque
+                   ,shape=tab];
+                15 [label=Simple
+                   ,fillcolor=bisque
+                   ,shape=tab];
+            }
+            16 [label=Core
+               ,fillcolor=bisque
+               ,shape=tab];
+        }
+        subgraph cluster_Frontend {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Frontend];
+            subgraph cluster_Handlers {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Handlers];
+                20 [label=Combinators
+                   ,fillcolor=bisque
+                   ,shape=tab];
+            }
+            19 [label=Handlers
+               ,fillcolor=bisque
+               ,shape=tab];
+            21 [label=Pages
+               ,fillcolor=bisque
+               ,shape=tab];
+            22 [label=State
+               ,fillcolor=bisque
+               ,shape=tab];
+            23 [label=TH
+               ,fillcolor=cyan
+               ,shape=tab];
+            24 [label=Types
+               ,fillcolor=bisque
+               ,shape=tab];
+        }
+        subgraph cluster_Sybil {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Sybil];
+            26 [label=Captcha
+               ,fillcolor=bisque
+               ,shape=tab];
+        }
+        6 [label=Action
+          ,fillcolor=bisque
+          ,shape=tab];
+        17 [label=Config
+           ,fillcolor=bisque
+           ,shape=tab];
+        18 [label=Frontend
+           ,fillcolor=bisque
+           ,shape=tab];
+        25 [label=Smtp
+           ,fillcolor=bisque
+           ,shape=tab];
+        27 [label=Transaction
+           ,fillcolor=bisque
+           ,shape=tab];
+        28 [label=Types
+           ,fillcolor=bisque
+           ,shape=tab];
+    }
+    5 [label=Thentos
+      ,fillcolor=gold
+      ,shape=tab];
+    5 -> 4 [color=black];
+    5 -> 6 [color=black];
+    5 -> 7 [color=black];
+    5 -> 15 [color=black];
+    5 -> 17 [color=black];
+    5 -> 18 [color=black];
+    5 -> 25 [color=black];
+    5 -> 27 [color=black];
+    5 -> 28 [color=black];
+    6 -> 2 [color=black];
+    6 -> 7 [color=black];
+    6 -> 8 [color=black];
+    6 -> 26 [color=black];
+    6 -> 27 [color=black];
+    6 -> 28 [color=black];
+    7 -> 2 [color=black];
+    7 -> 4 [color=black];
+    7 -> 17 [color=black];
+    7 -> 25 [color=black];
+    7 -> 27 [color=black];
+    7 -> 28 [color=black];
+    8 -> 2 [color=black];
+    8 -> 7 [color=black];
+    8 -> 28 [color=black];
+    9 -> 4 [color=black];
+    9 -> 7 [color=black];
+    9 -> 8 [color=black];
+    9 -> 17 [color=black];
+    9 -> 25 [color=black];
+    9 -> 28 [color=black];
+    10 -> 16 [color=black];
+    10 -> 28 [color=black];
+    11 -> 2 [color=black];
+    11 -> 6 [color=black];
+    11 -> 7 [color=black];
+    11 -> 10 [color=black];
+    11 -> 16 [color=black];
+    11 -> 17 [color=black];
+    11 -> 28 [color=black];
+    12 -> 11 [color=black];
+    12 -> 13 [color=black];
+    13 -> 4 [color=black];
+    13 -> 6 [color=black];
+    13 -> 7 [color=black];
+    13 -> 16 [color=black];
+    13 -> 17 [color=black];
+    13 -> 28 [color=black];
+    14 -> 17 [color=black];
+    15 -> 4 [color=black];
+    15 -> 6 [color=black];
+    15 -> 7 [color=black];
+    15 -> 10 [color=black];
+    15 -> 11 [color=black];
+    15 -> 14 [color=black];
+    15 -> 16 [color=black];
+    15 -> 17 [color=black];
+    15 -> 28 [color=black];
+    16 -> 4 [color=black];
+    16 -> 7 [color=black];
+    16 -> 17 [color=black];
+    16 -> 28 [color=black];
+    17 -> 4 [color=black];
+    17 -> 28 [color=black];
+    18 -> 4 [color=black];
+    18 -> 7 [color=black];
+    18 -> 16 [color=black];
+    18 -> 17 [color=black];
+    18 -> 19 [color=black];
+    18 -> 20 [color=black];
+    18 -> 22 [color=black];
+    18 -> 23 [color=black];
+    18 -> 24 [color=black];
+    19 -> 6 [color=black];
+    19 -> 7 [color=black];
+    19 -> 8 [color=black];
+    19 -> 9 [color=black];
+    19 -> 16 [color=black];
+    19 -> 20 [color=black];
+    19 -> 21 [color=black];
+    19 -> 22 [color=black];
+    19 -> 24 [color=black];
+    19 -> 28 [color=black];
+    20 -> 6 [color=black];
+    20 -> 8 [color=black];
+    20 -> 9 [color=black];
+    20 -> 17 [color=black];
+    20 -> 21 [color=black];
+    20 -> 22 [color=black];
+    20 -> 24 [color=black];
+    20 -> 28 [color=black];
+    21 -> 24 [color=black];
+    21 -> 28 [color=black];
+    22 -> 7 [color=black];
+    22 -> 8 [color=black];
+    22 -> 9 [color=black];
+    22 -> 16 [color=black];
+    22 -> 17 [color=black];
+    22 -> 21 [color=black];
+    22 -> 24 [color=black];
+    22 -> 28 [color=black];
+    24 -> 7 [color=black];
+    24 -> 28 [color=black];
+    25 -> 4 [color=black];
+    25 -> 17 [color=black];
+    25 -> 28 [color=black];
+    26 -> 28 [color=black];
+    27 -> 28 [color=black];
+    28 -> 1 [color=chartreuse];
+}

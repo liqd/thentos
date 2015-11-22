@@ -1,0 +1,38 @@
+MonadRandom library.
+Copyright 2006-2007 Cale Gibbard.  All rights reserved.
+Copyright 2006 Russell O'Connor, Dan Doel, Remi Turk.  All rights reserved.
+Copyright 2007 Eric Kidd.  All rights reserved.
+
+[This code was originally posted by Cale Gibbard to the Haskell Wiki,
+remnants of which can be seen at:
+
+http://web.archive.org/web/20070615071737/http://haskell.org/hawiki/MonadRandom
+
+This code was relicensed from a 2-clause BSD license to the license below
+by Cale Gibbard's statement at:
+
+http://www.haskell.org/haskellwiki/User:CaleGibbard
+
+The code was then moved to:
+
+http://www.haskell.org/haskellwiki/NewMonads/MonadRandom
+
+New additions by several people were provided under the implicit license at:
+
+http://www.haskell.org/haskellwiki/HaskellWiki:Copyrights
+
+So, in theory, this license should apply to everything in this library.]
+
+Permission is hereby granted, free of charge, to any person obtaining this
+work (the "Work"), to deal in the Work without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Work, and to permit
+persons to whom the Work is furnished to do so.
+
+THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS IN
+THE WORK.

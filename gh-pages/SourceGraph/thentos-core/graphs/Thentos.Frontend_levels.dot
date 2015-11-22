@@ -1,0 +1,44 @@
+digraph "Levels within Thentos.Frontend" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        2 [label=runFrontend
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=frontendH
+          ,shape=box
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+    }
+    subgraph cluster_2 {
+        graph [label="Level = 2"
+              ,style=filled
+              ,fillcolor=lavender];
+        3 [label=serviceH
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+        4 [label=staticContent
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+        5 [label=userH
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    1 -> 3 [penwidth=1,color=black];
+    1 -> 4 [penwidth=1,color=black];
+    1 -> 5 [penwidth=1,color=black];
+    2 -> 1 [penwidth=1
+           ,color=chartreuse];
+}

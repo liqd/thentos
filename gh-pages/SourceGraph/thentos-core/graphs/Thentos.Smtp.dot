@@ -1,0 +1,25 @@
+digraph "Diagram of: Thentos.Smtp" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Data_SendmailError {
+        graph [label="Data: SendmailError"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=SendmailError
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    2 [label=checkSendmail
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    3 [label=sendMail
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 -> 3 [penwidth=1
+           ,color=chartreuse];
+    3 -> 1 [penwidth=1
+           ,color=chartreuse];
+}

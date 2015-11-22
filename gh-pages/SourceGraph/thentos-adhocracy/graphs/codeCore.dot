@@ -1,0 +1,50 @@
+digraph "Overall core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_RequestResult {
+            graph [label="Instance for: RequestResult"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            54 [label="Thentos.Adhocracy3.Backend.Api.Simple\nparseJSON"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        121 [label="Unknown Module\nparseJSON"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_RequestResult {
+            graph [label="Instance for: RequestResult"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            76 [label="Thentos.Adhocracy3.Backend.Api.Simple\ntoJSON"
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,solid"];
+        }
+        124 [label="Unknown Module\ntoJSON"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    54 -> 121 [penwidth=1
+              ,color=black];
+    76 -> 124 [penwidth=1
+              ,color=black];
+    121 -> 54 [penwidth=1
+              ,color=navy
+              ,dir=none];
+    124 -> 76 [penwidth=1.6931471805599454
+              ,color=navy
+              ,dir=none];
+}

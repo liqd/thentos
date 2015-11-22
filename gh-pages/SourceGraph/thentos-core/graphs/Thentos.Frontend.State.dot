@@ -1,0 +1,61 @@
+digraph "Diagram of: Thentos.Frontend.State" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    1 [label=cookieFromFSession
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 [label=cookieName
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    3 [label=cookieNameValid
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    4 [label=cookieToFSession
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    5 [label=crash
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    6 [label=enterFAction
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    7 [label=fActionServantErr
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    8 [label=getFrontendCfg
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    9 [label=serveFAction
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    10 [label=setCookie
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    11 [label=thentosSessionMiddleware
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    2 -> 3 [penwidth=1,color=black];
+    2 -> 10 [penwidth=1
+            ,color=black];
+    6 -> 1 [penwidth=1,color=black];
+    6 -> 4 [penwidth=1,color=black];
+    6 -> 7 [penwidth=1,color=black];
+    9 -> 6 [penwidth=1,color=black];
+    9 -> 11 [penwidth=1
+            ,color=black];
+    11 -> 2 [penwidth=1
+            ,color=black];
+    11 -> 10 [penwidth=1
+             ,color=black];
+}

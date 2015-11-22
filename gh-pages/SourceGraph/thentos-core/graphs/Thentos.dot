@@ -1,0 +1,34 @@
+digraph "Diagram of: Thentos" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    1 [label=autocreateMissingServices
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 [label=createConnPoolAndInitDb
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    3 [label=createDefaultUser
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    4 [label=main
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    5 [label=makeMain
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    6 [label=runGcLoop
+      ,shape=box
+      ,fillcolor=cyan
+      ,style="filled,bold"];
+    4 -> 5 [penwidth=1
+           ,color=chartreuse];
+    5 -> 1 [penwidth=1,color=black];
+    5 -> 2 [penwidth=1,color=black];
+    5 -> 3 [penwidth=1,color=black];
+    5 -> 6 [penwidth=1,color=black];
+}

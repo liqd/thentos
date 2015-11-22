@@ -1,0 +1,408 @@
+<h2 id="the-thentos-api-family-core">The thentos API family: Core</h2>
+<p>Version {versionBranch = [0,0,1,1], versionTags = []}</p>
+<h2 id="overview">Overview</h2>
+<p><code>Core</code> is a simple, general-purpose user management protocol that supports using one identity for multiple services. It has all the expected basic features like email confirmation, password reset, change of user data. Furthermore, it allows to create services, register users with services, and manage the user's service login sessions.</p>
+<h2 id="request-headers">Request Headers</h2>
+<p>If a request has an unknown header with prefix &quot;X-Thentos-&quot;.</p>
+<h2 id="authentication">Authentication</h2>
+<p>To call any of this API's endpoints as a User or Service, your request has to contain an HTTP header with the name 'X-Thentos-Session' and with the value set to a valid session token.</p>
+<h2 id="get-docsjs">GET /docs/js</h2>
+<h4 id="response">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docsmd">GET /docs/md</h2>
+<h4 id="response-1">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docsng">GET /docs/ng</h2>
+<h4 id="response-2">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursmodulename">GET /docs/purs/:ModuleName</h2>
+<h4 id="captures">Captures:</h4>
+<ul>
+<li><em>string</em>: purescript module name</li>
+</ul>
+<h4 id="response-3">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursutil.js">GET /docs/purs/Util.js</h2>
+<h4 id="response-4">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursutil.purs">GET /docs/purs/Util.purs</h2>
+<h4 id="response-5">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-js">GET /js</h2>
+<h4 id="response-6">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>No response body</p></li>
+</ul>
+<h2 id="get-service">GET /service</h2>
+<h4 id="delete-a-service-and-unregister-all-its-users">delete a service and unregister all its users</h4>
+<h4 id="response-7">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<ul>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[
+    {
+        <span class="st">&quot;fromServiceId&quot;</span>: <span class="st">&quot;S6F4dLfwPiR6NcsrKjgHJBYh&quot;</span>
+    }
+]</code></pre>
+<h2 id="post-service">POST /service</h2>
+<h4 id="request">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[
+    <span class="dv">12</span>,
+    {
+        <span class="st">&quot;fromServiceName&quot;</span>: <span class="st">&quot;Evil Corp.&quot;</span>
+    },
+    {
+        <span class="st">&quot;fromServiceDescription&quot;</span>: <span class="st">&quot;Making the worse a little better every day.&quot;</span>
+    }
+]</code></pre>
+<h4 id="response-8">Response:</h4>
+<ul>
+<li>Status code 201</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[
+    {
+        <span class="st">&quot;fromServiceId&quot;</span>: <span class="st">&quot;S6F4dLfwPiR6NcsrKjgHJBYh&quot;</span>
+    },
+    {
+        <span class="st">&quot;fromServiceKey&quot;</span>: <span class="st">&quot;HeU3QCNovwDDgbAqbb+tW1e2&quot;</span>
+    }
+]</code></pre>
+<h2 id="delete-servicesid">DELETE /service/:sid</h2>
+<h4 id="captures-1">Captures:</h4>
+<ul>
+<li><em>sid</em>: service ID</li>
+</ul>
+<h4 id="response-9">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="delete-service_session">DELETE /service_session</h2>
+<h4 id="request-1">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;fromServiceSessionToken&quot;</span>: <span class="st">&quot;kvs8FFo6aisUAX+p4ESMMO5Q&quot;</span>
+}</code></pre>
+<h4 id="response-10">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="get-service_session">GET /service_session</h2>
+<h4 id="request-2">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;fromServiceSessionToken&quot;</span>: <span class="st">&quot;kvs8FFo6aisUAX+p4ESMMO5Q&quot;</span>
+}</code></pre>
+<h4 id="response-11">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">false</span></code></pre>
+<ul>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">true</span></code></pre>
+<h2 id="get-service_sessionmeta">GET /service_session/meta</h2>
+<h4 id="request-3">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;fromServiceSessionToken&quot;</span>: <span class="st">&quot;kvs8FFo6aisUAX+p4ESMMO5Q&quot;</span>
+}</code></pre>
+<h4 id="response-12">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;srvSessMdUser&quot;</span>: <span class="st">&quot;alice&quot;</span>
+}</code></pre>
+<h2 id="delete-thentos_session">DELETE /thentos_session</h2>
+<h4 id="request-4">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;gFfrBSRVY2s415QIEs+xcS9n&quot;</span></code></pre>
+<h4 id="response-13">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="get-thentos_session">GET /thentos_session</h2>
+<h4 id="request-5">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;gFfrBSRVY2s415QIEs+xcS9n&quot;</span></code></pre>
+<h4 id="response-14">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">false</span></code></pre>
+<ul>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="kw">true</span></code></pre>
+<h2 id="post-thentos_session">POST /thentos_session</h2>
+<h4 id="request-6">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;user&quot;</span>: [
+        <span class="dv">12</span>,
+        <span class="st">&quot;secret&quot;</span>
+    ]
+}</code></pre>
+<h4 id="response-15">Response:</h4>
+<ul>
+<li>Status code 201</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;gFfrBSRVY2s415QIEs+xcS9n&quot;</span></code></pre>
+<h2 id="post-user">POST /user</h2>
+<h4 id="request-7">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;udEmail&quot;</span>: <span class="st">&quot;alice@example.com&quot;</span>,
+    <span class="st">&quot;udName&quot;</span>: <span class="st">&quot;alice&quot;</span>,
+    <span class="st">&quot;udPassword&quot;</span>: <span class="st">&quot;secret&quot;</span>
+}</code></pre>
+<h4 id="response-16">Response:</h4>
+<ul>
+<li>Status code 201</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="dv">12</span></code></pre>
+<h2 id="delete-useruid">DELETE /user/:uid</h2>
+<h4 id="captures-2">Captures:</h4>
+<ul>
+<li><em>uid</em>: user ID</li>
+</ul>
+<h4 id="response-17">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">[]</code></pre>
+<h2 id="get-useruidemail">GET /user/:uid/email</h2>
+<h4 id="captures-3">Captures:</h4>
+<ul>
+<li><em>uid</em>: user ID</li>
+</ul>
+<h4 id="response-18">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;alice@example.com&quot;</span></code></pre>
+<h2 id="get-useruidname">GET /user/:uid/name</h2>
+<h4 id="captures-4">Captures:</h4>
+<ul>
+<li><em>uid</em>: user ID</li>
+</ul>
+<h4 id="response-19">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;alice&quot;</span></code></pre>
+<h2 id="post-userlogin">POST /user/login</h2>
+<h4 id="request-8">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;ldName&quot;</span>: <span class="st">&quot;alice&quot;</span>,
+    <span class="st">&quot;ldPassword&quot;</span>: <span class="st">&quot;secret&quot;</span>
+}</code></pre>
+<h4 id="response-20">Response:</h4>
+<ul>
+<li>Status code 201</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Response body as below.</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript"><span class="st">&quot;gFfrBSRVY2s415QIEs+xcS9n&quot;</span></code></pre>

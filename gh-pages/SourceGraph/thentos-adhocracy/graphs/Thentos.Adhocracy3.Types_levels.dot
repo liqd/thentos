@@ -1,0 +1,70 @@
+digraph "Levels within Thentos.Adhocracy3.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: ThentosA3Error"
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label="Data: A3Error"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        4 [label="Data: A3ErrorMessage"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        17 [label="Data.Aeson\nClass: FromJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+        18 [label="Data.Aeson\nClass: ToJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        13 [label="Class: FromJSON, Data: A3Error"
+           ,shape=octagon
+           ,fillcolor=bisque
+           ,style="filled,bold"];
+        14 [label="Class: FromJSON, Data: A3ErrorMessage"
+           ,shape=octagon
+           ,fillcolor=bisque
+           ,style="filled,bold"];
+        15 [label="Class: ToJSON, Data: A3Error"
+           ,shape=octagon
+           ,fillcolor=bisque
+           ,style="filled,bold"];
+        16 [label="Class: ToJSON, Data: A3ErrorMessage"
+           ,shape=octagon
+           ,fillcolor=bisque
+           ,style="filled,bold"];
+    }
+    13 -> 3 [penwidth=1
+            ,color=black];
+    14 -> 4 [penwidth=1
+            ,color=black];
+    15 -> 3 [penwidth=2.09861228866811
+            ,color=black];
+    16 -> 4 [penwidth=1
+            ,color=black];
+    17 -> 13 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    17 -> 14 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    18 -> 15 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    18 -> 16 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

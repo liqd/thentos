@@ -1,0 +1,40 @@
+digraph "Import visualisation" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Thentos {
+        graph [fillcolor=lavender
+              ,style=filled
+              ,label=Thentos];
+        subgraph cluster_Adhocracy3 {
+            graph [fillcolor=snow
+                  ,style=filled
+                  ,label=Adhocracy3];
+            subgraph cluster_Backend {
+                graph [fillcolor=lavender
+                      ,style=filled
+                      ,label=Backend];
+                subgraph cluster_Api {
+                    graph [fillcolor=snow
+                          ,style=filled
+                          ,label=Api];
+                    2 [label=Simple
+                      ,fillcolor=bisque
+                      ,shape=tab];
+                }
+                3 [label=Core
+                  ,fillcolor=bisque
+                  ,shape=tab];
+            }
+            4 [label=Types
+              ,fillcolor=cyan
+              ,shape=tab];
+        }
+        1 [label=Adhocracy3
+          ,fillcolor=gold
+          ,shape=tab];
+    }
+    1 -> 2 [color=chartreuse];
+    2 -> 3 [color=black];
+    2 -> 4 [color=black];
+    3 -> 4 [color=black];
+}

@@ -1,0 +1,50 @@
+digraph "Core of Thentos.Adhocracy3.Backend.Api.Simple" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_RequestResult {
+            graph [label="Instance for: RequestResult"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            53 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        95 [label="Unknown Module\nparseJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_RequestResult {
+            graph [label="Instance for: RequestResult"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            75 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        98 [label="Unknown Module\ntoJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    53 -> 95 [penwidth=1
+             ,color=black];
+    75 -> 98 [penwidth=1
+             ,color=black];
+    95 -> 53 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    98 -> 75 [penwidth=1.6931471805599454
+             ,color=navy
+             ,dir=none];
+}

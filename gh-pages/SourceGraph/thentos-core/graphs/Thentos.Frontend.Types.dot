@@ -1,0 +1,446 @@
+digraph "Diagram of: Thentos.Frontend.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Accept {
+        graph [label="Class: Accept"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Accept_Data_PrettyHTML {
+            graph [label="Instance for: PrettyHTML"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            25 [label=contentType
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_Accept_Data_TextCss {
+            graph [label="Instance for: TextCss"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            26 [label=contentType
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        46 [label="Unknown Module\ncontentType"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_DashboardTab {
+            graph [label="Instance for: DashboardTab"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            35 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_FrontendMsg {
+            graph [label="Instance for: FrontendMsg"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            36 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_FrontendSessionData {
+            graph [label="Instance for: FrontendSessionData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            37 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_FrontendSessionLoginData {
+            graph [label="Instance for: FrontendSessionLoginData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            38 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_FromJSON_Data_ServiceLoginState {
+            graph [label="Instance for: ServiceLoginState"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            39 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        48 [label="Unknown Module\nparseJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MimeRender {
+        graph [label="Class: MimeRender"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MimeRender_Data_PrettyHTMLHtml {
+            graph [label="Instance for: PrettyHTML Html"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            28 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_PrettyHTMLa {
+            graph [label="Instance for: PrettyHTML a"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            29 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_TextCssLBS {
+            graph [label="Instance for: TextCss LBS"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            30 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_TextCssLT {
+            graph [label="Instance for: TextCss LT"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            31 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_TextCssSBS {
+            graph [label="Instance for: TextCss SBS"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            32 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_TextCssST {
+            graph [label="Instance for: TextCss ST"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            33 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_MimeRender_Data_TextCssString {
+            graph [label="Instance for: TextCss String"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            34 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        47 [label="Unknown Module\nmimeRender"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_DashboardTab {
+            graph [label="Instance for: DashboardTab"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            41 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_FrontendMsg {
+            graph [label="Instance for: FrontendMsg"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            42 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_FrontendSessionData {
+            graph [label="Instance for: FrontendSessionData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            43 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_FrontendSessionLoginData {
+            graph [label="Instance for: FrontendSessionLoginData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            44 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToJSON_Data_ServiceLoginState {
+            graph [label="Instance for: ServiceLoginState"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            45 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        49 [label="Unknown Module\ntoJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Data_DashboardTab {
+        graph [label="Data: DashboardTab"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=DashboardTabDetails
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        2 [label=DashboardTabLogout
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label=DashboardTabOwnServices
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=DashboardTabServices
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=DashboardTabUsers
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+    }
+    subgraph cluster_Data_FActionError {
+        graph [label="Data: FActionError"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        6 [label=FActionError303
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        7 [label=FActionError404
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        8 [label=FActionError500
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        9 [label=FActionErrorCreateService
+          ,shape=box3d
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        10 [label=FActionErrorNoToken
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        11 [label=FActionErrorServiceLoginNoCbUrl
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_FrontendMsg {
+        graph [label="Data: FrontendMsg"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        12 [label=FrontendMsgError
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        13 [label=FrontendMsgSuccess
+           ,shape=box3d
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_FrontendSessionData {
+        graph [label="Data: FrontendSessionData"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        14 [label=FrontendSessionData
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        17 [label=_fsdLogin
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        18 [label=_fsdMessages
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        19 [label=_fsdServiceLoginState
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_FrontendSessionLoginData {
+        graph [label="Data: FrontendSessionLoginData"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        15 [label=FrontendSessionLoginData
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        20 [label=_fslDashboardTab
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        23 [label=_fslToken
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        24 [label=_fslUserId
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Data_ServiceLoginState {
+        graph [label="Data: ServiceLoginState"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        16 [label=ServiceLoginState
+           ,shape=box3d
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        21 [label=_fslRR
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        22 [label=_fslServiceId
+           ,shape=component
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    27 [label=emptyFrontendSessionData
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    40 [label=renderHTM
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    17 -> 14 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    18 -> 14 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    19 -> 14 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    20 -> 15 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    21 -> 16 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    22 -> 16 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    23 -> 15 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    24 -> 15 [penwidth=1
+             ,color=magenta
+             ,arrowtail=odot
+             ,arrowhead=vee];
+    25 -> 46 [penwidth=1
+             ,color=chartreuse];
+    27 -> 14 [penwidth=1
+             ,color=chartreuse];
+    28 -> 40 [penwidth=1
+             ,color=black];
+    29 -> 40 [penwidth=1
+             ,color=black];
+    39 -> 16 [penwidth=1
+             ,color=black];
+    45 -> 16 [penwidth=1
+             ,color=black];
+    46 -> 25 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    46 -> 26 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 28 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 29 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 30 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 31 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 32 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 33 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    47 -> 34 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 35 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 36 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 37 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 38 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    48 -> 39 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 41 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 42 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 43 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 44 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    49 -> 45 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

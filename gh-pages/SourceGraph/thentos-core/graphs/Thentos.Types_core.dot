@@ -1,0 +1,56 @@
+digraph "Core of Thentos.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Ord {
+        graph [label="Class: Ord"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Ord_Data_Context {
+            graph [label="Instance for: Context"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            107 [label=compare
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,bold"];
+        }
+        224 [label="Unknown Module\ncompare"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Show {
+        graph [label="Class: Show"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Show_Data_ProxyUri {
+            graph [label="Instance for: ProxyUri"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            182 [label=show
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,bold"];
+        }
+        228 [label="Unknown Module\nshow"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    178 [label=renderProxyUri
+        ,shape=box
+        ,fillcolor=goldenrod
+        ,style="filled,bold"];
+    107 -> 224 [penwidth=1
+               ,color=black];
+    178 -> 228 [penwidth=1
+               ,color=black];
+    182 -> 178 [penwidth=1
+               ,color=black];
+    224 -> 107 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    228 -> 182 [penwidth=1
+               ,color=navy
+               ,dir=none];
+}

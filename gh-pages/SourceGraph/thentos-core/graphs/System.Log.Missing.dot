@@ -1,0 +1,83 @@
+digraph "Diagram of: System.Log.Missing" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_Prio {
+            graph [label="Instance for: Prio"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            6 [label=parseJSON
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        8 [label="Data.Aeson\nparseJSON"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dashed"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_Prio {
+            graph [label="Instance for: Prio"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            7 [label=toJSON
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        9 [label="Data.Aeson\ntoJSON"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dashed"];
+    }
+    subgraph cluster_Data_Prio {
+        graph [label="Data: Prio"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=Prio
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        3 [label=fromPrio
+          ,shape=component
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    2 [label=announceAction
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    4 [label=logger
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    5 [label=loggerName
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    2 -> 4 [penwidth=1.6931471805599454
+           ,color=chartreuse];
+    3 -> 1 [penwidth=1
+           ,color=magenta
+           ,arrowtail=odot
+           ,arrowhead=vee];
+    4 -> 5 [penwidth=1
+           ,color=chartreuse];
+    6 -> 1 [penwidth=1
+           ,color=chartreuse];
+    7 -> 3 [penwidth=1
+           ,color=chartreuse];
+    8 -> 6 [penwidth=1.6931471805599454
+           ,color=navy
+           ,dir=none];
+    9 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

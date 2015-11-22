@@ -1,0 +1,27 @@
+digraph "Core of Thentos.Frontend.Types" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Accept {
+        graph [label="Class: Accept"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Accept_Data_PrettyHTML {
+            graph [label="Instance for: PrettyHTML"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            25 [label=contentType
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        46 [label="Unknown Module\ncontentType"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    25 -> 46 [penwidth=1
+             ,color=chartreuse];
+    46 -> 25 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

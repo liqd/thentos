@@ -1,0 +1,179 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <meta name="author" content="Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)" />
+  <title>Analysis of Thentos.Adhocracy3</title>
+  <style type="text/css">code{white-space: pre;}</style>
+</head>
+<body>
+<div id="header">
+<h1 class="title">Analysis of Thentos.Adhocracy3</h1>
+<h2 class="author">Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)</h2>
+<h3 class="date">Sunday 22 November, 2015</h3>
+</div>
+<div id="TOC">
+<ul>
+<li><a><span class="toc-section-number">1</span> Legend</a></li>
+<li><a><span class="toc-section-number">2</span> Notes</a></li>
+<li><a><span class="toc-section-number">3</span> Analysis of the entire codebase</a><ul>
+<li><a><span class="toc-section-number">3.1</span> Visualisation of the entire software</a></li>
+<li><a><span class="toc-section-number">3.2</span> Visualisation of overall function calls</a></li>
+<li><a><span class="toc-section-number">3.3</span> Overall Core analysis</a></li>
+<li><a><span class="toc-section-number">3.4</span> Visualisation of levels in the software</a></li>
+<li><a><span class="toc-section-number">3.5</span> Overall Cyclomatic Complexity</a></li>
+<li><a><span class="toc-section-number">3.6</span> Overall root analysis</a></li>
+<li><a><span class="toc-section-number">3.7</span> Function component analysis</a></li>
+<li><a><span class="toc-section-number">3.8</span> Overall chain analysis</a></li>
+</ul></li>
+<li><a><span class="toc-section-number">4</span> Analysis of module imports</a><ul>
+<li><a><span class="toc-section-number">4.1</span> Visualisation of imports</a></li>
+<li><a><span class="toc-section-number">4.2</span> Cyclomatic Complexity of imports</a></li>
+<li><a><span class="toc-section-number">4.3</span> Import chain analysis</a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5</span> Analysis of each module</a><ul>
+<li><a><span class="toc-section-number">5.1</span> Analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a><ul>
+<li><a><span class="toc-section-number">5.1.1</span> Visualisation of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.1.2</span> Core analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.1.3</span> Visualisation of levels in <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.1.4</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.1.5</span> Component analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.2</span> Analysis of <em>Thentos.Adhocracy3.Backend.Core</em></a><ul>
+<li><a><span class="toc-section-number">5.2.1</span> Visualisation of <em>Thentos.Adhocracy3.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.2.2</span> Visualisation of levels in <em>Thentos.Adhocracy3.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.2.3</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Backend.Core</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.3</span> Analysis of <em>Thentos.Adhocracy3.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.3.1</span> Visualisation of <em>Thentos.Adhocracy3.Types</em></a></li>
+<li><a><span class="toc-section-number">5.3.2</span> Visualisation of levels in <em>Thentos.Adhocracy3.Types</em></a></li>
+<li><a><span class="toc-section-number">5.3.3</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Types</em></a></li>
+<li><a><span class="toc-section-number">5.3.4</span> Component analysis of <em>Thentos.Adhocracy3.Types</em></a></li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+<h1>Document Information</h1>
+<blockquote><p><em>Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)</em></p></blockquote>
+<blockquote><p><em>Sunday 22 November, 2015</em></p></blockquote>
+
+<h1><span class="header-section-number">1</span> Legend</h1>
+<dl>
+<dt><strong>Two normal functions with <em>f</em> calling <em>g</em> .</strong></dt>
+<dd><img src="graphs/legend_call.png" alt="Function Call" />
+</dd>
+<dt><strong>Two modules with module <em>Foo</em> importing <em>Bar</em> .</strong></dt>
+<dd><img src="graphs/legend_mods.png" alt="Module Import" />
+</dd>
+<dt><strong>Entities from different modules.</strong></dt>
+<dd><img src="graphs/legend_loc.png" alt="From module" />
+</dd>
+<dt><strong>Data type declaration.</strong></dt>
+<dd><img src="graphs/legend_data.png" alt="Data type declaration" />
+</dd>
+<dt><strong>Class and instance declarations.</strong></dt>
+<dd><img src="graphs/legend_class.png" alt="Class declaration" />
+</dd>
+<dt><strong>Entity location/accessibility classification.</strong></dt>
+<dd><img src="graphs/legend_loc2.png" alt="Entity Location" />
+</dd>
+<dt><strong>Edge classification.</strong></dt>
+<dd><img src="graphs/legend_edges.png" alt="Edge Classification" />
+</dd>
+<dt><strong>Edge Widths</strong></dt>
+<dd>The width of each edge is calculated by:   <em>width = log (number of function calls) + 1</em>
+</dd>
+</dl>
+<h1><span class="header-section-number">2</span> Notes</h1>
+<p>Please note that the source-code analysis in this document is not necessarily perfect: <em>SourceGraph</em> is <strong>not</strong> a refactoring tool, and it's usage of Classes is still premature.</p>
+<p>Implicitly exported entities refer to class methods that are instantiated but defined elsewhere, or <a href="http://www.haskell.org/ghc/docs/latest/html/users_guide/options-sanity.html">entities whose names start with an underscore</a> .  Note that even for <em>Main</em> modules, these implicit exports are included.</p>
+<p>All graph visualisations link to larger SVG versions of the same graph.</p>
+<h1><span class="header-section-number">3</span> Analysis of the entire codebase</h1>
+<h2><span class="header-section-number">3.1</span> Visualisation of the entire software</h2>
+<p><a href="graphs/code.svg"><img src="graphs/code.png" alt="Entire Codebase" /></a></p>
+<h2><span class="header-section-number">3.2</span> Visualisation of overall function calls</h2>
+<p>Here is the current module grouping of functions:</p>
+<p><a href="graphs/codeCluster.svg"><img src="graphs/codeCluster.png" alt="Current module groupings" /></a></p>
+<p>Here is a proposed alternate module grouping:</p>
+<p> </p>
+<p><em>Using the Chinese Whispers algorithm:</em></p>
+<p><a href="graphs/codeCW.svg"><img src="graphs/codeCW.png" alt="Chinese Whispers module suggestions" /></a></p>
+<h2><span class="header-section-number">3.3</span> Overall Core analysis</h2>
+<p>The core of software is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/codeCore.svg"><img src="graphs/codeCore.png" alt="Overall core" /></a></p>
+<h2><span class="header-section-number">3.4</span> Visualisation of levels in the software</h2>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/code_levels.svg"><img src="graphs/code_levels.png" alt="Levels within software" /></a></p>
+<h2><span class="header-section-number">3.5</span> Overall Cyclomatic Complexity</h2>
+<p>The overall cyclomatic complexity is: 115</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">3.6</span> Overall root analysis</h2>
+<p>These functions are those that are inaccessible:</p>
+<p><em>Thentos.Adhocracy3.Backend.Api.Simple.fromA3UserNoPass, 
+Thentos.Adhocracy3.Backend.Api.Simple.fromA3UserWithPass, 
+Thentos.Adhocracy3.Backend.Api.Simple.fromPath, 
+Thentos.Adhocracy3.Backend.Api.Simple.mContentType, 
+Thentos.Adhocracy3.Backend.Api.Simple.mData, 
+Thentos.Adhocracy3.Backend.Api.Simple.mPath, 
+Thentos.Adhocracy3.Types.a3errors</em></p>
+<h2><span class="header-section-number">3.7</span> Function component analysis</h2>
+<p>The functions are split up into 3 components.  You may wish to consider splitting the code up into multiple libraries.</p>
+<h2><span class="header-section-number">3.8</span> Overall chain analysis</h2>
+<p>The code has the following cross-module chains:</p>
+<ul>
+<li><p>Thentos.Adhocracy3.main
+-&gt; Thentos.Adhocracy3.Backend.Api.Simple.runBackend</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h1><span class="header-section-number">4</span> Analysis of module imports</h1>
+<h2><span class="header-section-number">4.1</span> Visualisation of imports</h2>
+<p><a href="graphs/imports.svg"><img src="graphs/imports.png" alt="Import visualisation" /></a></p>
+<h2><span class="header-section-number">4.2</span> Cyclomatic Complexity of imports</h2>
+<p>The cyclomatic complexity of the imports is: 2</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">4.3</span> Import chain analysis</h2>
+<p>The imports have the following chains:</p>
+<ul>
+<li><p>Thentos.Adhocracy3
+-&gt; Thentos.Adhocracy3.Backend.Api.Simple</p></li>
+</ul>
+<p>These chains can all be compressed down to a single module.</p>
+<h1><span class="header-section-number">5</span> Analysis of each module</h1>
+<h2><span class="header-section-number">5.1</span> Analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h2>
+<h3><span class="header-section-number">5.1.1</span> Visualisation of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h3>
+<p><a href="graphs/Thentos-Adhocracy3-Backend-Api-Simple.svg"><img src="graphs/Thentos-Adhocracy3-Backend-Api-Simple.png" alt="Diagram of: Thentos.Adhocracy3.Backend.Api.Simple" /></a></p>
+<h3><span class="header-section-number">5.1.2</span> Core analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Adhocracy3-Backend-Api-Simple_core.svg"><img src="graphs/Thentos-Adhocracy3-Backend-Api-Simple_core.png" alt="Core of Thentos.Adhocracy3.Backend.Api.Simple" /></a></p>
+<h3><span class="header-section-number">5.1.3</span> Visualisation of levels in <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Adhocracy3-Backend-Api-Simple_levels.svg"><img src="graphs/Thentos-Adhocracy3-Backend-Api-Simple_levels.png" alt="Levels within Thentos.Adhocracy3.Backend.Api.Simple" /></a></p>
+<h3><span class="header-section-number">5.1.4</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h3>
+<p>The cyclomatic complexity of Thentos.Adhocracy3.Backend.Api.Simple is: 85.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.1.5</span> Component analysis of <em>Thentos.Adhocracy3.Backend.Api.Simple</em></h3>
+<p>The module Thentos.Adhocracy3.Backend.Api.Simple has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.2</span> Analysis of <em>Thentos.Adhocracy3.Backend.Core</em></h2>
+<h3><span class="header-section-number">5.2.1</span> Visualisation of <em>Thentos.Adhocracy3.Backend.Core</em></h3>
+<p><a href="graphs/Thentos-Adhocracy3-Backend-Core.svg"><img src="graphs/Thentos-Adhocracy3-Backend-Core.png" alt="Diagram of: Thentos.Adhocracy3.Backend.Core" /></a></p>
+<h3><span class="header-section-number">5.2.2</span> Visualisation of levels in <em>Thentos.Adhocracy3.Backend.Core</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Adhocracy3-Backend-Core_levels.svg"><img src="graphs/Thentos-Adhocracy3-Backend-Core_levels.png" alt="Levels within Thentos.Adhocracy3.Backend.Core" /></a></p>
+<h3><span class="header-section-number">5.2.3</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Backend.Core</em></h3>
+<p>The cyclomatic complexity of Thentos.Adhocracy3.Backend.Core is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.3</span> Analysis of <em>Thentos.Adhocracy3.Types</em></h2>
+<h3><span class="header-section-number">5.3.1</span> Visualisation of <em>Thentos.Adhocracy3.Types</em></h3>
+<p><a href="graphs/Thentos-Adhocracy3-Types.svg"><img src="graphs/Thentos-Adhocracy3-Types.png" alt="Diagram of: Thentos.Adhocracy3.Types" /></a></p>
+<h3><span class="header-section-number">5.3.2</span> Visualisation of levels in <em>Thentos.Adhocracy3.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Adhocracy3-Types_levels.svg"><img src="graphs/Thentos-Adhocracy3-Types_levels.png" alt="Levels within Thentos.Adhocracy3.Types" /></a></p>
+<h3><span class="header-section-number">5.3.3</span> Cyclomatic Complexity of <em>Thentos.Adhocracy3.Types</em></h3>
+<p>The cyclomatic complexity of Thentos.Adhocracy3.Types is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.3.4</span> Component analysis of <em>Thentos.Adhocracy3.Types</em></h3>
+<p>The module Thentos.Adhocracy3.Types has 2 components.  You may wish to consider splitting it up.</p>
+</body>
+</html>

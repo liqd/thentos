@@ -1,0 +1,58 @@
+digraph "Levels within System.Log.Missing" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: Prio"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=announceAction
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=logger
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        5 [label=loggerName
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label="Data.Aeson\nClass: FromJSON"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dashed"];
+        9 [label="Data.Aeson\nClass: ToJSON"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dashed"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        6 [label="Class: FromJSON, Data: Prio"
+          ,shape=octagon
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+        7 [label="Class: ToJSON, Data: Prio"
+          ,shape=octagon
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+    }
+    2 -> 4 [penwidth=1.6931471805599454
+           ,color=chartreuse];
+    4 -> 5 [penwidth=1
+           ,color=chartreuse];
+    6 -> 1 [penwidth=1,color=black];
+    7 -> 1 [penwidth=1,color=black];
+    8 -> 6 [penwidth=1.6931471805599454
+           ,color=navy
+           ,dir=none];
+    9 -> 7 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

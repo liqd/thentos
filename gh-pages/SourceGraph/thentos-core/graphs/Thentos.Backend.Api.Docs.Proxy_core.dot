@@ -1,0 +1,27 @@
+digraph "Core of Thentos.Backend.Api.Docs.Proxy" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_HasDocs {
+        graph [label="Class: HasDocs"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasDocs_Data_sublayoutServiceProxy {
+            graph [label="Instance for: (sublayout :<|> ServiceProxy)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            1 [label=docsFor
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        3 [label="Unknown Module\ndocsFor"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dotted"];
+    }
+    1 -> 3 [penwidth=1
+           ,color=chartreuse];
+    3 -> 1 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

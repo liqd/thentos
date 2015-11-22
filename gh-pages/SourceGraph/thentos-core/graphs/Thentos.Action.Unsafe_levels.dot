@@ -1,0 +1,51 @@
+digraph "Levels within Thentos.Action.Unsafe" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=genRandomBytes
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        2 [label=getConfig
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        3 [label=getCurrentTime
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        4 [label=hashServiceKey
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=hashUserPass
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        6 [label=logIfError
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        7 [label=logger
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label=makeUserFromFormData
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        9 [label=query
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        10 [label=sendMail
+           ,shape=box
+           ,fillcolor=gold
+           ,style="filled,bold"];
+    }
+    6 -> 7 [penwidth=1
+           ,color=chartreuse];
+}

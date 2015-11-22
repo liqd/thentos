@@ -1,0 +1,100 @@
+digraph "Levels within Thentos.Backend.Api.Proxy" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: ProxyAdapter"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label="Data: RqMod"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        3 [label=createCustomHeaders
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        4 [label=defaultProxyAdapter
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=defaultRenderUser
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        6 [label=err500onExc
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        7 [label=findDefaultServiceIdAndTarget
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label=findTargetForServiceId
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        9 [label=getRqMod
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        10 [label=prepareReq
+           ,shape=box
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        14 [label=reverseProxyHandler
+           ,shape=box
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+        16 [label=serviceProxy
+           ,shape=box
+           ,fillcolor=gold
+           ,style="filled,bold"];
+        17 [label="Unknown Module\nClass: HasServer"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        15 [label="Class: HasServer, Data: ServiceProxy"
+           ,shape=octagon
+           ,fillcolor=bisque
+           ,style="filled,bold"];
+    }
+    3 -> 1 [penwidth=1.6931471805599454
+           ,color=black];
+    4 -> 1 [penwidth=2.386294361119891
+           ,color=black];
+    4 -> 5 [penwidth=1,color=black];
+    9 -> 1 [penwidth=1.6931471805599454
+           ,color=black];
+    9 -> 2 [penwidth=1,color=black];
+    9 -> 3 [penwidth=1,color=black];
+    9 -> 7 [penwidth=1,color=black];
+    9 -> 8 [penwidth=1,color=black];
+    10 -> 1 [penwidth=1
+            ,color=black];
+    14 -> 1 [penwidth=1
+            ,color=black];
+    14 -> 2 [penwidth=1
+            ,color=black];
+    14 -> 9 [penwidth=1
+            ,color=black];
+    14 -> 10 [penwidth=1
+             ,color=black];
+    15 -> 17 [penwidth=1
+             ,color=chartreuse];
+    16 -> 6 [penwidth=1
+            ,color=black];
+    16 -> 14 [penwidth=1
+             ,color=black];
+    17 -> 15 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

@@ -1,0 +1,27 @@
+digraph "Core of Thentos.Backend.Api.Proxy" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_HasServer {
+        graph [label="Class: HasServer"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasServer_Data_ServiceProxy {
+            graph [label="Instance for: ServiceProxy"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            15 [label=route
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        17 [label="Unknown Module\nroute"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    15 -> 17 [penwidth=1
+             ,color=chartreuse];
+    17 -> 15 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

@@ -1,0 +1,241 @@
+digraph "Overall core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_Accept {
+        graph [label="Class: Accept"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Accept_Data_PrettyHTML {
+            graph [label="Instance for: PrettyHTML"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            418 [label="Thentos.Frontend.Types\ncontentType"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        726 [label="Unknown Module\ncontentType"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_HasDocs {
+        graph [label="Class: HasDocs"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasDocs_Data_Post200ctsa {
+            graph [label="Instance for: (Post200 cts a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            153 [label="Thentos.Backend.Api.Docs.Common\ndocsFor"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_HasDocs_Data_ThentosAssertHeaderssublayout {
+            graph [label="Instance for: (ThentosAssertHeaders :> sublayout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            154 [label="Thentos.Backend.Api.Docs.Common\ndocsFor"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_HasDocs_Data_ThentosAuthsublayout {
+            graph [label="Instance for: (ThentosAuth :> sublayout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            155 [label="Thentos.Backend.Api.Docs.Common\ndocsFor"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_HasDocs_Data_sublayoutServiceProxy {
+            graph [label="Instance for: (sublayout :<|> ServiceProxy)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            203 [label="Thentos.Backend.Api.Docs.Proxy\ndocsFor"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        727 [label="Unknown Module\ndocsFor"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_HasServer {
+        graph [label="Class: HasServer"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasServer_Data_ServiceProxy {
+            graph [label="Instance for: ServiceProxy"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            219 [label="Thentos.Backend.Api.Proxy\nroute"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        735 [label="Unknown Module\nroute"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MimeRender {
+        graph [label="Class: MimeRender"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MimeRender_Data_PlainTextDocsAPI {
+            graph [label="Instance for: PlainText Docs.API"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            165 [label="Thentos.Backend.Api.Docs.Common\nmimeRender"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        724 [label="Servant.API\nmimeRender"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dashed"];
+    }
+    subgraph cluster_Class_Ord {
+        graph [label="Class: Ord"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Ord_Data_Context {
+            graph [label="Instance for: Context"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            605 [label="Thentos.Types\ncompare"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        725 [label="Unknown Module\ncompare"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Show {
+        graph [label="Class: Show"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Show_Data_ProxyUri {
+            graph [label="Instance for: ProxyUri"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            680 [label="Thentos.Types\nshow"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        736 [label="Unknown Module\nshow"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToSample {
+        graph [label="Class: ToSample"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToSample_Data_LoginFormData {
+            graph [label="Instance for: LoginFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            188 [label="Thentos.Backend.Api.Docs.Common\ntoSamples"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceSessionMetadata {
+            graph [label="Instance for: ServiceSessionMetadata"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            195 [label="Thentos.Backend.Api.Docs.Common\ntoSamples"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserFormData {
+            graph [label="Instance for: UserFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            199 [label="Thentos.Backend.Api.Docs.Common\ntoSamples"
+                ,shape=octagon
+                ,fillcolor=bisque
+                ,style="filled,solid"];
+        }
+        742 [label="Unknown Module\ntoSamples"
+            ,shape=doubleoctagon
+            ,fillcolor=khaki
+            ,style="filled,dotted"];
+    }
+    676 [label="Thentos.Types\nrenderProxyUri"
+        ,shape=box
+        ,fillcolor=bisque
+        ,style="filled,solid"];
+    153 -> 727 [penwidth=1
+               ,color=black];
+    154 -> 727 [penwidth=1
+               ,color=black];
+    155 -> 727 [penwidth=1
+               ,color=black];
+    165 -> 724 [penwidth=1
+               ,color=chartreuse];
+    188 -> 742 [penwidth=1
+               ,color=black];
+    195 -> 742 [penwidth=1
+               ,color=black];
+    199 -> 742 [penwidth=1
+               ,color=black];
+    203 -> 727 [penwidth=1
+               ,color=black];
+    219 -> 735 [penwidth=1
+               ,color=chartreuse];
+    418 -> 726 [penwidth=1
+               ,color=chartreuse];
+    605 -> 725 [penwidth=1
+               ,color=black];
+    676 -> 736 [penwidth=1
+               ,color=black];
+    680 -> 676 [penwidth=1
+               ,color=black];
+    724 -> 165 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    725 -> 605 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    726 -> 418 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    727 -> 153 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    727 -> 154 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    727 -> 155 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    727 -> 203 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    735 -> 219 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    736 -> 680 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    742 -> 188 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    742 -> 195 [penwidth=1
+               ,color=navy
+               ,dir=none];
+    742 -> 199 [penwidth=1
+               ,color=navy
+               ,dir=none];
+}

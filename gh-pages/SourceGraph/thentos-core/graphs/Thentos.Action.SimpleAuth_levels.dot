@@ -1,0 +1,47 @@
+digraph "Levels within Thentos.Action.SimpleAuth" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label="Data: UnsafeAction"
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=assertAuth
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        4 [label=guardedUnsafeAction
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        5 [label=hasAgent
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        6 [label=hasRole
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        7 [label=hasServiceId
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        8 [label=hasUserId
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        9 [label=unsafeAction
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    4 -> 2 [penwidth=1,color=black];
+    4 -> 9 [penwidth=1,color=black];
+    5 -> 7 [penwidth=1,color=black];
+    5 -> 8 [penwidth=1,color=black];
+    9 -> 1 [penwidth=1
+           ,color=chartreuse];
+}

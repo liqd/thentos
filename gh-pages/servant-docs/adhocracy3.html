@@ -1,82 +1,266 @@
-<h2 id="post-login_email">POST /login_email</h2>
-<p><strong>Request Body</strong>:</p>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>,
-    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
-}</code></pre>
-<p><strong>Response</strong>:</p>
-<ul>
-<li>Status code 201</li>
-<li>Response body as below.</li>
-</ul>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
-    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
-    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
-}</code></pre>
-<h2 id="post-login_username">POST /login_username</h2>
-<p><strong>Request Body</strong>:</p>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>,
-    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
-}</code></pre>
-<p><strong>Response</strong>:</p>
-<ul>
-<li>Status code 201</li>
-<li>Response body as below.</li>
-</ul>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
-    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
-    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
-}</code></pre>
-<h2 id="post-principalsusers">POST /principals/users</h2>
-<p><strong>Request Body</strong>:</p>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;data&quot;</span>: {
-        <span class="st">&quot;adhocracy_core.sheets.principal.IPasswordAuthentication&quot;</span>: {
-            <span class="st">&quot;password&quot;</span>: <span class="st">&quot;[password hidden]&quot;</span>
-        },
-        <span class="st">&quot;adhocracy_core.sheets.principal.IUserBasic&quot;</span>: {
-            <span class="st">&quot;email&quot;</span>: <span class="st">&quot;cobain@nirvana.com&quot;</span>,
-            <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>
-        }
-    },
-    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>
-}</code></pre>
-<p><strong>Response</strong>:</p>
-<ul>
-<li>Status code 201</li>
-<li>Response body as below.</li>
-</ul>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
-    <span class="st">&quot;data&quot;</span>: {
-        <span class="st">&quot;adhocracy_core.sheets.principal.IUserBasic&quot;</span>: {
-            <span class="st">&quot;email&quot;</span>: <span class="st">&quot;cobain@nirvana.com&quot;</span>,
-            <span class="st">&quot;name&quot;</span>: <span class="st">&quot;Kurt Cobain&quot;</span>
-        }
-    },
-    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>
-}</code></pre>
+<h2 id="the-thentos-api-family-adhocracy3-proxy">The thentos API family: Adhocracy3 Proxy</h2>
+<p>Version {versionBranch = [0,0,1,1], versionTags = []}</p>
+<h2 id="overview">Overview</h2>
+<p>Adhocracy3 has a basic user management built-in. In order for thentos to have minimal impact on the existing code base, it can be deployed as a reverse proxy and mimic the built-in user management rest api. This way, the frontend does not need to change at all to use the old features of the new user management system. The impact of new features to the frontend can be kept at a minimum.</p>
+<p>What follows is the fully compatible adhocracy3 user management rest api. Any deviation should be considered an error and reported in a later version of this document.</p>
+<h2 id="authenticating-proxy">Authenticating Proxy</h2>
+<p>All requests that are not handled by the endpoints listed below are handled as follows: We extract the Thentos Session Token (X-Thentos-Session) from the request headers and forward the request to the service, adding X-Thentos-User and X-Thentos-Groups with the appropriate data to the request headers. If the request does not include a valid session token, it is rejected. Responses from the service are returned unmodified.</p>
 <h2 id="post-activate_account">POST /activate_account</h2>
-<p><strong>Request Body</strong>:</p>
-<pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>
-}</code></pre>
-<p><strong>Response</strong>:</p>
+<h4 id="email-click-account-activation">email-click account activation</h4>
+<p>The confirmation email contains a link to this end-point. The path contains a token can only be learned from receiving (or intercepting) the email.</p>
+<h4 id="request">Request:</h4>
 <ul>
-<li>Status code 201</li>
-<li>Response body as below.</li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
 </ul>
 <pre class="sourceCode javascript"><code class="sourceCode javascript">{
-    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
-    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
-    <span class="st">&quot;token&quot;</span>: <span class="st">&quot;abde1234llkjh&quot;</span>
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/activate/MXe13lTh8Tr_UaqL6hcRIeGo&quot;</span>
 }</code></pre>
-<h2 id="get">GET /</h2>
-<p><strong>Response</strong>:</p>
+<h4 id="response">Response:</h4>
 <ul>
 <li>Status code 200</li>
-<li>No response body</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Success</p></li>
 </ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;somepath&quot;</span>,
+    <span class="st">&quot;user_token&quot;</span>: <span class="st">&quot;sometoken&quot;</span>
+}</code></pre>
+<h2 id="get-docsjs">GET /docs/js</h2>
+<h4 id="response-1">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docsmd">GET /docs/md</h2>
+<h4 id="response-2">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docsng">GET /docs/ng</h2>
+<h4 id="response-3">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursmodulename">GET /docs/purs/:ModuleName</h2>
+<h4 id="captures">Captures:</h4>
+<ul>
+<li><em>string</em>: purescript module name</li>
+</ul>
+<h4 id="response-4">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursutil.js">GET /docs/purs/Util.js</h2>
+<h4 id="response-5">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-docspursutil.purs">GET /docs/purs/Util.purs</h2>
+<h4 id="response-6">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>text/plain;charset=utf-8</code></li>
+</ul></li>
+<li><p>empty</p></li>
+</ul>
+<pre><code></code></pre>
+<h2 id="get-js">GET /js</h2>
+<h4 id="response-7">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>No response body</p></li>
+</ul>
+<h2 id="post-login_email">POST /login_email</h2>
+<h4 id="login-with-user-email">login with user email</h4>
+<h4 id="request-1">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;alice&quot;</span>,
+    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;secret&quot;</span>
+}</code></pre>
+<h4 id="response-8">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Success</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;somepath&quot;</span>,
+    <span class="st">&quot;user_token&quot;</span>: <span class="st">&quot;sometoken&quot;</span>
+}</code></pre>
+<h2 id="post-login_username">POST /login_username</h2>
+<h4 id="login-with-user-name">login with user name</h4>
+<h4 id="request-2">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;name&quot;</span>: <span class="st">&quot;alice&quot;</span>,
+    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;secret&quot;</span>
+}</code></pre>
+<h4 id="response-9">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Success</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;somepath&quot;</span>,
+    <span class="st">&quot;user_token&quot;</span>: <span class="st">&quot;sometoken&quot;</span>
+}</code></pre>
+<h2 id="post-password_reset">POST /password_reset</h2>
+<h4 id="reset-password">reset password</h4>
+<h4 id="request-3">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;password&quot;</span>: <span class="st">&quot;secret&quot;</span>,
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>
+}</code></pre>
+<h4 id="response-10">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Success</p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;status&quot;</span>: <span class="st">&quot;success&quot;</span>,
+    <span class="st">&quot;user_path&quot;</span>: <span class="st">&quot;somepath&quot;</span>,
+    <span class="st">&quot;user_token&quot;</span>: <span class="st">&quot;sometoken&quot;</span>
+}</code></pre>
+<h2 id="post-principalsusers">POST /principals/users</h2>
+<h4 id="request-creation-of-a-new-account">request creation of a new account</h4>
+<p>When the user-creation form is filled out with login name, email, and password, this end-point is used to post the form content and trigger the email confirmation procedure.</p>
+<h4 id="request-4">Request:</h4>
+<ul>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li><p>Example: <code>application/json</code></p></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>,
+    <span class="st">&quot;data&quot;</span>: {
+        <span class="st">&quot;adhocracy_core.sheets.principal.IPasswordAuthentication&quot;</span>: {
+            <span class="st">&quot;password&quot;</span>: <span class="st">&quot;secret&quot;</span>
+        },
+        <span class="st">&quot;adhocracy_core.sheets.principal.IUserBasic&quot;</span>: {
+            <span class="st">&quot;name&quot;</span>: <span class="st">&quot;alice&quot;</span>
+        },
+        <span class="st">&quot;adhocracy_core.sheets.principal.IUserExtended&quot;</span>: {
+            <span class="st">&quot;email&quot;</span>: <span class="st">&quot;alice@example.com&quot;</span>
+        }
+    }
+}</code></pre>
+<h4 id="response-11">Response:</h4>
+<ul>
+<li>Status code 200</li>
+<li><p>Headers: []</p></li>
+<li><p>Supported content types are:</p>
+<ul>
+<li><code>application/json</code></li>
+</ul></li>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>,
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;updated_resources&quot;</span>: {
+        <span class="st">&quot;changed_descendants&quot;</span>: [],
+        <span class="st">&quot;created&quot;</span>: [],
+        <span class="st">&quot;modified&quot;</span>: [],
+        <span class="st">&quot;removed&quot;</span>: []
+    }
+}</code></pre>
+<ul>
+<li></li>
+</ul>
+<pre class="sourceCode javascript"><code class="sourceCode javascript">{
+    <span class="st">&quot;content_type&quot;</span>: <span class="st">&quot;adhocracy_core.resources.principal.IUser&quot;</span>,
+    <span class="st">&quot;path&quot;</span>: <span class="st">&quot;/proposals/environment&quot;</span>,
+    <span class="st">&quot;updated_resources&quot;</span>: {
+        <span class="st">&quot;changed_descendants&quot;</span>: [],
+        <span class="st">&quot;created&quot;</span>: [],
+        <span class="st">&quot;modified&quot;</span>: [],
+        <span class="st">&quot;removed&quot;</span>: [
+            <span class="st">&quot;/proposals/environment&quot;</span>
+        ]
+    }
+}</code></pre>

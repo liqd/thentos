@@ -1,0 +1,174 @@
+digraph "Diagram of: Thentos.Config" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_FromJSON {
+        graph [label="Class: FromJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_FromJSON_Data_HttpSchema {
+            graph [label="Instance for: HttpSchema"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            20 [label=parseJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        24 [label="Unknown Module\nparseJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_Show {
+        graph [label="Class: Show"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_Show_Data_HttpSchema {
+            graph [label="Instance for: HttpSchema"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            22 [label=show
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        25 [label="Unknown Module\nshow"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToJSON {
+        graph [label="Class: ToJSON"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToJSON_Data_HttpSchema {
+            graph [label="Instance for: HttpSchema"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            23 [label=toJSON
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        26 [label="Unknown Module\ntoJSON"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Data_HttpSchema {
+        graph [label="Data: HttpSchema"
+              ,style="filled,rounded"
+              ,fillcolor=papayawhip];
+        1 [label=Http
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        2 [label=Https
+          ,shape=box3d
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    3 [label=_renderUrl
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    4 [label=bindUrl
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    5 [label=buildEmailAddress
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    6 [label=configLogger
+      ,shape=box
+      ,fillcolor=gold
+      ,style="filled,bold"];
+    7 [label=defaultAccountVerificationConfig
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    8 [label=defaultDatabaseConfig
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    9 [label=defaultMailConfig
+      ,shape=box
+      ,fillcolor=goldenrod
+      ,style="filled,bold"];
+    10 [label=defaultSmtpConfig
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    11 [label=defaultThentosConfig
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    12 [label=exposeUrl
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    13 [label=extractTargetUrl
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    14 [label=getBackendConfig
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    15 [label=getConfig
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    16 [label=getDefaultUser
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    17 [label=getFrontendConfig
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    18 [label=getProxyConfigMap
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    19 [label=getUserData
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    21 [label=printConfigUsage
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    3 -> 1 [penwidth=1,color=black];
+    3 -> 25 [penwidth=1.6931471805599454
+            ,color=black];
+    4 -> 3 [penwidth=1,color=black];
+    9 -> 7 [penwidth=1
+           ,color=chartreuse];
+    11 -> 8 [penwidth=1
+            ,color=black];
+    11 -> 9 [penwidth=1
+            ,color=black];
+    11 -> 10 [penwidth=1
+             ,color=black];
+    12 -> 3 [penwidth=1
+            ,color=black];
+    15 -> 11 [penwidth=1
+             ,color=chartreuse];
+    16 -> 19 [penwidth=1
+             ,color=chartreuse];
+    22 -> 1 [penwidth=1
+            ,color=black];
+    22 -> 2 [penwidth=1
+            ,color=black];
+    24 -> 20 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    25 -> 22 [penwidth=1.6931471805599454
+             ,color=navy
+             ,dir=none];
+    26 -> 23 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

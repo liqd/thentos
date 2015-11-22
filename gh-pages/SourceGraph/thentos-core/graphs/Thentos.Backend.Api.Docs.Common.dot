@@ -1,0 +1,561 @@
+digraph "Diagram of: Thentos.Backend.Api.Docs.Common" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_GenerateList {
+        graph [label="Class: GenerateList"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_GenerateList_Data_aForeignReq {
+            graph [label="Instance for: (a -> Foreign.Req)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            4 [label=generateList
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        53 [label="Unknown Module\ngenerateList"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_HasDocExtras {
+        graph [label="Class: HasDocExtras"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_DefaultInstance_HasDocExtras {
+            graph [label="Default Instance"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            8 [label=getExtraInfo
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+            10 [label=getIntros
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        5 [label=getCabalPackageName
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        6 [label=getCabalPackageVersion
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        7 [label=getExtraInfo
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        9 [label=getIntros
+          ,shape=doubleoctagon
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+        11 [label=getTitle
+           ,shape=doubleoctagon
+           ,fillcolor=goldenrod
+           ,style="filled,bold"];
+    }
+    subgraph cluster_Class_HasDocs {
+        graph [label="Class: HasDocs"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasDocs_Data_Post200ctsa {
+            graph [label="Instance for: (Post200 cts a)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            1 [label=docsFor
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_HasDocs_Data_ThentosAssertHeaderssublayout {
+            graph [label="Instance for: (ThentosAssertHeaders :> sublayout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label=docsFor
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        subgraph cluster_Class_HasDocs_Data_ThentosAuthsublayout {
+            graph [label="Instance for: (ThentosAuth :> sublayout)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            3 [label=docsFor
+              ,shape=octagon
+              ,fillcolor=bisque
+              ,style="filled,bold"];
+        }
+        52 [label="Unknown Module\ndocsFor"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_MimeRender {
+        graph [label="Class: MimeRender"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_MimeRender_Data_PlainTextDocsAPI {
+            graph [label="Instance for: PlainText Docs.API"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            13 [label=mimeRender
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        51 [label="Servant.API\nmimeRender"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dashed"];
+    }
+    subgraph cluster_Class_ToCapture {
+        graph [label="Class: ToCapture"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToCapture_Data_CaptureModuleNameST {
+            graph [label="Instance for: (Capture \"ModuleName\" ST)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            28 [label=toCapture
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CapturesidServiceId {
+            graph [label="Instance for: (Capture \"sid\" ServiceId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            29 [label=toCapture
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CapturetokenServiceSessionToken {
+            graph [label="Instance for: (Capture \"token\" ServiceSessionToken)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            30 [label=toCapture
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CapturetokenThentosSessionToken {
+            graph [label="Instance for: (Capture \"token\" ThentosSessionToken)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            31 [label=toCapture
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToCapture_Data_CaptureuidUserId {
+            graph [label="Instance for: (Capture \"uid\" UserId)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            32 [label=toCapture
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        54 [label="Unknown Module\ntoCapture"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_ToSample {
+        graph [label="Class: ToSample"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_ToSample_Data_Agent {
+            graph [label="Instance for: Agent"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            33 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ConfirmationToken {
+            graph [label="Instance for: ConfirmationToken"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            34 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_DocsAPI {
+            graph [label="Instance for: Docs.API"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            35 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_LoginFormData {
+            graph [label="Instance for: LoginFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            36 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_PasswordResetToken {
+            graph [label="Instance for: PasswordResetToken"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            37 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ST {
+            graph [label="Instance for: ST"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            38 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceDescription {
+            graph [label="Instance for: ServiceDescription"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            39 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceId {
+            graph [label="Instance for: ServiceId"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            40 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceKey {
+            graph [label="Instance for: ServiceKey"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            41 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceName {
+            graph [label="Instance for: ServiceName"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            42 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceSessionMetadata {
+            graph [label="Instance for: ServiceSessionMetadata"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            43 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ServiceSessionToken {
+            graph [label="Instance for: ServiceSessionToken"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            44 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_ThentosSessionToken {
+            graph [label="Instance for: ThentosSessionToken"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            45 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserEmail {
+            graph [label="Instance for: UserEmail"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            46 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserFormData {
+            graph [label="Instance for: UserFormData"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            47 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=bisque
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserId {
+            graph [label="Instance for: UserId"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            48 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserName {
+            graph [label="Instance for: UserName"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            49 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        subgraph cluster_Class_ToSample_Data_UserPass {
+            graph [label="Instance for: UserPass"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            50 [label=toSamples
+               ,shape=octagon
+               ,fillcolor=cyan
+               ,style="filled,bold"];
+        }
+        55 [label="Unknown Module\ntoSamples"
+           ,shape=doubleoctagon
+           ,fillcolor=khaki
+           ,style="filled,dotted"];
+    }
+    12 [label=hackTogetherSomeReasonableOrder
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    14 [label=pprintAction
+       ,shape=box
+       ,fillcolor=cyan
+       ,style="filled,bold"];
+    15 [label=pprintJson
+       ,shape=box
+       ,fillcolor=cyan
+       ,style="filled,bold"];
+    16 [label=prettyMimeRender
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    17 [label="prettyMimeRender'"
+       ,shape=box
+       ,fillcolor=bisque
+       ,style="filled,bold"];
+    18 [label=restDocs
+       ,shape=box
+       ,fillcolor=gold
+       ,style="filled,bold"];
+    19 [label=restDocsJs
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    20 [label=restDocsMd
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    21 [label=restDocsNg
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    22 [label=restDocsPurs
+       ,shape=box
+       ,fillcolor=goldenrod
+       ,style="filled,bold"];
+    23 [label=restDocsPursUtilJS
+       ,shape=box
+       ,fillcolor=bisque
+       ,style="filled,bold"];
+    24 [label=restDocsPursUtilPurs
+       ,shape=box
+       ,fillcolor=bisque
+       ,style="filled,bold"];
+    25 [label=restDocsSource
+       ,shape=box
+       ,fillcolor=bisque
+       ,style="filled,bold"];
+    26 [label=runTokenBuilder
+       ,shape=box
+       ,fillcolor=bisque
+       ,style="filled,bold"];
+    27 [label=runTokenBuilderState
+       ,shape=box
+       ,fillcolor=cyan
+       ,style="filled,bold"];
+    1 -> 52 [penwidth=1
+            ,color=black];
+    2 -> 52 [penwidth=1
+            ,color=black];
+    3 -> 52 [penwidth=1
+            ,color=black];
+    7 -> 8 [penwidth=1
+           ,color=turquoise
+           ,dir=none];
+    9 -> 10 [penwidth=1
+            ,color=turquoise
+            ,dir=none];
+    13 -> 51 [penwidth=1
+             ,color=chartreuse];
+    16 -> 15 [penwidth=1
+             ,color=black];
+    16 -> 17 [penwidth=1
+             ,color=black];
+    17 -> 14 [penwidth=1
+             ,color=chartreuse];
+    18 -> 19 [penwidth=1
+             ,color=black];
+    18 -> 20 [penwidth=1
+             ,color=black];
+    18 -> 21 [penwidth=1
+             ,color=black];
+    18 -> 22 [penwidth=1
+             ,color=black];
+    18 -> 23 [penwidth=1
+             ,color=black];
+    18 -> 24 [penwidth=1
+             ,color=black];
+    19 -> 25 [penwidth=1
+             ,color=black];
+    20 -> 6 [penwidth=1
+            ,color=black];
+    20 -> 7 [penwidth=1
+            ,color=black];
+    20 -> 9 [penwidth=1
+            ,color=black];
+    20 -> 11 [penwidth=1
+             ,color=black];
+    20 -> 12 [penwidth=1
+             ,color=black];
+    20 -> 16 [penwidth=1
+             ,color=black];
+    21 -> 25 [penwidth=1
+             ,color=black];
+    22 -> 25 [penwidth=1
+             ,color=black];
+    23 -> 25 [penwidth=1
+             ,color=black];
+    24 -> 25 [penwidth=1
+             ,color=black];
+    25 -> 5 [penwidth=1
+            ,color=black];
+    25 -> 6 [penwidth=1
+            ,color=black];
+    26 -> 27 [penwidth=1
+             ,color=chartreuse];
+    34 -> 26 [penwidth=1
+             ,color=black];
+    36 -> 55 [penwidth=1
+             ,color=black];
+    37 -> 26 [penwidth=1
+             ,color=black];
+    40 -> 26 [penwidth=1
+             ,color=black];
+    41 -> 26 [penwidth=1
+             ,color=black];
+    43 -> 55 [penwidth=1
+             ,color=black];
+    44 -> 26 [penwidth=1
+             ,color=black];
+    45 -> 26 [penwidth=1
+             ,color=black];
+    47 -> 55 [penwidth=1
+             ,color=black];
+    51 -> 13 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    52 -> 1 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    52 -> 2 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    52 -> 3 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    53 -> 4 [penwidth=1
+            ,color=navy
+            ,dir=none];
+    54 -> 28 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    54 -> 29 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    54 -> 30 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    54 -> 31 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    54 -> 32 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 33 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 34 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 35 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 36 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 37 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 38 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 39 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 40 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 41 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 42 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 43 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 44 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 45 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 46 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 47 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 48 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 49 [penwidth=1
+             ,color=navy
+             ,dir=none];
+    55 -> 50 [penwidth=1
+             ,color=navy
+             ,dir=none];
+}

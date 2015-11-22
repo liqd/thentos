@@ -1,0 +1,46 @@
+digraph "Diagram of: Thentos.Backend.Api.Auth" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_Class_HasLink {
+        graph [label="Class: HasLink"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasLink_Data_ThentosAuthsub {
+            graph [label="Instance for: (ThentosAuth :> sub)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            2 [label=toLink
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        4 [label="Unknown Module\ntoLink"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dotted"];
+    }
+    subgraph cluster_Class_HasServer {
+        graph [label="Class: HasServer"
+              ,style="filled,rounded"
+              ,fillcolor=rosybrown1];
+        subgraph cluster_Class_HasServer_Data_ThentosAuthsub {
+            graph [label="Instance for: (ThentosAuth :> sub)"
+                  ,style="filled,rounded"
+                  ,fillcolor=slategray1];
+            1 [label=route
+              ,shape=octagon
+              ,fillcolor=cyan
+              ,style="filled,bold"];
+        }
+        3 [label="Unknown Module\nroute"
+          ,shape=doubleoctagon
+          ,fillcolor=khaki
+          ,style="filled,dotted"];
+    }
+    3 -> 1 [penwidth=1
+           ,color=navy
+           ,dir=none];
+    4 -> 2 [penwidth=1
+           ,color=navy
+           ,dir=none];
+}

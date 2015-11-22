@@ -1,0 +1,57 @@
+digraph "Levels within Thentos.Adhocracy3.Backend.Core" {
+    node [margin="0.4,0.1"
+         ,style=filled];
+    subgraph cluster_0 {
+        graph [label="Exported root entities"
+              ,style=filled
+              ,fillcolor=lavender];
+        1 [label=a3ActionErrorToServantErr
+          ,shape=box
+          ,fillcolor=gold
+          ,style="filled,bold"];
+        7 [label=mkSimpleA3Error
+          ,shape=box
+          ,fillcolor=goldenrod
+          ,style="filled,bold"];
+    }
+    subgraph cluster_1 {
+        graph [label="Level = 1"
+              ,style=filled
+              ,fillcolor=lavender];
+        2 [label=a3Info
+          ,shape=box
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+        3 [label=actionErrorA3Info
+          ,shape=box
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+        6 [label=mkA3StyleServantErr
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+    }
+    subgraph cluster_2 {
+        graph [label="Level = 2"
+              ,style=filled
+              ,fillcolor=lavender];
+        4 [label=impossible
+          ,shape=box
+          ,fillcolor=cyan
+          ,style="filled,bold"];
+        5 [label=mkA3
+          ,shape=box
+          ,fillcolor=bisque
+          ,style="filled,bold"];
+    }
+    1 -> 2 [penwidth=1,color=black];
+    1 -> 3 [penwidth=1,color=black];
+    1 -> 6 [penwidth=1,color=black];
+    2 -> 4 [penwidth=1,color=black];
+    2 -> 5 [penwidth=1,color=black];
+    3 -> 4 [penwidth=1,color=black];
+    3 -> 5 [penwidth=2.09861228866811
+           ,color=black];
+    5 -> 7 [penwidth=1
+           ,color=chartreuse];
+}

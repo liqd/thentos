@@ -1,0 +1,1485 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <meta name="author" content="Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)" />
+  <title>Analysis of Thentos</title>
+  <style type="text/css">code{white-space: pre;}</style>
+</head>
+<body>
+<div id="header">
+<h1 class="title">Analysis of Thentos</h1>
+<h2 class="author">Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)</h2>
+<h3 class="date">Sunday 22 November, 2015</h3>
+</div>
+<div id="TOC">
+<ul>
+<li><a><span class="toc-section-number">1</span> Legend</a></li>
+<li><a><span class="toc-section-number">2</span> Notes</a><ul>
+<li><a><span class="toc-section-number">2.1</span> Parsing Failures</a></li>
+</ul></li>
+<li><a><span class="toc-section-number">3</span> Analysis of the entire codebase</a><ul>
+<li><a><span class="toc-section-number">3.1</span> Visualisation of the entire software</a></li>
+<li><a><span class="toc-section-number">3.2</span> Visualisation of overall function calls</a></li>
+<li><a><span class="toc-section-number">3.3</span> Overall Core analysis</a></li>
+<li><a><span class="toc-section-number">3.4</span> Visualisation of levels in the software</a></li>
+<li><a><span class="toc-section-number">3.5</span> Overall Cyclomatic Complexity</a></li>
+<li><a><span class="toc-section-number">3.6</span> Overall root analysis</a></li>
+<li><a><span class="toc-section-number">3.7</span> Function component analysis</a></li>
+<li><a><span class="toc-section-number">3.8</span> Overall chain analysis</a></li>
+</ul></li>
+<li><a><span class="toc-section-number">4</span> Analysis of module imports</a><ul>
+<li><a><span class="toc-section-number">4.1</span> Visualisation of imports</a></li>
+<li><a><span class="toc-section-number">4.2</span> Cyclomatic Complexity of imports</a></li>
+<li><a><span class="toc-section-number">4.3</span> Import root analysis</a></li>
+<li><a><span class="toc-section-number">4.4</span> Import component analysis</a></li>
+<li><a><span class="toc-section-number">4.5</span> Import chain analysis</a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5</span> Analysis of each module</a><ul>
+<li><a><span class="toc-section-number">5.1</span> Analysis of <em>Database.PostgreSQL.Simple.Missing</em></a><ul>
+<li><a><span class="toc-section-number">5.1.1</span> Visualisation of <em>Database.PostgreSQL.Simple.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.1.2</span> Visualisation of levels in <em>Database.PostgreSQL.Simple.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.1.3</span> Cyclomatic Complexity of <em>Database.PostgreSQL.Simple.Missing</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.2</span> Analysis of <em>LIO.Missing</em></a><ul>
+<li><a><span class="toc-section-number">5.2.1</span> Visualisation of <em>LIO.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.2.2</span> Visualisation of levels in <em>LIO.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.2.3</span> Cyclomatic Complexity of <em>LIO.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.2.4</span> Component analysis of <em>LIO.Missing</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.3</span> Analysis of <em>Paths.TH</em></a><ul>
+<li><a><span class="toc-section-number">5.3.1</span> Visualisation of <em>Paths.TH</em></a></li>
+<li><a><span class="toc-section-number">5.3.2</span> Visualisation of levels in <em>Paths.TH</em></a></li>
+<li><a><span class="toc-section-number">5.3.3</span> Cyclomatic Complexity of <em>Paths.TH</em></a></li>
+<li><a><span class="toc-section-number">5.3.4</span> Chain analysis of <em>Paths.TH</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.4</span> Analysis of <em>System.Log.Missing</em></a><ul>
+<li><a><span class="toc-section-number">5.4.1</span> Visualisation of <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.4.2</span> Visualisation of levels in <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.4.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></a></li>
+<li><a><span class="toc-section-number">5.4.4</span> Component analysis of <em>System.Log.Missing</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.5</span> Analysis of <em>Thentos</em></a><ul>
+<li><a><span class="toc-section-number">5.5.1</span> Visualisation of <em>Thentos</em></a></li>
+<li><a><span class="toc-section-number">5.5.2</span> Visualisation of levels in <em>Thentos</em></a></li>
+<li><a><span class="toc-section-number">5.5.3</span> Cyclomatic Complexity of <em>Thentos</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.6</span> Analysis of <em>Thentos.Action</em></a><ul>
+<li><a><span class="toc-section-number">5.6.1</span> Visualisation of <em>Thentos.Action</em></a></li>
+<li><a><span class="toc-section-number">5.6.2</span> Visualisation of levels in <em>Thentos.Action</em></a></li>
+<li><a><span class="toc-section-number">5.6.3</span> Cyclomatic Complexity of <em>Thentos.Action</em></a></li>
+<li><a><span class="toc-section-number">5.6.4</span> Component analysis of <em>Thentos.Action</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.7</span> Analysis of <em>Thentos.Action.Core</em></a><ul>
+<li><a><span class="toc-section-number">5.7.1</span> Visualisation of <em>Thentos.Action.Core</em></a></li>
+<li><a><span class="toc-section-number">5.7.2</span> Visualisation of levels in <em>Thentos.Action.Core</em></a></li>
+<li><a><span class="toc-section-number">5.7.3</span> Cyclomatic Complexity of <em>Thentos.Action.Core</em></a></li>
+<li><a><span class="toc-section-number">5.7.4</span> Component analysis of <em>Thentos.Action.Core</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.8</span> Analysis of <em>Thentos.Action.SimpleAuth</em></a><ul>
+<li><a><span class="toc-section-number">5.8.1</span> Visualisation of <em>Thentos.Action.SimpleAuth</em></a></li>
+<li><a><span class="toc-section-number">5.8.2</span> Visualisation of levels in <em>Thentos.Action.SimpleAuth</em></a></li>
+<li><a><span class="toc-section-number">5.8.3</span> Cyclomatic Complexity of <em>Thentos.Action.SimpleAuth</em></a></li>
+<li><a><span class="toc-section-number">5.8.4</span> Component analysis of <em>Thentos.Action.SimpleAuth</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.9</span> Analysis of <em>Thentos.Action.Unsafe</em></a><ul>
+<li><a><span class="toc-section-number">5.9.1</span> Visualisation of <em>Thentos.Action.Unsafe</em></a></li>
+<li><a><span class="toc-section-number">5.9.2</span> Visualisation of levels in <em>Thentos.Action.Unsafe</em></a></li>
+<li><a><span class="toc-section-number">5.9.3</span> Cyclomatic Complexity of <em>Thentos.Action.Unsafe</em></a></li>
+<li><a><span class="toc-section-number">5.9.4</span> Component analysis of <em>Thentos.Action.Unsafe</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.10</span> Analysis of <em>Thentos.Backend.Api.Auth</em></a><ul>
+<li><a><span class="toc-section-number">5.10.1</span> Visualisation of <em>Thentos.Backend.Api.Auth</em></a></li>
+<li><a><span class="toc-section-number">5.10.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Auth</em></a></li>
+<li><a><span class="toc-section-number">5.10.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Auth</em></a></li>
+<li><a><span class="toc-section-number">5.10.4</span> Component analysis of <em>Thentos.Backend.Api.Auth</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.11</span> Analysis of <em>Thentos.Backend.Api.Docs.Common</em></a><ul>
+<li><a><span class="toc-section-number">5.11.1</span> Visualisation of <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+<li><a><span class="toc-section-number">5.11.2</span> Core analysis of <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+<li><a><span class="toc-section-number">5.11.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+<li><a><span class="toc-section-number">5.11.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+<li><a><span class="toc-section-number">5.11.5</span> Component analysis of <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+<li><a><span class="toc-section-number">5.11.6</span> Chain analysis of <em>Thentos.Backend.Api.Docs.Common</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.12</span> Analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></a><ul>
+<li><a><span class="toc-section-number">5.12.1</span> Visualisation of <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.12.2</span> Core analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.12.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.12.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.12.5</span> Component analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.12.6</span> Chain analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.13</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></a><ul>
+<li><a><span class="toc-section-number">5.13.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.13.2</span> Core analysis of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.13.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.13.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.13.5</span> Component analysis of <em>Thentos.Backend.Api.Proxy</em></a></li>
+<li><a><span class="toc-section-number">5.13.6</span> Chain analysis of <em>Thentos.Backend.Api.Proxy</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.14</span> Analysis of <em>Thentos.Backend.Api.Purescript</em></a><ul>
+<li><a><span class="toc-section-number">5.14.1</span> Visualisation of <em>Thentos.Backend.Api.Purescript</em></a></li>
+<li><a><span class="toc-section-number">5.14.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Purescript</em></a></li>
+<li><a><span class="toc-section-number">5.14.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Purescript</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.15</span> Analysis of <em>Thentos.Backend.Api.Simple</em></a><ul>
+<li><a><span class="toc-section-number">5.15.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.15.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.15.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></a></li>
+<li><a><span class="toc-section-number">5.15.4</span> Component analysis of <em>Thentos.Backend.Api.Simple</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.16</span> Analysis of <em>Thentos.Backend.Core</em></a><ul>
+<li><a><span class="toc-section-number">5.16.1</span> Visualisation of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.16.2</span> Visualisation of levels in <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.16.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></a></li>
+<li><a><span class="toc-section-number">5.16.4</span> Component analysis of <em>Thentos.Backend.Core</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.17</span> Analysis of <em>Thentos.Config</em></a><ul>
+<li><a><span class="toc-section-number">5.17.1</span> Visualisation of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.17.2</span> Visualisation of levels in <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.17.3</span> Cyclomatic Complexity of <em>Thentos.Config</em></a></li>
+<li><a><span class="toc-section-number">5.17.4</span> Component analysis of <em>Thentos.Config</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.18</span> Analysis of <em>Thentos.Frontend</em></a><ul>
+<li><a><span class="toc-section-number">5.18.1</span> Visualisation of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.18.2</span> Visualisation of levels in <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.18.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></a></li>
+<li><a><span class="toc-section-number">5.18.4</span> Chain analysis of <em>Thentos.Frontend</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.19</span> Analysis of <em>Thentos.Frontend.Handlers</em></a><ul>
+<li><a><span class="toc-section-number">5.19.1</span> Visualisation of <em>Thentos.Frontend.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.19.2</span> Visualisation of levels in <em>Thentos.Frontend.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.19.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.19.4</span> Root analysis of <em>Thentos.Frontend.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.19.5</span> Component analysis of <em>Thentos.Frontend.Handlers</em></a></li>
+<li><a><span class="toc-section-number">5.19.6</span> Chain analysis of <em>Thentos.Frontend.Handlers</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.20</span> Analysis of <em>Thentos.Frontend.Handlers.Combinators</em></a><ul>
+<li><a><span class="toc-section-number">5.20.1</span> Visualisation of <em>Thentos.Frontend.Handlers.Combinators</em></a></li>
+<li><a><span class="toc-section-number">5.20.2</span> Visualisation of levels in <em>Thentos.Frontend.Handlers.Combinators</em></a></li>
+<li><a><span class="toc-section-number">5.20.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Handlers.Combinators</em></a></li>
+<li><a><span class="toc-section-number">5.20.4</span> Component analysis of <em>Thentos.Frontend.Handlers.Combinators</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.21</span> Analysis of <em>Thentos.Frontend.Pages</em></a><ul>
+<li><a><span class="toc-section-number">5.21.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.21.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.21.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></a></li>
+<li><a><span class="toc-section-number">5.21.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.22</span> Analysis of <em>Thentos.Frontend.State</em></a><ul>
+<li><a><span class="toc-section-number">5.22.1</span> Visualisation of <em>Thentos.Frontend.State</em></a></li>
+<li><a><span class="toc-section-number">5.22.2</span> Visualisation of levels in <em>Thentos.Frontend.State</em></a></li>
+<li><a><span class="toc-section-number">5.22.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.State</em></a></li>
+<li><a><span class="toc-section-number">5.22.4</span> Component analysis of <em>Thentos.Frontend.State</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.23</span> Analysis of <em>Thentos.Frontend.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.23.1</span> Visualisation of <em>Thentos.Frontend.Types</em></a></li>
+<li><a><span class="toc-section-number">5.23.2</span> Core analysis of <em>Thentos.Frontend.Types</em></a></li>
+<li><a><span class="toc-section-number">5.23.3</span> Visualisation of levels in <em>Thentos.Frontend.Types</em></a></li>
+<li><a><span class="toc-section-number">5.23.4</span> Cyclomatic Complexity of <em>Thentos.Frontend.Types</em></a></li>
+<li><a><span class="toc-section-number">5.23.5</span> Component analysis of <em>Thentos.Frontend.Types</em></a></li>
+<li><a><span class="toc-section-number">5.23.6</span> Chain analysis of <em>Thentos.Frontend.Types</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.24</span> Analysis of <em>Thentos.Smtp</em></a><ul>
+<li><a><span class="toc-section-number">5.24.1</span> Visualisation of <em>Thentos.Smtp</em></a></li>
+<li><a><span class="toc-section-number">5.24.2</span> Visualisation of levels in <em>Thentos.Smtp</em></a></li>
+<li><a><span class="toc-section-number">5.24.3</span> Cyclomatic Complexity of <em>Thentos.Smtp</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.25</span> Analysis of <em>Thentos.Transaction</em></a><ul>
+<li><a><span class="toc-section-number">5.25.1</span> Visualisation of <em>Thentos.Transaction</em></a></li>
+<li><a><span class="toc-section-number">5.25.2</span> Visualisation of levels in <em>Thentos.Transaction</em></a></li>
+<li><a><span class="toc-section-number">5.25.3</span> Cyclomatic Complexity of <em>Thentos.Transaction</em></a></li>
+<li><a><span class="toc-section-number">5.25.4</span> Component analysis of <em>Thentos.Transaction</em></a></li>
+</ul></li>
+<li><a><span class="toc-section-number">5.26</span> Analysis of <em>Thentos.Types</em></a><ul>
+<li><a><span class="toc-section-number">5.26.1</span> Visualisation of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.26.2</span> Core analysis of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.26.3</span> Visualisation of levels in <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.26.4</span> Cyclomatic Complexity of <em>Thentos.Types</em></a></li>
+<li><a><span class="toc-section-number">5.26.5</span> Component analysis of <em>Thentos.Types</em></a></li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+<h1>Document Information</h1>
+<blockquote><p><em>Analysed by SourceGraph (version 0.7.0.7) using Graphalyze (version 0.14.1.1)</em></p></blockquote>
+<blockquote><p><em>Sunday 22 November, 2015</em></p></blockquote>
+
+<h1><span class="header-section-number">1</span> Legend</h1>
+<dl>
+<dt><strong>Two normal functions with <em>f</em> calling <em>g</em> .</strong></dt>
+<dd><img src="graphs/legend_call.png" alt="Function Call" />
+</dd>
+<dt><strong>Two modules with module <em>Foo</em> importing <em>Bar</em> .</strong></dt>
+<dd><img src="graphs/legend_mods.png" alt="Module Import" />
+</dd>
+<dt><strong>Entities from different modules.</strong></dt>
+<dd><img src="graphs/legend_loc.png" alt="From module" />
+</dd>
+<dt><strong>Data type declaration.</strong></dt>
+<dd><img src="graphs/legend_data.png" alt="Data type declaration" />
+</dd>
+<dt><strong>Class and instance declarations.</strong></dt>
+<dd><img src="graphs/legend_class.png" alt="Class declaration" />
+</dd>
+<dt><strong>Entity location/accessibility classification.</strong></dt>
+<dd><img src="graphs/legend_loc2.png" alt="Entity Location" />
+</dd>
+<dt><strong>Edge classification.</strong></dt>
+<dd><img src="graphs/legend_edges.png" alt="Edge Classification" />
+</dd>
+<dt><strong>Edge Widths</strong></dt>
+<dd>The width of each edge is calculated by:   <em>width = log (number of function calls) + 1</em>
+</dd>
+</dl>
+<h1><span class="header-section-number">2</span> Notes</h1>
+<p>Please note that the source-code analysis in this document is not necessarily perfect: <em>SourceGraph</em> is <strong>not</strong> a refactoring tool, and it's usage of Classes is still premature.</p>
+<p>Implicitly exported entities refer to class methods that are instantiated but defined elsewhere, or <a href="http://www.haskell.org/ghc/docs/latest/html/users_guide/options-sanity.html">entities whose names start with an underscore</a> .  Note that even for <em>Main</em> modules, these implicit exports are included.</p>
+<p>All graph visualisations link to larger SVG versions of the same graph.</p>
+<h2><span class="header-section-number">2.1</span> Parsing Failures</h2>
+<p>The following source files were unable to be parsed; this may result in some analysis failures:</p>
+<ul>
+<li><p>thentos-core/src/Paths_thentos_core__.hs</p></li>
+<li><p>thentos-core/src/Thentos/Util.hs</p></li>
+<li><p>thentos-core/src/Thentos/Transaction/Core.hs</p></li>
+</ul>
+<h1><span class="header-section-number">3</span> Analysis of the entire codebase</h1>
+<h2><span class="header-section-number">3.1</span> Visualisation of the entire software</h2>
+<p><a href="graphs/code.svg"><img src="graphs/code.png" alt="Entire Codebase" /></a></p>
+<h2><span class="header-section-number">3.2</span> Visualisation of overall function calls</h2>
+<p>Here is the current module grouping of functions:</p>
+<p>Error running utility program: Error messages from dot:
+Error: trouble in init_rank
+	%0 10
+	%0 2
+	%0 2
+	%0 2
+	%0 8
+	%0 2
+	%0 4
+	%0 3
+	%0 7
+	%0 5
+	%0 5
+	%0 5
+	%0 9
+	%0 5
+	%0 8
+	%0 4
+	%0 6
+	%0 3
+	%0 7
+	%0 5
+	%0 1
+	725 1
+	726 1
+	727 1
+	728 2
+	729 1
+	730 1
+	731 1
+	734 1
+	735 1
+	736 1
+	737 1
+	738 1
+	739 1
+	741 1
+	742 1
+	724 2
+	442 2
+	407 2
+	433 1
+	409 1
+	394 1
+	399 2
+	405 1
+	408 1
+	418 1
+	419 1
+	420 2
+	421 1
+	422 1
+	423 1
+	424 1
+	425 1
+	426 1
+	427 1
+	428 1
+	429 1
+	430 1
+	431 1
+	432 1
+	434 1
+	435 1
+	436 1
+	437 2
+	438 1
+	391 1
+	384 1
+	%0 1
+	383 1
+	388 1
+	385 2
+	382 1
+	392 1
+	387 2
+	386 1
+	389 1
+	390 2
+	345 1
+	353 1
+	359 2
+	349 1
+	346 1
+	344 1
+	348 1
+	350 1
+	352 1
+	354 2
+	355 1
+	356 2
+	381 1
+	358 1
+	380 1
+	361 1
+	363 1
+	366 1
+	368 1
+	371 1
+	373 1
+	379 3
+	378 1
+	375 1
+	347 1
+	351 1
+	357 1
+	360 1
+	362 1
+	364 1
+	365 1
+	367 1
+	369 1
+	370 1
+	372 1
+	374 2
+	376 1
+	377 1
+	338 1
+	333 1
+	331 2
+	334 1
+	335 1
+	339 1
+	330 1
+	326 2
+	337 2
+	341 1
+	343 1
+	327 1
+	328 2
+	329 2
+	332 1
+	336 1
+	340 1
+	342 1
+	308 2
+	312 1
+	318 1
+	322 2
+	321 3
+	319 2
+	302 2
+	313 2
+	306 1
+	301 1
+	303 1
+	304 1
+	305 1
+	307 1
+	309 1
+	310 1
+	311 1
+	314 1
+	315 1
+	316 1
+	317 1
+	320 1
+	323 1
+	324 1
+	325 1
+	147 4
+	141 1
+	142 1
+	143 1
+	144 1
+	145 1
+	146 1
+	148 1
+	149 1
+	150 3
+	79 1
+	69 1
+	29 2
+	32 1
+	67 1
+	%0 1
+	71 1
+	62 1
+	74 1
+	68 1
+	65 1
+	66 1
+	80 1
+	72 1
+	73 1
+	54 1
+	97 1
+	37 1
+	70 1
+	41 1
+	43 1
+	53 1
+	35 1
+	78 1
+	34 1
+	63 1
+	30 1
+	81 1
+	86 1
+	88 1
+	90 1
+	33 1
+	31 1
+	28 1
+	36 1
+	38 1
+	39 1
+	40 1
+	42 1
+	44 1
+	45 1
+	46 1
+	47 1
+	48 1
+	49 1
+	50 1
+	51 1
+	52 1
+	55 1
+	56 1
+	57 1
+	58 1
+	59 1
+	60 1
+	61 1
+	64 1
+	75 1
+	76 1
+	77 1
+	82 1
+	83 1
+	84 1
+	85 1
+	87 1
+	89 1
+	91 1
+	92 1
+	93 1
+	94 1
+	95 1
+	96 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 1
+	%0 2
+	%0 2
+libpath/shortest.c:324: triangulation failed
+libpath/shortest.c:192: source point not in any triangle
+Error: in routesplines, Pshortestpath failed
+</p>
+<p>Here is a proposed alternate module grouping:</p>
+<p> </p>
+<p><em>Using the Chinese Whispers algorithm:</em></p>
+<p><a href="graphs/codeCW.svg"><img src="graphs/codeCW.png" alt="Chinese Whispers module suggestions" /></a></p>
+<h2><span class="header-section-number">3.3</span> Overall Core analysis</h2>
+<p>The core of software is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/codeCore.svg"><img src="graphs/codeCore.png" alt="Overall core" /></a></p>
+<h2><span class="header-section-number">3.4</span> Visualisation of levels in the software</h2>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/code_levels.svg"><img src="graphs/code_levels.png" alt="Levels within software" /></a></p>
+<h2><span class="header-section-number">3.5</span> Overall Cyclomatic Complexity</h2>
+<p>The overall cyclomatic complexity is: 774</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">3.6</span> Overall root analysis</h2>
+<p>These functions are those that are inaccessible:</p>
+<p><em>Paths.TH.exceptToMaybe,  Paths.TH.getPackageSourceRoot,  Paths.TH.perhaps,  Paths.TH.toShellVarName, 
+Thentos.Action.addGroupToGroup,  Thentos.Action.addPersona,  Thentos.Action.addPersonaToGroup,  Thentos.Action.deleteContext, 
+Thentos.Action.deletePersona,  Thentos.Action.dropServiceRegistration,  Thentos.Action.findPersona, 
+Thentos.Action.freshCaptchaId,  Thentos.Action.freshRandom20,  Thentos.Action.lookupConfirmedUserByEmail, 
+Thentos.Action.lookupConfirmedUserByName,  Thentos.Action.makeCaptcha,  Thentos.Action.personaGroups, 
+Thentos.Action.registerPersonaWithContext,  Thentos.Action.removeGroupFromGroup,  Thentos.Action.removePersonaFromGroup, 
+Thentos.Action.solveCaptcha,  Thentos.Action.startThentosSessionByUserEmail,  Thentos.Action.unassignRole, 
+Thentos.Action.unregisterPersonaFromContext,  Thentos.Action.validateThentosUserSession, 
+Thentos.Action.Core.fromActionState,  Thentos.Action.Core.getCurrentTime'P,  Thentos.Action.Core.logIfError'P, 
+Thentos.Action.Core.renderTextTemplate'P,  Thentos.Action.Core.runAction,  Thentos.Action.Core.runActionAsAgent, 
+Thentos.Action.Core.runActionAsAgentE,  Thentos.Action.Core.runActionInThentosSession, 
+Thentos.Action.Core.runActionInThentosSessionE,  Thentos.Action.SimpleAuth.guardedUnsafeAction, 
+Thentos.Action.Unsafe.genRandomBytes,  Thentos.Action.Unsafe.getCurrentTime,  Thentos.Action.Unsafe.hashServiceKey, 
+Thentos.Action.Unsafe.hashUserPass,  Thentos.Action.Unsafe.logIfError,  Thentos.Action.Unsafe.makeUserFromFormData, 
+Thentos.Action.Unsafe.query,  Thentos.Backend.Api.Proxy.ProxyAdapter,  Thentos.Backend.Api.Proxy.RqMod, 
+Thentos.Backend.Api.Proxy.createCustomHeaders,  Thentos.Backend.Api.Proxy.defaultProxyAdapter, 
+Thentos.Backend.Api.Proxy.defaultRenderUser,  Thentos.Backend.Api.Proxy.err500onExc, 
+Thentos.Backend.Api.Proxy.findDefaultServiceIdAndTarget,  Thentos.Backend.Api.Proxy.findTargetForServiceId, 
+Thentos.Backend.Api.Proxy.getRqMod,  Thentos.Backend.Api.Proxy.prepareReq,  Thentos.Backend.Api.Proxy.renderError, 
+Thentos.Backend.Api.Proxy.renderHeader,  Thentos.Backend.Api.Proxy.renderUser, 
+Thentos.Backend.Api.Proxy.reverseProxyHandler,  Thentos.Backend.Api.Proxy.serviceProxy,  Thentos.Backend.Core.CorsPolicy, 
+Thentos.Backend.Core.addCorsHeaders,  Thentos.Backend.Core.clearCustomHeaders,  Thentos.Backend.Core.corsHeaders, 
+Thentos.Backend.Core.corsMethods,  Thentos.Backend.Core.corsOrigin,  Thentos.Backend.Core.fromErrorMessage, 
+Thentos.Backend.Core.loggerMW,  Thentos.Backend.Core.lookupThentosHeaderService,  Thentos.Config.extractTargetUrl, 
+Thentos.Config.getBackendConfig,  Thentos.Config.getFrontendConfig,  Thentos.Config.printConfigUsage, 
+Thentos.Frontend.Handlers.sendUserExistsMail,  Thentos.Frontend.Handlers.Combinators.redirectURI, 
+Thentos.Frontend.Pages.confirmationMailSentSnippet,  Thentos.Frontend.Pages.errorPagelet, 
+Thentos.Frontend.TH.loadStaticContent,  Thentos.Sybil.Captcha.generateCaptcha,  Thentos.Transaction.addGroupToGroup, 
+Thentos.Transaction.addPersona,  Thentos.Transaction.addPersonaToGroup,  Thentos.Transaction.deleteContext, 
+Thentos.Transaction.deletePersona,  Thentos.Transaction.findContextId,  Thentos.Transaction.findPersona, 
+Thentos.Transaction.lookupConfirmedUserByEmail,  Thentos.Transaction.personaGroups, 
+Thentos.Transaction.registerPersonaWithContext,  Thentos.Transaction.removeGroupFromGroup, 
+Thentos.Transaction.removePersonaFromGroup,  Thentos.Transaction.solveCaptcha,  Thentos.Transaction.storeCaptcha, 
+Thentos.Transaction.unassignRole,  Thentos.Transaction.unregisterPersonaFromContext, 
+Thentos.Transaction.unregisterUserFromService,  Thentos.Types.ContextDescription,  Thentos.Types.ContextId, 
+Thentos.Types.ContextName,  Thentos.Types.ImageData,  Thentos.Types.PersonaId,  Thentos.Types.PersonaName, 
+Thentos.Types.Random20,  Thentos.Types.RoleGroupAdmin,  Thentos.Types.fromCaptchaId,  Thentos.Types.fromContextDescription, 
+Thentos.Types.fromContextId,  Thentos.Types.fromContextName,  Thentos.Types.fromGroup,  Thentos.Types.fromImageData, 
+Thentos.Types.fromPersonaId,  Thentos.Types.fromPersonaName,  Thentos.Types.fromRandom20,  Thentos.Types.fromRelRef, 
+Thentos.Types.fromServiceSessionToken,  Thentos.Types.fromThentosSessionToken,  Thentos.Types.fromUri, 
+Thentos.Types.fromUserId,  Thentos.Types.fromUserPass,  Thentos.Types.ldName,  Thentos.Types.ldPassword, 
+Thentos.Types.mkRandom20,  Thentos.Types.udPassword</em></p>
+<h2><span class="header-section-number">3.7</span> Function component analysis</h2>
+<p>The functions are split up into 22 components.  You may wish to consider splitting the code up into multiple libraries.</p>
+<h2><span class="header-section-number">3.8</span> Overall chain analysis</h2>
+<p>The code has the following cross-module chains:</p>
+<ul>
+<li><p>Thentos.Action.defaultSessionTimeout
+-&gt; Thentos.Types.fromDays</p></li>
+<li><p>Thentos.Action.SimpleAuth.assertAuth
+-&gt; LIO.Missing.dcTop</p></li>
+<li><p>Thentos.Backend.Api.Docs.Common.Class: MimeRender, Data: PlainText Docs.API
+-&gt; Servant.API.Class: MimeRender</p></li>
+<li><p>Thentos.Backend.Api.Proxy.Class: HasServer, Data: ServiceProxy
+-&gt; Unknown Module.Class: HasServer</p></li>
+<li><p>Thentos.Frontend.Types.Class: Accept, Data: PrettyHTML
+-&gt; Unknown Module.Class: Accept</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h1><span class="header-section-number">4</span> Analysis of module imports</h1>
+<h2><span class="header-section-number">4.1</span> Visualisation of imports</h2>
+<p><a href="graphs/imports.svg"><img src="graphs/imports.png" alt="Import visualisation" /></a></p>
+<h2><span class="header-section-number">4.2</span> Cyclomatic Complexity of imports</h2>
+<p>The cyclomatic complexity of the imports is: 84</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">4.3</span> Import root analysis</h2>
+<p>These modules are those that are inaccessible:</p>
+<p><em>Paths.TH, 
+Thentos.Backend.Api.Docs.Proxy, 
+Thentos.Backend.Api.Proxy</em></p>
+<h2><span class="header-section-number">4.4</span> Import component analysis</h2>
+<p>The imports have 2 components.  You may wish to consider splitting the code up.</p>
+<h2><span class="header-section-number">4.5</span> Import chain analysis</h2>
+<p>The imports have the following chains:</p>
+<ul>
+<li><p>Thentos.Types
+-&gt; Database.PostgreSQL.Simple.Missing</p></li>
+</ul>
+<p>These chains can all be compressed down to a single module.</p>
+<h1><span class="header-section-number">5</span> Analysis of each module</h1>
+<h2><span class="header-section-number">5.1</span> Analysis of <em>Database.PostgreSQL.Simple.Missing</em></h2>
+<h3><span class="header-section-number">5.1.1</span> Visualisation of <em>Database.PostgreSQL.Simple.Missing</em></h3>
+<p><a href="graphs/Database-PostgreSQL-Simple-Missing.svg"><img src="graphs/Database-PostgreSQL-Simple-Missing.png" alt="Diagram of: Database.PostgreSQL.Simple.Missing" /></a></p>
+<h3><span class="header-section-number">5.1.2</span> Visualisation of levels in <em>Database.PostgreSQL.Simple.Missing</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Database-PostgreSQL-Simple-Missing_levels.svg"><img src="graphs/Database-PostgreSQL-Simple-Missing_levels.png" alt="Levels within Database.PostgreSQL.Simple.Missing" /></a></p>
+<h3><span class="header-section-number">5.1.3</span> Cyclomatic Complexity of <em>Database.PostgreSQL.Simple.Missing</em></h3>
+<p>The cyclomatic complexity of Database.PostgreSQL.Simple.Missing is: 5.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.2</span> Analysis of <em>LIO.Missing</em></h2>
+<h3><span class="header-section-number">5.2.1</span> Visualisation of <em>LIO.Missing</em></h3>
+<p><a href="graphs/LIO-Missing.svg"><img src="graphs/LIO-Missing.png" alt="Diagram of: LIO.Missing" /></a></p>
+<h3><span class="header-section-number">5.2.2</span> Visualisation of levels in <em>LIO.Missing</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/LIO-Missing_levels.svg"><img src="graphs/LIO-Missing_levels.png" alt="Levels within LIO.Missing" /></a></p>
+<h3><span class="header-section-number">5.2.3</span> Cyclomatic Complexity of <em>LIO.Missing</em></h3>
+<p>The cyclomatic complexity of LIO.Missing is: 4.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.2.4</span> Component analysis of <em>LIO.Missing</em></h3>
+<p>The module LIO.Missing has 4 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.3</span> Analysis of <em>Paths.TH</em></h2>
+<h3><span class="header-section-number">5.3.1</span> Visualisation of <em>Paths.TH</em></h3>
+<p><a href="graphs/Paths-TH.svg"><img src="graphs/Paths-TH.png" alt="Diagram of: Paths.TH" /></a></p>
+<h3><span class="header-section-number">5.3.2</span> Visualisation of levels in <em>Paths.TH</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Paths-TH_levels.svg"><img src="graphs/Paths-TH_levels.png" alt="Levels within Paths.TH" /></a></p>
+<h3><span class="header-section-number">5.3.3</span> Cyclomatic Complexity of <em>Paths.TH</em></h3>
+<p>The cyclomatic complexity of Paths.TH is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.3.4</span> Chain analysis of <em>Paths.TH</em></h3>
+<p>The module Paths.TH has the following chains:</p>
+<ul>
+<li><p>perhaps
+-&gt; exceptToMaybe</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.4</span> Analysis of <em>System.Log.Missing</em></h2>
+<h3><span class="header-section-number">5.4.1</span> Visualisation of <em>System.Log.Missing</em></h3>
+<p><a href="graphs/System-Log-Missing.svg"><img src="graphs/System-Log-Missing.png" alt="Diagram of: System.Log.Missing" /></a></p>
+<h3><span class="header-section-number">5.4.2</span> Visualisation of levels in <em>System.Log.Missing</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/System-Log-Missing_levels.svg"><img src="graphs/System-Log-Missing_levels.png" alt="Levels within System.Log.Missing" /></a></p>
+<h3><span class="header-section-number">5.4.3</span> Cyclomatic Complexity of <em>System.Log.Missing</em></h3>
+<p>The cyclomatic complexity of System.Log.Missing is: 4.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.4.4</span> Component analysis of <em>System.Log.Missing</em></h3>
+<p>The module System.Log.Missing has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.5</span> Analysis of <em>Thentos</em></h2>
+<h3><span class="header-section-number">5.5.1</span> Visualisation of <em>Thentos</em></h3>
+<p><a href="graphs/Thentos.svg"><img src="graphs/Thentos.png" alt="Diagram of: Thentos" /></a></p>
+<h3><span class="header-section-number">5.5.2</span> Visualisation of levels in <em>Thentos</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos_levels.svg"><img src="graphs/Thentos_levels.png" alt="Levels within Thentos" /></a></p>
+<h3><span class="header-section-number">5.5.3</span> Cyclomatic Complexity of <em>Thentos</em></h3>
+<p>The cyclomatic complexity of Thentos is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.6</span> Analysis of <em>Thentos.Action</em></h2>
+<h3><span class="header-section-number">5.6.1</span> Visualisation of <em>Thentos.Action</em></h3>
+<p><a href="graphs/Thentos-Action.svg"><img src="graphs/Thentos-Action.png" alt="Diagram of: Thentos.Action" /></a></p>
+<h3><span class="header-section-number">5.6.2</span> Visualisation of levels in <em>Thentos.Action</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Action_levels.svg"><img src="graphs/Thentos-Action_levels.png" alt="Levels within Thentos.Action" /></a></p>
+<h3><span class="header-section-number">5.6.3</span> Cyclomatic Complexity of <em>Thentos.Action</em></h3>
+<p>The cyclomatic complexity of Thentos.Action is: 31.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.6.4</span> Component analysis of <em>Thentos.Action</em></h3>
+<p>The module Thentos.Action has 27 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.7</span> Analysis of <em>Thentos.Action.Core</em></h2>
+<h3><span class="header-section-number">5.7.1</span> Visualisation of <em>Thentos.Action.Core</em></h3>
+<p><a href="graphs/Thentos-Action-Core.svg"><img src="graphs/Thentos-Action-Core.png" alt="Diagram of: Thentos.Action.Core" /></a></p>
+<h3><span class="header-section-number">5.7.2</span> Visualisation of levels in <em>Thentos.Action.Core</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Action-Core_levels.svg"><img src="graphs/Thentos-Action-Core_levels.png" alt="Levels within Thentos.Action.Core" /></a></p>
+<h3><span class="header-section-number">5.7.3</span> Cyclomatic Complexity of <em>Thentos.Action.Core</em></h3>
+<p>The cyclomatic complexity of Thentos.Action.Core is: 17.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.7.4</span> Component analysis of <em>Thentos.Action.Core</em></h3>
+<p>The module Thentos.Action.Core has 8 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.8</span> Analysis of <em>Thentos.Action.SimpleAuth</em></h2>
+<h3><span class="header-section-number">5.8.1</span> Visualisation of <em>Thentos.Action.SimpleAuth</em></h3>
+<p><a href="graphs/Thentos-Action-SimpleAuth.svg"><img src="graphs/Thentos-Action-SimpleAuth.png" alt="Diagram of: Thentos.Action.SimpleAuth" /></a></p>
+<h3><span class="header-section-number">5.8.2</span> Visualisation of levels in <em>Thentos.Action.SimpleAuth</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Action-SimpleAuth_levels.svg"><img src="graphs/Thentos-Action-SimpleAuth_levels.png" alt="Levels within Thentos.Action.SimpleAuth" /></a></p>
+<h3><span class="header-section-number">5.8.3</span> Cyclomatic Complexity of <em>Thentos.Action.SimpleAuth</em></h3>
+<p>The cyclomatic complexity of Thentos.Action.SimpleAuth is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.8.4</span> Component analysis of <em>Thentos.Action.SimpleAuth</em></h3>
+<p>The module Thentos.Action.SimpleAuth has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.9</span> Analysis of <em>Thentos.Action.Unsafe</em></h2>
+<h3><span class="header-section-number">5.9.1</span> Visualisation of <em>Thentos.Action.Unsafe</em></h3>
+<p><a href="graphs/Thentos-Action-Unsafe.svg"><img src="graphs/Thentos-Action-Unsafe.png" alt="Diagram of: Thentos.Action.Unsafe" /></a></p>
+<h3><span class="header-section-number">5.9.2</span> Visualisation of levels in <em>Thentos.Action.Unsafe</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Action-Unsafe_levels.svg"><img src="graphs/Thentos-Action-Unsafe_levels.png" alt="Levels within Thentos.Action.Unsafe" /></a></p>
+<h3><span class="header-section-number">5.9.3</span> Cyclomatic Complexity of <em>Thentos.Action.Unsafe</em></h3>
+<p>The cyclomatic complexity of Thentos.Action.Unsafe is: 9.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.9.4</span> Component analysis of <em>Thentos.Action.Unsafe</em></h3>
+<p>The module Thentos.Action.Unsafe has 9 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.10</span> Analysis of <em>Thentos.Backend.Api.Auth</em></h2>
+<h3><span class="header-section-number">5.10.1</span> Visualisation of <em>Thentos.Backend.Api.Auth</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Auth.svg"><img src="graphs/Thentos-Backend-Api-Auth.png" alt="Diagram of: Thentos.Backend.Api.Auth" /></a></p>
+<h3><span class="header-section-number">5.10.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Auth</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Auth_levels.svg"><img src="graphs/Thentos-Backend-Api-Auth_levels.png" alt="Levels within Thentos.Backend.Api.Auth" /></a></p>
+<h3><span class="header-section-number">5.10.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Auth</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Auth is: 2.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.10.4</span> Component analysis of <em>Thentos.Backend.Api.Auth</em></h3>
+<p>The module Thentos.Backend.Api.Auth has 2 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.11</span> Analysis of <em>Thentos.Backend.Api.Docs.Common</em></h2>
+<h3><span class="header-section-number">5.11.1</span> Visualisation of <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Common.svg"><img src="graphs/Thentos-Backend-Api-Docs-Common.png" alt="Diagram of: Thentos.Backend.Api.Docs.Common" /></a></p>
+<h3><span class="header-section-number">5.11.2</span> Core analysis of <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Common_core.svg"><img src="graphs/Thentos-Backend-Api-Docs-Common_core.png" alt="Core of Thentos.Backend.Api.Docs.Common" /></a></p>
+<h3><span class="header-section-number">5.11.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Common_levels.svg"><img src="graphs/Thentos-Backend-Api-Docs-Common_levels.png" alt="Levels within Thentos.Backend.Api.Docs.Common" /></a></p>
+<h3><span class="header-section-number">5.11.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Docs.Common is: 27.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.11.5</span> Component analysis of <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p>The module Thentos.Backend.Api.Docs.Common has 6 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.11.6</span> Chain analysis of <em>Thentos.Backend.Api.Docs.Common</em></h3>
+<p>The module Thentos.Backend.Api.Docs.Common has the following chains:</p>
+<ul>
+<li><p>Class: MimeRender, Data: PlainText Docs.API
+-&gt; Class: MimeRender</p></li>
+<li><p>prettyMimeRender'
+-&gt; pprintAction</p></li>
+<li><p>runTokenBuilder
+-&gt; runTokenBuilderState</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.12</span> Analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></h2>
+<h3><span class="header-section-number">5.12.1</span> Visualisation of <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Proxy.svg"><img src="graphs/Thentos-Backend-Api-Docs-Proxy.png" alt="Diagram of: Thentos.Backend.Api.Docs.Proxy" /></a></p>
+<h3><span class="header-section-number">5.12.2</span> Core analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Proxy_core.svg"><img src="graphs/Thentos-Backend-Api-Docs-Proxy_core.png" alt="Core of Thentos.Backend.Api.Docs.Proxy" /></a></p>
+<h3><span class="header-section-number">5.12.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Docs-Proxy_levels.svg"><img src="graphs/Thentos-Backend-Api-Docs-Proxy_levels.png" alt="Levels within Thentos.Backend.Api.Docs.Proxy" /></a></p>
+<h3><span class="header-section-number">5.12.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Docs.Proxy is: 3.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.12.5</span> Component analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p>The module Thentos.Backend.Api.Docs.Proxy has 2 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.12.6</span> Chain analysis of <em>Thentos.Backend.Api.Docs.Proxy</em></h3>
+<p>The module Thentos.Backend.Api.Docs.Proxy has the following chains:</p>
+<ul>
+<li><p>Class: HasDocs, Data: (sublayout :&lt;|&gt; ServiceProxy)
+-&gt; Class: HasDocs</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.13</span> Analysis of <em>Thentos.Backend.Api.Proxy</em></h2>
+<h3><span class="header-section-number">5.13.1</span> Visualisation of <em>Thentos.Backend.Api.Proxy</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Proxy.svg"><img src="graphs/Thentos-Backend-Api-Proxy.png" alt="Diagram of: Thentos.Backend.Api.Proxy" /></a></p>
+<h3><span class="header-section-number">5.13.2</span> Core analysis of <em>Thentos.Backend.Api.Proxy</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Backend-Api-Proxy_core.svg"><img src="graphs/Thentos-Backend-Api-Proxy_core.png" alt="Core of Thentos.Backend.Api.Proxy" /></a></p>
+<h3><span class="header-section-number">5.13.3</span> Visualisation of levels in <em>Thentos.Backend.Api.Proxy</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Proxy_levels.svg"><img src="graphs/Thentos-Backend-Api-Proxy_levels.png" alt="Levels within Thentos.Backend.Api.Proxy" /></a></p>
+<h3><span class="header-section-number">5.13.4</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Proxy</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Proxy is: 12.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.13.5</span> Component analysis of <em>Thentos.Backend.Api.Proxy</em></h3>
+<p>The module Thentos.Backend.Api.Proxy has 2 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.13.6</span> Chain analysis of <em>Thentos.Backend.Api.Proxy</em></h3>
+<p>The module Thentos.Backend.Api.Proxy has the following chains:</p>
+<ul>
+<li><p>Class: HasServer, Data: ServiceProxy
+-&gt; Class: HasServer</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.14</span> Analysis of <em>Thentos.Backend.Api.Purescript</em></h2>
+<h3><span class="header-section-number">5.14.1</span> Visualisation of <em>Thentos.Backend.Api.Purescript</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Purescript.svg"><img src="graphs/Thentos-Backend-Api-Purescript.png" alt="Diagram of: Thentos.Backend.Api.Purescript" /></a></p>
+<h3><span class="header-section-number">5.14.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Purescript</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Purescript_levels.svg"><img src="graphs/Thentos-Backend-Api-Purescript_levels.png" alt="Levels within Thentos.Backend.Api.Purescript" /></a></p>
+<h3><span class="header-section-number">5.14.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Purescript</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Purescript is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.15</span> Analysis of <em>Thentos.Backend.Api.Simple</em></h2>
+<h3><span class="header-section-number">5.15.1</span> Visualisation of <em>Thentos.Backend.Api.Simple</em></h3>
+<p><a href="graphs/Thentos-Backend-Api-Simple.svg"><img src="graphs/Thentos-Backend-Api-Simple.png" alt="Diagram of: Thentos.Backend.Api.Simple" /></a></p>
+<h3><span class="header-section-number">5.15.2</span> Visualisation of levels in <em>Thentos.Backend.Api.Simple</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Api-Simple_levels.svg"><img src="graphs/Thentos-Backend-Api-Simple_levels.png" alt="Levels within Thentos.Backend.Api.Simple" /></a></p>
+<h3><span class="header-section-number">5.15.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Api.Simple</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Api.Simple is: 7.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.15.4</span> Component analysis of <em>Thentos.Backend.Api.Simple</em></h3>
+<p>The module Thentos.Backend.Api.Simple has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.16</span> Analysis of <em>Thentos.Backend.Core</em></h2>
+<h3><span class="header-section-number">5.16.1</span> Visualisation of <em>Thentos.Backend.Core</em></h3>
+<p><a href="graphs/Thentos-Backend-Core.svg"><img src="graphs/Thentos-Backend-Core.png" alt="Diagram of: Thentos.Backend.Core" /></a></p>
+<h3><span class="header-section-number">5.16.2</span> Visualisation of levels in <em>Thentos.Backend.Core</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Backend-Core_levels.svg"><img src="graphs/Thentos-Backend-Core_levels.png" alt="Levels within Thentos.Backend.Core" /></a></p>
+<h3><span class="header-section-number">5.16.3</span> Cyclomatic Complexity of <em>Thentos.Backend.Core</em></h3>
+<p>The cyclomatic complexity of Thentos.Backend.Core is: 15.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.16.4</span> Component analysis of <em>Thentos.Backend.Core</em></h3>
+<p>The module Thentos.Backend.Core has 8 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.17</span> Analysis of <em>Thentos.Config</em></h2>
+<h3><span class="header-section-number">5.17.1</span> Visualisation of <em>Thentos.Config</em></h3>
+<p><a href="graphs/Thentos-Config.svg"><img src="graphs/Thentos-Config.png" alt="Diagram of: Thentos.Config" /></a></p>
+<h3><span class="header-section-number">5.17.2</span> Visualisation of levels in <em>Thentos.Config</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Config_levels.svg"><img src="graphs/Thentos-Config_levels.png" alt="Levels within Thentos.Config" /></a></p>
+<h3><span class="header-section-number">5.17.3</span> Cyclomatic Complexity of <em>Thentos.Config</em></h3>
+<p>The cyclomatic complexity of Thentos.Config is: 16.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.17.4</span> Component analysis of <em>Thentos.Config</em></h3>
+<p>The module Thentos.Config has 12 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.18</span> Analysis of <em>Thentos.Frontend</em></h2>
+<h3><span class="header-section-number">5.18.1</span> Visualisation of <em>Thentos.Frontend</em></h3>
+<p><a href="graphs/Thentos-Frontend.svg"><img src="graphs/Thentos-Frontend.png" alt="Diagram of: Thentos.Frontend" /></a></p>
+<h3><span class="header-section-number">5.18.2</span> Visualisation of levels in <em>Thentos.Frontend</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend_levels.svg"><img src="graphs/Thentos-Frontend_levels.png" alt="Levels within Thentos.Frontend" /></a></p>
+<h3><span class="header-section-number">5.18.3</span> Cyclomatic Complexity of <em>Thentos.Frontend</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.18.4</span> Chain analysis of <em>Thentos.Frontend</em></h3>
+<p>The module Thentos.Frontend has the following chains:</p>
+<ul>
+<li><p>runFrontend
+-&gt; frontendH</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.19</span> Analysis of <em>Thentos.Frontend.Handlers</em></h2>
+<h3><span class="header-section-number">5.19.1</span> Visualisation of <em>Thentos.Frontend.Handlers</em></h3>
+<p><a href="graphs/Thentos-Frontend-Handlers.svg"><img src="graphs/Thentos-Frontend-Handlers.png" alt="Diagram of: Thentos.Frontend.Handlers" /></a></p>
+<h3><span class="header-section-number">5.19.2</span> Visualisation of levels in <em>Thentos.Frontend.Handlers</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend-Handlers_levels.svg"><img src="graphs/Thentos-Frontend-Handlers_levels.png" alt="Levels within Thentos.Frontend.Handlers" /></a></p>
+<h3><span class="header-section-number">5.19.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Handlers</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend.Handlers is: 8.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.19.4</span> Root analysis of <em>Thentos.Frontend.Handlers</em></h3>
+<p>These functions are those that are inaccessible:</p>
+<p><em>sendUserExistsMail</em></p>
+<h3><span class="header-section-number">5.19.5</span> Component analysis of <em>Thentos.Frontend.Handlers</em></h3>
+<p>The module Thentos.Frontend.Handlers has 8 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.19.6</span> Chain analysis of <em>Thentos.Frontend.Handlers</em></h3>
+<p>The module Thentos.Frontend.Handlers has the following chains:</p>
+<ul>
+<li><p>userFinishLogin
+-&gt; redirectToDashboardOrService</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.20</span> Analysis of <em>Thentos.Frontend.Handlers.Combinators</em></h2>
+<h3><span class="header-section-number">5.20.1</span> Visualisation of <em>Thentos.Frontend.Handlers.Combinators</em></h3>
+<p><a href="graphs/Thentos-Frontend-Handlers-Combinators.svg"><img src="graphs/Thentos-Frontend-Handlers-Combinators.png" alt="Diagram of: Thentos.Frontend.Handlers.Combinators" /></a></p>
+<h3><span class="header-section-number">5.20.2</span> Visualisation of levels in <em>Thentos.Frontend.Handlers.Combinators</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend-Handlers-Combinators_levels.svg"><img src="graphs/Thentos-Frontend-Handlers-Combinators_levels.png" alt="Levels within Thentos.Frontend.Handlers.Combinators" /></a></p>
+<h3><span class="header-section-number">5.20.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Handlers.Combinators</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend.Handlers.Combinators is: 7.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.20.4</span> Component analysis of <em>Thentos.Frontend.Handlers.Combinators</em></h3>
+<p>The module Thentos.Frontend.Handlers.Combinators has 7 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.21</span> Analysis of <em>Thentos.Frontend.Pages</em></h2>
+<h3><span class="header-section-number">5.21.1</span> Visualisation of <em>Thentos.Frontend.Pages</em></h3>
+<p><a href="graphs/Thentos-Frontend-Pages.svg"><img src="graphs/Thentos-Frontend-Pages.png" alt="Diagram of: Thentos.Frontend.Pages" /></a></p>
+<h3><span class="header-section-number">5.21.2</span> Visualisation of levels in <em>Thentos.Frontend.Pages</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend-Pages_levels.svg"><img src="graphs/Thentos-Frontend-Pages_levels.png" alt="Levels within Thentos.Frontend.Pages" /></a></p>
+<h3><span class="header-section-number">5.21.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.Pages</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend.Pages is: 15.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.21.4</span> Component analysis of <em>Thentos.Frontend.Pages</em></h3>
+<p>The module Thentos.Frontend.Pages has 6 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.22</span> Analysis of <em>Thentos.Frontend.State</em></h2>
+<h3><span class="header-section-number">5.22.1</span> Visualisation of <em>Thentos.Frontend.State</em></h3>
+<p><a href="graphs/Thentos-Frontend-State.svg"><img src="graphs/Thentos-Frontend-State.png" alt="Diagram of: Thentos.Frontend.State" /></a></p>
+<h3><span class="header-section-number">5.22.2</span> Visualisation of levels in <em>Thentos.Frontend.State</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend-State_levels.svg"><img src="graphs/Thentos-Frontend-State_levels.png" alt="Levels within Thentos.Frontend.State" /></a></p>
+<h3><span class="header-section-number">5.22.3</span> Cyclomatic Complexity of <em>Thentos.Frontend.State</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend.State is: 4.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.22.4</span> Component analysis of <em>Thentos.Frontend.State</em></h3>
+<p>The module Thentos.Frontend.State has 3 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.23</span> Analysis of <em>Thentos.Frontend.Types</em></h2>
+<h3><span class="header-section-number">5.23.1</span> Visualisation of <em>Thentos.Frontend.Types</em></h3>
+<p><a href="graphs/Thentos-Frontend-Types.svg"><img src="graphs/Thentos-Frontend-Types.png" alt="Diagram of: Thentos.Frontend.Types" /></a></p>
+<h3><span class="header-section-number">5.23.2</span> Core analysis of <em>Thentos.Frontend.Types</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Frontend-Types_core.svg"><img src="graphs/Thentos-Frontend-Types_core.png" alt="Core of Thentos.Frontend.Types" /></a></p>
+<h3><span class="header-section-number">5.23.3</span> Visualisation of levels in <em>Thentos.Frontend.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Frontend-Types_levels.svg"><img src="graphs/Thentos-Frontend-Types_levels.png" alt="Levels within Thentos.Frontend.Types" /></a></p>
+<h3><span class="header-section-number">5.23.4</span> Cyclomatic Complexity of <em>Thentos.Frontend.Types</em></h3>
+<p>The cyclomatic complexity of Thentos.Frontend.Types is: 10.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.23.5</span> Component analysis of <em>Thentos.Frontend.Types</em></h3>
+<p>The module Thentos.Frontend.Types has 8 components.  You may wish to consider splitting it up.</p>
+<h3><span class="header-section-number">5.23.6</span> Chain analysis of <em>Thentos.Frontend.Types</em></h3>
+<p>The module Thentos.Frontend.Types has the following chains:</p>
+<ul>
+<li><p>Class: Accept, Data: PrettyHTML
+-&gt; Class: Accept</p></li>
+</ul>
+<p>These chains can all be compressed down to a single function.</p>
+<h2><span class="header-section-number">5.24</span> Analysis of <em>Thentos.Smtp</em></h2>
+<h3><span class="header-section-number">5.24.1</span> Visualisation of <em>Thentos.Smtp</em></h3>
+<p><a href="graphs/Thentos-Smtp.svg"><img src="graphs/Thentos-Smtp.png" alt="Diagram of: Thentos.Smtp" /></a></p>
+<h3><span class="header-section-number">5.24.2</span> Visualisation of levels in <em>Thentos.Smtp</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Smtp_levels.svg"><img src="graphs/Thentos-Smtp_levels.png" alt="Levels within Thentos.Smtp" /></a></p>
+<h3><span class="header-section-number">5.24.3</span> Cyclomatic Complexity of <em>Thentos.Smtp</em></h3>
+<p>The cyclomatic complexity of Thentos.Smtp is: 1.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h2><span class="header-section-number">5.25</span> Analysis of <em>Thentos.Transaction</em></h2>
+<h3><span class="header-section-number">5.25.1</span> Visualisation of <em>Thentos.Transaction</em></h3>
+<p><a href="graphs/Thentos-Transaction.svg"><img src="graphs/Thentos-Transaction.png" alt="Diagram of: Thentos.Transaction" /></a></p>
+<h3><span class="header-section-number">5.25.2</span> Visualisation of levels in <em>Thentos.Transaction</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Transaction_levels.svg"><img src="graphs/Thentos-Transaction_levels.png" alt="Levels within Thentos.Transaction" /></a></p>
+<h3><span class="header-section-number">5.25.3</span> Cyclomatic Complexity of <em>Thentos.Transaction</em></h3>
+<p>The cyclomatic complexity of Thentos.Transaction is: 28.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.25.4</span> Component analysis of <em>Thentos.Transaction</em></h3>
+<p>The module Thentos.Transaction has 25 components.  You may wish to consider splitting it up.</p>
+<h2><span class="header-section-number">5.26</span> Analysis of <em>Thentos.Types</em></h2>
+<h3><span class="header-section-number">5.26.1</span> Visualisation of <em>Thentos.Types</em></h3>
+<p><a href="graphs/Thentos-Types.svg"><img src="graphs/Thentos-Types.png" alt="Diagram of: Thentos.Types" /></a></p>
+<h3><span class="header-section-number">5.26.2</span> Core analysis of <em>Thentos.Types</em></h3>
+<p>The core of a module is calculated by recursively removing roots and leaves of the call graph; as such, it can be considered as the section where all the &quot;real work&quot; is done.</p>
+<p><a href="graphs/Thentos-Types_core.svg"><img src="graphs/Thentos-Types_core.png" alt="Core of Thentos.Types" /></a></p>
+<h3><span class="header-section-number">5.26.3</span> Visualisation of levels in <em>Thentos.Types</em></h3>
+<p>Visualises how far away from the exported root entities an entity is.</p>
+<p><a href="graphs/Thentos-Types_levels.svg"><img src="graphs/Thentos-Types_levels.png" alt="Levels within Thentos.Types" /></a></p>
+<h3><span class="header-section-number">5.26.4</span> Cyclomatic Complexity of <em>Thentos.Types</em></h3>
+<p>The cyclomatic complexity of Thentos.Types is: 73.</p>
+<p>For more information on cyclomatic complexity, please see: <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">Wikipedia: Cyclomatic Complexity</a></p>
+<h3><span class="header-section-number">5.26.5</span> Component analysis of <em>Thentos.Types</em></h3>
+<p>The module Thentos.Types has 29 components.  You may wish to consider splitting it up.</p>
+</body>
+</html>
