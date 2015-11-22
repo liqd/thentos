@@ -101,11 +101,9 @@ A quick walk through the code of `thentos-core`:
     independent bits of information.)
 
 
-### Other sources of documentation
+### Other documentation
 
-- [servant-docs](https://liqd.github.io/thentos/gh-pages/servant-docs/)
-- [haddock](https://liqd.github.io/thentos/gh-pages/haddock/)
-- [SourceGraph](https://liqd.github.io/thentos/gh-pages/SourceGraph/thentos.html)
+- [haddock, servant-docs, SourceGraph](https://liqd.github.io/thentos/gh-pages/)
 
 
 ## Installation
