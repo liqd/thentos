@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes                      #-}
+{-# LANGUAGE ConstraintKinds                          #-}
 {-# LANGUAGE CPP                                      #-}
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
@@ -16,7 +17,12 @@
 module Thentos.Backend.Api.Docs.Common
     ( RestDocs
     , HasDocExtras(getCabalPackageName, getCabalPackageVersion, getTitle, getIntros, getExtraInfo)
+    , HasFullDocExtras
     , restDocs
+    , restDocsMd
+    , restDocsJs
+    , restDocsNg
+    , restDocsPurs
     , prettyMimeRender
     , hackTogetherSomeReasonableOrder
     )
@@ -106,17 +112,26 @@ class HasDocs api => HasDocExtras api where
     getExtraInfo :: Proxy api -> Docs.ExtraInfo api
     getExtraInfo _ = mempty
 
-restDocs :: forall api m.
-            ( Monad m
-            , HasDocs (RestDocs api), HasDocExtras (RestDocs api)
-            , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
-            )
+type HasFullDocExtras api =
+    ( HasDocs (RestDocs api), HasDocExtras (RestDocs api)
+    , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
+    )
+
+restDocs :: forall api m. (Monad m, HasFullDocExtras api)
          => HttpConfig -> Proxy (RestDocs api) -> ServerT (RestDocs' api) m
-restDocs httpCfg proxy = pure md :<|> pure js :<|> pure ng
-            :<|> pure pursUtilJS :<|> pure pursUtilPurs :<|> pure . purs
-  where
-    md :: Docs.API
-    md = prettyMimeRender . hackTogetherSomeReasonableOrder $
+restDocs _ proxy =
+        pure (restDocsMd proxy)
+   :<|> pure (restDocsJs proxy)
+   :<|> pure (restDocsNg proxy)
+   :<|> pure (restDocsPursUtilJS proxy)
+   :<|> pure (restDocsPursUtilPurs proxy)
+   :<|> pure . restDocsPurs proxy
+
+
+restDocsMd :: forall api. (HasDocExtras (RestDocs api), Foreign.HasForeign api
+      , JS.GenerateList (Foreign.Foreign api))
+         => Proxy (RestDocs api) -> Docs.API
+restDocsMd proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
         Docs.docsWith
             (Docs.DocOptions 2)
             (intro : getIntros proxy)
@@ -125,32 +140,35 @@ restDocs httpCfg proxy = pure md :<|> pure js :<|> pure ng
       where
         intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
 
-    p :: Proxy api
-    p = Proxy
+restDocsJs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
+restDocsJs proxy = restDocsSource proxy "// "
+    <> JS.jsForAPI (Proxy :: Proxy api) JS.vanillaJS
 
-    source :: ST -> ST
-    source mark = ST.unlines . (ST.stripEnd . (mark <>) <$>) $
+restDocsNg :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
+restDocsNg proxy = restDocsSource proxy "// "
+    <> JS.jsForAPI (Proxy :: Proxy api) (JS.angular JS.defAngularOptions)
+
+restDocsPursUtilJS :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
+restDocsPursUtilJS proxy = restDocsSource proxy "// "
+    <> snd (Purs.generatePSUtilModule Purs.defaultSettings)
+
+restDocsPursUtilPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
+restDocsPursUtilPurs proxy = restDocsSource proxy "-- "
+    <> fst (Purs.generatePSUtilModule Purs.defaultSettings)
+
+restDocsPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST -> ST
+restDocsPurs proxy moduleName = restDocsSource proxy "-- "
+    <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) (Proxy :: Proxy api)
+
+restDocsSource :: HasDocExtras (RestDocs api) => Proxy (RestDocs api) -> ST -> ST
+restDocsSource proxy comment = ST.unlines . (ST.stripEnd . (comment <>) <$>) $
         "" :
         "DO NOT EDIT!  THIS IS GENERATED REST API CLIENT CODE!" :
         "" :
         "source package: " <> getCabalPackageName proxy :
         "source package version: " <> (cs . show . getCabalPackageVersion $ proxy) :
-        "source uri: " <> exposeUrl httpCfg :
         "" :
         []
-
-    js :: ST
-    js = source "// " <> JS.jsForAPI p JS.vanillaJS
-
-    ng :: ST
-    ng = source "// " <> JS.jsForAPI p (JS.angular JS.defAngularOptions)
-
-    pursUtilPurs, pursUtilJS :: ST
-    (pursUtilPurs, pursUtilJS) = case Purs.generatePSUtilModule Purs.defaultSettings of
-        (p_, j_) -> (source "-- " <> p_, source "// " <> j_)
-
-    purs :: ST -> ST
-    purs moduleName = source "-- " <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) p
 
 
 -- | The `servant-docs` package does offer a way to explicitly order intros (I'm not even sure if
