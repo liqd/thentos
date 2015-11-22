@@ -1,154 +1,147 @@
-Thentos: The Swiss army knife of privacy-preserving identity management
-=======================================================================
-
-Warning
--------
-
-This software is actively developed, but incomplete (many of the
-features promised here are missing) and highly unstable (the existing
-code will change in unexpected and possibly undocumented ways).  If
-you are interested in using it, please contact us to negotiate a
-release plan.
-
-Having that said: enjoy!  (:
+# A tool for privacy-preserving identity management (PPIM)
 
 
-Overview
---------
+## Status
+
+EXPERIMENTAL.
+
+
+## Philosophy
 
 Thentos (/'tentɒs/) is the Swiss army knife of web application user
-management.  You can:
+management.  Its focus is on privacy and decentralization of control.
+It is actively developed by [liquid democracy e.V.](http://liqd.net/),
+a non-profit NGO that has no stakes in user data as a product.  It is
+not designed as a closed platform, but for cooperative and autonomous
+operation by many independent organisations.
 
-- use it as a library to offer GitHub or Twitter single-sign-on to the
-  users of your application,
+Things we are going to do with the Thentos code base:
+
+- use it as a library to offer Twitter or GitHub SSO to your users,
 
 - run it as a proxy in front of your application that does all the
   user management for you (a bit like
-  [sproxy](https://github.com/zalora/sproxy), but with more use cases
-  in mind),
+  [sproxy](https://github.com/zalora/sproxy), but not restricted to
+  oauth/google+),
 
-- run your own, federated SSO service hierarchy,
+- run your own PPIM service or connect it to a federated network of
+  PPIM services,
 
-- protect your application against any information about your users
-  and let some third party that your users trust do authorization
-  management for you,
+- get rid of user data as a liability, and let some trusted third
+  party do authorization and identity management for you,
 
 - distribute user information from your corporate legacy databases to
   your services with minimal exposure.
 
-- ...
 
-Thentos uses [PostgreSQL](http://postgresql.org/) for persistence
-(modules `Transaction*`), [lio](https://github.com/scslab/lio) for
-information flow control and authorization management (modules
-`Action*`), and [servant](http://haskell-servant.github.io/) for rest
-APIs (modules `Backend.*`) and for HTML-form-based user interfaces
-(modules `Frontend.*`).
+## Architecture overview and code structure
 
-Thentos is designed as both a library and an out-of-the-box web
-application and service.  You can use any of the parts that work for
-you and build something completely different from them:
+There are several packages in this repository:
 
-- write a new database schema derived from the old one and a lens into
-  the old one, and reuse all existing transactions and actions on the
-  new schema;
+* `thentos-core`: the core package with the base functionality shared
+  by most use cases.
 
-- implement your own rest API dialect on top of `Action*` (and, thanks
-  to lio, rely on enforcement of the authorization policy implemented
-  there, even if your own code is malicious),
+* `thentos-tests`: tests for `thentos-core` and common test utility
+   functions for derived Thentos packages as a library
 
-- use a collection of application-specific servant handlers and blaze
-  combinators to build your own web interfaces.
+* `thentos-adhocracy`: integration with
+  [adhocracy3](https://github.com/liqd/adhocracy3)
 
-- ...
+* `thentos-purescript`: UI widgets (not cabal; highly experimental).
+
+A quick walk through the code of `thentos-core`:
+
+- **Thentos.Types**: the core types of the Thentos data model.
+
+- **Thentos.Transaction...**: SQL queries with 'EitherT' exceptions.
+    `Thentos.Transaction` implements an abstract API over the database
+    schema.  Thentos persistence is based on
+    [PostgreSQL](http://postgresql.org/).
+
+- **Thentos.Action...**: authorization-controlled actions in the
+    `Action` monad.  Actions usually involve calling transactions, but
+    also access to randomness, system time, configuration options, and
+    other things.
+
+    This is where the application logic goes so it can be shared by
+    backend and frontend (see below).  `Action` is based on
+    [`LIO`](https://github.com/scslab/lio) rather than `IO` and
+    provides information flow as well as authorization control.  This
+    makes it possible to, say, write a new REST API dialect in a
+    [`Safe` module](https://ghc.haskell.org/trac/ghc/wiki/SafeHaskell)
+    so that the compiler can generate a proof of the adherence to the
+    security policy expressed in the types of the actions.
+
+    `Action` also provides polymorphic `StateT` that is used by the
+    frontend for session management.
+
+- **Thentos.Backend...**: REST APIs based on
+    [servant](http://haskell-servant.github.io/), wai, warp.  Servant
+    allows to organise APIs by features and compose them freely for
+    different deployment scenarios.  For example, you can pluck a set
+    of user registration end-points and handlers from
+    `Thentos.Backend.Api.Simple` and use them in an
+    adhocracy-compatible API as an add-on in package
+    `thentos-adhocracy`.
+
+- **Thentos.Frontend...**: HTML-based user interface, also based on
+    [servant](http://haskell-servant.github.io/), wai, warp (highly
+    experimental).
+
+    This contains a prototype of a user management dashboard that can
+    be used by application owners and users to manage many
+    applications.
+
+    (In principle, servant makes it possible to run the same
+    end-points in both backend (delivering JSON) and frontend
+    (delivering HTML) mode based on the content-type header.  However,
+    in practice there are many differences: REST APIs are stateless,
+    but HTML-based UIs have sessions; REST APIs serve self-contained
+    pieces of data, but HTML-based UIs deliver pages containing many
+    independent bits of information.)
 
 
-Code Structure
---------------
+### Other documentation
 
-This is a possible quick walk through the code:
-
-- **Thentos.Types**: gives you the core types that describes the
-    Thentos data model.
-
-- **Thentos.Transaction...**: SQL queries with 'EitherT'
-    exceptions.  `Thentos.Transaction` implements an
-    abstract API over the database schema.
-
-- **Thentos.Action...**: access-controlled actions in the `Action` monad.
-    `Action` provides access to the database, randomness, and config
-    data (feel free to divert to `Thentos.Config` from here, not
-    covered in this tour).  Perhaps most importantly, it is not based
-    on `IO`, but on `LIO`, which provides information flow and access
-    control.  Actions can be composed of transactions and other things
-    like reading the system time.  `Thentos.Action` implements an API
-    that both frontend and backend use.
-
-- **Thentos.Backend...**: rest APIs based on servant and wai.
-
-- **Thentos.Frontend...**: browser frontend for direct
-    user-interaction.
+- [haddock, servant-docs, SourceGraph](https://liqd.github.io/thentos/gh-pages/)
 
 
-Installation
-------------
+## Installation
 
-If you want to use vagrant, visit https://github.com/tarleb/thentos-vagrant.
+Start by cloning the Thentos repository from GitHub.
 
-Tested on [7.10.2](https://www.haskell.org/ghc/download_ghc_7_10_2). You
-should be able to build with later ghc versions (if any), but it may
-involve some tweaking (and hence some familiarity with ghc).
+```shell
+$ git clone https://github.com/liqd/thentos
+$ cd thentos
+$ git submodule update --init
+```
 
-If your package manager doesn't have a suitable ghc version, you can
-download it manually from https://www.haskell.org/ghc/.
+You need to have ghc-7.10 and some extra tools installed.  On debian,
+you can do this:
 
-Clone the Thentos repository from GitHub. There are several packages in
-this repository:
-
-* `thentos-core`: the core package
-* `thentos-tests`: tests for `thentos-core`
-* `thentos-adhocracy`: integration with the Adhocracy software
-* `thentos-purescript`: code to run in the browser
-* ...
-
-You'll need to build `thentos-core` in any case. `thentos-tests` is only
-required if you want to run tests. Whether you need other packages will
-depend on your use case.
+```shell
+$ sudo bash
+# add-apt-repository ppa:hvr/ghc
+# apt-get update
+# apt-get install ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22
+# apt-get install xvfb  # (for selenium tests; see below).
+```
 
 To run executables or tests, you will need to install PostgreSQL.
 Depending on your setup, you may need to cast some authorization
 spells.  Here is what works on debian:
 
 ```shell
-$ sudo -u postgres createuser thentos -d
-$ echo 'alter role thentos superuser' | sudo -u postgres psql
 $ export PGUSER=thentos
+$ sudo -u postgres createuser $PGUSER -d
+$ echo "alter role $PGUSER superuser" | sudo -u postgres psql
 ```
 
 (Instead of `thentos`, you can choose your unix login name as postgres
 user name and skip setting the shell variable.)
 
-### Stack
-
-(Will not build purescript; see next section.)
-
-Download [stack](https://github.com/commercialhaskell/stack/wiki/Downloads).
-Then run `stack setup` to install the right ghc version, `stack build` to
-install and build all packages, and `stack test` to run the tests, all from
-this directory.
-
-To build the `thentos-core` executable, build with
-
-```shell
-$ stack build --flag thentos-core:with-thentos-executable
-```
-
-which will drop it in `.stack-work/install/.../bin/thentos-core`.
-
-### Cabal sandboxes
-
-Before you start, you need to have node, npm, pulp, and purescript
-installed.  One way to do this:
+For building the purescript UI code, you will need to have a few more
+tools installed:
 
 ```shell
 # apt-get install nodejs npm
@@ -159,108 +152,34 @@ $ npm install purescript
 (then add $HOME/opt/node_modules/.bin to your $PATH)
 ```
 
-We recommend building all required packages into the same sandbox using the
-provided script.
+Now run the installation script and the tests:
 
 ```shell
-$ misc/thentos-install.sh
+$ ./misc/thentos-install.sh
+$ cd thentos-tests && cabal test
+$ cd thentos-adhocracy && cabal test
 ```
 
 This will take a while, as it will pull and build a lot of library
 dependencies.
 
-The executable will be created as `.cabal-sandbox/bin/thentos`.
-
-To run the tests, change into the `thentos-tests` directory and execute
-the following command:
-
-```shell
-$ cabal test
-```
-
-If you have no selenium grid set up, you can either read
-`./misc/selenium/Makefile` and get it to work (see there for more
-details and links to the download page), or do without:
+Note that the tests require selenium to work.  If you have no selenium
+grid set up, you can either read `./misc/selenium/Makefile` and get it
+to work (see there for more details and links to the download page),
+or do without that part of the test suite:
 
 ```shell
 $ cabal test --test-options="--skip selenium"
 ```
 
-Generated Thentos documentation (thentos-0.0.1) can be found online:
+If you want to use vagrant to run Thentos in a virtual machine, visit
+https://github.com/tarleb/thentos-vagrant.
 
-*[FIXME: this is quite outdated!]*
-
-- [servant-docs](https://liqd.github.io/thentos/gh-pages/servant-docs/)
-- [haddock](https://liqd.github.io/thentos/gh-pages/haddock/)
-- [SourceGraph](https://liqd.github.io/thentos/gh-pages/SourceGraph/thentos.html)
+If you run into any problems, you can check `.travis.yml` on an
+up-to-date way of getting all the dependencies installed.
 
 
-Demo
-----
-
-If you built `thentos-core` with flag `with-thentos-executable`, you
-can run it from the top leve directory:
-
-```shell
-$ createdb thentosdev
-$ ./path/to/thentos
-```
-
-You can visit the Thentos frontend at http://localhost:7002/, and
-log in as god/god.
-
-*[FIXME: this section is outdated!]*
-
-There is a helloworld service that you can use to test a simple
-oauth-like setup where browser and service connect to Thentos in order
-to perform user and session management.  Once the session is
-established, the browser will talk directly to the service with the
-negotiated session token.
-
-Keep Thentos running in a different terminal (see above).
-
-```shell
-$ cd services/helloworld/
-$ cabal sandbox init
-$ cabal install
-$ cabal run
-```
-
-In order to obtain a service identity for helloworld to authenticate
-against Thentos, connect to the [Thentos
-frontend](http://localhost:7002/), click on `create_service`, and on
-`create_service` again.
-
-Add the information to `services/helloworld/devel.config`, stop the
-`cabal run` process, and start it again.
-
-Create a user (use god/god as username/password if you want to skip
-this step): visit the [Thentos fronend](http://localhost:7002/) again,
-click on `create_user`.  Email confirmation is configured to work if
-there is a mail system running that supports email to local users.
-Just use your Unix user name as email address and hope for the best.
-There should also be a line in ./log/thentos.log that contains the
-confirmation token (logging needs to be set to `DEBUG`, but that is
-currently the hard-wired default).
-
-Visit the [helloworld service](http://localhost:8000/).  You should be
-able to log in and out now.
-
-There is also a highly experimental (even more so than the rest of
-Thentos) alternative rest API that mimics the
-[adhocracy3](https://github.com/liqd/adhocracy3.mercator) backend:
-
-```shell
-cabal run -- runa3 --runbackend --runfrontend
-curl -XPOST -d '{"name": "god", "password": "god"}' http://localhost:7001/login_username
-```
-
-(Try a bad password to run into one of the gaps in the
-implementation. :)
-
-
-Related Work
-------------
+## Related work
 
 Please notify us if you want something to be added.
 
@@ -274,8 +193,7 @@ Please notify us if you want something to be added.
 - [http://www.openldap.org/](http://www.openldap.org/)
 
 
-Contributors
-------------
+## Contributors
 
 In alphanumerical order.  Please let us know if we forgot to add you,
 or if you would like us to link to your GitHub handle / email.
@@ -289,12 +207,14 @@ or if you would like us to link to your GitHub handle / email.
 - Robert Vollmert
 - Sönke Hahn
 
-If you want to get involved, you're very welcome! Please read
-docs/dev-howtos.md and docs/styleguide.md to learn more about our
-development practices and our coding guidelines for Haskell.
+If you want to get involved or have any questions, we would love to
+hear from you! Please also read docs/dev-howtos.md and
+docs/styleguide.md to learn more about our development practices and
+our coding guidelines for Haskell.
 
 
-Future Directions
------------------
+## Future directions
 
-- There are some exciting advances in IFC in Haskell: http://www.cse.chalmers.se/~buiras/hlio/, [the mac package](http://hackage.haskell.org/package/mac).
+- There are some exciting advances in IFC in Haskell:
+  [http://www.cse.chalmers.se/~buiras/hlio/](http://www.cse.chalmers.se/~buiras/hlio/),
+  [the mac package](http://hackage.haskell.org/package/mac).
