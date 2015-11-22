@@ -171,3 +171,64 @@ After creating the PR, ping somebody (e.g. Matthias) to review it.
 
 If you are still or again working on a PR, or if you are currently
 reviewing it, assign it to yourself so that others know what's going it.
+
+## Updating the documentation
+
+If you have write access to git:github.com/liqd/thentos, you can
+update the documentation linked from the README as follows.  (If you
+do not, you can still use this to generate the documentation, but you
+can't publish it.)
+
+```shell
+$ ./misc/thentos-install.sh -c "--enable-documentation --force-reinstalls"
+$ cabal exec -- ghc --make -main-is Doc misc/build-docs/Doc.hs
+$ git checkout gh-pages
+```
+
+Generate servant docs and client source code:
+
+```shell
+$ misc/build-docs/Doc
+$ git add gh-pages/servant-docs
+```
+
+Then go to `gh-pages/servant-docs/index.html`, run the shell command
+in the html comment, and overwrite the body with the output.
+
+Copy haddocks:
+
+```shell
+$ git rm -r gh-pages/haddock/doc/
+$ mkdir -p gh-pages/haddock/
+$ cp -r .cabal-sandbox/share/doc/ gh-pages/haddock/
+$ git add gh-pages/haddock/
+```
+
+Links in haddock files generated into the sandbox are absolute.  Workaround:
+
+```shell
+find ~/thentos/gh-pages/haddock/ -type f -exec \
+    perl -i -pe 's!file:///'$THENTOS_ROOT'/.cabal-sandbox/share/!/thentos/gh-pages/haddock/!g' {} \;
+find ~/thentos/gh-pages/haddock/ -type f -exec \
+    perl -i -pe 's!file:///[^"]*"!"/!g' {} \;
+```
+
+Finally, the
+[SourceGraph](https://hackage.haskell.org/package/SourceGraph/) docs.
+On `master`:
+
+```shell
+cabal install SourceGraph
+./.cabal-sandbox/bin/SourceGraph thentos-core/src/Thentos.hs
+./.cabal-sandbox/bin/SourceGraph thentos-adhocracy/src/Thentos/Adhocracy3.hs
+```
+
+Then, on `gh-pages`:
+
+```shell
+git rm -r gh-pages/SourceGraph
+mkdir -p gh-pages/SourceGraph
+mv thentos-core/src/SourceGraph gh-pages/SourceGraph/thentos-core
+mv thentos-adhocracy/src/Thentos/SourceGraph gh-pages/SourceGraph/thentos-adhocracy
+git add gh-pages/SourceGraph
+```
