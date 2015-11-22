@@ -181,27 +181,6 @@ If you run into any problems, you can check `.travis.yml` on an
 up-to-date way of getting all the dependencies installed.
 
 
-### Stack
-
-The script `./misc/thentos-install.sh` is running cabal-install with
-sandboxes.  You can use `stack` instead if you prefer, but depending
-on your needs you may have to inspect the former and perform the
-missing steps by hand.
-
-Download [stack](https://github.com/commercialhaskell/stack/wiki/Downloads).
-Then run `stack setup` to install the right ghc version, `stack build` to
-install and build all packages, and `stack test` to run the tests, all from
-this directory.
-
-To build the `thentos-core` executable, build with
-
-```shell
-$ stack build --flag thentos-core:with-thentos-executable
-```
-
-which will drop it in `.stack-work/install/.../bin/thentos-core`.
-
-
 ## Related work
 
 Please notify us if you want something to be added.
