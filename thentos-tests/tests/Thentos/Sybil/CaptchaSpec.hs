@@ -6,7 +6,7 @@ module Thentos.Sybil.CaptchaSpec where
 import Codec.Picture (decodePng)
 import Control.Concurrent (forkIO)
 import Control.Monad.Random (getRandom)
-import Control.Monad (when, void)
+import Control.Monad (replicateM, when, void)
 import Data.Either (isRight)
 import Data.String.Conversions (cs)
 import Data.Word8 (Word8)
@@ -39,7 +39,7 @@ spec = describe "Thentos.Sybil.Captcha" $ do
 
 mkRandom20' :: IO Random20
 mkRandom20' = do
-    seed <- replicate 20 (getRandom :: IO Word8)
+    seed <- replicateM 20 (getRandom :: IO Word8)
     case mkRandom20 $ SBS.pack seed of
         Just r  -> return r
         Nothing -> error "mkRandom20': unreached."

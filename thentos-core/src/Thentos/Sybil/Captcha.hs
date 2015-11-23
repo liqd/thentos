@@ -9,6 +9,7 @@
 module Thentos.Sybil.Captcha (generateCaptcha) where
 
 import Codec.Picture (encodePng)
+import Control.Monad (replicateM)
 import Control.Monad.Random -- (MonadRandom, StdGen, mkStdGen, evalRand)
 import Data.Char
 import Data.Elocrypt (mkPassword)
