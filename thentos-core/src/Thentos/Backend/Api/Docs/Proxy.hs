@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE TypeFamilies                             #-}
+{-# LANGUAGE TypeOperators                            #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -10,12 +12,14 @@ module Thentos.Backend.Api.Docs.Proxy where
 import Control.Lens ((&), (%~))
 import Data.Proxy (Proxy(Proxy))
 import Servant.API ((:<|>))
-
 import Servant.Docs (HasDocs(..))
+
 import qualified Servant.Docs as Docs
+import qualified Servant.Foreign as Foreign
 
 import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Proxy (ServiceProxy)
+
 
 instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
     docsFor _ dat opt = docsFor (Proxy :: Proxy sublayout) dat opt
@@ -31,3 +35,8 @@ instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
                , "a valid session token, it is rejected. Responses from the"
                , "service are returned unmodified."
                ]
+
+instance Foreign.HasForeign ServiceProxy where
+    type Foreign ServiceProxy = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("ServiceProxy" :)

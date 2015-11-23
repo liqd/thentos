@@ -32,8 +32,18 @@ case "$1" in
             cd ../
         fi
         ;;
+    "generate")
+        if [ "$2" != "" ]; then
+            URL="$2"
+        else
+            URL="http://localhost:7001/docs"
+        fi
+        curl $URL/purs/Servant.Simple > src/Servant/Simple.purs
+        curl $URL/purs/Util.js > src/Util.js
+        curl $URL/purs/Util.purs > src/Util.purs
+        ;;
     *)
-        echo "usage: $0 [dep|it|watch|clean]" >&2
+        echo "usage: $0 [dep|it|watch|clean|generate]" >&2
         exit 1
         ;;
 esac
