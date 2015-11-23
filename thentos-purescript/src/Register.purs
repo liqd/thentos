@@ -118,11 +118,11 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
         [ H.h2_ [translate "TR__REGISTER_SUCCESS"]
         , H.p_ [translate "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
 
-        -- FIXME: the a3 code sais this.  what does it mean?:
+        -- FIXME: the a3 code says this.  what does it mean?:
         -- 'Show option in case the user is not automatically logged in (e.g. 3rd party cookies blocked.)'
         ]
 
-    -- FIXME: a3 code sais this.  is that relevant for us?
+    -- FIXME: a3 code says this.  is that relevant for us?
     -- <!-- FIXME: Technically this should only display if you logged in as the user you just registered as, but
     -- this will display if you log in as any user -->
 
