@@ -66,6 +66,7 @@ import qualified Data.Text.Encoding as STE
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Backend.Core (addHeadersToResponse)
+import Thentos.Ends.Types
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State

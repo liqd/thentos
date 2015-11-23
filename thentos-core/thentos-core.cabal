@@ -68,6 +68,7 @@ library
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
     , Thentos.Config
+    , Thentos.Ends.Types
     , Thentos.Frontend
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
