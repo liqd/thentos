@@ -17,7 +17,8 @@
 {-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Types
-    ( User(..)
+    ( JsonTop(..)
+    , User(..)
     , ServiceAccount(..), newServiceAccount
     , UserId(..)
     , UserName(..)
@@ -130,6 +131,22 @@ import qualified Data.HashMap.Strict as H
 import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
+
+
+-- * JSON helpers
+
+-- | Wrap a simple value in a JSON object with a single top-level field ("data").
+-- This supports the convention that top-level JSON data structures should always be objects,
+-- never arrays or simple values (e.g. strings).
+newtype JsonTop a = JsonTop { fromJsonTop :: a }
+
+instance (FromJSON a) => FromJSON (JsonTop a) where
+    parseJSON (Aeson.Object (H.toList -> [(key, val)]))
+        | key == "data"    = JsonTop <$> Aeson.parseJSON val
+    parseJSON _ = fail "Expected object with 'data' field"
+
+instance (ToJSON a) => ToJSON (JsonTop a) where
+    toJSON (JsonTop val) = Aeson.object [ "data" .= Aeson.toJSON val]
 
 
 -- * user

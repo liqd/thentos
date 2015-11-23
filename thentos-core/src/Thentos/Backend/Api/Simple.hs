@@ -81,23 +81,24 @@ thentosBasic =
 -- * user
 
 type ThentosUser =
-       ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
-  :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] UserId
-  :<|> "activate" :> ReqBody '[JSON] ConfirmationToken :> Post '[JSON] ThentosSessionToken
-  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] ThentosSessionToken
+       ReqBody '[JSON] UserFormData :> Post '[JSON] (JsonTop UserId)
+  :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] (JsonTop UserId)
+  :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
+                  :> Post '[JSON] (JsonTop ThentosSessionToken)
+  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
-  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
-  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
+  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
+  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)
 
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
-       addUser
-  :<|> addUnconfirmedUserWithCaptcha
-  :<|> (snd <$>) .  confirmNewUser
-  :<|> (\(LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
+       (JsonTop <$>) . addUser
+  :<|> (JsonTop <$>) . addUnconfirmedUserWithCaptcha
+  :<|> (JsonTop <$>) . (snd <$>) .  confirmNewUser . fromJsonTop
+  :<|> (\(LoginFormData n p) -> JsonTop . snd <$> startThentosSessionByUserName n p)
   :<|> deleteUser
-  :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
-  :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
+  :<|> (JsonTop . ((^. userName) . snd) <$>) . lookupConfirmedUser
+  :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
 
 
 -- * service

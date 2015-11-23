@@ -173,6 +173,9 @@ instance ToCapture (Capture "sid" ServiceId) where
 instance ToCapture (Capture "uid" UserId) where
     toCapture _ = DocCapture "uid" "user ID"
 
+instance (ToSample a) => ToSample (JsonTop a) where
+    toSamples _ = second JsonTop <$> toSamples (Proxy :: Proxy a)
+
 instance ToSample Agent where
     toSamples _ = Docs.singleSample . UserA . UserId $ 0
 
