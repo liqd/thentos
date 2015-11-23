@@ -206,7 +206,7 @@ withBackend beConfig as = inTempDirectory . withBackend' beConfig as
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
 withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
 withBackend' beConfig as action = do
-    bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi as)
+    bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi beConfig as)
             killThread
             (const action)
 

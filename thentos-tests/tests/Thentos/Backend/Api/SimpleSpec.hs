@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE ExistentialQuantification                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
@@ -15,9 +16,11 @@ where
 
 import Control.Monad.State (liftIO)
 import Control.Monad (void)
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Status ()
@@ -38,12 +41,14 @@ import Thentos.Test.Core
 import Thentos.Test.DefaultSpec
 
 
+-- | FIXME: This is stuff also provided in a similar way from "Thentos.Test.Core".  remove redundancy!
 defaultApp :: IO Application
 defaultApp = do
-    as@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    as@(ActionState (connPool, _, cfg)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod as
-    return $! serveApi as
+    let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+    return $! serveApi beConfig as
 
 tests :: IO ()
 tests = hspec spec

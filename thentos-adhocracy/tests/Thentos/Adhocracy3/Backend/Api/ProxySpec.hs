@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -8,12 +9,14 @@ module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 import Control.Concurrent.Async (Async)
 import Control.Lens ((^.), (^?))
 import Control.Monad (mzero)
-import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
 import Data.Aeson.Lens (key)
+import Data.Aeson (ToJSON(..), FromJSON(..), Value(String), encode)
 import Data.Aeson.Types (Parser)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk, CI(..), original)
+import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.List (isPrefixOf)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import GHC.Generics (Generic)
 import Network.HTTP.Base (urlEncode)
@@ -47,7 +50,8 @@ spec = do
         dest <- startDaemon $ runSettings settings proxyDestServer
         mgr <- newManager defaultManagerSettings
         db <- createActionState "test_thentosa3" thentosTestConfig
-        let application = serveApi mgr db
+        let application = serveApi mgr beConfig db
+            Just beConfig = Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application
         return (proxyPort, dest, proxy)

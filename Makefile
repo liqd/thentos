@@ -103,27 +103,3 @@ repl: ./thentos-core/src/Thentos.hs.repl
 
 %.repl: .phony prepare-repl
 	cabal exec -- ghci $(SOURCE_PATHS) -optP-DDEVELOPMENT -ignore-dot-ghci $*
-
-
-# scratch
-# (FIXME: is anybody still using this?  remove?)
-
-install2:
-	cd thentos-core && \
-	  cabal sandbox init --sandbox=../.cabal-sandbox && \
-	  cabal install --dependencies-only --enable-tests --enable-bench
-	cd thentos-tests && \
-	  cabal sandbox init --sandbox=../.cabal-sandbox && \
-	  cabal sandbox add-source ../thentos-core && \
-	  cabal install --dependencies-only --enable-tests --enable-bench
-	cd thentos-adhocracy && \
-	  cabal sandbox init --sandbox=../.cabal-sandbox && \
-	  cabal sandbox add-source ../thentos-core && \
-	  cabal sandbox add-source ../thentos-tests && \
-	  cabal install --dependencies-only --enable-tests --enable-bench
-
-tests2:
-	cd thentos-tests && \
-	  cabal configure --enable-tests --ghc-options="-Werror" && cabal build && cabal test
-	cd thentos-adhocracy && \
-	  cabal configure --enable-tests --ghc-options="-Werror" && cabal build && cabal test

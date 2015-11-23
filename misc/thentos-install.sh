@@ -23,6 +23,9 @@ SUBMODULE_SOURCES=( servant/servant
                     servant/servant-docs
                     servant/servant-blaze
                     servant/servant-session
+                    servant/servant-js
+                    servant/servant-foreign
+                    servant-purescript
                     pronk
                   )
 SOURCES=( thentos-core thentos-tests thentos-adhocracy )
