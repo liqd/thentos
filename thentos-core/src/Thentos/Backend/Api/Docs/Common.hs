@@ -200,6 +200,19 @@ instance ToSample UserEmail where
 instance ToSample UserId where
     toSamples _ = Docs.singleSample $ UserId 12
 
+instance ToSample CaptchaId where
+    toSamples _ = runTokenBuilder Action.freshCaptchaId
+
+instance ToSample CaptchaSolution where
+    toSamples _ = do
+      let cid :: CaptchaId = fromJustNote "ToSample CaptchaSolution failed unexpectedly" $
+                                          Docs.toSample (Proxy :: Proxy CaptchaId)
+      Docs.singleSample $ CaptchaSolution cid "someTeXT"
+
+instance ToSample UserCreationRequest where
+    toSamples _ = second (uncurry UserCreationRequest)
+                    <$> toSamples (Proxy :: Proxy (UserFormData, CaptchaSolution))
+
 instance ToSample ConfirmationToken where
     toSamples _ = runTokenBuilder Action.freshConfirmationToken
 

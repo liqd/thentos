@@ -18,6 +18,7 @@ module Thentos.Action
     , freshServiceKey
     , freshSessionToken
     , freshServiceSessionToken
+    , freshCaptchaId
 
     , lookupConfirmedUser
     , lookupConfirmedUserByName
@@ -25,6 +26,7 @@ module Thentos.Action
     , addUser
     , deleteUser
     , addUnconfirmedUser
+    , addUnconfirmedUserWithCaptcha
     , confirmNewUser
     , addPasswordResetToken
     , resetPassword
@@ -83,7 +85,7 @@ module Thentos.Action
     )
 where
 
-import Control.Conditional ((<||>))
+import Control.Conditional ((<||>), unlessM)
 import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
@@ -198,10 +200,21 @@ deleteUser uid = do
 -- 'confirmNewUser'.
 addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s (UserId, ConfirmationToken)
 addUnconfirmedUser userData = do
+    -- FIXME change action to send the email directly instead of just returning the token
+    -- and letting the frontend do it
     tok  <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
     uid  <- query'P $ T.addUnconfirmedUser tok user
     return (uid, tok)
+
+-- | Initiate email-verified user creation.  Does not require any privileges, but the user must
+-- have correctly solved a captcha to prove that they are human.  See also:
+-- 'makeCaptcha', 'confirmNewUser'.
+addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s UserId
+addUnconfirmedUserWithCaptcha ucr = do
+    unlessM (solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)) $
+        throwError InvalidCaptchaSolution
+    fst <$> addUnconfirmedUser (ucUser ucr)
 
 -- | Finish email-verified user creation. Throws 'NoSuchPendingUserConfirmation' if the
 -- token doesn't exist or is expired.

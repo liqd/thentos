@@ -26,7 +26,8 @@ module Thentos.Types
     , UserEmail(..), parseUserEmail, fromUserEmail
     , ConfirmationToken(..)
     , PasswordResetToken(..)
-    , UserFormData (..)
+    , UserFormData(..)
+    , UserCreationRequest(..)
     , LoginFormData(..)
 
     , Service(..)
@@ -69,6 +70,7 @@ module Thentos.Types
     , Random20, mkRandom20, fromRandom20
     , ImageData(..)
     , CaptchaId(..)
+    , CaptchaSolution(..)
 
     , ThentosError(..)
 
@@ -238,6 +240,15 @@ data UserFormData =
 
 instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
+
+data UserCreationRequest = UserCreationRequest
+    { ucUser    :: UserFormData
+    , ucCaptcha :: CaptchaSolution
+    }
+    deriving (Eq, Typeable, Generic)
+
+instance Aeson.FromJSON UserCreationRequest where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON UserCreationRequest where toJSON = Aeson.gtoJson
 
 data LoginFormData =
     LoginFormData
@@ -674,7 +685,7 @@ fromRandom20 (Random20 bs) = bs
 -- * binary data and captchas
 
 newtype ImageData = ImageData { fromImageData :: SBS }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+  deriving (Eq, Typeable, Generic)
 
 
 newtype CaptchaId = CaptchaId { fromCaptchaId :: ST }
@@ -684,6 +695,16 @@ instance Aeson.FromJSON CaptchaId where
     parseJSON = Aeson.withText "captcha ID string" (pure . CaptchaId)
 
 instance Aeson.ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
+
+
+data CaptchaSolution = CaptchaSolution
+    { csId       :: CaptchaId
+    , csSolution :: ST
+    }
+    deriving (Eq, Typeable, Generic)
+
+instance Aeson.FromJSON CaptchaSolution where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON CaptchaSolution where toJSON = Aeson.gtoJson
 
 
 -- * errors
@@ -718,6 +739,7 @@ data ThentosError e =
     | NoSuchToken
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
+    | InvalidCaptchaSolution
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 

@@ -11,4 +11,4 @@ import Thentos.Types
 -- solution to the captcha.
 -- FIXME Implement by delegating to hs-captcha or whatever captcha library we'll end up using
 generateCaptcha :: Random20 -> (ImageData, ST)
-generateCaptcha _random = ("", "")
+generateCaptcha _random = (ImageData "", "")
