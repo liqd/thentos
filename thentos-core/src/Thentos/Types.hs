@@ -215,8 +215,15 @@ instance Aeson.FromJSON UserEmail
 instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
 
+
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
+
+instance Aeson.FromJSON ConfirmationToken where
+    parseJSON = Aeson.withText "confirmation token" (pure . ConfirmationToken)
+
+instance Aeson.ToJSON ConfirmationToken where toJSON (ConfirmationToken tok) = Aeson.toJSON tok
+
 
 instance FromHttpApiData ConfirmationToken where
     parseQueryParam tok = ConfirmationToken <$>

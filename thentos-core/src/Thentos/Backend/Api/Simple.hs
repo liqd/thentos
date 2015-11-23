@@ -83,6 +83,7 @@ thentosBasic =
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
   :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] UserId
+  :<|> "activate" :> ReqBody '[JSON] ConfirmationToken :> Post '[JSON] ThentosSessionToken
   :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] ThentosSessionToken
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
@@ -92,7 +93,8 @@ thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
        addUser
   :<|> addUnconfirmedUserWithCaptcha
-  :<|> (\ (LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
+  :<|> (snd <$>) .  confirmNewUser
+  :<|> (\(LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
   :<|> deleteUser
   :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
   :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
