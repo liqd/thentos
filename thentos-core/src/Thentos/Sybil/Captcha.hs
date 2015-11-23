@@ -33,7 +33,7 @@ random20ToStdGen :: Random20 -> StdGen
 random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
 
 mkSolution :: MonadRandom m => m ST
-mkSolution = cs . unwords <$> (replicateM 3 $ mkPassword 4)
+mkSolution = cs . unwords <$> replicateM 3 (mkPassword 4)
   -- Use 'mkPassphrase' here once https://github.com/sgillespie/elocrypt/pull/5 is on hackage.  Do
   -- not use `mkPasswords` unless https://github.com/sgillespie/elocrypt/pull/6 has been addressed.
 
@@ -50,7 +50,7 @@ mkChallenge solution = ImageData . cs . encodePng . renderDia Rasterific opts
     spec = mkWidth 200
 
 text' :: String -> Dg
-text' s = (strokeP $ textSVG' (TextOpts lin2 INSIDE_H KERN False 1 1) s)
+text' s = strokeP (textSVG' (TextOpts lin2 INSIDE_H KERN False 1 1) s)
         # lw none # fc white
 
 distortChallenge :: forall m. MonadRandom m => Dg -> m Dg
