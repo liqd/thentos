@@ -4,10 +4,11 @@ import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
+import Data.Array (concat, intersect)
+import Data.Foldable
 import Data.Functor (($>))
 import Data.Generic
-import Data.List
-import Data.Foldable
+import Data.String (null, length, contains)
 import Data.Tuple
 import Data.Void
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
@@ -31,7 +32,8 @@ foreign import onChangeValue :: forall a. a -> String
 -- * types
 
 type State =
-    { stErrors        :: Array String
+    { stErrors        :: Array FormError
+    , stOfInterestNow :: Array FormError
     , stLoggedIn      :: Boolean
     , stRegSuccess    :: Boolean
     , stName          :: String
@@ -39,15 +41,16 @@ type State =
     , stPass1         :: String
     , stPass2         :: String
     , stTermsAndConds :: Boolean
-    , stSupportEmail  :: String  -- FIXME: use newtype and smart constructor
 
-    -- TODO: trigger for update loop of surrounding framework.
+    -- TODO: also keep in the state: a trigger function for update loop of surrounding framework.
 
+    , stSupportEmail  :: String
     }
 
 initialState :: State
 initialState =
     { stErrors: []
+    , stOfInterestNow: []
     , stLoggedIn: false
     , stRegSuccess: false
     , stName: ""
@@ -61,6 +64,7 @@ initialState =
 data Query a =
     KeyPressed (State -> State) a
   | UpdateTermsAndConds Boolean a
+  | AddInterestingErrors (Array FormError) a
 
 
 -- * render
@@ -75,6 +79,7 @@ render st = H.div [cl "login"]
         [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
         , H.a [P.href $ "mailto:" ++ st.stSupportEmail ++ "?subject=Trouble%20with%20registration"]
+                                   -- FIXME: call urlEncode function on proper string ^^.
             [H.text st.stSupportEmail]
         ]
     ]
@@ -84,15 +89,21 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
 
     -- present empty or incomplete registration form
     Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
-        [H.div_ $ errors st] ++
-        [ inputField P.InputText (trh "TR__USERNAME") "username"
+        [ inputField st P.InputText (trh "TR__USERNAME") "username"
             (\i s -> s { stName = i })
-        , inputField P.InputEmail (trh "TR__EMAIL") "email"
+            [ErrorRequiredUsername]
+
+        , inputField st P.InputEmail (trh "TR__EMAIL") "email"
             (\i s -> s { stEmail = i })
-        , inputField P.InputPassword (trh "TR__PASSWORD") "password"
+            [ErrorRequiredEmail, ErrorFormatEmail]
+
+        , inputField st P.InputPassword (trh "TR__PASSWORD") "password"
             (\i s -> s { stPass1 = i })
-        , inputField P.InputPassword (trh "TR__PASSWORD_REPEAT") "password_repeat"
+            [ErrorForwardPassword, ErrorTooShortPassword]
+
+        , inputField st P.InputPassword (trh "TR__PASSWORD_REPEAT") "password_repeat"
             (\i s -> s { stPass2 = i })
+            [ErrorMatchPassword]
 
         , H.label [cl "login-check"]
             [ H.div [cl "login-check-input"]
@@ -100,6 +111,7 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
                           , E.onChecked $ E.input $ UpdateTermsAndConds
                           ]
                 , H.span_ [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
+                , renderErrors st [ErrorRequiredTermsAndConditions]
                 ]
             ]
 
@@ -140,6 +152,7 @@ mydebug st = H.pre_ [H.p_ [H.text q]]
     q :: String
     q = intercalate ", "
         [ show st.stErrors
+        , show st.stOfInterestNow
         , show st.stLoggedIn
         , show st.stRegSuccess
         , show st.stName
@@ -149,23 +162,25 @@ mydebug st = H.pre_ [H.p_ [H.text q]]
         , show st.stTermsAndConds
         ]
 
-errors :: State -> Array (ComponentHTML Query)
-errors st = f <$> st.stErrors
-  where
-    f :: String -> ComponentHTML Query
-    f msg = H.div [cl "form-error"] [H.p_ [trh msg]]
-
-inputField :: P.InputType -> ComponentHTML Query -> String
+-- | The last argument 'ofInterestHere' contains all errors that are reportable near the current
+-- field (e.g., all errors related to email address).  The 'State' field 'ofInterestNow' contains a
+-- list of all errors that should be reported at this point in time (e.g., excluding email errors
+-- because the email field has not been filled out yet).
+inputField :: State -> P.InputType -> ComponentHTML Query -> String
            -> (String -> State -> State)
+           -> Array FormError
            -> ComponentHTML Query
-inputField inputType msg key updateState = H.label_
+inputField st inputType msg key updateState ofInterestHere = H.label_
     [ H.span [cl "label-text"] [msg]
     , H.input [ P.inputType inputType, P.name key, P.required true
               , E.onInput $ E.input $ KeyPressed <<< updateState <<< onChangeValue
+              , E.onFocusOut $ E.input_ $ AddInterestingErrors ofInterestHere
+              , E.onFocusIn $ E.input_ $ AddInterestingErrors ofInterestHere
               ]
+    , renderErrors st ofInterestHere
     ]
 
--- there is something about this very similar to `trh`: we want to be able to collect all
+-- | there is something about this very similar to `trh`: we want to be able to collect all
 -- classnames occurring in a piece of code, and construct a list from them with documentation
 -- (source file locations?).
 cl :: forall r i. String -> P.IProp (class :: P.I | r) i
@@ -183,18 +198,53 @@ eval (UpdateTermsAndConds newVal next) = do
     modify (\st -> st { stTermsAndConds = newVal })
     modify checkState
     pure next
+eval (AddInterestingErrors es next) = do
+    modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
+    modify checkState
+    pure next
+
+
+-- * form errors
+
+data FormError =
+      ErrorRequiredUsername
+    | ErrorRequiredEmail
+    | ErrorFormatEmail
+    | ErrorForwardPassword
+    | ErrorTooShortPassword
+    | ErrorMatchPassword
+    | ErrorRequiredTermsAndConditions
+
+derive instance genericFormError :: Generic FormError
+instance eqFormError :: Eq FormError where eq = gEq
+
+-- | ('show' for 'FormError' returns the translation keys.)
+instance showFormError :: Show FormError where
+    show ErrorRequiredUsername = "TR__ERROR_REQUIRED_USERNAME"
+    show ErrorRequiredEmail = "TR__ERROR_REQUIRED_EMAIL"
+    show ErrorFormatEmail = "TR__ERROR_FORMAT_EMAIL"
+    show ErrorForwardPassword = "TR__ERROR_REQUIRED_PASSWORD"
+    show ErrorTooShortPassword = "TR__ERROR_TOO_SHORT_PASSWORD"
+    show ErrorMatchPassword = "TR__ERROR_MATCH_PASSWORD"
+    show ErrorRequiredTermsAndConditions = "TR__ERROR_REQUIRED_TERMS_AND_CONDITIONS"
 
 checkState :: State -> State
-checkState st = st { stErrors = passwordMismatch ++ invalidEmail }
+checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
+    [ if null st.stName           then [ErrorRequiredUsername] else []
+    , if null st.stEmail          then [ErrorRequiredEmail] else []
+    , if contains "@" st.stEmail  then [] else [ErrorFormatEmail]
+    , if null st.stPass1          then [ErrorForwardPassword] else []
+    , if length st.stPass1 >= 6   then [] else [ErrorTooShortPassword]
+    , if st.stPass1 == st.stPass2 then [] else [ErrorMatchPassword]
+    , if st.stTermsAndConds       then [] else [ErrorRequiredTermsAndConditions]
+    ]
+  }
+
+renderErrors :: State -> Array FormError -> ComponentHTML Query
+renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> forReporting
   where
-    passwordMismatch :: Array String
-    passwordMismatch = if st.stPass1 == st.stPass2 then [] else ["passwords must match"]
-
-    invalidEmail :: Array String
-    invalidEmail = if st.stEmail /= "invalid" then [] else ["invalid email"]
-
-    -- FIXME: translation keys for errors?
-    -- FIXME: which other errors are there?
+    forReporting :: Array FormError
+    forReporting = intersect st.stErrors ofInterstHere
 
 
 -- * main
