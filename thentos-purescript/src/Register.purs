@@ -181,13 +181,13 @@ eval (UpdateTermsAndConds newVal next) = do
     pure next
 
 checkState :: State -> State
-checkState st = st { stErrors = passwordMismatch st ++ invalidEmail st }
+checkState st = st { stErrors = passwordMismatch ++ invalidEmail }
   where
-    passwordMismatch :: State -> Array String
-    passwordMismatch st = if st.stPass1 == st.stPass2 then [] else ["passwords must match"]
+    passwordMismatch :: Array String
+    passwordMismatch = if st.stPass1 == st.stPass2 then [] else ["passwords must match"]
 
-    invalidEmail :: State -> Array String
-    invalidEmail st = if st.stEmail /= "invalid" then [] else ["invalid email"]
+    invalidEmail :: Array String
+    invalidEmail = if st.stEmail /= "invalid" then [] else ["invalid email"]
 
     -- FIXME: translation keys for errors?
     -- FIXME: which other errors are there?
