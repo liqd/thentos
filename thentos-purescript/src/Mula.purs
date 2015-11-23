@@ -1,12 +1,17 @@
-module Mula where
+module Mula (tr, trh) where
 
-import Halogen (HTML())
+import Prelude ((<<<))
 import Halogen.HTML.Indexed (text)
 
--- FIXME: result should be MuLa newtype, not bare html.
-translate :: forall p i. String -> HTML p i
-translate msg = text msg
+-- | Turn a translation key into a translated string.
+foreign import tr :: String -> String
 
--- FIXME: ...  in fact, for attributes, we need this to be not HTML at all!
-translateS :: String -> String
-translateS msg = msg
+-- | Convenience for @'text' <<< 'translateS'@.
+trh :: forall p i. String -> Halogen.HTML.Indexed.HTML p i
+trh = text <<< tr
+
+-- FIXME:
+-- The effect type for changing or querying the translation language.
+-- foreign import data I18N :: !
+-- foreign import setLanguage :: forall eff. String -> Aff (i18n : I18N | eff) Unit
+-- foreign import getLanguage :: forall eff. Aff (i18n :: I18N | eff) String

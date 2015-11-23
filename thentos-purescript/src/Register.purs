@@ -70,9 +70,9 @@ render st = H.div [cl "login"]
     [ mydebug st
     , body st
     , H.a [cl "login-cancel", P.href ""]  -- FIXME: link!
-        [translate "TR__CANCEL"]
+        [trh "TR__CANCEL"]
     , H.div [cl "login-info"]
-        [ translate "TR__REGISTRATION_SUPPORT"
+        [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
         , H.a [P.href $ "mailto:" ++ st.stSupportEmail ++ "?subject=Trouble%20with%20registration"]
             [H.text st.stSupportEmail]
@@ -85,13 +85,13 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
     -- present empty or incomplete registration form
     Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
         [H.div_ $ errors st] ++
-        [ inputField P.InputText (translate "TR__USERNAME") "username"
+        [ inputField P.InputText (trh "TR__USERNAME") "username"
             (\i s -> s { stName = i })
-        , inputField P.InputEmail (translate "TR__EMAIL") "email"
+        , inputField P.InputEmail (trh "TR__EMAIL") "email"
             (\i s -> s { stEmail = i })
-        , inputField P.InputPassword (translate "TR__PASSWORD") "password"
+        , inputField P.InputPassword (trh "TR__PASSWORD") "password"
             (\i s -> s { stPass1 = i })
-        , inputField P.InputPassword (translate "TR__PASSWORD_REPEAT") "password_repeat"
+        , inputField P.InputPassword (trh "TR__PASSWORD_REPEAT") "password_repeat"
             (\i s -> s { stPass2 = i })
 
         , H.label [cl "login-check"]
@@ -99,25 +99,25 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
                 [ H.input [ P.inputType P.InputCheckbox, P.name "registerCheck", P.required true
                           , E.onChecked $ E.input $ UpdateTermsAndConds
                           ]
-                , H.span_ [translate "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
+                , H.span_ [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
                 ]
             ]
 
         , H.input
-            [ P.inputType P.InputSubmit, P.name "register", P.value (translateS "TR__REGISTER")
+            [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
             , P.disabled $ not $ Data.Array.null st.stErrors
             , E.onChecked $ E.input $ UpdateTermsAndConds
             ]
-        , H.div [cl "login-info"] [H.p_ [translate "TR__REGISTRATION_LOGIN_INSTEAD"]]  -- FIXME: link!
+        , H.div [cl "login-info"] [H.p_ [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]  -- FIXME: link!
         ]
 
     -- can not register: already logged in
-    Tuple false true -> H.div [cl "login-success"] [H.p_ [translate "TR__REGISTRATION_ALREADY_LOGGED_IN"]]
+    Tuple false true -> H.div [cl "login-success"] [H.p_ [trh "TR__REGISTRATION_ALREADY_LOGGED_IN"]]
 
     -- registered: waiting for processing of activation email
     Tuple true false -> H.div [cl "login-success"]
-        [ H.h2_ [translate "TR__REGISTER_SUCCESS"]
-        , H.p_ [translate "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
+        [ H.h2_ [trh "TR__REGISTER_SUCCESS"]
+        , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
 
         -- FIXME: the a3 code says this.  what does it mean?:
         -- 'Show option in case the user is not automatically logged in (e.g. 3rd party cookies blocked.)'
@@ -129,8 +129,8 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
 
     -- registered and registration link clicked
     Tuple true true -> H.div [cl "login-success"]
-        [ H.h2_ [translate "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
-        , H.p_ [translate "TR__REGISTRATION_PROCEED"]  -- FIXME: link
+        [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
+        , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
         ]
 
 
@@ -153,7 +153,7 @@ errors :: State -> Array (ComponentHTML Query)
 errors st = f <$> st.stErrors
   where
     f :: String -> ComponentHTML Query
-    f msg = H.div [cl "form-error"] [H.p_ [translate msg]]
+    f msg = H.div [cl "form-error"] [H.p_ [trh msg]]
 
 inputField :: P.InputType -> ComponentHTML Query -> String
            -> (String -> State -> State)
@@ -165,7 +165,7 @@ inputField inputType msg key updateState = H.label_
               ]
     ]
 
--- there is something about this very similar to `translate`: we want to be able to collect all
+-- there is something about this very similar to `trh`: we want to be able to collect all
 -- classnames occurring in a piece of code, and construct a list from them with documentation
 -- (source file locations?).
 cl :: forall r i. String -> P.IProp (class :: P.I | r) i

@@ -65,16 +65,16 @@ ui = component render eval
             a = H.a [ cl "user-indicator-login", P.href ""
                     , hrefClickHandler $ Login "wef" "pass"
                     ]
-                    [translate "login"]
+                    [trh "login"]
 
             r :: RegisterOption -> Array (H.HTML Void (Query Unit))
             r NoRegisterOption = []
             r RegisterOption =
-                [ translate "or"
+                [ trh "or"
                 , H.a [ cl "user-indicator-register", P.href ""
                       , hrefClickHandler $ SetRegisterOption NoRegisterOption
                       ]
-                      [translate "register"]
+                      [trh "register"]
                 ]
 
         body (LoggedIn _ name) = H.div_ [n, l]
@@ -85,7 +85,7 @@ ui = component render eval
             l = H.a [ cl "user-indicator-logout", P.href ""
                     , hrefClickHandler Logout
                     ]
-                    [translate "logout"]
+                    [trh "logout"]
 
             noLink :: Boolean
             noLink = false  -- FIXME: data-ng-if="!noLink"
