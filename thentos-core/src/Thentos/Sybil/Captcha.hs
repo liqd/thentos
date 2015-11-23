@@ -10,13 +10,13 @@ module Thentos.Sybil.Captcha (generateCaptcha) where
 
 import Codec.Picture (encodePng)
 import Control.Monad (replicateM)
-import Control.Monad.Random -- (MonadRandom, StdGen, mkStdGen, evalRand)
-import Data.Char
+import Control.Monad.Random (getRandomR, MonadRandom, StdGen, mkStdGen, evalRand)
+import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
 import Data.String.Conversions (ST, cs)
-import Diagrams.Backend.Rasterific
+import Diagrams.Backend.Rasterific (Rasterific(..), Options(RasterificOptions))
 import Diagrams.Prelude hiding (ImageData)
-import Graphics.SVGFonts
+import Graphics.SVGFonts (lin2, textSVG', TextOpts(TextOpts), Mode(INSIDE_H), Spacing(KERN))
 
 import Thentos.Types
 
