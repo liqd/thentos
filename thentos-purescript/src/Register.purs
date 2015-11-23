@@ -7,6 +7,7 @@ import Control.Monad.Eff.Exception (throwException)
 import Data.Functor (($>))
 import Data.Generic
 import Data.List
+import Data.Foldable
 import Data.Tuple
 import Data.Void
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
@@ -134,16 +135,19 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
 
 
 mydebug :: State -> ComponentHTML Query
-mydebug st = H.pre_
-    [ H.p_ [H.text $ show st.stErrors]
-    , H.p_ [H.text $ show st.stLoggedIn]
-    , H.p_ [H.text $ show st.stRegSuccess]
-    , H.p_ [H.text $ show st.stName]
-    , H.p_ [H.text $ show st.stEmail]
-    , H.p_ [H.text $ show st.stPass1]
-    , H.p_ [H.text $ show st.stPass2]
-    , H.p_ [H.text $ show st.stTermsAndConds]
-    ]
+mydebug st = H.pre_ [H.p_ [H.text q]]
+  where
+    q :: String
+    q = intercalate ", "
+        [ show st.stErrors
+        , show st.stLoggedIn
+        , show st.stRegSuccess
+        , show st.stName
+        , show st.stEmail
+        , show st.stPass1
+        , show st.stPass2
+        , show st.stTermsAndConds
+        ]
 
 errors :: State -> Array (ComponentHTML Query)
 errors st = f <$> st.stErrors
