@@ -1,3 +1,6227 @@
-.user-indicator {
-    background-color: yellow;
+@charset "UTF-8";
+/* line 7, scss/_grid.scss */
+.row {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
+/* line 12, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/output/support/_clearfix.scss */
+.row:after {
+  content: " ";
+  display: block;
+  clear: both;
+}
+
+/* line 11, scss/_grid.scss */
+.cols-2 {
+  width: 47.61904762%;
+  float: left;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.cols-2:nth-child(2n + 1) {
+  margin-left: 0;
+  margin-right: -100%;
+  clear: both;
+  margin-left: 0;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.cols-2:nth-child(2n + 2) {
+  margin-left: 52.38095238%;
+  margin-right: -100%;
+  clear: none;
+}
+
+/* line 15, scss/_grid.scss */
+.cols-3 {
+  width: 31.25%;
+  float: left;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.cols-3:nth-child(3n + 1) {
+  margin-left: 0;
+  margin-right: -100%;
+  clear: both;
+  margin-left: 0;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.cols-3:nth-child(3n + 2) {
+  margin-left: 34.375%;
+  margin-right: -100%;
+  clear: none;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.cols-3:nth-child(3n + 3) {
+  margin-left: 68.75%;
+  margin-right: -100%;
+  clear: none;
+}
+
+/*doc
+---
+title: Text align
+name: text-align
+category: Compability
+---
+
+This mixin provides fallbacks for CSS3 values to `text-align`, i.e. `start` and
+`end`.
+*/
+/*doc
+---
+title: Placeholder
+name: placeholder
+category: Compability
+---
+
+This mixin allows to set attributes to placeholders in several browser.
+
+```
+@include placeholder {
+    color: black;
+}
+```
+
+*This is not part of any W3C standard.*
+*/
+/* line 60, scss/general/_future.scss */
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+}
+
+/* Relative luminance according to WCAG20 */
+/* Contrast according to WCAG20 */
+@font-face {
+  font-family: "Lato";
+  src: url('../fonts/../lib/lato/font/lato-regular/lato-regular.eot?_=3cd8a069a9eb60b7e38bf33e940fa570');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/lato/font/lato-regular/lato-regular.eot?&_=3cd8a069a9eb60b7e38bf33e940fa570#iefix') format("embedded-opentype"), url('../fonts/../lib/lato/font/lato-regular/lato-regular.woff?_=744f60bc5e8ff1efc874f7de06576fb6') format("woff"), url('../fonts/../lib/lato/font/lato-regular/lato-regular.ttf?_=2b3c7bc9836a941c085b0d5ce774d634') format("truetype");
+  font-style: normal;
+  font-weight: normal;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "Lato";
+  src: url('../fonts/../lib/lato/font/lato-bold/lato-bold.eot?_=768b1a5b97532a20c0dc9ffa9fe52808');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/lato/font/lato-bold/lato-bold.eot?&_=768b1a5b97532a20c0dc9ffa9fe52808#iefix') format("embedded-opentype"), url('../fonts/../lib/lato/font/lato-bold/lato-bold.woff?_=75c165bbdb5ac12c3c8d7ca09547d400') format("woff"), url('../fonts/../lib/lato/font/lato-bold/lato-bold.ttf?_=ef764437ed9cc94d01b0510b20dac00a') format("truetype");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "Lato";
+  src: url('../fonts/../lib/lato/font/lato-light/lato-light.eot?_=49edd942ddc76cb4a4641d81689b1a51');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/lato/font/lato-light/lato-light.eot?&_=49edd942ddc76cb4a4641d81689b1a51#iefix') format("embedded-opentype"), url('../fonts/../lib/lato/font/lato-light/lato-light.woff?_=905e6e0f4bf437066330a4edd65e2ce3') format("woff"), url('../fonts/../lib/lato/font/lato-light/lato-light.ttf?_=f8ae7d189000aece2b1cb12a3e114b35') format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "Open Sans";
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-regular-webfont.eot?');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-regular-webfont.eot?&#iefix') format("embedded-opentype"), url('../fonts/../lib/webfont-opensans/fonts/opensans-regular-webfont.woff?') format("woff"), url('../fonts/../lib/webfont-opensans/fonts/opensans-regular-webfont.ttf?') format("truetype");
+  font-style: normal;
+  font-weight: normal;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "Open Sans";
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-bold-webfont.eot?');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-bold-webfont.eot?&#iefix') format("embedded-opentype"), url('../fonts/../lib/webfont-opensans/fonts/opensans-bold-webfont.woff?') format("woff"), url('../fonts/../lib/webfont-opensans/fonts/opensans-bold-webfont.ttf?') format("truetype");
+  font-style: normal;
+  font-weight: bold;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "Open Sans";
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-light-webfont.eot?');
+  /* IE9 Compat Modes */
+  src: url('../fonts/../lib/webfont-opensans/fonts/opensans-light-webfont.eot?&#iefix') format("embedded-opentype"), url('../fonts/../lib/webfont-opensans/fonts/opensans-light-webfont.woff?') format("woff"), url('../fonts/../lib/webfont-opensans/fonts/opensans-light-webfont.ttf?') format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  text-rendering: optimizeLegibility;
+}
+@font-face {
+  font-family: "adhocracy3-icons";
+  src: url('../fonts/adhocracy3-icons.eot?_=5f8db92de21690fc4a50b1592bae5a0a');
+  src: url('../fonts/adhocracy3-icons.eot?&_=5f8db92de21690fc4a50b1592bae5a0a#iefix') format("embedded-opentype"), url('../fonts/adhocracy3-icons.woff?_=5277232de216d4edb3cb86bebcfecf93') format("woff"), url('../fonts/adhocracy3-icons.ttf?_=d9427836d2d600134cdd817bf22b93be') format("truetype"), url('../fonts/adhocracy3-icons.svg?_=0ca0b26c00c7fa6bdfad58d6bc710423#adhocracy3-icons') format("svg");
+  font-weight: normal;
+  font-style: normal;
+}
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  @font-face {
+    font-family: "adhocracy3-icons";
+    src: url('../fonts/adhocracy3-icons.svg?_=0ca0b26c00c7fa6bdfad58d6bc710423#adhocracy3-icons') format("svg");
+  }
+}
+/* line 23, scss/third_party/_adhocracy3-icons-rails.scss */
+[data-icon]:before {
+  content: attr(data-icon);
+}
+
+/* line 25, scss/third_party/_adhocracy3-icons-rails.scss */
+[data-icon]:before,
+.icon-add:before,
+.icon-attention:before,
+.icon-back-to-top:before,
+.icon-ban-circle:before,
+.icon-calendar:before,
+.icon-document:before,
+.icon-documents:before,
+.icon-flag:before,
+.icon-key:before,
+.icon-list:before,
+.icon-list-filled:before,
+.icon-mail:before,
+.icon-mail-filled:before,
+.user-profile-info .user-profile-info-button:active .user-profile-info-icon:before,
+.user-profile-info .user-profile-info-button:hover .user-profile-info-icon:before,
+.user-profile-info .user-profile-info-button:focus .user-profile-info-icon:before,
+.icon-map-pin:before,
+.icon-minus:before,
+.icon-pencil:before,
+.icon-pig:before,
+.icon-pointy-rectangle-left:before,
+.icon-pointy-rectangle-right:before,
+.icon-reply:before,
+.icon-speechbubble:before,
+.icon-speechbubble-document:before,
+.icon-speechbubble-unfilled:before,
+.icon-speechbubbles:before,
+.icon-tick:before,
+.icon-user:before,
+.icon-user-unfilled:before,
+.icon-users:before,
+.icon-vote-down:before,
+.icon-vote-up:before,
+.icon-x:before {
+  display: inline-block;
+  font-family: "adhocracy3-icons";
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  line-height: 1;
+  text-decoration: inherit;
+  text-rendering: optimizeLegibility;
+  text-transform: none;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  font-smoothing: antialiased;
+}
+
+/* line 71, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-add:before {
+  content: "\f100";
+}
+
+/* line 72, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-attention:before {
+  content: "\f101";
+}
+
+/* line 73, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-back-to-top:before {
+  content: "\f102";
+}
+
+/* line 74, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-ban-circle:before {
+  content: "\f103";
+}
+
+/* line 75, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-calendar:before {
+  content: "\f104";
+}
+
+/* line 76, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-document:before {
+  content: "\f105";
+}
+
+/* line 77, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-documents:before {
+  content: "\f106";
+}
+
+/* line 78, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-flag:before {
+  content: "\f107";
+}
+
+/* line 79, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-key:before {
+  content: "\f108";
+}
+
+/* line 80, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-list:before {
+  content: "\f109";
+}
+
+/* line 81, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-list-filled:before {
+  content: "\f10a";
+}
+
+/* line 82, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-mail:before {
+  content: "\f10b";
+}
+
+/* line 83, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-mail-filled:before, .user-profile-info .user-profile-info-button:active .user-profile-info-icon:before, .user-profile-info .user-profile-info-button:hover .user-profile-info-icon:before, .user-profile-info .user-profile-info-button:focus .user-profile-info-icon:before {
+  content: "\f10c";
+}
+
+/* line 84, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-map-pin:before {
+  content: "\f10d";
+}
+
+/* line 85, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-minus:before {
+  content: "\f10e";
+}
+
+/* line 86, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-pencil:before {
+  content: "\f10f";
+}
+
+/* line 87, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-pig:before {
+  content: "\f110";
+}
+
+/* line 88, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-pointy-rectangle-left:before {
+  content: "\f111";
+}
+
+/* line 89, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-pointy-rectangle-right:before {
+  content: "\f112";
+}
+
+/* line 90, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-reply:before {
+  content: "\f113";
+}
+
+/* line 91, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-speechbubble:before {
+  content: "\f114";
+}
+
+/* line 92, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-speechbubble-document:before {
+  content: "\f115";
+}
+
+/* line 93, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-speechbubble-unfilled:before {
+  content: "\f116";
+}
+
+/* line 94, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-speechbubbles:before {
+  content: "\f117";
+}
+
+/* line 95, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-tick:before {
+  content: "\f118";
+}
+
+/* line 96, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-user:before {
+  content: "\f119";
+}
+
+/* line 97, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-user-unfilled:before {
+  content: "\f11a";
+}
+
+/* line 98, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-users:before {
+  content: "\f11b";
+}
+
+/* line 99, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-vote-down:before {
+  content: "\f11c";
+}
+
+/* line 100, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-vote-up:before {
+  content: "\f11d";
+}
+
+/* line 101, scss/third_party/_adhocracy3-icons-rails.scss */
+.icon-x:before {
+  content: "\f11e";
+}
+
+/*! normalize.css v2.1.3 | MIT License | git.io/normalize */
+/* ==========================================================================
+   HTML5 display definitions
+   ========================================================================== */
+/**
+ * Correct `block` display not defined in IE 8/9.
+ */
+/* line 11, scss/third_party/_normalize.scss */
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+hgroup,
+main,
+nav,
+section,
+summary {
+  display: block;
+}
+
+/**
+ * Correct `inline-block` display not defined in IE 8/9.
+ */
+/* line 30, scss/third_party/_normalize.scss */
+audio,
+canvas,
+video {
+  display: inline-block;
+}
+
+/**
+ * Prevent modern browsers from displaying `audio` without controls.
+ * Remove excess height in iOS 5 devices.
+ */
+/* line 41, scss/third_party/_normalize.scss */
+audio:not([controls]) {
+  display: none;
+  height: 0;
+}
+
+/**
+ * Address `[hidden]` styling not present in IE 8/9.
+ * Hide the `template` element in IE, Safari, and Firefox < 22.
+ */
+/* line 51, scss/third_party/_normalize.scss */
+[hidden],
+template {
+  display: none;
+}
+
+/* line 56, scss/third_party/_normalize.scss */
+script {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+/**
+ * 1. Set default font family to sans-serif.
+ * 2. Prevent iOS text size adjust after orientation change, without disabling
+ *    user zoom.
+ */
+/* line 70, scss/third_party/_normalize.scss */
+html {
+  font-family: sans-serif;
+  /* 1 */
+  -ms-text-size-adjust: 100%;
+  /* 2 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+}
+
+/**
+ * Remove default margin.
+ */
+/* line 80, scss/third_party/_normalize.scss */
+body {
+  margin: 0;
+}
+
+/* ==========================================================================
+   Links
+   ========================================================================== */
+/**
+ * Remove the gray background color from active links in IE 10.
+ */
+/* line 92, scss/third_party/_normalize.scss */
+a {
+  background: transparent;
+}
+
+/**
+ * Address `outline` inconsistency between Chrome and other browsers.
+ */
+/* line 100, scss/third_party/_normalize.scss */
+a:focus {
+  outline: thin dotted;
+}
+
+/**
+ * Improve readability when focused and also mouse hovered in all browsers.
+ */
+/* line 108, scss/third_party/_normalize.scss */
+a:active,
+a:hover {
+  outline: 0;
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+/**
+ * Address variable `h1` font-size and margin within `section` and `article`
+ * contexts in Firefox 4+, Safari 5, and Chrome.
+ */
+/* line 122, scss/third_party/_normalize.scss */
+h1 {
+  font-size: 2em;
+  margin: 0.67em 0;
+}
+
+/**
+ * Address styling not present in IE 8/9, Safari 5, and Chrome.
+ */
+/* line 131, scss/third_party/_normalize.scss */
+abbr[title] {
+  border-bottom: 1px dotted;
+}
+
+/**
+ * Address style set to `bolder` in Firefox 4+, Safari 5, and Chrome.
+ */
+/* line 139, scss/third_party/_normalize.scss */
+b,
+strong {
+  font-weight: bold;
+}
+
+/**
+ * Address styling not present in Safari 5 and Chrome.
+ */
+/* line 148, scss/third_party/_normalize.scss */
+dfn {
+  font-style: italic;
+}
+
+/**
+ * Address differences between Firefox and other browsers.
+ */
+/* line 156, scss/third_party/_normalize.scss */
+hr {
+  -moz-box-sizing: content-box;
+  box-sizing: content-box;
+  height: 0;
+}
+
+/**
+ * Address styling not present in IE 8/9.
+ */
+/* line 166, scss/third_party/_normalize.scss */
+mark {
+  background: #ff0;
+  color: #000;
+}
+
+/**
+ * Correct font family set oddly in Safari 5 and Chrome.
+ */
+/* line 175, scss/third_party/_normalize.scss */
+code,
+kbd,
+pre,
+samp {
+  font-family: monospace, serif;
+  font-size: 1em;
+}
+
+/**
+ * Improve readability of pre-formatted text in all browsers.
+ */
+/* line 187, scss/third_party/_normalize.scss */
+pre {
+  white-space: pre-wrap;
+}
+
+/**
+ * Set consistent quote types.
+ */
+/* line 195, scss/third_party/_normalize.scss */
+q {
+  quotes: "\201C" "\201D" "\2018" "\2019";
+}
+
+/**
+ * Address inconsistent and variable font size in all browsers.
+ */
+/* line 203, scss/third_party/_normalize.scss */
+small {
+  font-size: 80%;
+}
+
+/**
+ * Prevent `sub` and `sup` affecting `line-height` in all browsers.
+ */
+/* line 211, scss/third_party/_normalize.scss */
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+/* line 219, scss/third_party/_normalize.scss */
+sup {
+  top: -0.5em;
+}
+
+/* line 223, scss/third_party/_normalize.scss */
+sub {
+  bottom: -0.25em;
+}
+
+/* ==========================================================================
+   Embedded content
+   ========================================================================== */
+/**
+ * Remove border when inside `a` element in IE 8/9.
+ */
+/* line 235, scss/third_party/_normalize.scss */
+img {
+  border: 0;
+}
+
+/**
+ * Correct overflow displayed oddly in IE 9.
+ */
+/* line 243, scss/third_party/_normalize.scss */
+svg:not(:root) {
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Figures
+   ========================================================================== */
+/**
+ * Address margin not present in IE 8/9 and Safari 5.
+ */
+/* line 255, scss/third_party/_normalize.scss */
+figure {
+  margin: 0;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+/**
+ * Define consistent border, margin, and padding.
+ */
+/* line 267, scss/third_party/_normalize.scss */
+fieldset {
+  border: 1px solid #c0c0c0;
+  margin: 0 2px;
+  padding: 0.35em 0.625em 0.75em;
+}
+
+/**
+ * 1. Correct `color` not being inherited in IE 8/9.
+ * 2. Remove padding so people aren't caught out if they zero out fieldsets.
+ */
+/* line 278, scss/third_party/_normalize.scss */
+legend {
+  border: 0;
+  /* 1 */
+  padding: 0;
+  /* 2 */
+}
+
+/**
+ * 1. Correct font family not being inherited in all browsers.
+ * 2. Correct font size not being inherited in all browsers.
+ * 3. Address margins set differently in Firefox 4+, Safari 5, and Chrome.
+ */
+/* line 289, scss/third_party/_normalize.scss */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 2 */
+  margin: 0;
+  /* 3 */
+}
+
+/**
+ * Address Firefox 4+ setting `line-height` on `input` using `!important` in
+ * the UA stylesheet.
+ */
+/* line 303, scss/third_party/_normalize.scss */
+button,
+input {
+  line-height: normal;
+}
+
+/**
+ * Address inconsistent `text-transform` inheritance for `button` and `select`.
+ * All other form control elements do not inherit `text-transform` values.
+ * Correct `button` style inheritance in Chrome, Safari 5+, and IE 8+.
+ * Correct `select` style inheritance in Firefox 4+ and Opera.
+ */
+/* line 315, scss/third_party/_normalize.scss */
+button,
+select {
+  text-transform: none;
+}
+
+/**
+ * 1. Avoid the WebKit bug in Android 4.0.* where (2) destroys native `audio`
+ *    and `video` controls.
+ * 2. Correct inability to style clickable `input` types in iOS.
+ * 3. Improve usability and consistency of cursor style between image-type
+ *    `input` and others.
+ */
+/* line 328, scss/third_party/_normalize.scss */
+button,
+html input[type="button"],
+input[type="reset"],
+input[type="submit"] {
+  -webkit-appearance: button;
+  /* 2 */
+  cursor: pointer;
+  /* 3 */
+}
+
+/**
+ * Re-set default cursor for disabled elements.
+ */
+/* line 340, scss/third_party/_normalize.scss */
+button[disabled],
+html input[disabled] {
+  cursor: default;
+}
+
+/**
+ * 1. Address box sizing set to `content-box` in IE 8/9/10.
+ * 2. Remove excess padding in IE 8/9/10.
+ */
+/* line 350, scss/third_party/_normalize.scss */
+input[type="checkbox"],
+input[type="radio"] {
+  box-sizing: border-box;
+  /* 1 */
+  padding: 0;
+  /* 2 */
+}
+
+/**
+ * 1. Address `appearance` set to `searchfield` in Safari 5 and Chrome.
+ * 2. Address `box-sizing` set to `border-box` in Safari 5 and Chrome
+ *    (include `-moz` to future-proof).
+ */
+/* line 362, scss/third_party/_normalize.scss */
+input[type="search"] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  -moz-box-sizing: content-box;
+  -webkit-box-sizing: content-box;
+  /* 2 */
+  box-sizing: content-box;
+}
+
+/**
+ * Remove inner padding and search cancel button in Safari 5 and Chrome
+ * on OS X.
+ */
+/* line 374, scss/third_party/_normalize.scss */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/**
+ * Remove inner padding and border in Firefox 4+.
+ */
+/* line 383, scss/third_party/_normalize.scss */
+button::-moz-focus-inner,
+input::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+/**
+ * 1. Remove default vertical scrollbar in IE 8/9.
+ * 2. Improve readability and alignment in all browsers.
+ */
+/* line 394, scss/third_party/_normalize.scss */
+textarea {
+  overflow: auto;
+  /* 1 */
+  vertical-align: top;
+  /* 2 */
+}
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+/**
+ * Remove most spacing between table cells.
+ */
+/* line 407, scss/third_party/_normalize.scss */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* line 1, scss/general/_normalize.scss */
+*, *::after, *::before {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* documentation is in variables_doc */
+/*doc
+---
+title: Colors
+name: colors
+category: Variables
+---
+
+<table class="styleguide-colors">
+    <tr>
+        <td colspan="3"><strong>Text colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-normal"></div></td>
+        <td><code>color-text-normal</code></td>
+        <td>Default color for running text</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-introvert"></div></td>
+        <td><code>color-text-introvert</code></td>
+        <td>For secondary text</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-inverted"></div></td>
+        <td><code>color-text-inverted</code></td>
+        <td>Used as either foreground or background with
+            <code>color-text-highlight-normal</code></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-highlight-normal"></div></td>
+        <td><code>color-text-highlight-normal</code></td>
+        <td>For highlighted content such as links</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-highlight-introvert"></div></td>
+        <td><code>color-text-highlight-introvert</code></td>
+        <td>For highlighted content introverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-text-highlight-extrovert"></div></td>
+        <td><code>color-text-highlight-extrovert</code></td>
+        <td>For highlighted content extroverted style</td>
+    </tr>
+    <tr>
+        <td colspan="3"><strong>Brand colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-one-normal"></div></td>
+        <td><code>color-brand-one-normal</code></td>
+        <td>Brand color 1</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-one-introvert"></div></td>
+        <td><code>color-brand-one-introvert</code></td>
+        <td>Brand color 1 introverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-one-extrovert"></div></td>
+        <td><code>color-brand-one-extrovert</code></td>
+        <td>Brand color 1 extroverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-two-normal"></div></td>
+        <td><code>color-brand-two-normal</code></td>
+        <td>Brand color 2</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-two-introvert"></div></td>
+        <td><code>color-brand-two-introvert</code></td>
+        <td>Brand color 2 introverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-two-extrovert"></div></td>
+        <td><code>color-brand-two-extrovert</code></td>
+        <td>Brand color 2 extroverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-three-normal"></div></td>
+        <td><code>color-brand-three-normal</code></td>
+        <td>Brand color 3</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-three-introvert"></div></td>
+        <td><code>color-brand-three-introvert</code></td>
+        <td>Brand color 3 introverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-three-extrovert"></div></td>
+        <td><code>color-brand-three-extrovert</code></td>
+        <td>Brand color 3 extroverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-four-normal"></div></td>
+        <td><code>color-brand-four-normal</code></td>
+        <td>Brand color 4</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-four-introvert"></div></td>
+        <td><code>color-brand-four-introvert</code></td>
+        <td>Brand color 4 introverted style</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-brand-four-extrovert"></div></td>
+        <td><code>color-brand-four-extrovert</code></td>
+        <td>Brand color 4 extroverted style</td>
+    </tr>
+    <tr>
+        <td colspan="3"><strong>Functional colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-function-valid"></div></td>
+        <td><code>color-function-valid</code></td>
+        <td>For valid content</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-function-invalid"></div></td>
+        <td><code>color-function-invalid</code></td>
+        <td>For invalid content</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-function-neutral"></div></td>
+        <td><code>color-function-neutral</code></td>
+        <td>For neutral (neither valid nor invalid) content</td>
+    </tr>
+    <tr>
+        <td colspan="3"><strong>Structural colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-structure-normal"></div></td>
+        <td><code>color-structure-normal</code></td>
+        <td>Border color for inactive or disabled elements</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-structure-introvert"></div></td>
+        <td><code>color-structure-introvert</code></td>
+        <td>Secondary background color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-structure-extrovert"></div></td>
+        <td><code>color-structure-extrovert</code></td>
+        <td>border color for active or filled elements</td>
+    </tr>
+    <tr>
+        <td colspan="3"><strong>Background colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-background-base"></div></td>
+        <td><code>color-background-base</code></td>
+        <td>Default background color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-background-base-introvert"></div></td>
+        <td><code>color-background-base-introvert</code></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td colspan="3"><strong>Button colors</strong></td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-text"></div></td>
+        <td><code>color-button-text</code></td>
+        <td>Button text color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-text-hover"></div></td>
+        <td><code>color-button-text-hover</code></td>
+        <td>Button text hover color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-cta-text"></div></td>
+        <td><code>color-button-cta-text</code></td>
+        <td>Call-to-action (CTA) button text color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-cta-base"></div></td>
+        <td><code>color-button-cta-base</code></td>
+        <td>CTA face and CTA secondary border and text color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-cta-hover-background"></div></td>
+        <td><code>color-button-cta-hover-background</code></td>
+        <td>CTA face hover color</td>
+    </tr>
+    <tr>
+        <td><div class="example-color color-button-cta-active-background"></div></td>
+        <td><code>color-button-cta-active-background</code></td>
+        <td>CTA face active color</td>
+    </tr>
+</table>
+*/
+/* line 191, scss/general/_variables_doc.scss */
+.example-color {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  height: 3rem;
+  width: 3rem;
+  border: 1px solid #9d9c9c;
+}
+
+/* line 198, scss/general/_variables_doc.scss */
+.color-brand-one-normal {
+  background-color: #00b4cc;
+}
+
+/* line 199, scss/general/_variables_doc.scss */
+.color-brand-one-introvert {
+  background-color: #008799;
+}
+
+/* line 200, scss/general/_variables_doc.scss */
+.color-brand-one-extrovert {
+  background-color: #00e1ff;
+}
+
+/* line 201, scss/general/_variables_doc.scss */
+.color-brand-two-normal {
+  background-color: #e3000f;
+}
+
+/* line 202, scss/general/_variables_doc.scss */
+.color-brand-two-introvert {
+  background-color: #b61c3e;
+}
+
+/* line 203, scss/general/_variables_doc.scss */
+.color-brand-two-extrovert {
+  background-color: #b61c3e;
+}
+
+/* line 204, scss/general/_variables_doc.scss */
+.color-brand-three-normal {
+  background-color: #00b4cc;
+}
+
+/* line 205, scss/general/_variables_doc.scss */
+.color-brand-three-introvert {
+  background-color: #9f0e6b;
+}
+
+/* line 206, scss/general/_variables_doc.scss */
+.color-brand-three-extrovert {
+  background-color: #00e1ff;
+}
+
+/* line 207, scss/general/_variables_doc.scss */
+.color-brand-four-normal {
+  background-color: #73bf44;
+}
+
+/* line 208, scss/general/_variables_doc.scss */
+.color-brand-four-introvert {
+  background-color: #5c9b35;
+}
+
+/* line 209, scss/general/_variables_doc.scss */
+.color-brand-four-extrovert {
+  background-color: #8fcc6a;
+}
+
+/* line 211, scss/general/_variables_doc.scss */
+.color-text-normal {
+  background-color: #333;
+}
+
+/* line 212, scss/general/_variables_doc.scss */
+.color-text-introvert {
+  background-color: #808080;
+}
+
+/* line 213, scss/general/_variables_doc.scss */
+.color-text-extrovert {
+  background-color: #1c1c1b;
+}
+
+/* line 214, scss/general/_variables_doc.scss */
+.color-text-highlight-normal {
+  background-color: #00b4cc;
+}
+
+/* line 215, scss/general/_variables_doc.scss */
+.color-text-highlight-introvert {
+  background-color: #808080;
+}
+
+/* line 216, scss/general/_variables_doc.scss */
+.color-text-highlight-extrovert {
+  background-color: #333;
+}
+
+/* line 217, scss/general/_variables_doc.scss */
+.color-text-inverted {
+  background-color: white;
+}
+
+/* line 219, scss/general/_variables_doc.scss */
+.color-function-valid {
+  background-color: #73bf44;
+}
+
+/* line 220, scss/general/_variables_doc.scss */
+.color-function-invalid {
+  background-color: #f00;
+}
+
+/* line 221, scss/general/_variables_doc.scss */
+.color-function-neutral {
+  background-color: #f6d02b;
+}
+
+/* line 223, scss/general/_variables_doc.scss */
+.color-background-base {
+  background-color: white;
+}
+
+/* line 224, scss/general/_variables_doc.scss */
+.color-background-base-introvert {
+  background-color: #f2f2f2;
+}
+
+/* line 226, scss/general/_variables_doc.scss */
+.color-structure-normal {
+  background-color: #e6e6e6;
+}
+
+/* line 227, scss/general/_variables_doc.scss */
+.color-structure-introvert {
+  background-color: #ccc;
+}
+
+/* line 228, scss/general/_variables_doc.scss */
+.color-structure-extrovert {
+  background-color: #999;
+}
+
+/* line 229, scss/general/_variables_doc.scss */
+.color-structure-border {
+  background-color: #9d9c9c;
+}
+
+/* line 231, scss/general/_variables_doc.scss */
+.color-button-text {
+  background-color: #808080;
+}
+
+/* line 232, scss/general/_variables_doc.scss */
+.color-button-text-hover {
+  background-color: #00b4cc;
+}
+
+/* line 233, scss/general/_variables_doc.scss */
+.color-button-cta-text {
+  background-color: white;
+}
+
+/* line 234, scss/general/_variables_doc.scss */
+.color-button-cta-base {
+  background-color: #e3000f;
+}
+
+/* line 235, scss/general/_variables_doc.scss */
+.color-button-cta-hover-background {
+  background-color: #b61c3e;
+}
+
+/* line 236, scss/general/_variables_doc.scss */
+.color-button-cta-active-background {
+  background-color: #b61c3e;
+}
+
+/*
+ Allow rem units with px fallback
+*/
+/*doc
+---
+title: layout rows
+name: l-rows
+category: Layout
+---
+
+This deeply nested structure allows to have multiple rows where the last one
+stretches to the end of the screen (i.e. a non-static positioned container).
+
+The first version is implemented with `display: flex`, the second with
+`display: table`. Both are needed in order to support a wide range of browsers.
+Modernizr should be used to decide which version to use.
+
+```html_example
+<div style="width: 300px; height: 200px; position: relative" class="modernizr-flexbox">
+    <div class="l-rows-wrapper">
+        <div class="l-rows">
+            <div class="l-row">
+                <div class="l-cell">
+                    <div class="l-cell-inner" style="background: red">
+                        huhu
+                    </div>
+                </div>
+            </div>
+
+            <div class="l-row">
+                <div class="l-cell">
+                    <div class="l-cell-inner">
+                        <div style="overflow-y: auto; background: green; position: absolute; top: 0; bottom: 0; left: 0; right: 0;">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue. Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem. Ut turpis felis, pulvinar a semper sed, adipiscing id dolor. Pellentesque auctor nisi id magna consequat sagittis. Curabitur dapibus enim sit amet elit pharetra tincidunt feugiat nisl imperdiet. Ut convallis libero in urna ultrices accumsan. Donec sed odio eros. Donec viverra mi quis quam pulvinar at malesuada arcu rhoncus. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. In rutrum accumsan ultricies. Mauris vitae nisi at sem facilisis semper ac in est.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="width: 300px; height: 200px; position: relative" class="modernizr-no-flexbox">
+    <div class="l-rows-wrapper">
+        <div class="l-rows">
+            <div class="l-row">
+                <div class="l-cell">
+                    <div class="l-cell-inner" style="background: red">
+                        huhu
+                    </div>
+                </div>
+            </div>
+
+            <div class="l-row">
+                <div class="l-cell">
+                    <div class="l-cell-inner">
+                        <div style="overflow-y: auto; background: green; position: absolute; top: 0; bottom: 0; left: 0; right: 0;">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue. Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem. Ut turpis felis, pulvinar a semper sed, adipiscing id dolor. Pellentesque auctor nisi id magna consequat sagittis. Curabitur dapibus enim sit amet elit pharetra tincidunt feugiat nisl imperdiet. Ut convallis libero in urna ultrices accumsan. Donec sed odio eros. Donec viverra mi quis quam pulvinar at malesuada arcu rhoncus. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. In rutrum accumsan ultricies. Mauris vitae nisi at sem facilisis semper ac in est.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+```
+*/
+@media screen {
+  /* line 80, scss/_layout.scss */
+  .l-rows-wrapper {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+  }
+  /* line 84, scss/_layout.scss */
+  .l-rows {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* line 90, scss/_layout.scss */
+  .modernizr-no-flexbox .l-rows {
+    display: table;
+  }
+  /* line 94, scss/_layout.scss */
+  .modernizr-no-flexbox .l-row {
+    display: table-row;
+  }
+  /* line 98, scss/_layout.scss */
+  .modernizr-no-flexbox .l-row:last-child, .modernizr-no-flexbox .l-row:last-child .l-cell, .modernizr-no-flexbox .l-row:last-child .l-cell-inner {
+    height: 100%;
+  }
+  /* line 104, scss/_layout.scss */
+  .modernizr-no-flexbox .l-cell {
+    display: table-cell;
+  }
+  /* line 108, scss/_layout.scss */
+  .modernizr-no-flexbox .l-cell-inner {
+    position: relative;
+  }
+
+  /* line 114, scss/_layout.scss */
+  .modernizr-flexbox .l-rows {
+    display: -webkit-flex;
+    -webkit-flex-direction: column;
+    display: flex;
+    flex-direction: column;
+  }
+  /* line 121, scss/_layout.scss */
+  .modernizr-flexbox .l-row {
+    position: relative;
+  }
+  /* line 124, scss/_layout.scss */
+  .modernizr-flexbox .l-row:last-child {
+    -webkit-flex-grow: 1;
+    flex-grow: 1;
+  }
+}
+/*doc
+---
+title: Header
+name: l-header
+category: Layout
+---
+
+Most views in adhocracy have a header. But this header is very flexible and
+depends on a lot of factors:
+
+-   Areas that are typically accessed via links from emails (`activate`,
+    `password_reset`) do not have a header.
+-   Areas related to user management (`login`, `register`,
+    `create_password_reset`) have a simplified header.
+-   The header in the resource area may have additional, process related
+    functionality.
+-   The header in the resource area may contain a space switcher.
+-   Embed contexts may have different headers.
+-   All headers contain a user indicator.
+
+```html_example
+<div class="l-header">
+    <div class="l-header-left placeholder">left</div>
+    <div class="l-header-center placeholder">center</div>
+    <div class="l-header-right placeholder">right</div>
+</div>
+```
+*/
+/* line 159, scss/_layout.scss */
+.main-header {
+  line-height: 40px;
+  line-height: 2.85714286rem;
+  position: relative;
+}
+@media print {
+  /* line 159, scss/_layout.scss */
+  .main-header {
+    display: none;
+  }
+}
+
+/* line 168, scss/_layout.scss */
+.l-header {
+  overflow: hidden;
+  *zoom: 1;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* line 174, scss/_layout.scss */
+.l-header,
+.l-header-center {
+  max-width: 770px;
+  max-width: 55rem;
+}
+
+/* line 179, scss/_layout.scss */
+.l-header-left {
+  float: left;
+}
+
+/* line 183, scss/_layout.scss */
+.l-header-left,
+.l-header-right {
+  position: relative;
+  z-index: 1;
+}
+
+/* line 189, scss/_layout.scss */
+.l-header-center {
+  position: absolute;
+  left: 0;
+  text-align: center;
+  top: 0;
+  width: 100%;
+  z-index: 0;
+}
+@media print {
+  /* line 189, scss/_layout.scss */
+  .l-header-center {
+    position: static;
+  }
+}
+
+/* line 202, scss/_layout.scss */
+.l-header-right {
+  float: right;
+}
+
+/* line 206, scss/_layout.scss */
+.l-center {
+  max-width: 420px;
+  max-width: 30rem;
+  margin: 70px auto 140px;
+  margin: 5rem auto 10rem;
+  padding: 7px;
+  padding: 0.5rem;
+}
+
+/*doc
+---
+title: Inline
+name: inline
+category: Type
+---
+*/
+/* line 9, scss/components/_type.scss */
+html {
+  font-size: 87.5%;
+}
+
+/* line 13, scss/components/_type.scss */
+body {
+  color: #333;
+  line-height: 1.15;
+}
+@media print {
+  /* line 13, scss/components/_type.scss */
+  body {
+    padding: 0 1.5em !important;
+  }
+}
+
+@media print {
+  /* line 24, scss/components/_type.scss */
+  * {
+    background-color: #fff !important;
+    border-color: #000 !important;
+    color: #000 !important;
+  }
+}
+/*doc
+---
+title: Headings
+name: headings
+category: Type
+---
+
+```html_example
+<h1>Heading 1</h1>
+<h2>Heading 2</h2>
+<h3>Heading 3</h3>
+<h4>Heading 4</h4>
+<h5>Heading 5</h5>
+<h6>Heading 6</h6>
+```
+*/
+/* line 49, scss/components/_type.scss */
+h1, h2, h3, h4, h5, h6 {
+  text-rendering: optimizelegibility;
+  color: #1c1c1b;
+}
+
+/*doc
+---
+title: Paragraph
+name: p
+category: Type
+---
+
+```html_example
+<p>Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.<p>
+<p>Duis autem vel eum iriure dolor in hendrerit in vulputate velit esse molestie consequat, vel illum dolore eu feugiat nulla facilisis at vero eros et accumsan et iusto odio dignissim qui blandit praesent luptatum zzril delenit augue duis dolore te feugait nulla facilisi. Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.</p>
+```
+*/
+/* line 67, scss/components/_type.scss */
+p {
+  margin: 0 0 14px;
+  margin: 0 0 1rem;
+  word-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.15;
+}
+@media print {
+  /* line 67, scss/components/_type.scss */
+  p {
+    text-align: justify;
+  }
+}
+
+/*doc
+---
+title: link
+name: link
+category: Type
+---
+
+A hyperlink. It may have the following states:
+
+-   :hover
+-   :focus
+
+```html_example
+<a href="#">internal link</a>
+<a href="#" rel="external">external link</a>
+<a href="#" class="m-unobtrusive">unobtrusive link</a>
+```
+*/
+/* line 97, scss/components/_type.scss */
+a {
+  color: #00b4cc;
+}
+/* line 100, scss/components/_type.scss */
+a:hover, a:focus {
+  color: #808080;
+}
+
+/*doc
+---
+title: Disguised link mixin
+name: disguised-link
+category: Type
+---
+
+A link that looks like a regular piece of text
+
+```html_example
+<a class="disguised-link" href="#"><i class="icon-speechbubble"></i> Comments</a><br/>
+When is a <a href="#" class="disguised-link">Link</a> not a link?
+```
+*/
+/* line 130, scss/components/_type.scss */
+.disguised-link {
+  color: #808080;
+  text-decoration: none;
+}
+/* line 124, scss/components/_type.scss */
+.disguised-link:hover, .disguised-link:focus {
+  color: #00b4cc;
+}
+
+/* line 138, scss/components/_type.scss */
+blockquote h1, blockquote h2, blockquote h3, blockquote h4, blockquote h5, blockquote h6,
+article h1,
+article h2,
+article h3,
+article h4,
+article h5,
+article h6,
+section h1,
+section h2,
+section h3,
+section h4,
+section h5,
+section h6 {
+  font-size: 14px;
+  font-size: 1rem;
+  margin: 10px 0;
+  margin: 0.71428571rem 0;
+}
+/* line 143, scss/components/_type.scss */
+blockquote h1,
+article h1,
+section h1 {
+  font-size: 16.8px;
+  font-size: 1.2rem;
+}
+/* line 147, scss/components/_type.scss */
+blockquote h2,
+article h2,
+section h2 {
+  font-size: 15.4px;
+  font-size: 1.1rem;
+}
+
+/*doc
+---
+title: Inline boxes mixin
+name: inline-box
+category: Type
+---
+
+```html_example
+<span class="inline-box">Inline box 1</span>
+<span class="inline-box">Inline box 2</span>
+
+<ul class="inline-boxes">
+    <li>Inline box 1</li>
+    <li>Inline box 2</li>
+</ul>
+```
+*/
+@media screen {
+  /* line 170, scss/components/_type.scss */
+  .inline-box, .inline-boxes li {
+    display: inline-block;
+    vertical-align: middle;
+    *vertical-align: auto;
+    *zoom: 1;
+    *display: inline;
+    font-size: 12px;
+    font-size: 0.85714286rem;
+    padding: 0 14px;
+    padding: 0 1rem;
+    color: #808080;
+    border: 1px solid #808080;
+  }
+}
+
+@media screen {
+  /* line 180, scss/components/_type.scss */
+  .inline-boxes {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/*doc
+---
+title: Table
+name: table
+category: Type
+---
+
+```html_example
+<table>
+    <caption>This is a table caption, made with caption</caption>
+    <thead>
+        <tr>
+            <th>Table Header 1</th>
+            <th>Table Header 2</th>
+            <th>Table Header 3</th>
+        </tr>
+    </thead>
+    <tfoot>
+        <tr>
+            <th>Table Footer 1</th>
+            <td>Table Footer 2</td>
+            <td>Table Footer 3</td>
+        </tr>
+    </tfoot>
+    <tbody>
+        <tr>
+            <th>TD 1.1</th>
+            <td>TD 1.2</td>
+            <td>TD 1.3</td>
+        </tr>
+        <tr>
+            <th>TD 2.1</th>
+            <td>TD 2.2</td>
+            <td>TD 2.3</td>
+        </tr>
+    </tbody>
+</table>
+```
+*/
+/* line 231, scss/components/_type.scss */
+table td, table th {
+  padding: 7px;
+  padding: 0.5rem;
+  text-align: left;
+  text-align: start;
+  border-top: 1px solid #9d9c9c;
+  vertical-align: top;
+}
+/* line 239, scss/components/_type.scss */
+table thead th, table tfoot th {
+  text-align: center;
+}
+/* line 244, scss/components/_type.scss */
+table caption {
+  font-size: small;
+}
+
+/*doc
+---
+title: Lists
+name: lists
+category: Type
+---
+*/
+/*doc
+---
+title: Ordered List
+name: ol
+parent: lists
+---
+
+```html_example
+<ol>
+    <li>larry</li>
+    <li>moe</li>
+    <li>curly</li>
+</ol>
+```
+*/
+/*doc
+---
+title: Unordered List
+name: ul
+parent: lists
+---
+
+```html_example
+<ul>
+    <li>larry</li>
+    <li>moe</li>
+    <li>curly</li>
+</ul>
+```
+*/
+/*doc
+---
+title: Definition List
+name: dl
+parent: lists
+---
+
+```html_example
+<dl>
+    <dt>Defintion Term</dt><dd>Definition data defining the previous term</dd>
+    <dt>Another Definition Term</dt><dd>Definition data defining the previous term</dd>
+</dl>
+```
+*/
+/* line 301, scss/components/_type.scss */
+ul, ol {
+  padding-left: 21px;
+  padding-left: 1.5rem;
+}
+
+/* line 305, scss/components/_type.scss */
+li {
+  line-height: 1.2;
+  margin-left: 0;
+}
+
+/* line 310, scss/components/_type.scss */
+dt {
+  font-weight: bold;
+}
+
+/*doc
+---
+title: Deleted
+name: del
+parent: inline
+---
+
+```html_example
+<del>Example Text</del>
+```
+*/
+/* line 325, scss/components/_type.scss */
+del {
+  text-decoration: line-through;
+  color: #f00;
+}
+
+/*doc
+---
+title: Inserted
+name: ins
+parent: inline
+---
+
+```html_example
+<ins>Example Text</ins>
+```
+*/
+/* line 341, scss/components/_type.scss */
+ins {
+  text-decoration: underline;
+  color: #73bf44;
+}
+
+/*doc
+---
+title: Blockquote
+name: blockqoute
+category: Type
+---
+
+```html_example
+<blockquote>
+    <p>Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.<p>
+    <cite>James T. Kirk</cite>
+</blockquote>
+```
+*/
+/* line 360, scss/components/_type.scss */
+blockquote {
+  margin: 21px;
+  margin: 1.5rem;
+  padding-left: 7px;
+  padding-left: 0.5rem;
+  border-left: 5.6px solid #00b4cc;
+  border-left: 0.4rem solid #00b4cc;
+  position: relative;
+  font-style: italic;
+}
+/* line 367, scss/components/_type.scss */
+blockquote cite {
+  float: right;
+}
+
+/* line 373, scss/components/_type.scss */
+figure {
+  margin: 14px 0;
+  margin: 1rem 0;
+}
+
+/* line 377, scss/components/_type.scss */
+figcaption {
+  font-size: small;
+}
+
+/*doc
+---
+title: Code
+name: code
+parent: inline
+---
+
+```html_example
+<code>Example Text</code>
+```
+*/
+/* line 392, scss/components/_type.scss */
+code {
+  font-size: 12.6px;
+  font-size: 0.9rem;
+  background-color: #ccc;
+}
+
+/*doc
+---
+title: Preformated
+name: pre
+category: Type
+---
+
+```html_example
+<pre>def hello_world(name):
+    s = "Hello %s!" % name
+    print s</pre>
+```
+*/
+/* line 410, scss/components/_type.scss */
+pre {
+  font-size: 12.6px;
+  font-size: 0.9rem;
+  margin: 14px 0;
+  margin: 1rem 0;
+  max-height: 252px;
+  max-height: 18rem;
+  padding: 9.8px;
+  padding: 0.7rem;
+  display: block;
+  background-color: #ccc;
+  border: 1px solid #9d9c9c;
+  overflow: auto;
+}
+/* line 420, scss/components/_type.scss */
+pre code {
+  background-color: transparent;
+}
+
+/*doc
+---
+title: Emphasis
+name: em
+parent: inline
+---
+
+```html_example
+<em>Example Text</em>
+<strong>Example Text</strong>
+```
+*/
+/*doc
+---
+title: Address
+name: address
+category: Type
+---
+
+```html_example
+<address>
+    John Q. Public<br />
+    123 Main Street<br />
+    Anywhere, ST 12345
+</address>
+```
+*/
+/*doc
+---
+title: Time
+name: time
+parent: inline
+---
+
+```html_example
+<time datetime="2013-04-18T13:50:47+02:00">18. April 2013 13:50</time>
+```
+*/
+/*doc
+---
+title: Badges
+name: badge
+category: Type
+---
+
+Badges for labeling things
+
+```html_example
+<p>I am a normal user <span class="badge">Normal User</span></p>
+
+<p>Two badges with whitespace in between: <span class="badge">one</span> <span class="badge">two</span></p>
+
+<p>Two badges without whitespace in between: <span class="badge">one</span><span class="badge">two</span></p>
+```
+
+*/
+/* line 20, scss/components/_badges.scss */
+.badge {
+  padding: 0 5px;
+  padding: 0 0.35714286rem;
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  margin-right: 5px;
+  margin-right: 0.35714286rem;
+  font-size: 10px;
+  font-size: 0.71428571rem;
+  background: #e6e6e6;
+  color: #333;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/*doc
+---
+title: Badge description
+name: badge-description
+parent: badge
+---
+
+The description of a badge assignment. The same modifiers as for `badge` apply.
+
+```html_example
+<div class="badge-description">
+    <p>Simple badge description</p>
+</div>
+```
+*/
+/* line 47, scss/components/_badges.scss */
+.badge-assignment-select {
+  margin: 10px 0 10px 1px;
+  margin: 0.71428571rem 0 0.71428571rem 0.07142857rem;
+}
+/* line 50, scss/components/_badges.scss */
+.badge-assignment-select .badge {
+  outline: 1px solid white;
+  text-decoration: none;
+}
+
+/*doc
+---
+title: input
+name: input
+category: Inputs
+---
+
+Inputs are all elements that allow users to input data.
+
+They can have the following states:
+
+-   ng-invalid
+-   ng-disabled or :disabled
+-   ng-dirty
+-   :focus
+
+Is-invalid should generally only change the presentation of the input widget if
+it is also dirty or the form has been submitted.
+
+```html_example
+<input type="text" placeholder="required and dirty" required="required" class="ng-dirty" />
+<input type="text" placeholder="invalid and dirty" class="ng-invalid ng-dirty" />
+<input type="text" placeholder="invalid and prestine" class="ng-invalid" />
+<input type="text" disabled="disabled" placeholder="disabled" />
+<form class="ng-submitted">
+    <input type="text" placeholder="invalid in submitted form" class="ng-invalid" />
+</form>
+```
+*/
+/*doc
+---
+title: textinput
+name: textinput
+parent: input
+---
+
+Element to enter one line of text.
+
+In fact, there are multiple variants of this already defined in HTML.
+They should all look and behave similarily.
+
+```html_example
+<input type="text" placeholder="text" />
+<input type="url" placeholder="url" />
+<input type="password" placeholder="password" />
+<input type="email" placeholder="email" />
+<input type="date" placeholder="date" />
+<input type="time" placeholder="time" />
+<input type="number" placeholder="number" />
+<input type="text" placeholder="required" required="required" />
+<select required="required">
+    <option>This one</option>
+    <option>The other one</option>
+</select>
+```
+*/
+/*doc
+---
+title: Textareas
+name: textinput.textarea
+parent: textinput
+---
+
+Textareas behave exactly like text inputs however they are resizeable when
+enabled in modern browsers.
+
+```html_example
+<textarea></textarea>
+<textarea disabled="disabled" placeholder="disabled"></textarea>
+```
+*/
+/*doc
+---
+title: Title modifier
+name: textinput.m-title
+parent: textinput
+---
+
+Textinput that represents a title.
+
+```html_example
+<input type="text" placeholder="title" class="m-title"/>
+```
+*/
+/* line 89, scss/components/_forms.scss */
+.error-state, input[type="text"].ng-dirty.ng-invalid,
+input[type="url"].ng-dirty.ng-invalid,
+input[type="password"].ng-dirty.ng-invalid,
+input[type="email"].ng-dirty.ng-invalid,
+input[type="date"].ng-dirty.ng-invalid,
+input[type="time"].ng-dirty.ng-invalid,
+input[type="number"].ng-dirty.ng-invalid,
+select.ng-dirty.ng-invalid,
+textarea.ng-dirty.ng-invalid, .ng-submitted input[type="text"].ng-invalid,
+.ng-submitted input[type="url"].ng-invalid,
+.ng-submitted input[type="password"].ng-invalid,
+.ng-submitted input[type="email"].ng-invalid,
+.ng-submitted input[type="date"].ng-invalid,
+.ng-submitted input[type="time"].ng-invalid,
+.ng-submitted input[type="number"].ng-invalid,
+.ng-submitted label.ng-invalid,
+.ng-submitted div.ng-invalid,
+.ng-submitted select.ng-invalid,
+.ng-submitted textarea.ng-invalid {
+  border-color: #f00;
+  color: #f00;
+  outline: 1px solid #f00;
+}
+
+/* line 95, scss/components/_forms.scss */
+input[type="text"],
+input[type="url"],
+input[type="password"],
+input[type="email"],
+input[type="date"],
+input[type="time"],
+input[type="number"],
+select,
+textarea {
+  margin-bottom: 7px;
+  margin-bottom: 0.5rem;
+  padding: 3.5px 14px;
+  padding: 0.25rem 1rem;
+  display: block;
+  width: 100%;
+  border: 1px solid #9d9c9c;
+  color: #333;
+  background-color: white;
+}
+/* line 43, scss/general/_future.scss */
+input[type="text"]::-webkit-input-placeholder,
+input[type="url"]::-webkit-input-placeholder,
+input[type="password"]::-webkit-input-placeholder,
+input[type="email"]::-webkit-input-placeholder,
+input[type="date"]::-webkit-input-placeholder,
+input[type="time"]::-webkit-input-placeholder,
+input[type="number"]::-webkit-input-placeholder,
+select::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  color: #808080;
+}
+/* line 47, scss/general/_future.scss */
+input[type="text"]:-moz-placeholder,
+input[type="url"]:-moz-placeholder,
+input[type="password"]:-moz-placeholder,
+input[type="email"]:-moz-placeholder,
+input[type="date"]:-moz-placeholder,
+input[type="time"]:-moz-placeholder,
+input[type="number"]:-moz-placeholder,
+select:-moz-placeholder,
+textarea:-moz-placeholder {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  color: #808080;
+}
+/* line 51, scss/general/_future.scss */
+input[type="text"]::-moz-placeholder,
+input[type="url"]::-moz-placeholder,
+input[type="password"]::-moz-placeholder,
+input[type="email"]::-moz-placeholder,
+input[type="date"]::-moz-placeholder,
+input[type="time"]::-moz-placeholder,
+input[type="number"]::-moz-placeholder,
+select::-moz-placeholder,
+textarea::-moz-placeholder {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  color: #808080;
+}
+/* line 55, scss/general/_future.scss */
+input[type="text"]:-ms-input-placeholder,
+input[type="url"]:-ms-input-placeholder,
+input[type="password"]:-ms-input-placeholder,
+input[type="email"]:-ms-input-placeholder,
+input[type="date"]:-ms-input-placeholder,
+input[type="time"]:-ms-input-placeholder,
+input[type="number"]:-ms-input-placeholder,
+select:-ms-input-placeholder,
+textarea:-ms-input-placeholder {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  color: #808080;
+}
+/* line 117, scss/components/_forms.scss */
+input[type="text"].m-title,
+input[type="url"].m-title,
+input[type="password"].m-title,
+input[type="email"].m-title,
+input[type="date"].m-title,
+input[type="time"].m-title,
+input[type="number"].m-title,
+select.m-title,
+textarea.m-title {
+  font-size: 18px;
+  font-size: 1.28571429rem;
+}
+/* line 121, scss/components/_forms.scss */
+input[type="text"]:focus,
+input[type="url"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  border-color: #00b4cc;
+  outline: 1px solid #00b4cc;
+}
+/* line 130, scss/components/_forms.scss */
+input[type="text"].ng-disabled, input[type="text"]:disabled,
+input[type="url"].ng-disabled,
+input[type="url"]:disabled,
+input[type="password"].ng-disabled,
+input[type="password"]:disabled,
+input[type="email"].ng-disabled,
+input[type="email"]:disabled,
+input[type="date"].ng-disabled,
+input[type="date"]:disabled,
+input[type="time"].ng-disabled,
+input[type="time"]:disabled,
+input[type="number"].ng-disabled,
+input[type="number"]:disabled,
+select.ng-disabled,
+select:disabled,
+textarea.ng-disabled,
+textarea:disabled {
+  border-color: #e6e6e6;
+  outline: 1px solid #e6e6e6;
+}
+
+/* line 157, scss/components/_forms.scss */
+textarea {
+  resize: vertical;
+}
+/* line 160, scss/components/_forms.scss */
+textarea.ng-disabled, textarea:disabled {
+  resize: none;
+}
+
+/*doc
+---
+title: error text
+name: error-text
+parent: input
+---
+
+When text is in error it shows in an invalid color state
+
+```html_example
+<span class="input-error">Please enter your first name</span>
+```
+*/
+/*doc
+---
+title: label text
+name: label-text
+parent: input
+---
+
+Class to add styling to a label when the label itself is used as a container.
+
+```html_example
+<label>
+    <span class="label-text">A label</span>
+    <input type="text" />
+</label>
+```
+*/
+/* line 197, scss/components/_forms.scss */
+.label-text {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  padding-bottom: 7px;
+  padding-bottom: 0.5rem;
+}
+
+/* line 202, scss/components/_forms.scss */
+.input-error {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  display: block;
+  color: #f00;
+}
+
+/*doc
+---
+title: checkbox
+name: checkbox
+parent: input
+---
+
+A checkbox has two states: is-checked and is-unchecked. It may be required to
+be checked, w.g. for accepting terms of service.
+
+```html_example
+<label>
+    <input type="checkbox" />
+    click me!
+</label>
+```
+*/
+/*doc
+---
+title: radio button
+name: radio
+parent: input
+---
+
+A radio button, like a checkbox, has the two states: is-checked and
+is-unchecked.  Of a group of radio buttons, none or a single one can be
+checked. "required" in this context means that any of the buttons must be
+checked.
+
+```html_example
+<label>
+    <input name="radio-example" type="radio" />
+    One option
+</label>
+<label>
+    <input name="radio-example" type="radio" />
+    The other option
+</label>
+```
+*/
+/*doc
+---
+title: label
+name: label
+category: Inputs
+---
+
+A label can be used to describe an input.
+
+```html_example
+<label>
+    <input type="text" />
+    description
+</label>
+```
+*/
+/*doc
+---
+title: Errors
+name: errors
+category: Inputs
+---
+*/
+/*doc
+---
+title: Form Error
+name: form-error
+parent: errors
+---
+
+This error concerns the whole form.
+
+```html_example
+<div class="login">
+    <h1 class="title">Log in!</h1>
+    <div class="form-error">
+        <p>This is plain wrong!</p>
+    </div>
+    <form class="login-form">
+        <input type="text" name="name" placeholder="email or username" />
+        <input type="password" name="password" placeholder="password" />
+        <input class="button button-cta" type="submit" value="login" />
+    </form>
+</div>
+```
+*/
+/* line 298, scss/components/_forms.scss */
+.form-error {
+  margin: 14px 0;
+  margin: 1rem 0;
+  padding: 0 14px;
+  padding: 0 1rem;
+  border-top: 1px solid #9d9c9c;
+  border-bottom: 1px solid #9d9c9c;
+  background: #ccc;
+}
+
+/*doc
+---
+title: Input Error
+name: input-error
+parent: errors
+---
+
+This error concerns a single input.
+
+```html_example
+<div class="login">
+    <h1 class="title">Log in!</h1>
+    <form class="login-form">
+        <input type="text" name="name" placeholder="email or username" />
+        <span class="input-error">Too short</span>
+        <input type="password" name="password" placeholder="password" />
+        <input class="button button-cta" type="submit" value="login" />
+    </form>
+</div>
+```
+*/
+/*doc
+---
+title: Form footer
+name: form-footer
+category: Inputs
+---
+
+A generic form footer containing one CTA and a regular button
+
+```html_example
+
+<footer class="form-footer">
+    <input
+        type="submit"
+        value="Submit"
+        class="button-cta form-footer-button-cta" />
+    <a href="" class="button form-footer-button">Cancel</a>
+</footer>
+```
+*/
+/* line 349, scss/components/_forms.scss */
+.form-footer {
+  overflow: hidden;
+  *zoom: 1;
+  width: 100%;
+}
+/* line 353, scss/components/_forms.scss */
+.form-footer .form-footer-button-cta {
+  float: right;
+}
+/* line 356, scss/components/_forms.scss */
+.form-footer .form-footer-button-cta + [class^="button"] {
+  margin-right: 10px;
+  margin-right: 0.71428571rem;
+}
+/* line 361, scss/components/_forms.scss */
+.form-footer .form-footer-button {
+  float: left;
+}
+
+/*doc
+---
+title: Button
+name: button
+category: Buttons
+---
+
+A normal button that triggers an action.
+
+It may have the following states:
+
+-   :focus
+-   :hover
+-   ng-disabled or :disabled
+
+```html_example
+<a class="button" href="">Link</a>
+<button type="button" class="button">Button</button>
+<input type="submit" class="button" value="Submit" />
+<input type="submit" class="button" value="Disabled" disabled="disabled" />
+<a class="button ng-disabled" href="">Disabled Link</a>
+```
+*/
+/*doc
+---
+title: Call-to-action button
+name: button.button-cta
+parent: button
+---
+
+A highlighted button. Each page should have one CTA at maxiumum.
+
+```html_example
+<a class="button-cta" href="">Link</a>
+<button type="button" class="button-cta">Button</button>
+<input type="submit" class="button-cta" value="Submit" />
+<input type="submit" class="button-cta" value="Disabled" disabled="disabled" />
+<a class="button-cta ng-disabled" href="">Disabled Link</a>
+```
+*/
+/*doc
+---
+title: Call-to-action button secondary
+name: button.button-cta-secondary
+parent: button
+---
+
+If more than one CTA is required per page, `button-cta-secondary` should
+be used instead.
+
+```html_example
+<a class="button-cta-secondary" href="">Link</a>
+<button type="button" class="button-cta-secondary">Button</button>
+<input type="submit" class="button-cta-secondary" value="Submit" />
+<input type="submit" class="button-cta-secondary" value="Disabled" disabled="disabled" />
+<a class="button-cta-secondary ng-disabled" href="">Disabled Link</a>
+```
+*/
+/* line 87, scss/components/_button.scss */
+.button {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  font-size: 14px;
+  font-size: 1rem;
+  height: 24px;
+  height: 1.71428571rem;
+  text-align: center;
+  border: 0;
+  cursor: pointer;
+  font-weight: normal;
+  line-height: 1.71428571;
+  overflow: hidden;
+  padding: 0;
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  color: #808080;
+  text-transform: uppercase;
+}
+/* line 15, scss/components/_button.scss */
+.button:hover {
+  text-decoration: none;
+}
+/* line 19, scss/components/_button.scss */
+.button.ng-disabled, .button:disabled {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=50);
+  opacity: 0.5;
+  cursor: default;
+}
+/* line 93, scss/components/_button.scss */
+.button:hover, .button:focus {
+  color: #00b4cc;
+}
+/* line 99, scss/components/_button.scss */
+.button.ng-disabled:hover, .button.ng-disabled:focus, .button:disabled:hover, .button:disabled:focus {
+  color: #808080;
+}
+
+/* line 105, scss/components/_button.scss */
+.button-cta,
+.button-cta-secondary {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  font-size: 14px;
+  font-size: 1rem;
+  height: 24px;
+  height: 1.71428571rem;
+  text-align: center;
+  border: 0;
+  cursor: pointer;
+  font-weight: normal;
+  line-height: 1.71428571;
+  overflow: hidden;
+  padding: 0;
+  text-decoration: none;
+  white-space: nowrap;
+  min-width: 110px;
+  min-width: 7.85714286rem;
+  padding: 0 14px;
+  padding: 0 1rem;
+}
+/* line 15, scss/components/_button.scss */
+.button-cta:hover,
+.button-cta-secondary:hover {
+  text-decoration: none;
+}
+/* line 19, scss/components/_button.scss */
+.button-cta.ng-disabled, .button-cta:disabled,
+.button-cta-secondary.ng-disabled,
+.button-cta-secondary:disabled {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=50);
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* line 112, scss/components/_button.scss */
+.button-cta {
+  background: #e3000f;
+  color: white;
+}
+/* line 116, scss/components/_button.scss */
+.button-cta:hover, .button-cta:focus {
+  background: #b61c3e;
+  color: white;
+}
+/* line 122, scss/components/_button.scss */
+.button-cta:active {
+  background: #b61c3e;
+}
+/* line 128, scss/components/_button.scss */
+.button-cta.ng-disabled:hover, .button-cta.ng-disabled:focus, .button-cta.ng-disabled:active, .button-cta:disabled:hover, .button-cta:disabled:focus, .button-cta:disabled:active {
+  background: #e3000f;
+  color: white;
+}
+
+/* line 137, scss/components/_button.scss */
+.button-cta-secondary {
+  background: transparent;
+  border: 2px solid #e3000f;
+  color: #e3000f;
+  line-height: 1.42857143;
+}
+/* line 143, scss/components/_button.scss */
+.button-cta-secondary:hover, .button-cta-secondary:focus, .sort-item.is-active,
+.facet-item.is-active {
+  background-color: #e3000f;
+  color: white;
+}
+/* line 149, scss/components/_button.scss */
+.button-cta-secondary:active {
+  background: #b61c3e;
+}
+/* line 155, scss/components/_button.scss */
+.button-cta-secondary.ng-disabled:hover, .button-cta-secondary.ng-disabled:focus, .ng-disabled.sort-item.is-active,
+.ng-disabled.facet-item.is-active, .button-cta-secondary.ng-disabled:active, .button-cta-secondary:disabled:hover, .button-cta-secondary:disabled:focus, .sort-item.is-active:disabled,
+.facet-item.is-active:disabled, .button-cta-secondary:disabled:active {
+  background: transparent;
+  color: #e3000f;
+}
+
+/*doc
+---
+title: Button add modifier
+name: button.m-add
+parent: button
+---
+
+Add a + sign to a button
+
+```html_example
+<button type="button" class="button-cta-secondary m-add">Add Paragraph</button>
+```
+*/
+/* line 181, scss/components/_button.scss */
+.button-cta.m-add:before,
+.button-cta-secondary.m-add:before,
+.button.m-add:before {
+  content: "+ ";
+}
+
+/*doc
+---
+title: textbox
+name: textbox
+category: Widgets
+---
+
+A simple box containing text.
+
+```html_example
+<div class="textbox">
+    <p>textbox</p>
+</div>
+<div class="textbox m-unobtrusive">
+    <p>unobtrusive textbox</p>
+</div>
+```
+*/
+/* line 19, scss/components/_login.scss */
+.textbox {
+  padding: 14px;
+  padding: 1rem;
+  margin-bottom: 14px;
+  margin-bottom: 1rem;
+  background-color: #ccc;
+}
+/* line 24, scss/components/_login.scss */
+.textbox .m-unobtrusive {
+  color: #808080;
+}
+
+/*doc
+---
+title: Login
+name: login
+category: Widgets
+---
+
+Dialog for login related flow (login, register, password reset).
+
+```html_example
+<div class="login">
+    <h1 class="login-title">Log in!</h1>
+
+    <form class="login-form">
+        <label>
+            <span class="label-text">email or username</span>
+            <input type="text" name="name" />
+        </label>
+        <label>
+            <span class="label-text">password</span>
+            <input type="password" name="password" />
+        </label>
+
+        <label class="login-check">
+            <div class="login-check-input">
+                <input type="checkbox" /> I really want to login
+            </div>
+            <span class="input-error">
+                Required
+            </span>
+        </label>
+
+        <input type="submit" class="button-cta" value="login" />
+
+        <div class="login-info">
+            <p class="ng-binding">Or register <a href="">here</a></p>
+        </div>
+    </form>
+
+    <a class="login-cancel" href="">Cancel</a>
+</div>
+```
+*/
+/* line 73, scss/components/_login.scss */
+.login {
+  text-align: center;
+}
+
+/* line 77, scss/components/_login.scss */
+.login-form {
+  margin-bottom: 14px;
+  margin-bottom: 1rem;
+}
+/* line 80, scss/components/_login.scss */
+.login-form label {
+  display: block;
+  text-align: left;
+}
+/* line 85, scss/components/_login.scss */
+.login-form .login-check {
+  text-align: center;
+}
+/* line 89, scss/components/_login.scss */
+.login-form input[type="text"],
+.login-form input[type="email"],
+.login-form input[type="password"],
+.login-form input[type="submit"] {
+  width: 100%;
+}
+/* line 96, scss/components/_login.scss */
+.login-form input[type="submit"] {
+  margin-top: 24px;
+  margin-top: 1.71428571rem;
+}
+
+/* line 101, scss/components/_login.scss */
+.login-title {
+  margin: 0 0 28px;
+  margin: 0 0 2rem;
+  font-size: 100%;
+  font-weight: normal;
+  line-height: inherit;
+  text-align: left;
+}
+
+/* line 109, scss/components/_login.scss */
+.login-check {
+  position: relative;
+}
+/* line 112, scss/components/_login.scss */
+.login-check .login-check-input {
+  margin-bottom: 24px;
+  margin-bottom: 1.71428571rem;
+}
+/* line 116, scss/components/_login.scss */
+.login-check .input-error {
+  position: absolute;
+  width: 100%;
+  left: 0;
+  bottom: -18px;
+}
+
+/* line 124, scss/components/_login.scss */
+.login-info {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin: 24px 0 28px;
+  margin: 1.71428571rem 0 2rem;
+}
+/* line 128, scss/components/_login.scss */
+.login-info a {
+  text-decoration: none;
+}
+
+/* line 133, scss/components/_login.scss */
+.login-cancel {
+  font-size: 16px;
+  font-size: 1.14285714rem;
+  margin-bottom: 24px;
+  margin-bottom: 1.71428571rem;
+  margin-top: 160px;
+  margin-top: 11.42857143rem;
+  color: #808080;
+  display: block;
+  font-variant: small-caps;
+  text-decoration: none;
+  text-transform: lowercase;
+}
+/* line 143, scss/components/_login.scss */
+.login-cancel:focus, .login-cancel:hover {
+  color: #00b4cc;
+}
+/* line 147, scss/components/_login.scss */
+.login-cancel:active {
+  color: #333;
+}
+
+/*doc
+---
+title: Navigation Bar
+name: navbar
+category: Widgets
+---
+
+A bar with multpile items. The items are aligned either to the left
+(`navbar-left`) or to the right (`navbar-right`).
+
+Note that the items thet are aligned to the right will be sorted starting from
+the right which might be the opposite of what you expect.
+
+If there is not enough space to display all items, the leftmost of the right
+aligned ones will wrap.
+
+```html_example
+<div class="navbar">
+    <div class="navbar-left debug-placeholder">Sort</div>
+    <div class="navbar-left debug-placeholder">View</div>
+    <div class="navbar-right debug-placeholder">Meta</div>
+    <a class="navbar-right button">Button</a>
+</div>
+```
+*/
+/* line 26, scss/components/_navbar.scss */
+.navbar {
+  overflow: hidden;
+  *zoom: 1;
+  margin: 7px 0;
+  margin: 0.5rem 0;
+}
+/* line 30, scss/components/_navbar.scss */
+.navbar .navbar-left {
+  margin-right: 7px;
+  margin-right: 0.5rem;
+  float: left;
+}
+/* line 35, scss/components/_navbar.scss */
+.navbar .navbar-right {
+  margin-left: 7px;
+  margin-left: 0.5rem;
+  float: right;
+}
+
+/* line 1, scss/components/_action_bar.scss */
+.action-bar,
+.action-bar-link,
+.action-bar .map-switch-item {
+  line-height: 2;
+}
+
+/* line 6, scss/components/_action_bar.scss */
+.action-bar-item {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  margin-right: 28px;
+  margin-right: 2rem;
+  position: relative;
+  text-decoration: none;
+}
+/* line 12, scss/components/_action_bar.scss */
+.action-bar-item.m-selected:after {
+  border-left: 5px solid transparent;
+  border-left: 0.35714286rem solid transparent;
+  border-right: 5px solid transparent;
+  border-right: 0.35714286rem solid transparent;
+  border-bottom: 5px solid white;
+  border-bottom: 0.35714286rem solid white;
+  margin-right: -2.5px;
+  margin-right: -0.17857143rem;
+  bottom: 0;
+  content: "";
+  display: block;
+  height: 0;
+  position: absolute;
+  right: 50%;
+  width: 0;
+}
+
+/* line 27, scss/components/_action_bar.scss */
+.action-bar {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  padding: 0 7px;
+  padding: 0 0.5rem;
+  background: #e6e6e6;
+  width: 100%;
+}
+/* line 34, scss/components/_action_bar.scss */
+.action-bar .map-switch {
+  float: right;
+}
+/* line 38, scss/components/_action_bar.scss */
+.action-bar .map-switch-item {
+  margin: 0 0 0 5px;
+  margin: 0 0 0 0.35714286rem;
+}
+/* line 43, scss/components/_action_bar.scss */
+.action-bar .map-switch-item.m-selected:after {
+  margin-right: -4.5px;
+  margin-right: -0.32142857rem;
+}
+@media print {
+  /* line 27, scss/components/_action_bar.scss */
+  .action-bar {
+    display: none;
+  }
+}
+
+/*doc
+---
+title: Moving Columns
+name: moving-columns
+category: Layout
+---
+
+This widget represents a major design concept in Adhocracy 3.
+It contains a list of columns which may slide to either side to reveal
+new columns with additional functionality. Each column can be shown, collapsed
+or hidden completely.
+
+States:
+
+-   is-show-hide-hide
+-   is-collapse-show-hide
+-   is-collapse-show-collapse
+-   is-collapse-collapse-show
+-   is-show-collapse-collapse
+-   is-collapse-show-show
+-   is-show-show-collapse
+
+```html_example
+<div class="moving-columns" style="height: 10em; position: relative;">
+    <div class="moving-column moving-column-structure">
+        <div class="debug-placeholder moving-column-menu">
+            <a>action</a>
+        </div>
+        <div class="debug-placeholder moving-column-body">structure column
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+            this is scrolling
+        </div>
+    </div>
+    <div class="moving-column moving-column-content">
+        <div class="debug-placeholder moving-column-menu">menu</div>
+        <div class="debug-placeholder moving-column-body">content column</div>
+    </div>
+    <div class="moving-column moving-column-content2">
+        <div class="debug-placeholder moving-column-menu">menu</div>
+        <div class="debug-placeholder moving-column-body">secondary-content-column</div>
+    </div>
+</div>
+<a onclick="$('.moving-columns').toggleClass('is-collapse-show-show')">click me</a>
+```
+*/
+/* line 69, scss/components/_moving_columns.scss */
+.moving-columns {
+  overflow: hidden;
+}
+
+/*doc
+---
+title: Moving Column
+name: moving-column
+parent: moving-columns
+---
+
+States:
+
+-   `is-show` (*default*)
+-   `is-hidden`
+-   `is-collapsed`
+
+Each moving column has a menu. The menu may contain some arbitrary control
+elements.  Many columns do also have control elements to close (hide) or
+collapse the column.
+
+The menu is fixed to the top of the column.
+
+The menu should always have the same state as its columns.
+
+*/
+/* line 95, scss/components/_moving_columns.scss */
+.moving-column {
+  -moz-transition: width 0.5s, left 0.5s;
+  -o-transition: width 0.5s, left 0.5s;
+  -webkit-transition: width 0.5s, left 0.5s;
+  transition: width 0.5s, left 0.5s;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+/* line 103, scss/components/_moving_columns.scss */
+.moving-column .moving-column-collapsed {
+  display: none;
+}
+/* line 107, scss/components/_moving_columns.scss */
+.moving-column.is-collapse, .moving-column.is-hide {
+  background-color: #ccc;
+  border: 0;
+  padding-left: 0;
+}
+/* line 112, scss/components/_moving_columns.scss */
+.moving-column.is-collapse .moving-column-body,
+.moving-column.is-collapse .moving-column-menu, .moving-column.is-hide .moving-column-body,
+.moving-column.is-hide .moving-column-menu {
+  display: none;
+}
+/* line 117, scss/components/_moving_columns.scss */
+.moving-column.is-collapse .moving-column-collapsed, .moving-column.is-hide .moving-column-collapsed {
+  display: block;
+}
+@media print {
+  /* line 107, scss/components/_moving_columns.scss */
+  .moving-column.is-collapse, .moving-column.is-hide {
+    display: none;
+  }
+}
+/* line 126, scss/components/_moving_columns.scss */
+.moving-column.is-collapse {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  background-color: white;
+  border: 2px solid #e6e6e6;
+  border-width: 2px 2px 2px 0;
+  text-align: center;
+}
+/* line 133, scss/components/_moving_columns.scss */
+.moving-column.is-collapse .moving-column-icon {
+  float: none;
+}
+@media print {
+  /* line 95, scss/components/_moving_columns.scss */
+  .moving-column {
+    position: static;
+    width: auto !important;
+    border: 0;
+  }
+  /* line 145, scss/components/_moving_columns.scss */
+  .moving-column:not(.has-focus) {
+    display: none;
+  }
+}
+
+/* line 151, scss/components/_moving_columns.scss */
+.moving-column-body,
+.moving-column-overlay,
+.moving-column-alerts,
+.moving-column-mask {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  overflow-y: auto;
+}
+
+/* line 162, scss/components/_moving_columns.scss */
+.moving-column-body,
+.moving-column-mask {
+  bottom: 0;
+}
+
+/* line 167, scss/components/_moving_columns.scss */
+.moving-column-body {
+  border-width: 0 5px 5px;
+  border-width: 0 0.35714286rem 0.35714286rem;
+  font-size: 14px;
+  font-size: 1rem;
+  border-color: #e6e6e6;
+  border-style: solid;
+}
+@media print {
+  /* line 167, scss/components/_moving_columns.scss */
+  .moving-column-body {
+    border: 0;
+    position: static;
+  }
+}
+
+/* line 179, scss/components/_moving_columns.scss */
+.moving-column-expand {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/*doc
+---
+title: Moving Column Menu
+name: moving-column-menu
+parent: moving-columns
+---
+
+States:
+
+-   `is-show` (*default*)
+-   `is-hidden`
+-   `is-collapsed`
+
+**Warning**: This widget currently has a fixed height.
+
+```html_example
+<div class="moving-column-menu">
+    <span class="debug-placeholder">icon</span>
+    <span class="debug-placeholder">button</span>
+    <span class="debug-placeholder">button</span>
+    <span class="debug-placeholder">button</span>
+    <span class="debug-placeholder">button</span>
+    <span class="debug-placeholder">icon</span>
+    <span class="debug-placeholder">icon</span>
+</div>
+```
+*/
+/* line 214, scss/components/_moving_columns.scss */
+.moving-column-menu {
+  overflow: hidden;
+  *zoom: 1;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  height: 24px;
+  height: 1.71428571rem;
+  line-height: 24px;
+  line-height: 1.71428571rem;
+  padding: 0 0 0 7px;
+  padding: 0 0 0 0.5rem;
+  background: #e6e6e6;
+}
+/* line 222, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option,
+.moving-column-menu .moving-column-menu-button {
+  text-decoration: none;
+}
+/* line 226, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option:hover, .moving-column-menu .moving-column-menu-sort-option:focus,
+.moving-column-menu .moving-column-menu-button:hover,
+.moving-column-menu .moving-column-menu-button:focus {
+  color: #333;
+}
+/* line 230, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option:active, .moving-column-menu .moving-column-menu-sort-option.is-active,
+.moving-column-menu .moving-column-menu-button:active,
+.moving-column-menu .moving-column-menu-button.is-active {
+  color: #00b4cc;
+}
+/* line 235, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option,
+.moving-column-menu .moving-column-menu-button,
+.moving-column-menu .moving-column-menu-sort-label {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin-right: 30px;
+  margin-right: 2.14285714rem;
+  color: #808080;
+  font-weight: 400;
+  float: left;
+}
+/* line 246, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-label {
+  margin-right: 14px;
+  margin-right: 1rem;
+  font-style: italic;
+}
+/* line 251, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option {
+  margin: 0;
+}
+/* line 254, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option:not(:last-child) {
+  margin-right: 14px;
+  margin-right: 1rem;
+  position: relative;
+}
+/* line 258, scss/components/_moving_columns.scss */
+.moving-column-menu .moving-column-menu-sort-option:not(:last-child):after {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  right: -14px;
+  right: -1rem;
+  width: 14px;
+  width: 1rem;
+  content: "|";
+  position: absolute;
+  text-align: center;
+  color: #808080;
+}
+@media print {
+  /* line 214, scss/components/_moving_columns.scss */
+  .moving-column-menu {
+    display: none;
+  }
+}
+
+/* line 275, scss/components/_moving_columns.scss */
+.moving-column-icon {
+  margin-right: 30px;
+  margin-right: 2.14285714rem;
+  font-size: 17px;
+  font-size: 1.21428571rem;
+  float: left;
+  line-height: 1.41176471;
+  vertical-align: middle;
+}
+
+/* line 283, scss/components/_moving_columns.scss */
+.moving-column-menu-nav {
+  float: right;
+}
+/* line 286, scss/components/_moving_columns.scss */
+.moving-column-menu-nav .moving-column-menu-nav-button {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  min-width: 49px;
+  min-width: 3.5rem;
+  padding: 0 7px;
+  padding: 0 0.5rem;
+  font-weight: 900;
+  text-align: center;
+  vertical-align: baseline;
+  text-decoration: none;
+  color: white;
+  background-color: #ccc;
+}
+/* line 297, scss/components/_moving_columns.scss */
+.moving-column-menu-nav .moving-column-menu-nav-button:hover, .moving-column-menu-nav .moving-column-menu-nav-button:focus {
+  color: #00b4cc;
+}
+/* line 301, scss/components/_moving_columns.scss */
+.moving-column-menu-nav .moving-column-menu-nav-button:active {
+  color: #333;
+}
+/* line 305, scss/components/_moving_columns.scss */
+.moving-column-menu-nav .moving-column-menu-nav-button .moving-column-menu-nav-icon {
+  font-size: 10px;
+  font-size: 0.71428571rem;
+  line-height: 2.4;
+}
+
+/* line 312, scss/components/_moving_columns.scss */
+.moving-column-mask {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=50);
+  opacity: 0.5;
+  background-color: black;
+  z-index: 2;
+}
+@media print {
+  /* line 312, scss/components/_moving_columns.scss */
+  .moving-column-mask {
+    display: none;
+  }
+}
+
+/*doc
+---
+title: Moving Column Alerts
+name: moving-column-alerts
+parent: moving-columns
+---
+
+A list of alert messages to notify users in the moving column
+
+```html_example
+<ul class="moving-column-alerts static-example">
+    <li class="moving-column-alert m-error">Error</li>
+    <li class="moving-column-alert m-warning">Warning</li>
+    <li class="moving-column-alert m-info">Info</li>
+    <li class="moving-column-alert m-success">Success</li>
+</ul>
+```
+*/
+/* line 340, scss/components/_moving_columns.scss */
+.moving-column-alerts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  z-index: 3;
+}
+@media print {
+  /* line 340, scss/components/_moving_columns.scss */
+  .moving-column-alerts {
+    display: none;
+  }
+}
+
+/* line 351, scss/components/_moving_columns.scss */
+.moving-column-alert {
+  padding: 14px;
+  padding: 1rem;
+  background: #e6e6e6;
+  text-align: center;
+}
+/* line 356, scss/components/_moving_columns.scss */
+.moving-column-alert.m-error {
+  background: #f00;
+}
+/* line 360, scss/components/_moving_columns.scss */
+.moving-column-alert.m-warning {
+  background: #f37373;
+}
+/* line 364, scss/components/_moving_columns.scss */
+.moving-column-alert.m-success {
+  background: #73bf44;
+}
+
+/* line 369, scss/components/_moving_columns.scss */
+.moving-column-overlay {
+  overflow: hidden;
+  *zoom: 1;
+  padding: 14px;
+  padding: 1rem;
+  background: #e6e6e6;
+  border-top: 1px solid #9d9c9c;
+  z-index: 1000;
+  max-height: 80%;
+  overflow-y: auto;
+}
+/* line 379, scss/components/_moving_columns.scss */
+.moving-column-overlay textarea,
+.moving-column-overlay input[type="text"] {
+  background: white;
+}
+/* line 384, scss/components/_moving_columns.scss */
+.moving-column-overlay.ng-enter, .moving-column-overlay.ng-leave {
+  -moz-transition: opacity 0.5s;
+  -o-transition: opacity 0.5s;
+  -webkit-transition: opacity 0.5s;
+  transition: opacity 0.5s;
+}
+/* line 388, scss/components/_moving_columns.scss */
+.moving-column-overlay.ng-enter, .moving-column-overlay.ng-leave.ng-leave-active {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=0);
+  opacity: 0;
+}
+/* line 393, scss/components/_moving_columns.scss */
+.moving-column-overlay.ng-leave, .moving-column-overlay.ng-enter.ng-enter-active {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+}
+@media print {
+  /* line 369, scss/components/_moving_columns.scss */
+  .moving-column-overlay {
+    display: none;
+  }
+}
+
+/* line 403, scss/components/_moving_columns.scss */
+.moving-column-tab {
+  float: left;
+}
+
+/*doc
+---
+title: Meta List
+name: meta-list
+category: Widgets
+---
+
+A Meta list of items, often with icons
+
+```html_example
+<ul class="meta-list">
+    <li class="meta-list-item">
+        <i class="icon-speechbubbles"></i>
+        12 Comments
+    </li>
+    <li class="meta-list-item">
+        <i class="icon-calendar"></i>
+        3/6/2015
+    </li>
+    <li class="meta-list-item">
+        <i class="icon-pig"></i>
+        20,000 €
+    </li>
+</ul>
+Vertical
+<ul class="meta-list m-vertical">
+    <li class="meta-list-item">
+        <i class="icon-speechbubbles"></i>
+        12 Comments
+    </li>
+    <li class="meta-list-item">
+        <i class="icon-calendar"></i>
+        3/6/2015
+    </li>
+    <li class="meta-list-item">
+        <i class="icon-pig"></i>
+        20,000 €
+    </li>
+</ul>
+```
+*/
+/* line 43, scss/components/_meta_list.scss */
+.meta-list {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 0 20px;
+  padding: 0 0 1.42857143rem;
+  margin: 0;
+  list-style: none;
+}
+/* line 12, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/output/support/_clearfix.scss */
+.meta-list:after {
+  content: " ";
+  display: block;
+  clear: both;
+}
+/* line 50, scss/components/_meta_list.scss */
+.meta-list.m-vertical .meta-list-item {
+  margin-bottom: 15px;
+  margin-bottom: 1.07142857rem;
+  float: none;
+}
+/* line 54, scss/components/_meta_list.scss */
+.meta-list.m-vertical .meta-list-item i {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  margin-right: 8px;
+  margin-right: 0.57142857rem;
+  min-width: 12px;
+  min-width: 0.85714286rem;
+}
+/* line 60, scss/components/_meta_list.scss */
+.meta-list.m-vertical .meta-list-item:last-child {
+  margin-bottom: 0;
+}
+
+/* line 67, scss/components/_meta_list.scss */
+.meta-list-item {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin-right: 10px;
+  margin-right: 0.71428571rem;
+  color: #808080;
+  float: left;
+}
+/* line 73, scss/components/_meta_list.scss */
+.meta-list-item i {
+  line-height: 1;
+  margin-right: 1px;
+  vertical-align: middle;
+}
+@media print {
+  /* line 67, scss/components/_meta_list.scss */
+  .meta-list-item {
+    font-size: 14px;
+    font-size: 1rem;
+    float: none;
+  }
+  /* line 83, scss/components/_meta_list.scss */
+  .meta-list-item i:not(.m-definition-before):not(.m-definition-after), .meta-list-item.meta-list-item-rate {
+    display: none;
+  }
+}
+
+/*doc
+---
+title: map
+name: map
+category: Widgets
+---
+*/
+/* line 10, scss/components/_map.scss */
+.map-wrapper .map-buttons {
+  overflow: hidden;
+  *zoom: 1;
+}
+/* line 14, scss/components/_map.scss */
+.map-wrapper .map-button-clear,
+.map-wrapper .map-button-reset {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  padding: 0 10px;
+  padding: 0 0.71428571rem;
+}
+
+/*doc
+---
+title: map info
+name: map-info
+parent: map
+---
+
+Map info is used to show action-related information in the context of a map.
+It is different from `map-info-persistant` in that it should only be used for
+information that is related to a user action and that is not shown all the
+time.
+
+```html_example
+<div class="map-info">
+    Some information with a <a href="#">link</a>.
+</div>
+<div class="map-info ng-invalid">
+    Some error with a <a href="#">link</a>.
+</div>
+```
+*/
+/* line 42, scss/components/_map.scss */
+.map-info {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  padding: 5px;
+  padding: 0.35714286rem;
+  background: #333;
+  color: white;
+  width: 100%;
+}
+/* line 49, scss/components/_map.scss */
+.map-info:hover {
+  color: white;
+}
+/* line 53, scss/components/_map.scss */
+.map-info.ng-invalid {
+  background: #f00;
+  font-weight: 900;
+}
+
+/*doc
+---
+title: persistant map info
+name: map-info-persistant
+parent: map
+---
+
+Persistant map info is used to show general information in the context of a
+map.  It is different from `map-info` in that it should be show all the time
+rather than in response to user action.
+
+```html_example
+<div class="map-info-persistent">
+    Some information with a <a href="#">link</a>.
+</div>
+```
+*/
+/* line 76, scss/components/_map.scss */
+.map-info-persistent {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  padding: 5px;
+  padding: 0.35714286rem;
+  background: #f2f2f2;
+}
+
+/* line 82, scss/components/_map.scss */
+.leaflet-marker-icon {
+  font-size: 42px;
+  font-size: 3rem;
+  text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white;
+  color: #e3000f;
+}
+/* line 92, scss/components/_map.scss */
+.leaflet-marker-icon.is-active, .leaflet-marker-icon:hover, .leaflet-marker-icon:focus {
+  color: #008799;
+}
+/* line 96, scss/components/_map.scss */
+.leaflet-marker-icon:before {
+  display: block;
+}
+
+/* line 101, scss/components/_map.scss */
+.map-list-container,
+.map-list-map-container {
+  position: relative;
+}
+
+/* line 106, scss/components/_map.scss */
+.map-list-zoom {
+  bottom: 0;
+  left: 0;
+  position: absolute;
+}
+
+/* line 112, scss/components/_map.scss */
+.map-list-navigate {
+  font-size: 14px;
+  font-size: 1rem;
+  font-weight: bold;
+}
+/* line 116, scss/components/_map.scss */
+.map-list-navigate:hover, .map-list-navigate:focus {
+  text-decoration: none;
+}
+
+/* line 121, scss/components/_map.scss */
+.map-list-navigate-container {
+  margin-top: -14px;
+  margin-top: -1rem;
+  width: 30px;
+  width: 2.14285714rem;
+  position: absolute;
+  top: 50%;
+}
+/* line 127, scss/components/_map.scss */
+.map-list-navigate-container p {
+  line-height: 14px;
+  line-height: 1rem;
+}
+
+/* line 132, scss/components/_map.scss */
+.map-list-navigate-container-prev {
+  left: 10px;
+  left: 0.71428571rem;
+  text-align: left;
+}
+
+/* line 137, scss/components/_map.scss */
+.map-list-navigate-container-next {
+  right: 10px;
+  right: 0.71428571rem;
+  text-align: right;
+}
+
+/* line 142, scss/components/_map.scss */
+.map-list-scroll-container {
+  padding: 0 40px;
+  padding: 0 2.85714286rem;
+}
+
+/* line 146, scss/components/_map.scss */
+.map-list-scroll-container-inner {
+  margin: 15px 0 0;
+  margin: 1.07142857rem 0 0;
+  overflow: hidden;
+  padding: 0;
+  vertical-align: top;
+  white-space: nowrap;
+}
+/* line 153, scss/components/_map.scss */
+.map-list-scroll-container-inner * {
+  white-space: normal;
+}
+
+/* line 158, scss/components/_map.scss */
+.map-list-item {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  vertical-align: middle;
+  width: 100%;
+}
+/* line 163, scss/components/_map.scss */
+.map-list-item.m-empty {
+  font-weight: bold;
+  text-align: center;
+}
+
+/* line 170, scss/components/_map.scss */
+.map-switch .map-switch-item {
+  color: #333;
+}
+/* line 173, scss/components/_map.scss */
+.map-switch .map-switch-item.is-selected {
+  color: #00b4cc;
+}
+
+/*doc
+---
+title: User Message
+name: user-message
+category: Widgets
+---
+
+A form for sending messages to other users
+
+```html_example
+<div class="static-example">
+    <div class="user-message">
+        <form>
+            <p class="ng-binding">Message to Username</p>
+            <input class="user-message-subject" type="text">
+            <textarea class="user-message-text"></textarea>
+            <input class="user-message-button-submit" type="submit" value="Send">
+            <a href="">Cancel</a>
+        </form>
+    </div>
+</div>
+```
+*/
+/* line 25, scss/components/_messaging.scss */
+.user-message .user-message-button-submit {
+  float: right;
+}
+/* line 29, scss/components/_messaging.scss */
+.user-message .input-error {
+  display: block;
+}
+
+/*doc
+---
+title: Listing
+name: listing
+category: Widgets
+---
+
+A Listing represents a list of elements that may be filtered and/or sorted.
+It is generic because it can be used with very different kinds of elements.
+
+Apart from the list of elements the listing optionally contains
+a form for creating new elements. This form is then always visible.
+
+```html_example
+<div class="listing">
+    <form class="listing-create-form debug-placeholder">
+        Create Form
+    </form>
+    <ol class="listing-elements">
+        <li class="listing-element debug-placeholder">Element1</li>
+        <li class="listing-element debug-placeholder">Element2</li>
+    </ol>
+</div>
+```
+*/
+/* line 26, scss/components/_listing.scss */
+.listing-elements {
+  padding: 0;
+  list-style: none;
+  margin: 0;
+}
+
+/* line 34, scss/components/_listing.scss */
+.listing-element.ng-enter {
+  -moz-transition: all 0.3s;
+  -o-transition: all 0.3s;
+  -webkit-transition: all 0.3s;
+  transition: all 0.3s;
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=50);
+  opacity: 0.5;
+  background: greenyellow;
+}
+/* line 40, scss/components/_listing.scss */
+.listing-element.ng-enter.ng-enter-active {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  background: white;
+}
+
+/* line 47, scss/components/_listing.scss */
+.listing-create-form, .comment-children-create-form,
+.comment-children-edit-form {
+  margin-bottom: 14px;
+  margin-bottom: 1rem;
+  padding: 14px 20px 12px;
+  padding: 1rem 1.42857143rem 0.85714286rem;
+  background-color: #ccc;
+}
+/* line 52, scss/components/_listing.scss */
+.listing-create-form .comment-create-form-text, .comment-children-create-form .comment-create-form-text,
+.comment-children-edit-form .comment-create-form-text {
+  margin-bottom: 20px;
+  margin-bottom: 1.42857143rem;
+}
+/* line 56, scss/components/_listing.scss */
+.listing-create-form .form-footer, .comment-children-create-form .form-footer,
+.comment-children-edit-form .form-footer {
+  padding: 0;
+}
+@media print {
+  /* line 47, scss/components/_listing.scss */
+  .listing-create-form, .comment-children-create-form,
+  .comment-children-edit-form {
+    display: none;
+  }
+}
+
+/* line 65, scss/components/_listing.scss */
+.listing-elements + .listing-create-form, .listing-elements + .comment-children-create-form,
+.listing-elements + .comment-children-edit-form {
+  margin-top: 0;
+}
+
+/* line 69, scss/components/_listing.scss */
+.load-more {
+  display: block;
+  line-height: 2;
+  background: #999;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+}
+/* line 77, scss/components/_listing.scss */
+.load-more:hover, .load-more:focus {
+  color: white;
+}
+/* line 81, scss/components/_listing.scss */
+.load-more .load-more-text {
+  text-transform: uppercase;
+}
+
+/*doc
+---
+title: User Indicator
+name: user-indicator
+category: Widgets
+---
+
+This Widget can be used to display the state of the currently logged in user.
+It is usually used in the header bar.
+*/
+/* line 12, scss/components/_user_indicator.scss */
+.user-indicator {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  vertical-align: middle;
+  white-space: nowrap;
+  color: #808080;
+  font-weight: 400;
+}
+/* line 19, scss/components/_user_indicator.scss */
+.user-indicator a {
+  display: inline;
+  text-decoration: none;
+}
+/* line 24, scss/components/_user_indicator.scss */
+.user-indicator .user-indicator-logout,
+.user-indicator .user-indicator-login,
+.user-indicator .user-indicator-register {
+  font-size: 16px;
+  font-size: 1.14285714rem;
+  color: #808080;
+  font-variant: small-caps;
+  text-transform: lowercase;
+}
+/* line 32, scss/components/_user_indicator.scss */
+.user-indicator .user-indicator-logout:hover, .user-indicator .user-indicator-logout:focus,
+.user-indicator .user-indicator-login:hover,
+.user-indicator .user-indicator-login:focus,
+.user-indicator .user-indicator-register:hover,
+.user-indicator .user-indicator-register:focus {
+  text-decoration: underline;
+}
+/* line 36, scss/components/_user_indicator.scss */
+.user-indicator .user-indicator-logout:active,
+.user-indicator .user-indicator-login:active,
+.user-indicator .user-indicator-register:active {
+  color: #333;
+}
+/* line 41, scss/components/_user_indicator.scss */
+.user-indicator .user-indicator-login-icon {
+  display: none;
+}
+
+/*doc
+---
+title: Comment
+name: comment
+category: Widgets
+---
+
+A comment widget consists of a comment-main widget and a list of child
+comments (replies). There is a form for creating new replies.
+
+The comment may have the states `is-selected` or `is-not-selected` where
+the latter one is used if a different comment is selected. If no comment
+is selected, no state is applied.
+
+```html_example
+<div class="comment">
+    <div class="comment-main debug-placeholder">Comment Main</div>
+
+    <div class="comment-children-create-form debug-placeholder">
+        Comment Create Form
+    </div>
+
+    <div class="comment-children">
+        <div class="comment">
+            <div class="comment-main debug-placeholder">Comment Main</div>
+
+            <div class="comment-children">
+            </div>
+        </div>
+        <div class="comment">
+            <div class="comment-main debug-placeholder">Comment Main</div>
+
+            <div class="comment-children-create-form debug-placeholder">
+                Comment Create Form
+            </div>
+
+            <div class="comment-children"></div>
+        </div>
+    </div>
+</div>
+<div class="comment">
+    <div class="comment-main debug-placeholder">Comment Main</div>
+
+    <div class="comment-children"></div>
+</div>
+```
+*/
+/* line 48, scss/components/_comment.scss */
+.comment-children {
+  border-left: 1px solid #00b4cc;
+}
+/* line 51, scss/components/_comment.scss */
+.comment-children .comment {
+  padding-right: 0;
+}
+
+/* line 56, scss/components/_comment.scss */
+.comment {
+  margin-bottom: 28px;
+  margin-bottom: 2rem;
+  padding: 0 14px;
+  padding: 0 1rem;
+}
+/* line 60, scss/components/_comment.scss */
+.comment.is-not-selected {
+  background: #f2f2f2;
+}
+/* line 64, scss/components/_comment.scss */
+.comment.is-selected {
+  background: white;
+}
+
+/* line 69, scss/components/_comment.scss */
+.comment-content {
+  line-height: 1.15;
+  white-space: pre-line;
+}
+
+/* line 74, scss/components/_comment.scss */
+.comment-children-create-form,
+.comment-children-edit-form {
+  background: #f2f2f2;
+}
+
+/*doc
+---
+title: Comment Main
+name: comment-main
+parent: comment
+---
+
+```html_example
+<div class="comment-main">
+    <div class="comment-header">
+        <div class="comment-header-column1">
+            <span class="comment-header-creator">
+                <a href="">god</a>
+            </span>
+            <span class="comment-header-date">
+                25 minutes ago
+            </span>
+        </div>
+        <div class="comment-header-column2">
+            <span class="comment-header-links">
+                <a href="" class="comment-header-link" title="Reply">
+                    <i class="comment-header-icon icon-reply"></i>
+                </a>
+                <a href="" class="comment-header-link ng-scope" title="Edit">
+                    <i class="comment-header-icon icon-pencil"></i>
+                </a>
+                <a href="" class="comment-header-link ng-scope" title="Report">
+                    <i class="comment-header-icon icon-ban-circle"></i>
+                </a>
+                <a href="" class="comment-header-link ng-scope" title="Delete">
+                    <i class="comment-header-icon icon-x"></i>
+                </a>
+            </span>
+            <div class="rate">
+                <span class="rate-difference is-positive">+1</span>
+                    <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+                    <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="comment-content">
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue.</p>
+        <p>Nam tincidunt congue enim, ut porta lorem lacinia consectetur. Donec ut libero sed arcu vehicula ultricies a non tortor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean ut gravida lorem. Ut turpis felis, pulvinar a semper sed, adipiscing id dolor. Pellentesque auctor nisi id magna consequat sagittis. Curabitur dapibus enim sit amet elit pharetra tincidunt feugiat nisl imperdiet. Ut convallis libero in urna ultrices accumsan. Donec sed odio eros. Donec viverra mi quis quam pulvinar at malesuada arcu rhoncus. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. In rutrum accumsan ultricies. Mauris vitae nisi at sem facilisis semper ac in est.</p>
+    </div>
+</div>
+
+<div class="comment-main">
+    <div class="comment-header">
+        <div class="comment-header-column1">
+            <span class="comment-header-creator">
+                <a href="">god</a>
+            </span>
+            <span class="comment-header-date">
+                25 minutes ago
+            </span>
+        </div>
+        <div class="comment-header-column2">
+            <span class="comment-header-links">
+                <a href="" class="comment-header-link" title="Reply">
+                    <i class="comment-header-icon icon-reply"></i>
+                </a>
+                <a href="" class="comment-header-link" title="Edit">
+                    <i class="comment-header-icon icon-pencil"></i>
+                </a>
+                <a href="" class="comment-header-link comment-header-link-report" title="Report">
+                    <i class="comment-header-icon icon-flag"></i>
+                </a>
+                <a href="" class="comment-header-link" title="Delete">
+                    <i class="comment-header-icon icon-x"></i>
+                </a>
+            </span>
+            <div class="rate">
+                <span class="rate-difference is-positive">+1</span>
+                    <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+                    <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="comment-children-edit-form">
+        <textarea class="comment-edit-form-text"></textarea>
+        <footer class="form-footer">
+            <input class="comment-create-form-button-submit button-cta form-footer-button-cta" type="submit" value="Submit">
+            <a href="" class="button form-footer-button">CANCEL</a>
+        </footer>
+    </div>
+</div>
+```
+*/
+/* line 171, scss/components/_comment.scss */
+.comment-main {
+  padding-bottom: 20px;
+  padding-bottom: 1.42857143rem;
+}
+
+/* line 176, scss/components/_comment.scss */
+.comment-title a, .comment-title a:hover, .comment-title a:focus, .comment-title a:active {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/* line 182, scss/components/_comment.scss */
+.comment-content-edit-text {
+  margin-bottom: 7px;
+  margin-bottom: 0.5rem;
+}
+
+/* line 186, scss/components/_comment.scss */
+.comment-header {
+  overflow: hidden;
+  *zoom: 1;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin-bottom: 10px;
+  margin-bottom: 0.71428571rem;
+  color: #808080;
+  font-weight: 400;
+  padding-top: 3px;
+}
+/* line 197, scss/components/_comment.scss */
+.comment-header .comment-header-creator a, .comment-header .comment-header-creator a:hover, .comment-header .comment-header-creator a:focus, .comment-header .comment-header-creator a:active,
+.comment-header .comment-header-date a,
+.comment-header .comment-header-date a:hover,
+.comment-header .comment-header-date a:focus,
+.comment-header .comment-header-date a:active,
+.comment-header .comment-header-links a,
+.comment-header .comment-header-links a:hover,
+.comment-header .comment-header-links a:focus,
+.comment-header .comment-header-links a:active {
+  color: #808080;
+  text-decoration: none;
+}
+/* line 124, scss/components/_type.scss */
+.comment-header .comment-header-creator a:hover, .comment-header .comment-header-creator a:focus, .comment-header .comment-header-creator a:hover:hover, .comment-header .comment-header-creator a:hover:focus, .comment-header .comment-header-creator a:focus:hover, .comment-header .comment-header-creator a:focus:focus, .comment-header .comment-header-creator a:active:hover, .comment-header .comment-header-creator a:active:focus,
+.comment-header .comment-header-date a:hover,
+.comment-header .comment-header-date a:focus,
+.comment-header .comment-header-date a:hover:hover,
+.comment-header .comment-header-date a:hover:focus,
+.comment-header .comment-header-date a:focus:hover,
+.comment-header .comment-header-date a:focus:focus,
+.comment-header .comment-header-date a:active:hover,
+.comment-header .comment-header-date a:active:focus,
+.comment-header .comment-header-links a:hover,
+.comment-header .comment-header-links a:focus,
+.comment-header .comment-header-links a:hover:hover,
+.comment-header .comment-header-links a:hover:focus,
+.comment-header .comment-header-links a:focus:hover,
+.comment-header .comment-header-links a:focus:focus,
+.comment-header .comment-header-links a:active:hover,
+.comment-header .comment-header-links a:active:focus {
+  color: #00b4cc;
+}
+/* line 203, scss/components/_comment.scss */
+.comment-header .comment-header-creator:after {
+  content: "|";
+}
+/* line 208, scss/components/_comment.scss */
+.comment-header .comment-header-edited {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  color: #ccc;
+  font-style: italic;
+}
+/* line 213, scss/components/_comment.scss */
+.comment-header .comment-header-edited:first-letter {
+  text-transform: capitalize;
+}
+/* line 219, scss/components/_comment.scss */
+.comment-header .comment-header-creator a {
+  color: #00b4cc;
+  padding-right: 3px;
+}
+/* line 223, scss/components/_comment.scss */
+.comment-header .comment-header-creator a:hover, .comment-header .comment-header-creator a:focus, .comment-header .comment-header-creator a:active {
+  text-decoration: underline;
+}
+/* line 227, scss/components/_comment.scss */
+.comment-header .comment-header-creator a:active {
+  color: #333;
+}
+/* line 232, scss/components/_comment.scss */
+.comment-header .comment-header-date {
+  padding-left: 3px;
+}
+/* line 236, scss/components/_comment.scss */
+.comment-header .comment-header-links {
+  padding-right: 20px;
+  padding-right: 1.42857143rem;
+}
+/* line 239, scss/components/_comment.scss */
+.comment-header .comment-header-links a {
+  margin-left: 14px;
+  margin-left: 1rem;
+}
+/* line 245, scss/components/_comment.scss */
+.comment-header .comment-header-link:after {
+  content: attr(title);
+}
+/* line 249, scss/components/_comment.scss */
+.comment-header .comment-header-link.comment-header-link-report {
+  color: #f00;
+}
+/* line 254, scss/components/_comment.scss */
+.comment-header .comment-header-column1,
+.comment-header .comment-header-column2 {
+  text-align: right;
+  float: right;
+}
+/* line 260, scss/components/_comment.scss */
+.comment-header .comment-header-column1 {
+  text-align: left;
+  float: left;
+}
+/* line 265, scss/components/_comment.scss */
+.comment-header .rate {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+}
+
+/* line 270, scss/components/_comment.scss */
+.comment-create-form {
+  overflow: hidden;
+  *zoom: 1;
+}
+
+/* line 274, scss/components/_comment.scss */
+.comment-create-form-text,
+.comment-edit-form-text {
+  min-height: 81.2px;
+  min-height: 5.8rem;
+  background: white;
+}
+
+/* line 280, scss/components/_comment.scss */
+.comment-edit-form-text {
+  min-height: 1px;
+}
+
+/* line 284, scss/components/_comment.scss */
+.comment-create-form-button-submit {
+  float: right;
+}
+
+/*doc
+---
+title: Comment Create Form
+name: comment-create-form
+parent: comment
+---
+
+```html_example
+<form class="comment-create-form">
+    <textarea class="comment-create-form-text"></textarea>
+    <footer class="form-footer">
+        <input class="comment-create-form-button-submit button-cta form-footer-button-cta" type="submit" value="Submit">
+    </footer>
+</form>
+```
+*/
+/*doc
+---
+title: Annotated section
+name: annotated-section
+category: Widgets
+---
+
+A section with a additional annotation, typically displayed in a second column.
+
+```html_example
+<section class="annotated-section">
+    <div class="annotated-section-body">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam
+        lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam
+        viverra nec consectetur ante hendrerit.
+    </div>
+    <div class="annotated-section-annotation">
+        Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit
+        amet vitae augue. Nam tincidunt congue enim, ut porta lorem lacinia
+        consectetur.
+    </div>
+</section>
+```
+*/
+/* line 25, scss/components/_annotated_section.scss */
+.annotated-section {
+  font-size: 0;
+}
+/* line 28, scss/components/_annotated_section.scss */
+.annotated-section .annotated-section-body,
+.annotated-section .annotated-section-annotation {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  font-size: 14px;
+  font-size: 1rem;
+  vertical-align: top;
+}
+/* line 35, scss/components/_annotated_section.scss */
+.annotated-section .annotated-section-body {
+  width: 63%;
+  margin-right: 3%;
+}
+/* line 40, scss/components/_annotated_section.scss */
+.annotated-section .annotated-section-annotation {
+  margin-bottom: 28px;
+  margin-bottom: 2rem;
+  width: 34%;
+}
+
+/*doc
+---
+title: Show comments mixin
+name: show-comments-mixin
+category: Widgets
+---
+
+A mixin to show comments somewhere
+
+```html_example
+<a class="show-comments"><i class="icon-speechbubble"></i>12</a>
+```
+*/
+/* line 28, scss/components/_commentable_section.scss */
+.show-comments {
+  color: #808080;
+  text-decoration: none;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  text-align: center;
+}
+/* line 124, scss/components/_type.scss */
+.show-comments:hover, .show-comments:focus {
+  color: #00b4cc;
+}
+/* line 21, scss/components/_commentable_section.scss */
+.show-comments i {
+  font-size: 15px;
+  font-size: 1.07142857rem;
+  display: block;
+  line-height: 1;
+}
+@media print {
+  /* line 28, scss/components/_commentable_section.scss */
+  .show-comments {
+    display: none;
+  }
+}
+
+/*doc
+---
+title: Commentable section
+name: commentable-section
+category: Widgets
+---
+
+A section of any content with a link to the respective comments, typically
+displayed as a button in a second column.
+
+States:
+
+-   is-selected
+-   is-not-selected
+
+```html_example
+<div class="commentable-section">
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor.</p>
+    <a class="commentable-section-show-comments"><i class="icon-speechbubble"></i>Comments</a>
+</div>
+```
+*/
+/* line 59, scss/components/_commentable_section.scss */
+.commentable-section {
+  padding: 14px 48px 30px 14px;
+  padding: 1rem 3.42857143rem 2.14285714rem 1rem;
+  position: relative;
+}
+/* line 63, scss/components/_commentable_section.scss */
+.commentable-section > p {
+  margin-bottom: 0;
+}
+/* line 67, scss/components/_commentable_section.scss */
+.commentable-section p {
+  white-space: pre-line;
+}
+/* line 71, scss/components/_commentable_section.scss */
+.commentable-section.is-not-selected {
+  background: #f2f2f2;
+}
+/* line 75, scss/components/_commentable_section.scss */
+.commentable-section .commentable-section-show-comments {
+  color: #808080;
+  text-decoration: none;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  text-align: center;
+  max-width: 36px;
+  max-width: 2.57142857rem;
+  right: 14px;
+  right: 1rem;
+  top: 14px;
+  top: 1rem;
+  position: absolute;
+}
+/* line 124, scss/components/_type.scss */
+.commentable-section .commentable-section-show-comments:hover, .commentable-section .commentable-section-show-comments:focus {
+  color: #00b4cc;
+}
+/* line 21, scss/components/_commentable_section.scss */
+.commentable-section .commentable-section-show-comments i {
+  font-size: 15px;
+  font-size: 1.07142857rem;
+  display: block;
+  line-height: 1;
+}
+@media print {
+  /* line 59, scss/components/_commentable_section.scss */
+  .commentable-section {
+    padding: 0 0 14px;
+    padding: 0 0 1rem;
+  }
+  /* line 86, scss/components/_commentable_section.scss */
+  .commentable-section .commentable-section-show-comments {
+    display: none;
+  }
+}
+
+/*doc
+---
+title: Chapter
+name: chapter
+category: Widgets
+---
+
+A high-level section of a document with its own heading.
+
+```html_example
+<div class="chapter-wrapper">
+    <section class="chapter">
+        <h3 class="chapter-header">Introduction</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor.</p>
+    </section>
+    <section class="chapter">
+        <h3 class="chapter-header m-counted active">First Chapter</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor.</p>
+    </section>
+    <section class="chapter">
+        <h3 class="chapter-header m-counted">Second Chapter</h3>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor.</p>
+    </section>
+</div>
+```
+*/
+/* line 27, scss/components/_chapter.scss */
+.chapter-wrapper {
+  counter-reset: chapter-counter;
+}
+
+@media print {
+  /* line 31, scss/components/_chapter.scss */
+  .chapter {
+    border: 0;
+    margin: 0;
+  }
+  /* line 36, scss/components/_chapter.scss */
+  .chapter .chapter-header:before, .chapter h2:before {
+    display: none;
+  }
+}
+
+/* line 42, scss/components/_chapter.scss */
+.chapter-header, .chapter h2 {
+  margin: 0 0 14px;
+  margin: 0 0 1rem;
+  color: #808080;
+}
+/* line 46, scss/components/_chapter.scss */
+.chapter-header.active, .chapter h2.active {
+  color: #00b4cc;
+}
+/* line 50, scss/components/_chapter.scss */
+.chapter-header.m-counted:before, .chapter h2.m-counted:before {
+  content: counter(chapter-counter) ". ";
+  counter-increment: chapter-counter;
+}
+
+/*doc
+---
+title: Document form
+name: document-form
+category: Widgets
+---
+
+A form for creating documents. This contains a <a href="#section-jump">section jump</a> widget
+
+```html_example
+<form class="document-form">
+<div class="section-jump" id="section-jump-top">
+    <div class="section-jump-cover">
+        <label>
+            <input type="text" placeholder="Add a title here." class="m-title">
+        </label>
+    </div>
+    <div class="section-jump-body">
+        <nav class="section-jump-navigation jump-navigation m-narrow m-unnumbered">
+            <ol>
+                <li>
+                    <a href="#section-jump-chapter-0">1</a>
+                </li>
+            </ol>
+        </nav>
+        <div class="section-jump-main chapter-wrapper">
+            <section id="section-jump-chapter-0">
+                <label>
+                    <textarea></textarea>
+                </label>
+            </section>
+            <footer class="form-footer">
+                <a href="" class="button-cta-secondary m-add document-form-add-paragraph-button">add paragraph</a>
+                <input type="submit" name="submit" value="Submit" class="button-cta form-footer-button-cta document-form-submit-button">
+                <a class="button form-footer-button">Cancel</a>
+            </footer>
+        </div>
+    </div>
+</div>
+</form>
+
+```
+*/
+/* line 45, scss/components/_document.scss */
+.document-form {
+  padding: 0;
+}
+/* line 48, scss/components/_document.scss */
+.document-form .document-form-add-paragraph-button {
+  margin-bottom: 45px;
+  margin-bottom: 3.21428571rem;
+  float: right;
+}
+/* line 53, scss/components/_document.scss */
+.document-form .document-form-submit-button {
+  clear: right;
+}
+/* line 57, scss/components/_document.scss */
+.document-form .form-footer {
+  margin-top: 113px;
+  margin-top: 8.07142857rem;
+}
+/* line 61, scss/components/_document.scss */
+.document-form .section-jump-main {
+  padding: 14px;
+  padding: 1rem;
+}
+
+/*doc
+---
+title: Jump Navigation
+name: jump-navigation
+category: Widgets
+---
+
+A navigation list containing hash tag links
+
+```html_example
+<strong>Numbered</strong>
+<nav class="jump-navigation">
+    <ol>
+        <li><a>Element</a></li>
+        <li class="active"><a>Element (LI Active)</a></li>
+        <li><a class="active">Element (A active)</a></li>
+    </ol>
+</nav>
+
+<strong>Unumbered</strong>
+<nav class="jump-navigation m-unnumbered">
+    <ol>
+        <li><a>Element</a></li>
+        <li class="active"><a>Element (LI Active)</a></li>
+        <li><a class="active">Element (A active)</a></li>
+    </ol>
+</nav>
+
+<strong>Narrow</strong>
+<nav class="jump-navigation m-narrow">
+    <ol>
+        <li><a>Element</a></li>
+        <li class="active"><a>Element (LI Active)</a></li>
+        <li><a class="active">Element (A active)</a></li>
+    </ol>
+</nav>
+```
+*/
+/* line 42, scss/components/_jump_navigation.scss */
+.jump-navigation, .jump-navigation a {
+  color: #808080;
+}
+/* line 46, scss/components/_jump_navigation.scss */
+.jump-navigation ul, .jump-navigation ol {
+  padding: 14px;
+  padding: 1rem;
+  counter-reset: jump-counter;
+  list-style: none;
+  margin: 0;
+}
+/* line 53, scss/components/_jump_navigation.scss */
+.jump-navigation li {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  padding: 0 7px;
+  padding: 0 0.5rem;
+  line-height: 1.333;
+}
+/* line 58, scss/components/_jump_navigation.scss */
+.jump-navigation li, .jump-navigation li a {
+  color: #808080;
+}
+/* line 62, scss/components/_jump_navigation.scss */
+.jump-navigation li a {
+  display: block;
+  text-decoration: none;
+}
+/* line 67, scss/components/_jump_navigation.scss */
+.jump-navigation li a:before {
+  content: counter(jump-counter) ". ";
+  counter-increment: jump-counter;
+}
+/* line 74, scss/components/_jump_navigation.scss */
+.jump-navigation li.active, .jump-navigation li.active a, .jump-navigation li .active {
+  color: #00b4cc;
+}
+/* line 80, scss/components/_jump_navigation.scss */
+.jump-navigation.m-unnumbered ol a:before {
+  content: "";
+}
+/* line 86, scss/components/_jump_navigation.scss */
+.jump-navigation.m-narrow ol {
+  padding: 0;
+}
+/* line 90, scss/components/_jump_navigation.scss */
+.jump-navigation.m-narrow li a {
+  margin: 0 0 14px;
+  margin: 0 0 1rem;
+}
+
+/*doc
+---
+title: Section Jump
+name: section-jump
+category: Widgets
+---
+
+A widget with a header, a left navigation and a main section. Often used in
+combination with `.jump-navigation.m-narrow.m-unnumbered`.
+
+```html_example
+<div class="section-jump" id="section-jump-top">
+    <div class="section-jump-cover">
+        <h1 class="section-jump-cover-header">Section Jump header</h1>
+    </div>
+
+    <div class="section-jump-body">
+        <nav class="section-jump-navigation">
+            1.
+        </nav>
+
+        <div class="section-jump-main">
+            <div style="padding: 1em">
+                Lorem ipsum Ullamco laboris commodo sit commodo nulla adipisicing in fugiat nostrud mollit irure esse velit reprehenderit commodo dolor.
+                Lorem ipsum Ullamco laboris commodo sit commodo nulla adipisicing in fugiat nostrud mollit irure esse velit reprehenderit commodo dolor.
+                Lorem ipsum Ullamco laboris commodo sit commodo nulla adipisicing in fugiat nostrud mollit irure esse velit reprehenderit commodo dolor.
+                Lorem ipsum Ullamco laboris commodo sit commodo nulla adipisicing in fugiat nostrud mollit irure esse velit reprehenderit commodo dolor.
+            </div>
+        </div>
+    </div>
+</div>
+```
+*/
+/* line 35, scss/components/_section_jump.scss */
+.section-jump-cover-header {
+  font-size: 18px;
+  font-size: 1.28571429rem;
+  color: #1c1c1b;
+  font-weight: normal;
+  margin: 0;
+}
+@media print {
+  /* line 35, scss/components/_section_jump.scss */
+  .section-jump-cover-header {
+    margin-bottom: 18px;
+    margin-bottom: 1.28571429rem;
+  }
+}
+
+/* line 46, scss/components/_section_jump.scss */
+.section-jump-cover {
+  width: 100%;
+  float: left;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 15px 10px 10px;
+  padding: 1.07142857rem 0.71428571rem 0.71428571rem;
+  border-bottom: 2px solid #e6e6e6;
+}
+@media print {
+  /* line 46, scss/components/_section_jump.scss */
+  .section-jump-cover {
+    border: 0;
+    padding: 0;
+  }
+}
+
+/* line 57, scss/components/_section_jump.scss */
+.section-jump-body {
+  background-color: #f2f2f2;
+  clear: left;
+}
+
+/* line 62, scss/components/_section_jump.scss */
+.section-jump-navigation {
+  padding-top: 14px;
+  padding-top: 1rem;
+  text-align: center;
+  width: 2rem;
+  float: left;
+}
+@media print {
+  /* line 62, scss/components/_section_jump.scss */
+  .section-jump-navigation {
+    display: none;
+  }
+}
+
+/* line 73, scss/components/_section_jump.scss */
+.section-jump-main {
+  margin-left: 28px;
+  margin-left: 2rem;
+  background-color: white;
+  border-left: 2px solid #e6e6e6;
+}
+@media print {
+  /* line 73, scss/components/_section_jump.scss */
+  .section-jump-main {
+    border: 0;
+    margin: 0;
+  }
+}
+
+/*doc
+---
+title: Space Switch
+name: space-switch
+category: Widgets
+---
+
+Switch the space (content/user)
+
+```html_example
+<div class="space-switch">
+    <a class="is-active"><i
+        class="icon-documents" title="content"
+    ></i></a><span
+        class="separator"
+    ></span><a><i
+        class="icon-user" title="user"
+    ></i></a>
+</div>
+```
+*/
+/* line 22, scss/components/_space_switch.scss */
+.space-switch {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  margin: 0 14px;
+  margin: 0 1rem;
+  vertical-align: baseline;
+}
+/* line 27, scss/components/_space_switch.scss */
+.space-switch a {
+  text-decoration: none;
+}
+/* line 30, scss/components/_space_switch.scss */
+.space-switch a i {
+  color: #808080;
+  font-size: 130%;
+}
+/* line 35, scss/components/_space_switch.scss */
+.space-switch a.is-active i, .space-switch a:active i, .space-switch a:hover i, .space-switch a:focus i {
+  color: #e3000f;
+}
+/* line 43, scss/components/_space_switch.scss */
+.space-switch .separator {
+  margin: 0 14px;
+  margin: 0 1rem;
+  border-left: 2px solid #999;
+}
+
+/*doc
+---
+title: User list item
+name: user-list-item
+category: Widgets
+---
+
+A user list item within a listing widget
+
+```html_example
+<div class="listing">
+    <ol class="listing-elements">
+        <li class="listing-element">
+            <div class="user-list-item">
+                <a class="user-list-item-link " href="#" class="m-me">
+                    <span class="user-list-item-name">Me</span>
+                    <span class="user-list-item-button">Profil anzeigen</span>
+                </a>
+            </div>
+        </li>
+        <li class="listing-element>
+            <div class="user-list-item">
+                <a class="user-list-item-link" href="#">
+                    <span class="user-list-item-name">Another User</span>
+                    <span class="user-list-item-button">Profil anzeigen</span>
+                </a>
+            </div>
+        </li>
+    </ol>
+</div>
+```
+*/
+/* line 34, scss/components/_user_list.scss */
+.user-list-item-link {
+  padding: 20px 20px 20px 14px;
+  padding: 1.42857143rem 1.42857143rem 1.42857143rem 1rem;
+  background: #f2f2f2;
+  border-bottom: 2px solid #e6e6e6;
+  display: block;
+  line-height: 1;
+  overflow: hidden;
+  text-decoration: none;
+}
+/* line 43, scss/components/_user_list.scss */
+.user-list-item-link .user-list-item-name {
+  color: #333;
+  font-size: 18px;
+}
+/* line 47, scss/components/_user_list.scss */
+.user-list-item-link .user-list-item-name + .badge {
+  margin-left: 10px;
+  margin-left: 0.71428571rem;
+}
+/* line 52, scss/components/_user_list.scss */
+.user-list-item-link .user-list-item-button {
+  float: right;
+  line-height: 1.28571429;
+}
+/* line 57, scss/components/_user_list.scss */
+.user-list-item-link.m-me, .user-list-item-link:hover, .user-list-item-link:focus, .user-list-item-link.is-selected {
+  background: white;
+}
+/* line 60, scss/components/_user_list.scss */
+.user-list-item-link.m-me .user-list-item-button, .user-list-item-link:hover .user-list-item-button, .user-list-item-link:focus .user-list-item-button, .user-list-item-link.is-selected .user-list-item-button {
+  color: #00b4cc;
+}
+
+/* line 1, scss/components/_user_profile.scss */
+.user-profile-info {
+  text-align: center;
+}
+/* line 4, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-name {
+  margin: 80px 0 72px;
+  margin: 5.71428571rem 0 5.14285714rem;
+  padding: 0 14px;
+  padding: 0 1rem;
+  font-size: 14px;
+  font-size: 1rem;
+  font-weight: normal;
+}
+/* line 11, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-name-text {
+  font-size: 20px;
+  font-size: 1.42857143rem;
+}
+/* line 16, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-button, .user-profile-info .user-profile-info-button:active, .user-profile-info .user-profile-info-button:hover, .user-profile-info .user-profile-info-button:focus {
+  color: #00b4cc;
+}
+/* line 28, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-icon {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  line-height: 1;
+  font-size: 400%;
+}
+/* line 33, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-icon.user-profile-info-icon-active {
+  display: none;
+}
+/* line 38, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-proposals {
+  margin-top: 64px;
+  margin-top: 4.57142857rem;
+  text-align: left;
+}
+/* line 43, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-proposals .listing-empty-text,
+.user-profile-info .user-profile-info-proposals .mercator-user-profile-proposal-list-heading {
+  text-align: center;
+}
+/* line 48, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-proposals .listing-empty-text {
+  padding: 14px 0;
+  padding: 1rem 0;
+}
+/* line 52, scss/components/_user_profile.scss */
+.user-profile-info .user-profile-info-proposals .mercator-user-profile-proposal-list-heading {
+  padding: 32px 0;
+  padding: 2.28571429rem 0;
+  background: #e6e6e6;
+  font-weight: normal;
+  margin: 0;
+}
+
+/* line 61, scss/components/_user_profile.scss */
+.user-activity-overview {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* line 67, scss/components/_user_profile.scss */
+.user-activity-overview .user-activity-overview-wrapper {
+  display: table;
+  width: 100%;
+  border-top: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  color: #00b4cc;
+}
+/* line 77, scss/components/_user_profile.scss */
+.user-activity-overview .user-activity-overview-wrapper > div {
+  display: table-cell;
+  text-align: center;
+}
+/* line 82, scss/components/_user_profile.scss */
+.user-activity-overview .user-activity-overview-wrapper > div:last-child {
+  text-align: right;
+}
+/* line 83, scss/components/_user_profile.scss */
+.user-activity-overview .user-activity-overview-wrapper > div:first-child {
+  text-align: left;
+}
+
+/*doc
+---
+title: Like
+name: like
+category: Widgets
+---
+
+A like-button with counter.
+
+The button has the is-rate-button-active state.
+
+```html_example
+<div class="like" style="margin-bottom: 10px">
+    <span class="like-difference">+4</span>
+    <a class="like-button">Like</a>
+</div>
+<div class="like">
+    <span class="like-difference">+4</span>
+    <a class="like-button is-disabled">Like</a>
+</div>
+```
+*/
+/* line 23, scss/components/_rate.scss */
+.like {
+  white-space: nowrap;
+}
+/* line 27, scss/components/_rate.scss */
+.like.is-disabled .like-button, .like.is-disabled .like-button:hover, .like.is-disabled .like-button:focus {
+  background: #e6e6e6;
+  color: #999;
+}
+/* line 31, scss/components/_rate.scss */
+.like.is-disabled .like-button:before, .like.is-disabled .like-button:hover:before, .like.is-disabled .like-button:focus:before {
+  border-right-color: #e6e6e6;
+}
+
+/* line 41, scss/components/_rate.scss */
+.like-button {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  min-width: 100px;
+  min-width: 7.14285714rem;
+  padding: 0 10px;
+  padding: 0 0.71428571rem;
+  position: relative;
+  margin-left: 1rem;
+  text-transform: uppercase;
+  line-height: 2;
+  background-color: #00b4cc;
+  color: white;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+}
+/* line 56, scss/components/_rate.scss */
+.like-button:before {
+  border-right: 14px solid #00b4cc;
+  border-right: 1rem solid #00b4cc;
+  border-top: 1em solid transparent;
+  border-bottom: 1em solid transparent;
+  content: "";
+  position: absolute;
+  left: -1rem;
+  width: 0;
+  height: 0;
+  border-left: 0;
+}
+/* line 68, scss/components/_rate.scss */
+.like-button:hover, .like-button:focus {
+  color: white;
+  background-color: #00e1ff;
+}
+/* line 72, scss/components/_rate.scss */
+.like-button:hover:before, .like-button:focus:before {
+  border-right-color: #00e1ff;
+}
+/* line 77, scss/components/_rate.scss */
+.like-button .supporting .text-unsupport {
+  display: none;
+}
+/* line 81, scss/components/_rate.scss */
+.like-button:active, .like-button.is-rate-button-active {
+  background: #73bf44;
+}
+/* line 85, scss/components/_rate.scss */
+.like-button:active:before, .like-button.is-rate-button-active:before {
+  border-right-color: #73bf44;
+}
+/* line 91, scss/components/_rate.scss */
+.like-button:active:hover, .like-button.is-rate-button-active:hover {
+  background: #00b4cc;
+}
+/* line 95, scss/components/_rate.scss */
+.like-button:active:hover .supporting .text-unsupport, .like-button.is-rate-button-active:hover .supporting .text-unsupport {
+  display: block;
+}
+/* line 99, scss/components/_rate.scss */
+.like-button:active:hover .supporting .text-supporting, .like-button.is-rate-button-active:hover .supporting .text-supporting {
+  display: none;
+}
+/* line 103, scss/components/_rate.scss */
+.like-button:active:hover:before, .like-button.is-rate-button-active:hover:before {
+  border-right-color: #00b4cc;
+}
+
+/*doc
+---
+title: Rate
+name: rate
+category: Widgets
+---
+
+Rate up or down with counter
+
+The button has the `is-rate-button-active` state.
+rate-difference has the `is-positive` state. Can be `is-negative`.
+
+The whole widget may be disabled, in which case itself and both buttons have
+the `is-disabled` state.
+
+```html_example
+<div class="rate">
+    <span class="rate-difference is-positive">3</span>
+    <span class="rate-button-container">
+        <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+        <span class="rate-results">+6</span>
+    </span>
+    <span class="rate-button-container">
+        <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+        <span class="rate-results">-3</span>
+    </span>
+</div>
+
+<div class="rate is-disabled">
+    <span class="rate-difference is-positive">3</span>
+    <span class="rate-button-container">
+        <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+        <span class="rate-results">+6</span>
+    </span>
+    <span class="rate-button-container">
+        <a href="" class="rate-contra is-disabled"><i class="icon-vote-down" title="Vote down"></i></a>
+        <span class="rate-results">-3</span>
+    </span>
+</div>
+
+<div class="rate m-show-results-persist">
+    <span class="rate-difference is-positive">3</span>
+    <span class="rate-button-container">
+        <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+        <span class="rate-results">+6</span>
+    </span>
+    <span class="rate-button-container">
+        <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+        <span class="rate-results">-3</span>
+    </span>
+</div>
+
+<div class="rate m-show-results-hover">
+    <span class="rate-difference is-positive">3</span>
+    <span class="rate-button-container">
+        <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+        <span class="rate-results">+6</span>
+    </span>
+    <span class="rate-button-container">
+        <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+        <span class="rate-results">-3</span>
+    </span>
+</div>
+Hover show results
+<div class="rate is-cast m-show-results-click">
+    <span class="rate-difference is-positive">3</span>
+    <span class="rate-button-container">
+        <a href="" class="rate-pro is-rate-button-active"><i class="icon-vote-up" title="Vote up"></i></a>
+        <span class="rate-results">+6</span>
+    </span>
+    <span class="rate-button-container">
+        <a href="" class="rate-contra"><i class="icon-vote-down" title="Vote down"></i></a>
+        <span class="rate-results">-3</span>
+    </span>
+</div>
+Click show results
+```
+*/
+/* line 190, scss/components/_rate.scss */
+.rate a {
+  color: #808080;
+  text-decoration: none;
+}
+/* line 194, scss/components/_rate.scss */
+.rate a.is-disabled {
+  cursor: not-allowed;
+}
+/* line 199, scss/components/_rate.scss */
+.rate .rate-button-container {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  position: relative;
+}
+/* line 204, scss/components/_rate.scss */
+.rate .rate-results {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  padding-top: 3px;
+  padding-top: 0.21428571rem;
+  display: block;
+  position: absolute;
+  text-align: center;
+  visibility: hidden;
+  width: 100%;
+}
+/* line 218, scss/components/_rate.scss */
+.rate.m-show-results-persist .rate-results, .rate:hover.m-show-results-hover .rate-results, .rate:focus.m-show-results-hover .rate-results, .rate.is-cast.m-show-results-click .rate-results {
+  visibility: visible;
+}
+/* line 224, scss/components/_rate.scss */
+.rate .rate-pro.is-rate-button-active, .rate .rate-pro:hover:not(.is-disabled), .rate .rate-pro:focus:not(.is-disabled), .rate .rate-pro:active:not(.is-disabled) {
+  color: #73bf44;
+}
+/* line 233, scss/components/_rate.scss */
+.rate .rate-contra.is-rate-button-active, .rate .rate-contra:hover:not(.is-disabled), .rate .rate-contra:focus:not(.is-disabled), .rate .rate-contra:active:not(.is-disabled) {
+  color: #f00;
+}
+/* line 242, scss/components/_rate.scss */
+.rate .rate-difference.is-positive {
+  color: #73bf44;
+}
+/* line 246, scss/components/_rate.scss */
+.rate .rate-difference.is-negative {
+  color: #f00;
+}
+
+/* line 252, scss/components/_rate.scss */
+.opinion {
+  overflow: hidden;
+  *zoom: 1;
+  width: 100%;
+}
+
+/* line 257, scss/components/_rate.scss */
+.opinion-button-container {
+  float: left;
+  width: 50%;
+}
+
+/* line 262, scss/components/_rate.scss */
+.opinion-button {
+  line-height: 30px;
+  line-height: 2.14285714rem;
+  background-color: #e6e6e6;
+  color: #808080;
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  margin-right: 2px;
+  text-align: center;
+  text-decoration: none;
+}
+/* line 273, scss/components/_rate.scss */
+.opinion-button:hover, .opinion-button:focus {
+  background-color: #e3000f;
+  color: white;
+  text-decoration: none;
+}
+
+/* line 280, scss/components/_rate.scss */
+.opinion-no {
+  margin: 0 0 0 2px;
+}
+
+/* line 284, scss/components/_rate.scss */
+.opinion-bar-container, .opinion-bar {
+  height: 30px;
+  height: 2.14285714rem;
+  display: block;
+}
+
+/* line 289, scss/components/_rate.scss */
+.opinion-bar-container {
+  margin-bottom: 5px;
+  margin-bottom: 0.35714286rem;
+  background-color: #e6e6e6;
+}
+
+/* line 294, scss/components/_rate.scss */
+.opinion-bar {
+  background-color: #e3000f;
+}
+
+/* line 298, scss/components/_rate.scss */
+.opinion-bar-no {
+  float: right;
+}
+
+/* line 302, scss/components/_rate.scss */
+.opinion-result-numerics {
+  overflow: hidden;
+  *zoom: 1;
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  display: block;
+  position: relative;
+  width: 100%;
+}
+/* line 309, scss/components/_rate.scss */
+.opinion-result-numerics .opinion-result-yes {
+  float: left;
+}
+/* line 313, scss/components/_rate.scss */
+.opinion-result-numerics .opinion-result-total {
+  left: 0;
+  position: absolute;
+  text-align: center;
+  width: 100%;
+}
+@media only screen and (max-width: 640px) {
+  /* line 313, scss/components/_rate.scss */
+  .opinion-result-numerics .opinion-result-total {
+    display: none;
+  }
+}
+/* line 324, scss/components/_rate.scss */
+.opinion-result-numerics .opinion-result-no {
+  float: right;
+}
+
+/* line 329, scss/components/_rate.scss */
+.opinion-result-absolute {
+  margin-left: 20px;
+  margin-left: 1.42857143rem;
+}
+
+/* line 334, scss/components/_rate.scss */
+.opinion-result-no .opinion-result-absolute {
+  margin-right: 20px;
+  margin-right: 1.42857143rem;
+}
+
+/* line 3, scss/components/_tabs.scss */
+.tabset.m-full-width .tab {
+  text-align: center;
+}
+/* line 12, scss/components/_tabs.scss */
+.tabset.m-button-style .tab.is-active .tab-button, .tabset.m-button-style .tab .tab-button {
+  top: 0;
+}
+/* line 18, scss/components/_tabs.scss */
+.tabset.m-button-style .tab.is-active .tab-button {
+  border: 0;
+}
+
+/* line 26, scss/components/_tabs.scss */
+.tabset-tabs {
+  margin: 0;
+  padding: 0;
+}
+/* line 30, scss/components/_tabs.scss */
+.tabset-tabs .tab {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  list-style: none;
+}
+/* line 34, scss/components/_tabs.scss */
+.tabset-tabs .tab .tab-button {
+  padding: 7px 14px;
+  padding: 0.5rem 1rem;
+  background: #9d9c9c;
+  color: white;
+  display: block;
+  margin-right: 1px;
+  position: relative;
+  top: 1px;
+}
+/* line 45, scss/components/_tabs.scss */
+.tabset-tabs .tab:last-child .tab-button {
+  margin-right: 0;
+}
+/* line 51, scss/components/_tabs.scss */
+.tabset-tabs .tab.is-active .tab-button {
+  background: #f2f2f2;
+  border: 1px solid #9d9c9c;
+  border-width: 1px 1px 0;
+  color: #333;
+  font-weight: bold;
+  top: 1px;
+}
+
+/* line 63, scss/components/_tabs.scss */
+.tabset-panes {
+  -moz-transition: height 0.5s;
+  -o-transition: height 0.5s;
+  -webkit-transition: height 0.5s;
+  transition: height 0.5s;
+  background: #f2f2f2;
+  overflow: hidden;
+}
+
+/* line 69, scss/components/_tabs.scss */
+.tab-pane {
+  padding: 14px;
+  padding: 1rem;
+}
+
+/* line 1, scss/components/_facets.scss */
+.facets {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* line 12, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/output/support/_clearfix.scss */
+.facets:after {
+  content: " ";
+  display: block;
+  clear: both;
+}
+/* line 4, scss/components/_facets.scss */
+.facets ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+/* line 10, scss/components/_facets.scss */
+.facets .facet {
+  width: 49.61832061%;
+  float: left;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.facets .facet:nth-child(2n + 1) {
+  margin-left: 0;
+  margin-right: -100%;
+  clear: both;
+  margin-left: 0;
+}
+/* line 66, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/language/susy/_gallery.scss */
+.facets .facet:nth-child(2n + 2) {
+  margin-left: 50.38167939%;
+  margin-right: -100%;
+  clear: none;
+}
+
+/* line 15, scss/components/_facets.scss */
+.facet-header,
+.sort-header {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin: 0 0 15px;
+  margin: 0 0 1.07142857rem;
+  color: #808080;
+  line-height: 1.15;
+}
+
+/* line 23, scss/components/_facets.scss */
+.sort-item,
+.facet-item {
+  margin-bottom: 14px;
+  margin-bottom: 1rem;
+  margin-right: 14px;
+  margin-right: 1rem;
+  min-width: 1px;
+}
+
+/* line 34, scss/components/_facets.scss */
+.sort-header, .sort-item {
+  margin-bottom: 0;
+}
+
+/* line 38, scss/components/_facets.scss */
+.sort-header {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  margin-bottom: 0;
+}
+
+/* line 43, scss/components/_facets.scss */
+.listing-results {
+  padding: 14px;
+  padding: 1rem;
+  border-bottom: 2px solid #e6e6e6;
+}
+
+/*doc
+---
+title: Unsupported Browser
+name: unsupported-browser
+category: Widgets
+---
+
+Banner showing up if the browser is not supported.
+
+```html_example
+<div class="unsupported-browser">
+    <img src="/static/icons/png/attention.png"/>
+    <div lang="en" class="language-block">
+        <h1>Non-supported browser!</h1>
+        <p>We're sorry your browser is unsupported. Please either upgrade your Internet Explorer,
+        but we recommend
+        <a href="http://chromium.woolyss.com/">Chromium</a> or
+        <a href="https://www.mozilla.org/en-US/firefox/new/">Firefox</a>.</p>
+    </div>
+    <img src="/static/icons/png/attention.png"/>
+    <div lang="de" class="language-block">
+        <h1>Browser wird nicht unterstützt!</h1>
+        <p>Es tut uns leid, aber deine Suche wird nicht unterstützt. Bitte aktualisiere die Version deines
+        Internet Explorers oder verwende
+        <a href="http://chromium.woolyss.com/">Chromium</a> oder
+        <a href="https://www.mozilla.org/en-US/firefox/new/">Firefox</a>.</p>
+    </div>
+</div>
+```
+*/
+/* line 31, scss/components/_unsupported_browser.scss */
+.unsupported-browser {
+  overflow: hidden;
+  *zoom: 1;
+  padding: 14px 14px 7px;
+  padding: 1rem 1rem 0.5rem;
+  background: #e6e6e6;
+}
+/* line 36, scss/components/_unsupported_browser.scss */
+.unsupported-browser h1 {
+  margin: 0 0 5px;
+  margin: 0 0 0.35714286rem;
+  font-size: 16px;
+  font-size: 1.14285714rem;
+  font-weight: normal;
+}
+/* line 42, scss/components/_unsupported_browser.scss */
+.unsupported-browser .language-block {
+  margin: 0 0 14px 56px;
+  margin: 0 0 1rem 4rem;
+}
+/* line 46, scss/components/_unsupported_browser.scss */
+.unsupported-browser p {
+  margin-bottom: 0;
+}
+/* line 50, scss/components/_unsupported_browser.scss */
+.unsupported-browser img {
+  float: left;
+}
+
+/* line 1, scss/components/_busy.scss */
+.busy-bar {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  background: url("/static/images/busy.gif") repeat-x left bottom;
+  height: 4px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+/* line 10, scss/components/_busy.scss */
+.busy-bar.ng-hide-add.ng-hide-add-active, .busy-bar.ng-hide-remove.ng-hide-remove-active {
+  transition: 0.5s linear all;
+}
+/* line 15, scss/components/_busy.scss */
+.busy-bar.ng-hide {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=0);
+  opacity: 0;
+}
+
+/* line 1, scss/components/_error_pages.scss */
+.error-page-404 {
+  text-align: center;
+}
+/* line 4, scss/components/_error_pages.scss */
+.error-page-404 .error-page-image {
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+/*doc
+---
+title: Standalone Wrapper
+name: standalone-wrapper
+category: Layout
+---
+
+A wrapper for pages that are not embedded in the application such as pages that
+are opened when you follow an Adhocracy link from your email. Could contain
+branding.
+
+```html_example
+<div class="standalone-wrapper">
+    <h1 class="standalone-wrapper-title">Some title</h1>
+
+    <label>
+        <span class="label-text">write something</span>
+        <input type="text" />
+    </label>
+
+    <p>You have activated your account, well done!</p>
+</div>
+```
+*/
+/* line 25, scss/components/_standalone_wrapper.scss */
+.standalone-wrapper,
+.standalone-wrapper .standalone-wrapper-title,
+.standalone-wrapper label,
+.standalone-wrapper .form-error {
+  text-align: center;
+}
+
+/* line 32, scss/components/_standalone_wrapper.scss */
+.standalone-wrapper {
+  margin: 90px auto 0;
+  margin: 6.42857143rem auto 0;
+  max-width: 480px;
+  max-width: 34.28571429rem;
+  padding: 40px 90px;
+  padding: 2.85714286rem 6.42857143rem;
+  background: #f2f2f2;
+  position: relative;
+}
+/* line 39, scss/components/_standalone_wrapper.scss */
+.standalone-wrapper form {
+  padding: 0;
+}
+
+/* line 44, scss/components/_standalone_wrapper.scss */
+.standalone-wrapper-title {
+  font-size: 16px;
+  font-size: 1.14285714rem;
+  margin-bottom: 50px;
+  margin-bottom: 3.57142857rem;
+  color: #333;
+  font-weight: 900;
+}
+
+/*doc
+---
+title: Proposal List
+name: proposal-list
+category: Proposal
+---
+
+A proposal list item. How a proposal appears when in a list
+
+```html_example
+<a class="proposal-list-item" href="#">
+    <img class="proposal-list-item-image" alt="" src="/static/fallback_thumbnail.jpg" />
+    <div class="proposal-list-item-body">
+        <p class="proposal-list-item-username">Username</p>
+        <h3 class="proposal-list-item-title">Title here</h3>
+        <ul class="meta-list">
+            <li class="meta-list-item">
+                <i class="icon-speechbubbles"></i> 0 Comments
+            </li>
+        </ul>
+    </div>
+</a>
+2 columns
+<a class="proposal-list-item" href="#">
+    <div class="proposal-list-item-col-left">
+        <h3 class="proposal-list-item-title">Title here</h3>
+        <p class="proposal-list-item-username">Username</p>
+    </div>
+    <div class="proposal-list-item-col-right">
+        <ul class="meta-list">
+            <li class="meta-list-item">
+                <i class="icon-speechbubbles"></i> 0 Comments
+            </li>
+        </ul>
+    </div>
+</a>
+```
+*/
+/* line 44, scss/components/_proposal_list.scss */
+.proposal-list-item {
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 14px 17.5px 17.5px 12.25px;
+  padding: 1rem 1.25rem 1.25rem 0.875rem;
+  display: block;
+  border-bottom: 2px solid #e6e6e6;
+  line-height: 1;
+  position: relative;
+  color: inherit;
+  text-decoration: none;
+}
+/* line 12, ../../../../../parts/rubygems/lib/ruby/gems/1.8/gems/susy-2.2.5/sass/susy/output/support/_clearfix.scss */
+.proposal-list-item:after {
+  content: " ";
+  display: block;
+  clear: both;
+}
+/* line 56, scss/components/_proposal_list.scss */
+.proposal-list-item.is-not-selected {
+  background: #f2f2f2;
+}
+/* line 59, scss/components/_proposal_list.scss */
+.proposal-list-item.is-not-selected i[class*=icon-],
+.proposal-list-item.is-not-selected .meta-list-item-budget {
+  color: #808080;
+}
+/* line 64, scss/components/_proposal_list.scss */
+.proposal-list-item.is-not-selected:hover, .proposal-list-item.is-not-selected:focus {
+  background: white;
+}
+
+/* line 70, scss/components/_proposal_list.scss */
+.proposal-list-item-image {
+  float: left;
+  margin-right: 11px;
+}
+
+/* line 75, scss/components/_proposal_list.scss */
+.proposal-list-item-body {
+  margin-left: 116px;
+}
+
+/* line 79, scss/components/_proposal_list.scss */
+.proposal-list-item-title,
+.proposal-list-item-username {
+  margin: 0;
+}
+
+/* line 84, scss/components/_proposal_list.scss */
+.proposal-list-item-username {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin-bottom: 15px;
+  margin-bottom: 1.07142857rem;
+}
+
+/* line 89, scss/components/_proposal_list.scss */
+.proposal-list-item-title {
+  font-size: 16px;
+  font-size: 1.14285714rem;
+  margin-bottom: 15px;
+  margin-bottom: 1.07142857rem;
+  font-weight: normal;
+}
+
+/* line 95, scss/components/_proposal_list.scss */
+.proposal-list-item-col-left {
+  width: 66.41221374%;
+  float: left;
+  margin-right: 0.76335878%;
+}
+
+/* line 99, scss/components/_proposal_list.scss */
+.proposal-list-item-col-right {
+  width: 32.82442748%;
+  float: right;
+  margin-right: 0;
+}
+
+/* line 1, scss/components/_blog.scss */
+.blog-tabs {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  line-height: 30px;
+  line-height: 2.14285714rem;
+  border: 2px solid #e6e6e6;
+  border-width: 2px 0 3px;
+  clear: left;
+  overflow: hidden;
+  text-transform: uppercase;
+}
+
+/* line 11, scss/components/_blog.scss */
+.blog-tab {
+  background: #f2f2f2;
+  color: #808080;
+  text-align: center;
+  float: left;
+  text-decoration: none;
+  width: 50%;
+}
+/* line 19, scss/components/_blog.scss */
+.blog-tab:first-child {
+  border-right: 2px solid #e6e6e6;
+}
+/* line 23, scss/components/_blog.scss */
+.blog-tab:last-child {
+  border-left: 2px solid #e6e6e6;
+}
+/* line 27, scss/components/_blog.scss */
+.blog-tab:hover, .blog-tab:focus, .blog-tab:active, .blog-tab.is-active {
+  background: white;
+}
+/* line 31, scss/components/_blog.scss */
+.blog-tab:active, .blog-tab.is-active {
+  color: #00b4cc;
+}
+
+/* line 37, scss/components/_blog.scss */
+.blog .document-form {
+  filter: progid:DXImageTransform.Microsoft.Alpha(enabled=false);
+  opacity: 1;
+  padding: 14px;
+  padding: 1rem;
+  background: #f2f2f2;
+}
+/* line 42, scss/components/_blog.scss */
+.blog .document-form .title, .blog .document-form .paragraph, .blog .document-form .blog-post-edit-title {
+  margin-bottom: 10px;
+  margin-bottom: 0.71428571rem;
+}
+/* line 46, scss/components/_blog.scss */
+.blog .document-form .paragraph {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  background: white;
+  line-height: 1.5;
+}
+/* line 52, scss/components/_blog.scss */
+.blog .document-form.ng-hide-add.ng-hide-add-active, .blog .document-form.ng-hide-remove.ng-hide-remove-active {
+  transition: 0.5s linear all;
+}
+/* line 57, scss/components/_blog.scss */
+.blog .document-form.ng-hide {
+  filter: progid:DXImageTransform.Microsoft.Alpha(Opacity=0);
+  opacity: 0;
+}
+/* line 62, scss/components/_blog.scss */
+.blog .listing-create-form, .blog .comment-children-create-form,
+.blog .comment-children-edit-form {
+  background: transparent;
+  padding: 0;
+}
+/* line 67, scss/components/_blog.scss */
+.blog .listing-elements {
+  margin: 20px;
+  margin: 1.42857143rem;
+  border-left: 1px solid #00b4cc;
+}
+
+/* line 73, scss/components/_blog.scss */
+.blog-post {
+  margin-bottom: 30px;
+  margin-bottom: 2.14285714rem;
+}
+/* line 76, scss/components/_blog.scss */
+.blog-post .document-form {
+  padding: 0 0 0 8px;
+  padding: 0 0 0 0.57142857rem;
+  background: transparent;
+}
+/* line 80, scss/components/_blog.scss */
+.blog-post .document-form .paragraph {
+  background-color: #f2f2f2;
+}
+
+/* line 86, scss/components/_blog.scss */
+.blog-post-header {
+  padding-left: 8px;
+  padding-left: 0.57142857rem;
+  overflow: hidden;
+}
+
+/* line 91, scss/components/_blog.scss */
+.blog-post-title {
+  font-size: 10px;
+  font-size: 0.71428571rem;
+  line-height: 15px;
+  line-height: 1.07142857rem;
+  padding: 0 20px;
+  padding: 0 1.42857143rem;
+  background: #00b4cc;
+  float: left;
+  font-weight: normal;
+  margin: 0;
+  text-transform: uppercase;
+  position: relative;
+}
+/* line 102, scss/components/_blog.scss */
+.blog-post-title:before {
+  border-top: 7.5px solid transparent;
+  border-top: 0.53571429rem solid transparent;
+  border-right: 8px solid #00b4cc;
+  border-right: 0.57142857rem solid #00b4cc;
+  border-bottom: 7.5px solid transparent;
+  border-bottom: 0.53571429rem solid transparent;
+  left: -8px;
+  left: -0.57142857rem;
+  content: "";
+  height: 0;
+  position: absolute;
+  top: 0;
+  width: 0;
+}
+
+/* line 115, scss/components/_blog.scss */
+.blog-post-meta {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  margin-left: 8px;
+  margin-left: 0.57142857rem;
+  color: #808080;
+}
+/* line 120, scss/components/_blog.scss */
+.blog-post-meta a {
+  text-decoration: none;
+}
+
+/* line 125, scss/components/_blog.scss */
+.blog-post-meta-time {
+  font-style: italic;
+}
+
+/* line 129, scss/components/_blog.scss */
+.blog-post-actions {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  float: right;
+  line-height: 1.25;
+}
+
+/* line 135, scss/components/_blog.scss */
+.blog-post-actions-item {
+  margin-left: 14px;
+  margin-left: 1rem;
+  color: #808080;
+  text-decoration: none;
+}
+/* line 140, scss/components/_blog.scss */
+.blog-post-actions-item:hover {
+  color: #333;
+}
+
+/* line 145, scss/components/_blog.scss */
+.blog-post-paragraph {
+  font-size: 12px;
+  font-size: 0.85714286rem;
+  padding: 10px 8px;
+  padding: 0.71428571rem 0.57142857rem;
+}
+/* line 149, scss/components/_blog.scss */
+.blog-post-paragraph p {
+  line-height: 1.5;
+}
+/* line 152, scss/components/_blog.scss */
+.blog-post-paragraph p:last-child {
+  margin: 0;
+}
+/* line 157, scss/components/_blog.scss */
+.blog-post-paragraph h1, .blog-post-paragraph h2, .blog-post-paragraph h3, .blog-post-paragraph h4, .blog-post-paragraph h5 {
+  margin: 0 0 7px;
+  margin: 0 0 0.5rem;
+  font-weight: 900;
+}
+
+/* line 163, scss/components/_blog.scss */
+.show-create-form-button {
+  margin: 20px 20px 0;
+  margin: 1.42857143rem 1.42857143rem 0;
+  float: right;
+}
+
+/* line 2, scss/components/_markdown.scss */
+.markdown-rendered, .markdown-rendered * {
+  white-space: normal;
+  line-height: 1.3;
+}
+/* line 7, scss/components/_markdown.scss */
+.markdown-rendered img {
+  height: auto;
+  max-width: 100%;
+  margin-bottom: 5px;
+}
+
+/*doc
+---
+title: Image Upload
+name: image-upload
+category: Widgets
+---
+
+<div class="image-upload">
+    <button type="button" class="button-cta-secondary image-upload-button">Change image</button>
+    <a  href="#" class="button image-upload-reset">reset</a>
+    <img src="/static/images/sample.jpg" class="image-upload-preview" width="200" alt="" />
+</div>
+*/
+/* line 14, scss/components/_image_upload.scss */
+.image-upload {
+  margin: 19.6px 0;
+  margin: 1.4rem 0;
+}
+
+/* line 18, scss/components/_image_upload.scss */
+.image-upload-preview {
+  margin: 9.8px 0;
+  margin: 0.7rem 0;
+  max-height: 140px;
+  max-height: 10rem;
+  display: block;
+}
+
+/* line 5, scss/third_party/_social_share.scss */
+body .social_share_privacy_area {
+  margin: 0 !important;
+}
+
+/*doc
+---
+title: debug-placeholder
+name: debug-placeholder
+category: Debug
+---
+
+The debug-placeholder is useful only in unfinished drafts and styleguide
+documentation. It can be used to style elements that are not yet done.
+
+```html_example
+<div class="debug-placeholder">debug-placeholder</div>
+```
+*/
+/* line 15, scss/debug/_placeholder.scss */
+.debug-placeholder {
+  min-width: 42px;
+  min-width: 3rem;
+  min-height: 42px;
+  min-height: 3rem;
+  background-color: #e6e6e6;
+  border: 2px dashed #9d9c9c;
+  color: #808080;
+  text-align: center;
+}
+
+/* line 24, scss/debug/_placeholder.scss */
+.static-example {
+  position: static;
+}
+
+/* line 1, scss/_overwrite.scss */
+html {
+  padding: 0;
+}
+
+/* line 6, scss/_overwrite.scss */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+/**
+ * When adhocracy is embedded, we have some code that determines its height and
+ * resizes the iframe accordingly.  For this to work, the body must not have
+ * any margins.  Apart from setting `margin: 0` on body we also need to prevent
+ * margin collapsing.  This can be done by adding a small padding both at the
+ * top and the bottom.  The trade-off is that there is some additional padding
+ * which might look strange.
+ */
+/* line 19, scss/_overwrite.scss */
+body {
+  padding: 1px 0;
+}
+
+/*doc
+---
+title: Print Utility Classes
+name: print-utility-classes
+category: Print
+---
+
+These classes display or hide things depending on whether print or screen. These should only be used if no other method
+is useable such as the modifiers listed in this category. Don't forget to hide from screen-readers where appropriate.
+
+```html_example
+<h1 class="print-only" aria-hidden="true">This heading only appears in print mode</h1>
+<h1 class="screen-only">This heading only appears in screen mode</h1>
+<br/><i>Press Ctrl+P to see this in action</i>
+```
+*/
+@media screen {
+  /* line 19, scss/_print.scss */
+  .print-only {
+    display: none;
+  }
+}
+@media print {
+  /* line 25, scss/_print.scss */
+  .screen-only {
+    display: none;
+  }
+
+  /*doc
+  ---
+  title: Print HREF modifier
+  name: m-print-href
+  category: Print
+  ---
+  
+  Use this class to display the href of a link after the link text in print mode only.
+  <br/><i>Press Ctrl+P to see this in action</i>
+  
+  ```html_example
+  <a class="m-print-href" href="http://google.com">Google</a>
+  ```
+  */
+  /* line 44, scss/_print.scss */
+  .m-print-href {
+    text-decoration: none;
+  }
+  /* line 47, scss/_print.scss */
+  .m-print-href:after {
+    content: " [" attr(href) "]";
+  }
+
+  /*doc
+  ---
+  title: Print definition modifier
+  name: m-definition
+  category: Print
+  ---
+  
+  Use this class to display extra information as written in the title tag in print mode only.
+  If this is placed on an icon the icon will be replaced by the text.
+  <br/><i>Press Ctrl+P to see this in action</i>
+  
+  ```html_example
+  <p><i class="icon-speechbubble m-definition-before" title="Comments:"></i> 23</p>
+  <p class="m-definition-after" title="after VAT">50000 &euro;</p>
+  <p class="m-definition-before" title="Total budget:">50000 &euro;</p>
+  ```
+  */
+  /* line 70, scss/_print.scss */
+  .m-definition-after,
+  .m-definition-before {
+    text-transform: capitalize;
+  }
+  /* line 74, scss/_print.scss */
+  .m-definition-after:after,
+  .m-definition-before:after {
+    content: " " attr(title);
+  }
+
+  /* line 80, scss/_print.scss */
+  .m-definition-before:after {
+    content: "";
+  }
+  /* line 84, scss/_print.scss */
+  .m-definition-before:before {
+    content: attr(title) " ";
+    display: inline;
+  }
+
+  /* line 91, scss/_print.scss */
+  i.m-definition-before,
+  i.m-definition-after {
+    font-size: 16px !important;
+    font-style: normal;
+    vertical-align: baseline;
+  }
+
+  /* line 99, scss/_print.scss */
+  i.m-definition-after:before {
+    display: none;
+  }
+}
+/* line 1, scss/_layout_theme.scss */
+.l-center {
+  background: white;
+}
+
+/* line 1, scss/components/_comment_theme.scss */
+.comment-children {
+  border-left-color: #e3000f;
+}
+
+/* line 4, scss/components/_forms_theme.scss */
+input[type="text"].ng-dirty.ng-invalid,
+input[type="url"].ng-dirty.ng-invalid,
+input[type="password"].ng-dirty.ng-invalid,
+input[type="email"].ng-dirty.ng-invalid,
+input[type="date"].ng-dirty.ng-invalid,
+input[type="time"].ng-dirty.ng-invalid,
+input[type="number"].ng-dirty.ng-invalid,
+select.ng-dirty.ng-invalid,
+textarea.ng-dirty.ng-invalid, .ng-submitted input[type="text"].ng-invalid,
+.ng-submitted input[type="url"].ng-invalid,
+.ng-submitted input[type="password"].ng-invalid,
+.ng-submitted input[type="email"].ng-invalid,
+.ng-submitted input[type="date"].ng-invalid,
+.ng-submitted input[type="time"].ng-invalid,
+.ng-submitted input[type="number"].ng-invalid,
+.ng-submitted input.ng-invalid,
+.ng-submitted label.ng-invalid,
+.ng-submitted div.ng-invalid,
+.ng-submitted select.ng-invalid,
+.ng-submitted textarea.ng-invalid {
+  margin-bottom: 0;
+}
+/* line 7, scss/components/_forms_theme.scss */
+input[type="text"].ng-dirty.ng-invalid + .input-error,
+input[type="url"].ng-dirty.ng-invalid + .input-error,
+input[type="password"].ng-dirty.ng-invalid + .input-error,
+input[type="email"].ng-dirty.ng-invalid + .input-error,
+input[type="date"].ng-dirty.ng-invalid + .input-error,
+input[type="time"].ng-dirty.ng-invalid + .input-error,
+input[type="number"].ng-dirty.ng-invalid + .input-error,
+select.ng-dirty.ng-invalid + .input-error,
+textarea.ng-dirty.ng-invalid + .input-error,
+.ng-submitted input.ng-invalid + .input-error,
+.ng-submitted label.ng-invalid + .input-error,
+.ng-submitted div.ng-invalid + .input-error,
+.ng-submitted select.ng-invalid + .input-error,
+.ng-submitted textarea.ng-invalid + .input-error,
+input[type="text"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="url"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="password"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="email"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="date"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="time"].ng-dirty.ng-invalid + .input-error + .input-error,
+input[type="number"].ng-dirty.ng-invalid + .input-error + .input-error,
+select.ng-dirty.ng-invalid + .input-error + .input-error,
+textarea.ng-dirty.ng-invalid + .input-error + .input-error,
+.ng-submitted input.ng-invalid + .input-error + .input-error,
+.ng-submitted label.ng-invalid + .input-error + .input-error,
+.ng-submitted div.ng-invalid + .input-error + .input-error,
+.ng-submitted select.ng-invalid + .input-error + .input-error,
+.ng-submitted textarea.ng-invalid + .input-error + .input-error {
+  margin-bottom: 10px;
+}
+
+/* line 13, scss/components/_forms_theme.scss */
+input[type="text"],
+input[type="url"],
+input[type="password"],
+input[type="email"],
+input[type="date"],
+input[type="time"],
+input[type="number"],
+select,
+textarea {
+  background: #f2f2f2;
+  border: 0;
+  margin-bottom: 24px;
+}
+/* line 26, scss/components/_forms_theme.scss */
+input[type="text"].ng-dirty.ng-invalid,
+input[type="url"].ng-dirty.ng-invalid,
+input[type="password"].ng-dirty.ng-invalid,
+input[type="email"].ng-dirty.ng-invalid,
+input[type="date"].ng-dirty.ng-invalid,
+input[type="time"].ng-dirty.ng-invalid,
+input[type="number"].ng-dirty.ng-invalid,
+select.ng-dirty.ng-invalid,
+textarea.ng-dirty.ng-invalid {
+  border-color: #f00;
+  color: #f00;
+  outline: 1px solid #f00;
+}
+
+/* line 53, scss/components/_forms_theme.scss */
+.input-error {
+  line-height: 14px;
+}
+
+/* line 1, scss/components/_listing_theme.scss */
+.listing-create-form, .comment-children-create-form,
+.comment-children-edit-form {
+  background-color: #e6e6e6;
+  overflow: hidden;
+}
+
+/* line 2, scss/components/_standalone_wrapper_theme.scss */
+.standalone-wrapper input[type="text"],
+.standalone-wrapper input[type="url"],
+.standalone-wrapper input[type="password"],
+.standalone-wrapper input[type="email"],
+.standalone-wrapper input[type="date"],
+.standalone-wrapper input[type="time"],
+.standalone-wrapper input[type="number"],
+.standalone-wrapper select,
+.standalone-wrapper textarea {
+  background-color: white;
+}
+
+/* line 1, scss/components/_user_profile_theme.scss */
+.user-profile-info-name-text {
+  display: block;
+}
+
+/* line 5, scss/components/_user_profile_theme.scss */
+.user-profile-info-name .badge {
+  margin-top: 20px;
+  margin-top: 1.42857143rem;
+}
+
+/*# sourceMappingURL=a3.css.map */
