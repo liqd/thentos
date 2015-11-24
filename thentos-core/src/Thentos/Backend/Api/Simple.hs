@@ -21,9 +21,11 @@ module Thentos.Backend.Api.Simple where
 import Control.Lens ((^.), (&), (<>~))
 import Data.Proxy (Proxy(Proxy))
 import Data.Void (Void)
+import Servant.API.Header (Header)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
+import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
@@ -35,6 +37,7 @@ import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Ends.Types
 import Thentos.Types
 
 import qualified Paths_thentos_core__ as Paths
@@ -89,6 +92,7 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)
+  :<|> "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
 
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
@@ -99,6 +103,7 @@ thentosUser =
   :<|> deleteUser
   :<|> (JsonTop . ((^. userName) . snd) <$>) . lookupConfirmedUser
   :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
+  :<|> (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
 
 
 -- * service

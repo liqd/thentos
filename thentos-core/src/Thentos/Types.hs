@@ -101,6 +101,7 @@ import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toF
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
 import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
+import Data.ByteString.Conversion (ToByteString)
 import Data.Char (isAlpha)
 import Data.EitherR (fmapL)
 import Data.Function (on)
@@ -713,12 +714,13 @@ newtype ImageData = ImageData { fromImageData :: SBS }
 
 
 newtype CaptchaId = CaptchaId { fromCaptchaId :: ST }
-  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
+  deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField, ToByteString)
 
 instance Aeson.FromJSON CaptchaId where
     parseJSON = Aeson.withText "captcha ID string" (pure . CaptchaId)
 
 instance Aeson.ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
+
 
 
 data CaptchaSolution = CaptchaSolution

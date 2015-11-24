@@ -203,6 +203,9 @@ instance ToSample UserEmail where
 instance ToSample UserId where
     toSamples _ = Docs.singleSample $ UserId 12
 
+instance ToSample ImageData where
+    toSamples _ = Docs.singleSample $ ImageData "<large blob of unreadable binary gibberish>"
+
 instance ToSample CaptchaId where
     toSamples _ = runTokenBuilder Action.freshCaptchaId
 
