@@ -187,11 +187,24 @@ instance HasDocExtras (RestDocs Api) where
 
 -- * servant foreign
 
--- | (Foreign.Elem is not exported, so we need to be slightly more restrictive.)
-instance Foreign.HasForeign (Post200 '[JSON] a) where
-    type Foreign (Post200 '[JSON] a) = Foreign.Req
+-- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
+-- which we don't have, so instead of:
+--
+-- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
+-- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
+--
+-- we more / less restrictive instances.  We should merge servant master in our submodule branch,
+-- though.
+instance {-# OVERLAPPABLE #-} Foreign.HasForeign (Post200 b a) where
+    type Foreign (Post200 b a) = Foreign.Req
     foreignFor Proxy req =
         req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[PNG] a) where
+    type Foreign (Post '[PNG] a) = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("post" :)
             & Foreign.reqMethod .~ "POST"
 
 -- FIXME: move this to module "Auth".
