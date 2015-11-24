@@ -18,8 +18,10 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Lens ((^.), (&), (<>~))
+import Control.Lens ((^.), (&), (<>~), (%~), (.~))
+import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.Void (Void)
 import Servant.API.Header (Header)
 import Network.Wai (Application)
@@ -29,6 +31,7 @@ import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
+import qualified Servant.Foreign as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -49,12 +52,12 @@ import qualified Thentos.Backend.Api.Purescript as Purs
 runApi :: HttpConfig -> ActionState -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi asg
+    runWarpWithCfg cfg $ serveApi cfg asg
 
-serveApi :: ActionState -> Application
-serveApi astate = addCacheControlHeaders $
+serveApi :: HttpConfig -> ActionState -> Application
+serveApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (pure (restDocs p) :<|> api astate)
+    in serve p (restDocs cfg p :<|> api astate)
 
 type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
@@ -64,6 +67,7 @@ api :: ActionState -> Server Api
 api actionState@(ActionState (_, _, cfg)) =
        (\mTok -> enter (enterAction () actionState baseActionErrorToServantErr mTok) thentosBasic)
   :<|> Purs.api cfg
+
 
 -- * combinators
 
@@ -158,8 +162,11 @@ thentosServiceSession =
 -- * servant docs
 
 instance HasDocExtras (RestDocs Api) where
-    getCabalVersion _ = Paths.version
+    getCabalPackageName _ = "thentos-core"
+    getCabalPackageVersion _ = Paths.version
+
     getTitle _ = "The thentos API family: Core"
+
     getIntros _ =
         [ Docs.DocIntro "@@0.2@@Overview" [unlines $
             [ "`Core` is a simple, general-purpose user management protocol"
@@ -176,3 +183,25 @@ instance HasDocExtras (RestDocs Api) where
                 $ Docs.defAction & Docs.notes <>~
             [Docs.DocNote "delete a service and unregister all its users" []]
         ]
+
+
+-- * servant foreign
+
+-- | (Foreign.Elem is not exported, so we need to be slightly more restrictive.)
+instance Foreign.HasForeign (Post200 '[JSON] a) where
+    type Foreign (Post200 '[JSON] a) = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
+
+-- FIXME: move this to module "Auth".
+instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAuth :> sub) where
+    type Foreign (ThentosAuth :> sub) = Foreign.Foreign sub
+    foreignFor Proxy req = Foreign.foreignFor (Proxy :: Proxy sub) $ req
+            & Foreign.reqHeaders <>~
+                [Foreign.HeaderArg . cs . foldedCase $
+                    renderThentosHeaderName ThentosHeaderSession]
+
+instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAssertHeaders :> sub) where
+    type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
+    foreignFor Proxy = Foreign.foreignFor (Proxy :: Proxy sub)

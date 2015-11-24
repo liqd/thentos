@@ -7,3 +7,6 @@
 	path = submodules/servant
 	url = https://github.com/liqd/servant
 	branch = package-servant-session+1
+[submodule "submodules/servant-purescript"]
+	path = submodules/servant-purescript
+	url = https://github.com/liqd/servant-purescript

@@ -123,7 +123,7 @@ you can do this:
 $ sudo bash
 # add-apt-repository ppa:hvr/ghc
 # apt-get update
-# apt-get install ghc-7.10.2 happy-1.19.3 alex-3.1.3 cabal-install-1.22
+# apt-get install ghc-7.10.2 happy-1.19.3 alex-3.1.4 cabal-install-1.22
 # apt-get install xvfb  # (for selenium tests; see below).
 ```
 

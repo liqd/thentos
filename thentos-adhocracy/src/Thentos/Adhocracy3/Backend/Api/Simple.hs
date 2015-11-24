@@ -81,7 +81,9 @@ import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Api.Docs.Common
-    (RestDocs, HasDocExtras(getCabalVersion, getTitle, getIntros, getExtraInfo), restDocs)
+    ( RestDocs, restDocs
+    , HasDocExtras(getCabalPackageName, getCabalPackageVersion, getTitle, getIntros, getExtraInfo)
+    )
 import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
@@ -92,6 +94,7 @@ import qualified Paths_thentos_adhocracy__ as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Backend.Api.Purescript
+import qualified Thentos.Backend.Api.Simple ()
 
 
 -- * data types
@@ -351,12 +354,12 @@ runBackend :: HttpConfig -> AC.ActionState -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
     manager <- Client.newManager Client.defaultManagerSettings
-    runWarpWithCfg cfg $ serveApi manager asg
+    runWarpWithCfg cfg $ serveApi manager cfg asg
 
-serveApi :: Client.Manager -> AC.ActionState -> Application
-serveApi manager astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
+serveApi :: Client.Manager -> HttpConfig -> AC.ActionState -> Application
+serveApi manager beConfig astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (pure (restDocs p) :<|> api manager astate)
+    in serve p (restDocs beConfig p :<|> api manager astate)
 
 
 -- * api
@@ -649,7 +652,8 @@ userIdFromPath (Path s) = do
 -- * servant docs
 
 instance HasDocExtras (RestDocs Api) where
-    getCabalVersion _ = Paths.version
+    getCabalPackageName _ = "thentos-adhocracy"
+    getCabalPackageVersion _ = Paths.version
     getTitle _ = "The thentos API family: Adhocracy3 Proxy"
     getIntros _ =
         [ Docs.DocIntro "@@0.2@@Overview" [unlines $

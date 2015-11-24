@@ -27,7 +27,7 @@
 -- because then here we could write:
 --
 -- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
--- >>> api = (`thentosAuch` myApi)
+-- >>> api = (`thentosAuth` myApi)
 --
 -- But the signature of `thentosAuth` requires injectivity of `ServerT` (`api` needs to be inferred
 -- from `ServerT api (Action)`).  ghc-7.12 may help (see

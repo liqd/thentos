@@ -73,7 +73,7 @@ ui = component render eval
         min_ = unsafeCoerce <<< prop (propName "min") (Just $ attrName "min")
         max_ = unsafeCoerce <<< prop (propName "max") (Just $ attrName "max")
 
-        wh_ :: forall p. Number -> Array (P.IProp (width :: P.I, height :: P.I | p) (IFDQuery Unit))
+        wh_ :: forall p. Int -> Array (P.IProp (width :: P.I, height :: P.I | p) (IFDQuery Unit))
         wh_ i = [P.width (P.Pixels i), P.height (P.Pixels i)]  -- FIXME: this becomes `width="[object Object]"`
 
         renderXY :: ComponentHTML IFDQuery
@@ -82,8 +82,8 @@ ui = component render eval
         renderZ :: ComponentHTML IFDQuery
         renderZ = case (z / 10) of
             0 -> H.iframe [P.src "/js/index.html"]
-            1 -> H.iframe $ [P.src "/js/frames1.html"] ++ wh_ 50.0
-            _ -> H.iframe $ [P.src "/js/frames2.html"] ++ wh_ 100.0
+            1 -> H.iframe $ [P.src "/js/frames1.html"] ++ wh_ 50
+            _ -> H.iframe $ [P.src "/js/frames2.html"] ++ wh_ 100
 
     eval :: Natural IFDQuery (ComponentDSL IFDState IFDQuery g)
     eval (UpdX x next) = do
