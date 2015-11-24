@@ -21,7 +21,7 @@ import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Monoid ((<>))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (LBS, cs)
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Status ()
 import Network.Wai (Application)
@@ -71,11 +71,11 @@ specRest = do
             request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
 
     describe "user" $ do
-        describe "Capture \"userid\" UserId :> \"name\" :> Get UserName" $ do
+        describe "Capture \"userid\" UserId :> \"name\" :> Get (JsonTop UserName)" $ do
             let resource = "/user/0/name"
             it "yields a name" $ do
                 hdr <- liftIO ctHeader
-                request "GET" resource hdr "" `shouldRespondWith` "\"god\""
+                request "GET" resource hdr "" `shouldRespondWith` "{\"data\":\"god\"}"
 
             it "can be called by user herself" $
                     \ _ -> pendingWith "test missing."
@@ -87,23 +87,23 @@ specRest = do
             it "can not be called by other (non-admin) users" $
                     \ _ -> pendingWith "test missing."
 
-        describe "Capture \"userid\" UserId :> \"email\" :> Get UserEmail" $ do
+        describe "Capture \"userid\" UserId :> \"email\" :> Get (JsonTop UserEmail)" $ do
             let resource = "/user/0/email"
             it "yields an email address" $ do
                 hdr <- liftIO ctHeader
                 request "GET" resource hdr "" `shouldRespondWith` 200
 
-        describe "ReqBody UserFormData :> Post UserId" $ do
+        describe "ReqBody UserFormData :> Post (JsonTop UserId)" $ do
             it "writes a new user to the database" $ do
                 hdr <- liftIO ctHeader
                 response1 <- postDefaultUser
                 return response1 `shouldRespondWith` 201
 
-                let (uid :: Int) = read . cs $ simpleBody response1
+                let Right (uid :: Int) = decodeJsonTop $ simpleBody response1
                 response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
-                let Right name = decodeLenient $ simpleBody response2
-                liftIO $ name `shouldBe` udName defaultUserData
+                let Right top2 = decodeLenient $ simpleBody response2
+                liftIO $ fromJsonTop top2 `shouldBe` udName defaultUserData
 
             it "can only be called by admins" $
                     \ _ -> pendingWith "test missing."
@@ -112,7 +112,7 @@ specRest = do
             it "removes an existing user from the database" $ do
                 hdr <- liftIO ctHeader
                 response1 <- postDefaultUser
-                let (uid :: Int) = read . cs $ simpleBody response1
+                let Right (uid :: Int) = decodeJsonTop $ simpleBody response1
                 request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
                     `shouldRespondWith` 200
                 void $ request "DELETE" ("/user/" <> cs (show uid)) hdr ""
@@ -131,7 +131,7 @@ specRest = do
             it "returns true if session is active" $ do
                 hdr <- liftIO ctHeader
                 response1 <- postDefaultUser
-                let uid = read . cs $ simpleBody response1
+                let Right uid = decodeJsonTop $ simpleBody response1
                 response2 <- request "POST" "/thentos_session" hdr $
                     Aeson.encode $ ByUser (UserId uid, udPassword defaultUserData)
                 request "GET" "/thentos_session/" hdr (simpleBody response2)
@@ -143,6 +143,10 @@ specRest = do
                 request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
                     `shouldRespondWith` "false" { matchStatus = 200 }
 
+
+-- | Parse and unwrap an element wrapped in JsonTop. Returns the element, if parsing is successful,
+decodeJsonTop :: Aeson.FromJSON a => LBS -> Either String a
+decodeJsonTop bs = fromJsonTop <$> decodeLenient bs
 
 postDefaultUser :: WaiSession SResponse
 postDefaultUser = do
