@@ -6,6 +6,7 @@
 {-# LANGUAGE InstanceSigs                             #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
+{-# LANGUAGE QuasiQuotes                              #-}
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
@@ -14,23 +15,29 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
+import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, readMVar, tryTakeMVar)
 import Control.Monad.State (liftIO)
 import Control.Monad (void)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
-import Data.Pool (withResource)
+import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, cs)
+import Database.PostgreSQL.Simple (Connection, Only(..))
+import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Network.HTTP.Types.Header (Header)
-import Network.HTTP.Types.Status ()
+import Network.HTTP.Types.Status (statusCode)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleBody, SResponse)
+import Network.Wai.Test (simpleBody, simpleHeaders, simpleStatus, SResponse)
 import System.IO.Unsafe (unsafePerformIO)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, pendingWith, hspec)
+import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldContain, shouldNotBe,
+                   pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as LBS
 
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple (serveApi)
@@ -39,6 +46,7 @@ import Thentos.Types
 import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.DefaultSpec
+import Thentos.Test.Transaction
 
 
 -- | FIXME: This is stuff also provided in a similar way from "Thentos.Test.Core".  remove redundancy!
@@ -47,6 +55,8 @@ defaultApp = do
     as@(ActionState (connPool, _, cfg)) <- createActionState "test_thentos" thentosTestConfig
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod as
+    void $ tryTakeMVar connPoolVar  -- discard old value, if any
+    putMVar connPoolVar connPool
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
     return $! serveApi beConfig as
 
@@ -56,6 +66,10 @@ tests = hspec spec
 godHeaders :: IORef [Header]
 godHeaders = unsafePerformIO $ newIORef []
 {-# NOINLINE godHeaders #-}
+
+connPoolVar :: MVar (Pool Connection)
+connPoolVar = unsafePerformIO $ newEmptyMVar
+{-# NOINLINE connPoolVar #-}
 
 spec :: Spec
 spec = describe "Thentos.Backend.Api.Simple" $ with defaultApp specRest
@@ -126,6 +140,105 @@ specRest = do
                 hdr <- liftIO ctHeader
                 request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
+        describe "captcha POST" $ do
+            it "returns a PNG image with Thentos-Captcha-Id header" $ do
+                rsp <- request "POST" "/user/captcha" [] ""
+                liftIO $ statusCode (simpleStatus rsp) `shouldBe` 201
+                -- Check for magic bytes at start of PNG
+                liftIO $ LBS.take 4 (simpleBody rsp) `shouldBe` "\137PNG"
+                liftIO $ map fst (simpleHeaders rsp) `shouldContain` ["Thentos-Captcha-Id"]
+
+            it "returns different data on repeated calls" $ do
+                rsp1 <- request "POST" "/user/captcha" [] ""
+                rsp2 <- request "POST" "/user/captcha" [] ""
+                liftIO $ (simpleBody rsp1) `shouldNotBe` (simpleBody rsp2)
+
+        describe "register POST" $ do
+            it "creates user if called with correct captcha solution" $ do
+                crsp <- request "POST" "/user/captcha" [] ""
+                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
+                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                [Only solution] <- liftIO $ doQuery connPool
+                        [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+
+            it "refuses to accept the same captcha solution twice" $ do
+                crsp <- request "POST" "/user/captcha" [] ""
+                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
+                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                [Only solution] <- liftIO $ doQuery connPool
+                        [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+                let user2    = UserFormData "name2" "pwd" $ forceUserEmail "another@example.org"
+                    reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
+                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 400
+
+            it "allows resubmitting the same captcha solution if the user name was not unique" $ do
+                -- Create user
+                void postDefaultUser
+                -- Get captcha
+                crsp <- request "POST" "/user/captcha" [] ""
+                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
+                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                [Only solution] <- liftIO $ doQuery connPool
+                        [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                -- Try to create another user with the same name
+                    user    = UserFormData (udName defaultUserData) "pwd" $
+                                           forceUserEmail "another@example.org"
+                    reqBody = Aeson.encode $ UserCreationRequest user csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 403
+                -- Try again using a new user name
+                let user2    = user { udName = "newname" }
+                    reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
+                liftIO $ pendingWith "FIXME not correctly implemented yet"
+                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 201
+
+            it "fails if called without correct captcha ID" $ do
+                let csol    = CaptchaSolution "no-such-id" "dummy"
+                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
+
+            it "fails if called without correct captcha solution" $ do
+                crsp <- request "POST" "/user/captcha" [] ""
+                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
+                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) "probably wrong"
+                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
+
+        describe "activate POST" $ do
+            it "activates a new user" $ do
+                \_ -> pendingWith "TODO returns session token"
+
+            it "fails if called again" $ do
+                \_ -> pendingWith "TODO"
+
+            it "fails if called without valid ConfirmationToken" $ do
+                let reqBody = Aeson.encode . JsonTop $ ConfirmationToken "no-such-token"
+                request "POST" "/user/activate" jsonHeader reqBody `shouldRespondWith` 400
+
+        describe "login POST" $ do
+            it "logs a user in" $ do
+                \_ -> pendingWith "TODO"
+
+            it "fails if user doesn't exist" $ do
+                \_ -> pendingWith "TODO"
+
+            it "fails if password is wrong" $ do
+                \_ -> pendingWith "TODO"
+
+            it "fails if user isn't yet activated" $ do
+                \_ -> pendingWith "TODO"
+
+
     describe "thentos_session" $ do
         describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
             it "returns true if session is active" $ do
@@ -152,6 +265,10 @@ postDefaultUser :: WaiSession SResponse
 postDefaultUser = do
     hdr <- liftIO ctHeader
     request "POST" "/user" hdr (Aeson.encode defaultUserData)
+
+-- | Set content type to JSON.
+jsonHeader :: [Header]
+jsonHeader = [("Content-Type", "application/json")]
 
 -- | God Headers plus content-type = json
 ctHeader :: IO [Header]
