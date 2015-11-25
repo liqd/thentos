@@ -1,14 +1,12 @@
 module LoginIndicator where
 
-import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
-import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Aff (Aff(), runAff, forkAff, later')
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-import Data.Functor (($>))
 import Data.Generic
 import Data.List
 import Data.Void
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify)
 import Halogen.Util (appendTo)
 import Prelude
 
@@ -16,7 +14,6 @@ import qualified Data.Array as Array
 import qualified Halogen.HTML.Core as H
 import qualified Halogen.HTML.Events.Handler as EH
 import qualified Halogen.HTML.Events.Indexed as E
-import qualified Halogen.HTML.Events.Types as ET
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
