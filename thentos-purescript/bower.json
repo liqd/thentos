@@ -14,9 +14,9 @@
     "purescript-affjax": "0.10.0",
     "purescript-console": "0.1.1",
     "purescript-exceptions": "0.3.0",
-    "purescript-generics": "0.6.1",
+    "purescript-generics": "0.7.0",
+    "purescript-halogen": "https://github.com/slamdata/purescript-halogen.git#64478fa",
     "purescript-lists": "0.7.7",
-    "purescript-random": "0.2.0",
-    "purescript-halogen": "https://github.com/slamdata/purescript-halogen.git#64478fa"
+    "purescript-random": "0.2.0"
   }
 }
