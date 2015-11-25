@@ -9,7 +9,7 @@ case "$1" in
         time pulp dep install
         ;;
     "it")
-        time pulp browserify -O --to ./static/thentos.js
+        time pulp browserify --to ./static/thentos.js
         ;;
     "watch")
         pulp --watch browserify --to ./static/thentos.js
