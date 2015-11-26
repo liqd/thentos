@@ -5,7 +5,7 @@ description:
   This is an experimental platform for identity management in web
   applications, inspired by software like shibboleth and sproxy.  See
   README.md for more (if still a bit sketchy) details.
-license:             AGPL-3 or later
+license:             AGPL
 license-file:        LICENSE
 homepage:            https://github.com/liqd/thentos
 author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
