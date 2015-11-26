@@ -117,8 +117,8 @@ specRest = do
                 let Right (uid :: Int) = decodeJsonTop $ simpleBody response1
                 response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
 
-                let Right top2 = decodeLenient $ simpleBody response2
-                liftIO $ fromJsonTop top2 `shouldBe` udName defaultUserData
+                let Right top2 = decodeJsonTop $ simpleBody response2
+                liftIO $ top2 `shouldBe` udName defaultUserData
 
             it "can only be called by admins" $
                     \ _ -> pendingWith "test missing."
@@ -344,7 +344,7 @@ specRest = do
 
 -- | Parse and unwrap an element wrapped in JsonTop. Returns the element, if parsing is successful,
 decodeJsonTop :: Aeson.FromJSON a => LBS -> Either String a
-decodeJsonTop bs = fromJsonTop <$> decodeLenient bs
+decodeJsonTop bs = fromJsonTop <$> Aeson.eitherDecode bs
 
 postDefaultUser :: WaiSession SResponse
 postDefaultUser = do

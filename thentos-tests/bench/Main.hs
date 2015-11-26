@@ -204,3 +204,14 @@ sessionCheckGen cfg sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
     req = (makeRequest cfg (Just sessionToken) "/thentos_session")
             {requestBody = RequestBodyLBS $ encode sessionToken }
+
+-- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
+-- objects and arrays.
+--
+-- FIXME: upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode' instead of this: See
+-- 4b370592242d4e4367ca46d852109c3927210f4b.  for this to work, we need to either upgrade pronk
+-- (criterion in particular) benchmarking or, preferably, factor it out into a separate package.
+decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
+decodeLenient input = do
+    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
+    Aeson.parseEither Aeson.parseJSON v
