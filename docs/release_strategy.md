@@ -5,7 +5,7 @@
 
 2. Deviation of 1.: there are only few version constrainst in
    `thentos.cabal`.  Instead, we provide a `cabal.config` that pins
-   exactly and transitively all dependencies.  (FUTURE WORK: generate
+   exactly and transitively all dependencies.  (FUTUREWORK: generate
    `>=A.B.C.D && <A.B` constraints for `thentos.cabal` from
    `cabal.config`.)
 

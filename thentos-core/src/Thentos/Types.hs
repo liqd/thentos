@@ -168,7 +168,7 @@ data ServiceAccount =
         -- ^ Do not give out any information about user beyond session token validity bit.  (not
         -- implemented.)
 
-        -- FUTURE WORK: what we actually would want here is "something" (type?  function?  something
+        -- FUTUREWORK: what we actually would want here is "something" (type?  function?  something
         -- more creative?)  that can be used as a filter on 'User' and will hide things from the
         -- service as appropriate.  we also want 'Service' to contain a counterpart "something".
         -- and a matcher that takes a service "something" and a user "something" and computes a

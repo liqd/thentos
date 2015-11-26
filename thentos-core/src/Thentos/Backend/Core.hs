@@ -276,7 +276,7 @@ contentTypeJsonHeader = ("Content-Type", "application/json")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --
--- FUTURE WORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
+-- FUTUREWORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
 -- to be a function in the request for which the response is constructed.  Not sure how best to
 -- combine these two requirements.
 httpCachePolicy :: HttpTypes.ResponseHeaders
