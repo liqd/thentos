@@ -25,6 +25,10 @@ import Thentos.Types
 
 -- * content types
 
+-- FUTUREWORK: we will need more of http://www.iana.org/assignments/media-types/media-types.xhtml,
+-- and we should probably add all of them either to the servant package or to a new package
+-- servant-content-types rather than here.
+
 -- | Html content type with pretty printing.  (See also: package servant-blaze.)
 type HTM = PrettyHTML
 
