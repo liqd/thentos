@@ -211,17 +211,22 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
 
-        describe "activate POST" $ do
-            it "activates a new user" $ do
-                (cid, solution) <- getCaptchaAndSolution
+        let registerUserAndGetConfirmationToken :: (SBS, ST) -> WaiSession ConfirmationToken
+            registerUserAndGetConfirmationToken (cid, solution) = do
                 -- Register user and get confirmation token
-                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                let csol     = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 rrsp <- request "POST" "/user/register" jsonHeader rreqBody
                 let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
                     [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
+                return confTok
+
+        describe "activate POST" $ do
+            it "activates a new user" $ do
+                (cid, solution) <- getCaptchaAndSolution
+                confTok <- registerUserAndGetConfirmationToken (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
                 arsp <- request "POST" "/user/activate" jsonHeader areqBody
@@ -231,14 +236,7 @@ specRest = do
 
             it "fails if called again" $ do
                 (cid, solution) <- getCaptchaAndSolution
-                -- Register user and get confirmation token
-                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                    rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                rrsp <- request "POST" "/user/register" jsonHeader rreqBody
-                let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
-                    [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
+                confTok <- registerUserAndGetConfirmationToken (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
                 arsp <- request "POST" "/user/activate" jsonHeader areqBody
@@ -253,14 +251,7 @@ specRest = do
         describe "login POST" $ do
             it "logs an activated user in" $ do
                 (cid, solution) <- getCaptchaAndSolution
-                -- Register user and get confirmation token
-                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                    rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                rrsp <- request "POST" "/user/register" jsonHeader rreqBody
-                let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
-                    [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
+                confTok <- registerUserAndGetConfirmationToken (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
                 arsp <- request "POST" "/user/activate" jsonHeader areqBody
