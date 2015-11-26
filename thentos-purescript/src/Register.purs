@@ -5,6 +5,7 @@ import Prelude
 import Control.Monad.Aff.Class (MonadAff)
 import Control.Monad.Aff.Console (print)
 import Control.Monad.Aff (runAff, forkAff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
@@ -13,6 +14,8 @@ import Data.Foldable
 import Data.Generic
 import Data.String (null, length, contains)
 import Data.Tuple
+import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
+import DOM.Node.Node (appendChild)
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify, liftAff')
 import Halogen.Util (appendTo)
 
@@ -259,6 +262,11 @@ main :: forall eff. String -> Eff (HalogenEffects (console :: CONSOLE | eff)) Un
 main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui initialState
     appendTo selector node
+
+mainEl :: forall eff. HTMLElement -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
+mainEl element = runAff throwException (const (pure unit)) <<< forkAff $ do
+    { node: node, driver: driver } <- runUI ui initialState
+    liftEff $ appendChild (htmlElementToNode element) (htmlElementToNode node)
 
 
 -- FIXME: widget destruction?

@@ -6,9 +6,9 @@ import Control.Monad.Eff.Class
 import Control.Monad.Eff.Console (CONSOLE(), log, print)
 import Control.Monad.Eff.Exception
 import Control.Monad.Eff.Random (RANDOM())
-import Data.Array (zipWith, range, length)
+-- import Data.Array (zipWith, range, length)
 import Data.Either
-import Data.Foreign.Class
+-- import Data.Foreign.Class
 import Data.Foreign hiding (parseJSON)
 import Data.Generic
 import Data.Maybe
@@ -16,10 +16,10 @@ import Data.Tuple
 import Halogen (HalogenEffects(), action)
 import Halogen.Util (onLoad)
 import Network.HTTP.Affjax
-import Network.HTTP.Affjax.Request
-import Network.HTTP.Affjax.Response
+-- import Network.HTTP.Affjax.Request
+-- import Network.HTTP.Affjax.Response
 import Network.HTTP.Method
-import Network.HTTP.MimeType
+-- import Network.HTTP.MimeType
 import Network.HTTP.MimeType.Common
 import Network.HTTP.RequestHeader
 import Network.HTTP.StatusCode (StatusCode(StatusCode))
@@ -91,6 +91,7 @@ main = do
     publish "Main" "indicator" LoginIndicator.main
     publish "IFrames" "main" IFramesDemo.main
     publish "Register" "main" Register.main
+    publish "Register" "mainEl" Register.mainEl
 
     -- main0
 
