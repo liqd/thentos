@@ -86,6 +86,8 @@ module Thentos.Types
 
     , thSessAgent, thSessEnd, thSessExpirePeriod, thSessStart
     , userEmail, userName, userPassword
+
+    , aesonError
     )
 where
 
@@ -94,7 +96,7 @@ import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
-import Data.Aeson.Types (typeMismatch)
+import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
@@ -137,6 +139,12 @@ import qualified Generics.Generic.Aeson as Aeson
 
 -- * JSON helpers
 
+-- | Variant of 'typeMismatch' that shows the offending value.
+aesonError :: String -- ^ The name of the type you are trying to parse.
+           -> Value  -- ^ The actual value encountered.
+           -> Parser a
+aesonError expected actual = fail $ "expected " ++ expected ++ ", encountered " ++ show actual
+
 -- | Wrap a simple value in a JSON object with a single top-level field ("data").
 -- This supports the convention that top-level JSON data structures should always be objects,
 -- never arrays or simple values (e.g. strings).
@@ -144,7 +152,7 @@ newtype JsonTop a = JsonTop { fromJsonTop :: a }
 
 instance (FromJSON a) => FromJSON (JsonTop a) where
     parseJSON (Aeson.Object (H.toList -> [("data", val)])) = JsonTop <$> Aeson.parseJSON val
-    parseJSON bad = typeMismatch "JsonTop" bad
+    parseJSON bad = aesonError "JsonTop" bad
 
 instance (ToJSON a) => ToJSON (JsonTop a) where
     toJSON (JsonTop val) = Aeson.object [ "data" .= Aeson.toJSON val]
@@ -226,7 +234,7 @@ fromUserEmail = cs . toByteString . userEmailAddress
 instance Aeson.FromJSON UserEmail
   where
     parseJSON (String (emailAddress . cs -> Just email)) = return $ UserEmail email
-    parseJSON bad = typeMismatch "UserEmail" bad
+    parseJSON bad = aesonError "UserEmail" bad
 
 instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
@@ -438,7 +446,7 @@ instance FromJSON ByUserOrServiceId where
     parseJSON (Aeson.Object (H.toList -> [(key, val)]))
         | key == "user"    = ByUser <$> Aeson.parseJSON val
         | key == "service" = ByService <$> Aeson.parseJSON val
-    parseJSON bad = typeMismatch "ByUserOrServiceId" bad
+    parseJSON bad = aesonError "ByUserOrServiceId" bad
 
 instance ToJSON ByUserOrServiceId where
     toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
@@ -654,7 +662,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
 instance Aeson.FromJSON ProxyUri
   where
     parseJSON (String t) = either fail return $ parseProxyUri t
-    parseJSON bad        = typeMismatch "ProxyUri" bad
+    parseJSON bad        = aesonError "ProxyUri" bad
 
 instance Aeson.ToJSON ProxyUri where
     toJSON = Aeson.String . renderProxyUri
