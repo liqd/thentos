@@ -255,6 +255,9 @@ instance ToCapture (Capture "sid" ServiceId) where
 instance ToCapture (Capture "uid" UserId) where
     toCapture _ = DocCapture "uid" "user ID"
 
+instance (ToSample a) => ToSample (JsonTop a) where
+    toSamples _ = second JsonTop <$> toSamples (Proxy :: Proxy a)
+
 instance ToSample Agent where
     toSamples _ = Docs.singleSample . UserA . UserId $ 0
 
@@ -281,6 +284,22 @@ instance ToSample UserEmail where
 
 instance ToSample UserId where
     toSamples _ = Docs.singleSample $ UserId 12
+
+instance ToSample ImageData where
+    toSamples _ = Docs.singleSample $ ImageData "<large blob of unreadable binary gibberish>"
+
+instance ToSample CaptchaId where
+    toSamples _ = runTokenBuilder Action.freshCaptchaId
+
+instance ToSample CaptchaSolution where
+    toSamples _ = do
+      let cid :: CaptchaId = fromJustNote "ToSample CaptchaSolution failed unexpectedly" $
+                                          Docs.toSample (Proxy :: Proxy CaptchaId)
+      Docs.singleSample $ CaptchaSolution cid "someTeXT"
+
+instance ToSample UserCreationRequest where
+    toSamples _ = second (uncurry UserCreationRequest)
+                    <$> toSamples (Proxy :: Proxy (UserFormData, CaptchaSolution))
 
 instance ToSample ConfirmationToken where
     toSamples _ = runTokenBuilder Action.freshConfirmationToken

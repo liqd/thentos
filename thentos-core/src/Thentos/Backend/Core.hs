@@ -175,11 +175,13 @@ thentosErrorInfo other e = f e
         (Nothing, err404, "headers do not contain service id")
     f (ProxyNotConfiguredForService sid) =
         (Nothing, err404, "proxy not configured for service " <> cs (show sid))
-    f (NoSuchToken) =
+    f NoSuchToken =
         (Nothing, err400, "no such token")
     f (NeedUserA _ _) =
         (Nothing, err404,
             "thentos session belongs to service, cannot create service session")
+    f InvalidCaptchaSolution =
+        (Nothing, err400, "invalid solution supplied for captcha")
     f (MalformedUserPath path) =
         (Nothing, err400, "malformed user path: " <> cs (show path))
     f ConfirmationTokenAlreadyExists =
@@ -274,7 +276,7 @@ contentTypeJsonHeader = ("Content-Type", "application/json")
 
 -- | Cache-control headers in HTTP responses.  This is currently just a constant list of headers.
 --
--- FUTURE WORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
+-- FUTUREWORK: We may want for this to come from "Thentos.Config".  We may also want to the policy
 -- to be a function in the request for which the response is constructed.  Not sure how best to
 -- combine these two requirements.
 httpCachePolicy :: HttpTypes.ResponseHeaders

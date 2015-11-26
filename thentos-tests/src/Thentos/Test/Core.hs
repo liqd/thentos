@@ -31,7 +31,7 @@ import Data.CaseInsensitive (mk)
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource, destroyAllResources)
-import Data.String.Conversions (LBS, ST, cs)
+import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
@@ -44,9 +44,7 @@ import System.Process (callCommand)
 import Test.Mockery.Directory (inTempDirectory)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Parser as Aeson
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.Attoparsec.ByteString as AP
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
@@ -256,17 +254,6 @@ loginAsGod actionState = do
 
 
 -- * misc
-
--- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
--- objects and arrays.
---
--- FIXME: upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode' instead of this: See
--- 4b370592242d4e4367ca46d852109c3927210f4b.  for this to work, we need to either upgrade pronk
--- (criterion in particular) benchmarking or, preferably, factor it out into a separate package.
-decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
-decodeLenient input = do
-    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
-    Aeson.parseEither Aeson.parseJSON v
 
 -- | This is convenient if you have lots of string literals with @-XOverloadedStrings@ but do not
 -- want to do explicit type signatures to avoid type ambiguity.

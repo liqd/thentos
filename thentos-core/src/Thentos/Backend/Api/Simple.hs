@@ -23,9 +23,11 @@ import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Void (Void)
+import Servant.API.Header (Header)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
+import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
@@ -38,6 +40,7 @@ import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Ends.Types
 import Thentos.Types
 
 import qualified Paths_thentos_core__ as Paths
@@ -85,19 +88,26 @@ thentosBasic =
 -- * user
 
 type ThentosUser =
-       ReqBody '[JSON] UserFormData :> Post '[JSON] UserId
-  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] ThentosSessionToken
+       ReqBody '[JSON] UserFormData :> Post '[JSON] (JsonTop UserId)
+  :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] (JsonTop UserId)
+  :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
+                  :> Post '[JSON] (JsonTop ThentosSessionToken)
+  :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
-  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] UserName
-  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] UserEmail
+  :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
+  :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)
+  :<|> "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
 
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
-       addUser
-  :<|> (\ (LoginFormData n p) -> snd <$> startThentosSessionByUserName n p)
+       (JsonTop <$>) . addUser
+  :<|> (JsonTop <$>) . addUnconfirmedUserWithCaptcha
+  :<|> (JsonTop <$>) . (snd <$>) .  confirmNewUser . fromJsonTop
+  :<|> (\(LoginFormData n p) -> JsonTop . snd <$> startThentosSessionByUserName n p)
   :<|> deleteUser
-  :<|> (((^. userName) . snd) <$>) . lookupConfirmedUser
-  :<|> (((^. userEmail) . snd) <$>) . lookupConfirmedUser
+  :<|> (JsonTop . ((^. userName) . snd) <$>) . lookupConfirmedUser
+  :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
+  :<|> (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
 
 
 -- * service
@@ -177,11 +187,24 @@ instance HasDocExtras (RestDocs Api) where
 
 -- * servant foreign
 
--- | (Foreign.Elem is not exported, so we need to be slightly more restrictive.)
-instance Foreign.HasForeign (Post200 '[JSON] a) where
-    type Foreign (Post200 '[JSON] a) = Foreign.Req
+-- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
+-- which we don't have, so instead of:
+--
+-- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
+-- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
+--
+-- we more / less restrictive instances.  We should merge servant master in our submodule branch,
+-- though.
+instance {-# OVERLAPPABLE #-} Foreign.HasForeign (Post200 b a) where
+    type Foreign (Post200 b a) = Foreign.Req
     foreignFor Proxy req =
         req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[PNG] a) where
+    type Foreign (Post '[PNG] a) = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("post" :)
             & Foreign.reqMethod .~ "POST"
 
 -- FIXME: move this to module "Auth".

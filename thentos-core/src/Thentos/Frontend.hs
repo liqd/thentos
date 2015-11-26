@@ -26,6 +26,7 @@ import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Ends.Types
 import Thentos.Frontend.Handlers
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.State

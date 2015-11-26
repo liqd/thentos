@@ -95,7 +95,7 @@ spec =
                  let userdata = mkUserJson "Anna Müller" "anna@" "EckVocUbs3"
                  fromA3UserWithPass <$>
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
-                     `shouldBe` Left "Not a valid email address: anna@"
+                     `shouldBe` Left "expected UserEmail, encountered String \"anna@\""
 
             it "rejects empty user names" $ do
                  let userdata = mkUserJson "" "anna@example.org" "EckVocUbs3"
