@@ -2,6 +2,8 @@
 "use strict";
 
 // module Register
-exports.onChangeValue = function(ev) {
-    return ev.target.value;
+exports.eventInputValue = function(ev) {
+    return { value: ev.target.value,
+             validity: ev.target.validty }
+
 };
