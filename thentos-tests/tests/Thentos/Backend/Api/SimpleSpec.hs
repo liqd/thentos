@@ -156,7 +156,7 @@ specRest = do
                 liftIO $ simpleBody rsp1 `shouldNotBe` simpleBody rsp2
 
         describe "register POST" $ do
-            it "creates user if called with correct captcha solution" $ do
+            it "responds with 201 if called with correct captcha solution" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
@@ -168,7 +168,7 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
 
-            it "refuses to accept the same captcha solution twice" $ do
+            it "refuses to accept the correct solution to the same captcha twice" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
