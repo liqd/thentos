@@ -142,8 +142,7 @@ import qualified Generics.Generic.Aeson as Aeson
 newtype JsonTop a = JsonTop { fromJsonTop :: a }
 
 instance (FromJSON a) => FromJSON (JsonTop a) where
-    parseJSON (Aeson.Object (H.toList -> [(key, val)]))
-        | key == "data"    = JsonTop <$> Aeson.parseJSON val
+    parseJSON (Aeson.Object (H.toList -> [("data", val)])) = JsonTop <$> Aeson.parseJSON val
     parseJSON _ = fail "Expected object with 'data' field"
 
 instance (ToJSON a) => ToJSON (JsonTop a) where
