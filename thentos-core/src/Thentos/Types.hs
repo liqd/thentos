@@ -92,8 +92,9 @@ where
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad (when, unless, mzero)
+import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
+import Data.Aeson.Types (typeMismatch)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
@@ -143,7 +144,7 @@ newtype JsonTop a = JsonTop { fromJsonTop :: a }
 
 instance (FromJSON a) => FromJSON (JsonTop a) where
     parseJSON (Aeson.Object (H.toList -> [("data", val)])) = JsonTop <$> Aeson.parseJSON val
-    parseJSON _ = fail "Expected object with 'data' field"
+    parseJSON bad = typeMismatch "JsonTop" bad
 
 instance (ToJSON a) => ToJSON (JsonTop a) where
     toJSON (JsonTop val) = Aeson.object [ "data" .= Aeson.toJSON val]
@@ -224,10 +225,8 @@ fromUserEmail = cs . toByteString . userEmailAddress
 
 instance Aeson.FromJSON UserEmail
   where
-    parseJSON (String t) = case emailAddress $ cs t of
-        Just email -> return $ UserEmail email
-        Nothing    -> fail $ "Not a valid email address: " ++ cs t
-    parseJSON bad        = fail $ "Not a valid email address: " ++ show bad
+    parseJSON (String (emailAddress . cs -> Just email)) = return $ UserEmail email
+    parseJSON bad = typeMismatch "UserEmail" bad
 
 instance Aeson.ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
@@ -439,7 +438,7 @@ instance FromJSON ByUserOrServiceId where
     parseJSON (Aeson.Object (H.toList -> [(key, val)]))
         | key == "user"    = ByUser <$> Aeson.parseJSON val
         | key == "service" = ByService <$> Aeson.parseJSON val
-    parseJSON _ = mzero
+    parseJSON bad = typeMismatch "ByUserOrServiceId" bad
 
 instance ToJSON ByUserOrServiceId where
     toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
@@ -496,7 +495,7 @@ timestampToString = formatTime defaultTimeLocale "%FT%T%Q%z" . fromTimestamp
 
 timestampFromString :: Monad m => String -> m Timestamp
 timestampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
-  Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
+    Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
 
 instance Aeson.FromJSON Timestamp
   where
@@ -655,7 +654,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
 instance Aeson.FromJSON ProxyUri
   where
     parseJSON (String t) = either fail return $ parseProxyUri t
-    parseJSON bad        = fail $ "Not a valid URI (expected string): " ++ show bad
+    parseJSON bad        = typeMismatch "ProxyUri" bad
 
 instance Aeson.ToJSON ProxyUri where
     toJSON = Aeson.String . renderProxyUri
