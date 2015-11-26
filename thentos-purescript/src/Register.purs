@@ -1,6 +1,11 @@
 module Register where
 
+import Prelude
+
+import Control.Monad.Aff.Class (MonadAff)
+import Control.Monad.Aff.Console (print)
 import Control.Monad.Aff (runAff, forkAff)
+import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Data.Array (concat, intersect, union)
@@ -8,9 +13,8 @@ import Data.Foldable
 import Data.Generic
 import Data.String (null, length, contains)
 import Data.Tuple
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify)
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify, liftAff')
 import Halogen.Util (appendTo)
-import Prelude
 
 import qualified Halogen.HTML.Core as H
 import qualified Halogen.HTML.Events.Indexed as E
@@ -167,8 +171,7 @@ inputField st inputType msg key updateState ofInterestHere = H.label_
     [ H.span [cl "label-text"] [msg]
     , H.input [ P.inputType inputType, P.name key, P.required true
               , E.onInput $ E.input $ KeyPressed <<< updateState <<< onChangeValue
-              , E.onFocusOut $ E.input_ $ AddInterestingErrors ofInterestHere
-              , E.onFocusIn $ E.input_ $ AddInterestingErrors ofInterestHere
+              , E.onChange $ E.input_ $ AddInterestingErrors ofInterestHere
               ]
     , renderErrors st ofInterestHere
     ]
@@ -182,16 +185,19 @@ cl = P.class_ <<< H.className
 
 -- * eval
 
-eval :: forall g. Natural Query (ComponentDSL State Query g)
-eval (KeyPressed updateState next) = do
+eval :: forall eff g. (MonadAff (console :: CONSOLE | eff) g, Functor g) => Natural Query (ComponentDSL State Query g)
+eval e@(KeyPressed updateState next) = do
+    liftAff' $ print "KeyPressed"
     modify updateState
     modify checkState
     pure next
-eval (UpdateTermsAndConds newVal next) = do
+eval e@(UpdateTermsAndConds newVal next) = do
+    liftAff' $ print "UpdateTermsAndConds"
     modify (\st -> st { stTermsAndConds = newVal })
     modify checkState
     pure next
-eval (AddInterestingErrors es next) = do
+eval e@(AddInterestingErrors es next) = do
+    liftAff' $ print (Tuple "AddInterestingErrors" es)
     modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
     pure next
@@ -231,6 +237,10 @@ checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
     , if st.stPass1 == st.stPass2 then [] else [ErrorMatchPassword]
     , if st.stTermsAndConds       then [] else [ErrorRequiredTermsAndConditions]
     ]
+
+  -- FIXME: use built-in correctness check of fields.  (the email field is still turning red on input
+  -- 'me@', even though our check thinks that's a good input.  figure out how/what!)
+
   }
 
 renderErrors :: State -> Array FormError -> ComponentHTML Query
@@ -242,10 +252,10 @@ renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> f
 
 -- * main
 
-ui :: forall g. (Functor g) => Component State Query g
+ui :: forall eff g. (MonadAff (console :: CONSOLE | eff) g, Functor g) => Component State Query g
 ui = component render eval
 
-main :: forall eff. String -> Eff (HalogenEffects eff) Unit
+main :: forall eff. String -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
 main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui initialState
     appendTo selector node
