@@ -12,6 +12,8 @@
 {-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
+{-# OPTIONS_GHC -fno-warn-incomplete-patterns #-}
+
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
@@ -20,7 +22,6 @@ import Control.Monad.State (liftIO)
 import Control.Monad (void)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.IORef (IORef, newIORef, writeIORef, readIORef)
-import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
@@ -158,8 +159,7 @@ specRest = do
             it "creates user if called with correct captcha solution" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -171,8 +171,7 @@ specRest = do
             it "refuses to accept the same captcha solution twice" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -190,8 +189,7 @@ specRest = do
                 void postDefaultUser
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -214,8 +212,7 @@ specRest = do
 
             it "fails if called without correct captcha solution" $ do
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) "probably wrong"
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
@@ -224,8 +221,7 @@ specRest = do
             it "activates a new user" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -246,8 +242,7 @@ specRest = do
             it "fails if called again" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -273,8 +268,7 @@ specRest = do
             it "logs an activated user in" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -309,8 +303,7 @@ specRest = do
             it "fails if user isn't yet activated" $ do
                 -- Get captcha and solution
                 crsp <- request "POST" "/user/captcha" [] ""
-                let cid = fromMaybe (error "/user/captcha didn't return Captcha-Id") .
-                                    lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
+                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
