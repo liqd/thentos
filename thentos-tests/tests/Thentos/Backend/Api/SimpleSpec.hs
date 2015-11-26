@@ -25,7 +25,7 @@ import Data.IORef (IORef, newIORef, writeIORef, readIORef)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LBS, cs)
+import Data.String.Conversions (SBS, LBS, ST, cs)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Network.HTTP.Types.Header (Header)
@@ -155,26 +155,25 @@ specRest = do
                 rsp2 <- request "POST" "/user/captcha" [] ""
                 liftIO $ simpleBody rsp1 `shouldNotBe` simpleBody rsp2
 
-        describe "register POST" $ do
-            it "responds with 201 if called with correct captcha solution" $ do
-                -- Get captcha and solution
+        let getCaptchaAndSolution :: WaiSession (SBS, ST)
+            getCaptchaAndSolution = do
                 crsp <- request "POST" "/user/captcha" [] ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only solution] <- liftIO $ doQuery connPool
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                return (cid, solution)
+
+        describe "register POST" $ do
+            it "responds with 201 if called with correct captcha solution" $ do
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
 
             it "refuses to accept the correct solution to the same captcha twice" $ do
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
@@ -185,14 +184,9 @@ specRest = do
                 request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 400
 
             it "allows resubmitting the same captcha solution if the user name was not unique" $ do
+                (cid, solution) <- getCaptchaAndSolution
                 -- Create user
                 void postDefaultUser
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
                 -- Try to register another user with the same name
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     user    = UserFormData (udName defaultUserData) "pwd" $
@@ -219,17 +213,13 @@ specRest = do
 
         describe "activate POST" $ do
             it "activates a new user" $ do
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user and get confirmation token
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 rrsp <- request "POST" "/user/register" jsonHeader rreqBody
                 let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
                     [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
                 -- Activate user
@@ -240,17 +230,13 @@ specRest = do
                 liftIO $ fromThentosSessionToken sessTok `shouldNotBe` ""
 
             it "fails if called again" $ do
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user and get confirmation token
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 rrsp <- request "POST" "/user/register" jsonHeader rreqBody
                 let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
                     [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
                 -- Activate user
@@ -266,17 +252,13 @@ specRest = do
 
         describe "login POST" $ do
             it "logs an activated user in" $ do
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user and get confirmation token
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 rrsp <- request "POST" "/user/register" jsonHeader rreqBody
                 let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
                     [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
                 -- Activate user
@@ -301,12 +283,7 @@ specRest = do
                 liftIO $ simpleBody rsp1 `shouldBe` simpleBody rsp2
 
             it "fails if user isn't yet activated" $ do
-                -- Get captcha and solution
-                crsp <- request "POST" "/user/captcha" [] ""
-                let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                [Only solution] <- liftIO $ doQuery connPool
-                    [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
+                (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
