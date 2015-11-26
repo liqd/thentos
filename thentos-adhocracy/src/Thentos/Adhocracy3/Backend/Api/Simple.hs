@@ -34,12 +34,12 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , TypedPath(..)
     , TypedPathWithCacheControl(..)
     , a3corsPolicy
-    , a3ProxyAdapter
     , runBackend
     , serveApi
     , thentosApi
     ) where
 
+import Data.Maybe (fromJust)
 import Control.Lens ((^.), (&), (<>~))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, mzero)
@@ -99,6 +99,8 @@ import qualified Thentos.Backend.Api.Simple ()
 
 -- ** basics
 
+-- | This is a "Path" meaning an descriptor of an a3 Ressource, not a file
+-- system path or part of an URL
 newtype Path = Path { fromPath :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
@@ -442,7 +444,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
--- for @/principlas/users/...@.  (Returns exposed url.)
+-- for @/principals/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where
@@ -453,7 +455,7 @@ makeExternalUrl pn = createUserInA3'P pn >>= f
         | otherwise = do
             config <- AC.getConfig'P
             let (Path fullPath) = a3backendPath config localPath
-            case parseUri $ cs fullPath  of
+            case parseUri $ cs fullPath of
                 Left err  -> throwError . OtherError $ A3UriParseError err
                 Right uri -> pure uri
 
@@ -612,17 +614,18 @@ a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
 a3backendPath :: ThentosConfig -> ST -> Path
-a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
+a3backendPath config localPath = Path $ a3Prefix <//> localPath
   where
-    beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
-                     Nothing -> error "a3backendPath: backend not configured!"
-                     Just v -> Tagged v
+    -- FIXME: get rid of the fromJust, a3-Prefix should not be optional
+    a3Prefix = fromJust $ config >>. (Proxy :: Proxy '["a3-prefix"])
 
 userIdFromPath :: MonadError (ThentosError e) m => Path -> m UserId
 userIdFromPath (Path s) = do
     uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
     rawId <- maybe (throwError $ MalformedUserPath s) return $
+        -- FIXME: I don't think this will work, as the path may be something
+        --  like /foo/principals/users/ (see https://github.com/liqd/adhocracy3/pull/1849)
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 

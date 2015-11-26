@@ -62,6 +62,7 @@ type ThentosConfig' =
   :*> Maybe ("gc_interval"             :> Timeout    :>: "Garbage collection interval")
   :*>       ("log"          :> LogConfig'            :>: "Logging")
   :*>       ("mail"         :> MailConfig'           :>: "Mail templates")
+  :*> Maybe ("a3-prefix"    :> ST                    :>: "URL prefix of the A3 api")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -80,6 +81,7 @@ defaultThentosConfig =
   :*> NothingO
   :*> Nothing
   :*> Just defaultMailConfig
+  :*> NothingO
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
