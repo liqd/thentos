@@ -99,6 +99,8 @@ import qualified Thentos.Backend.Api.Simple ()
 
 -- ** basics
 
+-- | This is a "Path" meaning an descriptor of an a3 Ressource, not a file
+-- system path or part of an URL
 newtype Path = Path { fromPath :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
@@ -442,7 +444,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
--- for @/principlas/users/...@.  (Returns exposed url.)
+-- for @/principals/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where
@@ -453,7 +455,7 @@ makeExternalUrl pn = createUserInA3'P pn >>= f
         | otherwise = do
             config <- AC.getConfig'P
             let (Path fullPath) = a3backendPath config localPath
-            case parseUri $ cs fullPath  of
+            case parseUri $ cs fullPath of
                 Left err  -> throwError . OtherError $ A3UriParseError err
                 Right uri -> pure uri
 
@@ -607,7 +609,13 @@ renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it. We return the external URL of the user's default persona.
 a3RenderUser :: UserId -> User -> A3Action SBS
-a3RenderUser uid _ = externalUrlOfDefaultPersona uid
+a3RenderUser uid _ = do
+    sid     <- a3ServiceId
+    persona <- A.findPersona uid sid "" >>=
+               maybe (throwError . OtherError $ A3NoDefaultPersona uid sid) pure
+    userUrl <- maybe (throwError $ OtherError A3PersonaLacksExternalUrl) pure $
+                     persona ^. personaExternalUrl
+    return . URI.uriPath $ fromUri userUrl
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
@@ -623,6 +631,8 @@ userIdFromPath (Path s) = do
     uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
     rawId <- maybe (throwError $ MalformedUserPath s) return $
+        -- FIXME: I don't think this will work, as the path may be something
+        --  like /foo/principals/users/ (see https://github.com/liqd/adhocracy3/pull/1849)
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 
