@@ -12,13 +12,19 @@ import Control.Monad.Eff.Exception (throwException)
 import Data.Array (concat, intersect, union)
 import Data.Foldable
 import Data.Generic
+import Data.Maybe
 import Data.String (length)
 import Data.Tuple
 import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
 import DOM.Node.Node (appendChild)
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify, liftAff')
 import Halogen.Util (appendTo)
+import Global (encodeURIComponent)
 
+import qualified Data.StrMap as StrMap
+import qualified Data.URI.Query as URI
+import qualified Data.URI.Scheme as URI
+import qualified Data.URI.Types as URI
 import qualified Halogen.HTML.Core as H
 import qualified Halogen.HTML.Events.Indexed as E
 import qualified Halogen.HTML.Events.Types as E
@@ -26,6 +32,7 @@ import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
 import Mula
+import Error
 
 foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
 
@@ -119,7 +126,7 @@ initialState =
     , stPass1: emptyInputValue
     , stPass2: emptyInputValue
     , stTermsAndConds: false
-    , stSupportEmail: ""
+    , stSupportEmail: "nobody@email.org"  -- FIXME: leave this empty, force widget client to set it.
     }
 
 emptyInputValue :: InputValue
@@ -154,12 +161,16 @@ render st = H.div [cl "login"]
     , H.div [cl "login-info"]
         [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
-        , H.a [P.href $ "mailto:" ++ st.stSupportEmail ++ "?subject=Trouble%20with%20registration"]
-                                   -- FIXME: call urlEncode function on proper string ^^.
+        , H.a [P.href $ renderEmailUrl st.stSupportEmail "Trouble with registration"]
             [H.text st.stSupportEmail]
-            -- FIXME: this link doesn't work either.
         ]
     ]
+
+renderEmailUrl :: String -> String -> String
+renderEmailUrl "" _ = throwJS "renderEmailUrl: no address."
+renderEmailUrl address subject =
+    URI.printScheme (URI.URIScheme "mailto") <> address <>
+        URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
 body :: State -> ComponentHTML Query
 body st = case Tuple st.stLoggedIn st.stRegSuccess of
@@ -316,8 +327,7 @@ data FormError =
 derive instance genericFormError :: Generic FormError
 instance eqFormError :: Eq FormError where eq = gEq
 
--- | FIXME: There is Data.Enum, but no Data.Bounded.  It looks all a little less useful than the
--- Haskell stuff.
+-- | (There is Data.Enum, but no Data.Bounded.  It looks all less useful than the Haskell stuff.)
 allFormErrors :: Array FormError
 allFormErrors =
     [ ErrorRequiredUsername
@@ -356,6 +366,3 @@ mainEl :: forall eff. HTMLElement -> Eff (HalogenEffects (console :: CONSOLE | e
 mainEl element = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui initialState
     liftEff $ appendChild (htmlElementToNode element) (htmlElementToNode node)
-
-
--- FIXME: widget destruction?
