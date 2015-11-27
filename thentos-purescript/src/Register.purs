@@ -9,7 +9,7 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-import Data.Array (concat, intersect, union)
+import Data.Array (filter, concat, intersect, union)
 import Data.Foldable
 import Data.Generic
 import Data.Maybe
@@ -18,10 +18,13 @@ import Data.Tuple
 import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
 import DOM.Node.Node (appendChild)
 import Global (encodeURIComponent)
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify, liftAff')
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
+                runUI, component, modify, get, liftAff')
 import Halogen.Util (appendTo)
 import Network.HTTP.Affjax (AJAX(), affjax, defaultRequest, AffjaxResponse())
 import Network.HTTP.Method (Method(POST))
+import Network.HTTP.RequestHeader (RequestHeader(RequestHeader))
+import Network.HTTP.ResponseHeader (responseHeaderName, responseHeaderValue)
 import Network.HTTP.StatusCode (StatusCode(StatusCode))
 
 import qualified Data.ArrayBuffer.Types as AB
@@ -56,8 +59,8 @@ type State eff =
     , stPass1         :: InputValue
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
-    , stCaptchaBase64 :: Maybe (AffjaxResponse AB.ArrayBuffer)
-    , stCaptchaOffer  :: String
+    , stCaptchaQ      :: Maybe (AffjaxResponse AB.ArrayBuffer)
+    , stCaptchaA      :: String
     , stConfig        :: StateConfig eff
     }
 
@@ -114,7 +117,7 @@ showState st = intercalate ", "
     , showInputValue st.stPass1
     , showInputValue st.stPass2
     , show st.stTermsAndConds
-    , st.stCaptchaOffer
+    , st.stCaptchaA
     , showStateConfig st.stConfig
     ]
 
@@ -154,8 +157,8 @@ initialState cfg =
     , stPass1: emptyInputValue
     , stPass2: emptyInputValue
     , stTermsAndConds: false
-    , stCaptchaBase64: Nothing
-    , stCaptchaOffer: ""
+    , stCaptchaQ: Nothing
+    , stCaptchaA: ""
     , stConfig: cfg
     }
 
@@ -238,7 +241,7 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
             ]
 
         , H.div [cl "thentos-captcha"]
-            [ case st.stCaptchaBase64 of
+            [ case st.stCaptchaQ of
                 Just resp | resp.status == StatusCode 201
                     -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
                 Just resp
@@ -371,8 +374,13 @@ eval (ClickSubmit next) = do
     liftAff' $ print "ClickSubmit"
     modify (\st -> st { stOfInterestNow = allFormErrors })
     modify checkState
-    -- FIXME: follow link somewhere iff error list is empty.
-    pure next
+    st <- get
+
+    if st.stErrors /= []
+        then pure next
+        else do
+            liftAff' $ forkAff $ doSubmit st
+            pure next
 
 eval (ClickOther lbl handler next) = do
     liftAff' $ do
@@ -382,12 +390,59 @@ eval (ClickOther lbl handler next) = do
 
 eval (NewCaptchaReceived resp next) = do
     liftAff' $ print ["NewCaptchaReceived", show resp.status]
-    modify (\st -> st { stCaptchaBase64 = Just resp })
+    modify (\st -> st { stCaptchaQ = Just resp })
     pure next
 
 eval (CaptchaKeyPressed ival next) = do
-    modify (\st -> st { stCaptchaOffer = ival.value })
+    modify (\st -> st { stCaptchaA = ival.value })
     pure next
+
+
+-- * submit
+
+type SubmitFormBody =
+    { ucCaptcha :: { csId :: String, csSolution :: String }
+    , ucUser :: { udName :: String, udEmail :: String, udPassword :: String }
+    }
+
+doSubmit :: forall eff. State (Effs eff) -> Aff (Effs eff) Unit
+doSubmit st = do
+    resp <- affjax $ defaultRequest
+        { method = POST
+        , url = "/user/register"
+        , headers = [RequestHeader "content-type" "application/json"]
+        , content = Just (stringify submitBody)
+        }
+
+    print "*** doSubmit ***"
+    print csId
+    print (stringify submitBody)
+    print resp.status
+    print resp.response
+
+                    -- FIXME: feed response back to UI?  make submit button unclickable while
+                    -- waiting for response?  or just move away from this page immediately?
+
+  where
+    submitBody :: SubmitFormBody
+    submitBody =
+        { ucCaptcha:
+            { csId: csId
+            , csSolution: st.stCaptchaA
+            }
+        , ucUser:
+            { udName: st.stName.value
+            , udEmail: st.stEmail.value
+            , udPassword: st.stPass1.value
+            }
+        }
+
+    csId :: String
+    csId = case st.stCaptchaQ of
+        (Just q) -> case filter ((== "Thentos-Captcha-Id") <<< responseHeaderName) q.headers of
+            [x] -> responseHeaderValue x
+            _ -> ""
+        Nothing -> ""
 
 
 -- * form errors
