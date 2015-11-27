@@ -4,7 +4,7 @@ import Prelude
 
 import Control.Monad.Aff.Class (MonadAff)
 import Control.Monad.Aff.Console (print)
-import Control.Monad.Aff (runAff, forkAff)
+import Control.Monad.Aff (runAff, forkAff, Aff())
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
@@ -26,6 +26,7 @@ import qualified Data.URI.Query as URI
 import qualified Data.URI.Scheme as URI
 import qualified Data.URI.Types as URI
 import qualified Halogen.HTML.Core as H
+import qualified Halogen.HTML.Events.Handler as E
 import qualified Halogen.HTML.Events.Indexed as E
 import qualified Halogen.HTML.Events.Types as E
 import qualified Halogen.HTML.Indexed as H
@@ -39,7 +40,9 @@ foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
 
 -- * types
 
-type State =
+type Effs eff = HalogenEffects (console :: CONSOLE | eff)
+
+type State eff =
     { stErrors        :: Array FormError
     , stOfInterestNow :: Array FormError
     , stName          :: InputValue
@@ -47,14 +50,21 @@ type State =
     , stPass1         :: InputValue
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
-    , stConfig        :: StateConfig
+    , stConfig        :: StateConfig eff
     }
 
-type StateConfig =
-    { cfgLoggedIn      :: Boolean
-    , cfgRegSuccess    :: Boolean
-    , cfgSupportEmail  :: String
-    , cfgRefreshCaller :: Unit  -- FIXME: trigger function for update loop of surrounding framework.
+type StateConfig eff =
+    { cfgLoggedIn         :: Boolean
+    , cfgRegSuccess       :: Boolean
+    , cfgSupportEmail     :: String
+    , cfgOnRefresh        :: Aff eff Unit
+        -- ^ trigger function for update loop of surrounding framework
+    , cfgOnCancel        :: Aff eff Unit
+        -- ^ usually: leave register page/state and return to referrer page/state
+    , cfgOnLogin         :: Aff eff Unit
+        -- ^ allow user to login instead of register
+    , cfgOnTermsAndConds :: Aff eff Unit
+        -- ^ show terms and conditions page
     }
 
 type InputValue =
@@ -75,16 +85,17 @@ type Validity =
     , valid :: Boolean
     }
 
-data Query a =
-    KeyPressed (State -> State) a
+data Query eff a =
+    KeyPressed (State eff -> State eff) a
   | UpdateField String (Array FormError) InputValue a
   | UpdateTermsAndConds Boolean a
   | ClickSubmit a
+  | ClickOther String (Aff eff Unit) a
 
 
 -- * row show hacks
 
-showState :: State -> String
+showState :: forall m. State m -> String
 showState st = intercalate ", "
     [ show st.stErrors
     , show st.stOfInterestNow
@@ -96,12 +107,11 @@ showState st = intercalate ", "
     , showStateConfig st.stConfig
     ]
 
-showStateConfig :: StateConfig -> String
+showStateConfig :: forall m. StateConfig m -> String
 showStateConfig cfg = ("{" <>) $ (<> "}") $ intercalate ", "
     [ show cfg.cfgLoggedIn
     , show cfg.cfgRegSuccess
     , show cfg.cfgSupportEmail
-    , show cfg.cfgRefreshCaller
     ]
 
 showInputValue :: InputValue -> String
@@ -124,7 +134,7 @@ showValidity v = mconcat
 
 -- * initial values
 
-initialState :: StateConfig -> State
+initialState :: forall m. StateConfig m -> State m
 initialState cfg =
     { stErrors: []
     , stOfInterestNow: []
@@ -159,11 +169,11 @@ validityOk = {
 
 -- * render
 
-render :: State -> ComponentHTML Query
+render :: forall m. State m -> ComponentHTML (Query m)
 render st = H.div [cl "login"]
     [ H.pre_ [H.p_ [H.text $ showState st]]
     , body st
-    , H.a [cl "login-cancel", P.href ""]  -- FIXME: link!
+    , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
         [trh "TR__CANCEL"]
     , H.div [cl "login-info"]
         [ trh "TR__REGISTRATION_SUPPORT"
@@ -180,7 +190,7 @@ renderEmailUrl address subject =
     URI.printScheme (URI.URIScheme "mailto") <> address <>
         URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
-body :: State -> ComponentHTML Query
+body :: forall m. State m -> ComponentHTML (Query m)
 body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
 
     -- present empty or incomplete registration form
@@ -208,7 +218,8 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
                           , P.required true
                           , E.onChecked $ E.input $ UpdateTermsAndConds
                           ]
-                , H.span_ [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
+                , H.span_ [H.a [onHrefClick "terms-and-conditions" st.stConfig.cfgOnTermsAndConds]
+                    [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
                 , renderErrors st [ErrorRequiredTermsAndConditions]
                 ]
             ]
@@ -218,7 +229,10 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
             , P.disabled $ not $ Data.Array.null st.stErrors
             , E.onClick $ E.input_ $ ClickSubmit
             ]
-        , H.div [cl "login-info"] [H.p_ [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]  -- FIXME: link!
+        , H.div [cl "login-info"]
+            [H.p_
+                [H.a [onHrefClick "login" st.stConfig.cfgOnLogin]
+                    [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
         ]
 
     -- can not register: already logged in
@@ -250,10 +264,11 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
 --
 -- FIXME: use recycle translation key lbl as form field key, so we only have to pass one argument
 -- instead of two.
-inputField :: State -> P.InputType -> String -> String
-           -> (InputValue -> State -> State)
+inputField :: forall m.
+              State m -> P.InputType -> String -> String
+           -> (InputValue -> State m -> State m)
            -> Array FormError
-           -> ComponentHTML Query
+           -> ComponentHTML (Query m)
 inputField st inputType lbl key updateState ofInterestHere = H.label_
     [ H.span [cl "label-text"] [trh lbl]
     , H.input [ P.inputType inputType
@@ -265,7 +280,15 @@ inputField st inputType lbl key updateState ofInterestHere = H.label_
     , renderErrors st ofInterestHere
     ]
 
-renderErrors :: State -> Array FormError -> ComponentHTML Query
+onHrefClick :: forall eff e.
+      String -> Aff eff Unit -> P.IProp (onClick :: P.I | e) (Query eff Unit)
+onHrefClick lbl handler = E.onClick $ \domEv -> do
+    E.preventDefault :: E.EventHandler Unit
+    E.stopPropagation :: E.EventHandler Unit
+    E.stopImmediatePropagation :: E.EventHandler Unit
+    E.input_ (ClickOther lbl handler) domEv
+
+renderErrors :: forall eff. State eff -> Array FormError -> ComponentHTML (Query eff)
 renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> forReporting
   where
     forReporting :: Array FormError
@@ -290,20 +313,23 @@ cl = P.class_ <<< H.className
 
 -- * eval
 
-eval :: forall eff g. (MonadAff (console :: CONSOLE | eff) g, Functor g)
-    => Natural Query (ComponentDSL State Query g)
-eval e@(KeyPressed updateState next) = do
+eval :: forall eff g. (MonadAff (Effs eff) g)
+    => Natural (Query (Effs eff)) (ComponentDSL (State (Effs eff)) (Query (Effs eff)) g)
+
+eval (KeyPressed updateState next) = do
     liftAff' $ print "KeyPressed"
     modify updateState
     modify checkState
     pure next
-eval e@(UpdateField label es iv next) = do
+
+eval (UpdateField label es iv next) = do
     liftAff' $ print
         ["UpdateField", label, show es, showInputValue iv]
     modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
     pure next
-eval e@(UpdateTermsAndConds newVal next) = do
+
+eval (UpdateTermsAndConds newVal next) = do
     liftAff' $ print "UpdateTermsAndConds"
     modify (\st -> st
         { stTermsAndConds = newVal
@@ -311,13 +337,18 @@ eval e@(UpdateTermsAndConds newVal next) = do
         })
     modify checkState
     pure next
-eval e@(ClickSubmit next) = do
+
+eval (ClickSubmit next) = do
     liftAff' $ print "ClickSubmit"
     modify (\st -> st { stOfInterestNow = allFormErrors })
     modify checkState
+    -- FIXME: follow link somewhere iff error list is empty.
+    pure next
 
-    -- FIXME: follow link somewhere
-
+eval (ClickOther lbl handler next) = do
+    liftAff' $ do
+        print ["ClickOther", lbl]
+        handler  -- FIXME: warnJS is not getting through to console.  is it called?
     pure next
 
 
@@ -347,7 +378,7 @@ allFormErrors =
     , ErrorRequiredTermsAndConditions
     ]
 
-checkState :: State -> State
+checkState :: forall eff. State eff -> State eff
 checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
     [ if st.stName.validity.valueMissing      then [ErrorRequiredUsername]           else []
     , if st.stEmail.validity.valueMissing     then [ErrorRequiredEmail]              else []
@@ -362,7 +393,7 @@ checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
 
 -- * main
 
-ui :: forall eff g. (MonadAff (console :: CONSOLE | eff) g, Functor g) => Component State Query g
+ui :: forall eff g. (MonadAff (Effs eff) g) => Component (State (Effs eff)) (Query (Effs eff)) g
 ui = component render eval
 
 main :: forall eff. String -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
@@ -375,10 +406,16 @@ mainEl element = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
     liftEff $ appendChild (htmlElementToNode element) (htmlElementToNode node)
 
-fakeDefaultStateConfig :: StateConfig
+fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
-    { cfgLoggedIn      : false
-    , cfgRegSuccess    : false
-    , cfgSupportEmail  : "nobody@email.org"
-    , cfgRefreshCaller : unit
+    { cfgLoggedIn        : false
+    , cfgRegSuccess      : false
+    , cfgSupportEmail    : "nobody@email.org"
+    , cfgOnRefresh       : warnJS "triggered cfgRefreshCaller"    $ pure unit  -- FIXME: where do we need to call this?  explain!
+    , cfgOnCancel        : warnJS "triggered cfgUriCancel"        $ pure unit
+    , cfgOnLogin         : warnJS "triggered cfgUriLogin"         $ pure unit
+    , cfgOnTermsAndConds : warnJS "triggered cfgUriTermsAndConds" $ pure unit
     }
+
+
+-- FIXME: translation strings are templates.  provide and process contexts!
