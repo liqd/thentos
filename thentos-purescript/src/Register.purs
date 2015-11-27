@@ -54,10 +54,10 @@ type State eff =
     }
 
 type StateConfig eff =
-    { cfgLoggedIn         :: Boolean
-    , cfgRegSuccess       :: Boolean
-    , cfgSupportEmail     :: String
-    , cfgOnRefresh        :: Aff eff Unit
+    { cfgLoggedIn        :: Boolean
+    , cfgRegSuccess      :: Boolean
+    , cfgSupportEmail    :: String
+    , cfgOnRefresh       :: Aff eff Unit
         -- ^ trigger function for update loop of surrounding framework
     , cfgOnCancel        :: Aff eff Unit
         -- ^ usually: leave register page/state and return to referrer page/state
