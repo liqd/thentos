@@ -70,6 +70,7 @@ data Query a =
     KeyPressed (State -> State) a
   | UpdateField String (Array FormError) InputValue a
   | UpdateTermsAndConds Boolean a
+  | ClickSubmit a
 
 
 -- * row show hacks
@@ -156,6 +157,7 @@ render st = H.div [cl "login"]
         , H.a [P.href $ "mailto:" ++ st.stSupportEmail ++ "?subject=Trouble%20with%20registration"]
                                    -- FIXME: call urlEncode function on proper string ^^.
             [H.text st.stSupportEmail]
+            -- FIXME: this link doesn't work either.
         ]
     ]
 
@@ -182,7 +184,9 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
 
         , H.label [cl "login-check"]
             [ H.div [cl "login-check-input"]
-                [ H.input [ P.inputType P.InputCheckbox, P.name "registerCheck", P.required true
+                [ H.input [ P.inputType P.InputCheckbox
+                          , P.name "registerCheck"
+                          , P.required true
                           , E.onChecked $ E.input $ UpdateTermsAndConds
                           ]
                 , H.span_ [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
@@ -193,7 +197,7 @@ body st = case Tuple st.stLoggedIn st.stRegSuccess of
         , H.input
             [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
             , P.disabled $ not $ Data.Array.null st.stErrors
-            , E.onChecked $ E.input $ UpdateTermsAndConds
+            , E.onClick $ E.input_ $ ClickSubmit
             ]
         , H.div [cl "login-info"] [H.p_ [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]  -- FIXME: link!
         ]
@@ -233,7 +237,8 @@ inputField :: State -> P.InputType -> String -> String
            -> ComponentHTML Query
 inputField st inputType lbl key updateState ofInterestHere = H.label_
     [ H.span [cl "label-text"] [trh lbl]
-    , H.input [ P.inputType inputType, P.name key, P.required true
+    , H.input [ P.inputType inputType
+              , P.name key
               , P.required true
               , E.onInput  $ E.input $ KeyPressed <<< updateState <<< eventInputValue
               , E.onChange $ E.input $ UpdateField lbl ofInterestHere <<< eventInputValue
@@ -281,8 +286,19 @@ eval e@(UpdateField label es iv next) = do
     pure next
 eval e@(UpdateTermsAndConds newVal next) = do
     liftAff' $ print "UpdateTermsAndConds"
-    modify (\st -> st { stTermsAndConds = newVal })
+    modify (\st -> st
+        { stTermsAndConds = newVal
+        , stOfInterestNow = union [ErrorRequiredTermsAndConditions] st.stOfInterestNow
+        })
     modify checkState
+    pure next
+eval e@(ClickSubmit next) = do
+    liftAff' $ print "ClickSubmit"
+    modify (\st -> st { stOfInterestNow = allFormErrors })
+    modify checkState
+
+    -- FIXME: follow link somewhere
+
     pure next
 
 
@@ -299,6 +315,19 @@ data FormError =
 
 derive instance genericFormError :: Generic FormError
 instance eqFormError :: Eq FormError where eq = gEq
+
+-- | FIXME: There is Data.Enum, but no Data.Bounded.  It looks all a little less useful than the
+-- Haskell stuff.
+allFormErrors :: Array FormError
+allFormErrors =
+    [ ErrorRequiredUsername
+    , ErrorRequiredEmail
+    , ErrorFormatEmail
+    , ErrorForwardPassword
+    , ErrorTooShortPassword
+    , ErrorMatchPassword
+    , ErrorRequiredTermsAndConditions
+    ]
 
 checkState :: State -> State
 checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
