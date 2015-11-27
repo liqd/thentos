@@ -80,6 +80,8 @@ type RestDocs' api = "docs" :>
   :<|> "ng"   :> Get '[PlainText] ST
   :<|> "purs" :> "Util.js"   :> Get '[PlainText] ST
   :<|> "purs" :> "Util.purs" :> Get '[PlainText] ST
+    -- FIXME: purescript-globals@0.2.2 replaces Util.*, and we import that in thentos-purescript.
+    -- so the last two end-points should be reomved.
   :<|> "purs" :> Capture "ModuleName" ST :> Get '[PlainText] ST)
 
 instance MimeRender PlainText Docs.API where
