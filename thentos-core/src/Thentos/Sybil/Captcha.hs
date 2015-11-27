@@ -48,10 +48,10 @@ mkChallenge solution = ImageData . cs . encodePng . renderDia Rasterific opts
 
 text' :: String -> Dg
 text' s = strokeP (textSVG' (TextOpts lin2 INSIDE_H KERN False 1 1) s)
-        # lw none # fc white
+        # lw none # fc white # bg purple
 
 distortChallenge :: forall m. MonadRandom m => Dg -> m Dg
-distortChallenge dg = mconcat <$> sequence [pure dg, someCircle, someCircle, someCircle]
+distortChallenge dg = mconcat <$> sequence [someCircle, someCircle, someCircle, pure dg]
 
 someCircle :: MonadRandom m => m Dg
 someCircle = do
