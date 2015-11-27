@@ -57,6 +57,7 @@ type State eff =
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
     , stCaptchaBase64 :: Maybe (AffjaxResponse AB.ArrayBuffer)
+    , stCaptchaOffer  :: String
     , stConfig        :: StateConfig eff
     }
 
@@ -99,6 +100,7 @@ data Query eff a =
   | ClickSubmit a
   | ClickOther String (Aff eff Unit) a
   | NewCaptchaReceived (AffjaxResponse AB.ArrayBuffer) a
+  | CaptchaKeyPressed InputValue a
 
 
 -- * row show hacks
@@ -112,6 +114,7 @@ showState st = intercalate ", "
     , showInputValue st.stPass1
     , showInputValue st.stPass2
     , show st.stTermsAndConds
+    , st.stCaptchaOffer
     , showStateConfig st.stConfig
     ]
 
@@ -152,6 +155,7 @@ initialState cfg =
     , stPass2: emptyInputValue
     , stTermsAndConds: false
     , stCaptchaBase64: Nothing
+    , stCaptchaOffer: ""
     , stConfig: cfg
     }
 
@@ -233,14 +237,20 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
                 ]
             ]
 
-        , H.div_
-            [case st.stCaptchaBase64 of
+        , H.div [cl "thentos-captcha"]
+            [ case st.stCaptchaBase64 of
                 Just resp | resp.status == StatusCode 201
                     -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
                 Just resp
                     -> H.text $ "[captcha image: " <> show resp.status <> "]"
                 Nothing
                     -> H.text "[captcha image: nothing]"
+            , H.input
+                [ P.inputType P.InputText
+                , P.name "thentos-captcha-guess"
+                , P.required true
+                , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
+                ]
             ]
 
         , H.input
@@ -373,6 +383,10 @@ eval (ClickOther lbl handler next) = do
 eval (NewCaptchaReceived resp next) = do
     liftAff' $ print ["NewCaptchaReceived", show resp.status]
     modify (\st -> st { stCaptchaBase64 = Just resp })
+    pure next
+
+eval (CaptchaKeyPressed ival next) = do
+    modify (\st -> st { stCaptchaOffer = ival.value })
     pure next
 
 
