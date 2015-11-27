@@ -3,7 +3,7 @@ version:             0.0.1.1
 synopsis:            Test infrastructure for thentos-*
 description:
   See https://github.com/liqd/thentos.
-license:             AGPL-3
+license:             AGPL
 license-file:        LICENSE
 homepage:            https://github.com/liqd/thentos
 author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes
