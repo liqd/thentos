@@ -304,7 +304,7 @@ checkState :: State -> State
 checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
     [ if st.stName.validity.valueMissing      then [ErrorRequiredUsername] else []
     , if st.stEmail.validity.valueMissing     then [ErrorRequiredEmail] else []
-    , if st.stEmail.validity.typeMismatch     then [] else [ErrorFormatEmail]
+    , if st.stEmail.validity.typeMismatch     then [ErrorFormatEmail] else []
     , if st.stPass1.validity.valueMissing     then [ErrorForwardPassword] else []
     , if length st.stPass1.value >= 6         then [] else [ErrorTooShortPassword]
     , if st.stPass1.value == st.stPass2.value then [] else [ErrorMatchPassword]
