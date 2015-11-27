@@ -25,3 +25,5 @@ var marshal = function(v) {
       , valid:           v.valid
     };
 };
+
+exports.btoa = btoa;

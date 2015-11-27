@@ -17,10 +17,14 @@ import Data.String (length)
 import Data.Tuple
 import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
 import DOM.Node.Node (appendChild)
+import Global (encodeURIComponent)
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify, liftAff')
 import Halogen.Util (appendTo)
-import Global (encodeURIComponent)
+import Network.HTTP.Affjax (AJAX(), affjax, defaultRequest, AffjaxResponse())
+import Network.HTTP.Method (Method(POST))
+import Network.HTTP.StatusCode (StatusCode(StatusCode))
 
+import qualified Data.ArrayBuffer.Types as AB
 import qualified Data.StrMap as StrMap
 import qualified Data.URI.Query as URI
 import qualified Data.URI.Scheme as URI
@@ -31,16 +35,18 @@ import qualified Halogen.HTML.Events.Indexed as E
 import qualified Halogen.HTML.Events.Types as E
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
+import qualified Halogen.Query as Q
 
 import Mula
 import Error
 
 foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
+foreign import btoa :: AB.ArrayBuffer -> String
 
 
 -- * types
 
-type Effs eff = HalogenEffects (console :: CONSOLE | eff)
+type Effs eff = HalogenEffects (console :: CONSOLE, ajax :: AJAX | eff)
 
 type State eff =
     { stErrors        :: Array FormError
@@ -50,6 +56,7 @@ type State eff =
     , stPass1         :: InputValue
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
+    , stCaptchaBase64 :: Maybe (AffjaxResponse AB.ArrayBuffer)
     , stConfig        :: StateConfig eff
     }
 
@@ -91,6 +98,7 @@ data Query eff a =
   | UpdateTermsAndConds Boolean a
   | ClickSubmit a
   | ClickOther String (Aff eff Unit) a
+  | NewCaptchaReceived (AffjaxResponse AB.ArrayBuffer) a
 
 
 -- * row show hacks
@@ -143,6 +151,7 @@ initialState cfg =
     , stPass1: emptyInputValue
     , stPass2: emptyInputValue
     , stTermsAndConds: false
+    , stCaptchaBase64: Nothing
     , stConfig: cfg
     }
 
@@ -222,6 +231,16 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
                     [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
                 , renderErrors st [ErrorRequiredTermsAndConditions]
                 ]
+            ]
+
+        , H.div_
+            [case st.stCaptchaBase64 of
+                Just resp | resp.status == StatusCode 201
+                    -> H.img [P.src ("data:image/png;base64," <> btoa resp.response)]
+                Just resp
+                    -> H.text $ "[captcha image: " <> show resp.status <> "]"
+                Nothing
+                    -> H.text "[captcha image: nothing]"
             ]
 
         , H.input
@@ -348,7 +367,12 @@ eval (ClickSubmit next) = do
 eval (ClickOther lbl handler next) = do
     liftAff' $ do
         print ["ClickOther", lbl]
-        handler  -- FIXME: warnJS is not getting through to console.  is it called?
+        handler
+    pure next
+
+eval (NewCaptchaReceived resp next) = do
+    liftAff' $ print ["NewCaptchaReceived", show resp.status]
+    modify (\st -> st { stCaptchaBase64 = Just resp })
     pure next
 
 
@@ -396,15 +420,26 @@ checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
 ui :: forall eff g. (MonadAff (Effs eff) g) => Component (State (Effs eff)) (Query (Effs eff)) g
 ui = component render eval
 
-main :: forall eff. String -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
-main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
-    { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
-    appendTo selector node
+main :: forall eff. String -> Eff (Effs eff) Unit
+main selector = main' $ appendTo selector
 
-mainEl :: forall eff. HTMLElement -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
-mainEl element = runAff throwException (const (pure unit)) <<< forkAff $ do
+mainEl :: forall eff. HTMLElement -> Eff (Effs eff) Unit
+mainEl element = main' $ liftEff <<< appendChild (htmlElementToNode element) <<< htmlElementToNode
+
+main' :: forall eff a. (HTMLElement -> Aff (Effs eff) a) -> Eff (Effs eff) Unit
+main' addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
-    liftEff $ appendChild (htmlElementToNode element) (htmlElementToNode node)
+    addToDOM node
+
+    let -- (WARNING: making this global and finding a type for it has proven to be quite tricky.)
+        fetchCaptcha = forkAff $ do
+            response <- affjax $ defaultRequest
+                { method = POST
+                , url = "/user/captcha"
+                , headers = []
+                }
+            driver (Q.action (NewCaptchaReceived response))
+    fetchCaptcha
 
 fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
