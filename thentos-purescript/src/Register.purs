@@ -42,17 +42,19 @@ foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
 type State =
     { stErrors        :: Array FormError
     , stOfInterestNow :: Array FormError
-    , stLoggedIn      :: Boolean
-    , stRegSuccess    :: Boolean
     , stName          :: InputValue
     , stEmail         :: InputValue
     , stPass1         :: InputValue
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
+    , stConfig        :: StateConfig
+    }
 
-    -- TODO: also keep in the state: a trigger function for update loop of surrounding framework.
-
-    , stSupportEmail  :: String
+type StateConfig =
+    { cfgLoggedIn      :: Boolean
+    , cfgRegSuccess    :: Boolean
+    , cfgSupportEmail  :: String
+    , cfgRefreshCaller :: Unit  -- FIXME: trigger function for update loop of surrounding framework.
     }
 
 type InputValue =
@@ -83,16 +85,23 @@ data Query a =
 -- * row show hacks
 
 showState :: State -> String
-showState st =intercalate ", "
+showState st = intercalate ", "
     [ show st.stErrors
     , show st.stOfInterestNow
-    , show st.stLoggedIn
-    , show st.stRegSuccess
     , showInputValue st.stName
     , showInputValue st.stEmail
     , showInputValue st.stPass1
     , showInputValue st.stPass2
     , show st.stTermsAndConds
+    , showStateConfig st.stConfig
+    ]
+
+showStateConfig :: StateConfig -> String
+showStateConfig cfg = ("{" <>) $ (<> "}") $ intercalate ", "
+    [ show cfg.cfgLoggedIn
+    , show cfg.cfgRegSuccess
+    , show cfg.cfgSupportEmail
+    , show cfg.cfgRefreshCaller
     ]
 
 showInputValue :: InputValue -> String
@@ -115,18 +124,16 @@ showValidity v = mconcat
 
 -- * initial values
 
-initialState :: State
-initialState =
+initialState :: StateConfig -> State
+initialState cfg =
     { stErrors: []
     , stOfInterestNow: []
-    , stLoggedIn: false
-    , stRegSuccess: false
     , stName: emptyInputValue
     , stEmail: emptyInputValue
     , stPass1: emptyInputValue
     , stPass2: emptyInputValue
     , stTermsAndConds: false
-    , stSupportEmail: "nobody@email.org"  -- FIXME: leave this empty, force widget client to set it.
+    , stConfig: cfg
     }
 
 emptyInputValue :: InputValue
@@ -161,8 +168,9 @@ render st = H.div [cl "login"]
     , H.div [cl "login-info"]
         [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
-        , H.a [P.href $ renderEmailUrl st.stSupportEmail "Trouble with registration"]
-            [H.text st.stSupportEmail]
+        , let address = st.stConfig.cfgSupportEmail
+              subject = "Trouble with registration"
+          in H.a [P.href $ renderEmailUrl address subject] [H.text address]
         ]
     ]
 
@@ -173,7 +181,7 @@ renderEmailUrl address subject =
         URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
 body :: State -> ComponentHTML Query
-body st = case Tuple st.stLoggedIn st.stRegSuccess of
+body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
 
     -- present empty or incomplete registration form
     Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
@@ -359,10 +367,18 @@ ui = component render eval
 
 main :: forall eff. String -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
 main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
-    { node: node, driver: driver } <- runUI ui initialState
+    { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
     appendTo selector node
 
 mainEl :: forall eff. HTMLElement -> Eff (HalogenEffects (console :: CONSOLE | eff)) Unit
 mainEl element = runAff throwException (const (pure unit)) <<< forkAff $ do
-    { node: node, driver: driver } <- runUI ui initialState
+    { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
     liftEff $ appendChild (htmlElementToNode element) (htmlElementToNode node)
+
+fakeDefaultStateConfig :: StateConfig
+fakeDefaultStateConfig =
+    { cfgLoggedIn      : false
+    , cfgRegSuccess    : false
+    , cfgSupportEmail  : "nobody@email.org"
+    , cfgRefreshCaller : unit
+    }
