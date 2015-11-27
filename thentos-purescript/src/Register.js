@@ -26,4 +26,6 @@ var marshal = function(v) {
     };
 };
 
-exports.btoa = btoa;
+exports.arrayBufferToBase64 = function(b) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(b)));
+};

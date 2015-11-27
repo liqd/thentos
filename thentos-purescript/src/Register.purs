@@ -41,7 +41,7 @@ import Mula
 import Error
 
 foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
-foreign import btoa :: AB.ArrayBuffer -> String
+foreign import arrayBufferToBase64 :: AB.ArrayBuffer -> String
 
 
 -- * types
@@ -236,7 +236,7 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
         , H.div_
             [case st.stCaptchaBase64 of
                 Just resp | resp.status == StatusCode 201
-                    -> H.img [P.src ("data:image/png;base64," <> btoa resp.response)]
+                    -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
                 Just resp
                     -> H.text $ "[captcha image: " <> show resp.status <> "]"
                 Nothing
