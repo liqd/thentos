@@ -153,9 +153,12 @@ render st = H.div [cl "login"]
         -- FIXME: remove state dump if not in debug mode.
     , H.pre [cl "thentos-pre"] [H.text $ "server errors: " <> stringify st.stServerErrors]
         -- FIXME: render server errors more user-friendly.
-    , body st
-    , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
-        [trh "TR__CANCEL"]
+
+    , case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
+        Tuple false false -> bodyIncompleteForm st
+        Tuple false  true -> bodyRegisterSuccess
+        Tuple true  _     -> bodyLogin
+
     , H.div [cl "login-info"]
         [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
@@ -171,11 +174,9 @@ renderEmailUrl address subject =
     URI.printScheme (URI.URIScheme "mailto") <> address <>
         URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
-body :: forall eff. State eff -> ComponentHTML (Query eff)
-body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
-
-    -- present empty or incomplete registration form
-    Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
+-- | registration form empty or incomplete.
+bodyIncompleteForm :: forall eff. State eff -> ComponentHTML (Query eff)
+bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
         [ inputField st P.InputText "TR__USERNAME" "username"
             (\i s -> s { stName = i })
             [ErrorRequiredUsername]
@@ -230,26 +231,23 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
             [H.p_
                 [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
                     [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
+
+        , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
+            [trh "TR__CANCEL"]
         ]
 
-    -- can not register: already logged in
-    Tuple false true -> H.div [cl "login-success"] [H.p_ [trh "TR__REGISTRATION_ALREADY_LOGGED_IN"]]
-
-    -- registered: waiting for processing of activation email
-    Tuple true false -> H.div [cl "login-success"]
+-- | registered successfully, waiting for processing of activation email.
+bodyRegisterSuccess :: forall eff. ComponentHTML (Query eff)
+bodyRegisterSuccess = H.form [cl "login-form", P.name "registerForm"]
+    [ H.div [cl "login-success"]
         [ H.h2_ [trh "TR__REGISTER_SUCCESS"]
         , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
-
-        -- FIXME: the a3 code says this.  what does it mean?:
-        -- 'Show option in case the user is not automatically logged in (e.g. 3rd party cookies blocked.)'
         ]
+    ]
 
-    -- FIXME: a3 code says this.  is that relevant for us?
-    -- <!-- FIXME: Technically this should only display if you logged in as the user you just registered as, but
-    -- this will display if you log in as any user -->
-
-    -- registered and registration link clicked
-    Tuple true true -> H.div [cl "login-success"]
+-- | registered and confirmation; proceed to login.
+bodyLogin :: forall eff. ComponentHTML (Query eff)
+bodyLogin = H.div [cl "login-success"]
         [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
         , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
         ]
