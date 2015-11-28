@@ -67,7 +67,7 @@ type State eff =
 
 type StateConfig eff =
     { cfgLoggedIn        :: Boolean
-    , cfgRegComplete     :: Boolean
+    , cfgRegSuccess      :: Boolean
     , cfgSupportEmail    :: String
     , cfgOnRefresh       :: Aff eff Unit
         -- ^ trigger function for update loop of surrounding framework
@@ -172,7 +172,7 @@ renderEmailUrl address subject =
         URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
 body :: forall eff. State eff -> ComponentHTML (Query eff)
-body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegComplete of
+body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
 
     -- present empty or incomplete registration form
     Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
@@ -352,7 +352,7 @@ eval e@(ClickSubmit next) = do
             case resp.status of
                 StatusCode 201 -> do  -- success.
                     modifyConfig $
-                        \cfg -> cfg { cfgRegComplete = true }
+                        \cfg -> cfg { cfgRegSuccess = true }
                 StatusCode code -> do  -- server error.
                     modify $
                         \st -> st { stServerErrors = [resp.response] <> st.stServerErrors }
@@ -489,7 +489,7 @@ fixResponse resp = resp { headers = f <$> resp.headers }
 fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
     { cfgLoggedIn        : false
-    , cfgRegComplete     : false
+    , cfgRegSuccess      : false
     , cfgSupportEmail    : "nobody@email.org"
     , cfgOnRefresh       : warnJS "triggered cfgOnRefresh"       $ pure unit  -- FIXME: where do we need to call this?  explain!
     , cfgOnCancel        : warnJS "triggered cfgOnCancel"        $ pure unit
