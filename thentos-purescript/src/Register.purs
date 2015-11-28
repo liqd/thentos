@@ -3,12 +3,13 @@ module Register where
 import Prelude
 
 import Control.Monad.Aff.Class (MonadAff)
-import Control.Monad.Aff.Console (log, print)
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Aff (runAff, forkAff, Aff())
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
+import Control.Monad.Free
 import Data.Array (filter, concat, intersect, union)
 import Data.Generic
 import Data.Maybe
@@ -20,7 +21,7 @@ import Global (encodeURIComponent)
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
                 runUI, component, modify, get, liftAff')
 import Halogen.Util (appendTo)
-import Network.HTTP.Affjax (AJAX(), affjax, defaultRequest, AffjaxResponse())
+import Network.HTTP.Affjax (AJAX(), AffjaxResponse(), affjax, defaultRequest)
 import Network.HTTP.Method (Method(POST))
 import Network.HTTP.RequestHeader (RequestHeader(RequestHeader))
 import Network.HTTP.ResponseHeader (responseHeader, responseHeaderName, responseHeaderValue)
@@ -52,6 +53,7 @@ type Effs eff = HalogenEffects (console :: CONSOLE, ajax :: AJAX | eff)
 
 type State eff =
     { stErrors        :: Array FormError
+    , stServerErrors  :: Array String  -- can't be translated (yet) and need different app logic
     , stOfInterestNow :: Array FormError
     , stName          :: InputValue
     , stEmail         :: InputValue
@@ -110,6 +112,7 @@ data Query eff a =
 initialState :: forall eff. StateConfig eff -> State eff
 initialState cfg =
     { stErrors: []
+    , stServerErrors: []
     , stOfInterestNow: []
     , stName: emptyInputValue
     , stEmail: emptyInputValue
@@ -147,6 +150,9 @@ validityOk = {
 render :: forall eff. State eff -> ComponentHTML (Query eff)
 render st = H.div [cl "login"]
     [ H.pre [cl "thentos-pre"] [H.text $ stringify st]
+        -- FIXME: remove state dump if not in debug mode.
+    , H.pre [cl "thentos-pre"] [H.text $ "server errors: " <> stringify st.stServerErrors]
+        -- FIXME: render server errors more user-friendly.
     , body st
     , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
         [trh "TR__CANCEL"]
@@ -339,10 +345,17 @@ eval e@(ClickSubmit next) = do
     modify checkState
     st <- get
 
-    if st.stErrors /= []
+    if st.stErrors /= [] || st.stServerErrors /= []
         then pure next
         else do
-            liftAff' $ forkAff $ doSubmit st
+            resp <- liftAff' $ doSubmit st
+            case resp.status of
+                StatusCode 201 -> do  -- success.
+                    modifyConfig $
+                        \cfg -> cfg { cfgRegComplete = true }
+                StatusCode code -> do  -- server error.
+                    modify $
+                        \st -> st { stServerErrors = [resp.response] <> st.stServerErrors }
             pure next
 
 eval e@(ClickOther lbl handler next) = do
@@ -360,6 +373,10 @@ eval e@(CaptchaKeyPressed ival next) = do
     modify (\st -> st { stCaptchaA = ival.value })
     pure next
 
+modifyConfig :: forall eff f g.
+    (StateConfig eff -> StateConfig eff) -> Free (Q.HalogenF (State eff) f g) Unit
+modifyConfig f = modify (\st -> st { stConfig = f st.stConfig })
+
 
 -- * submit
 
@@ -368,24 +385,13 @@ type SubmitFormBody =
     , ucUser :: { udName :: String, udEmail :: String, udPassword :: String }
     }
 
-doSubmit :: forall eff. State (Effs eff) -> Aff (Effs eff) Unit
-doSubmit st = do
-    resp <- affjax $ defaultRequest
-        { method = POST
-        , url = "/user/register"
-        , headers = [RequestHeader "content-type" "application/json"]
-        , content = Just (stringify submitBody)
-        }
-
-    print "*** doSubmit ***"
-    print csId
-    print (stringify submitBody)
-    print resp.status
-    print resp.response
-
-                    -- FIXME: feed response back to UI?  make submit button unclickable while
-                    -- waiting for response?  or just move away from this page immediately?
-
+doSubmit :: forall eff. State (Effs eff) -> Aff (Effs eff) (AffjaxResponse String)
+doSubmit st = affjax $ defaultRequest
+    { method = POST
+    , url = "/user/register"
+    , headers = [RequestHeader "content-type" "application/json"]
+    , content = Just (stringify submitBody)
+    }
   where
     submitBody :: SubmitFormBody
     submitBody =
