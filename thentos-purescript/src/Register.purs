@@ -156,7 +156,7 @@ render st = H.div [cl "login"]
 
     , case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
         Tuple false false -> bodyIncompleteForm st
-        Tuple false  true -> bodyRegisterSuccess
+        Tuple false true  -> bodyRegisterSuccess
         Tuple true  _     -> bodyLogin
 
     , H.div [cl "login-info"]
@@ -177,80 +177,80 @@ renderEmailUrl address subject =
 -- | registration form empty or incomplete.
 bodyIncompleteForm :: forall eff. State eff -> ComponentHTML (Query eff)
 bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
-        [ inputField st P.InputText "TR__USERNAME" "username"
-            (\i s -> s { stName = i })
-            [ErrorRequiredUsername]
+    [ inputField st P.InputText "TR__USERNAME" "username"
+        (\i s -> s { stName = i })
+        [ErrorRequiredUsername]
 
-        , inputField st P.InputEmail "TR__EMAIL" "email"
-            (\i s -> s { stEmail = i })
-            [ErrorRequiredEmail, ErrorFormatEmail]
+    , inputField st P.InputEmail "TR__EMAIL" "email"
+        (\i s -> s { stEmail = i })
+        [ErrorRequiredEmail, ErrorFormatEmail]
 
-        , inputField st P.InputPassword "TR__PASSWORD" "password"
-            (\i s -> s { stPass1 = i })
-            [ErrorForwardPassword, ErrorTooShortPassword]
+    , inputField st P.InputPassword "TR__PASSWORD" "password"
+        (\i s -> s { stPass1 = i })
+        [ErrorForwardPassword, ErrorTooShortPassword]
 
-        , inputField st P.InputPassword "TR__PASSWORD_REPEAT" "password_repeat"
-            (\i s -> s { stPass2 = i })
-            [ErrorMatchPassword]
+    , inputField st P.InputPassword "TR__PASSWORD_REPEAT" "password_repeat"
+        (\i s -> s { stPass2 = i })
+        [ErrorMatchPassword]
 
-        , H.label [cl "login-check"]
-            [ H.div [cl "login-check-input"]
-                [ H.input [ P.inputType P.InputCheckbox
-                          , P.name "registerCheck"
-                          , P.required true
-                          , E.onChecked $ E.input $ UpdateTermsAndConds
-                          ]
-                , H.span_ [H.a [onHrefClick "terms-and-conditions" st.stConfig.cfgOnTermsAndConds]
-                    [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
-                , renderErrors st [ErrorRequiredTermsAndConditions]
-                ]
+    , H.label [cl "login-check"]
+        [ H.div [cl "login-check-input"]
+            [ H.input [ P.inputType P.InputCheckbox
+                      , P.name "registerCheck"
+                      , P.required true
+                      , E.onChecked $ E.input $ UpdateTermsAndConds
+                      ]
+            , H.span_ [H.a [onHrefClick "terms-and-conditions" st.stConfig.cfgOnTermsAndConds]
+                [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
+            , renderErrors st [ErrorRequiredTermsAndConditions]
             ]
-
-        , H.div [cl "thentos-captcha"]
-            [ case st.stCaptchaQ of
-                Just resp | resp.status == StatusCode 201
-                    -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
-                Just resp
-                    -> H.text $ "[captcha image: " <> show resp.status <> "]"
-                Nothing
-                    -> H.text "[captcha image: nothing]"
-            , H.input
-                [ P.inputType P.InputText
-                , P.name "thentos-captcha-guess"
-                , P.required true
-                , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
-                ]
-            ]
-
-        , H.input
-            [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
-            , P.disabled $ not $ Data.Array.null st.stErrors
-            , onClickExclusive $ E.input_ $ ClickSubmit
-            ]
-        , H.div [cl "login-info"]
-            [H.p_
-                [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
-                    [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
-
-        , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
-            [trh "TR__CANCEL"]
         ]
+
+    , H.div [cl "thentos-captcha"]
+        [ case st.stCaptchaQ of
+            Just resp | resp.status == StatusCode 201
+                -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
+            Just resp
+                -> H.text $ "[captcha image: " <> show resp.status <> "]"
+            Nothing
+                -> H.text "[captcha image: nothing]"
+        , H.input
+            [ P.inputType P.InputText
+            , P.name "thentos-captcha-guess"
+            , P.required true
+            , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
+            ]
+        ]
+
+    , H.input
+        [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
+        , P.disabled $ not $ Data.Array.null st.stErrors
+        , onClickExclusive $ E.input_ $ ClickSubmit
+        ]
+    , H.div [cl "login-info"]
+        [H.p_
+            [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
+                [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
+
+    , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
+        [trh "TR__CANCEL"]
+    ]
 
 -- | registered successfully, waiting for processing of activation email.
 bodyRegisterSuccess :: forall eff. ComponentHTML (Query eff)
 bodyRegisterSuccess = H.form [cl "login-form", P.name "registerForm"]
     [ H.div [cl "login-success"]
         [ H.h2_ [trh "TR__REGISTER_SUCCESS"]
-        , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
+        , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]  -- FIXME: link
         ]
     ]
 
 -- | registered and confirmation; proceed to login.
 bodyLogin :: forall eff. ComponentHTML (Query eff)
 bodyLogin = H.div [cl "login-success"]
-        [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
-        , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
-        ]
+    [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
+    , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
+    ]
 
 -- | The last argument 'ofInterestHere' contains all errors that are reportable near the current
 -- field (e.g., all errors related to email address).  The 'State' field 'ofInterestNow' contains a
