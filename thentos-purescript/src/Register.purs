@@ -218,7 +218,7 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
         , H.input
             [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
             , P.disabled $ not $ Data.Array.null st.stErrors
-            , E.onClick $ E.input_ $ ClickSubmit
+            , onClickExclusive $ E.input_ $ ClickSubmit
             ]
         , H.div [cl "login-info"]
             [H.p_
@@ -273,11 +273,16 @@ inputField st inputType lbl key updateState ofInterestHere = H.label_
 
 onHrefClick :: forall eff e.
       String -> Aff eff Unit -> P.IProp (onClick :: P.I | e) (Query eff Unit)
-onHrefClick lbl handler = E.onClick $ \domEv -> do
-    E.preventDefault :: E.EventHandler Unit
-    E.stopPropagation :: E.EventHandler Unit
-    E.stopImmediatePropagation :: E.EventHandler Unit
-    E.input_ (ClickOther lbl handler) domEv
+onHrefClick lbl handler = onClickExclusive (E.input_ (ClickOther lbl handler))
+
+onClickExclusive :: forall eff e.
+      (E.Event E.MouseEvent -> E.EventHandler (Query eff Unit))
+    -> P.IProp (onClick :: P.I | e) (Query eff Unit)
+onClickExclusive handler = E.onClick $ \domEv -> do
+    E.preventDefault
+    E.stopPropagation
+    E.stopImmediatePropagation
+    handler domEv
 
 renderErrors :: forall eff. State eff -> Array FormError -> ComponentHTML (Query eff)
 renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> forReporting
