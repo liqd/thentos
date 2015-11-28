@@ -12,7 +12,7 @@ import Control.Monad.Eff.Exception (throwException)
 import Data.Array (filter, concat, intersect, union)
 import Data.Generic
 import Data.Maybe
-import Data.String (length)
+import Data.String (length, trim)
 import Data.Tuple
 import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
 import DOM.Node.Node (appendChild)
@@ -23,7 +23,7 @@ import Halogen.Util (appendTo)
 import Network.HTTP.Affjax (AJAX(), affjax, defaultRequest, AffjaxResponse())
 import Network.HTTP.Method (Method(POST))
 import Network.HTTP.RequestHeader (RequestHeader(RequestHeader))
-import Network.HTTP.ResponseHeader (responseHeaderName, responseHeaderValue)
+import Network.HTTP.ResponseHeader (responseHeader, responseHeaderName, responseHeaderValue)
 import Network.HTTP.StatusCode (StatusCode(StatusCode))
 
 import qualified Data.ArrayBuffer.Types as AB
@@ -465,8 +465,15 @@ main' addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
                 , url = "/user/captcha"
                 , headers = []
                 }
-            driver (Q.action (NewCaptchaReceived response))
+            driver (Q.action (NewCaptchaReceived (fixResponse response)))
     fetchCaptcha
+
+-- | FIXME: affjax returns header values with trailing `\r`.  As a work-around, this function trims
+-- all header values.
+fixResponse :: forall a. AffjaxResponse a -> AffjaxResponse a
+fixResponse resp = resp { headers = f <$> resp.headers }
+  where
+    f h = responseHeader (responseHeaderName h) (trim (responseHeaderValue h))
 
 fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
