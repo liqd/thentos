@@ -65,13 +65,13 @@ type State eff =
 
 type StateConfig eff =
     { cfgLoggedIn        :: Boolean
-    , cfgRegSuccess      :: Boolean
+    , cfgRegComplete     :: Boolean
     , cfgSupportEmail    :: String
     , cfgOnRefresh       :: Aff eff Unit
         -- ^ trigger function for update loop of surrounding framework
     , cfgOnCancel        :: Aff eff Unit
         -- ^ usually: leave register page/state and return to referrer page/state
-    , cfgOnLogin         :: Aff eff Unit
+    , cfgOnGoLogin       :: Aff eff Unit
         -- ^ allow user to login instead of register
     , cfgOnTermsAndConds :: Aff eff Unit
         -- ^ show terms and conditions page
@@ -107,7 +107,7 @@ data Query eff a =
 
 -- * initial values
 
-initialState :: forall m. StateConfig m -> State m
+initialState :: forall eff. StateConfig eff -> State eff
 initialState cfg =
     { stErrors: []
     , stOfInterestNow: []
@@ -144,7 +144,7 @@ validityOk = {
 
 -- * render
 
-render :: forall m. State m -> ComponentHTML (Query m)
+render :: forall eff. State eff -> ComponentHTML (Query eff)
 render st = H.div [cl "login"]
     [ H.pre [cl "thentos-pre"] [H.text $ stringify st]
     , body st
@@ -165,8 +165,8 @@ renderEmailUrl address subject =
     URI.printScheme (URI.URIScheme "mailto") <> address <>
         URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
-body :: forall m. State m -> ComponentHTML (Query m)
-body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
+body :: forall eff. State eff -> ComponentHTML (Query eff)
+body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegComplete of
 
     -- present empty or incomplete registration form
     Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
@@ -222,7 +222,7 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
             ]
         , H.div [cl "login-info"]
             [H.p_
-                [H.a [onHrefClick "login" st.stConfig.cfgOnLogin]
+                [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
                     [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
         ]
 
@@ -255,11 +255,11 @@ body st = case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
 --
 -- FIXME: use recycle translation key lbl as form field key, so we only have to pass one argument
 -- instead of two.
-inputField :: forall m.
-              State m -> P.InputType -> String -> String
-           -> (InputValue -> State m -> State m)
+inputField :: forall eff.
+              State eff -> P.InputType -> String -> String
+           -> (InputValue -> State eff -> State eff)
            -> Array FormError
-           -> ComponentHTML (Query m)
+           -> ComponentHTML (Query eff)
 inputField st inputType lbl key updateState ofInterestHere = H.label_
     [ H.span [cl "label-text"] [trh lbl]
     , H.input [ P.inputType inputType
@@ -483,10 +483,10 @@ fixResponse resp = resp { headers = f <$> resp.headers }
 fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
     { cfgLoggedIn        : false
-    , cfgRegSuccess      : false
+    , cfgRegComplete     : false
     , cfgSupportEmail    : "nobody@email.org"
-    , cfgOnRefresh       : warnJS "triggered cfgRefreshCaller"    $ pure unit  -- FIXME: where do we need to call this?  explain!
-    , cfgOnCancel        : warnJS "triggered cfgUriCancel"        $ pure unit
-    , cfgOnLogin         : warnJS "triggered cfgUriLogin"         $ pure unit
-    , cfgOnTermsAndConds : warnJS "triggered cfgUriTermsAndConds" $ pure unit
+    , cfgOnRefresh       : warnJS "triggered cfgOnRefresh"       $ pure unit  -- FIXME: where do we need to call this?  explain!
+    , cfgOnCancel        : warnJS "triggered cfgOnCancel"        $ pure unit
+    , cfgOnGoLogin       : warnJS "triggered cfgOnLogin"         $ pure unit
+    , cfgOnTermsAndConds : warnJS "triggered cfgOnTermsAndConds" $ pure unit
     }
