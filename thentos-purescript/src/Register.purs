@@ -3,14 +3,13 @@ module Register where
 import Prelude
 
 import Control.Monad.Aff.Class (MonadAff)
-import Control.Monad.Aff.Console (print)
+import Control.Monad.Aff.Console (log, print)
 import Control.Monad.Aff (runAff, forkAff, Aff())
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Data.Array (filter, concat, intersect, union)
-import Data.Foldable
 import Data.Generic
 import Data.Maybe
 import Data.String (length)
@@ -106,46 +105,6 @@ data Query eff a =
   | CaptchaKeyPressed InputValue a
 
 
--- * row show hacks
-
-showState :: forall m. State m -> String
-showState st = intercalate ", "
-    [ show st.stErrors
-    , show st.stOfInterestNow
-    , showInputValue st.stName
-    , showInputValue st.stEmail
-    , showInputValue st.stPass1
-    , showInputValue st.stPass2
-    , show st.stTermsAndConds
-    , st.stCaptchaA
-    , showStateConfig st.stConfig
-    ]
-
-showStateConfig :: forall m. StateConfig m -> String
-showStateConfig cfg = ("{" <>) $ (<> "}") $ intercalate ", "
-    [ show cfg.cfgLoggedIn
-    , show cfg.cfgRegSuccess
-    , show cfg.cfgSupportEmail
-    ]
-
-showInputValue :: InputValue -> String
-showInputValue iv = intercalate ":" [iv.value, showValidity iv.validity]
-
-showValidity :: Validity -> String
-showValidity v = mconcat
-    [ if v.valueMissing    then "*" else "_"
-    , if v.typeMismatch    then "*" else "_"
-    , if v.patternMismatch then "*" else "_"
-    , if v.tooLong         then "*" else "_"
-    , if v.rangeUnderflow  then "*" else "_"
-    , if v.rangeOverflow   then "*" else "_"
-    , if v.stepMismatch    then "*" else "_"
-    , if v.badInput        then "*" else "_"
-    , if v.customError     then "*" else "_"
-    , if v.valid           then "*" else "_"
-    ]
-
-
 -- * initial values
 
 initialState :: forall m. StateConfig m -> State m
@@ -187,7 +146,7 @@ validityOk = {
 
 render :: forall m. State m -> ComponentHTML (Query m)
 render st = H.div [cl "login"]
-    [ H.pre_ [H.p_ [H.text $ showState st]]
+    [ H.pre [cl "thentos-pre"] [H.text $ stringify st]
     , body st
     , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
         [trh "TR__CANCEL"]
@@ -348,21 +307,20 @@ cl = P.class_ <<< H.className
 eval :: forall eff g. (MonadAff (Effs eff) g)
     => Natural (Query (Effs eff)) (ComponentDSL (State (Effs eff)) (Query (Effs eff)) g)
 
-eval (KeyPressed updateState next) = do
-    liftAff' $ print "KeyPressed"
+eval e@(KeyPressed updateState next) = do
+    liftAff' $ log $ stringify e
     modify updateState
     modify checkState
     pure next
 
-eval (UpdateField label es iv next) = do
-    liftAff' $ print
-        ["UpdateField", label, show es, showInputValue iv]
+eval e@(UpdateField label es iv next) = do
+    liftAff' $ log $ stringify e
     modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
     pure next
 
-eval (UpdateTermsAndConds newVal next) = do
-    liftAff' $ print "UpdateTermsAndConds"
+eval e@(UpdateTermsAndConds newVal next) = do
+    liftAff' $ log $ stringify e
     modify (\st -> st
         { stTermsAndConds = newVal
         , stOfInterestNow = union [ErrorRequiredTermsAndConditions] st.stOfInterestNow
@@ -370,8 +328,8 @@ eval (UpdateTermsAndConds newVal next) = do
     modify checkState
     pure next
 
-eval (ClickSubmit next) = do
-    liftAff' $ print "ClickSubmit"
+eval e@(ClickSubmit next) = do
+    liftAff' $ log $ stringify e
     modify (\st -> st { stOfInterestNow = allFormErrors })
     modify checkState
     st <- get
@@ -382,18 +340,18 @@ eval (ClickSubmit next) = do
             liftAff' $ forkAff $ doSubmit st
             pure next
 
-eval (ClickOther lbl handler next) = do
-    liftAff' $ do
-        print ["ClickOther", lbl]
-        handler
+eval e@(ClickOther lbl handler next) = do
+    liftAff' $ log $ stringify e
+    liftAff' $ handler
     pure next
 
-eval (NewCaptchaReceived resp next) = do
-    liftAff' $ print ["NewCaptchaReceived", show resp.status]
+eval e@(NewCaptchaReceived resp next) = do
+    liftAff' $ log $ stringify e
     modify (\st -> st { stCaptchaQ = Just resp })
     pure next
 
-eval (CaptchaKeyPressed ival next) = do
+eval e@(CaptchaKeyPressed ival next) = do
+    liftAff' $ log $ stringify e
     modify (\st -> st { stCaptchaA = ival.value })
     pure next
 
@@ -520,6 +478,3 @@ fakeDefaultStateConfig =
     , cfgOnLogin         : warnJS "triggered cfgUriLogin"         $ pure unit
     , cfgOnTermsAndConds : warnJS "triggered cfgUriTermsAndConds" $ pure unit
     }
-
-
--- FIXME: translation strings are templates.  provide and process contexts!
