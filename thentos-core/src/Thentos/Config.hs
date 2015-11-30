@@ -147,7 +147,7 @@ defaultMailConfig = Just defaultAccountVerificationConfig
 defaultAccountVerificationConfig :: ToConfig (ToConfigCode AccountVerificationConfig') Maybe
 defaultAccountVerificationConfig =
       Just "Thentos account creation confirmation"
-  :*> Just "Please go to {{frontend_url}}{{activation_path}} to confirm your account."
+  :*> Just "Please go to {{activation_url}} to confirm your account."
 
 
 -- * leaf types
