@@ -55,6 +55,7 @@ spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
     personaGroupsSpec
     storeCaptchaSpec
     solveCaptchaSpec
+    deleteCaptchaSpec
     garbageCollectUnconfirmedUsersSpec
     garbageCollectPasswordResetTokensSpec
     garbageCollectEmailChangeTokensSpec
@@ -1008,30 +1009,44 @@ storeCaptchaSpec = describe "storeCaptcha" $ do
     cid      = "RandomId"
     solution = "some text"
 
+
 solveCaptchaSpec :: SpecWith (Pool Connection)
 solveCaptchaSpec = describe "solveCaptcha" $ do
-    it "returns true and deletes entry if the solution is correct" $ \connPool -> do
+    it "returns true entry if the solution is correct" $ \connPool -> do
         Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
-        rowCountShouldBe connPool "captchas" 1
         Right res <- runVoidedQuery connPool $ solveCaptcha cid solution
         res `shouldBe` True
-        rowCountShouldBe connPool "captchas" 0
 
-    it "returns false and deletes entry if the solution is wrong" $ \connPool -> do
+    it "returns false entry if the solution is wrong" $ \connPool -> do
         Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
-        rowCountShouldBe connPool "captchas" 1
         Right res <- runVoidedQuery connPool $ solveCaptcha cid "wrong text"
         res `shouldBe` False
-        rowCountShouldBe connPool "captchas" 0
 
     it "throws NoSuchCaptchaId if the given CaptchaId doesn't exist" $ \connPool -> do
         Left err <- runVoidedQuery connPool $ solveCaptcha cid solution
         err `shouldBe` NoSuchCaptchaId
 
-    it "throws NoSuchCaptchaId if trying to solve the same captcha twice" $ \connPool -> do
-        Right ()   <- runVoidedQuery connPool $ storeCaptcha cid solution
-        Right True <- runVoidedQuery connPool $ solveCaptcha cid solution
-        Left err   <- runVoidedQuery connPool $ solveCaptcha cid solution
+  where
+    cid      = "RandomId"
+    solution = "some text"
+
+
+deleteCaptchaSpec :: SpecWith (Pool Connection)
+deleteCaptchaSpec = describe "deleteCaptcha" $ do
+    it "deletes entry" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        rowCountShouldBe connPool "captchas" 1
+        Right () <- runVoidedQuery connPool $ deleteCaptcha cid
+        rowCountShouldBe connPool "captchas" 0
+
+    it "throws NoSuchCaptchaId if the given CaptchaId doesn't exist" $ \connPool -> do
+        Left err <- runVoidedQuery connPool $ deleteCaptcha cid
+        err `shouldBe` NoSuchCaptchaId
+
+    it "throws NoSuchCaptchaId if trying to delete the same captcha twice" $ \connPool -> do
+        Right () <- runVoidedQuery connPool $ storeCaptcha cid solution
+        Right () <- runVoidedQuery connPool $ deleteCaptcha cid
+        Left err <- runVoidedQuery connPool $ deleteCaptcha cid
         err `shouldBe` NoSuchCaptchaId
 
   where
