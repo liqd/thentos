@@ -64,8 +64,6 @@ import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
-import Text.Hastache.Context (mkStrContext)
-import Text.Hastache (MuType(MuVariable))
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -408,9 +406,8 @@ api manager actionState@(AC.ActionState (_, _, cfg)) =
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
 addUser (A3UserWithPass user) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
-    confToken <- snd <$> A.addUnconfirmedUser user
+    A.addUnconfirmedUser user
     config    <- AC.getConfig'P
-    sendUserConfirmationMail config user confToken
     let dummyPath = a3backendPath config ""
     return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
 
@@ -425,10 +422,6 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     --
     -- possible solution: deliver thentos registration widget; disable all adhocracy frontend-code
     -- that touches this end-point; provide user resources from outside of widgets only.
-
-    -- FIXME: write an action that wraps addUnconfirmedUser and sendUserConfirmationMail together?
-    -- (it's something that'll happen again in at least two more places, assuming we support
-    -- single-page apps and server-page apps in core.)
 
 -- | Activate a new user. This also creates a persona and a corresponding adhocracy user in the A3 backend,
 -- so that the user is able to log into A3. The user's actual password and email address are
@@ -495,21 +488,6 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 
 
 -- * helper actions
-
-sendUserConfirmationMail :: ThentosConfig -> UserFormData -> ConfirmationToken -> A3Action ()
-sendUserConfirmationMail cfg user (ConfirmationToken confToken) = do
-    let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
-        subject      = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "subject"])
-        bodyTemplate = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "body"])
-    body <- AC.renderTextTemplate'P bodyTemplate (mkStrContext context)
-    AC.sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
-  where
-    context "user_name"      = MuVariable . fromUserName $ udName user
-    context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
-    context _                = error "sendUserConfirmationMail: no such context"
-    feHttp      = case cfg >>. (Proxy :: Proxy '["frontend"]) of
-                      Nothing -> error "sendUserConfirmationMail: frontend not configured!"
-                      Just v -> Tagged v
 
 -- | Create a user in A3 from a persona name and return the user path.
 createUserInA3'P :: PersonaName -> A3Action Path

@@ -33,12 +33,14 @@ import Network.HTTP.Types.Status (statusCode)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders, simpleStatus, SResponse)
 import System.IO.Unsafe (unsafePerformIO)
-import Test.Hspec (Spec, SpecWith, describe, it, shouldBe, shouldContain, shouldNotBe,
+import System.Process (readProcess)
+import Test.Hspec (Spec, SpecWith, around_, describe, it, shouldBe, shouldContain, shouldNotBe,
                    pendingWith, hspec)
 import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as ST
 
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple (serveApi)
@@ -165,19 +167,45 @@ specRest = do
                 return (cid, solution)
 
         describe "register POST" $ do
-            it "responds with 201 if called with correct captcha solution" $ do
-                (cid, solution) <- getCaptchaAndSolution
-                -- Register user
-                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+            around_ withLogger $ do
+                it "responds with 204 No Content and sends mail with confirmation token" $ do
+                    (cid, solution) <- getCaptchaAndSolution
+                    -- Register user
+                    let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                        reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                    request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
+                    -- Find token in sent email and make sure it's correct
+                    let actPrefix = "/activate/"
+                    actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
+                    let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
+                    connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                    [Only (actualTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
+                        [sql| SELECT token FROM user_confirmation_tokens |] ()
+                    liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
+
+                it "responds with 204 No Content and sends warn mail if email is duplicate" $ do
+                    (cid, solution) <- getCaptchaAndSolution
+                    -- Create user
+                    void postDefaultUser
+                    -- Try to register another user with the same email
+                    let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                        user    = UserFormData "Another" "pwd" (udEmail defaultUserData)
+                        reqBody = Aeson.encode $ UserCreationRequest user csol
+                    request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
+                    -- Check that no confirmation token was generated
+                    connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                    liftIO $ rowCountShouldBe connPool "user_confirmation_tokens" 0
+                    -- Check that "Attempted Signup" mail was sent
+                    actLine <- liftIO $
+                        readProcess "grep" ["Thentos: Attempted Signup", "everything.log"] ""
+                    liftIO $ actLine `shouldNotBe` ""
 
             it "refuses to accept the correct solution to the same captcha twice" $ do
                 (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
                 -- Try to register another user
                 let user2    = UserFormData "name2" "pwd" $ forceUserEmail "another@example.org"
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
@@ -196,7 +224,7 @@ specRest = do
                 -- Try again using a new user name
                 let user2    = user { udName = "newname" }
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
-                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 201
+                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 204
 
             it "fails if called without correct captcha ID" $ do
                 let csol    = CaptchaSolution "no-such-id" "dummy"
@@ -210,16 +238,17 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
 
+        -- Note: this code assumes that there is just one unconfirmed user in the DB.
         let registerUserAndGetConfirmationToken :: (SBS, ST) -> WaiSession ConfirmationToken
             registerUserAndGetConfirmationToken (cid, solution) = do
                 -- Register user and get confirmation token
                 let csol     = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                rrsp <- request "POST" "/user/register" jsonHeader rreqBody
-                let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
+                void $ request "POST" "/user/register" jsonHeader rreqBody
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                -- There should be just one token in the DB
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
-                    [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
+                    [sql| SELECT token FROM user_confirmation_tokens |] ()
                 return confTok
 
         describe "activate POST" $ do

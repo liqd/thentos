@@ -134,20 +134,34 @@ type LogConfig' =
     :*> ("level" :> Prio)
 
 type MailConfig = Tagged (ToConfigCode MailConfig')
-type MailConfig' = "account_verification" :> AccountVerificationConfig'
+type MailConfig' =
+        "account_verification" :> AccountVerificationConfig'
+    :*> "user_exists"          :> UserExistsConfig'
 
 type AccountVerificationConfig = Tagged (ToConfigCode AccountVerificationConfig')
 type AccountVerificationConfig' =
       ("subject" :> ST)
   :*> ("body"    :> ST)
 
+type UserExistsConfig = Tagged (ToConfigCode UserExistsConfig')
+type UserExistsConfig' =
+      ("subject" :> ST)
+  :*> ("body"    :> ST)
+
 defaultMailConfig :: ToConfig (ToConfigCode MailConfig') Maybe
-defaultMailConfig = Just defaultAccountVerificationConfig
+defaultMailConfig =
+        Just defaultAccountVerificationConfig
+    :*> Just defaultUserExistsConfig
 
 defaultAccountVerificationConfig :: ToConfig (ToConfigCode AccountVerificationConfig') Maybe
 defaultAccountVerificationConfig =
       Just "Thentos account creation confirmation"
   :*> Just "Please go to {{activation_url}} to confirm your account."
+
+defaultUserExistsConfig :: ToConfig (ToConfigCode UserExistsConfig') Maybe
+defaultUserExistsConfig =
+      Just "Thentos: Attempted Signup"
+  :*> Just "Someone tried to sign up to Thentos with your email address."
 
 
 -- * leaf types

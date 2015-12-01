@@ -99,6 +99,8 @@ import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError)
 import System.Log.Logger (Priority(DEBUG))
+import Text.Hastache.Context (mkStrContext)
+import Text.Hastache (MuType(MuVariable))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Text as ST
@@ -106,6 +108,7 @@ import qualified Data.Text as ST
 import LIO.Missing
 import Thentos.Action.Core
 import Thentos.Action.SimpleAuth
+import Thentos.Config
 import Thentos.Transaction.Core (ThentosQuery)
 import Thentos.Types
 import Thentos.Util
@@ -197,29 +200,59 @@ deleteUser uid = do
 
 -- ** email confirmation
 
--- | Initiate email-verified user creation.  Does not require any privileges.  See also:
--- 'confirmNewUser'.
-addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s (UserId, ConfirmationToken)
+-- | Initiate email-verified user creation.  Does not require any privileges.
+-- This also sends an email containing an activation link on which the user must click.
+-- See also: 'confirmNewUser'.
+addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s ()
 addUnconfirmedUser userData = do
     -- FIXME change action to send the email directly instead of just returning the token
     -- and letting the frontend do it
     tok  <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
-    uid  <- query'P $ T.addUnconfirmedUser tok user
-    return (uid, tok)
+    let happy = do
+            void . query'P $ T.addUnconfirmedUser tok user
+            sendUserConfirmationMail userData tok
+    happy
+        `catchError`
+            \case UserEmailAlreadyExists -> sendUserExistsMail (udEmail userData)
+                  e                      -> throwError e
+
+-- | Helper action: Send a confirmation mail to a newly registered user.
+sendUserConfirmationMail :: UserFormData -> ConfirmationToken -> Action e s ()
+sendUserConfirmationMail user (ConfirmationToken confToken) = do
+    cfg <- getConfig'P
+    let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
+        subject      = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "body"])
+        feHttp       = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+                          Nothing -> error "sendUserConfirmationMail: frontend not configured!"
+                          Just v -> Tagged v
+        context "user_name"      = MuVariable . fromUserName $ udName user
+        context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
+        context _                = error "sendUserConfirmationMail: no such context"
+    body <- renderTextTemplate'P bodyTemplate (mkStrContext context)
+    sendMail'P smtpCfg (Just $ udName user) (udEmail user) subject $ cs body
+
+-- | Helper action: Send a confirmation mail to a newly registered user.
+sendUserExistsMail :: UserEmail -> Action e s ()
+sendUserExistsMail email = do
+    cfg <- getConfig'P
+    let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
+        subject = cfg >>. (Proxy :: Proxy '["mail", "user_exists", "subject"])
+        body    = cfg >>. (Proxy :: Proxy '["mail", "user_exists", "body"])
+    sendMail'P smtpCfg Nothing email subject body
 
 -- | Initiate email-verified user creation.  Does not require any privileges, but the user must
 -- have correctly solved a captcha to prove that they are human.  After the new user has been
 -- created, the captcha is deleted to prevent an attacker from creating multiple users after
 -- solving one captcha.  If user creation fails (e.g. because of a duplicate user name), the
 -- captcha remain in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
-addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s UserId
+addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     unlessM (solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)) $
         throwError InvalidCaptchaSolution
-    uid <- fst <$> addUnconfirmedUser (ucUser ucr)
+    addUnconfirmedUser (ucUser ucr)
     deleteCaptcha . csId $ ucCaptcha ucr
-    pure uid
 
 -- | Finish email-verified user creation. Throws 'NoSuchPendingUserConfirmation' if the
 -- token doesn't exist or is expired.
