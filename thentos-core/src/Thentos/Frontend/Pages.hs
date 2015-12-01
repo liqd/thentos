@@ -89,7 +89,7 @@ csrfProofForm :: FrontendSessionData -> View Html -> ST -> Html -> Html
 csrfProofForm _ v action = form v action . (<> csrfField)
   where
     csrfToken :: ST
-    csrfToken = "wef"  -- FIXME: get from state
+    csrfToken = "wef"  -- BUG #400: get from state
 
     csrfField :: Html
     csrfField = H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
@@ -268,7 +268,7 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
             H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
                 H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
                 -- makeCsrfField csrfToken
-                -- FIXME: do we need csrf protection here?  if so: did this ever work?
+                -- BUG #401: do we need csrf protection here?  if so: did this ever work?
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 

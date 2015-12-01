@@ -196,7 +196,7 @@ newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
--- | FIXME: ToJSON instance should go away in order to avoid accidental leakage of cleartext
+-- | BUG #399: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
 -- circumstances render to something like "[password hidden]".  Causes a lot of confusion.)
 newtype UserPass = UserPass { fromUserPass :: ST }

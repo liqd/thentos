@@ -149,7 +149,7 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
     p userFormData = do
         loggerF ("registering new user: " ++ show (udName userFormData))
         addUnconfirmedUser userFormData
-        -- FIXME: the frontend expects "/user/register_confirm/<ConfirmationToken>",
+        -- BUG #402: the frontend expects "/user/register_confirm/<ConfirmationToken>",
         -- but the link is now generated in the backend and has the form
         -- "/activate/<ConfirmationToken>"
 
@@ -269,7 +269,7 @@ userLogoutH = userLogoutConfirmH :<|> userLogoutDoneH
 userLogoutConfirmH :: FAction H.Html
 userLogoutConfirmH = runAsUserOrLogin $ \_ fsl -> do
     serviceNames <- serviceNamesFromThentosSession (fsl ^. fslToken)
-    -- FIXME: do we need csrf protection for this?
+    -- BUG #403: do we need csrf protection for this?
     setTab DashboardTabLogout
     renderDashboard (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
 
@@ -284,7 +284,7 @@ userLogoutDoneH = runAsUserOrLogin $ \_ fsl -> do
 
 type EmailUpdateH = "update_email" :> FormH UserEmail
 
--- FIXME: csrf?
+-- BUG #403: csrf?
 emailUpdateH :: ServerT EmailUpdateH FAction
 emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
   where
@@ -378,7 +378,7 @@ dashboardH =
 -- FIXME: this route should be something more like @/service/create@.
 type ServiceCreateH = "create" :> FormH (ServiceName, ServiceDescription)
 
--- FIXME: csrf
+-- BUG #403: csrf
 serviceCreateH :: ServerT ServiceCreateH FAction
 serviceCreateH = formH "/service/create" serviceCreateForm p r
   where
@@ -402,7 +402,7 @@ serviceCreateH = formH "/service/create" serviceCreateForm p r
 
 type ServiceRegisterH = "register" :> FormH ()
 
--- FIXME: csrf
+-- BUG #403: csrf
 
 -- FIXME: security: we are doing a lookup on the service table, but the service may have an opinion
 -- on whether the user is allowed to look it up.  the user needs to present a cryptographic proof of
@@ -444,9 +444,9 @@ type ServiceLoginH = "login"
 -- *case C:* user is logged into thentos, but not registered with service.  redirect to service
 -- registration page.
 --
--- FIXME: Sönke Hahn: "The session token seems to be contained in the url. So if people copy the url
--- from the address bar and send it to someone, they will get the same session.  The session token
--- should be in a cookie, shouldn't it?"  (We will use some SSO protocol here that is not home
+-- BUG #404: Sönke Hahn: "The session token seems to be contained in the url. So if people copy the
+-- url from the address bar and send it to someone, they will get the same session.  The session
+-- token should be in a cookie, shouldn't it?"  (We will use some SSO protocol here that is not home
 -- cooked later; for prototype operations, this is not serious.)
 serviceLoginH :: Maybe ServiceId -> Maybe RelRef -> FAction a
 serviceLoginH Nothing _ = crash $ FActionError500 "Service login: no Service ID."
@@ -457,7 +457,7 @@ serviceLoginH (Just sid) (Just (RelRef rr)) = do
     modify $ fsdServiceLoginState .~ Just sls
 
     runAsUserOrLogin $ \_ fsl -> do
-        -- FIXME: (BUG, actually:) the token needs to be stored in the query of the redirect url.
+        -- BUG #405: the token needs to be stored in the query of the redirect url.
         ServiceSessionToken _ <- startServiceSession (fsl ^. fslToken) sid
           `catchError` \case NotRegisteredWithService
                                -> redirect' "/service/register"
