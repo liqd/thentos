@@ -89,7 +89,7 @@ thentosBasic =
 
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] (JsonTop UserId)
-  :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] (JsonTop UserId)
+  :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] ()
   :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
                   :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] (JsonTop ThentosSessionToken)
@@ -101,7 +101,7 @@ type ThentosUser =
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
        (JsonTop <$>) . addUser
-  :<|> (JsonTop <$>) . addUnconfirmedUserWithCaptcha
+  :<|> addUnconfirmedUserWithCaptcha
   :<|> (JsonTop <$>) . (snd <$>) .  confirmNewUser . fromJsonTop
   :<|> (\(LoginFormData n p) -> JsonTop . snd <$> startThentosSessionByUserName n p)
   :<|> deleteUser

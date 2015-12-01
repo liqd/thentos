@@ -48,7 +48,6 @@ library
     , case-insensitive >=1.2.0.4 && <1.3
     , configifier >=0.0.6 && <0.1
     , functor-infix >=0.0.3 && <0.1
-    , hastache >= 0.6.1 && <0.7
     , hslogger >=1.2.9 && <1.3
     , http-client >=0.4.22 && <0.5
     , http-conduit >=2.1.8 && <2.2

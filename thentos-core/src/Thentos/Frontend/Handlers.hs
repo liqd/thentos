@@ -147,40 +147,15 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
   where
     p :: UserFormData -> FAction H.Html
     p userFormData = do
-        fcfg <- getFrontendCfg
         loggerF ("registering new user: " ++ show (udName userFormData))
+        addUnconfirmedUser userFormData
+        -- FIXME: the frontend expects "/user/register_confirm/<ConfirmationToken>",
+        -- but the link is now generated in the backend and has the form
+        -- "/activate/<ConfirmationToken>"
 
-        let happy = do
-                (_, tok) <- addUnconfirmedUser userFormData
-                let url = emailConfirmUrl fcfg "/user/register_confirm" (fromConfirmationToken tok)
-                sendUserConfirmationMail userFormData url
-        happy
-            `catchError`
-                \case UserEmailAlreadyExists -> sendUserExistsMail (udEmail userFormData)
-                      e -> throwError e
-
-                -- FIXME: there should be a nicer reaction if the user attempts to use a nick that
-                -- is already in use.
-
+        -- FIXME: there could be a nicer reaction if the user attempts to use a nick that
+        -- is already in use.
         userRegisterRequestedPage <$> get
-
-sendUserConfirmationMail :: UserFormData -> ST -> FAction ()
-sendUserConfirmationMail user callbackUrl = liftU $
-    U.sendMail Nothing (udEmail user) subject message
-  where
-    message = "Please go to " <> callbackUrl <> " to confirm your account."
-    subject = "Thentos account creation confirmation"
-
-sendUserExistsMail :: UserEmail -> FAction ()
-sendUserExistsMail address = liftU $
-    U.sendMail Nothing address subject message
-  where
-    message = "Someone tried to sign up to Thentos with your email address"
-                <> "\nThis is a reminder that you already have a Thentos"
-                <> " account. If you haven't tried to sign up to Thentos, you"
-                <> " can just ignore this email. If you have, you are hereby"
-                <> " reminded that you already have an account."
-    subject = "Attempted Thentos Signup"
 
 
 type UserRegisterConfirmH = "register_confirm" :>
