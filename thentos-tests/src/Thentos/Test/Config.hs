@@ -76,6 +76,9 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "            bitte nutzen Sie den folgenden Link um das Nutzerkonto zu aktivieren." :
     "" :
     "            {{activation_url}}" :
+    "    user_exists:" :
+    "        subject: \"Thentos: Attempted Signup\"" :
+    "        body: \"Someone tried to sign up to Thentos with your email address.\"" :
     []
 
 godUid :: UserId
