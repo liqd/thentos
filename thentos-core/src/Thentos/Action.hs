@@ -80,6 +80,7 @@ module Thentos.Action
 
     , makeCaptcha
     , solveCaptcha
+    , deleteCaptcha
 
     , collectGarbage
     )
@@ -242,13 +243,16 @@ sendUserExistsMail email = do
     sendMail'P smtpCfg Nothing email subject body
 
 -- | Initiate email-verified user creation.  Does not require any privileges, but the user must
--- have correctly solved a captcha to prove that they are human.  See also:
--- 'makeCaptcha', 'confirmNewUser'.
+-- have correctly solved a captcha to prove that they are human.  After the new user has been
+-- created, the captcha is deleted to prevent an attacker from creating multiple users after
+-- solving one captcha.  If user creation fails (e.g. because of a duplicate user name), the
+-- captcha remain in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
 addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     unlessM (solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)) $
         throwError InvalidCaptchaSolution
     addUnconfirmedUser (ucUser ucr)
+    deleteCaptcha . csId $ ucCaptcha ucr
 
 -- | Finish email-verified user creation. Throws 'NoSuchPendingUserConfirmation' if the
 -- token doesn't exist or is expired.
@@ -713,13 +717,16 @@ makeCaptcha = do
     pure (cid, imgdata)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
--- Calling this action deletes the referenced captcha from the DB, so every captcha must be
--- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
--- exist in the DB (either because it never did or because it was deleted due to garbage collection
--- or a prior call to this action). Does not require any privileges.
+-- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
+-- never did or because it was deleted). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
 solveCaptcha cid solution = query'P $ T.solveCaptcha cid solution
 
+-- | Delete a captcha and its solution from the DB. Throws 'NoSuchCaptchaId' if the given
+-- 'CaptchaId' doesn't exist in the DB (either because it never did or because it was deleted due
+-- to garbage collection or a prior call to this action). Does not require any privileges.
+deleteCaptcha :: CaptchaId -> Action e s ()
+deleteCaptcha = query'P . T.deleteCaptcha
 
 -- * garbage collection
 

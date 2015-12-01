@@ -224,7 +224,6 @@ specRest = do
                 -- Try again using a new user name
                 let user2    = user { udName = "newname" }
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
-                liftIO $ pendingWith "FIXME not correctly implemented yet"
                 request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 204
 
             it "fails if called without correct captcha ID" $ do

@@ -559,17 +559,26 @@ storeCaptcha cid solution = void $
     execT [sql| INSERT INTO captchas (id, solution) VALUES (?, ?) |] (cid, solution)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
--- Calling this action deletes the referenced captcha from the DB, so every captcha must be
--- solved (or not) at first attempt. Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't
--- exist in the DB (either because it never did or because it was deleted due to garbage collection
--- or a prior call to this action).
+-- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
+-- never did or because it was deleted).
 solveCaptcha :: CaptchaId -> ST -> ThentosQuery e Bool
 solveCaptcha cid solution = do
-    res <- queryT [sql| DELETE FROM captchas WHERE id = ? RETURNING solution |] (Only cid)
+    res <- queryT [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
     case res of
       [Only correct] -> pure $ solution == correct
       []             -> throwError NoSuchCaptchaId
       _              -> impossible "solveCaptcha: multiple results"
+
+-- | Delete a captcha and its solution from the DB. Throws 'NoSuchCaptchaId' if the given
+-- 'CaptchaId' doesn't exist in the DB (either because it never did or because it was deleted due
+-- to garbage collection or a prior call to this action).
+deleteCaptcha :: CaptchaId -> ThentosQuery e ()
+deleteCaptcha cid = do
+    res <- execT [sql| DELETE FROM captchas WHERE id = ? |] (Only cid)
+    case res of
+      1 -> pure ()
+      0 -> throwError NoSuchCaptchaId
+      _ -> impossible "deleteCaptcha: multiple results"
 
 
 -- * garbage collection
