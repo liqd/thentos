@@ -165,19 +165,19 @@ specRest = do
                 return (cid, solution)
 
         describe "register POST" $ do
-            it "responds with 201 if called with correct captcha solution" $ do
+            it "responds with 204 No Content if called with correct captcha solution" $ do
                 (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
 
             it "refuses to accept the correct solution to the same captcha twice" $ do
                 (cid, solution) <- getCaptchaAndSolution
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 201
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
                 -- Try to register another user
                 let user2    = UserFormData "name2" "pwd" $ forceUserEmail "another@example.org"
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
@@ -197,7 +197,7 @@ specRest = do
                 let user2    = user { udName = "newname" }
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
                 liftIO $ pendingWith "FIXME not correctly implemented yet"
-                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 201
+                request "POST" "/user/register" jsonHeader reqBody2 `shouldRespondWith` 204
 
             it "fails if called without correct captcha ID" $ do
                 let csol    = CaptchaSolution "no-such-id" "dummy"
@@ -211,16 +211,18 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 400
 
+        -- Note: this code assumes that there is just one unconfirmed user in the DB.
         let registerUserAndGetConfirmationToken :: (SBS, ST) -> WaiSession ConfirmationToken
             registerUserAndGetConfirmationToken (cid, solution) = do
                 -- Register user and get confirmation token
                 let csol     = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 rrsp <- request "POST" "/user/register" jsonHeader rreqBody
-                let Right (uid :: UserId) = decodeJsonTop $ simpleBody rrsp
+                let Right () = decodeJsonTop $ simpleBody rrsp
                 connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                -- There should be just one token in the DB
                 [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
-                    [sql| SELECT token FROM user_confirmation_tokens WHERE id = ? |] (Only uid)
+                    [sql| SELECT token FROM user_confirmation_tokens |] ()
                 return confTok
 
         describe "activate POST" $ do

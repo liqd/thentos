@@ -89,6 +89,9 @@ thentosBasic =
 
 type ThentosUser =
        ReqBody '[JSON] UserFormData :> Post '[JSON] (JsonTop UserId)
+       -- register returns 204 No Content
+       -- FIXME We should use '[] instead of '[JSON] as result type for UserCreationRequest,
+       -- but that causes a compile error at "serve p (restDocs ..."
   :<|> "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] ()
   :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
                   :> Post '[JSON] (JsonTop ThentosSessionToken)
