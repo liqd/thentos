@@ -222,11 +222,11 @@ sendUserConfirmationMail :: UserFormData -> ConfirmationToken -> Action e s ()
 sendUserConfirmationMail user (ConfirmationToken confToken) = do
     cfg <- getConfig'P
     let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
-        subject      = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "subject"])
-        bodyTemplate = cfg >>. (Proxy :: Proxy '["mail", "account_verification", "body"])
-        feHttp       = case cfg >>. (Proxy :: Proxy '["frontend"]) of
-                          Nothing -> error "sendUserConfirmationMail: frontend not configured!"
-                          Just v -> Tagged v
+        subject = cfg >>. (Proxy :: Proxy '["email_templates", "account_verification", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["email_templates", "account_verification", "body"])
+        feHttp = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+            Nothing -> error "sendUserConfirmationMail: frontend not configured!"
+            Just v -> Tagged v
         context "user_name"      = MuVariable . fromUserName $ udName user
         context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
         context _                = error "sendUserConfirmationMail: no such context"
@@ -238,8 +238,8 @@ sendUserExistsMail :: UserEmail -> Action e s ()
 sendUserExistsMail email = do
     cfg <- getConfig'P
     let smtpCfg :: SmtpConfig = Tagged $ cfg >>. (Proxy :: Proxy '["smtp"])
-        subject = cfg >>. (Proxy :: Proxy '["mail", "user_exists", "subject"])
-        body    = cfg >>. (Proxy :: Proxy '["mail", "user_exists", "body"])
+        subject = cfg >>. (Proxy :: Proxy '["email_templates", "user_exists", "subject"])
+        body    = cfg >>. (Proxy :: Proxy '["email_templates", "user_exists", "body"])
     sendMail'P smtpCfg Nothing email subject body
 
 -- | Initiate email-verified user creation.  Does not require any privileges, but the user must

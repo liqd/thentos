@@ -61,7 +61,7 @@ type ThentosConfig' =
   :*>       ("captcha_expiration"      :> Timeout    :>: "Captcha expiration period")
   :*> Maybe ("gc_interval"             :> Timeout    :>: "Garbage collection interval")
   :*>       ("log"          :> LogConfig'            :>: "Logging")
-  :*>       ("mail"         :> MailConfig'           :>: "Mail templates")
+  :*>       ("email_templates" :> EmailTemplates'    :>: "Mail templates")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -79,7 +79,7 @@ defaultThentosConfig =
   :*> Just (fromHours 1)
   :*> NothingO
   :*> Nothing
-  :*> Just defaultMailConfig
+  :*> Just defaultEmailTemplates
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
@@ -133,35 +133,20 @@ type LogConfig' =
         ("path" :> ST)
     :*> ("level" :> Prio)
 
-type MailConfig = Tagged (ToConfigCode MailConfig')
-type MailConfig' =
-        "account_verification" :> AccountVerificationConfig'
-    :*> "user_exists"          :> UserExistsConfig'
+type EmailTemplates = Tagged (ToConfigCode EmailTemplates')
+type EmailTemplates' =
+        "account_verification" :> EmailTemplate'
+    :*> "user_exists"          :> EmailTemplate'
 
-type AccountVerificationConfig = Tagged (ToConfigCode AccountVerificationConfig')
-type AccountVerificationConfig' =
+type EmailTemplate = Tagged (ToConfigCode EmailTemplate')
+type EmailTemplate' =
       ("subject" :> ST)
   :*> ("body"    :> ST)
 
-type UserExistsConfig = Tagged (ToConfigCode UserExistsConfig')
-type UserExistsConfig' =
-      ("subject" :> ST)
-  :*> ("body"    :> ST)
-
-defaultMailConfig :: ToConfig (ToConfigCode MailConfig') Maybe
-defaultMailConfig =
-        Just defaultAccountVerificationConfig
-    :*> Just defaultUserExistsConfig
-
-defaultAccountVerificationConfig :: ToConfig (ToConfigCode AccountVerificationConfig') Maybe
-defaultAccountVerificationConfig =
-      Just "Thentos account creation confirmation"
-  :*> Just "Please go to {{activation_url}} to confirm your account."
-
-defaultUserExistsConfig :: ToConfig (ToConfigCode UserExistsConfig') Maybe
-defaultUserExistsConfig =
-      Just "Thentos: Attempted Signup"
-  :*> Just "Someone tried to sign up to Thentos with your email address."
+defaultEmailTemplates :: ToConfig (ToConfigCode EmailTemplates') Maybe
+defaultEmailTemplates =
+        Nothing
+    :*> Nothing
 
 
 -- * leaf types
