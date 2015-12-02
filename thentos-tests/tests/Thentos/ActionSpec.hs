@@ -26,6 +26,7 @@ import LIO.Missing
 import Thentos.Action
 import Thentos.Action.Core
 import Thentos.Types
+import qualified Thentos.Transaction as T
 
 
 tests :: IO ()
@@ -43,6 +44,7 @@ spec = do
         spec_service
         spec_agentsAndRoles
         spec_session
+        spec_captcha
 
 
 spec_user :: SpecWith ActionState
@@ -201,6 +203,29 @@ spec_session = describe "session" $ do
             v4 <- runAsAgent (UserA bertId)  sta (existsThentosSession tok)
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
+
+spec_captcha :: SpecWith ActionState
+spec_captcha = describe "captcha" $ do
+    describe "solveCaptcha" $ do
+        it "returns true but doesn't delete the captcha if the solution is correct" $ \sta -> do
+            let ActionState (conns, _, _) = sta
+            void $ runVoidedQuery conns $ T.storeCaptcha cid solution
+            captchaResult <- runA sta $ solveCaptcha cid solution
+            captchaResult `shouldBe` True
+            [Only count] <- doQuery conns
+                [sql| SELECT COUNT(*) FROM captchas WHERE id = ?|] (Only cid)
+            count `shouldBe` (1 :: Int)
+        it "returns false and deletes the captcha if the solution is wrong" $ \sta -> do
+            let ActionState (conns, _, _) = sta
+            void $ runVoidedQuery conns $ T.storeCaptcha cid solution
+            captchaResult <- runA sta $ solveCaptcha cid "wrong"
+            captchaResult `shouldBe` False
+            [Only count] <- doQuery conns
+                [sql| SELECT COUNT(*) FROM captchas WHERE id = ?|] (Only cid)
+            count `shouldBe` (0 :: Int)
+  where
+    cid      = "RandomId"
+    solution = "some text"
 
 -- specialize to error type 'Void' and state '()'
 runA :: ActionState -> Action Void () a -> IO a

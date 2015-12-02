@@ -717,10 +717,14 @@ makeCaptcha = do
     pure (cid, imgdata)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
+-- Delete captcha on on unsuccessful attempt to solve it.
 -- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
 -- never did or because it was deleted). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
-solveCaptcha cid solution = query'P $ T.solveCaptcha cid solution
+solveCaptcha cid solution = do
+    solutionCorrect <- query'P $ T.solveCaptcha cid solution
+    unless solutionCorrect $ deleteCaptcha cid
+    return solutionCorrect
 
 -- | Delete a captcha and its solution from the DB. Throws 'NoSuchCaptchaId' if the given
 -- 'CaptchaId' doesn't exist in the DB (either because it never did or because it was deleted due
