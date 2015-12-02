@@ -34,12 +34,12 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , TypedPath(..)
     , TypedPathWithCacheControl(..)
     , a3corsPolicy
-    , a3ProxyAdapter
     , runBackend
     , serveApi
     , thentosApi
     ) where
 
+import Data.Maybe (fromJust)
 import Control.Lens ((^.), (&), (<>~))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, mzero)
@@ -609,22 +609,15 @@ renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it. We return the external URL of the user's default persona.
 a3RenderUser :: UserId -> User -> A3Action SBS
-a3RenderUser uid _ = do
-    sid     <- a3ServiceId
-    persona <- A.findPersona uid sid "" >>=
-               maybe (throwError . OtherError $ A3NoDefaultPersona uid sid) pure
-    userUrl <- maybe (throwError $ OtherError A3PersonaLacksExternalUrl) pure $
-                     persona ^. personaExternalUrl
-    return . URI.uriPath $ fromUri userUrl
+a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
 a3backendPath :: ThentosConfig -> ST -> Path
-a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
+a3backendPath config localPath = Path $ a3Prefix <//> localPath
   where
-    beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
-                     Nothing -> error "a3backendPath: backend not configured!"
-                     Just v -> Tagged v
+    -- FIXME: get rid of the fromJust, a3-Prefix should not be optional
+    a3Prefix = fromJust $ config >>. (Proxy :: Proxy '["a3-prefix"])
 
 userIdFromPath :: MonadError (ThentosError e) m => Path -> m UserId
 userIdFromPath (Path s) = do
