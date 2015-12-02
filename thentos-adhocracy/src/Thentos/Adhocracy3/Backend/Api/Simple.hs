@@ -609,13 +609,7 @@ renderA3HeaderName h                    = renderThentosHeaderName h
 
 -- | Render the user as A3 expects it. We return the external URL of the user's default persona.
 a3RenderUser :: UserId -> User -> A3Action SBS
-a3RenderUser uid _ = do
-    sid     <- a3ServiceId
-    persona <- A.findPersona uid sid "" >>=
-               maybe (throwError . OtherError $ A3NoDefaultPersona uid sid) pure
-    userUrl <- maybe (throwError $ OtherError A3PersonaLacksExternalUrl) pure $
-                     persona ^. personaExternalUrl
-    return . URI.uriPath $ fromUri userUrl
+a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
