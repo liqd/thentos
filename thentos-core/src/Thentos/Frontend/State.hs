@@ -45,7 +45,7 @@ import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
 
 
--- FIXME: EU-required user notifications about cookies
+-- BUG #406: EU-required user notifications about cookies
 -- FUTUREWORK: more efficient refresh (only if changed or after 20% of the age has been passed)
 
 

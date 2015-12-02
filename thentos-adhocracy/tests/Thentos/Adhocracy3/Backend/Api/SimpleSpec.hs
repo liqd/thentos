@@ -199,7 +199,7 @@ spec =
             around_ (withA3fake Nothing a3loginSuccess) $ do
                 it "changes the password if A3 signals success" $ do
 
-                    liftIO $ pendingWith "FIXME see #321"
+                    liftIO $ pendingWith "see BUG #321"
 
                     let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
                     rsp <- request "POST" "password_reset" [ctJson] resetReq
@@ -214,7 +214,7 @@ spec =
             around_ (withA3fake (Just status400) a3errMsg) $ do
                 it "passes the error on if A3 signals failure" $ do
 
-                    liftIO $ pendingWith "FIXME see #321, too."
+                    liftIO $ pendingWith "see BUG #321, too."
 
                     let resetReq = mkPwResetRequestJson "/principals/resets/dummypath" "newpass"
                     rsp <- request "POST" "password_reset" [ctJson] resetReq

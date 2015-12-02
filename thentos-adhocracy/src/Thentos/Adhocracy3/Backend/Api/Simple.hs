@@ -472,7 +472,7 @@ login r = AC.logIfError'P $ do
 -- reset path is valid, we forward the request to the backend, but replacing the new password by a
 -- dummy (as usual). If the backend indicates success, we update the password in Thentos.
 -- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
--- FIXME Issue #321: Process is now broken, adapt to new user management (user is now stored in
+-- BUG #321: Process is now broken, adapt to new user management (user is now stored in
 -- Thentos with a corresponding persona in A3 for activated users only.)
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do

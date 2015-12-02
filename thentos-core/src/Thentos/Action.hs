@@ -205,8 +205,6 @@ deleteUser uid = do
 -- See also: 'confirmNewUser'.
 addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s ()
 addUnconfirmedUser userData = do
-    -- FIXME change action to send the email directly instead of just returning the token
-    -- and letting the frontend do it
     tok  <- freshConfirmationToken
     user <- makeUserFromFormData'P userData
     let happy = do
@@ -322,12 +320,12 @@ changePassword uid old new = do
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     query'P $ T.changePassword uid hashedPw
 
--- FIXME: As the '_' says, this function shouldn't be exported, but wrapped in a public action that
--- establishes that the password change is legitimate.  (Currently, this function is only called in
--- "Thentos.Adhocracy3.Backend.Api.Simple", and that will change heavily during implementation of
--- #321.  If we would keep the current setup, we would pull the code calling the service into the
--- wrapping action, and taint that with the obtained user id.  Once #321 has been implemented, we
--- should have something analogous happening here in this module.)
+-- BUG #407: As the '_' says, this function shouldn't be exported, but wrapped in a public action
+-- that establishes that the password change is legitimate.  (Currently, this function is only
+-- called in "Thentos.Adhocracy3.Backend.Api.Simple", and that will change heavily during
+-- implementation of #321.  If we would keep the current setup, we would pull the code calling the
+-- service into the wrapping action, and taint that with the obtained user id.  Once #321 has been
+-- implemented, we should have something analogous happening here in this module.)
 _changePasswordUnconditionally :: UserId -> UserPass -> Action e s ()
 _changePasswordUnconditionally uid newPw = do
     hashedPw <- hashUserPass'P newPw
