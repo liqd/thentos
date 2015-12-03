@@ -58,6 +58,7 @@ import Thentos.Util
 
 
 -- * types
+
 -- FIXME: we should make this a record (instead of a newtype around a tuple)
 -- so we can get the fields without having to pattern-match
 newtype ActionState =

@@ -244,9 +244,9 @@ sendUserExistsMail email = do
 
 -- | Initiate email-verified user creation.  Does not require any privileges, but the user must
 -- have correctly solved a captcha to prove that they are human.  After the new user has been
--- created, the captcha is deleted to prevent an attacker from creating multiple users after
--- solving one captcha.  If user creation fails (e.g. because of a duplicate user name), the
--- captcha remain in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
+-- created, the captcha is deleted to prevent an attacker from creating multiple users with
+-- the same captcha solution.  If user creation fails (e.g. because of a duplicate user name), the
+-- captcha remains in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
 addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     unlessM (solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)) $
@@ -717,7 +717,7 @@ makeCaptcha = do
     pure (cid, imgdata)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
--- Delete captcha on on unsuccessful attempt to solve it.
+-- If the solution is wrong, delete captcha to prevent multiple guesses.
 -- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
 -- never did or because it was deleted). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
