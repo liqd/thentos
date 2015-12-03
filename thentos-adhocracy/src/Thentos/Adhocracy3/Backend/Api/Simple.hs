@@ -39,7 +39,6 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , thentosApi
     ) where
 
-import Data.Maybe (fromJust)
 import Control.Lens ((^.), (&), (<>~))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, mzero)
@@ -616,8 +615,7 @@ a3RenderUser uid _ = externalUrlOfDefaultPersona uid
 a3backendPath :: ThentosConfig -> ST -> Path
 a3backendPath config localPath = Path $ a3Prefix <//> localPath
   where
-    -- FIXME: get rid of the fromJust, a3-Prefix should not be optional
-    a3Prefix = fromJust $ config >>. (Proxy :: Proxy '["a3-prefix"])
+    a3Prefix = config >>. (Proxy :: Proxy '["a3-prefix"])
 
 userIdFromPath :: MonadError (ThentosError e) m => Path -> m UserId
 userIdFromPath (Path s) = do

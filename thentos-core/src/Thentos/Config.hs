@@ -64,7 +64,7 @@ type ThentosConfig' =
   :*>       ("mail"         :> MailConfig'           :>: "Mail templates")
     -- TODO: a3-prefix should not live in thentos-core
     -- TODO: maybe make this a more structured type than ST
-  :*> Maybe ("a3-prefix"    :> ST                    :>: "URL prefix of the A3 api")
+  :*>       ("a3-prefix"    :> ST                    :>: "URL prefix of the A3 api")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -83,7 +83,7 @@ defaultThentosConfig =
   :*> NothingO
   :*> Nothing
   :*> Just defaultMailConfig
-  :*> NothingO
+  :*> Nothing
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =
