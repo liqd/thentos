@@ -622,8 +622,9 @@ userIdFromPath (Path s) = do
     uri <- either (const . throwError . MalformedUserPath $ s) return $
         URI.parseURI URI.laxURIParserOptions $ cs s
     rawId <- maybe (throwError $ MalformedUserPath s) return $
-        -- FIXME: I don't think this will work, as the path may be something
+        -- BUG (I think) : I don't think this will work, as the path may be something
         --  like /foo/principals/users/ (see https://github.com/liqd/adhocracy3/pull/1849)
+        -- github issue at https://github.com/liqd/thentos/issues/411
         stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
     maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
 
