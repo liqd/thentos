@@ -37,6 +37,8 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "    expose_host: \"127.0.0.1\"" :
     "" :
     ("purescript: " ++ $(getPackageSourceRoot "thentos-purescript") </> "static") :
+    "a3-prefix:" :
+    "    "http://example.com/" :
     "" :
     "smtp:" :
     "    sender_name: \"Thentos\"" :
