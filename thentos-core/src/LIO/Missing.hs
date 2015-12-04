@@ -1,13 +1,3 @@
-{-# LANGUAGE DataKinds                   #-}
-{-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE FlexibleInstances           #-}
-{-# LANGUAGE InstanceSigs                #-}
-{-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE OverloadedStrings           #-}
-{-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE TypeFamilies                #-}
-{-# LANGUAGE TypeOperators               #-}
-
 module LIO.Missing
 where
 

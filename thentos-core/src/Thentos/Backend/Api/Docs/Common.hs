@@ -1,6 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes                      #-}
 {-# LANGUAGE ConstraintKinds                          #-}
-{-# LANGUAGE CPP                                      #-}
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
@@ -8,7 +6,6 @@
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
 

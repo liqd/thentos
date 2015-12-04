@@ -1,21 +1,10 @@
-{-# LANGUAGE ConstraintKinds             #-}
-{-# LANGUAGE DataKinds                   #-}
-{-# LANGUAGE DeriveDataTypeable          #-}
-{-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
-{-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE InstanceSigs                #-}
-{-# LANGUAGE LambdaCase                  #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TupleSections               #-}
 {-# LANGUAGE TypeFamilies                #-}
-{-# LANGUAGE TypeOperators               #-}
-{-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Action.Core
 where

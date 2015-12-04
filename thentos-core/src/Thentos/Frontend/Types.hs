@@ -1,9 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE PackageImports         #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TemplateHaskell        #-}
 
