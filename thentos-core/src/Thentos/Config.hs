@@ -1,9 +1,7 @@
 {-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE DeriveDataTypeable   #-}
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeOperators        #-}
 
 module Thentos.Config

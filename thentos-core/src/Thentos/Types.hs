@@ -1,20 +1,10 @@
-{-# LANGUAGE DataKinds                   #-}
-{-# LANGUAGE DeriveDataTypeable          #-}
-{-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE KindSignatures              #-}
-{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
-{-# LANGUAGE TypeFamilies                #-}
-{-# LANGUAGE TypeOperators               #-}
 {-# LANGUAGE ViewPatterns                #-}
-{-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Types
     ( JsonTop(..)

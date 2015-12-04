@@ -1,18 +1,7 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE ExistentialQuantification                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE GADTs                                    #-}
-{-# LANGUAGE InstanceSigs                             #-}
-{-# LANGUAGE MultiParamTypeClasses                    #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TupleSections                            #-}
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
-{-# LANGUAGE TypeSynonymInstances                     #-}
-{-# LANGUAGE UndecidableInstances                     #-}
 
 -- | Authentication via 'ThentosSessionToken'.
 --

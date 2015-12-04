@@ -1,17 +1,7 @@
 {-# LANGUAGE Unsafe                      #-}
 
-{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DataKinds                   #-}
-{-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE FlexibleInstances           #-}
-{-# LANGUAGE InstanceSigs                #-}
-{-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE PackageImports              #-}
-{-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE TypeFamilies                #-}
-{-# LANGUAGE TypeOperators               #-}
-{-# LANGUAGE UndecidableInstances        #-}
 
 module Thentos.Action.Unsafe
 where

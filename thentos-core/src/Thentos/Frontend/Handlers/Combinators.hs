@@ -1,8 +1,5 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE LambdaCase             #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TupleSections          #-}
 
 module Thentos.Frontend.Handlers.Combinators where
 

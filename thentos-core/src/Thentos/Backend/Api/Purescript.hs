@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE TypeOperators                            #-}
 
 module Thentos.Backend.Api.Purescript where  -- FIXME: rename to "PureScript" (like the purescript hackage package)
 

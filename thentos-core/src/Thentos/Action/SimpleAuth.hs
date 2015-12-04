@@ -1,12 +1,8 @@
 {-# LANGUAGE Unsafe                      #-}
 
-{-# LANGUAGE DeriveDataTypeable          #-}
-{-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE TypeFamilies                #-}
 
 {-| Simplified access to 'Action' with guarded exits.
 

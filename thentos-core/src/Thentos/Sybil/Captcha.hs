@@ -1,7 +1,4 @@
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TupleSections        #-}
 
 -- | This is a port of https://hackage.haskell.org/package/hs-captcha (which is based on
 -- http://libgd.github.io/) to diagrams.  The generated strings are beautified with elocrypt.
