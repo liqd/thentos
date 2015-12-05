@@ -424,9 +424,9 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
     -- possible solution: deliver thentos registration widget; disable all adhocracy frontend-code
     -- that touches this end-point; provide user resources from outside of widgets only.
 
--- | Activate a new user. This also creates a persona and a corresponding adhocracy user in the A3 backend,
--- so that the user is able to log into A3. The user's actual password and email address are
--- only stored in Thentos and NOT exposed to A3.
+-- | Activate a new user. This also creates a persona and a corresponding adhocracy user in the A3
+-- backend, so that the user is able to log into A3. The user's actual password and email address
+-- are only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
 activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
