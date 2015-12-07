@@ -61,7 +61,7 @@ type State eff =
     , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
     , stCaptchaQ      :: Maybe (AffjaxResponse AB.ArrayBuffer)
-    , stCaptchaA      :: String
+    , stCaptchaA      :: InputValue
     , stConfig        :: StateConfig eff
     }
 
@@ -120,7 +120,7 @@ initialState cfg =
     , stPass2: emptyInputValue
     , stTermsAndConds: false
     , stCaptchaQ: Nothing
-    , stCaptchaA: ""
+    , stCaptchaA: emptyInputValue
     , stConfig: cfg
     }
 
@@ -220,6 +220,7 @@ bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
             , P.required true
             , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
             ]
+        , renderErrors st [ErrorRequiredCaptchaSolution]
         ]
 
     , H.input
@@ -303,6 +304,7 @@ instance showFormError :: Show FormError where
     show ErrorTooShortPassword = "TR__ERROR_TOO_SHORT_PASSWORD"
     show ErrorMatchPassword = "TR__ERROR_MATCH_PASSWORD"
     show ErrorRequiredTermsAndConditions = "TR__ERROR_REQUIRED_TERMS_AND_CONDITIONS"
+    show ErrorRequiredCaptchaSolution = "TR__ERROR_REQUIRED_CAPTCHA_SOLUTION"
 
 -- | there is something about this very similar to `trh`: we want to be able to collect all
 -- classnames occurring in a piece of code, and construct a list from them with documentation
@@ -368,7 +370,10 @@ eval e@(NewCaptchaReceived resp next) = do
 
 eval e@(CaptchaKeyPressed ival next) = do
     liftAff' $ log $ stringify e
-    modify (\st -> st { stCaptchaA = ival.value })
+    modify (\st -> st
+        { stOfInterestNow = union [ErrorRequiredCaptchaSolution] st.stOfInterestNow
+        , stCaptchaA = ival
+        })
     pure next
 
 modifyConfig :: forall eff f g.
@@ -395,7 +400,7 @@ doSubmit st = affjax $ defaultRequest
     submitBody =
         { ucCaptcha:
             { csId: csId
-            , csSolution: st.stCaptchaA
+            , csSolution: st.stCaptchaA.value
             }
         , ucUser:
             { udName: st.stName.value
@@ -422,6 +427,7 @@ data FormError =
     | ErrorTooShortPassword
     | ErrorMatchPassword
     | ErrorRequiredTermsAndConditions
+    | ErrorRequiredCaptchaSolution
 
 derive instance genericFormError :: Generic FormError
 instance eqFormError :: Eq FormError where eq = gEq
@@ -436,6 +442,7 @@ allFormErrors =
     , ErrorTooShortPassword
     , ErrorMatchPassword
     , ErrorRequiredTermsAndConditions
+    , ErrorRequiredCaptchaSolution
     ]
 
 checkState :: forall eff. State eff -> State eff
@@ -447,6 +454,7 @@ checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
     , if length st.stPass1.value < 6          then [ErrorTooShortPassword]           else []
     , if st.stPass1.value /= st.stPass2.value then [ErrorMatchPassword]              else []
     , if not st.stTermsAndConds               then [ErrorRequiredTermsAndConditions] else []
+    , if st.stCaptchaA.validity.valueMissing  then [ErrorRequiredCaptchaSolution]    else []
     ]
   }
 
