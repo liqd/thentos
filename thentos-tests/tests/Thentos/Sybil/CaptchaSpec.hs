@@ -31,10 +31,11 @@ spec = describe "Thentos.Sybil.Captcha" $ do
             Just y = generateCaptcha <$> mkRandom20 "---------------+----"
         snd x `shouldNotBe` snd y
 
-    it "writes pngs" $ do
-        (img, _) <- generateCaptcha <$> mkRandom20'
-        previewImg False img
-        (isRight . decodePng . fromImageData $ img) `shouldBe` True
+    describe "mkChallenge" $ do
+        it "writes pngs" $ do
+            (img, _) <- generateCaptcha <$> mkRandom20'
+            previewImg False img
+            (isRight . decodePng . fromImageData $ img) `shouldBe` True
 
 
 mkRandom20' :: IO Random20
