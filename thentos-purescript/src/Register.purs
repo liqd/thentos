@@ -468,7 +468,8 @@ main :: forall eff. String -> Eff (Effs eff) Unit
 main selector = main' $ appendTo selector
 
 mainEl :: forall eff. HTMLElement -> Eff (Effs eff) Unit
-mainEl element = main' $ liftEff <<< appendChild (htmlElementToNode element) <<< htmlElementToNode
+mainEl parent = main' $ \child -> do
+    liftEff $ appendChild (htmlElementToNode child) (htmlElementToNode parent)
 
 main' :: forall eff a. (HTMLElement -> Aff (Effs eff) a) -> Eff (Effs eff) Unit
 main' addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
