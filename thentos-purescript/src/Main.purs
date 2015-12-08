@@ -92,6 +92,8 @@ main = do
     publish "IFrames" "main" IFramesDemo.main
     publish "Register" "main" Register.main
     publish "Register" "mainEl" Register.mainEl
+    publish "Data.Maybe" "Just" Data.Maybe.Just
+    publish "Data.Maybe" "Nothing" Data.Maybe.Nothing
 
     -- main0
 

@@ -59,9 +59,11 @@ import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.Wai (Application)
 import Safe (readMay)
-import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
+import Servant.API.Header (Header)
+import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON, Post)
+import Servant.API.ResponseHeaders (Headers, addHeader)
 import Servant.Docs (ToSample(toSamples))
-import Servant.Server.Internal (Server)
+import Servant.Server.Internal (Server, ServerT)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
 
@@ -86,6 +88,7 @@ import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Ends.Types (PNG)
 import Thentos.Util
 
 import qualified Paths_thentos_adhocracy__ as Paths
@@ -377,6 +380,13 @@ type ThentosApi =
                                :> Post200 '[JSON] RequestResult
   :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest
                                :> Post200 '[JSON] RequestResult
+  :<|> "thentos" :> "user" :> ThentosApiWithWidgets
+
+type ThentosApiWithWidgets =
+       "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] ()
+  :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
+                  :> Post '[JSON] (JsonTop ThentosSessionToken)
+  :<|> "captcha"  :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
 
 type Api =
        ThentosApi
@@ -390,6 +400,14 @@ thentosApi actionState = enter (enterAction () actionState a3ActionErrorToServan
   :<|> login
   :<|> login
   :<|> resetPassword
+  :<|> thentosApiWithWidgets
+
+thentosApiWithWidgets :: ServerT ThentosApiWithWidgets A3Action
+thentosApiWithWidgets =
+       A.addUnconfirmedUserWithCaptcha
+  :<|> (JsonTop <$>) . (snd <$>) .  A.confirmNewUser . fromJsonTop
+  :<|> (A.makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
+
 
 api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState@(AC.ActionState (_, _, cfg)) =

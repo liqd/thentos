@@ -66,7 +66,8 @@ type State eff =
     }
 
 type StateConfig eff =
-    { cfgLoggedIn        :: Boolean
+    { cfgBackendUrl      :: String
+    , cfgLoggedIn        :: Boolean
     , cfgRegSuccess      :: Boolean
     , cfgSupportEmail    :: String
     , cfgOnRefresh       :: Aff eff Unit
@@ -391,7 +392,7 @@ type SubmitFormBody =
 doSubmit :: forall eff. State (Effs eff) -> Aff (Effs eff) (AffjaxResponse String)
 doSubmit st = affjax $ defaultRequest
     { method = POST
-    , url = "/user/register"
+    , url = st.stConfig.cfgBackendUrl ++ "/user/register"
     , headers = [RequestHeader "content-type" "application/json"]
     , content = Just (stringify submitBody)
     }
@@ -464,27 +465,30 @@ checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
 ui :: forall eff g. (MonadAff (Effs eff) g) => Component (State (Effs eff)) (Query (Effs eff)) g
 ui = component render eval
 
-main :: forall eff. String -> Eff (Effs eff) Unit
-main selector = main' $ appendTo selector
+main :: forall eff. Maybe (StateConfig (Effs eff)) -> String -> Eff (Effs eff) Unit
+main mCfg selector = main' mCfg $ appendTo selector
 
-mainEl :: forall eff. HTMLElement -> Eff (Effs eff) Unit
-mainEl parent = main' $ \child -> do
+mainEl :: forall eff. Maybe (StateConfig (Effs eff)) -> HTMLElement -> Eff (Effs eff) Unit
+mainEl mCfg parent = main' mCfg $ \child -> do
     liftEff $ appendChild (htmlElementToNode child) (htmlElementToNode parent)
 
-main' :: forall eff a. (HTMLElement -> Aff (Effs eff) a) -> Eff (Effs eff) Unit
-main' addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
-    { node: node, driver: driver } <- runUI ui (initialState fakeDefaultStateConfig)
+main' :: forall eff a.
+    Maybe (StateConfig (Effs eff)) -> (HTMLElement -> Aff (Effs eff) a) -> Eff (Effs eff) Unit
+main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
+    { node: node, driver: driver } <- runUI ui (initialState cfg)
     addToDOM node
 
     let -- (WARNING: making this global and finding a type for it has proven to be quite tricky.)
         fetchCaptcha = forkAff $ do
             response <- affjax $ defaultRequest
                 { method = POST
-                , url = "/user/captcha"
+                , url = cfg.cfgBackendUrl ++ "/user/captcha"
                 , headers = []
                 }
             driver (Q.action (NewCaptchaReceived (fixResponse response)))
     fetchCaptcha
+  where
+    cfg = fromMaybe fakeDefaultStateConfig mCfg
 
 -- | FIXME: affjax returns header values with trailing `\r`.  As a work-around, this function trims
 -- all header values.
@@ -495,7 +499,8 @@ fixResponse resp = resp { headers = f <$> resp.headers }
 
 fakeDefaultStateConfig :: forall eff. StateConfig eff
 fakeDefaultStateConfig =
-    { cfgLoggedIn        : false
+    { cfgBackendUrl      : ""
+    , cfgLoggedIn        : false
     , cfgRegSuccess      : false
     , cfgSupportEmail    : "nobody@email.org"
     , cfgOnRefresh       : warnJS "triggered cfgOnRefresh"       $ pure unit  -- FIXME: where do we need to call this?  explain!
