@@ -705,6 +705,8 @@ fromRandom20 (Random20 bs) = bs
 
 -- * binary data and captchas
 
+-- FIXME: use the juicy-pixels type with the same name and meaning instead of making up a new one?
+-- (or is there a differnce in meaning?)
 newtype ImageData = ImageData { fromImageData :: SBS }
   deriving (Eq, Typeable, Generic)
 
