@@ -67,7 +67,7 @@ thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unli
     "database:" :
     "    name: unused" :
     "" :
-    "mail:" :
+    "email_templates:" :
     "    account_verification:" :
     "        subject: \"Thentos: Aktivierung Ihres Nutzerkontos\"" :
     "        body: |" :
