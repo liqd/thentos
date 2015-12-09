@@ -13,7 +13,7 @@ import Control.Monad.Free
 import Data.Array (filter, concat, intersect, union)
 import Data.Generic
 import Data.Maybe
-import Data.String (length, trim)
+import Data.String (length, trim, null)
 import Data.Tuple
 import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
 import DOM.Node.Node (appendChild)
@@ -220,6 +220,8 @@ bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
             , P.name "thentos-captcha-guess"
             , P.required true
             , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
+            , E.onChange $ E.input $
+                UpdateField "captcha-guess" [ErrorRequiredCaptchaSolution] <<< eventInputValue
             ]
         , renderErrors st [ErrorRequiredCaptchaSolution]
         ]
@@ -258,9 +260,6 @@ bodyLogin = H.div [cl "login-success"]
 -- field (e.g., all errors related to email address).  The 'State' field 'ofInterestNow' contains a
 -- list of all errors that should be reported at this point in time (e.g., excluding email errors
 -- because the email field has not been filled out yet).
---
--- FIXME: use recycle translation key lbl as form field key, so we only have to pass one argument
--- instead of two.
 inputField :: forall eff.
               State eff -> P.InputType -> String -> String
            -> (InputValue -> State eff -> State eff)
@@ -325,7 +324,7 @@ eval e@(KeyPressed updateState next) = do
     modify checkState
     pure next
 
-eval e@(UpdateField label es iv next) = do
+eval e@(UpdateField _ es iv next) = do
     liftAff' $ log $ stringify e
     modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
@@ -351,12 +350,16 @@ eval e@(ClickSubmit next) = do
         else do
             resp <- liftAff' $ doSubmit st
             case resp.status of
-                StatusCode 201 -> do  -- success.
+                StatusCode i | i >= 200 && i <= 204 -> do  -- success.
                     modifyConfig $
                         \cfg -> cfg { cfgRegSuccess = true }
                 StatusCode code -> do  -- server error.
                     modify $
-                        \st -> st { stServerErrors = [resp.response] <> st.stServerErrors }
+                        \st -> st { stServerErrors = [show code ++ " " ++ show resp.response]
+                                            <> st.stServerErrors }
+                -- FIXME: server errors must be translated into widget errors so they can be
+                -- displayed where they live.
+
             pure next
 
 eval e@(ClickOther lbl handler next) = do
@@ -448,14 +451,14 @@ allFormErrors =
 
 checkState :: forall eff. State eff -> State eff
 checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
-    [ if st.stName.validity.valueMissing      then [ErrorRequiredUsername]           else []
-    , if st.stEmail.validity.valueMissing     then [ErrorRequiredEmail]              else []
+    [ if null st.stName.value                 then [ErrorRequiredUsername]           else []
+    , if null st.stEmail.value                then [ErrorRequiredEmail]              else []
     , if st.stEmail.validity.typeMismatch     then [ErrorFormatEmail]                else []
-    , if st.stPass1.validity.valueMissing     then [ErrorForwardPassword]            else []
+    , if null st.stPass1.value                then [ErrorForwardPassword]            else []
     , if length st.stPass1.value < 6          then [ErrorTooShortPassword]           else []
     , if st.stPass1.value /= st.stPass2.value then [ErrorMatchPassword]              else []
     , if not st.stTermsAndConds               then [ErrorRequiredTermsAndConditions] else []
-    , if st.stCaptchaA.validity.valueMissing  then [ErrorRequiredCaptchaSolution]    else []
+    , if null st.stCaptchaA.value             then [ErrorRequiredCaptchaSolution]    else []
     ]
   }
 
