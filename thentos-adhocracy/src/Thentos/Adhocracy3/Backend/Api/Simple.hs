@@ -60,7 +60,7 @@ import LIO.TCB (ioTCB)
 import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API.Header (Header)
-import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON, Post)
+import Servant.API ((:<|>)((:<|>)), (:>), Capture, ReqBody, JSON, Post)
 import Servant.API.ResponseHeaders (Headers, addHeader)
 import Servant.Docs (ToSample(toSamples))
 import Servant.Server.Internal (Server, ServerT)
@@ -88,7 +88,7 @@ import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
-import Thentos.Ends.Types (PNG)
+import Thentos.Ends.Types (PNG, WAV)
 import Thentos.Util
 
 import qualified Paths_thentos_adhocracy__ as Paths
@@ -387,6 +387,8 @@ type ThentosApiWithWidgets =
   :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
                   :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> "captcha"  :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
+  :<|> "audio_captcha" :> Capture "voice" ST
+          :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
 
 type Api =
        ThentosApi
@@ -407,6 +409,7 @@ thentosApiWithWidgets =
        A.addUnconfirmedUserWithCaptcha
   :<|> (JsonTop <$>) . (snd <$>) .  A.confirmNewUser . fromJsonTop
   :<|> (A.makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
+  :<|> (\voice -> A.makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
 
 
 api :: Client.Manager -> AC.ActionState -> Server Api

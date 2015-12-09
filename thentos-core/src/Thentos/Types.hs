@@ -110,6 +110,7 @@ import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.API (FromHttpApiData)
+import System.Exit (ExitCode)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
@@ -755,6 +756,8 @@ data ThentosError e =
     | ContextNameAlreadyExists
     | CaptchaIdAlreadyExists
     | NoSuchCaptchaId
+    | AudioCaptchaVoiceNotFound String
+    | AudioCaptchaInternal (ExitCode, SBS, SBS)
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable

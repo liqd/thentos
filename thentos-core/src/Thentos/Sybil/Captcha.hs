@@ -1,22 +1,41 @@
+{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 -- | This is a port of https://hackage.haskell.org/package/hs-captcha (which is based on
 -- http://libgd.github.io/) to diagrams.  The generated strings are beautified with elocrypt.
 -- See also: https://github.com/liqd/thentos/blob/master/docs/sybil.md
-module Thentos.Sybil.Captcha (generateCaptcha) where
+--
+-- FIXME: use 'Audio Word16' from package HCodecs instead of SBS.
+-- FIXME: provide start-time check (`init` function) for existence of executables.  use it in main.
+-- FIXME: this module could easily come in its own package, independent of the rest of the
+--        thentos-core code.
+module Thentos.Sybil.Captcha (generateCaptcha, generateAudioCaptcha) where
 
 import Codec.Picture (encodePng)
-import Control.Monad (replicateM)
+import Control.Monad.Except (throwError)
 import Control.Monad.Random (getRandomR, MonadRandom, StdGen, mkStdGen, evalRand)
+import Control.Monad (replicateM, unless)
 import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST, SBS, cs)
 import Diagrams.Backend.Rasterific (Rasterific(..), Options(RasterificOptions))
 import Diagrams.Prelude hiding (ImageData)
 import Graphics.SVGFonts (lin2, textSVG', TextOpts(TextOpts), Mode(INSIDE_H), Spacing(KERN))
+import System.Exit (ExitCode(ExitSuccess))
+import System.FilePath ((</>))
+import System.IO.Temp (withSystemTempDirectory)
+import System.Process (runInteractiveProcess, waitForProcess)
+
+import qualified Data.Text as ST
+import qualified Data.ByteString as SBS
 
 import Thentos.Types
+import Thentos.Action.Core
+import Thentos.Action.SimpleAuth (unsafeLiftIO)
 
+
+-- * visual
 
 -- | Generate a captcha. Returns a pair of the binary image data in PNG format and the correct
 -- solution to the captcha.
@@ -224,3 +243,59 @@ finalSize :: (Int, Int)
 finalSize = (128, 64)
 
 -}
+
+
+-- * audio
+
+-- | Generate a captcha. Returns a pair of the binary image data in PNG format and the correct
+-- solution to the captcha.  (Return value is wrapped in 'Action' for access to 'IO' and for
+-- throwing 'ThentosError'.)
+generateAudioCaptcha :: String -> Random20 -> Action e s (SBS, ST)
+generateAudioCaptcha eSpeakVoice rnd = do
+    let solution = mkAudioSolution rnd
+    challenge <- mkAudioChallenge eSpeakVoice solution
+    return (challenge, solution)
+
+-- | Returns 6 digits of randomness.  (This loses a lot of the input randomness, but captchas are a
+-- low-threshold counter-measure, so they should be at least reasonably convenient to use.)
+--
+-- FIXME: use nato spelling alphabet on the letters from the visual challenge instead.  makes for a
+-- better UI *and* slightly better security.
+mkAudioSolution :: Random20 -> ST
+mkAudioSolution = ST.intercalate " "
+                . ((cs . show . (`mod` 10) . ord <$>) :: String -> [ST])
+                . take 6 . cs . fromRandom20
+
+mkAudioChallenge :: forall e s. String -> ST -> Action e s SBS
+mkAudioChallenge eSpeakVoice solution = do
+    unless (validateLangCode eSpeakVoice) $ do
+        throwError $ AudioCaptchaVoiceNotFound eSpeakVoice
+
+    eResult <- unsafeLiftIO . withSystemTempDirectory "thentosAudioCaptcha" $
+      \((</> "captcha.wav") -> tempFile) -> do
+        let args :: [String]
+            args = [ "-w", tempFile
+                       -- FIXME: use "--stdout" (when I tried, I had truncation issues)
+                   , "-s", "100"
+                   , "-v", eSpeakVoice
+                   , cs $ ST.intersperse ' ' solution
+                   ]
+        (_, outH, errH, procH) <- runInteractiveProcess "espeak" args Nothing Nothing
+        outS <- SBS.hGetContents outH
+        errS <- SBS.hGetContents errH
+        exitCode <- waitForProcess procH
+
+        if "Failed to read voice" `SBS.isInfixOf` errS
+            then return . Left $ AudioCaptchaVoiceNotFound eSpeakVoice
+            else if not ((exitCode == ExitSuccess) && SBS.null outS && SBS.null errS)
+                then return . Left $ AudioCaptchaInternal (exitCode, outS, errS)
+                else Right <$> SBS.readFile tempFile
+
+    case eResult of
+        Left e -> throwError e
+        Right v -> return v
+
+validateLangCode :: String -> Bool
+validateLangCode (cs -> s) =
+    not (ST.null s || ST.isPrefixOf "-" s || ST.isSuffixOf "-" s)
+    && ST.all (`elem` '-':['a'..'z']) s

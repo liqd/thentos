@@ -35,7 +35,7 @@ import Data.List (sort)
 import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, cs, (<>))
+import Data.String.Conversions (ST, LBS, SBS, cs, (<>))
 import Data.Version (Version)
 import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
@@ -254,6 +254,9 @@ instance ToCapture (Capture "sid" ServiceId) where
 instance ToCapture (Capture "uid" UserId) where
     toCapture _ = DocCapture "uid" "user ID"
 
+instance ToCapture (Capture "voice" ST) where
+    toCapture _ = DocCapture "voice" "voice file for espeak(1).  run `espeak --voices` for a list."
+
 instance (ToSample a) => ToSample (JsonTop a) where
     toSamples _ = second JsonTop <$> toSamples (Proxy :: Proxy a)
 
@@ -352,3 +355,7 @@ instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
             Docs.API intros singleton -> Docs.API intros $ mutate <$> singleton
       where
         mutate = (& response . respStatus .~ 200)
+
+
+instance ToSample SBS where
+    toSamples _ = [("empty", "")]
