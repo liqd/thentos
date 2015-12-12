@@ -25,9 +25,10 @@ import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders)
 import Servant.API ((:>))
 import Servant.Server (serve, Server)
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, removeFile)
 import System.FilePath ((</>))
-import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain, shouldNotBe)
+import Test.Hspec (Spec, Spec,
+                   hspec, describe, context, around_, after, it, shouldContain, shouldNotBe)
 import Test.Hspec.Wai (shouldRespondWith, with, get)
 
 import qualified Data.ByteString.Lazy as LBS
@@ -70,17 +71,22 @@ specPurescript = do
                 resp <- get "/js/thentos.js"
                 liftIO $ LBS.length (simpleBody resp) `shouldNotBe` 0
 
+    let jsFile :: FilePath
+        jsFile = "find-me.js"
+
+        jsPath :: FilePath
+        Just jsPath = cs <$> (thentosTestConfig >>. (Proxy :: Proxy '["purescript"]))
+
     context "When reading purescript file system location from config"
+        . after (\_ -> removeFile $ jsPath </> jsFile)
         . around_ withLogger
         . with (defaultApp True) $ do
         it "honours the config" $ do
             let body :: String = "9VA4I5xpOAXRE"
-                file :: FilePath = "honour-it.js"
-                Just (path :: FilePath) = cs <$> (thentosTestConfig >>. (Proxy :: Proxy '["purescript"]))
             liftIO $ do
-                createDirectoryIfMissing True path
-                writeFile (path </> file) body
-            get (cs $ "/js" </> file) `shouldRespondWith` fromString body
+                createDirectoryIfMissing True jsPath
+                writeFile (jsPath </> jsFile) body
+            get (cs $ "/js" </> jsFile) `shouldRespondWith` fromString body
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
