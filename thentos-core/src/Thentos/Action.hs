@@ -729,7 +729,7 @@ deleteCaptcha = query'P . T.deleteCaptcha
 
 recordSignupAttempt :: UserName -> Bool -> Action e s ()
 recordSignupAttempt name captchaCorrect =
-    query'P $ T.storeSignupAttempt name captchaCorrect
+    query'P $ T.recordSignupAttempt name captchaCorrect
 
 -- * garbage collection
 
