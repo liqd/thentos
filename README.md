@@ -125,6 +125,7 @@ $ sudo bash
 # apt-get update
 # apt-get install ghc-7.10.2 happy-1.19.3 alex-3.1.4 cabal-install-1.22
 # apt-get install xvfb  # (for selenium tests; see below).
+# apt-get install sox espeak  # (for audio captchas).
 ```
 
 To run executables or tests, you will need to install PostgreSQL.

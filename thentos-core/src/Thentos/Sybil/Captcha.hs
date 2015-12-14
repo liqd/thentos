@@ -247,7 +247,7 @@ finalSize = (128, 64)
 
 -- * audio
 
--- | Generate a captcha. Returns a pair of the binary image data in PNG format and the correct
+-- | Generate a captcha. Returns a pair of the binary audio data in WAV format and the correct
 -- solution to the captcha.  (Return value is wrapped in 'Action' for access to 'IO' and for
 -- throwing 'ThentosError'.)
 generateAudioCaptcha :: String -> Random20 -> Action e s (SBS, ST)

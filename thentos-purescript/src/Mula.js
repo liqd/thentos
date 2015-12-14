@@ -18,7 +18,7 @@ table.en = {
     "TR__ERROR_REQUIRED_EMAIL": "Email is required.",
     "TR__ERROR_REQUIRED_PASSWORD": "Password is required.",
     "TR__ERROR_REQUIRED_TERMS_AND_CONDITIONS": "You must agree to terms and conditions",
-    "TR__ERROR_REQUIRED_CAPTCHA_SOLUTION": "Please enter the keyword displayed above",
+    "TR__ERROR_REQUIRED_CAPTCHA_SOLUTION": "Please enter the keywords displayed above",
     "TR__ERROR_REQUIRED_USERNAME": "Username is required",
     "TR__ERROR_TOO_SHORT_PASSWORD": "Password is too short.",
     "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS": "I accept the [[link:terms and conditions]].",
