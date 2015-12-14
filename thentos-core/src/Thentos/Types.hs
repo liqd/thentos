@@ -648,7 +648,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     Left err -> _fail $ "Invalid URI: " ++ show err
   where
     _fail :: String -> m a
-    _fail = throwError . ("parseProxyURI: " ++)
+    _fail = throwError . ("parseProxyUri: " ++)
 
 instance Aeson.FromJSON ProxyUri
   where
