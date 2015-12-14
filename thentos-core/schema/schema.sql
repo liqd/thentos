@@ -119,3 +119,9 @@ CREATE TABLE IF NOT EXISTS captchas (
     solution   text         NOT NULL,
     timestamp  timestamptz  NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS signup_attempts (
+    user_name  text        NOT NULL,
+    captcha_correct bool   NOT NULL,
+    timestamp  timestamptz NOT NULL
+);

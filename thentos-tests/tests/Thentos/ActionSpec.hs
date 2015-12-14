@@ -112,6 +112,23 @@ spec_user = describe "user" $ do
             void . runWithoutPrivs sta $ confirmUserEmailChange token
             checkEmail uid $ (==) newEmail
 
+    describe "addUnconfirmedUserWithCaptcha" $ do
+        it "records signup attempts in the database" $ \sta -> do
+            let ActionState (conns, _, _) = sta
+                name = UserName "someName"
+                userData = UserFormData name "secret" (forceUserEmail "me@example.com")
+                cid = "myCaptchaId"
+                solution = "theSolution"
+                captchaSolution = CaptchaSolution cid solution
+                req = UserCreationRequest userData captchaSolution
+            Right () <- runVoidedQuery conns $ T.storeCaptcha cid solution
+            void . runPrivs [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha req
+            [(name', captchaCorrect)] <- doQuery conns
+                [sql| SELECT user_name, captcha_correct
+                      FROM user_add_attempts |] ()
+            name `shouldBe` name'
+            captchaCorrect `shouldBe` True
+
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do

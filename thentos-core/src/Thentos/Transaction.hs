@@ -618,6 +618,12 @@ garbageCollectCaptchas timeout = void $ execT
     [sql| DELETE FROM captchas WHERE timestamp < now() - ?::interval; |] (Only timeout)
 
 
+-- | store signup attempt in the db
+recordSignupAttempt :: UserName -> Bool -> ThentosQuery e ()
+recordSignupAttempt name captchaCorrect = void $ execT
+    [sql| INSERT INTO signup_attempts (user_name, captcha_correct, timestamp)
+           VALUES (?, ?, now()) |] (name, captchaCorrect)
+
 -- * helpers
 
 -- | Throw an error from a situation which (we believe) will never arise.

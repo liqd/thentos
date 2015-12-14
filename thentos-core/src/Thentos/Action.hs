@@ -82,7 +82,7 @@ module Thentos.Action
     )
 where
 
-import Control.Conditional ((<||>), unlessM)
+import Control.Conditional ((<||>))
 import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
@@ -243,8 +243,9 @@ sendUserExistsMail email = do
 -- captcha remains in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
 addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
-    unlessM (solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)) $
-        throwError InvalidCaptchaSolution
+    captchaCorrect <- solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)
+    recordSignupAttempt (udName $ ucUser ucr) captchaCorrect
+    unless captchaCorrect $ throwError InvalidCaptchaSolution
     addUnconfirmedUser (ucUser ucr)
     deleteCaptcha . csId $ ucCaptcha ucr
 
@@ -725,6 +726,10 @@ solveCaptcha cid solution = do
 -- to garbage collection or a prior call to this action). Does not require any privileges.
 deleteCaptcha :: CaptchaId -> Action e s ()
 deleteCaptcha = query'P . T.deleteCaptcha
+
+recordSignupAttempt :: UserName -> Bool -> Action e s ()
+recordSignupAttempt name captchaCorrect =
+    query'P $ T.storeSignupAttempt name captchaCorrect
 
 -- * garbage collection
 
