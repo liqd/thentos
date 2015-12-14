@@ -110,6 +110,7 @@ import GHC.Generics (Generic)
 import LIO.DCLabel (ToCNF, toCNF)
 import Safe (readMay)
 import Servant.API (FromHttpApiData)
+import System.Exit (ExitCode)
 import System.Locale (defaultTimeLocale)
 import System.Random (Random)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
@@ -647,7 +648,7 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     Left err -> _fail $ "Invalid URI: " ++ show err
   where
     _fail :: String -> m a
-    _fail = throwError . ("parseProxyURI: " ++)
+    _fail = throwError . ("parseProxyUri: " ++)
 
 instance Aeson.FromJSON ProxyUri
   where
@@ -705,6 +706,8 @@ fromRandom20 (Random20 bs) = bs
 
 -- * binary data and captchas
 
+-- FIXME: use the juicy-pixels type with the same name and meaning instead of making up a new one?
+-- (or is there a differnce in meaning?)
 newtype ImageData = ImageData { fromImageData :: SBS }
   deriving (Eq, Typeable, Generic)
 
@@ -753,6 +756,8 @@ data ThentosError e =
     | ContextNameAlreadyExists
     | CaptchaIdAlreadyExists
     | NoSuchCaptchaId
+    | AudioCaptchaVoiceNotFound String
+    | AudioCaptchaInternal ExitCode SBS SBS
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable

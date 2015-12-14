@@ -16,11 +16,12 @@ module Thentos.Action.SimpleAuth
   , hasRole
   , guardedUnsafeAction
   , unsafeAction
+  , unsafeLiftIO
   ) where
 
 import Control.Conditional (ifM)
 import Control.Monad.Except (MonadError)
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT)
 import Control.Monad.State (MonadState, StateT(StateT), runStateT)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
@@ -98,3 +99,6 @@ unsafeAction uaction = construct deconstruct
     deconstruct :: s -> ActionState -> IO (Either (ThentosError e) a, s)
     deconstruct polyState actionState =
         runStateT (runEitherT (runReaderT (fromUnsafeAction uaction) actionState)) polyState
+
+unsafeLiftIO :: IO v -> Action e s v
+unsafeLiftIO = unsafeAction . liftIO
