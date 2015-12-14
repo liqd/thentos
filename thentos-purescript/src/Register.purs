@@ -10,6 +10,7 @@ import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Control.Monad.Free
+import Control.Monad (unless)
 import Data.Array (filter, concat, intersect, union)
 import Data.Generic
 import Data.Maybe
@@ -345,9 +346,7 @@ eval e@(ClickSubmit next) = do
     modify checkState
     st <- get
 
-    if st.stErrors /= [] || st.stServerErrors /= []
-        then pure next
-        else do
+    unless (st.stErrors /= [] || st.stServerErrors /= []) $ do
             resp <- liftAff' $ doSubmit st
             case resp.status of
                 StatusCode i | i >= 200 && i <= 204 -> do  -- success.
@@ -360,7 +359,7 @@ eval e@(ClickSubmit next) = do
                 -- FIXME: server errors must be translated into widget errors so they can be
                 -- displayed where they live.
 
-            pure next
+    pure next
 
 eval e@(ClickOther lbl handler next) = do
     liftAff' $ log $ stringify e
