@@ -347,18 +347,17 @@ eval e@(ClickSubmit next) = do
     st <- get
 
     unless (st.stErrors /= [] || st.stServerErrors /= []) $ do
-            resp <- liftAff' $ doSubmit st
-            case resp.status of
-                StatusCode i | i >= 200 && i <= 204 -> do  -- success.
-                    modifyConfig $
-                        \cfg -> cfg { cfgRegSuccess = true }
-                StatusCode code -> do  -- server error.
-                    modify $
-                        \st -> st { stServerErrors = [show code ++ " " ++ show resp.response]
-                                            <> st.stServerErrors }
-                -- FIXME: server errors must be translated into widget errors so they can be
-                -- displayed where they live.
-
+        resp <- liftAff' $ doSubmit st
+        case resp.status of
+            StatusCode i | i >= 200 && i <= 204 -> do  -- success.
+                modifyConfig $
+                    \cfg -> cfg { cfgRegSuccess = true }
+            StatusCode code -> do  -- server error.
+                modify $
+                    \st -> st { stServerErrors = [show code ++ " " ++ show resp.response]
+                                        <> st.stServerErrors }
+            -- FIXME: server errors must be translated into widget errors so they can be
+            -- displayed where they live.
     pure next
 
 eval e@(ClickOther lbl handler next) = do
