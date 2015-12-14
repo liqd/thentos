@@ -316,23 +316,27 @@ cl = P.class_ <<< H.className
 
 -- * eval
 
+logEvent :: forall eff g a. (MonadAff (Effs eff) g)
+    => Query (Effs eff) a -> ComponentDSL (State (Effs eff)) (Query (Effs eff)) g String
+logEvent = liftAff' <<< log <<< stringify
+
 eval :: forall eff g. (MonadAff (Effs eff) g)
     => Natural (Query (Effs eff)) (ComponentDSL (State (Effs eff)) (Query (Effs eff)) g)
 
 eval e@(KeyPressed updateState next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify updateState
     modify checkState
     pure next
 
 eval e@(UpdateField _ es iv next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
     pure next
 
 eval e@(UpdateTermsAndConds newVal next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify (\st -> st
         { stTermsAndConds = newVal
         , stOfInterestNow = union [ErrorRequiredTermsAndConditions] st.stOfInterestNow
@@ -341,7 +345,7 @@ eval e@(UpdateTermsAndConds newVal next) = do
     pure next
 
 eval e@(ClickSubmit next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify (\st -> st { stOfInterestNow = allFormErrors })
     modify checkState
     st <- get
@@ -361,17 +365,17 @@ eval e@(ClickSubmit next) = do
     pure next
 
 eval e@(ClickOther lbl handler next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     liftAff' $ handler
     pure next
 
 eval e@(NewCaptchaReceived resp next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify (\st -> st { stCaptchaQ = Just resp })
     pure next
 
 eval e@(CaptchaKeyPressed ival next) = do
-    liftAff' $ log $ stringify e
+    logEvent e
     modify (\st -> st
         { stOfInterestNow = union [ErrorRequiredCaptchaSolution] st.stOfInterestNow
         , stCaptchaA = ival
