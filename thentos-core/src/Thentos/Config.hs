@@ -239,7 +239,15 @@ getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["
 
 -- * logging
 
--- FIXME: rewrite this
+{- FIXME: rewrite along the following lines:
+
+- 'configLogger' should take 'LogConfig' as argument
+- 'LogConfig' should allow for missing path.
+- there should be a way to override an already-set log file with 'no log file' on e.g. the command
+  line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
+- 'LogConfig' should have additional keys 'stderr', 'stdout' that do the obvious.
+
+-}
 
 configLogger :: ST -> Prio -> IO ()
 configLogger path prio = do
