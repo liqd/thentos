@@ -503,7 +503,7 @@ fakeDefaultStateConfig =
     { cfgBackendUrl      : ""
     , cfgLoggedIn        : false
     , cfgRegSuccess      : false
-    , cfgSupportEmail    : "nobody@email.org"
+    , cfgSupportEmail    : "nobody@example.com"
     , cfgOnRefresh       : warnJS "triggered cfgOnRefresh"       $ pure unit  -- FIXME: where do we need to call this?  explain!
     , cfgOnCancel        : warnJS "triggered cfgOnCancel"        $ pure unit
     , cfgOnGoLogin       : warnJS "triggered cfgOnLogin"         $ pure unit
