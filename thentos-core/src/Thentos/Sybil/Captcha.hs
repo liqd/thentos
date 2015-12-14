@@ -288,7 +288,7 @@ mkAudioChallenge eSpeakVoice solution = do
         if "Failed to read voice" `SBS.isInfixOf` errS
             then return . Left $ AudioCaptchaVoiceNotFound eSpeakVoice
             else if not ((exitCode == ExitSuccess) && SBS.null outS && SBS.null errS)
-                then return . Left $ AudioCaptchaInternal (exitCode, outS, errS)
+                then return . Left $ AudioCaptchaInternal exitCode outS errS
                 else Right <$> SBS.readFile tempFile
 
     case eResult of

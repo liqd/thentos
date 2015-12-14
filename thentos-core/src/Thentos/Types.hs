@@ -757,7 +757,7 @@ data ThentosError e =
     | CaptchaIdAlreadyExists
     | NoSuchCaptchaId
     | AudioCaptchaVoiceNotFound String
-    | AudioCaptchaInternal (ExitCode, SBS, SBS)
+    | AudioCaptchaInternal ExitCode SBS SBS
     | BadCredentials
     | BadAuthenticationHeaders
     | ProxyNotAvailable

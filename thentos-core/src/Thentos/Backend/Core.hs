@@ -156,7 +156,7 @@ thentosErrorInfo other e = f e
         (Nothing, err400, "unknown captcha ID")
     f (AudioCaptchaVoiceNotFound voice) =
         (Nothing, err404, "unknown audio captcha voice name: " <> cs voice)
-    f (AudioCaptchaInternal _) =
+    f (AudioCaptchaInternal _ _ _) =
         (Just (ERROR, ppShow e), err500, "unknown error during audio captcha construction")
     f BadCredentials =
         (Just (INFO, show e), err401, "unauthorized")
