@@ -145,12 +145,20 @@ For building the purescript UI code, you will need to have a few more
 tools installed:
 
 ```shell
-# apt-get install nodejs npm
+$ sudo apt-get install nodejs npm
 $ mkdir $HOME/opt
 $ cd $HOME/opt
 $ npm install pulp
 $ npm install purescript
-(then add $HOME/opt/node_modules/.bin to your $PATH)
+```
+
+Then add `$HOME/opt/node_modules/.bin` to your `$PATH`.
+
+Make sure that nodejs is also found under the name "node", since some of
+the PureScript install scripts expect that:
+
+```shell
+ln -s /usr/bin/nodejs /usr/bin/node
 ```
 
 Now run the installation script and the tests:
