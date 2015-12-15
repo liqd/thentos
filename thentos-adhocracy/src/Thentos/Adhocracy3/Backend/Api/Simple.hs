@@ -102,6 +102,7 @@ import qualified Thentos.Backend.Api.Simple ()
 
 -- ** basics
 
+-- | A "Path" here identifies an a3 Ressource, not a file system path.
 newtype Path = Path { fromPath :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
@@ -463,7 +464,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
--- for @/principlas/users/...@.  (Returns exposed url.)
+-- for @/principals/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where
