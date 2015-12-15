@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -226,7 +225,7 @@ _renderUrl mSchema host port = go (fromMaybe Http mSchema) port
   where
     go Http   80  = "http://" <> host <> "/"
     go Https  443 = "https://" <> host <> "/"
-    go schema _   = (cs $ show schema) <> "://" <> host <> ":" <> (cs $ show port) <> "/"
+    go schema _   = cs (show schema) <> "://" <> host <> ":" <> cs (show port) <> "/"
 
 buildEmailAddress :: SmtpConfig -> Address
 buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
