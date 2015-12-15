@@ -6,7 +6,7 @@ import Halogen.HTML.Indexed (text)
 -- | Turn a translation key into a translated string.
 foreign import tr :: String -> String
 
--- | Convenience for @'text' <<< 'translateS'@.
+-- | Convenience for @'text' <<< 'tr'@.
 trh :: forall p i. String -> Halogen.HTML.Indexed.HTML p i
 trh = text <<< tr
 
