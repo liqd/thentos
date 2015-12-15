@@ -493,7 +493,7 @@ main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
             driver (Q.action (NewCaptchaReceived (fixResponse response)))
     fetchCaptcha
   where
-    cfg = fromMaybe fakeDefaultStateConfig mCfg
+    cfg = fromMaybe defaultStateConfig mCfg
 
 -- | FIXME: affjax returns header values with trailing `\r`.  As a work-around, this function trims
 -- all header values.
@@ -502,8 +502,8 @@ fixResponse resp = resp { headers = f <$> resp.headers }
   where
     f h = responseHeader (responseHeaderName h) (trim (responseHeaderValue h))
 
-fakeDefaultStateConfig :: forall eff. StateConfig eff
-fakeDefaultStateConfig =
+defaultStateConfig :: forall eff. StateConfig eff
+defaultStateConfig =
     { cfgBackendUrl      : ""
     , cfgLoggedIn        : false
     , cfgRegSuccess      : false
