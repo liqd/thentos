@@ -18,7 +18,6 @@ import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
 import Error
-import I18n
 
 
 data State = LoggedIn RegisterOption String | LoggedOut RegisterOption
@@ -62,16 +61,16 @@ ui = component render eval
             a = H.a [ cl "user-indicator-login", P.href ""
                     , hrefClickHandler $ Login "wef" "pass"
                     ]
-                    [trh "login"]
+                    [H.text "login"]
 
             r :: RegisterOption -> Array (H.HTML Void (Query Unit))
             r NoRegisterOption = []
             r RegisterOption =
-                [ trh "or"
+                [ H.text "or"
                 , H.a [ cl "user-indicator-register", P.href ""
                       , hrefClickHandler $ SetRegisterOption NoRegisterOption
                       ]
-                      [trh "register"]
+                      [H.text "register"]
                 ]
 
         body (LoggedIn _ name) = H.div_ [n, l]
@@ -82,7 +81,7 @@ ui = component render eval
             l = H.a [ cl "user-indicator-logout", P.href ""
                     , hrefClickHandler Logout
                     ]
-                    [trh "logout"]
+                    [H.text "logout"]
 
             noLink :: Boolean
             noLink = false  -- FIXME: data-ng-if="!noLink"
