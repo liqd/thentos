@@ -312,6 +312,17 @@ specRest = do
                 lrsp <- request "POST" "/user/login" jsonHeader $ Aeson.encode loginData
                 liftIO $ statusCode (simpleStatus lrsp) `shouldBe` 401
 
+        describe "registration_attempts" $ do
+            it "returns a list of all registration attempts" $ do
+                (cid, solution) <- getCaptchaAndSolution
+                _ <- registerUserAndGetConfirmationToken (cid, solution)
+                rsp <- request "GET" "/user/registration_attempts" jsonHeader ""
+                liftIO $ statusCode (simpleStatus rsp) `shouldBe` 200
+                let body = simpleBody rsp
+                    Just (signup_attempts :: [SignupAttempt]) = Aeson.decode body
+                    [SignupAttempt name captchaCorrect _] = signup_attempts
+                liftIO $ name `shouldBe` "name"
+                liftIO $ captchaCorrect `shouldBe` True
 
     describe "thentos_session" $ do
         describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do

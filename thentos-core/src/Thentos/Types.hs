@@ -735,6 +735,9 @@ data SignupAttempt = SignupAttempt UserName Bool Timestamp
 instance Aeson.ToJSON SignupAttempt where
     toJSON = Aeson.gtoJson
 
+instance Aeson.FromJSON SignupAttempt where
+    parseJSON = Aeson.gparseJson
+
 
 -- * errors
 
