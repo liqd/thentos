@@ -18,7 +18,7 @@ import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
 import Error
-import Mula
+import I18n
 
 
 data State = LoggedIn RegisterOption String | LoggedOut RegisterOption

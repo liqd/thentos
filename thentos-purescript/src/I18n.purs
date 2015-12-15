@@ -1,4 +1,4 @@
-module Mula (tr, trh) where
+module I18n (tr, trh) where
 
 import Prelude ((<<<))
 import Halogen.HTML.Indexed (text)

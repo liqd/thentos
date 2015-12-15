@@ -1,7 +1,7 @@
 /* global exports */
 "use strict";
 
-// module Mula
+// module I18n
 exports.tr = function(key) {
     return table[lang][key];
 };
