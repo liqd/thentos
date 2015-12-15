@@ -145,7 +145,7 @@ For building the purescript UI code, you will need to have a few more
 tools installed:
 
 ```shell
-# sudo apt-get install nodejs npm
+$ sudo apt-get install nodejs npm
 $ mkdir $HOME/opt
 $ cd $HOME/opt
 $ npm install pulp
