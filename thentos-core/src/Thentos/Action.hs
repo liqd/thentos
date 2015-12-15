@@ -77,6 +77,7 @@ module Thentos.Action
     , makeCaptcha
     , solveCaptcha
     , deleteCaptcha
+    , getAllSignupAttempts
 
     , collectGarbage
     )
@@ -730,6 +731,9 @@ deleteCaptcha = query'P . T.deleteCaptcha
 recordSignupAttempt :: UserName -> Bool -> Action e s ()
 recordSignupAttempt name captchaCorrect =
     query'P $ T.recordSignupAttempt name captchaCorrect
+
+getAllSignupAttempts :: Action e s [SignupAttempt]
+getAllSignupAttempts = query'P $ T.getAllSignupAttempts
 
 -- * garbage collection
 

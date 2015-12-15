@@ -87,6 +87,7 @@ type ThentosUser =
   :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
                   :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] (JsonTop ThentosSessionToken)
+  :<|> "registration_attempts" :> Get '[JSON] [SignupAttempt]
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)
@@ -98,6 +99,7 @@ thentosUser =
   :<|> addUnconfirmedUserWithCaptcha
   :<|> (JsonTop <$>) . (snd <$>) .  confirmNewUser . fromJsonTop
   :<|> (\(LoginFormData n p) -> JsonTop . snd <$> startThentosSessionByUserName n p)
+  :<|> getAllSignupAttempts
   :<|> deleteUser
   :<|> (JsonTop . ((^. userName) . snd) <$>) . lookupConfirmedUser
   :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser

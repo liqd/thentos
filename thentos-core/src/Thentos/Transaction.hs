@@ -624,6 +624,10 @@ recordSignupAttempt name captchaCorrect = void $ execT
     [sql| INSERT INTO signup_attempts (user_name, captcha_correct, timestamp)
            VALUES (?, ?, now()) |] (name, captchaCorrect)
 
+getAllSignupAttempts :: ThentosQuery e [SignupAttempt]
+getAllSignupAttempts = map (\(n, cc, t) -> SignupAttempt n cc t) <$>
+    queryT [sql| SELECT user_name, captcha_correct, timestamp FROM signup_attempts |] ()
+
 -- * helpers
 
 -- | Throw an error from a situation which (we believe) will never arise.

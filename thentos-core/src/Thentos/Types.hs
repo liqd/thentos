@@ -62,6 +62,7 @@ module Thentos.Types
     , ImageData(..)
     , CaptchaId(..)
     , CaptchaSolution(..)
+    , SignupAttempt(..)
 
     , ThentosError(..)
 
@@ -727,6 +728,12 @@ data CaptchaSolution = CaptchaSolution
 
 instance Aeson.FromJSON CaptchaSolution where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON CaptchaSolution where toJSON = Aeson.gtoJson
+
+data SignupAttempt = SignupAttempt UserName Bool Timestamp
+    deriving (Show, Generic)
+
+instance Aeson.ToJSON SignupAttempt where
+    toJSON = Aeson.gtoJson
 
 
 -- * errors

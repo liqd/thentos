@@ -324,6 +324,10 @@ instance ToSample ServiceSessionToken where
 
 instance ToSample ByUserOrServiceId
 
+instance ToSample SignupAttempt where
+    toSamples _ = Docs.singleSample $ SignupAttempt (UserName "UserName") False ts
+      where ts = Timestamp $ read "2015-12-15 07:12:34 CET"
+
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
     docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intro:)
