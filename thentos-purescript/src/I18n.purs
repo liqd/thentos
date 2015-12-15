@@ -1,14 +1,20 @@
 module I18n (tr, trh) where
 
-import Prelude ((<<<))
+import Prelude ((<<<), show)
 import Halogen.HTML.Indexed (text)
 
+import qualified I18n.Lang as Lang
+
+
 -- | Turn a translation key into a translated string.
-foreign import tr :: String -> String
+tr :: String -> String
+tr = trF (show Lang.EN)
 
 -- | Convenience for @'text' <<< 'tr'@.
 trh :: forall p i. String -> Halogen.HTML.Indexed.HTML p i
 trh = text <<< tr
+
+foreign import trF :: String -> String -> String
 
 -- FIXME:
 -- The effect type for changing or querying the translation language.
