@@ -50,7 +50,7 @@ by the sender, Thentos replies with 500 Internal Server Error.
 Thentos makes sure that a message is sent at most once to each user. If the
 `target_users` or `target_email` field contains a user path / email
 address several times, the message is rejected with 400 Bad Request and a
-suitable error message. FIXME document
+suitable error message. FIXME document how the error looks
 
 Several personas may belong to the same user, but services cannot know
 this. If several of the user paths listed in `target_users` belong to the
