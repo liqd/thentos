@@ -125,7 +125,7 @@ spec_user = describe "user" $ do
             void . runPrivs [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha req
             [(name', captchaCorrect)] <- doQuery conns
                 [sql| SELECT user_name, captcha_correct
-                      FROM user_add_attempts |] ()
+                      FROM signup_attempts |] ()
             name `shouldBe` name'
             captchaCorrect `shouldBe` True
 
