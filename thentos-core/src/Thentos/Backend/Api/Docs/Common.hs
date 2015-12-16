@@ -325,8 +325,9 @@ instance ToSample ServiceSessionToken where
 instance ToSample ByUserOrServiceId
 
 instance ToSample SignupAttempt where
-    toSamples _ = Docs.singleSample $ SignupAttempt (UserName "UserName") False ts
+    toSamples _ = Docs.singleSample $ SignupAttempt (UserName "UserName") email False ts
       where ts = Timestamp $ read "2015-12-15 07:12:34 CET"
+            email = (\(Just e) -> e) $ parseUserEmail "alice@example.com"
 
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where

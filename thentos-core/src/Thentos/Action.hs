@@ -245,7 +245,8 @@ sendUserExistsMail email = do
 addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     captchaCorrect <- solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)
-    recordSignupAttempt (udName $ ucUser ucr) captchaCorrect
+    let user = ucUser ucr
+    recordSignupAttempt (udName user) (udEmail user) captchaCorrect
     unless captchaCorrect $ throwError InvalidCaptchaSolution
     addUnconfirmedUser (ucUser ucr)
     deleteCaptcha . csId $ ucCaptcha ucr
@@ -728,9 +729,9 @@ solveCaptcha cid solution = do
 deleteCaptcha :: CaptchaId -> Action e s ()
 deleteCaptcha = query'P . T.deleteCaptcha
 
-recordSignupAttempt :: UserName -> Bool -> Action e s ()
-recordSignupAttempt name captchaCorrect =
-    query'P $ T.recordSignupAttempt name captchaCorrect
+recordSignupAttempt :: UserName -> UserEmail -> Bool -> Action e s ()
+recordSignupAttempt name email captchaCorrect =
+    query'P $ T.recordSignupAttempt name email captchaCorrect
 
 getAllSignupAttempts :: Action e s [SignupAttempt]
 getAllSignupAttempts = query'P $ T.getAllSignupAttempts

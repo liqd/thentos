@@ -619,14 +619,15 @@ garbageCollectCaptchas timeout = void $ execT
 
 
 -- | store signup attempt in the db
-recordSignupAttempt :: UserName -> Bool -> ThentosQuery e ()
-recordSignupAttempt name captchaCorrect = void $ execT
-    [sql| INSERT INTO signup_attempts (user_name, captcha_correct, timestamp)
-           VALUES (?, ?, now()) |] (name, captchaCorrect)
+recordSignupAttempt :: UserName -> UserEmail -> Bool -> ThentosQuery e ()
+recordSignupAttempt name email captchaCorrect = void $ execT
+    [sql| INSERT INTO signup_attempts (user_name, email, captcha_correct, timestamp)
+           VALUES (?, ?, ?, now()) |] (name, email, captchaCorrect)
 
 getAllSignupAttempts :: ThentosQuery e [SignupAttempt]
-getAllSignupAttempts = map (\(n, cc, t) -> SignupAttempt n cc t) <$>
-    queryT [sql| SELECT user_name, captcha_correct, timestamp FROM signup_attempts |] ()
+getAllSignupAttempts = map (\(n, e, cc, t) -> SignupAttempt n e cc t) <$>
+    queryT [sql| SELECT user_name, email, captcha_correct, timestamp
+                 FROM signup_attempts |] ()
 
 -- * helpers
 

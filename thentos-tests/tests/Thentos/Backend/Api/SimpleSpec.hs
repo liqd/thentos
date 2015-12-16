@@ -320,8 +320,9 @@ specRest = do
                 liftIO $ statusCode (simpleStatus rsp) `shouldBe` 200
                 let body = simpleBody rsp
                     Just (signup_attempts :: [SignupAttempt]) = Aeson.decode body
-                    [SignupAttempt name captchaCorrect _] = signup_attempts
-                liftIO $ name `shouldBe` "name"
+                    [SignupAttempt name email captchaCorrect _] = signup_attempts
+                liftIO $ name `shouldBe` udName defaultUserData
+                liftIO $ email `shouldBe` udEmail defaultUserData
                 liftIO $ captchaCorrect `shouldBe` True
 
     describe "thentos_session" $ do
