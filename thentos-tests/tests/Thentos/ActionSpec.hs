@@ -122,7 +122,7 @@ spec_user = describe "user" $ do
                 captchaSolution = CaptchaSolution cid solution
                 req = UserCreationRequest userData captchaSolution
             Right () <- runVoidedQuery conns $ T.storeCaptcha cid solution
-            void . runPrivs [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha req
+            void . runPrivs ([] :: [Bool]) sta $ addUnconfirmedUserWithCaptcha req
             [(name', captchaCorrect)] <- doQuery conns
                 [sql| SELECT user_name, captcha_correct
                       FROM signup_attempts |] ()
