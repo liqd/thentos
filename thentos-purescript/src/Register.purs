@@ -109,7 +109,7 @@ data Query eff a =
   | UpdateTermsAndConds Boolean a
   | ClickSubmit a
   | ClickOther String (Aff eff Unit) a
-  | NewCaptchaReceived (AffjaxResponse AB.ArrayBuffer) a
+  | LoadNewCaptcha a
   | CaptchaKeyPressed InputValue a
   | ChangeLanguage I18n.Lang a
 
@@ -371,16 +371,23 @@ eval e@(ClickSubmit next) = do
                                         <> st.stServerErrors }
             -- FIXME: server errors must be translated into widget errors so they can be
             -- displayed where they live.
+            -- FIXME: throw LoadNewCaptcha event if resp. server error suggests it.
     pure next
 
 eval e@(ClickOther lbl handler next) = do
     logEvent e
-    liftAff' $ handler
+    liftAff' handler
     pure next
 
-eval e@(NewCaptchaReceived resp next) = do
+eval e@(LoadNewCaptcha next) = do
     logEvent e
-    modify (\st -> st { stCaptchaQ = Just resp })
+    st <- get
+    response <- liftAff' $ affjax $ defaultRequest
+        { method = POST
+        , url = st.stConfig.cfgBackendUrl ++ "/user/captcha"
+        , headers = []
+        }
+    modify (_ { stCaptchaQ = Just (fixResponse response) })
     pure next
 
 eval e@(CaptchaKeyPressed ival next) = do
@@ -497,16 +504,7 @@ main' :: forall eff a.
 main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui (initialState cfg)
     addToDOM node
-
-    let -- (WARNING: making this global and finding a type for it has proven to be quite tricky.)
-        fetchCaptcha = forkAff $ do
-            response <- affjax $ defaultRequest
-                { method = POST
-                , url = cfg.cfgBackendUrl ++ "/user/captcha"
-                , headers = []
-                }
-            driver (Q.action (NewCaptchaReceived (fixResponse response)))
-    fetchCaptcha
+    driver $ Q.action LoadNewCaptcha
   where
     cfg = fromMaybe defaultStateConfig mCfg
 
