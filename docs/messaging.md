@@ -17,12 +17,14 @@ The following field is optional:
 The following fields are alternative--exactly one of them must be present:
 
 * target_users: a list of one or more strings where each string is the user
-  path of a user. The message will be send to each of these users.
+  path of a user. The message will be sent to each of these users. instead
+  of a list with one name, that name as a string valie is also accepted.
   Implementation note: *users* in a service (such as A3) are *personas* in
   Thentos. In Thentos, a service's notation of a user path is stored as
   *ExternalUrl* of the persona.
-* target_email: a list of one or more strings where each string is an email
-  address. The message will be send to each of these addresses.
+* target_emails: a list of one or more strings where each string is an email
+  address. The message will be sent to each of these addresses. A single
+  string value containing one email address is also accepted.
 
 ## Messaging Reply
 
@@ -31,7 +33,7 @@ If Thentos could successfully send all emails, it replies with status
 
     {"data": {}}
 
-FIXME Or maybe just send an empty object (`{}`) instead?
+FIXME Or maybe just send an empty object (`{}`) instead?  or empty body?
 
 If the request was malformed, it replies with status 400 Bad Request and an
 error description in JSON format. FIXME Document the typical/expected cases.
@@ -39,11 +41,14 @@ error description in JSON format. FIXME Document the typical/expected cases.
 Services need to run on a privileged IP in order to be able to send
 messages. By default, only localhost is privileged, but that can be changed
 by modifying the Thentos config file (FIXME document config setting). If
-somebody on a privileged IP address send a POST request to `message`
+somebody from a non-privileged IP address sends a POST request to the `message`
 endpoint, Thentos replies with 401 Unauthorized.
 
-If the messages could not be send due to some internal problem not caused
+If the messages could not be sent due to some internal problem not caused
 by the sender, Thentos replies with 500 Internal Server Error.
+
+FIXME: if the error lies beyond thentos in the smtp world, i'm not
+sure 500 is the right one.  perhaps then it depends on the smtp error?
 
 ## Duplicate Handling
 
