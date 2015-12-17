@@ -129,6 +129,21 @@ spec_user = describe "user" $ do
             name `shouldBe` name'
             captchaCorrect `shouldBe` True
 
+        it "records signup attempts in the database if the captcha is wrong" $ \sta -> do
+            let ActionState (conns, _, _) = sta
+                name = UserName "someName"
+                userData = UserFormData name "secret" (forceUserEmail "me@example.com")
+                cid = "myCaptchaId"
+                captchaSolution = CaptchaSolution cid "wrong answer"
+                req = UserCreationRequest userData captchaSolution
+            Right () <- runVoidedQuery conns $ T.storeCaptcha cid "right answer"
+            Left _ <- runPrivsE ([] :: [Bool]) sta $ addUnconfirmedUserWithCaptcha req
+            [(name', captchaCorrect)] <- doQuery conns
+                [sql| SELECT user_name, captcha_correct
+                      FROM signup_attempts |] ()
+            name `shouldBe` name'
+            captchaCorrect `shouldBe` False
+
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
