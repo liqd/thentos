@@ -103,6 +103,7 @@ test-suite tests
     , blaze-html
     , bytestring
     , case-insensitive >=1
+    , cassava >=0.4.4.0 && <0.5
     , configifier >=0.0.6 && <0.1
     , containers >=0.5.6.2 && <0.6
     , cookie >=0.4.1.6 && <4.2
@@ -134,6 +135,7 @@ test-suite tests
     , thyme >=0.3.5.5 && <0.4
     , transformers >=0.4.2.0 && <0.5
     , vault >=0.3.0.4 && <3.1
+    , vector >=0.10 && <0.11
     , wai >=3.0.3.0 && <3.1
     , wai-extra >=3.0.10 && <3.1
     , wai-session >=0.3.2 && <0.4

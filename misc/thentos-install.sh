@@ -19,6 +19,7 @@ set -o errexit
 declare -a SOURCES
 SUBMODULE_SOURCES=( servant/servant
                     servant/servant-server
+                    servant/servant-cassava
                     servant/servant-client
                     servant/servant-docs
                     servant/servant-blaze

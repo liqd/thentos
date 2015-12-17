@@ -19,6 +19,7 @@ import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import Servant.API.ResponseHeaders (Headers, addHeader)
+import Servant.CSV.Cassava (CSV', DefaultEncodeOpts)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
@@ -87,7 +88,7 @@ type ThentosUser =
   :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
                   :> Post '[JSON] (JsonTop ThentosSessionToken)
   :<|> "login" :> ReqBody '[JSON] LoginFormData :> Post '[JSON] (JsonTop ThentosSessionToken)
-  :<|> "registration_attempts" :> Get '[JSON] [SignupAttempt]
+  :<|> "registration_attempts" :> Get '[JSON, (CSV', DefaultEncodeOpts)] [SignupAttempt]
   :<|> Capture "uid" UserId :> Delete '[JSON] ()
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)

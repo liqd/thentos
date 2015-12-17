@@ -40,7 +40,9 @@ import Test.Hspec.Wai (shouldRespondWith, WaiSession, with, request, matchStatus
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Csv as CSV
 import qualified Data.Text as ST
+import qualified Data.Vector as V
 
 import Thentos.Action.Core
 import Thentos.Backend.Api.Simple (serveApi)
@@ -313,17 +315,30 @@ specRest = do
                 liftIO $ statusCode (simpleStatus lrsp) `shouldBe` 401
 
         describe "registration_attempts" $ do
-            it "returns a list of all registration attempts" $ do
+            it "returns a json list of all registration attempts" $ do
                 (cid, solution) <- getCaptchaAndSolution
                 _ <- registerUserAndGetConfirmationToken (cid, solution)
                 rsp <- request "GET" "/user/registration_attempts" jsonHeader ""
                 liftIO $ statusCode (simpleStatus rsp) `shouldBe` 200
                 let body = simpleBody rsp
-                    Just (signup_attempts :: [SignupAttempt]) = Aeson.decode body
-                    [SignupAttempt name email captchaCorrect _] = signup_attempts
+                    Just (signupAttempts :: [SignupAttempt]) = Aeson.decode body
+                    [SignupAttempt name email captchaCorrect _] = signupAttempts
                 liftIO $ name `shouldBe` udName defaultUserData
                 liftIO $ email `shouldBe` udEmail defaultUserData
                 liftIO $ captchaCorrect `shouldBe` True
+
+            it "returns a csv list of all registration attempts" $ do
+                (cid, solution) <- getCaptchaAndSolution
+                _ <- registerUserAndGetConfirmationToken (cid, solution)
+                rsp <- request "GET" "/user/registration_attempts" csvHeader ""
+                liftIO $ statusCode (simpleStatus rsp) `shouldBe` 200
+                let body = simpleBody rsp
+                    Right signupAttempts = CSV.decode CSV.HasHeader body
+                    SignupAttempt name email captchaCorrect _ = V.head signupAttempts
+                liftIO $ name `shouldBe` udName defaultUserData
+                liftIO $ email `shouldBe` udEmail defaultUserData
+                liftIO $ captchaCorrect `shouldBe` True
+
 
     describe "thentos_session" $ do
         describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
@@ -355,6 +370,9 @@ postDefaultUser = do
 -- | Set content type to JSON.
 jsonHeader :: [Header]
 jsonHeader = [("Content-Type", "application/json")]
+
+csvHeader :: [Header]
+csvHeader = [("Content-Type", "application/json"), ("Accept", "text/csv")]
 
 -- | God Headers plus content-type = json
 ctHeader :: IO [Header]
