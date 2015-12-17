@@ -221,7 +221,11 @@ extractTargetUrl :: ProxyConfig -> ProxyUri
 extractTargetUrl proxy = proxy >>. (Proxy :: Proxy '["endpoint"])
 
 _renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
-_renderUrl bs bh bp = (cs . show . fromMaybe Http $ bs) <> "://" <> bh <> ":" <> cs (show bp) <> "/"
+_renderUrl mSchema host port = go (fromMaybe Http mSchema) port
+  where
+    go Http   80  = "http://" <> host <> "/"
+    go Https  443 = "https://" <> host <> "/"
+    go schema _   = cs (show schema) <> "://" <> host <> ":" <> cs (show port) <> "/"
 
 buildEmailAddress :: SmtpConfig -> Address
 buildEmailAddress cfg = Address (cfg >>. (Proxy :: Proxy '["sender_name"]))
@@ -239,7 +243,15 @@ getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["
 
 -- * logging
 
--- FIXME: rewrite this
+{- FIXME: rewrite along the following lines:
+
+- 'configLogger' should take 'LogConfig' as argument
+- 'LogConfig' should allow for missing path.
+- there should be a way to override an already-set log file with 'no log file' on e.g. the command
+  line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
+- 'LogConfig' should have additional keys 'stderr', 'stdout' that do the obvious.
+
+-}
 
 configLogger :: ST -> Prio -> IO ()
 configLogger path prio = do

@@ -75,6 +75,7 @@ module Thentos.Action
     , agentRoles
 
     , makeCaptcha
+    , makeAudioCaptcha
     , solveCaptcha
     , deleteCaptcha
     , getAllSignupAttempts
@@ -90,7 +91,7 @@ import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
+import Data.String.Conversions (ST, SBS, cs)
 import Data.Typeable (Typeable)
 import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
@@ -712,6 +713,16 @@ makeCaptcha = do
     let (imgdata, solution) = Captcha.generateCaptcha random
     query'P $ T.storeCaptcha cid solution
     pure (cid, imgdata)
+
+-- | Argument must be an espeak voice installed on the server system.  Try "en", "de", "fi", "ru" or
+-- call `espeak --voices` for a complete list.
+makeAudioCaptcha :: String -> Action e s (CaptchaId, SBS)
+makeAudioCaptcha eSpeakVoice = do
+    cid    <- freshCaptchaId
+    random <- freshRandom20
+    (wav, solution) <- Captcha.generateAudioCaptcha eSpeakVoice random
+    query'P $ T.storeCaptcha cid solution
+    pure (cid, wav)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
 -- If the solution is wrong, delete captcha to prevent multiple guesses.

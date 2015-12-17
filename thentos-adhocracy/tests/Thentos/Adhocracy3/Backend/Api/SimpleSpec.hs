@@ -37,7 +37,8 @@ import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
 import System.Process (readProcess)
-import Test.Hspec (Spec, around_, describe, hspec, it, shouldBe, shouldSatisfy, pendingWith)
+import Test.Hspec (Spec, around_, describe, hspec, it, shouldBe, shouldContain, shouldSatisfy,
+                   pendingWith)
 import Test.Hspec.Wai (request, with)
 import Test.QuickCheck (Arbitrary(..), property)
 
@@ -235,7 +236,7 @@ spec =
                 let rspBody = simpleBody rsp
                 liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
                 -- It should contain the quoted string "internal error"
-                liftIO $ (cs rspBody :: ST) `shouldSatisfy` ST.isInfixOf "\"internal error\""
+                liftIO $ cs rspBody `shouldContain` ("\"internal error\"" :: String)
 
   where
     setupBackend :: IO Application
@@ -256,19 +257,17 @@ spec =
 -- | Compare the response status with an expected status code and check that the response
 -- body is a JSON object that contains all of the specified custom strings.
 shouldBeStatusXWithCustomMessages :: MonadIO m => (?loc :: CallStack) =>
-    Int -> Status.Status -> LBS -> [ST] -> m ()
+    Int -> Status.Status -> LBS -> [String] -> m ()
 shouldBeStatusXWithCustomMessages expectedCode rstStatus rspBody customMessages = do
     liftIO $ Status.statusCode rstStatus `shouldBe` expectedCode
     -- Response body should be parseable as JSON
     liftIO $ (Aeson.decode rspBody :: Maybe Aeson.Value) `shouldSatisfy` isJust
-    let rspText = cs rspBody :: ST
-    liftIO $ for_ customMessages $ \customMessage ->
-        rspText `shouldSatisfy` ST.isInfixOf customMessage
+    liftIO $ for_ customMessages (cs rspBody `shouldContain`)
 
 -- | Like 'shouldBeStatusXWithCustomMessage', with the expected code set tu 400.
 -- We check the custom messages and the quoted string "error" are present in the JSON body.
 shouldBeErr400WithCustomMessage :: MonadIO m => (?loc :: CallStack) =>
-    Status.Status -> LBS -> ST -> m ()
+    Status.Status -> LBS -> String -> m ()
 shouldBeErr400WithCustomMessage rstStatus rspBody customMessage =
     shouldBeStatusXWithCustomMessages 400 rstStatus rspBody ["\"error\"", customMessage]
 

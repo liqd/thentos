@@ -1,10 +1,9 @@
--- 
+--
 -- DO NOT EDIT!  THIS IS GENERATED REST API CLIENT CODE!
--- 
+--
 -- source package: thentos-core
 -- source package version: Version {versionBranch = [], versionTags = []}
--- source uri: http://127.0.0.1:7001/
--- 
+--
 module Servant.Simple where
 
 import Prelude
@@ -19,6 +18,22 @@ postUser :: forall eff. String -> String -> Affjax eff Foreign
 postUser body headerxthentossession = affjax $ defaultRequest
     { method = POST
     , url = "/user"
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
+    , content = Just body
+    }
+
+postUserRegister :: forall eff. String -> String -> Affjax eff Foreign
+postUserRegister body headerxthentossession = affjax $ defaultRequest
+    { method = POST
+    , url = "/user/register"
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
+    , content = Just body
+    }
+
+postUserActivate :: forall eff. String -> String -> Affjax eff Foreign
+postUserActivate body headerxthentossession = affjax $ defaultRequest
+    { method = POST
+    , url = "/user/activate"
     , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     , content = Just body
     }
@@ -49,6 +64,13 @@ getUserByUidEmailWithUid :: forall eff. String -> String -> Affjax eff Foreign
 getUserByUidEmailWithUid uid headerxthentossession = affjax $ defaultRequest
     { method = GET
     , url = "/user/" <> encodeURIComponent uid <> "/email"
+    , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
+    }
+
+postUserCaptcha :: forall eff. String -> Affjax eff Foreign
+postUserCaptcha headerxthentossession = affjax $ defaultRequest
+    { method = POST
+    , url = "/user/captcha"
     , headers = [RequestHeader "content-type" "application/json", RequestHeader "accept" "application/json", RequestHeader "x-thentos-session" headerxthentossession]
     }
 

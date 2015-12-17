@@ -9,6 +9,7 @@ module Thentos.Ends.Types
     , PrettyHTML
     , TextCss
     , PNG
+    , WAV
     )
 where
 
@@ -66,3 +67,12 @@ instance Accept PNG where
 
 instance MimeRender PNG ImageData where
     mimeRender _ = cs . fromImageData
+
+
+data WAV
+
+instance Accept WAV where
+    contentType _ = "audio" // "l16"
+
+instance MimeRender WAV SBS where
+    mimeRender _ = cs

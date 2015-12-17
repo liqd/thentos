@@ -1,26 +1,22 @@
 module Counter where
 
-import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later', liftEff')
+import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
 import Control.Monad.Aff.Class (MonadAff)
-import Control.Monad.Aff.Console (log, print)
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
 import Control.Monad.Eff.Random (RANDOM(), randomInt)
-import Control.Monad.Free (liftF)
-import Data.Either (Either(Right, Left))
 import Data.Tuple (Tuple(Tuple))
 import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), Driver(),
                 component, modify, get, runUI, action)
-import Halogen.Query (liftAff', liftH)
+import Halogen.Query (liftAff')
 import Halogen.Util (appendTo)
-import Prelude (Show, Functor, Unit(), show, pure, const, void, bind, unit, (+), ($), (>>=), (<<<), (++))
+import Prelude (Show, Functor, Unit(), show, pure, const, void, bind, unit, (+), ($), (>>=), (++))
 import Prim (Boolean(), Int(), String())
 
 import qualified Halogen.HTML.Indexed as H
-import qualified Halogen.HTML.Properties.Indexed as P
-import qualified DOM.HTML.Types as D
 
 
 -- counter
@@ -55,9 +51,9 @@ verbose = true
 type CounterEffects eff = HalogenEffects (console :: CONSOLE, random :: RANDOM | eff)
 type CounterDriver eff = Driver CounterQuery (console :: CONSOLE, random :: RANDOM | eff)
 
-counterRunner ::  forall eff a.
+counterRunner :: forall eff b.
     String ->
-    Aff (CounterEffects eff) a ->
+    Aff (CounterEffects eff) b ->
     Aff (CounterEffects eff) (Tuple (Canceler (CounterEffects eff)) (CounterDriver eff))
 counterRunner selector callback = do
     { node: node, driver: driver } <- runUI counterUI (initialCounterState (void callback))
@@ -66,7 +62,7 @@ counterRunner selector callback = do
     canceler <- forkAff $ setInterval i $ driver (action Tick)
     pure (Tuple canceler driver)
   where
-    _log :: forall eff. String -> Aff (console :: CONSOLE | eff) Unit
+    _log :: String -> Aff (console :: CONSOLE | eff) Unit
     _log s = if verbose then log s >>= \_ -> pure unit else pure unit
 
     setInterval :: forall a.

@@ -59,9 +59,11 @@ import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.Wai (Application)
 import Safe (readMay)
-import Servant.API ((:<|>)((:<|>)), (:>), ReqBody, JSON)
+import Servant.API.Header (Header)
+import Servant.API ((:<|>)((:<|>)), (:>), Capture, ReqBody, JSON, Post)
+import Servant.API.ResponseHeaders (Headers, addHeader)
 import Servant.Docs (ToSample(toSamples))
-import Servant.Server.Internal (Server)
+import Servant.Server.Internal (Server, ServerT)
 import Servant.Server (serve, enter)
 import System.Log (Priority(DEBUG, INFO))
 
@@ -86,6 +88,7 @@ import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Ends.Types (PNG, WAV)
 import Thentos.Util
 
 import qualified Paths_thentos_adhocracy__ as Paths
@@ -99,6 +102,7 @@ import qualified Thentos.Backend.Api.Simple ()
 
 -- ** basics
 
+-- | A "Path" here identifies an a3 Ressource, not a file system path.
 newtype Path = Path { fromPath :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, FromJSON, ToJSON)
 
@@ -377,6 +381,15 @@ type ThentosApi =
                                :> Post200 '[JSON] RequestResult
   :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest
                                :> Post200 '[JSON] RequestResult
+  :<|> "thentos" :> "user" :> ThentosApiWithWidgets
+
+type ThentosApiWithWidgets =
+       "register" :> ReqBody '[JSON] UserCreationRequest :> Post '[JSON] ()
+  :<|> "activate" :> ReqBody '[JSON] (JsonTop ConfirmationToken)
+                  :> Post '[JSON] (JsonTop ThentosSessionToken)
+  :<|> "captcha"  :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
+  :<|> "audio_captcha" :> Capture "voice" ST
+          :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
 
 type Api =
        ThentosApi
@@ -390,6 +403,15 @@ thentosApi actionState = enter (enterAction () actionState a3ActionErrorToServan
   :<|> login
   :<|> login
   :<|> resetPassword
+  :<|> thentosApiWithWidgets
+
+thentosApiWithWidgets :: ServerT ThentosApiWithWidgets A3Action
+thentosApiWithWidgets =
+       A.addUnconfirmedUserWithCaptcha
+  :<|> (JsonTop <$>) . (snd <$>) .  A.confirmNewUser . fromJsonTop
+  :<|> (A.makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
+  :<|> (\voice -> A.makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
+
 
 api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState@(AC.ActionState (_, _, cfg)) =
@@ -442,7 +464,7 @@ activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
     pure $ RequestSuccess (Path . cs . renderUri $ externalUrl) stok
 
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
--- for @/principlas/users/...@.  (Returns exposed url.)
+-- for @/principals/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
 makeExternalUrl pn = createUserInA3'P pn >>= f
   where

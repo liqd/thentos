@@ -1,0 +1,17 @@
+#thentos-register {
+    max-width: 70%;
+    align: middle;
+    margin: 20px;
+}
+
+.thentos-captcha {
+    background: yellow;
+    padding: 20px;
+    vertical-align: baseline;
+    width: 40%;
+    margin: auto;
+}
+
+.thentos-pre {
+    text-align: left;
+}

@@ -12,7 +12,7 @@ module Thentos.Backend.Api.Simple where
 import Control.Lens ((^.), (&), (<>~), (%~), (.~))
 import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (ST, SBS, cs)
 import Data.Void (Void)
 import Servant.API.Header (Header)
 import Network.Wai (Application)
@@ -93,6 +93,8 @@ type ThentosUser =
   :<|> Capture "uid" UserId :> "name" :> Get '[JSON] (JsonTop UserName)
   :<|> Capture "uid" UserId :> "email" :> Get '[JSON] (JsonTop UserEmail)
   :<|> "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
+  :<|> "audio_captcha" :> Capture "voice" ST
+          :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
 
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
@@ -105,6 +107,7 @@ thentosUser =
   :<|> (JsonTop . ((^. userName) . snd) <$>) . lookupConfirmedUser
   :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
   :<|> (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
+  :<|> (\voice -> makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
 
 
 -- * service
@@ -200,6 +203,12 @@ instance {-# OVERLAPPABLE #-} Foreign.HasForeign (Post200 b a) where
 
 instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[PNG] a) where
     type Foreign (Post '[PNG] a) = Foreign.Req
+    foreignFor Proxy req =
+        req & Foreign.funcName  %~ ("post" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[WAV] a) where
+    type Foreign (Post '[WAV] a) = Foreign.Req
     foreignFor Proxy req =
         req & Foreign.funcName  %~ ("post" :)
             & Foreign.reqMethod .~ "POST"

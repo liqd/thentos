@@ -1,35 +1,24 @@
 module IFramesDemo where
 
-import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later', liftEff')
+import Prelude
+
+import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff)
 import Control.Monad.Aff.Class (MonadAff)
-import Control.Monad.Aff.Console (log, print)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-import Control.Monad.Eff.Random (RANDOM(), randomInt)
-import Control.Monad.Free (liftF)
 import Data.Array (replicate)
-import Data.Either (Either(Right, Left))
-import Data.Tuple (Tuple(Tuple))
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), Driver(),
-                component, modify, get, runUI, action)
-import Halogen.Query (liftAff', liftH)
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
+                component, modify, runUI)
 import Halogen.Util (appendToBody)
-import Prelude (Show, Functor, Unit(), show, pure, const, void, bind, unit, (/), (+), ($), (>>=), (<<<), (++))
 import Prim (Boolean(), Int(), Number(), String(), Array())
 
-import qualified DOM.HTML.Types as D
 import qualified Halogen.HTML.Events.Indexed as E
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
-import qualified Error as Error
-
 import Data.Maybe
 import Unsafe.Coerce (unsafeCoerce)
-import DOM.HTML.Types (HTMLElement())
-import Halogen.HTML.Core (Prop(..), ClassName(), IsProp, prop, propName, attrName, runClassName)
+import Halogen.HTML.Core (IsProp, prop, propName, attrName)
 
 
 data IFDState = IFDState Int Int Int

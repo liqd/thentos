@@ -1,167 +1,313 @@
 module Register where
 
-import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff (Eff())
-import Control.Monad.Eff.Exception (throwException)
-import Data.Functor (($>))
-import Data.Generic
-import Data.List
-import Data.Tuple
-import Data.Void
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
-import Halogen.Util (appendTo)
 import Prelude
 
-import qualified Data.Array as Array
+import Control.Monad.Aff.Class (MonadAff)
+import Control.Monad.Aff.Console (log)
+import Control.Monad.Aff (runAff, forkAff, Aff())
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (CONSOLE())
+import Control.Monad.Eff (Eff())
+import Control.Monad.Eff.Exception (throwException)
+import Control.Monad.Free
+import Control.Monad (unless)
+import Data.Array (filter, concat, intersect, union)
+import Data.Generic
+import Data.Maybe
+import Data.String (length, trim, null)
+import Data.Tuple
+import DOM.HTML.Types (HTMLElement(), htmlElementToNode)
+import DOM.Node.Node (appendChild)
+import Global (encodeURIComponent)
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(),
+                runUI, component, modify, get, liftAff')
+import Halogen.Util (appendTo)
+import Network.HTTP.Affjax (AJAX(), AffjaxResponse(), affjax, defaultRequest)
+import Network.HTTP.Method (Method(POST))
+import Network.HTTP.RequestHeader (RequestHeader(RequestHeader))
+import Network.HTTP.ResponseHeader (responseHeader, responseHeaderName, responseHeaderValue)
+import Network.HTTP.StatusCode (StatusCode(StatusCode))
+
+import qualified Data.ArrayBuffer.Types as AB
+import qualified Data.StrMap as StrMap
+import qualified Data.URI.Query as URI
+import qualified Data.URI.Scheme as URI
+import qualified Data.URI.Types as URI
 import qualified Halogen.HTML.Core as H
-import qualified Halogen.HTML.Events.Handler as EH
+import qualified Halogen.HTML.Events.Handler as E
 import qualified Halogen.HTML.Events.Indexed as E
-import qualified Halogen.HTML.Events.Types as ET
+import qualified Halogen.HTML.Events.Types as E
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
+import qualified Halogen.Query as Q
 
-import Error
 import Mula
+import Error
 
-foreign import onChangeValue :: forall a. a -> String
+foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
+foreign import arrayBufferToBase64 :: AB.ArrayBuffer -> String
 
 
 -- * types
 
-type State =
-    { stErrors        :: Array String
-    , stLoggedIn      :: Boolean
-    , stRegSuccess    :: Boolean
-    , stName          :: String
-    , stEmail         :: String
-    , stPass1         :: String
-    , stPass2         :: String
+type Effs eff = HalogenEffects (console :: CONSOLE, ajax :: AJAX | eff)
+
+type State eff =
+    { stErrors        :: Array FormError
+    , stServerErrors  :: Array String  -- can't be translated (yet) and need different app logic
+    , stOfInterestNow :: Array FormError
+    , stName          :: InputValue
+    , stEmail         :: InputValue
+    , stPass1         :: InputValue
+    , stPass2         :: InputValue
     , stTermsAndConds :: Boolean
-    , stSupportEmail  :: String  -- FIXME: use newtype and smart constructor
-
-    -- TODO: trigger for update loop of surrounding framework.
-
+    , stCaptchaQ      :: Maybe (AffjaxResponse AB.ArrayBuffer)
+    , stCaptchaA      :: InputValue
+    , stConfig        :: StateConfig eff
     }
 
-initialState :: State
-initialState =
-    { stErrors: []
-    , stLoggedIn: false
-    , stRegSuccess: false
-    , stName: ""
-    , stEmail: ""
-    , stPass1: ""
-    , stPass2: ""
-    , stTermsAndConds: false
-    , stSupportEmail: ""
+type StateConfig eff =
+    { cfgBackendUrl      :: String
+    , cfgLoggedIn        :: Boolean
+    , cfgRegSuccess      :: Boolean
+    , cfgSupportEmail    :: String
+    , cfgOnRefresh       :: Aff eff Unit
+        -- ^ trigger function for update loop of surrounding framework
+    , cfgOnCancel        :: Aff eff Unit
+        -- ^ usually: leave register page/state and return to referrer page/state
+    , cfgOnGoLogin       :: Aff eff Unit
+        -- ^ allow user to login instead of register
+    , cfgOnTermsAndConds :: Aff eff Unit
+        -- ^ show terms and conditions page
     }
 
-data Query a =
-    KeyPressed (State -> State) a
+type InputValue =
+    { value :: String
+    , validity :: Validity
+    }
+
+type Validity =
+    { valueMissing :: Boolean
+    , typeMismatch :: Boolean
+    , patternMismatch :: Boolean
+    , tooLong :: Boolean
+    , rangeUnderflow :: Boolean
+    , rangeOverflow :: Boolean
+    , stepMismatch :: Boolean
+    , badInput :: Boolean
+    , customError :: Boolean
+    , valid :: Boolean
+    }
+
+data Query eff a =
+    KeyPressed (State eff -> State eff) a
+  | UpdateField String (Array FormError) InputValue a
   | UpdateTermsAndConds Boolean a
+  | ClickSubmit a
+  | ClickOther String (Aff eff Unit) a
+  | NewCaptchaReceived (AffjaxResponse AB.ArrayBuffer) a
+  | CaptchaKeyPressed InputValue a
+
+
+-- * initial values
+
+initialState :: forall eff. StateConfig eff -> State eff
+initialState cfg =
+    { stErrors: []
+    , stServerErrors: []
+    , stOfInterestNow: []
+    , stName: emptyInputValue
+    , stEmail: emptyInputValue
+    , stPass1: emptyInputValue
+    , stPass2: emptyInputValue
+    , stTermsAndConds: false
+    , stCaptchaQ: Nothing
+    , stCaptchaA: emptyInputValue
+    , stConfig: cfg
+    }
+
+emptyInputValue :: InputValue
+emptyInputValue =
+    { value: ""
+    , validity: validityOk
+    }
+
+validityOk :: Validity
+validityOk = {
+      valueMissing:    false
+    , typeMismatch:    false
+    , patternMismatch: false
+    , tooLong:         false
+    , rangeUnderflow:  false
+    , rangeOverflow:   false
+    , stepMismatch:    false
+    , badInput:        false
+    , customError:     false
+    , valid:           true
+    }
 
 
 -- * render
 
-render :: State -> ComponentHTML Query
+render :: forall eff. State eff -> ComponentHTML (Query eff)
 render st = H.div [cl "login"]
-    [ mydebug st
-    , body st
-    , H.a [cl "login-cancel", P.href ""]  -- FIXME: link!
-        [translate "TR__CANCEL"]
+    [ H.pre [cl "thentos-pre"] [H.text $ stringify st]
+        -- FIXME: remove state dump if not in debug mode.
+    , H.pre [cl "thentos-pre"] [H.text $ "server errors: " <> stringify st.stServerErrors]
+        -- FIXME: render server errors more user-friendly.
+
+    , case Tuple st.stConfig.cfgLoggedIn st.stConfig.cfgRegSuccess of
+        Tuple false false -> bodyIncompleteForm st
+        Tuple false true  -> bodyRegisterSuccess
+        Tuple true  _     -> bodyLogin
+
     , H.div [cl "login-info"]
-        [ translate "TR__REGISTRATION_SUPPORT"
+        [ trh "TR__REGISTRATION_SUPPORT"
         , H.br_
-        , H.a [P.href $ "mailto:" ++ st.stSupportEmail ++ "?subject=Trouble%20with%20registration"]
-            [H.text st.stSupportEmail]
+        , let address = st.stConfig.cfgSupportEmail
+              subject = "Trouble with registration"
+          in H.a [P.href $ renderEmailUrl address subject] [H.text address]
         ]
     ]
 
-body :: State -> ComponentHTML Query
-body st = case Tuple st.stLoggedIn st.stRegSuccess of
+renderEmailUrl :: String -> String -> String
+renderEmailUrl "" _ = throwJS "renderEmailUrl: no address."
+renderEmailUrl address subject =
+    URI.printScheme (URI.URIScheme "mailto") <> address <>
+        URI.printQuery (URI.Query (StrMap.singleton "subject" (Just (encodeURIComponent subject))))
 
-    -- present empty or incomplete registration form
-    Tuple false false -> H.form [cl "login-form", P.name "registerForm"] $
-        [H.div_ $ errors st] ++
-        [ inputField P.InputText (translate "TR__USERNAME") "username"
-            (\i s -> s { stName = i })
-        , inputField P.InputEmail (translate "TR__EMAIL") "email"
-            (\i s -> s { stEmail = i })
-        , inputField P.InputPassword (translate "TR__PASSWORD") "password"
-            (\i s -> s { stPass1 = i })
-        , inputField P.InputPassword (translate "TR__PASSWORD_REPEAT") "password_repeat"
-            (\i s -> s { stPass2 = i })
+-- | registration form empty or incomplete.
+bodyIncompleteForm :: forall eff. State eff -> ComponentHTML (Query eff)
+bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
+    [ inputField st P.InputText "TR__USERNAME" "username"
+        (\i s -> s { stName = i })
+        [ErrorRequiredUsername]
 
-        , H.label [cl "login-check"]
-            [ H.div [cl "login-check-input"]
-                [ H.input [ P.inputType P.InputCheckbox, P.name "registerCheck", P.required true
-                          , E.onChecked $ E.input $ UpdateTermsAndConds
-                          ]
-                , H.span_ [translate "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]  -- FIXME: link!
-                ]
+    , inputField st P.InputEmail "TR__EMAIL" "email"
+        (\i s -> s { stEmail = i })
+        [ErrorRequiredEmail, ErrorFormatEmail]
+
+    , inputField st P.InputPassword "TR__PASSWORD" "password"
+        (\i s -> s { stPass1 = i })
+        [ErrorForwardPassword, ErrorTooShortPassword]
+
+    , inputField st P.InputPassword "TR__PASSWORD_REPEAT" "password_repeat"
+        (\i s -> s { stPass2 = i })
+        [ErrorMatchPassword]
+
+    , H.label [cl "login-check"]
+        [ H.div [cl "login-check-input"]
+            [ H.input [ P.inputType P.InputCheckbox
+                      , P.name "registerCheck"
+                      , P.required true
+                      , E.onChecked $ E.input $ UpdateTermsAndConds
+                      ]
+            , H.span_ [H.a [onHrefClick "terms-and-conditions" st.stConfig.cfgOnTermsAndConds]
+                [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
+            , renderErrors st [ErrorRequiredTermsAndConditions]
             ]
+        ]
 
+    , H.div [cl "thentos-captcha"]
+        [ case st.stCaptchaQ of
+            Just resp | resp.status == StatusCode 201
+                -> H.img [P.src ("data:image/png;base64," <> arrayBufferToBase64 resp.response)]
+            Just resp
+                -> H.text $ "[captcha image: " <> show resp.status <> "]"
+            Nothing
+                -> H.text "[captcha image: nothing]"
         , H.input
-            [ P.inputType P.InputSubmit, P.name "register", P.value (translateS "TR__REGISTER")
-            , P.disabled $ not $ Data.Array.null st.stErrors
-            , E.onChecked $ E.input $ UpdateTermsAndConds
+            [ P.inputType P.InputText
+            , P.name "thentos-captcha-guess"
+            , P.required true
+            , E.onInput  $ E.input $ CaptchaKeyPressed <<< eventInputValue
+            , E.onChange $ E.input $
+                UpdateField "captcha-guess" [ErrorRequiredCaptchaSolution] <<< eventInputValue
             ]
-        , H.div [cl "login-info"] [H.p_ [translate "TR__REGISTRATION_LOGIN_INSTEAD"]]  -- FIXME: link!
+        , renderErrors st [ErrorRequiredCaptchaSolution]
         ]
 
-    -- can not register: already logged in
-    Tuple false true -> H.div [cl "login-success"] [H.p_ [translate "TR__REGISTRATION_ALREADY_LOGGED_IN"]]
-
-    -- registered: waiting for processing of activation email
-    Tuple true false -> H.div [cl "login-success"]
-        [ H.h2_ [translate "TR__REGISTER_SUCCESS"]
-        , H.p_ [translate "TR__REGISTRATION_CALL_FOR_ACTIVATION"]
-
-        -- FIXME: the a3 code says this.  what does it mean?:
-        -- 'Show option in case the user is not automatically logged in (e.g. 3rd party cookies blocked.)'
+    , H.input
+        [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
+        , P.disabled $ not $ Data.Array.null st.stErrors
+        , onClickExclusive $ E.input_ $ ClickSubmit
         ]
+    , H.div [cl "login-info"]
+        [H.p_
+            [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
+                [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
 
-    -- FIXME: a3 code says this.  is that relevant for us?
-    -- <!-- FIXME: Technically this should only display if you logged in as the user you just registered as, but
-    -- this will display if you log in as any user -->
-
-    -- registered and registration link clicked
-    Tuple true true -> H.div [cl "login-success"]
-        [ H.h2_ [translate "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
-        , H.p_ [translate "TR__REGISTRATION_PROCEED"]  -- FIXME: link
-        ]
-
-
-mydebug :: State -> ComponentHTML Query
-mydebug st = H.pre_
-    [ H.p_ [H.text $ show st.stErrors]
-    , H.p_ [H.text $ show st.stLoggedIn]
-    , H.p_ [H.text $ show st.stRegSuccess]
-    , H.p_ [H.text $ show st.stName]
-    , H.p_ [H.text $ show st.stEmail]
-    , H.p_ [H.text $ show st.stPass1]
-    , H.p_ [H.text $ show st.stPass2]
-    , H.p_ [H.text $ show st.stTermsAndConds]
+    , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
+        [trh "TR__CANCEL"]
     ]
 
-errors :: State -> Array (ComponentHTML Query)
-errors st = f <$> st.stErrors
-  where
-    f :: String -> ComponentHTML Query
-    f msg = H.div [cl "form-error"] [H.p_ [translate msg]]
+-- | registered successfully, waiting for processing of activation email.
+bodyRegisterSuccess :: forall eff. ComponentHTML (Query eff)
+bodyRegisterSuccess = H.form [cl "login-form", P.name "registerForm"]
+    [ H.div [cl "login-success"]
+        [ H.h2_ [trh "TR__REGISTER_SUCCESS"]
+        , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]  -- FIXME: link
+        ]
+    ]
 
-inputField :: P.InputType -> ComponentHTML Query -> String
-           -> (String -> State -> State)
-           -> ComponentHTML Query
-inputField inputType msg key updateState = H.label_
-    [ H.span [cl "label-text"] [msg]
-    , H.input [ P.inputType inputType, P.name key, P.required true
-              , E.onInput $ E.input $ KeyPressed <<< updateState <<< onChangeValue
+-- | registered and confirmation; proceed to login.
+bodyLogin :: forall eff. ComponentHTML (Query eff)
+bodyLogin = H.div [cl "login-success"]
+    [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
+    , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
+    ]
+
+-- | The last argument 'ofInterestHere' contains all errors that are reportable near the current
+-- field (e.g., all errors related to email address).  The 'State' field 'ofInterestNow' contains a
+-- list of all errors that should be reported at this point in time (e.g., excluding email errors
+-- because the email field has not been filled out yet).
+inputField :: forall eff.
+              State eff -> P.InputType -> String -> String
+           -> (InputValue -> State eff -> State eff)
+           -> Array FormError
+           -> ComponentHTML (Query eff)
+inputField st inputType lbl key updateState ofInterestHere = H.label_
+    [ H.span [cl "label-text"] [trh lbl]
+    , H.input [ P.inputType inputType
+              , P.name key
+              , P.required true
+              , E.onInput  $ E.input $ KeyPressed <<< updateState <<< eventInputValue
+              , E.onChange $ E.input $ UpdateField lbl ofInterestHere <<< eventInputValue
               ]
+    , renderErrors st ofInterestHere
     ]
 
--- there is something about this very similar to `translate`: we want to be able to collect all
+onHrefClick :: forall eff e.
+      String -> Aff eff Unit -> P.IProp (onClick :: P.I | e) (Query eff Unit)
+onHrefClick lbl handler = onClickExclusive (E.input_ (ClickOther lbl handler))
+
+onClickExclusive :: forall eff e.
+      (E.Event E.MouseEvent -> E.EventHandler (Query eff Unit))
+    -> P.IProp (onClick :: P.I | e) (Query eff Unit)
+onClickExclusive handler = E.onClick $ \domEv -> do
+    E.preventDefault
+    E.stopPropagation
+    E.stopImmediatePropagation
+    handler domEv
+
+renderErrors :: forall eff. State eff -> Array FormError -> ComponentHTML (Query eff)
+renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> forReporting
+  where
+    forReporting :: Array FormError
+    forReporting = intersect st.stErrors ofInterstHere
+
+-- | ('show' for 'FormError' returns the translation keys.)
+instance showFormError :: Show FormError where
+    show ErrorRequiredUsername = "TR__ERROR_REQUIRED_USERNAME"
+    show ErrorRequiredEmail = "TR__ERROR_REQUIRED_EMAIL"
+    show ErrorFormatEmail = "TR__ERROR_FORMAT_EMAIL"
+    show ErrorForwardPassword = "TR__ERROR_REQUIRED_PASSWORD"
+    show ErrorTooShortPassword = "TR__ERROR_TOO_SHORT_PASSWORD"
+    show ErrorMatchPassword = "TR__ERROR_MATCH_PASSWORD"
+    show ErrorRequiredTermsAndConditions = "TR__ERROR_REQUIRED_TERMS_AND_CONDITIONS"
+    show ErrorRequiredCaptchaSolution = "TR__ERROR_REQUIRED_CAPTCHA_SOLUTION"
+
+-- | there is something about this very similar to `trh`: we want to be able to collect all
 -- classnames occurring in a piece of code, and construct a list from them with documentation
 -- (source file locations?).
 cl :: forall r i. String -> P.IProp (class :: P.I | r) i
@@ -170,38 +316,200 @@ cl = P.class_ <<< H.className
 
 -- * eval
 
-eval :: forall g. Natural Query (ComponentDSL State Query g)
-eval (KeyPressed updateState next) = do
+logEvent :: forall eff g a. (MonadAff (Effs eff) g)
+    => Query (Effs eff) a -> ComponentDSL (State (Effs eff)) (Query (Effs eff)) g String
+logEvent = liftAff' <<< log <<< stringify
+
+eval :: forall eff g. (MonadAff (Effs eff) g)
+    => Natural (Query (Effs eff)) (ComponentDSL (State (Effs eff)) (Query (Effs eff)) g)
+
+eval e@(KeyPressed updateState next) = do
+    logEvent e
     modify updateState
     modify checkState
     pure next
-eval (UpdateTermsAndConds newVal next) = do
-    modify (\st -> st { stTermsAndConds = newVal })
+
+eval e@(UpdateField _ es iv next) = do
+    logEvent e
+    modify (\st -> st { stOfInterestNow = union es st.stOfInterestNow })
     modify checkState
     pure next
 
-checkState :: State -> State
-checkState st = st { stErrors = passwordMismatch ++ invalidEmail }
+eval e@(UpdateTermsAndConds newVal next) = do
+    logEvent e
+    modify (\st -> st
+        { stTermsAndConds = newVal
+        , stOfInterestNow = union [ErrorRequiredTermsAndConditions] st.stOfInterestNow
+        })
+    modify checkState
+    pure next
+
+eval e@(ClickSubmit next) = do
+    logEvent e
+    modify (\st -> st { stOfInterestNow = allFormErrors })
+    modify checkState
+    st <- get
+
+    unless (st.stErrors /= [] || st.stServerErrors /= []) $ do
+        resp <- liftAff' $ doSubmit st
+        case resp.status of
+            StatusCode i | i >= 200 && i <= 204 -> do  -- success.
+                modifyConfig $
+                    \cfg -> cfg { cfgRegSuccess = true }
+            StatusCode code -> do  -- server error.
+                modify $
+                    \st -> st { stServerErrors = [show code ++ " " ++ show resp.response]
+                                        <> st.stServerErrors }
+            -- FIXME: server errors must be translated into widget errors so they can be
+            -- displayed where they live.
+    pure next
+
+eval e@(ClickOther lbl handler next) = do
+    logEvent e
+    liftAff' $ handler
+    pure next
+
+eval e@(NewCaptchaReceived resp next) = do
+    logEvent e
+    modify (\st -> st { stCaptchaQ = Just resp })
+    pure next
+
+eval e@(CaptchaKeyPressed ival next) = do
+    logEvent e
+    modify (\st -> st
+        { stOfInterestNow = union [ErrorRequiredCaptchaSolution] st.stOfInterestNow
+        , stCaptchaA = ival
+        })
+    pure next
+
+modifyConfig :: forall eff f g.
+    (StateConfig eff -> StateConfig eff) -> Free (Q.HalogenF (State eff) f g) Unit
+modifyConfig f = modify (\st -> st { stConfig = f st.stConfig })
+
+
+-- * submit
+
+type SubmitFormBody =
+    { ucCaptcha :: { csId :: String, csSolution :: String }
+    , ucUser :: { udName :: String, udEmail :: String, udPassword :: String }
+    }
+
+doSubmit :: forall eff. State (Effs eff) -> Aff (Effs eff) (AffjaxResponse String)
+doSubmit st = affjax $ defaultRequest
+    { method = POST
+    , url = st.stConfig.cfgBackendUrl ++ "/user/register"
+    , headers = [RequestHeader "content-type" "application/json"]
+    , content = Just (stringify submitBody)
+    }
   where
-    passwordMismatch :: Array String
-    passwordMismatch = if st.stPass1 == st.stPass2 then [] else ["passwords must match"]
+    submitBody :: SubmitFormBody
+    submitBody =
+        { ucCaptcha:
+            { csId: csId
+            , csSolution: st.stCaptchaA.value
+            }
+        , ucUser:
+            { udName: st.stName.value
+            , udEmail: st.stEmail.value
+            , udPassword: st.stPass1.value
+            }
+        }
 
-    invalidEmail :: Array String
-    invalidEmail = if st.stEmail /= "invalid" then [] else ["invalid email"]
+    csId :: String
+    csId = case st.stCaptchaQ of
+        (Just q) -> case filter ((== "Thentos-Captcha-Id") <<< responseHeaderName) q.headers of
+            [x] -> responseHeaderValue x
+            _ -> ""
+        Nothing -> ""
 
-    -- FIXME: translation keys for errors?
-    -- FIXME: which other errors are there?
+
+-- * form errors
+
+data FormError =
+      ErrorRequiredUsername
+    | ErrorRequiredEmail
+    | ErrorFormatEmail
+    | ErrorForwardPassword
+    | ErrorTooShortPassword
+    | ErrorMatchPassword
+    | ErrorRequiredTermsAndConditions
+    | ErrorRequiredCaptchaSolution
+
+derive instance genericFormError :: Generic FormError
+instance eqFormError :: Eq FormError where eq = gEq
+
+-- | (There is Data.Enum, but no Data.Bounded.  It looks all less useful than the Haskell stuff.)
+allFormErrors :: Array FormError
+allFormErrors =
+    [ ErrorRequiredUsername
+    , ErrorRequiredEmail
+    , ErrorFormatEmail
+    , ErrorForwardPassword
+    , ErrorTooShortPassword
+    , ErrorMatchPassword
+    , ErrorRequiredTermsAndConditions
+    , ErrorRequiredCaptchaSolution
+    ]
+
+checkState :: forall eff. State eff -> State eff
+checkState st = st { stErrors = intersect st.stOfInterestNow $ concat
+    [ if null st.stName.value                 then [ErrorRequiredUsername]           else []
+    , if null st.stEmail.value                then [ErrorRequiredEmail]              else []
+    , if st.stEmail.validity.typeMismatch     then [ErrorFormatEmail]                else []
+    , if null st.stPass1.value                then [ErrorForwardPassword]            else []
+    , if length st.stPass1.value < 6          then [ErrorTooShortPassword]           else []
+    , if st.stPass1.value /= st.stPass2.value then [ErrorMatchPassword]              else []
+    , if not st.stTermsAndConds               then [ErrorRequiredTermsAndConditions] else []
+    , if null st.stCaptchaA.value             then [ErrorRequiredCaptchaSolution]    else []
+    ]
+  }
 
 
 -- * main
 
-ui :: forall g. (Functor g) => Component State Query g
+ui :: forall eff g. (MonadAff (Effs eff) g) => Component (State (Effs eff)) (Query (Effs eff)) g
 ui = component render eval
 
-main :: forall eff. String -> Eff (HalogenEffects eff) Unit
-main selector = runAff throwException (const (pure unit)) <<< forkAff $ do
-    { node: node, driver: driver } <- runUI ui initialState
-    appendTo selector node
+main :: forall eff. Maybe (StateConfig (Effs eff)) -> String -> Eff (Effs eff) Unit
+main mCfg selector = main' mCfg $ appendTo selector
 
+mainEl :: forall eff. Maybe (StateConfig (Effs eff)) -> HTMLElement -> Eff (Effs eff) Unit
+mainEl mCfg parent = main' mCfg $ \child -> do
+    liftEff $ appendChild (htmlElementToNode child) (htmlElementToNode parent)
 
--- FIXME: widget destruction?
+main' :: forall eff a.
+    Maybe (StateConfig (Effs eff)) -> (HTMLElement -> Aff (Effs eff) a) -> Eff (Effs eff) Unit
+main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
+    { node: node, driver: driver } <- runUI ui (initialState cfg)
+    addToDOM node
+
+    let -- (WARNING: making this global and finding a type for it has proven to be quite tricky.)
+        fetchCaptcha = forkAff $ do
+            response <- affjax $ defaultRequest
+                { method = POST
+                , url = cfg.cfgBackendUrl ++ "/user/captcha"
+                , headers = []
+                }
+            driver (Q.action (NewCaptchaReceived (fixResponse response)))
+    fetchCaptcha
+  where
+    cfg = fromMaybe fakeDefaultStateConfig mCfg
+
+-- | FIXME: affjax returns header values with trailing `\r`.  As a work-around, this function trims
+-- all header values.
+fixResponse :: forall a. AffjaxResponse a -> AffjaxResponse a
+fixResponse resp = resp { headers = f <$> resp.headers }
+  where
+    f h = responseHeader (responseHeaderName h) (trim (responseHeaderValue h))
+
+fakeDefaultStateConfig :: forall eff. StateConfig eff
+fakeDefaultStateConfig =
+    { cfgBackendUrl      : ""
+    , cfgLoggedIn        : false
+    , cfgRegSuccess      : false
+    , cfgSupportEmail    : "nobody@example.com"
+    , cfgOnRefresh       : warnJS "triggered cfgOnRefresh"       $ pure unit  -- FIXME: where do we need to call this?  explain!
+    , cfgOnCancel        : warnJS "triggered cfgOnCancel"        $ pure unit
+    , cfgOnGoLogin       : warnJS "triggered cfgOnLogin"         $ pure unit
+    , cfgOnTermsAndConds : warnJS "triggered cfgOnTermsAndConds" $ pure unit
+    }

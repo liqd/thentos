@@ -1,14 +1,12 @@
 module LoginIndicator where
 
-import Control.Monad.Aff (Aff(), Canceler(), runAff, forkAff, later')
-import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Aff (Aff(), runAff, forkAff, later')
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (throwException)
-import Data.Functor (($>))
 import Data.Generic
 import Data.List
 import Data.Void
-import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Action(), Natural(), runUI, component, modify)
+import Halogen (Component(), ComponentHTML(), ComponentDSL(), HalogenEffects(), Natural(), runUI, component, modify)
 import Halogen.Util (appendTo)
 import Prelude
 
@@ -16,7 +14,6 @@ import qualified Data.Array as Array
 import qualified Halogen.HTML.Core as H
 import qualified Halogen.HTML.Events.Handler as EH
 import qualified Halogen.HTML.Events.Indexed as E
-import qualified Halogen.HTML.Events.Types as ET
 import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 
@@ -65,16 +62,16 @@ ui = component render eval
             a = H.a [ cl "user-indicator-login", P.href ""
                     , hrefClickHandler $ Login "wef" "pass"
                     ]
-                    [translate "login"]
+                    [trh "login"]
 
             r :: RegisterOption -> Array (H.HTML Void (Query Unit))
             r NoRegisterOption = []
             r RegisterOption =
-                [ translate "or"
+                [ trh "or"
                 , H.a [ cl "user-indicator-register", P.href ""
                       , hrefClickHandler $ SetRegisterOption NoRegisterOption
                       ]
-                      [translate "register"]
+                      [trh "register"]
                 ]
 
         body (LoggedIn _ name) = H.div_ [n, l]
@@ -85,7 +82,7 @@ ui = component render eval
             l = H.a [ cl "user-indicator-logout", P.href ""
                     , hrefClickHandler Logout
                     ]
-                    [translate "logout"]
+                    [trh "logout"]
 
             noLink :: Boolean
             noLink = false  -- FIXME: data-ng-if="!noLink"
