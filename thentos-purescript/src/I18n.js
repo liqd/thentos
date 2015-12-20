@@ -1,16 +1,22 @@
 /* global exports */
 "use strict";
 
-// module Mula
-exports.tr = function(key) {
-    return table[lang][key];
+// module I18n
+exports.trF = function(lang) {
+    return function(key) {
+        try {
+            return table[lang][key];
+        } catch (e) {
+            console.log(e);
+            console.log("I18n: lookup error in translation table: " + lang + "/" + key);
+            return "***";
+        }
+    };
 };
-
-var lang = "en";
 
 var table = {};
 
-table.en = {
+table.EN = {
     "TR__CANCEL": "cancel",
     "TR__EMAIL": "email",
     "TR__ERROR_FORMAT_EMAIL": "Email format is incorrect.",
@@ -34,7 +40,7 @@ table.en = {
     "TR__USERNAME": "username",
 };
 
-table.de = {
+table.DE = {
     "TR__CANCEL": "abbrechen",
     "TR__EMAIL": "E-Mail",
     "TR__ERROR_FORMAT_EMAIL": "E-Mail-Format ist ungültig.",

@@ -41,8 +41,11 @@ import qualified Halogen.HTML.Indexed as H
 import qualified Halogen.HTML.Properties.Indexed as P
 import qualified Halogen.Query as Q
 
-import Mula
 import Error
+
+import qualified I18n as I18n
+import qualified I18n.Lang as I18n
+
 
 foreign import eventInputValue :: forall fields. E.Event fields -> InputValue
 foreign import arrayBufferToBase64 :: AB.ArrayBuffer -> String
@@ -56,6 +59,7 @@ type State eff =
     { stErrors        :: Array FormError
     , stServerErrors  :: Array String  -- can't be translated (yet) and need different app logic
     , stOfInterestNow :: Array FormError
+    , stLang          :: I18n.Lang
     , stName          :: InputValue
     , stEmail         :: InputValue
     , stPass1         :: InputValue
@@ -107,6 +111,7 @@ data Query eff a =
   | ClickOther String (Aff eff Unit) a
   | NewCaptchaReceived (AffjaxResponse AB.ArrayBuffer) a
   | CaptchaKeyPressed InputValue a
+  | ChangeLanguage I18n.Lang a
 
 
 -- * initial values
@@ -116,6 +121,7 @@ initialState cfg =
     { stErrors: []
     , stServerErrors: []
     , stOfInterestNow: []
+    , stLang: I18n.EN
     , stName: emptyInputValue
     , stEmail: emptyInputValue
     , stPass1: emptyInputValue
@@ -150,7 +156,10 @@ validityOk = {
 -- * render
 
 render :: forall eff. State eff -> ComponentHTML (Query eff)
-render st = H.div [cl "login"]
+render st = I18n.trH st.stLang $ render' st
+
+render' :: forall eff. State eff -> ComponentHTML (Query eff)
+render' st = H.div [cl "login"]
     [ H.pre [cl "thentos-pre"] [H.text $ stringify st]
         -- FIXME: remove state dump if not in debug mode.
     , H.pre [cl "thentos-pre"] [H.text $ "server errors: " <> stringify st.stServerErrors]
@@ -162,7 +171,7 @@ render st = H.div [cl "login"]
         Tuple true  _     -> bodyLogin
 
     , H.div [cl "login-info"]
-        [ trh "TR__REGISTRATION_SUPPORT"
+        [ H.text "TR__REGISTRATION_SUPPORT"
         , H.br_
         , let address = st.stConfig.cfgSupportEmail
               subject = "Trouble with registration"
@@ -203,7 +212,7 @@ bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
                       , E.onChecked $ E.input $ UpdateTermsAndConds
                       ]
             , H.span_ [H.a [onHrefClick "terms-and-conditions" st.stConfig.cfgOnTermsAndConds]
-                [trh "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
+                [H.text "TR__I_ACCEPT_THE_TERMS_AND_CONDITIONS"]]
             , renderErrors st [ErrorRequiredTermsAndConditions]
             ]
         ]
@@ -228,33 +237,33 @@ bodyIncompleteForm st = H.form [cl "login-form", P.name "registerForm"] $
         ]
 
     , H.input
-        [ P.inputType P.InputSubmit, P.name "register", P.value (tr "TR__REGISTER")
+        [ P.inputType P.InputSubmit, P.name "register", P.value (I18n.trS st.stLang "TR__REGISTER")
         , P.disabled $ not $ Data.Array.null st.stErrors
         , onClickExclusive $ E.input_ $ ClickSubmit
         ]
     , H.div [cl "login-info"]
         [H.p_
             [H.a [onHrefClick "login" st.stConfig.cfgOnGoLogin]
-                [trh "TR__REGISTRATION_LOGIN_INSTEAD"]]]
+                [H.text "TR__REGISTRATION_LOGIN_INSTEAD"]]]
 
     , H.a [cl "login-cancel", onHrefClick "cancel" st.stConfig.cfgOnCancel]
-        [trh "TR__CANCEL"]
+        [H.text "TR__CANCEL"]
     ]
 
 -- | registered successfully, waiting for processing of activation email.
 bodyRegisterSuccess :: forall eff. ComponentHTML (Query eff)
 bodyRegisterSuccess = H.form [cl "login-form", P.name "registerForm"]
     [ H.div [cl "login-success"]
-        [ H.h2_ [trh "TR__REGISTER_SUCCESS"]
-        , H.p_ [trh "TR__REGISTRATION_CALL_FOR_ACTIVATION"]  -- FIXME: link
+        [ H.h2_ [H.text "TR__REGISTER_SUCCESS"]
+        , H.p_ [H.text "TR__REGISTRATION_CALL_FOR_ACTIVATION"]  -- FIXME: link
         ]
     ]
 
 -- | registered and confirmation; proceed to login.
 bodyLogin :: forall eff. ComponentHTML (Query eff)
 bodyLogin = H.div [cl "login-success"]
-    [ H.h2_ [trh "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
-    , H.p_ [trh "TR__REGISTRATION_PROCEED"]  -- FIXME: link
+    [ H.h2_ [H.text "TR__REGISTRATION_THANKS_FOR_REGISTERING"]
+    , H.p_ [H.text "TR__REGISTRATION_PROCEED"]  -- FIXME: link
     ]
 
 -- | The last argument 'ofInterestHere' contains all errors that are reportable near the current
@@ -267,7 +276,7 @@ inputField :: forall eff.
            -> Array FormError
            -> ComponentHTML (Query eff)
 inputField st inputType lbl key updateState ofInterestHere = H.label_
-    [ H.span [cl "label-text"] [trh lbl]
+    [ H.span [cl "label-text"] [H.text lbl]
     , H.input [ P.inputType inputType
               , P.name key
               , P.required true
@@ -291,7 +300,7 @@ onClickExclusive handler = E.onClick $ \domEv -> do
     handler domEv
 
 renderErrors :: forall eff. State eff -> Array FormError -> ComponentHTML (Query eff)
-renderErrors st ofInterstHere = H.span [cl "input-error"] $ (trh <<< show) <$> forReporting
+renderErrors st ofInterstHere = H.span [cl "input-error"] $ (H.text <<< show) <$> forReporting
   where
     forReporting :: Array FormError
     forReporting = intersect st.stErrors ofInterstHere
@@ -380,6 +389,12 @@ eval e@(CaptchaKeyPressed ival next) = do
         { stOfInterestNow = union [ErrorRequiredCaptchaSolution] st.stOfInterestNow
         , stCaptchaA = ival
         })
+    pure next
+
+eval e@(ChangeLanguage lang next) = do
+    logEvent e
+    modify (\st -> st { stLang = lang })
+    modify checkState
     pure next
 
 modifyConfig :: forall eff f g.
@@ -493,7 +508,7 @@ main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
             driver (Q.action (NewCaptchaReceived (fixResponse response)))
     fetchCaptcha
   where
-    cfg = fromMaybe fakeDefaultStateConfig mCfg
+    cfg = fromMaybe defaultStateConfig mCfg
 
 -- | FIXME: affjax returns header values with trailing `\r`.  As a work-around, this function trims
 -- all header values.
@@ -502,8 +517,8 @@ fixResponse resp = resp { headers = f <$> resp.headers }
   where
     f h = responseHeader (responseHeaderName h) (trim (responseHeaderValue h))
 
-fakeDefaultStateConfig :: forall eff. StateConfig eff
-fakeDefaultStateConfig =
+defaultStateConfig :: forall eff. StateConfig eff
+defaultStateConfig =
     { cfgBackendUrl      : ""
     , cfgLoggedIn        : false
     , cfgRegSuccess      : false

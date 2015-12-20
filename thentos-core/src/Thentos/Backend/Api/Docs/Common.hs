@@ -195,6 +195,15 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 
 -- * Pretty-printing
 
+-- FIXME: pretty printing docs is probably deprecated since
+-- https://github.com/haskell-servant/servant/pull/289.
+--
+-- cleanup steps:
+--
+-- - don't depend on servant-purescript (not really related to this, but we might as well...)
+-- - move servant-session from servant repo to liqd/servant-session (just for now)
+-- - update servant submodule to top of master and use pretty-printing docs from there
+
 prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
 prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
   where
