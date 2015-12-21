@@ -178,7 +178,6 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 --
 -- cleanup steps:
 --
--- - move servant-session from servant repo to liqd/servant-session (just for now)
 -- - update servant submodule to top of master and use pretty-printing docs from there
 
 prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API

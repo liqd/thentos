@@ -22,12 +22,11 @@ SUBMODULE_SOURCES=( servant/servant
                     servant/servant-client
                     servant/servant-docs
                     servant/servant-blaze
-                    servant/servant-session
                     servant/servant-js
                     servant/servant-foreign
                     pronk
                   )
-SOURCES=( thentos-core thentos-tests thentos-adhocracy )
+SOURCES=( servant-session thentos-core thentos-tests thentos-adhocracy )
 ALL_SOURCES=( "${SUBMODULE_SOURCES[@]}" "${SOURCES[@]}" )
 SOURCES_STR=$( IFS=$' ', echo ${SOURCES[*]} )
 
