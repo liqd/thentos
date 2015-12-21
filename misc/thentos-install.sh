@@ -92,12 +92,12 @@ if [ "$NO_PURESCRIPT" == "" ]; then
 fi
 
 echo -e "\n\nbuilding dependencies...\n" >&2
-cabal install $CABAL_VERBOSITY --dependencies-only -j2 --ghc-options="+RTS -M2G -RTS -w" \
+cabal install $CABAL_VERBOSITY --dependencies-only --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
 
 echo -e "\n\nbuilding thentos-* packages...\n" >&2
-cabal install $CABAL_VERBOSITY -j2 --ghc-options="+RTS -M2G -RTS -w" \
+cabal install $CABAL_VERBOSITY --ghc-options="+RTS -M2G -RTS -w" \
       --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
       -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
 
