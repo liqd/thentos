@@ -148,8 +148,8 @@ tools installed:
 $ sudo apt-get install nodejs npm
 $ mkdir $HOME/opt
 $ cd $HOME/opt
-$ npm install pulp
-$ npm install purescript
+$ npm install pulp@4.4.1
+$ npm install purescript@0.7.6
 ```
 
 Then add `$HOME/opt/node_modules/.bin` to your `$PATH`.
