@@ -19,7 +19,6 @@ module Thentos.Backend.Api.Docs.Common
     , restDocsMd
     , restDocsJs
     , restDocsNg
-    , restDocsPurs
     , prettyMimeRender
     , hackTogetherSomeReasonableOrder
     )
@@ -57,7 +56,6 @@ import qualified Servant.Docs as Docs
 import qualified Servant.Docs.Internal as Docs
 import qualified Servant.Foreign as Foreign
 import qualified Servant.JS as JS
-import qualified Servant.PureScript as Purs
 
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
@@ -77,12 +75,7 @@ type RestDocs api = RestDocs' api :<|> api
 type RestDocs' api = "docs" :>
       ("md"   :> Get '[PlainText] Docs.API
   :<|> "js"   :> Get '[PlainText] ST
-  :<|> "ng"   :> Get '[PlainText] ST
-  :<|> "purs" :> "Util.js"   :> Get '[PlainText] ST
-  :<|> "purs" :> "Util.purs" :> Get '[PlainText] ST
-    -- FIXME: purescript-globals@0.2.2 replaces Util.*, and we import that in thentos-purescript.
-    -- so the last two end-points should be reomved.
-  :<|> "purs" :> Capture "ModuleName" ST :> Get '[PlainText] ST)
+  :<|> "ng"   :> Get '[PlainText] ST)
 
 instance MimeRender PlainText Docs.API where
     mimeRender _ = mimeRender (Proxy :: Proxy PlainText) . Docs.markdown
@@ -122,9 +115,6 @@ restDocs _ proxy =
         pure (restDocsMd proxy)
    :<|> pure (restDocsJs proxy)
    :<|> pure (restDocsNg proxy)
-   :<|> pure (restDocsPursUtilJS proxy)
-   :<|> pure (restDocsPursUtilPurs proxy)
-   :<|> pure . restDocsPurs proxy
 
 
 restDocsMd :: forall api. (HasDocExtras (RestDocs api), Foreign.HasForeign api
@@ -146,18 +136,6 @@ restDocsJs proxy = restDocsSource proxy "// "
 restDocsNg :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
 restDocsNg proxy = restDocsSource proxy "// "
     <> JS.jsForAPI (Proxy :: Proxy api) (JS.angular JS.defAngularOptions)
-
-restDocsPursUtilJS :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
-restDocsPursUtilJS proxy = restDocsSource proxy "// "
-    <> snd (Purs.generatePSUtilModule Purs.defaultSettings)
-
-restDocsPursUtilPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
-restDocsPursUtilPurs proxy = restDocsSource proxy "-- "
-    <> fst (Purs.generatePSUtilModule Purs.defaultSettings)
-
-restDocsPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST -> ST
-restDocsPurs proxy moduleName = restDocsSource proxy "-- "
-    <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) (Proxy :: Proxy api)
 
 restDocsSource :: HasDocExtras (RestDocs api) => Proxy (RestDocs api) -> ST -> ST
 restDocsSource proxy comment = ST.unlines . (ST.stripEnd . (comment <>) <$>) $
@@ -200,7 +178,6 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 --
 -- cleanup steps:
 --
--- - don't depend on servant-purescript (not really related to this, but we might as well...)
 -- - move servant-session from servant repo to liqd/servant-session (just for now)
 -- - update servant submodule to top of master and use pretty-printing docs from there
 
@@ -247,9 +224,6 @@ runTokenBuilderState = unsafePerformIO $ do
 
 
 -- * instances for servant-docs
-
-instance ToCapture (Capture "ModuleName" ST) where
-    toCapture _ = DocCapture "string" "purescript module name"
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "session token for session with thentos"
