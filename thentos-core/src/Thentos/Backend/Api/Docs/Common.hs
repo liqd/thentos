@@ -54,7 +54,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Servant.Docs as Docs
 import qualified Servant.Docs.Internal as Docs
-import qualified Servant.Foreign as Foreign
+import qualified Servant.Foreign as F
 import qualified Servant.JS as JS
 
 import Thentos.Backend.Api.Auth
@@ -87,9 +87,9 @@ instance ToSample ST where
     toSamples _ = [("empty", "")]
 
 -- | the 'Raw' endpoint has 'Foreign', but it is @Method -> Req@, which doesn't have a
--- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @Foreign.Method@ is
+-- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @F.Method@ is
 -- not exported, we keep it polymorphic.
-instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> Foreign.Req) where
+instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> F.Req) where
     generateList _ = []
 
 class HasDocs api => HasDocExtras api where
@@ -106,7 +106,7 @@ class HasDocs api => HasDocExtras api where
 
 type HasFullDocExtras api =
     ( HasDocs (RestDocs api), HasDocExtras (RestDocs api)
-    , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
+    , F.HasForeign F.NoTypes api, JS.GenerateList (F.Foreign api)
     )
 
 restDocs :: forall api m. (Monad m, HasFullDocExtras api)
@@ -117,8 +117,8 @@ restDocs _ proxy =
    :<|> pure (restDocsNg proxy)
 
 
-restDocsMd :: forall api. (HasDocExtras (RestDocs api), Foreign.HasForeign api
-      , JS.GenerateList (Foreign.Foreign api))
+restDocsMd :: forall api. ( HasDocExtras (RestDocs api), F.HasForeign F.NoTypes api
+                          , JS.GenerateList (F.Foreign api))
          => Proxy (RestDocs api) -> Docs.API
 restDocsMd proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
         Docs.docsWith
