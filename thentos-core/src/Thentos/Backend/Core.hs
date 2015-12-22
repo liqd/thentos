@@ -9,6 +9,7 @@ module Thentos.Backend.Core
 where
 
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
+import Control.Monad ((>=>))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
@@ -61,8 +62,7 @@ enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServ
     run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs mTok >>)
 
     updatePrivs :: Maybe ThentosSessionToken -> Action e s ()
-    updatePrivs (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
-    updatePrivs Nothing    = return ()
+    updatePrivs = mapM_ (accessRightsByThentosSession'P >=> grantAccessRights'P)
 
 
 -- * error handling
@@ -90,9 +90,7 @@ type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 -- thrown.
 errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
 errorInfoToServantErr mkServErr (l, se, x) = do
-    case l of
-        Just (prio, msg) -> logger prio msg
-        Nothing          -> return ()
+    mapM_ (uncurry logger) l
     return $ mkServErr se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr

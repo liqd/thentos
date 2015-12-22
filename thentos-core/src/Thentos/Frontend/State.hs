@@ -9,6 +9,7 @@ module Thentos.Frontend.State where
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.State (get, gets, put)
+import Control.Monad ((>=>))
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
@@ -158,14 +159,14 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . 
         l _ = Nothing
 
     updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
-    updatePrivs' (Just tok) = accessRightsByThentosSession'P tok >>= grantAccessRights'P
-    updatePrivs' Nothing    = return ()
+    updatePrivs' =
+        mapM_ $ accessRightsByThentosSession'P >=> grantAccessRights'P
 
 
 -- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no
 -- state, do nothing.
 cookieToFSession :: IO (Maybe FrontendSessionData) -> FAction ()
-cookieToFSession r = liftLIO (ioTCB r) >>= maybe (return ()) put
+cookieToFSession r = liftLIO (ioTCB r) >>= mapM_ put
 
 -- | Read 'FrontendSessionData' from 'FAction' and write back into servant-session state.
 cookieFromFSession :: (FrontendSessionData -> IO ()) -> FAction ()

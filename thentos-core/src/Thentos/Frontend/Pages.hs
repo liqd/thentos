@@ -47,7 +47,7 @@ module Thentos.Frontend.Pages
     ) where
 
 import Control.Lens ((^.))
-import Data.Maybe (fromMaybe)
+import Control.Monad (when)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
@@ -78,7 +78,7 @@ basePagelet' fsd title mHeadings body = H.docTypeHtml $ do
     H.head $ do
         H.title $ H.text title
         H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
-        fromMaybe (return ()) mHeadings
+        sequence_ mHeadings
     H.body $ do
         H.div . H.ul . mapM_ (H.li . H.string . show) $ (fsd ^. fsdMessages)
         H.h1 $ H.text title
@@ -108,9 +108,9 @@ dashboardPagelet fsd availableRoles body =
         H.div H.! A.class_ "dashboard_body" $ body
   where
     tabLink :: DashboardTab -> Html
-    tabLink tab
-        | not available = return ()
-        | otherwise     = H.td $ H.div ! A.class_ className $ H.a ! A.href urlt $ linkt
+    tabLink tab =
+        when available $
+            H.td $ H.div ! A.class_ className $ H.a ! A.href urlt $ linkt
       where
         available :: Bool
         available = all (`elem` availableRoles) (needsRoles tab)

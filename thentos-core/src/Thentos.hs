@@ -23,6 +23,7 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Either (isRight)
 import Data.Maybe (maybeToList)
 import Data.Monoid ((<>))
+import Data.Foldable (forM_)
 import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, cs)
@@ -51,12 +52,8 @@ import qualified Thentos.Transaction as T
 
 main :: IO ()
 main = makeMain $ \ actionState mBeConfig mFeConfig -> do
-    let backend = maybe (return ())
-            (`Simple.runApi` actionState)
-            mBeConfig
-    let frontend = maybe (return ())
-            (`runFrontend` actionState)
-            mFeConfig
+    let backend = mapM_ (`Simple.runApi` actionState) mBeConfig
+    let frontend = mapM_ (`runFrontend` actionState) mFeConfig
 
     void $ concurrently backend frontend
 
@@ -125,8 +122,7 @@ createConnPoolAndInitDb dbName = do
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
 createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
-createDefaultUser _ Nothing = return ()
-createDefaultUser conn (Just (getDefaultUser -> (userData, roles))) = do
+createDefaultUser conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
     eq <- runThentosQuery conn $ (void $ T.lookupConfirmedUser (UserId 0) :: ThentosQuery Void ())
     case eq of
         Right _         -> logger DEBUG $ "default user already exists"
@@ -158,9 +154,9 @@ autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing'P agent) allSids
   where
-    dieOnDuplicates  = case mDefaultProxySid of
-        Just sid -> when (sid `elem` proxySids) . error $ show sid ++ " mentioned twice in config"
-        Nothing  -> return ()
+    dieOnDuplicates  =
+        forM_ mDefaultProxySid $ \sid ->
+            when (sid `elem` proxySids) . error $ show sid ++ " mentioned twice in config"
     allSids          = maybeToList mDefaultProxySid ++ proxySids
     mDefaultProxySid = ServiceId <$> cfg >>. (Proxy :: Proxy '["proxy", "service_id"])
     proxySids        = Map.keys $ getProxyConfigMap cfg
