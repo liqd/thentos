@@ -208,9 +208,11 @@ In alphanumerical order.  Please let us know if we forgot to add you,
 or if you would like us to link to your GitHub handle / email.
 
 - Albert Krewinkel
+- Andor Penzes
 - Andres Löh
 - Christian Siefkes
 - Florian Hartwig
+- Henning Thielemann
 - Julian Arni
 - Matthias Fischmann
 - Robert Vollmert
