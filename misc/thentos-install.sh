@@ -67,19 +67,17 @@ check_dir
 
 git submodule sync
 git submodule update --init
-cabal sandbox init
+test -e cabal.sandbox.config || cabal sandbox init
 
 for s in ${SUBMODULE_SOURCES[@]}; do
     cd "submodules/$s"
-    cabal sandbox init --sandbox="$SANDBOX"
-    cabal sandbox add-source .
+    test -e cabal.sandbox.config || ( cabal sandbox init --sandbox="$SANDBOX"; cabal sandbox add-source . )
     cd $DIR
 done
 
 for s in ${SOURCES[@]}; do
     cd "$s"
-    cabal sandbox init --sandbox="$SANDBOX"
-    cabal sandbox add-source .
+    test -e cabal.sandbox.config || ( cabal sandbox init --sandbox="$SANDBOX"; cabal sandbox add-source . )
     cd $DIR
 done
 
@@ -90,14 +88,16 @@ if [ "$NO_PURESCRIPT" == "" ]; then
     ./thentos-purescript/build.sh it
 fi
 
+function build() {
+    cabal install $CABAL_VERBOSITY $1 --ghc-options="+RTS -M2G -RTS -w" \
+        --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
+        -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+}
+
 echo -e "\n\nbuilding dependencies...\n" >&2
-cabal install $CABAL_VERBOSITY --dependencies-only --ghc-options="+RTS -M2G -RTS -w" \
-      --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+build "--dependencies-only"
 
 echo -e "\n\nbuilding thentos-* packages...\n" >&2
-cabal install $CABAL_VERBOSITY --ghc-options="+RTS -M2G -RTS -w" \
-      --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-      -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+build ""
 
 echo "all done!" >&2
