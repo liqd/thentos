@@ -35,7 +35,7 @@ import Data.Map (Map)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, LBS, SBS, cs, (<>))
-import Data.Version (Version)
+import Data.Version (Version, showVersion)
 import Data.Void (Void)
 import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
@@ -125,7 +125,11 @@ restDocsMd proxy = hackTogetherSomeReasonableOrder $
             intros unsafeCoerceGetExtraInfo (pretty (Proxy :: Proxy api))
       where
         intros :: [Docs.DocIntro]
-        intros = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
+        intros = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy)
+                   [ ("package: " <> cs (getCabalPackageName proxy)) <>
+                     (case showVersion (getCabalPackageVersion proxy) of
+                         "" -> " (no version info)"
+                         v -> " (version: " <> v <> ")") ]
                : getIntros proxy
 
         unsafeCoerceGetExtraInfo :: forall api'. Docs.ExtraInfo api'
