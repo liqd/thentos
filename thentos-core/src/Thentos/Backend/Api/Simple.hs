@@ -12,7 +12,6 @@
 module Thentos.Backend.Api.Simple where
 
 import Control.Lens ((^.), (&), (<>~), (%~), (.~))
-import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
 import Data.Void (Void)
@@ -211,13 +210,6 @@ instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[WAV] a) where
     foreignFor Proxy Proxy req =
         req & F.funcName  %~ ("post" :)
             & F.reqMethod .~ "POST"
-
--- FIXME: move this to module "Auth".
-instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAuth :> sub) where
-    type Foreign (ThentosAuth :> sub) = F.Foreign sub
-    foreignFor plang Proxy req = F.foreignFor plang (Proxy :: Proxy sub) $ req
-            & F.reqHeaders <>~
-                [F.HeaderArg (cs . foldedCase $ renderThentosHeaderName ThentosHeaderSession, "")]
 
 instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAssertHeaders :> sub) where
     type Foreign (ThentosAssertHeaders :> sub) = F.Foreign sub
