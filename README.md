@@ -128,6 +128,10 @@ $ sudo bash
 # apt-get install sox espeak  # (for audio captchas).
 ```
 
+The hvr-haskell programs go to their own peculiar paths under
+`/opt/<prog>/<ver>`; you can take a peek at `.travis.yml` on how to
+extend your `PATH` variable.
+
 To run executables or tests, you will need to install PostgreSQL.
 Depending on your setup, you may need to cast some authorization
 spells.  Here is what works on debian:
