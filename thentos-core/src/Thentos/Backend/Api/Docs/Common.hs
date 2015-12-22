@@ -8,7 +8,6 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
-{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -28,16 +27,11 @@ import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
 import "cryptonite" Crypto.Random (drgNew)
-import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
-import Data.Aeson.Utils (decodeV)
 import Data.List (sort)
-import Data.Map (Map)
-import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, SBS, cs, (<>))
+import Data.String.Conversions (ST, SBS, cs, (<>))
 import Data.Version (Version, showVersion)
 import Data.Void (Void)
-import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
@@ -49,9 +43,6 @@ import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples),
 import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
 
-import qualified Data.Aeson as Aeson
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Servant.Docs as Docs
 import qualified Servant.Docs.Internal as Docs
