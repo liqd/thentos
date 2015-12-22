@@ -3,7 +3,6 @@
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE TupleSections        #-}
 
 module Thentos.Action
     ( freshRandomName
@@ -450,13 +449,13 @@ startThentosSessionByUserName ::
     UserName -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByName name) pass
-    (uid,) <$> _startThentosSessionByAgent (UserA uid)
+    (,) uid <$> _startThentosSessionByAgent (UserA uid)
 
 startThentosSessionByUserEmail ::
     UserEmail -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
     (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByEmail email) pass
-    (uid,) <$> _startThentosSessionByAgent (UserA uid)
+    (,) uid <$> _startThentosSessionByAgent (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId ::

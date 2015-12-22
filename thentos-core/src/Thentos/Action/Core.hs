@@ -3,7 +3,6 @@
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
-{-# LANGUAGE TupleSections               #-}
 {-# LANGUAGE TypeFamilies                #-}
 
 module Thentos.Action.Core
@@ -15,7 +14,8 @@ import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
-import Control.Monad.State (MonadState, StateT(StateT), runStateT)
+import Control.Monad.State (MonadState, StateT, runStateT)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Pool (Pool, withResource)
@@ -99,40 +99,40 @@ data ActionError e =
 instance (Show e, Typeable e) => Exception (ActionError e)
 
 instance MonadLIO DCLabel (Action e s) where
-    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> StateT (\s -> (,s) <$> lio))
+    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
 
 -- * running actions
 
+ioExc :: Exception e => IO (Either e a, b) -> IO (a, b)
+ioExc act = do
+    (e, s) <- act
+    either throwIO (return . flip (,) s) e
+
 -- | Call 'runActionE' and throw 'Left' values.
 runAction :: (Show e, Typeable e) => s -> ActionState -> Action e s a -> IO (a, s)
 runAction polyState actionState action = do
-    (e, s) <- runActionE polyState actionState action
-    either throwIO (return . (,s)) e
+    ioExc $ runActionE polyState actionState action
 
 runActionWithPrivs :: (Show e, Typeable e) =>
     [CNF] -> s -> ActionState -> Action e s a -> IO (a, s)
 runActionWithPrivs ars polyState actionState action = do
-    (e, s) <- runActionWithPrivsE ars polyState actionState action
-    either throwIO (return . (,s)) e
+    ioExc $ runActionWithPrivsE ars polyState actionState action
 
 runActionWithClearance :: (Show e, Typeable e) =>
     DCLabel -> s -> ActionState -> Action e s a -> IO (a, s)
 runActionWithClearance label polyState actionState action = do
-    (e, s) <- runActionWithClearanceE label polyState actionState action
-    either throwIO (return . (,s)) e
+    ioExc $ runActionWithClearanceE label polyState actionState action
 
 runActionAsAgent :: (Show e, Typeable e) =>
     Agent -> s -> ActionState -> Action e s a -> IO (a, s)
 runActionAsAgent agent polyState actionState action = do
-    (e, s) <- runActionAsAgentE agent polyState actionState action
-    either throwIO (return . (,s)) e
+    ioExc $ runActionAsAgentE agent polyState actionState action
 
 runActionInThentosSession :: (Show e, Typeable e) =>
     ThentosSessionToken -> s -> ActionState -> Action e s a -> IO (a, s)
 runActionInThentosSession tok polyState actionState action = do
-    (e, s) <- runActionInThentosSessionE tok polyState actionState action
-    either throwIO (return . (,s)) e
+    ioExc $ runActionInThentosSessionE tok polyState actionState action
 
 -- | Call an action with no access rights.  Catch all errors.  Initial LIO state is not
 -- `dcDefaultState`, but @LIOState dcBottom dcBottom@: Only actions that require no clearance can be
