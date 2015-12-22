@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds                                #-}
+{-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeFamilies                             #-}
@@ -15,7 +17,7 @@ import Servant.API ((:<|>))
 import Servant.Docs (HasDocs(..))
 
 import qualified Servant.Docs as Docs
-import qualified Servant.Foreign as Foreign
+import qualified Servant.Foreign as F
 
 import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Proxy (ServiceProxy)
@@ -36,7 +38,7 @@ instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
                , "service are returned unmodified."
                ]
 
-instance Foreign.HasForeign ServiceProxy where
-    type Foreign ServiceProxy = Foreign.Req
-    foreignFor Proxy req =
-        req & Foreign.funcName  %~ ("ServiceProxy" :)
+instance F.HasForeign F.NoTypes ServiceProxy where
+    type Foreign ServiceProxy = F.Req
+    foreignFor Proxy Proxy req =
+        req & F.funcName %~ ("ServiceProxy" :)

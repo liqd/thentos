@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds                                #-}
+{-# LANGUAGE FlexibleContexts                         #-}
 {-# LANGUAGE FlexibleInstances                        #-}
+{-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeFamilies                             #-}
@@ -10,7 +12,6 @@
 module Thentos.Backend.Api.Simple where
 
 import Control.Lens ((^.), (&), (<>~), (%~), (.~))
-import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
 import Data.Void (Void)
@@ -22,7 +23,7 @@ import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
-import qualified Servant.Foreign as Foreign
+import qualified Servant.Foreign as F
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -192,32 +193,24 @@ instance HasDocExtras (RestDocs Api) where
 --
 -- we more / less restrictive instances.  We should merge servant master in our submodule branch,
 -- though.
-instance {-# OVERLAPPABLE #-} Foreign.HasForeign (Post200 b a) where
-    type Foreign (Post200 b a) = Foreign.Req
-    foreignFor Proxy req =
-        req & Foreign.funcName  %~ ("post200" :)
-            & Foreign.reqMethod .~ "POST"
+instance {-# OVERLAPPABLE #-} F.HasForeign F.NoTypes (Post200 b a) where
+    type Foreign (Post200 b a) = F.Req
+    foreignFor Proxy Proxy req =
+        req & F.funcName  %~ ("post200" :)
+            & F.reqMethod .~ "POST"
 
-instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[PNG] a) where
-    type Foreign (Post '[PNG] a) = Foreign.Req
-    foreignFor Proxy req =
-        req & Foreign.funcName  %~ ("post" :)
-            & Foreign.reqMethod .~ "POST"
+instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[PNG] a) where
+    type Foreign (Post '[PNG] a) = F.Req
+    foreignFor Proxy Proxy req =
+        req & F.funcName  %~ ("post" :)
+            & F.reqMethod .~ "POST"
 
-instance {-# OVERLAPPING #-} Foreign.HasForeign (Post '[WAV] a) where
-    type Foreign (Post '[WAV] a) = Foreign.Req
-    foreignFor Proxy req =
-        req & Foreign.funcName  %~ ("post" :)
-            & Foreign.reqMethod .~ "POST"
+instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[WAV] a) where
+    type Foreign (Post '[WAV] a) = F.Req
+    foreignFor Proxy Proxy req =
+        req & F.funcName  %~ ("post" :)
+            & F.reqMethod .~ "POST"
 
--- FIXME: move this to module "Auth".
-instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAuth :> sub) where
-    type Foreign (ThentosAuth :> sub) = Foreign.Foreign sub
-    foreignFor Proxy req = Foreign.foreignFor (Proxy :: Proxy sub) $ req
-            & Foreign.reqHeaders <>~
-                [Foreign.HeaderArg . cs . foldedCase $
-                    renderThentosHeaderName ThentosHeaderSession]
-
-instance Foreign.HasForeign sub => Foreign.HasForeign (ThentosAssertHeaders :> sub) where
-    type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
-    foreignFor Proxy = Foreign.foreignFor (Proxy :: Proxy sub)
+instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAssertHeaders :> sub) where
+    type Foreign (ThentosAssertHeaders :> sub) = F.Foreign sub
+    foreignFor plang Proxy = F.foreignFor plang (Proxy :: Proxy sub)

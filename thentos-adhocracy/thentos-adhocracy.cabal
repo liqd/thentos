@@ -46,7 +46,7 @@ library
     , aeson-pretty >=0.7.2 && <0.8
     , base >=4.8.1.0 && <5
     , case-insensitive >=1.2.0.4 && <1.3
-    , configifier >=0.0.7 && <0.1
+    , configifier >=0.0.8 && <0.1
     , functor-infix >=0.0.3 && <0.1
     , hslogger >=1.2.9 && <1.3
     , http-client >=0.4.22 && <0.5
@@ -112,7 +112,7 @@ test-suite tests
     , base >=4.8.1.0 && <5
     , bytestring >=0.10.6.0 && <0.11
     , case-insensitive >=1.2.0.4 && <1.3
-    , configifier >=0.0.7 && <0.1
+    , configifier >=0.0.8 && <0.1
     , containers >=0.5.6.2 && <0.6
     , hspec >=2.1.10 && <2.3
     , hspec-wai >=0.6.3 && <0.7

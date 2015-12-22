@@ -19,8 +19,6 @@ module Thentos.Backend.Api.Docs.Common
     , restDocsMd
     , restDocsJs
     , restDocsNg
-    , restDocsPurs
-    , prettyMimeRender
     , hackTogetherSomeReasonableOrder
     )
 where
@@ -29,35 +27,27 @@ import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
 import "cryptonite" Crypto.Random (drgNew)
-import Data.Aeson.Encode.Pretty (encodePretty', defConfig, Config(confCompare))
-import Data.Aeson.Utils (decodeV)
 import Data.List (sort)
-import Data.Map (Map)
-import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, LBS, SBS, cs, (<>))
-import Data.Version (Version)
+import Data.String.Conversions (ST, SBS, cs, (<>))
+import Data.Version (Version, showVersion)
 import Data.Void (Void)
-import Network.HTTP.Media (MediaType)
 import Safe (fromJustNote)
 import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
 import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
+import Servant.Docs.Internal.Pretty (Pretty)
 import Servant.Docs.Internal (response, respStatus)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
-                     docsFor, emptyAPI)
+                     docsFor, pretty, emptyAPI)
 import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
 
-import qualified Data.Aeson as Aeson
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Map as Map
 import qualified Data.Text as ST
 import qualified Servant.Docs as Docs
 import qualified Servant.Docs.Internal as Docs
-import qualified Servant.Foreign as Foreign
+import qualified Servant.Foreign as F
 import qualified Servant.JS as JS
-import qualified Servant.PureScript as Purs
 
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
@@ -77,12 +67,7 @@ type RestDocs api = RestDocs' api :<|> api
 type RestDocs' api = "docs" :>
       ("md"   :> Get '[PlainText] Docs.API
   :<|> "js"   :> Get '[PlainText] ST
-  :<|> "ng"   :> Get '[PlainText] ST
-  :<|> "purs" :> "Util.js"   :> Get '[PlainText] ST
-  :<|> "purs" :> "Util.purs" :> Get '[PlainText] ST
-    -- FIXME: purescript-globals@0.2.2 replaces Util.*, and we import that in thentos-purescript.
-    -- so the last two end-points should be reomved.
-  :<|> "purs" :> Capture "ModuleName" ST :> Get '[PlainText] ST)
+  :<|> "ng"   :> Get '[PlainText] ST)
 
 instance MimeRender PlainText Docs.API where
     mimeRender _ = mimeRender (Proxy :: Proxy PlainText) . Docs.markdown
@@ -94,9 +79,9 @@ instance ToSample ST where
     toSamples _ = [("empty", "")]
 
 -- | the 'Raw' endpoint has 'Foreign', but it is @Method -> Req@, which doesn't have a
--- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @Foreign.Method@ is
+-- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @F.Method@ is
 -- not exported, we keep it polymorphic.
-instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> Foreign.Req) where
+instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> F.Req) where
     generateList _ = []
 
 class HasDocs api => HasDocExtras api where
@@ -112,8 +97,8 @@ class HasDocs api => HasDocExtras api where
     getExtraInfo _ = mempty
 
 type HasFullDocExtras api =
-    ( HasDocs (RestDocs api), HasDocExtras (RestDocs api)
-    , Foreign.HasForeign api, JS.GenerateList (Foreign.Foreign api)
+    ( HasDocs (RestDocs api), HasDocs (Pretty api), HasDocExtras (RestDocs api)
+    , F.HasForeign F.NoTypes api, JS.GenerateList (F.Foreign api)
     )
 
 restDocs :: forall api m. (Monad m, HasFullDocExtras api)
@@ -122,22 +107,24 @@ restDocs _ proxy =
         pure (restDocsMd proxy)
    :<|> pure (restDocsJs proxy)
    :<|> pure (restDocsNg proxy)
-   :<|> pure (restDocsPursUtilJS proxy)
-   :<|> pure (restDocsPursUtilPurs proxy)
-   :<|> pure . restDocsPurs proxy
 
 
-restDocsMd :: forall api. (HasDocExtras (RestDocs api), Foreign.HasForeign api
-      , JS.GenerateList (Foreign.Foreign api))
-         => Proxy (RestDocs api) -> Docs.API
-restDocsMd proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
-        Docs.docsWith
-            (Docs.DocOptions 2)
-            (intro : getIntros proxy)
-            (getExtraInfo proxy)
-            proxy
+restDocsMd :: forall api. (HasDocs (Pretty api), HasDocExtras (RestDocs api))
+    => Proxy (RestDocs api) -> Docs.API
+restDocsMd proxy = hackTogetherSomeReasonableOrder $
+        Docs.docsWith (Docs.DocOptions 2)
+            intros unsafeCoerceGetExtraInfo (pretty (Proxy :: Proxy api))
       where
-        intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
+        intros :: [Docs.DocIntro]
+        intros = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy)
+                   [ ("package: " <> cs (getCabalPackageName proxy)) <>
+                     (case showVersion (getCabalPackageVersion proxy) of
+                         "" -> " (no version info)"
+                         v -> " (version: " <> v <> ")") ]
+               : getIntros proxy
+
+        unsafeCoerceGetExtraInfo :: forall api'. Docs.ExtraInfo api'
+        unsafeCoerceGetExtraInfo = case getExtraInfo proxy of Docs.ExtraInfo m -> Docs.ExtraInfo m
 
 restDocsJs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
 restDocsJs proxy = restDocsSource proxy "// "
@@ -146,18 +133,6 @@ restDocsJs proxy = restDocsSource proxy "// "
 restDocsNg :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
 restDocsNg proxy = restDocsSource proxy "// "
     <> JS.jsForAPI (Proxy :: Proxy api) (JS.angular JS.defAngularOptions)
-
-restDocsPursUtilJS :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
-restDocsPursUtilJS proxy = restDocsSource proxy "// "
-    <> snd (Purs.generatePSUtilModule Purs.defaultSettings)
-
-restDocsPursUtilPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
-restDocsPursUtilPurs proxy = restDocsSource proxy "-- "
-    <> fst (Purs.generatePSUtilModule Purs.defaultSettings)
-
-restDocsPurs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST -> ST
-restDocsPurs proxy moduleName = restDocsSource proxy "-- "
-    <> Purs.generatePSModule Purs.defaultSettings (cs moduleName) (Proxy :: Proxy api)
 
 restDocsSource :: HasDocExtras (RestDocs api) => Proxy (RestDocs api) -> ST -> ST
 restDocsSource proxy comment = ST.unlines . (ST.stripEnd . (comment <>) <$>) $
@@ -193,44 +168,6 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
         h _ = error $ "hackTogetherSomeReasonableOrder/h: " ++ show di
 
 
--- * Pretty-printing
-
--- FIXME: pretty printing docs is probably deprecated since
--- https://github.com/haskell-servant/servant/pull/289.
---
--- cleanup steps:
---
--- - don't depend on servant-purescript (not really related to this, but we might as well...)
--- - move servant-session from servant repo to liqd/servant-session (just for now)
--- - update servant submodule to top of master and use pretty-printing docs from there
-
-prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
-prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
-  where
-    updateEndpoints = HM.map (pprintAction pprinters)
-
-prettyMimeRender :: Docs.API -> Docs.API
-prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
-
-pprintJson :: LBS -> LBS
-pprintJson raw = encodePretty' (defConfig {confCompare = compare})
-           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:" ++
-                           " Non-invertible ToJSON instance detected: " ++ show raw)
-           . (decodeV :: LBS -> Maybe Aeson.Value)
-           $ raw
-
-pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
-pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response %~ updateResponse) $ action
-  where
-    updateReqBody = map pprintData
-    updateResponse = Docs.respBody %~ pprintRespBody
-    pprintRespBody = map (\(t, m, bs) -> (t, m, snd (pprintData (m, bs))))
-
-    pprintData :: (MediaType, LBS) -> (MediaType, LBS)
-    pprintData (mType, bs) = (mType, pprint bs)
-      where pprint = fromMaybe id (Map.lookup mType pprinters)
-
-
 -- * generating sample tokens
 
 runTokenBuilder :: Action.Action Void () a -> [(ST, a)]
@@ -247,9 +184,6 @@ runTokenBuilderState = unsafePerformIO $ do
 
 
 -- * instances for servant-docs
-
-instance ToCapture (Capture "ModuleName" ST) where
-    toCapture _ = DocCapture "string" "purescript module name"
 
 instance ToCapture (Capture "token" ThentosSessionToken) where
     toCapture _ = DocCapture "token" "session token for session with thentos"
