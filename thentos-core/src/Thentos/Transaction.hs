@@ -16,6 +16,7 @@ import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
 import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
+import Data.Int (Int64)
 
 import Thentos.Types
 import Thentos.Transaction.Core
@@ -134,21 +135,26 @@ addPasswordResetToken email token = do
                 VALUES (?, ?) |] (token, uid)
     return user
 
+
+checkUnique :: ThentosError e -> String -> Int64 -> ThentosQuery e ()
+checkUnique zero multi n =
+    case n of
+        0 -> throwError zero
+        1 -> return ()
+        _ -> impossible multi
+
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
 -- the token does not exist or has expired.
 resetPassword :: Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery e ()
-resetPassword timeout token newPassword = do
-    modified <- execT [sql| UPDATE users
+resetPassword timeout token newPassword =
+    checkUnique NoSuchToken "password reset token exists multiple times"
+        =<< execT     [sql| UPDATE users
                             SET password = ?
                             FROM password_reset_tokens
                             WHERE password_reset_tokens.timestamp + ? > now()
                             AND users.id = password_reset_tokens.uid
                             AND password_reset_tokens.token = ?
                       |] (newPassword, timeout, token)
-    case modified of
-        1 -> return ()
-        0 -> throwError NoSuchToken
-        _ -> impossible "password reset token exists multiple times"
 
 addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
 addUserEmailChangeRequest uid newEmail token = do
@@ -159,39 +165,30 @@ addUserEmailChangeRequest uid newEmail token = do
 -- exist or has expired.
 confirmUserEmailChange :: Timeout -> ConfirmationToken -> ThentosQuery e ()
 confirmUserEmailChange timeout token = do
-    modified <- execT [sql| UPDATE users
+    checkUnique NoSuchToken "email change token exists multiple times"
+            =<< execT [sql| UPDATE users
                             SET email = email_change_tokens.new_email
                             FROM email_change_tokens
                             WHERE timestamp + ? > now()
                             AND users.id = email_change_tokens.uid
                             AND email_change_tokens.token = ?
                       |] (timeout, token)
-    case modified of
-        1 -> return ()
-        0 -> throwError NoSuchToken
-        _ -> impossible "email change token exists multiple times"
 
 
 -- | Change password. Should only be called once the old password has been
 -- verified.
 changePassword :: UserId -> HashedSecret UserPass -> ThentosQuery e ()
 changePassword uid newpass = do
-    modified <- q
-    case modified of
-        1 -> return ()
-        0 -> throwError NoSuchUser
-        _ -> impossible "changePassword: unique constraint on id violated"
-  where
-    q = execT [sql| UPDATE users SET password = ? WHERE id = ?  |] (newpass, uid)
+    checkUnique NoSuchUser "changePassword: unique constraint on id violated"
+        =<< execT [sql| UPDATE users SET password = ? WHERE id = ? |]
+                (newpass, uid)
 
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
 deleteUser :: UserId -> ThentosQuery e ()
-deleteUser uid
-    = execT [sql| DELETE FROM users WHERE id = ? |] (Only uid) >>= \ x -> case x of
-      1 -> return ()
-      0 -> throwError NoSuchUser
-      _ -> impossible "deleteUser: unique constraint on id violated"
+deleteUser uid =
+    execT [sql| DELETE FROM users WHERE id = ? |] (Only uid) >>=
+    checkUnique NoSuchUser "deleteUser: unique constraint on id violated"
 
 
 -- * service
@@ -222,12 +219,8 @@ addService uid sid secret name description = void $
 -- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.
 deleteService :: ServiceId -> ThentosQuery e ()
 deleteService sid = do
-    deletedCount <- execT [sql| DELETE FROM services
-                                WHERE id = ? |] (Only sid)
-    case deletedCount of
-        0 -> throwError NoSuchService
-        1 -> return ()
-        _ -> impossible "deleteService: multiple results"
+    execT [sql| DELETE FROM services WHERE id = ? |] (Only sid) >>=
+        checkUnique NoSuchService "deleteService: multiple results"
 
 -- Register a user to grant them access to a service. Throws an error if the user is already
 -- registered for the service.
@@ -260,11 +253,9 @@ addPersona name uid mExternalUrl = do
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 deletePersona :: PersonaId -> ThentosQuery e ()
 deletePersona persId = do
-    rows <- execT [sql| DELETE FROM personas WHERE id = ? |] (Only persId)
-    case rows of
-        1 -> return ()
-        0 -> throwError NoSuchPersona
-        _ -> impossible "deletePersona: unique constraint on id violated"
+    execT [sql| DELETE FROM personas WHERE id = ? |] (Only persId) >>=
+        checkUnique NoSuchPersona
+            "deletePersona: unique constraint on id violated"
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
@@ -282,12 +273,10 @@ addContext sid name desc mUrl = do
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 deleteContext :: ServiceId -> ContextName -> ThentosQuery e ()
 deleteContext sid cname = do
-    rows <- execT [sql| DELETE FROM contexts WHERE owner_service = ? AND name = ? |]
-                  (sid, cname)
-    case rows of
-        1 -> return ()
-        0 -> throwError NoSuchContext
-        _ -> impossible "deleteContext: unique constraint on owner_service + name violated"
+    execT [sql| DELETE FROM contexts WHERE owner_service = ? AND name = ? |]
+            (sid, cname) >>=
+        checkUnique NoSuchContext
+            "deleteContext: unique constraint on owner_service + name violated"
 
 -- Retrieve 'ContextId' based on 'ServiceId' and 'ContextName'.
 -- Throws 'NoSuchContext' if the combination doesn't exist.
@@ -502,13 +491,10 @@ startServiceSession thentosSessionToken token sid timeout =
 -- session do not exist or have expired, remove the service session just the same, but never thentos
 -- session.
 endServiceSession :: ServiceSessionToken -> ThentosQuery e ()
-endServiceSession token = do
-    deleted <- execT
-        [sql| DELETE FROM service_sessions WHERE token = ? |] (Only token)
-    case deleted of
-        0 -> throwError NoSuchServiceSession
-        1 -> return ()
-        _ -> impossible "multiple service sessions with same token"
+endServiceSession token =
+    execT [sql| DELETE FROM service_sessions WHERE token = ? |] (Only token)
+    >>=
+    checkUnique NoSuchServiceSession "multiple service sessions with same token"
 
 
 -- * agents and roles
