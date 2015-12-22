@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
+{-# LANGUAGE ViewPatterns                             #-}
 
 {-# OPTIONS -fno-warn-orphans #-}
 
@@ -19,7 +20,6 @@ module Thentos.Backend.Api.Docs.Common
     , restDocsMd
     , restDocsJs
     , restDocsNg
-    , prettyMimeRender
     , hackTogetherSomeReasonableOrder
     )
 where
@@ -42,9 +42,10 @@ import Safe (fromJustNote)
 import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
 import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
+import Servant.Docs.Internal.Pretty (Pretty)
 import Servant.Docs.Internal (response, respStatus)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
-                     docsFor, emptyAPI)
+                     docsFor, pretty, emptyAPI)
 import Servant.Server (ServerT)
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -105,7 +106,7 @@ class HasDocs api => HasDocExtras api where
     getExtraInfo _ = mempty
 
 type HasFullDocExtras api =
-    ( HasDocs (RestDocs api), HasDocExtras (RestDocs api)
+    ( HasDocs (RestDocs api), HasDocs (Pretty api), HasDocExtras (RestDocs api)
     , F.HasForeign F.NoTypes api, JS.GenerateList (F.Foreign api)
     )
 
@@ -117,17 +118,18 @@ restDocs _ proxy =
    :<|> pure (restDocsNg proxy)
 
 
-restDocsMd :: forall api. ( HasDocExtras (RestDocs api), F.HasForeign F.NoTypes api
-                          , JS.GenerateList (F.Foreign api))
-         => Proxy (RestDocs api) -> Docs.API
-restDocsMd proxy = prettyMimeRender . hackTogetherSomeReasonableOrder $
-        Docs.docsWith
-            (Docs.DocOptions 2)
-            (intro : getIntros proxy)
-            (getExtraInfo proxy)
-            proxy
+restDocsMd :: forall api. (HasDocs (Pretty api), HasDocExtras (RestDocs api))
+    => Proxy (RestDocs api) -> Docs.API
+restDocsMd proxy = hackTogetherSomeReasonableOrder $
+        Docs.docsWith (Docs.DocOptions 2)
+            intros unsafeCoerceGetExtraInfo (pretty (Proxy :: Proxy api))
       where
-        intro = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
+        intros :: [Docs.DocIntro]
+        intros = Docs.DocIntro ("@@0.0@@" ++ getTitle proxy) [show $ getCabalPackageVersion proxy]
+               : getIntros proxy
+
+        unsafeCoerceGetExtraInfo :: forall api'. Docs.ExtraInfo api'
+        unsafeCoerceGetExtraInfo = case getExtraInfo proxy of Docs.ExtraInfo m -> Docs.ExtraInfo m
 
 restDocsJs :: forall api. HasFullDocExtras api => Proxy (RestDocs api) -> ST
 restDocsJs proxy = restDocsSource proxy "// "
@@ -169,42 +171,6 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 
         h ('@':'@':x) = x
         h _ = error $ "hackTogetherSomeReasonableOrder/h: " ++ show di
-
-
--- * Pretty-printing
-
--- FIXME: pretty printing docs is probably deprecated since
--- https://github.com/haskell-servant/servant/pull/289.
---
--- cleanup steps:
---
--- - update servant submodule to top of master and use pretty-printing docs from there
-
-prettyMimeRender' :: Map MediaType (LBS -> LBS) -> Docs.API -> Docs.API
-prettyMimeRender' pprinters = Docs.apiEndpoints %~ updateEndpoints
-  where
-    updateEndpoints = HM.map (pprintAction pprinters)
-
-prettyMimeRender :: Docs.API -> Docs.API
-prettyMimeRender = prettyMimeRender' $ Map.fromList [("application/json", pprintJson)]
-
-pprintJson :: LBS -> LBS
-pprintJson raw = encodePretty' (defConfig {confCompare = compare})
-           . fromJustNote ("Internal error in Thentos.Backend.Api.Docs.Common:" ++
-                           " Non-invertible ToJSON instance detected: " ++ show raw)
-           . (decodeV :: LBS -> Maybe Aeson.Value)
-           $ raw
-
-pprintAction :: Map MediaType (LBS -> LBS) -> Docs.Action -> Docs.Action
-pprintAction pprinters action = (Docs.rqbody %~ updateReqBody) . (Docs.response %~ updateResponse) $ action
-  where
-    updateReqBody = map pprintData
-    updateResponse = Docs.respBody %~ pprintRespBody
-    pprintRespBody = map (\(t, m, bs) -> (t, m, snd (pprintData (m, bs))))
-
-    pprintData :: (MediaType, LBS) -> (MediaType, LBS)
-    pprintData (mType, bs) = (mType, pprint bs)
-      where pprint = fromMaybe id (Map.lookup mType pprinters)
 
 
 -- * generating sample tokens
