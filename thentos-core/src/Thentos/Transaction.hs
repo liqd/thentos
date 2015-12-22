@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE QuasiQuotes         #-}
@@ -322,10 +321,9 @@ registerPersonaWithContext persona sid cname = do
 -- context.
 unregisterPersonaFromContext :: PersonaId -> ServiceId -> ContextName -> ThentosQuery e ()
 unregisterPersonaFromContext persId sid cname = findContextId sid cname >>=
-    \case Just cxtId -> void $ execT
+    mapM_ (\cxtId -> void $ execT
                 [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
-                (persId, cxtId)
-          Nothing    -> pure ()
+                (persId, cxtId))
 
 -- Find the persona that a user wants to use for a context (if any).
 findPersona :: UserId -> ServiceId -> ContextName -> ThentosQuery e (Maybe Persona)
