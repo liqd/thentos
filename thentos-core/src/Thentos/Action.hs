@@ -164,6 +164,7 @@ freshCaptchaId = CaptchaId <$> freshRandomName
 lookupConfirmedUser :: UserId -> Action e s (UserId, User)
 lookupConfirmedUser uid = _lookupUser $ T.lookupConfirmedUser uid
 
+-- FIXME: trailing underscore is slightly bad (ghc gets confused if TypedHoles are enabled).
 _lookupUser :: ThentosQuery e (UserId, User) -> Action e s (UserId, User)
 _lookupUser transaction = do
     val@(uid, _) <- query'P transaction

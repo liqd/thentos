@@ -240,6 +240,7 @@ instance Aeson.FromJSON ConfirmationToken where
 instance Aeson.ToJSON ConfirmationToken where toJSON (ConfirmationToken tok) = Aeson.toJSON tok
 
 
+-- FIXME: why are some FromHttpApiData instances in this module derived and some explicitly defined?
 instance FromHttpApiData ConfirmationToken where
     parseQueryParam tok = ConfirmationToken <$>
         either (Left . cs . show) Right (decodeUtf8' $ cs tok)
@@ -355,6 +356,7 @@ data Persona = Persona
   , _personaName        :: PersonaName
   , _personaUid         :: UserId
   , _personaExternalUrl :: Maybe Uri
+      -- FIXME: needs better explanation/name.  call it `_personaHomeContext`?
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
@@ -445,6 +447,10 @@ instance ToJSON ByUserOrServiceId where
 
 
 -- * timestamp, timeout
+
+-- FIXME: move this section to module (Data.Timeout) in separate package `store-expire`.  (also move
+-- gc transactions and possibly more?)  make it store-backend-agnostic (checkout `TCache` or file
+-- upload in `warp`/`wai` for inspiration).  also possibly related: package `timeout`.
 
 newtype Timestamp = Timestamp { fromTimestamp :: UTCTime }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
