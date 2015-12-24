@@ -21,9 +21,15 @@ import Thentos (createDefaultUser)
 import Thentos.Types
 
 
-{-# NOINLINE thentosTestConfig #-}
 thentosTestConfig :: ThentosConfig
-thentosTestConfig = unsafePerformIO . configify . (:[]) . YamlString . cs . unlines $
+thentosTestConfig = mkThentosTestConfig [thentosTestConfigYaml]
+
+{-# NOINLINE mkThentosTestConfig #-}
+mkThentosTestConfig :: [Source] -> ThentosConfig
+mkThentosTestConfig = unsafePerformIO . configify
+
+thentosTestConfigYaml :: Source
+thentosTestConfigYaml = YamlString . cs . unlines $
     "backend:" :
     "    bind_port: 7118" :
     "    bind_host: \"127.0.0.1\"" :
