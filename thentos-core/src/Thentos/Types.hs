@@ -690,7 +690,7 @@ stripTrailingSlash p = if "/" `ST.isSuffixOf` p then ST.init p else p
 -- optional '/' trailing left side / leading right side is removed,
 -- and one '/' is inserted.
 (<//>) :: (ConvertibleStrings s ST, ConvertibleStrings ST s) => s -> s -> s
-(cs -> p) <//> (cs -> p') = cs $ stripTrailingSlash p <> "/" <> stripLeadingSlash p'
+p <//> p' = cs $ stripTrailingSlash (cs p) <> "/" <> stripLeadingSlash (cs p')
 
 
 -- * randomness
