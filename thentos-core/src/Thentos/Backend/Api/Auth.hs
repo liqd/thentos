@@ -30,13 +30,15 @@
 --
 -- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
 -- >>> api actionState mTok = enter (enterAction actionState mTok) myApi
-module Thentos.Backend.Api.Auth where
+module Thentos.Backend.Api.Auth (module Thentos.Backend.Api.Auth.Types) where
 
 import Control.Lens ((&), (<>~))
 import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Text (empty)
+import Network.Wai (remoteHost)
+import Network.Socket (SockAddr)
 import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, route)
 import Servant.Server.Internal (Router'(WithRequest), passToServer)
@@ -44,16 +46,16 @@ import Servant.Utils.Links (HasLink(MkLink, toLink))
 
 import qualified Servant.Foreign as F
 
+import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
-import Thentos.Types
 
-
-data ThentosAuth
 
 instance HasServer sub => HasServer (ThentosAuth :> sub) where
-  type ServerT (ThentosAuth :> sub) m = Maybe ThentosSessionToken -> ServerT sub m
-  route Proxy sub = WithRequest $ \ request -> route (Proxy :: Proxy sub)
-      (passToServer sub $ lookupThentosHeaderSession renderThentosHeaderName request)
+  type ServerT (ThentosAuth :> sub) m = ThentosAuthCredentials -> ServerT sub m
+  route Proxy sub = WithRequest $ \ request -> do
+      let mTok = lookupThentosHeaderSession renderThentosHeaderName request
+      let origin :: SockAddr = remoteHost request
+      route (Proxy :: Proxy sub) . passToServer sub $ ThentosAuthCredentials mTok origin
 
 instance HasLink sub => HasLink (ThentosAuth :> sub) where
     type MkLink (ThentosAuth :> sub) = MkLink sub
