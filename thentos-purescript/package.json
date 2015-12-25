@@ -1,0 +1,39 @@
+{
+    "name": "thentos-purescript",
+    "version": "0.0.1",
+    "description": "Frontend code for the thentos PPIM system.",
+    "readme": "see README.md",
+    "keywords": [
+        "identity management",
+        "security",
+        "user data"
+    ],
+    "license": "AGPL",
+    "author": {
+        "name": "Matthias Fischmann",
+        "email": "matthias.fischmann@liqd.net"
+    },
+
+    "homepage": "https://github.com/liqd/thentos",
+    "bugs": {
+        "url": "https://github.com/liqd/thentos/issues",
+        "email": "matthias.fischmann@liqd.net"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/liqd/thentos.git"
+    },
+
+    "dependencies": {
+        "virtual-dom": "2.1.1"
+    },
+    "devDependencies": {
+        "purescript": "0.7.6",
+        "pulp": "4.4.1"
+    },
+
+    "main": "static/thentos.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    }
+}

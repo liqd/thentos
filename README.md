@@ -145,18 +145,12 @@ $ echo "alter role $PGUSER superuser" | sudo -u postgres psql
 (Instead of `thentos`, you can choose your unix login name as postgres
 user name and skip setting the shell variable.)
 
-For building the purescript UI code, you will need to have a few more
-tools installed:
+For building the purescript UI code, you will need to install the
+javascript engine nodejs and its package manager npm:
 
 ```shell
 $ sudo apt-get install nodejs npm
-$ mkdir $HOME/opt
-$ cd $HOME/opt
-$ npm install pulp@4.4.1
-$ npm install purescript@0.7.6
 ```
-
-Then add `$HOME/opt/node_modules/.bin` to your `$PATH`.
 
 Make sure that nodejs is also found under the name "node", since some of
 the PureScript install scripts expect that:

@@ -19,10 +19,4 @@ cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlin
 sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
 
 cabal update
-
-echo -e "\n\n>>> purescript\n\n"
-pulp --version || npm install -g pulp@4.4.1
-psc  --version || npm install -g purescript@0.7.6
-
-echo -e "\n\n>>> ghc (deps only)\n\n"
 ./misc/thentos-install.hs -c "--force-reinstalls" -t

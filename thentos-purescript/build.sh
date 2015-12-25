@@ -3,6 +3,8 @@
 set -o errexit
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 
+export PATH=`pwd`/node_modules/.bin/:$PATH
+
 # a bug in pulp-4.4.1 makes pulp not exit with non-0 status code to
 # the system in case of a non-zero exit from psc.  this hides psc
 # compiler errors effectively from travis.
@@ -15,7 +17,7 @@ THENTOS_PURESCRIPT_OPTS=""
 
 case "$1" in
     "dep")
-        npm install virtual-dom
+        npm install --dev
         time pulp dep install
         ;;
     "it")
@@ -31,6 +33,10 @@ case "$1" in
             pulp dep uninstall * 2>/dev/null || true
             cd ../
         fi
+        ;;
+    "distclean")
+        $0 clean
+        rm -rf .pulp-cache ./bower_components ./node_modules
         ;;
     "generate")
         if [ "$2" != "" ]; then
