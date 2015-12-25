@@ -244,8 +244,11 @@ lookupThentosHeaderService :: RenderHeaderFun -> Request -> Maybe ServiceId
 lookupThentosHeaderService renderHeaderFun req =
     ServiceId <$> lookupThentosHeader renderHeaderFun req ThentosHeaderService
 
--- The default function used to render Thentos-specific header names.
--- Defining alternatives functions allows renaming some or all of the headers.
+-- | The default function used to render Thentos-specific header names.
+--
+-- FIXME: this needs to move to the "Thentos.Backend.Api.Auth", and become a type family so it can
+-- actually be overridden for other apis, like thentos-adhocracy.  (See also: comment on
+-- thentos-adhocracy's 'emptyCreds'.)
 renderThentosHeaderName :: RenderHeaderFun
 renderThentosHeaderName ThentosHeaderSession = mk "X-Thentos-Session"
 renderThentosHeaderName ThentosHeaderService = mk "X-Thentos-Service"
