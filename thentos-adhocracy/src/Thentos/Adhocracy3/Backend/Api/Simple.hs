@@ -195,6 +195,7 @@ instance ToJSON TypedPathWithCacheControl where
             ]
         ]
 
+
 -- ** individual resources
 
 newtype A3UserNoPass = A3UserNoPass { fromA3UserNoPass :: UserFormData }
