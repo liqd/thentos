@@ -1,6 +1,8 @@
+{- LANGUAGE Safe                        #-}
+
 {-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE FlexibleInstances           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE PackageImports              #-}
 
@@ -33,7 +35,7 @@ newtype ActionState =
     ActionState
       { fromActionState :: (Pool Connection, MVar ChaChaDRG, ThentosConfig)
       }
-  deriving (Typeable, Generic)
+  deriving (Generic)
 
 -- | The 'Action' monad transformer stack.  It contains:
 --
@@ -44,8 +46,6 @@ newtype ActionState =
 --     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
 --       will have authorized effect.  Since it is contained in a reader, actions do not have the
 --       power to corrupt it.
---
--- FIXME: make this a data type with explicit instance and tag this module @Safe@.
 newtype Action e s a =
     Action
       { fromAction :: ReaderT ActionState
@@ -53,15 +53,30 @@ newtype Action e s a =
                               (StateT s
                                   (LIO DCLabel))) a
       }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadReader ActionState
-           , MonadError (ThentosError e)
-           , MonadState s
-           , Typeable
-           , Generic
-           )
+  deriving (Functor, Generic)
+
+instance Applicative (Action e s) where
+    pure = Action . pure
+    (Action ua) <*> (Action ua') = Action $ ua <*> ua'
+
+instance Monad (Action e s) where
+    return = pure
+    (Action ua) >>= f = Action $ ua >>= fromAction . f
+
+instance MonadReader ActionState (Action e s) where
+    ask = Action ask
+    local f = Action . local f . fromAction
+
+instance MonadError (ThentosError e) (Action e s) where
+    throwError = Action . throwError
+    catchError (Action ua) h = Action $ catchError ua (fromAction . h)
+
+instance MonadState s (Action e s) where
+    state = Action . state
+
+instance MonadLIO DCLabel (Action e s) where
+    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
+
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --
@@ -73,14 +88,9 @@ data ActionError e =
     ActionErrorThentos (ThentosError e)
   | ActionErrorAnyLabel AnyLabelError
   | ActionErrorUnknown SomeException
-  deriving ( Show
-           , Typeable
-           )
+  deriving (Show)
 
 instance (Show e, Typeable e) => Exception (ActionError e)
-
-instance MonadLIO DCLabel (Action e s) where
-    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
 
 -- | Like 'Action', but with 'IO' at the base.
