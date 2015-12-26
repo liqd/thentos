@@ -1,4 +1,4 @@
-{- LANGUAGE Safe                        #-}
+{- Safe -}
 
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE DeriveFunctor               #-}

@@ -1,7 +1,5 @@
-{- LANGUAGE Safe                        #-}
+{- Safe -}
 
-{-# LANGUAGE DeriveGeneric               #-}
-{-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 
