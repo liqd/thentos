@@ -14,6 +14,7 @@ module Thentos.Action.SimpleAuth
   , hasUserId
   , hasServiceId
   , hasRole
+  , hasPrivilegedIP
   , guardedUnsafeAction
   , unsafeAction
   , unsafeLiftIO
@@ -33,6 +34,7 @@ import LIO.TCB (ioTCB)
 
 import LIO.Missing
 import Thentos.Action.Core
+import Thentos.Backend.Api.Auth.Types
 import Thentos.Types
 
 
@@ -76,6 +78,9 @@ hasServiceId sid = guardWriteOk (ServiceA sid %% ServiceA sid)
 
 hasRole :: Role -> Action e s Bool
 hasRole role = guardWriteOk (role %% role)
+
+hasPrivilegedIP :: Action e s Bool
+hasPrivilegedIP = guardWriteOk (PrivilegedIP %% PrivilegedIP)
 
 
 -- * making unsafe actions safe

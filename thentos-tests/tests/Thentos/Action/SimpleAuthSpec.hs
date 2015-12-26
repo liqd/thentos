@@ -1,16 +1,32 @@
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeOperators        #-}
 
 module Thentos.Action.SimpleAuthSpec where
 
+import Control.Concurrent (forkIO, killThread)
+import Control.Exception (bracket)
+import Control.Lens ((^.))
+import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
-import Data.String.Conversions (cs)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs, (<>))
 import Data.Void (Void)
 import LIO.DCLabel (toCNF)
-import Test.Hspec (Spec, SpecWith, describe, it, before, hspec)
+import Network.Wai (Application)
+import Servant.API ((:>), Get, JSON)
+import Servant.Server (serve, enter)
+import Test.Hspec (Spec, describe, context, it, before, around, hspec, shouldBe)
+
+import qualified Data.Aeson as Aeson
+import qualified Network.Wreq as Wreq
 
 import Thentos.Action.Core
 import Thentos.Action.SimpleAuth
+import Thentos.Backend.Api.Auth.Types
+import Thentos.Backend.Core
+import Thentos.Config
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
@@ -23,12 +39,8 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    let mkActionState = do
-          actionState@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
-          withResource connPool createGod
-          return actionState
-
-    describe "Thentos.Action.SimpleAuth" . before mkActionState $ specWithActionState
+    specWithActionState
+    specWithBackends
 
 type Act = Action (ActionError Void) ()
 
@@ -42,8 +54,14 @@ setClearanceSid :: Integer -> Action e s ()
 setClearanceSid sid = grantAccessRights'P [toCNF . ServiceA . ServiceId . cs . show $ sid]
 
 
-specWithActionState :: SpecWith ActionState
-specWithActionState = do
+mkActionState :: IO ActionState
+mkActionState = do
+    actionState@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
+    withResource connPool createGod
+    return actionState
+
+specWithActionState :: Spec
+specWithActionState = before mkActionState $ do
     describe "assertAuth" $ do
         it "throws an error on False" $ \sta -> do
             (Left (ActionErrorAnyLabel _), ())
@@ -101,3 +119,36 @@ specWithActionState = do
         it "translates an UnsafeAction into an Action, unsafely" $ \sta -> do
             (4, ()) <- runAction () sta (unsafeAction (pure 4) :: Act Int)
             return ()
+
+
+withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
+withPrivIpBackend allowIps testCase = do
+    as@(ActionState (_, _, cfg)) <- do
+        let sources = [ thentosTestConfigYaml
+                      , YamlString . ("allow_ips: " <>) . cs . show $ allowIps
+                      ]
+        createActionState "test_thentos" $ mkThentosTestConfig sources
+
+    let Just becfg = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+    bracket (forkIO $ runWarpWithCfg becfg $ serveApi as)
+        killThread
+        (\_ -> testCase becfg)
+
+type Api = ThentosAuth :> Get '[JSON] Bool
+
+serveApi :: ActionState -> Application
+serveApi as = serve (Proxy :: Proxy Api) $
+    (\creds -> enter (enterAction () as baseActionErrorToServantErr creds) hasPrivilegedIP)
+
+
+specWithBackends :: Spec
+specWithBackends = describe "hasPrivilegedIp" $ do
+    let works :: [String] -> Bool -> Spec
+        works ips y = context ("with allow_ips = " ++ show ips) . around (withPrivIpBackend ips) $
+            it ("returns " ++ show y ++ " for requests from localhost") $ \httpCfg -> do
+                resp <- Wreq.get (cs $ exposeUrl httpCfg)
+                resp ^. Wreq.responseBody `shouldBe` Aeson.encode y
+
+    works ["127.0.0.1"] True
+    works  ["1.2.3.4"] False
+    works [] False

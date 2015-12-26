@@ -61,6 +61,7 @@ library
     , Thentos.Action.SimpleAuth
     , Thentos.Action.Unsafe
     , Thentos.Backend.Api.Auth
+    , Thentos.Backend.Api.Auth.Types
     , Thentos.Backend.Api.Docs.Common
     , Thentos.Backend.Api.Docs.Proxy
     , Thentos.Backend.Api.Proxy
@@ -135,6 +136,7 @@ library
     , monad-control >=1 && <1.1
     , MonadRandom >=0.4 && <0.5
     , mtl >=2.2.1 && <2.3
+    , network >=2.6.2.1 && <2.7
     , network-uri >=2.6 && <2.7
     , old-locale >=1.0.0.7 && <1.1
     , postgresql-simple >=0.4.10 && <0.5

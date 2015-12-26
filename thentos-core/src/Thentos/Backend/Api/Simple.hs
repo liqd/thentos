@@ -57,7 +57,7 @@ type Api =
 
 api :: ActionState -> Server Api
 api actionState@(ActionState (_, _, cfg)) =
-       (\mTok -> enter (enterAction () actionState baseActionErrorToServantErr mTok) thentosBasic)
+       (\creds -> enter (enterAction () actionState baseActionErrorToServantErr creds) thentosBasic)
   :<|> Purs.api cfg
 
 

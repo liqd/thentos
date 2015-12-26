@@ -57,6 +57,7 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import LIO.Core (liftLIO)
 import LIO.TCB (ioTCB)
+import Network.Socket (SockAddr(SockAddrInet))
 import Network.Wai (Application)
 import Safe (readMay)
 import Servant.API.Header (Header)
@@ -84,6 +85,7 @@ import Thentos.Backend.Api.Docs.Common
     ( RestDocs, restDocs
     , HasDocExtras(getCabalPackageName, getCabalPackageVersion, getTitle, getIntros, getExtraInfo)
     )
+import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Api.Docs.Proxy ()
 import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
@@ -192,6 +194,7 @@ instance ToJSON TypedPathWithCacheControl where
             , "removed"             .= tpccRemoved t
             ]
         ]
+
 
 -- ** individual resources
 
@@ -396,8 +399,19 @@ type Api =
   :<|> "js" :> Thentos.Backend.Api.Purescript.Api
   :<|> ServiceProxy
 
+-- | thentos-adhocracy's "Simple" api does not use thentos-core's "Auth" functionality, which is
+-- baked into the 'Action' monad.  'emptyCreds' is a credential value that can be passed into
+-- 'enter' that won't raise the clearance level for anybody.
+--
+-- FIXME: there really should be a better structure for all this.  either "Auth" is too specific to
+-- be baked into 'Action', or it should be general enough to be used here (see comment on
+-- 'renderThentosHeaderName').  (Also consider replacing "Auth" with
+-- https://github.com/haskell-servant/servant/pull/185 once it's ready.)
+emptyCreds :: ThentosAuthCredentials
+emptyCreds = ThentosAuthCredentials Nothing (SockAddrInet 0 0)
+
 thentosApi :: AC.ActionState -> Server ThentosApi
-thentosApi actionState = enter (enterAction () actionState a3ActionErrorToServantErr Nothing) $
+thentosApi as = enter (enterAction () as a3ActionErrorToServantErr emptyCreds) $
        addUser
   :<|> activate
   :<|> login

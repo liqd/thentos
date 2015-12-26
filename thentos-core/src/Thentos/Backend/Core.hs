@@ -9,19 +9,24 @@ module Thentos.Backend.Core
 where
 
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad ((>=>))
+import Control.Monad ((>=>), when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Function (on)
 import Data.List (nubBy)
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
+import LIO.DCLabel (toCNF)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
+import Network.Socket
+    (SockAddr(SockAddrInet, SockAddrInet6, SockAddrUnix, SockAddrCan), HostAddress, inet_addr)
+import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
@@ -30,12 +35,13 @@ import Servant.API.ContentTypes (AllCTRender)
 import Servant.Server (HasServer, ServerT, ServantErr, route, (:~>)(Nat))
 import Servant.Server.Internal (methodRouter, Router'(WithRequest), RouteResult(Route, FailFatal))
 import Servant.Server.Internal.RoutingApplication (addMethodCheck)
-import Servant.Server.Internal.ServantErr (err400, err401, err403, err404, err500, errBody,
-        errHeaders)
+import Servant.Server.Internal.ServantErr
+    ( err400, err401, err403, err404, err500, errBody
+    , errHeaders
+    )
 import Servant.Utils.Links (HasLink(MkLink, toLink), linkURI)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
-import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 
 import qualified Data.ByteString.Char8 as SBS
 import qualified Data.Text as ST
@@ -43,6 +49,8 @@ import qualified Network.HTTP.Types.Header as HttpTypes
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
+import Thentos.Action.SimpleAuth (unsafeLiftIO)
+import Thentos.Backend.Api.Auth.Types
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
@@ -53,16 +61,32 @@ import Thentos.Util
 enterAction :: forall s e. (Show e, Typeable e) =>
     s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
-    Maybe ThentosSessionToken -> Action e s :~> ExceptT ServantErr IO
-enterAction polyState actionState toServantErr mTok = Nat $ ExceptT . run toServantErr
+    ThentosAuthCredentials -> Action e s :~> ExceptT ServantErr IO
+enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
         -> Action e s a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs mTok >>)
+    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs creds >>)
 
-    updatePrivs :: Maybe ThentosSessionToken -> Action e s ()
-    updatePrivs = mapM_ (accessRightsByThentosSession'P >=> grantAccessRights'P)
+    updatePrivs :: ThentosAuthCredentials -> Action e s ()
+    updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g origin)
+      where
+        f = mapM_ (accessRightsByThentosSession'P >=> grantAccessRights'P)
+
+        g :: SockAddr -> [HostAddress] -> Action e s ()
+        g (SockAddrInet _ ip) ips =
+            when (ip `elem` ips) $ grantAccessRights'P [toCNF PrivilegedIP]
+        g (SockAddrInet6 _ _ _ _) _ = return ()  -- FIXME: support IPv6
+        g (SockAddrUnix _) _ = return ()  -- FIXME: support unix sockets
+        g (SockAddrCan _) _ = return ()  -- FIXME: ?
+
+    allowedIps :: Action e s [HostAddress]
+    allowedIps = mapM (unsafeLiftIO . inet_addr . cs) ts
+        where
+            ts :: [ST]
+            ts = fromMaybe [] $ case actionState of
+                ActionState (_, _, cfg) -> cfg >>. (Proxy :: Proxy '["allow_ips"])
 
 
 -- * error handling
@@ -220,8 +244,11 @@ lookupThentosHeaderService :: RenderHeaderFun -> Request -> Maybe ServiceId
 lookupThentosHeaderService renderHeaderFun req =
     ServiceId <$> lookupThentosHeader renderHeaderFun req ThentosHeaderService
 
--- The default function used to render Thentos-specific header names.
--- Defining alternatives functions allows renaming some or all of the headers.
+-- | The default function used to render Thentos-specific header names.
+--
+-- FIXME: this needs to move to the "Thentos.Backend.Api.Auth", and become a type family so it can
+-- actually be overridden for other apis, like thentos-adhocracy.  (See also: comment on
+-- thentos-adhocracy's 'emptyCreds'.)
 renderThentosHeaderName :: RenderHeaderFun
 renderThentosHeaderName ThentosHeaderSession = mk "X-Thentos-Session"
 renderThentosHeaderName ThentosHeaderService = mk "X-Thentos-Service"
