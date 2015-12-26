@@ -9,18 +9,14 @@ where
 
 import Control.Arrow (first)
 import Control.Exception (Exception, throwIO, catch)
-import Control.Lens ((^.))
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (runStateT)
 import Control.Monad.Trans.Either (eitherT)
 import Data.EitherR (fmapL)
-import Data.List (foldl')
 import Data.Typeable (Typeable)
-import LIO.Core (LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
-import LIO.Label (lub)
-import LIO.DCLabel (CNF, DCLabel, (%%), cFalse, toCNF)
+import LIO.Core (LIOState(LIOState), liftLIO, evalLIO, taint, guardWrite)
+import LIO.DCLabel (CNF, DCLabel)
 import LIO.Error (AnyLabelError)
-import LIO.TCB (Priv(PrivTCB))
 import System.Log (Priority(DEBUG))
 
 import LIO.Missing
@@ -28,7 +24,6 @@ import Thentos.Action.Types
 import Thentos.Types
 
 import qualified Thentos.Action.Unsafe as U
-import qualified Thentos.Transaction as T
 
 
 -- * running actions
@@ -90,64 +85,22 @@ runActionE polyState actionState action = catchUnknown
 runActionWithPrivsE :: (Show e, Typeable e) =>
     [CNF] -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
 runActionWithPrivsE ars ps as =
-    runActionE ps as . (grantAccessRights'P ars >>)
+    runActionE ps as . (U.extendClearanceOnPrincipals ars >>)
 
 runActionWithClearanceE :: (Show e, Typeable e) =>
     DCLabel -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
 runActionWithClearanceE label ps as =
-    runActionE ps as . ((liftLIO $ setClearanceP (PrivTCB cFalse) label) >>)
+    runActionE ps as . (U.extendClearanceOnLabel label >>)
 
 runActionAsAgentE :: (Show e, Typeable e) =>
     Agent -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
 runActionAsAgentE agent ps as =
-    runActionE ps as . ((accessRightsByAgent'P agent >>= grantAccessRights'P) >>)
+    runActionE ps as . (U.extendClearanceOnAgent agent >>)
 
 runActionInThentosSessionE :: (Show e, Typeable e) =>
     ThentosSessionToken -> s -> ActionState -> Action e s a -> IO (Either (ActionError e) a, s)
 runActionInThentosSessionE tok ps as =
-    runActionE ps as . ((accessRightsByThentosSession'P tok >>= grantAccessRights'P) >>)
-
-
--- * labels, privileges and access rights.
-
--- | In order to execute an 'Action', certain access rights need to be granted.  A set of access
--- rights is a list of 'ToCNF' instances that are used to update the current clearance in the
--- 'LIOState' in the 'LIO' monad underlying 'Action'.
---
--- To execute an 'Action' with the access rights of 'UserId' @u@ and 'BasicRole' @r@:
---
--- >>> grantAccessRights'P [toCNF u, toCNF r]
---
--- Or, to grant just @r@:
---
--- >>> grantAccessRights'P [r]
---
--- Adding more access rights must increase access, so for a list @ars@ of access rights, the
--- constructed clearance level @c@ must satisfy:
---
--- >>> and [ (ar %% ar) `canFlowTo` c | ar <- ars ]
---
--- Therefore, @c@ is defined as the least upper bound (join) of the labels constructed from
--- individual access rights:
---
--- >>> c = foldl' (lub) dcBottom [ ar %% ar | ar <- ars ]
-grantAccessRights'P :: [CNF] -> Action e s ()
-grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
-  where
-    c :: DCLabel
-    c = foldl' lub dcBottom [ ar %% ar | ar <- ars ]
-
--- | Construct a 'DCLabel' from agent's roles.
-accessRightsByAgent'P :: Agent -> Action e s [CNF]
-accessRightsByAgent'P agent = makeAccessRights <$> U.unsafeAction (U.query $ T.agentRoles agent)
-  where
-    makeAccessRights :: [Role] -> [CNF]
-    makeAccessRights roles = toCNF agent : map toCNF roles
-
-accessRightsByThentosSession'P :: ThentosSessionToken -> Action e s [CNF]
-accessRightsByThentosSession'P tok = do
-    (_, session) <- U.unsafeAction . U.query . T.lookupThentosSession $ tok
-    accessRightsByAgent'P $ session ^. thSessAgent
+    runActionE ps as . (U.extendClearanceOnThentosSession tok >>)
 
 
 -- * better label errors

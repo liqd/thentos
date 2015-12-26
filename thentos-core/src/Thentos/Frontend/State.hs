@@ -9,7 +9,6 @@ module Thentos.Frontend.State where
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.State (get, gets, put)
-import Control.Monad ((>=>))
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
@@ -159,8 +158,7 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . 
         l _ = Nothing
 
     updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
-    updatePrivs' =
-        mapM_ $ accessRightsByThentosSession'P >=> grantAccessRights'P
+    updatePrivs' = mapM_ U.extendClearanceOnThentosSession
 
 
 -- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no

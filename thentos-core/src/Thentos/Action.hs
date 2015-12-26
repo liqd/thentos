@@ -498,7 +498,7 @@ _startThentosSessionByAgent :: Agent -> Action e s ThentosSessionToken
 _startThentosSessionByAgent agent = do
     tok <- freshSessionToken
     queryA $ T.startThentosSession tok agent defaultSessionTimeout
-    accessRightsByAgent'P agent >>= grantAccessRights'P
+    U.extendClearanceOnAgent agent
     return tok
 
 -- | For a thentos session, look up all service sessions and return their service names.  Requires

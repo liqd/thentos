@@ -8,14 +8,12 @@
 module Thentos.Action.UnsafeSpec where
 
 import Data.Pool (withResource)
-import Data.String.Conversions (cs)
 import Data.Void (Void)
 import Test.Hspec (Spec, describe, it, before, hspec)
 
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action.Unsafe
-import Thentos.Types
 
 import Thentos.Test.Config
 import Thentos.Test.Core

@@ -9,17 +9,23 @@ where
 
 import Control.Concurrent (modifyMVar)
 import Control.Exception (throwIO, ErrorCall(..))
+import Control.Lens ((^.))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
-import Control.Monad.State (StateT(StateT), runStateT)
+import Control.Monad.State (runStateT)
+import Control.Monad.State (StateT(StateT))
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LT, ST, SBS)
+import LIO.Core (liftLIO, getClearance, setClearanceP)
+import LIO.DCLabel (ToCNF, DCLabel, (%%), cFalse)
+import LIO.Label (lub)
 import LIO.TCB (ioTCB)
+import LIO.TCB (Priv(PrivTCB))
 import System.Log (Priority(DEBUG, CRITICAL))
 import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
@@ -34,6 +40,27 @@ import Thentos.Types
 import Thentos.Util as TU
 
 import qualified System.Log.Missing as SLM
+import qualified Thentos.Transaction as T
+
+
+-- * labels, privileges and access rights.
+
+extendClearanceOnLabel :: DCLabel -> Action e s ()
+extendClearanceOnLabel label = liftLIO $ do
+    getClearance >>= setClearanceP (PrivTCB cFalse) . (`lub` label)
+
+extendClearanceOnPrincipals :: ToCNF cnf => [cnf] -> Action e s ()
+extendClearanceOnPrincipals principals = mapM_ extendClearanceOnLabel $ [ p %% p | p <- principals ]
+
+extendClearanceOnAgent :: Agent -> Action e s ()
+extendClearanceOnAgent agent = do
+    extendClearanceOnPrincipals [agent]
+    unsafeAction (query $ T.agentRoles agent) >>= extendClearanceOnPrincipals
+
+extendClearanceOnThentosSession :: ThentosSessionToken -> Action e s ()
+extendClearanceOnThentosSession tok = do
+    (_, session) <- unsafeAction . query . T.lookupThentosSession $ tok
+    extendClearanceOnAgent $ session ^. thSessAgent
 
 
 -- * making unsafe actions safe

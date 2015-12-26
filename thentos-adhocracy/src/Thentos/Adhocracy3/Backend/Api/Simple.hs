@@ -470,7 +470,7 @@ activate ar@(ActivationRequest confToken) = U.logIfError' $ do
     U.unsafeAction . U.logger DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
     (uid, stok) <- A.confirmNewUser confToken
     -- Promote access rights so we can look up the user and create a persona
-    AC.accessRightsByAgent'P (UserA uid) >>= AC.grantAccessRights'P
+    U.extendClearanceOnAgent (UserA uid)
     user <- snd <$> A.lookupConfirmedUser uid
     let persName = PersonaName . fromUserName $ user ^. userName
     externalUrl <- makeExternalUrl persName
