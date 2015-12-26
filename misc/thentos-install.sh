@@ -99,9 +99,9 @@ if [ "$NO_PURESCRIPT" == "" ]; then
 fi
 
 function build() {
-    cabal install $CABAL_VERBOSITY $1 --ghc-options="+RTS -M2G -RTS -w" \
+    cabal install $CABAL_VERBOSITY $CABAL_ARGS $1 \
         --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-        -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+        -fwith-thentos-executable $SOURCES_STR
 }
 
 echo -e "\n\nbuilding dependencies...\n" >&2
