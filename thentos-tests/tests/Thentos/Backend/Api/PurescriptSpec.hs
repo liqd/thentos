@@ -33,7 +33,7 @@ import Test.Hspec.Wai (shouldRespondWith, with, get)
 
 import qualified Data.ByteString.Lazy as LBS
 
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Test.Config
 import Thentos.Test.Core
 

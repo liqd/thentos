@@ -49,6 +49,7 @@ import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core

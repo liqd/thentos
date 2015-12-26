@@ -15,7 +15,7 @@ import Servant.Server (ServantErr)
 import System.Log.Logger (Priority(DEBUG, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
-import qualified Thentos.Action.Core as AC
+import qualified Thentos.Action.Types as AC
 
 import Thentos.Adhocracy3.Types
 import Thentos.Backend.Core

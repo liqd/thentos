@@ -13,6 +13,7 @@ import Data.Void (Void)
 import Test.Hspec (Spec, describe, it, before, hspec)
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action.Unsafe
 import Thentos.Types
 

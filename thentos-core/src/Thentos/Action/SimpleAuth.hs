@@ -17,57 +17,14 @@ module Thentos.Action.SimpleAuth
   ) where
 
 import Control.Conditional (ifM)
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT, MonadReader, ask, local)
-import Control.Monad.State (MonadState, StateT, state)
-import Control.Monad.Trans.Either (EitherT)
-import GHC.Generics (Generic)
 import LIO.Core (liftLIO, taint)
 import LIO.DCLabel ((%%))
 
 import LIO.Missing
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Types
 
-
--- * type
-
--- | Like 'Action', but with 'IO' at the base.
-newtype UnsafeAction e s a =
-    UnsafeAction
-      { fromUnsafeAction :: ReaderT ActionState
-                                (EitherT (ThentosError e)
-                                    (StateT s
-                                        IO)) a
-      }
-  deriving (Functor, Generic)
-
-instance Applicative (UnsafeAction e s) where
-    pure = UnsafeAction . pure
-    (UnsafeAction ua) <*> (UnsafeAction ua') = UnsafeAction $ ua <*> ua'
-
-instance Monad (UnsafeAction e s) where
-    return = pure
-    (UnsafeAction ua) >>= f = UnsafeAction $ ua >>= fromUnsafeAction . f
-
-instance MonadReader ActionState (UnsafeAction e s) where
-    ask = UnsafeAction ask
-    local f = UnsafeAction . local f . fromUnsafeAction
-
-instance MonadError (ThentosError e) (UnsafeAction e s) where
-    throwError = UnsafeAction . throwError
-    catchError (UnsafeAction ua) h = UnsafeAction $ catchError ua (fromUnsafeAction . h)
-
-instance MonadState s (UnsafeAction e s) where
-    state = UnsafeAction . state
-
-instance MonadIO (UnsafeAction e s) where
-    liftIO = UnsafeAction . liftIO
-
-
--- * authorization predicates
 
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
 assertAuth :: Action e s Bool -> Action e s ()

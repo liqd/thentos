@@ -103,6 +103,7 @@ import qualified Data.Text as ST
 
 import LIO.Missing
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action.SimpleAuth
 import Thentos.Config
 import Thentos.Transaction.Core (ThentosQuery)

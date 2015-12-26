@@ -29,7 +29,7 @@ import URI.ByteString (URIParseError)
 
 import Thentos.Types
 
-import qualified Thentos.Action.Core (Action)
+import qualified Thentos.Action.Types (Action)
 
 
 data ThentosA3Error =
@@ -76,4 +76,4 @@ instance ToJSON A3ErrorMessage where
 instance FromJSON A3ErrorMessage where
     parseJSON = withObject "A3-style error message" $ \v -> A3ErrorMessage <$> (v .: "errors")
 
-type A3Action = Thentos.Action.Core.Action ThentosA3Error ()
+type A3Action = Thentos.Action.Types.Action ThentosA3Error ()

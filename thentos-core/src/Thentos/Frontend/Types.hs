@@ -16,7 +16,7 @@ import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Types
-import Thentos.Action.Core (Action)
+import Thentos.Action.Types (Action)
 
 
 -- * frontend actions

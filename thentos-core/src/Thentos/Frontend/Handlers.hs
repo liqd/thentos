@@ -62,6 +62,7 @@ import qualified Data.Text.Encoding as STE
 
 import Thentos.Action
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core (addHeadersToResponse)
 import Thentos.Ends.Types
 import Thentos.Frontend.Handlers.Combinators
@@ -70,7 +71,6 @@ import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
 
-import qualified Thentos.Action.SimpleAuth as U
 import qualified Thentos.Action.Unsafe as U
 
 

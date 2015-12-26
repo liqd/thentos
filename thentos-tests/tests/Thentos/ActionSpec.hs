@@ -25,7 +25,9 @@ import Thentos.Test.Transaction
 import LIO.Missing
 import Thentos.Action
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Types
+
 import qualified Thentos.Transaction as T
 
 

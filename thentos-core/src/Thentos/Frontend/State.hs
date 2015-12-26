@@ -32,6 +32,7 @@ import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.Types
@@ -40,7 +41,6 @@ import Thentos.Util
 
 import qualified Thentos.Frontend.Pages as Pages
 import qualified Thentos.Action.Unsafe as U
-import qualified Thentos.Action.SimpleAuth as U
 
 
 -- BUG #406: EU-required user notifications about cookies

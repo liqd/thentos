@@ -9,24 +9,20 @@ module Thentos.Action.Core
 where
 
 import Control.Arrow (first)
-import Control.Concurrent (MVar, modifyMVar)
-import Control.Exception (Exception, SomeException, throwIO, catch, ErrorCall(..))
+import Control.Concurrent (modifyMVar)
+import Control.Exception (Exception, throwIO, catch, ErrorCall(..))
 import Control.Lens ((^.))
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT, ask)
-import Control.Monad.State (MonadState, StateT, runStateT)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT(EitherT), eitherT)
-import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
-import Data.Pool (Pool, withResource)
+import Control.Monad.Reader (runReaderT, ask)
+import Control.Monad.State (runStateT)
+import Control.Monad.Trans.Either (eitherT)
+import "cryptonite" Crypto.Random (ChaChaDRG, randomBytesGenerate)
+import Data.Pool (withResource)
 import Data.EitherR (fmapL)
 import Data.List (foldl')
 import Data.String.Conversions (LT, ST, SBS)
 import Data.Typeable (Typeable)
-import Database.PostgreSQL.Simple (Connection)
-import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint,
-                 guardWrite)
+import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
 import LIO.Label (lub)
 import LIO.DCLabel (CNF, DCLabel, (%%), cFalse, toCNF)
 import LIO.Error (AnyLabelError)
@@ -38,68 +34,14 @@ import qualified Data.Thyme as Thyme
 
 import LIO.Missing
 import System.Log.Missing (logger)
+import Thentos.Action.Types
 import Thentos.Config
 import Thentos.Smtp
-import qualified Thentos.Transaction as T
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
-
--- * types
-
--- FIXME: we should make this a record (instead of a newtype around a tuple)
--- so we can get the fields without having to pattern-match
-newtype ActionState =
-    ActionState
-      { fromActionState :: (Pool Connection, MVar ChaChaDRG, ThentosConfig)
-      }
-  deriving (Typeable, Generic)
-
--- | The 'Action' monad transformer stack.  It contains:
---
---     - 'LIO' as a base monad.
---     - A state of polymorphic type (for use e.g. by the frontend handlers to store cookies etc.)
---     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
---       authorization errors that must not be catchable from inside an 'Action'.)
---     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
---       will have authorized effect.  Since it is contained in a reader, actions do not have the
---       power to corrupt it.
-newtype Action e s a =
-    Action
-      { fromAction :: ReaderT ActionState
-                          (EitherT (ThentosError e)
-                              (StateT s
-                                  (LIO DCLabel))) a
-      }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadReader ActionState
-           , MonadError (ThentosError e)
-           , MonadState s
-           , Typeable
-           , Generic
-           )
-
--- | Errors known by 'runActionE', 'runAction', ....
---
--- The 'MonadError' instance of newtype 'Action' lets you throw and catch errors from *within* the
--- 'Action', i.e., at construction time).  These are errors are handled in the 'ActionErrorThentos'
--- constructor.  Label errors and other (possibly async) exceptions are caught (if possible) in
--- 'runActionE' and its friends and maintained in other 'ActionError' constructors.
-data ActionError e =
-    ActionErrorThentos (ThentosError e)
-  | ActionErrorAnyLabel AnyLabelError
-  | ActionErrorUnknown SomeException
-  deriving ( Show
-           , Typeable
-           )
-
-instance (Show e, Typeable e) => Exception (ActionError e)
-
-instance MonadLIO DCLabel (Action e s) where
-    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
+import qualified Thentos.Transaction as T
 
 
 -- * running actions

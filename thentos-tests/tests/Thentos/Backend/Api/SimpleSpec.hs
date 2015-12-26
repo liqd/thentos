@@ -42,7 +42,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as ST
 
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
 

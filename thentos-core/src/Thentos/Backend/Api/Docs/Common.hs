@@ -57,6 +57,7 @@ import Thentos.Types
 import qualified LIO.Missing
 import qualified Thentos.Action as Action
 import qualified Thentos.Action.Core as Action
+import qualified Thentos.Action.Types as Action
 
 
 -- * docs via http

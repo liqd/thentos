@@ -31,7 +31,7 @@ import qualified Data.Text as ST
 import qualified Data.ByteString as SBS
 
 import Thentos.Types
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action.Unsafe (unsafeLiftIO)
 
 

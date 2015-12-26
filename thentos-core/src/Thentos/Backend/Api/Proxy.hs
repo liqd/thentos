@@ -32,6 +32,7 @@ import qualified Network.Wai as S
 
 import Thentos.Action
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types

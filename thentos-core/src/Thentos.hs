@@ -36,7 +36,8 @@ import qualified Data.Map as Map
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
+import Thentos.Action.Core (runActionWithPrivs)
+import Thentos.Action.Types (Action, ActionState(..))
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)

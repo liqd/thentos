@@ -49,6 +49,7 @@ import qualified Network.HTTP.Types.Status as Status
 
 import Thentos
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Adhocracy3.Types
 

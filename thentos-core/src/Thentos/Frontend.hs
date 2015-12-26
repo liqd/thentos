@@ -14,7 +14,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
 import System.Log.Missing (logger)
-import Thentos.Action.Core
+import Thentos.Action.Types (ActionState)
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Ends.Types

@@ -23,6 +23,7 @@ import qualified Data.Aeson as Aeson
 import qualified Network.Wreq as Wreq
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action.SimpleAuth
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
