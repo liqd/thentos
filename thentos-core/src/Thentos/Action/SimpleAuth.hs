@@ -4,9 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 
-{-| Simplified access to 'Action' with guarded exits.
-
--}
+-- | Simplified access to 'Action' with guarded exits.
 module Thentos.Action.SimpleAuth
   ( UnsafeAction(..)
   , assertAuth
