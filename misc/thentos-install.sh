@@ -107,18 +107,21 @@ function build() {
 echo -e "\n\nbuilding dependencies...\n" >&2
 build "--dependencies-only"
 
+export EXIT_CODE=0
+
 if [ "$DEPS_ONLY" == "" ]; then
     echo -e "\n\nbuilding thentos-* packages...\n" >&2
-    build ""
+    build "" || EXIT_CODE=1
     if [ "$THOROUGH" == "1" ]; then
-        make hlint
+        make hlint || EXIT_CODE=1
         build "--ghc-options=-Werror"
         for s in ${SOURCES[@]}; do
             cd $s
-            grep -q ^test-suite $s.cabal && cabal test
+            grep -q ^test-suite $s.cabal && ( cabal test || EXIT_CODE=1 )
             cd ..
         done
     fi
 fi
 
 echo "all done!" >&2
+exit $EXIT_CODE
