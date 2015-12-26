@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilies                             #-}
 {-# LANGUAGE TypeOperators                            #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- | Authentication via 'ThentosSessionToken'.
 --
 -- A LESS RELEVANT OBSERVATION: It would be nice if we could provide this function:
