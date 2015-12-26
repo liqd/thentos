@@ -37,24 +37,5 @@ before_install:
     - make start
     - cd ../..
 
-install:
-    - pulp --version || npm install -g pulp@4.4.1
-    - psc  --version || npm install -g purescript@0.7.6
-    - travis_retry cabal update
-    # We install hlint because we don't want to invalidate i's cache together
-    # with the thentos cache
-    - git clone --depth 1 https://github.com/liqd/travis-cache
-    - export PATH=$PWD/travis-cache:$PATH
-    - mkdir -p ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4
-    - cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlint-1.9.21/
-    # The container reports 16 cores (when it only has 1.5), and a higher
-    # number may result in slower builds. So we comment out the relevant line
-    # the config file
-    - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
-    - ./misc/thentos-install.sh -c "--force-reinstalls"
-
 script:
-    - make hlint
-    - (cd thentos-core && cabal configure --ghc-options="-Werror" && cabal build)
-    - (cd thentos-tests && cabal configure --ghc-options="-Werror" && cabal build && cabal test)
-    - (cd thentos-adhocracy && cabal configure --ghc-options="-Werror" && cabal build && cabal test)
+    - ./.travis/script.sh
