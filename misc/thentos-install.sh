@@ -34,13 +34,17 @@ DIR=`pwd`
 SANDBOX="$DIR/.cabal-sandbox"
 CABAL_ARGS=""
 NO_PURESCRIPT=""
+DEPS_ONLY=""
+THOROUGH=""
 CABAL_VERBOSITY=""
 
 usage () {
-    echo "thentos-install.sh [-c <CABAL-OPTS>] [-p]"
+    echo "thentos-install.sh [-c <CABAL-OPTS>] [-p] [-d] [-t]"
     echo "  Installs thentos packages and their dependencies into a cabal"
     echo "  sandbox. Use it only from the thentos repo top-level dir."
     echo "  '-p' means 'do not build purescript'."
+    echo "  '-d' means 'dependencies only'.  cancels out '-t'."
+    echo "  '-t' means 'thorough' (compiles with -Werror, runs hlint and test suite)."
     exit 1
 }
 
@@ -51,17 +55,23 @@ check_dir () {
     fi
 }
 
-while getopts :c:p opt; do
+while getopts c:pdt opt; do
     case $opt in
         c) CABAL_ARGS="$OPTARG"
            ;;
         p) NO_PURESCRIPT=1
+           ;;
+        d) DEPS_ONLY=1
+           ;;
+        t) THOROUGH=1
            ;;
         *) echo "Invalid option: -$OPTARG" >&2
            usage
            ;;
     esac
 done
+
+echo "running $0 with -c=\"$CABAL_ARGS\" -p=$NO_PURESCRIPT -d=$DEPS_ONLY =t=$THOROUGH" >&2
 
 check_dir
 
@@ -89,15 +99,45 @@ if [ "$NO_PURESCRIPT" == "" ]; then
 fi
 
 function build() {
-    cabal install $CABAL_VERBOSITY $1 --ghc-options="+RTS -M2G -RTS -w" \
+    cabal install $CABAL_VERBOSITY $CABAL_ARGS $1 \
         --enable-tests --enable-bench --max-backjumps -1 --reorder-goals \
-        -fwith-thentos-executable $CABAL_ARGS $SOURCES_STR
+        -fwith-thentos-executable $SOURCES_STR
 }
 
 echo -e "\n\nbuilding dependencies...\n" >&2
 build "--dependencies-only"
+# FIXME: this will build thentos-core, thentos-test, and
+# servant-session, as they are all dependencies of thentos-adhocracy.
+# not sure how to work around that, since we want to distinguish
+# between deps (no -Werror) and targets (-Werror).  the only bad thing
+# about the status quo is that those packages twice are compiled
+# twice.
 
-echo -e "\n\nbuilding thentos-* packages...\n" >&2
-build ""
+export EXIT_CODE=0
+
+if [ "$DEPS_ONLY" == "" ]; then
+    echo -e "\n\nbuilding thentos-* packages...\n" >&2
+    build "" || EXIT_CODE=1
+    if [ "$THOROUGH" == "1" ]; then
+        make hlint || EXIT_CODE=1
+
+        for s in ${SOURCES[@]}; do
+            cd $s
+            cabal clean
+            cd ..
+        done
+
+        build "--ghc-options=-Werror"
+
+        for s in ${SOURCES[@]}; do
+            cd $s
+            if [ grep -q ^test-suite $s.cabal ]; then
+                cabal test || EXIT_CODE=1
+            fi
+            cd ..
+        done
+    fi
+fi
 
 echo "all done!" >&2
+exit $EXIT_CODE
