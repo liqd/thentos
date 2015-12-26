@@ -1,8 +1,9 @@
-{-# LANGUAGE Unsafe                      #-}
+{- LANGUAGE Safe                        #-}
 
 {-# LANGUAGE DeriveGeneric               #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE DeriveFunctor               #-}
+{-# LANGUAGE FlexibleInstances           #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
 
 -- | Simplified access to 'Action' with guarded exits.
 module Thentos.Action.SimpleAuth
@@ -13,22 +14,17 @@ module Thentos.Action.SimpleAuth
   , hasServiceId
   , hasRole
   , hasPrivilegedIP
-  , guardedUnsafeAction
-  , unsafeAction
-  , unsafeLiftIO
   ) where
 
 import Control.Conditional (ifM)
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, runReaderT)
-import Control.Monad.State (MonadState, StateT(StateT), runStateT)
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
-import Data.Typeable (Typeable)
+import Control.Monad.Reader (ReaderT, MonadReader, ask, local)
+import Control.Monad.State (MonadState, StateT, state)
+import Control.Monad.Trans.Either (EitherT)
 import GHC.Generics (Generic)
 import LIO.Core (liftLIO, taint)
 import LIO.DCLabel ((%%))
-import LIO.TCB (ioTCB)
 
 import LIO.Missing
 import Thentos.Action.Core
@@ -46,16 +42,29 @@ newtype UnsafeAction e s a =
                                     (StateT s
                                         IO)) a
       }
-  deriving ( Functor
-           , Applicative
-           , Monad
-           , MonadReader ActionState
-           , MonadError (ThentosError e)
-           , MonadState s
-           , MonadIO
-           , Typeable
-           , Generic
-           )
+  deriving (Functor, Generic)
+
+instance Applicative (UnsafeAction e s) where
+    pure = UnsafeAction . pure
+    (UnsafeAction ua) <*> (UnsafeAction ua') = UnsafeAction $ ua <*> ua'
+
+instance Monad (UnsafeAction e s) where
+    return = pure
+    (UnsafeAction ua) >>= f = UnsafeAction $ ua >>= fromUnsafeAction . f
+
+instance MonadReader ActionState (UnsafeAction e s) where
+    ask = UnsafeAction ask
+    local f = UnsafeAction . local f . fromUnsafeAction
+
+instance MonadError (ThentosError e) (UnsafeAction e s) where
+    throwError = UnsafeAction . throwError
+    catchError (UnsafeAction ua) h = UnsafeAction $ catchError ua (fromUnsafeAction . h)
+
+instance MonadState s (UnsafeAction e s) where
+    state = UnsafeAction . state
+
+instance MonadIO (UnsafeAction e s) where
+    liftIO = UnsafeAction . liftIO
 
 
 -- * authorization predicates
@@ -79,29 +88,3 @@ hasRole role = guardWriteOk (role %% role)
 
 hasPrivilegedIP :: Action e s Bool
 hasPrivilegedIP = guardWriteOk (PrivilegedIP %% PrivilegedIP)
-
-
--- * making unsafe actions safe
-
--- | Run an 'UnsafeAction' in a safe 'Action' with extra authorization checks (performed through
--- 'assertAuth').
-guardedUnsafeAction :: Action e s Bool -> UnsafeAction e s a -> Action e s a
-guardedUnsafeAction utest uaction = assertAuth utest >> unsafeAction uaction
-
--- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
-unsafeAction :: forall e s a. UnsafeAction e s a -> Action e s a
-unsafeAction uaction = construct deconstruct
-  where
-    construct :: (s -> ActionState -> IO (Either (ThentosError e) a, s)) -> Action e s a
-    construct io = Action .
-        ReaderT $ \actionState ->
-            EitherT .
-                StateT $ \polyState ->
-                    ioTCB $ io polyState actionState
-
-    deconstruct :: s -> ActionState -> IO (Either (ThentosError e) a, s)
-    deconstruct polyState actionState =
-        runStateT (runEitherT (runReaderT (fromUnsafeAction uaction) actionState)) polyState
-
-unsafeLiftIO :: IO v -> Action e s v
-unsafeLiftIO = unsafeAction . liftIO

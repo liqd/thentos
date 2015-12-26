@@ -49,7 +49,7 @@ import qualified Network.HTTP.Types.Header as HttpTypes
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
-import Thentos.Action.SimpleAuth (unsafeLiftIO)
+import Thentos.Action.Unsafe (unsafeLiftIO)
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Config
 import Thentos.Types

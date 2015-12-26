@@ -32,7 +32,7 @@ import qualified Data.ByteString as SBS
 
 import Thentos.Types
 import Thentos.Action.Core
-import Thentos.Action.SimpleAuth (unsafeLiftIO)
+import Thentos.Action.Unsafe (unsafeLiftIO)
 
 
 -- * visual

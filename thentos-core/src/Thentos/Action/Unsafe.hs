@@ -2,6 +2,7 @@
 
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE PackageImports              #-}
+{-# LANGUAGE ScopedTypeVariables         #-}
 
 module Thentos.Action.Unsafe
 where
@@ -10,12 +11,15 @@ import Control.Concurrent (modifyMVar)
 import Control.Exception (throwIO, ErrorCall(..))
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ask)
+import Control.Monad.Reader (ReaderT(ReaderT), runReaderT, ask)
+import Control.Monad.State (StateT(StateT), runStateT)
+import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS)
+import LIO.TCB (ioTCB)
 import System.Log (Priority(DEBUG, CRITICAL))
 
 import qualified Data.Thyme as Thyme
@@ -30,6 +34,34 @@ import Thentos.Util as TU
 
 import qualified System.Log.Missing as SLM
 
+
+-- * making unsafe actions safe
+
+unsafeLiftIO :: IO v -> Action e s v
+unsafeLiftIO = unsafeAction . liftIO
+
+-- | Run an 'UnsafeAction' in a safe 'Action' with extra authorization checks (performed through
+-- 'assertAuth').
+guardedUnsafeAction :: Action e s Bool -> UnsafeAction e s a -> Action e s a
+guardedUnsafeAction utest uaction = assertAuth utest >> unsafeAction uaction
+
+-- | Run an 'UnsafeAction' in a safe 'Action' without extra authorization checks.
+unsafeAction :: forall e s a. UnsafeAction e s a -> Action e s a
+unsafeAction uaction = construct deconstruct
+  where
+    construct :: (s -> ActionState -> IO (Either (ThentosError e) a, s)) -> Action e s a
+    construct io = Action .
+        ReaderT $ \actionState ->
+            EitherT .
+                StateT $ \polyState ->
+                    ioTCB $ io polyState actionState
+
+    deconstruct :: s -> ActionState -> IO (Either (ThentosError e) a, s)
+    deconstruct polyState actionState =
+        runStateT (runEitherT (runReaderT (fromUnsafeAction uaction) actionState)) polyState
+
+
+-- * misc
 
 query :: ThentosQuery e v -> UnsafeAction e s v
 query u = do

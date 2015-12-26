@@ -106,20 +106,6 @@ specWithActionState = before mkActionState $ do
             (False, ()) <- runAction () sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
             return ()
 
-    describe "guardedUnsafeAction" $ do
-        it "runs unsafe action if predicate is satisfied" $ \sta -> do
-            (3, ()) <- runAction () sta (guardedUnsafeAction (pure True) (pure 3) :: Act Int)
-            return ()
-        it "throws an error otherwise" $ \sta -> do
-            (Left (ActionErrorAnyLabel _), ())
-                <- runActionE () sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
-            return ()
-
-    describe "unsafeAction" $ do
-        it "translates an UnsafeAction into an Action, unsafely" $ \sta -> do
-            (4, ()) <- runAction () sta (unsafeAction (pure 4) :: Act Int)
-            return ()
-
 
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
