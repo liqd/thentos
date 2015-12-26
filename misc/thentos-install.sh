@@ -130,8 +130,9 @@ if [ "$DEPS_ONLY" == "" ]; then
         build "--ghc-options=-Werror"
 
         for s in ${SOURCES[@]}; do
+            echo -e "\n\nsearching for tests in $s...\n\n"
             cd $s
-            if [ grep -q ^test-suite $s.cabal ]; then
+            if grep -q ^test-suite $s.cabal; then
                 cabal test || EXIT_CODE=1
             fi
             cd ..
