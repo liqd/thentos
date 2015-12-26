@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TypeFamilies                #-}
 
@@ -9,38 +8,26 @@ module Thentos.Action.Core
 where
 
 import Control.Arrow (first)
-import Control.Concurrent (modifyMVar)
-import Control.Exception (Exception, throwIO, catch, ErrorCall(..))
+import Control.Exception (Exception, throwIO, catch)
 import Control.Lens ((^.))
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (runReaderT, ask)
+import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (runStateT)
 import Control.Monad.Trans.Either (eitherT)
-import "cryptonite" Crypto.Random (ChaChaDRG, randomBytesGenerate)
-import Data.Pool (withResource)
 import Data.EitherR (fmapL)
 import Data.List (foldl')
-import Data.String.Conversions (LT, ST, SBS)
 import Data.Typeable (Typeable)
-import LIO.Core (MonadLIO, LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
+import LIO.Core (LIOState(LIOState), liftLIO, evalLIO, setClearanceP, taint, guardWrite)
 import LIO.Label (lub)
 import LIO.DCLabel (CNF, DCLabel, (%%), cFalse, toCNF)
 import LIO.Error (AnyLabelError)
-import LIO.TCB (Priv(PrivTCB), ioTCB)
-import System.Log (Priority(DEBUG, CRITICAL))
-import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
-
-import qualified Data.Thyme as Thyme
+import LIO.TCB (Priv(PrivTCB))
+import System.Log (Priority(DEBUG))
 
 import LIO.Missing
-import System.Log.Missing (logger)
 import Thentos.Action.Types
-import Thentos.Config
-import Thentos.Smtp
-import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
-import Thentos.Util
 
+import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Transaction as T
 
 
@@ -152,78 +139,15 @@ grantAccessRights'P ars = liftLIO $ setClearanceP (PrivTCB cFalse) c
 
 -- | Construct a 'DCLabel' from agent's roles.
 accessRightsByAgent'P :: Agent -> Action e s [CNF]
-accessRightsByAgent'P agent = makeAccessRights <$> query'P (T.agentRoles agent)
+accessRightsByAgent'P agent = makeAccessRights <$> U.unsafeAction (U.query $ T.agentRoles agent)
   where
     makeAccessRights :: [Role] -> [CNF]
     makeAccessRights roles = toCNF agent : map toCNF roles
 
 accessRightsByThentosSession'P :: ThentosSessionToken -> Action e s [CNF]
 accessRightsByThentosSession'P tok = do
-    (_, session) <- query'P (T.lookupThentosSession tok)
+    (_, session) <- U.unsafeAction . U.query . T.lookupThentosSession $ tok
     accessRightsByAgent'P $ session ^. thSessAgent
-
-
--- * TCB business
-
-query'P :: ThentosQuery e v -> Action e s v
-query'P u = do
-    ActionState (connPool, _, _) <- Action ask
-    result <- liftLIO . ioTCB . withResource connPool $ \conn -> runThentosQuery conn u
-    either throwError return result
-
-getConfig'P :: Action e s ThentosConfig
-getConfig'P = (\ (ActionState (_, _, c)) -> c) <$> Action ask
-
-getCurrentTime'P :: Action e s Timestamp
-getCurrentTime'P = Timestamp <$> liftLIO (ioTCB Thyme.getCurrentTime)
-
--- | A relative of 'cprgGenerate' from crypto-random that lives in
--- 'Action'.
-genRandomBytes'P :: Int -> Action e s SBS
-genRandomBytes'P i = do
-    let f :: ChaChaDRG -> (ChaChaDRG, SBS)
-        f r = case randomBytesGenerate i r of (output, r') -> (r', output)
-    ActionState (_, mr, _) <- Action ask
-    liftLIO . ioTCB . modifyMVar mr $ return . f
-
-makeUserFromFormData'P :: UserFormData -> Action e s User
-makeUserFromFormData'P = liftLIO . ioTCB . makeUserFromFormData
-
-hashUserPass'P :: UserPass -> Action e s (HashedSecret UserPass)
-hashUserPass'P = liftLIO . ioTCB . hashUserPass
-
-hashServiceKey'P :: ServiceKey -> Action e s (HashedSecret ServiceKey)
-hashServiceKey'P = liftLIO . ioTCB . hashServiceKey
-
-sendMail'P :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> Action e s ()
-sendMail'P config mName address subject msg = liftLIO . ioTCB $ do
-    result <- sendMail config mName address subject msg
-    case result of
-        Right () -> return ()
-        Left (SendmailError s) -> do
-            logger CRITICAL $ "error sending mail: " ++ s
-            throwIO $ ErrorCall "error sending email"
-
--- | Render a Hastache template for plain-text output (none of the characters in context variables
--- will be escaped).
-renderTextTemplate'P :: ST -> MuContext IO -> Action e s LT
-renderTextTemplate'P template context =
-    liftLIO . ioTCB $ hastacheStr hastacheCfg template context
-  where
-    hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
-
-logger'P :: Priority -> String -> Action e s ()
-logger'P prio = liftLIO . ioTCB . logger prio
-
--- | (This type signature could be greatly simplified, but that would also make it less explanatory.)
-logIfError'P :: forall m l e v f s
-    . (m ~ Action f s, Monad m, MonadLIO l m, MonadError e m, Show e, Show f)
-    => m v -> m v
-logIfError'P = (`catchError` f)
-  where
-    f e = do
-        logger'P DEBUG $ "*** error: " ++ show e
-        throwError e
 
 
 -- * better label errors
@@ -232,11 +156,11 @@ logIfError'P = (`catchError` f)
 taintMsg :: String -> DCLabel -> Action e s ()
 taintMsg msg l = do
     tryTaint l (return ()) $ \ (e :: AnyLabelError) -> do
-        logger'P DEBUG $ ("taintMsg:\n    " ++ msg ++ "\n    " ++ show e)
+        U.unsafeAction . U.logger DEBUG $ "taintMsg:\n    " ++ msg ++ "\n    " ++ show e
         liftLIO $ taint l
 
 guardWriteMsg :: String -> DCLabel -> Action e s ()
 guardWriteMsg msg l = do
     tryGuardWrite l (return ()) $ \ (e :: AnyLabelError) -> do
-        logger'P DEBUG $ "guardWrite:\n    " ++ msg ++ "\n    " ++ show e
+        U.unsafeAction . U.logger DEBUG $ "guardWrite:\n    " ++ msg ++ "\n    " ++ show e
         liftLIO $ guardWrite l

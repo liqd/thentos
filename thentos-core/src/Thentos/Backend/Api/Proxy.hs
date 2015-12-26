@@ -37,6 +37,8 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
+import qualified Thentos.Action.Unsafe as U
+
 
 data ServiceProxy
 
@@ -116,7 +118,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 -- To get the default behavior, use 'defaultProxyAdapter'.
 getRqMod :: ProxyAdapter e -> S.Request -> Action e () RqMod
 getRqMod adapter req = do
-    thentosConfig <- getConfig'P
+    thentosConfig <- U.unsafeAction U.getConfig
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
 
     (sid, target) <- case lookupThentosHeaderService (renderHeader adapter) req of
@@ -125,7 +127,7 @@ getRqMod adapter req = do
 
     hdrs <- createCustomHeaders adapter mTok sid
     let rqMod = RqMod target hdrs
-    logger'P DEBUG $ concat
+    U.unsafeAction . U.logger DEBUG $ concat
         ["forwarding proxy request ", cs showReqInfo, " with modifier: ", show rqMod]
     return rqMod
   where

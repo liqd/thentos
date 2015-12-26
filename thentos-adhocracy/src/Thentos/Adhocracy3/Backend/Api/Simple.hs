@@ -97,6 +97,7 @@ import qualified Paths_thentos_adhocracy__ as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Core as AC
 import qualified Thentos.Action.Types as AC
+import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Backend.Api.Purescript
 import qualified Thentos.Backend.Api.Simple ()
 
@@ -441,10 +442,11 @@ api manager actionState@(AC.ActionState (_, _, cfg)) =
 -- (confirmed), a persona is created in thentos together with a corresponding adhocracy user in A3
 -- that corresponds to that persona.
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
-addUser (A3UserWithPass user) = AC.logIfError'P $ do
-    AC.logger'P DEBUG . ("route addUser: " <>) . cs . Aeson.encodePretty $ A3UserNoPass user
+addUser (A3UserWithPass user) = U.logIfError' $ do
+    U.unsafeAction . U.logger DEBUG . ("route addUser: " <>) . cs .
+        Aeson.encodePretty $ A3UserNoPass user
     A.addUnconfirmedUser user
-    config    <- AC.getConfig'P
+    config <- U.unsafeAction U.getConfig
     let dummyPath = a3backendPath config ""
     return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
 
@@ -464,8 +466,8 @@ addUser (A3UserWithPass user) = AC.logIfError'P $ do
 -- so that the user is able to log into A3. The user's actual password and email address are
 -- only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
-activate ar@(ActivationRequest confToken) = AC.logIfError'P $ do
-    AC.logger'P DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
+activate ar@(ActivationRequest confToken) = U.logIfError' $ do
+    U.unsafeAction . U.logger DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
     (uid, stok) <- A.confirmNewUser confToken
     -- Promote access rights so we can look up the user and create a persona
     AC.accessRightsByAgent'P (UserA uid) >>= AC.grantAccessRights'P
@@ -488,7 +490,7 @@ makeExternalUrl pn = createUserInA3'P pn >>= f
         | ST.null localPath = do
             throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
         | otherwise = do
-            config <- AC.getConfig'P
+            config <- U.unsafeAction U.getConfig
             let (Path fullPath) = a3backendPath config localPath
             case parseUri $ cs fullPath  of
                 Left err  -> throwError . OtherError $ A3UriParseError err
@@ -496,8 +498,8 @@ makeExternalUrl pn = createUserInA3'P pn >>= f
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
-login r = AC.logIfError'P $ do
-    AC.logger'P DEBUG "/login/"
+login r = U.logIfError' $ do
+    U.unsafeAction $ U.logger DEBUG "/login/"
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
@@ -512,8 +514,8 @@ login r = AC.logIfError'P $ do
 -- BUG #321: Process is now broken, adapt to new user management (user is now stored in
 -- Thentos with a corresponding persona in A3 for activated users only.)
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
-resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
-    AC.logger'P DEBUG $ "route password_reset for path: " <> show path
+resetPassword (PasswordResetRequest path pass) = U.logIfError' $ do
+    U.unsafeAction . U.logger DEBUG $ "route password_reset for path: " <> show path
     reqResult <- resetPasswordInA3'P path
     case reqResult of
         RequestSuccess userPath _a3tok -> do
@@ -521,7 +523,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
             A._changePasswordUnconditionally uid pass
             stok <- A.startThentosSessionByUserId uid pass
             return $ RequestSuccess userPath stok
-        RequestError errMsg            -> throwError . OtherError $ GenericA3Error errMsg
+        RequestError errMsg -> throwError . OtherError $ GenericA3Error errMsg
 
 
 -- * helper actions
@@ -529,7 +531,7 @@ resetPassword (PasswordResetRequest path pass) = AC.logIfError'P $ do
 -- | Create a user in A3 from a persona name and return the user path.
 createUserInA3'P :: PersonaName -> A3Action Path
 createUserInA3'P persName = do
-    config <- AC.getConfig'P
+    config <- U.unsafeAction U.getConfig
     let a3req = fromMaybe
                 (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
                 mkUserCreationRequestForA3 config persName
@@ -544,7 +546,7 @@ createUserInA3'P persName = do
 -- | Find the ServiceId of the A3 backend, which should be registered as default proxied app.
 a3ServiceId :: A3Action ServiceId
 a3ServiceId = do
-    config  <- AC.getConfig'P
+    config  <- U.unsafeAction U.getConfig
     maybe (error "a3ServiceId: A3 proxy not configured") return $
         ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
 
@@ -561,7 +563,7 @@ externalUrlOfDefaultPersona uid = do
 -- | Send a password reset request to A3 and return the response.
 resetPasswordInA3'P :: Path -> A3Action RequestResult
 resetPasswordInA3'P path = do
-    config <- AC.getConfig'P
+    config <- U.unsafeAction U.getConfig
     let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $
                 mkRequestForA3 config "/password_reset" reqData
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req

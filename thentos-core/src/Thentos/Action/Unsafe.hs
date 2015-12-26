@@ -18,9 +18,10 @@ import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, SBS)
+import Data.String.Conversions (LT, ST, SBS)
 import LIO.TCB (ioTCB)
 import System.Log (Priority(DEBUG, CRITICAL))
+import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
 import qualified Data.Thyme as Thyme
 
@@ -93,7 +94,7 @@ hashServiceKey = liftIO . TU.hashServiceKey
 
 sendMail :: Maybe UserName -> UserEmail -> ST -> ST -> UnsafeAction e s ()
 sendMail mName address subject msg = do
-    config <- (\(ActionState (_, _, c)) -> Tagged $ c >>. (Proxy :: Proxy '["smtp"])) <$> ask
+    config <- Tagged . (>>. (Proxy :: Proxy '["smtp"])) <$> Thentos.Action.Unsafe.getConfig
     result <- liftIO $ TS.sendMail config mName address subject msg
     case result of
         Right () -> return ()
@@ -110,3 +111,17 @@ logIfError = (`catchError` f)
     f e = do
         logger DEBUG $ "*** error: " ++ show e
         throwError e
+
+logIfError' :: (Show e) => Action e s v -> Action e s v
+logIfError' = (`catchError` f)
+  where
+    f e = do
+        unsafeAction . logger DEBUG $ "*** error: " ++ show e
+        throwError e
+
+-- | Render a Hastache template for plain-text output (none of the characters in context variables
+-- will be escaped).
+renderTextTemplate :: ST -> MuContext IO -> UnsafeAction e s LT
+renderTextTemplate template context = liftIO $ hastacheStr hastacheCfg template context
+  where
+    hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
