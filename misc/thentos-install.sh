@@ -131,7 +131,9 @@ if [ "$DEPS_ONLY" == "" ]; then
 
         for s in ${SOURCES[@]}; do
             cd $s
-            grep -q ^test-suite $s.cabal && ( cabal test || EXIT_CODE=1 )
+            if [ grep -q ^test-suite $s.cabal ]; then
+                cabal test || EXIT_CODE=1
+            fi
             cd ..
         done
     fi
