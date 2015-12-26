@@ -106,6 +106,12 @@ function build() {
 
 echo -e "\n\nbuilding dependencies...\n" >&2
 build "--dependencies-only"
+# FIXME: this will build thentos-core, thentos-test, and
+# servant-session, as they are all dependencies of thentos-adhocracy.
+# not sure how to work around that, since we want to distinguish
+# between deps (no -Werror) and targets (-Werror).  the only bad thing
+# about the status quo is that those packages twice are compiled
+# twice.
 
 export EXIT_CODE=0
 
@@ -114,7 +120,15 @@ if [ "$DEPS_ONLY" == "" ]; then
     build "" || EXIT_CODE=1
     if [ "$THOROUGH" == "1" ]; then
         make hlint || EXIT_CODE=1
+
+        for s in ${SOURCES[@]}; do
+            cd $s
+            cabal clean
+            cd ..
+        done
+
         build "--ghc-options=-Werror"
+
         for s in ${SOURCES[@]}; do
             cd $s
             grep -q ^test-suite $s.cabal && ( cabal test || EXIT_CODE=1 )
