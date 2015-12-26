@@ -5,11 +5,11 @@
 module Thentos.Action.Core
 where
 
-import Control.Arrow (first)
 import Control.Exception (Exception, throwIO, catch)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (runStateT)
 import Control.Monad.Trans.Either (eitherT)
+import Data.Bifunctor (first)
 import Data.EitherR (fmapL)
 import Data.Typeable (Typeable)
 import LIO.Core (LIOState(LIOState), liftLIO, evalLIO, taint, guardWrite)

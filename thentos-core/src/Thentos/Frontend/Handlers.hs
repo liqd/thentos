@@ -41,11 +41,11 @@ module Thentos.Frontend.Handlers
   )
 where
 
-import Control.Arrow (first)
 import Control.Lens ((.~), (^.))
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.State (get, modify)
+import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, (<>))
 import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)

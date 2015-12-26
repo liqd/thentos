@@ -23,10 +23,10 @@ module Thentos.Backend.Api.Docs.Common
     )
 where
 
-import Control.Arrow (second)
 import Control.Concurrent.MVar (newMVar)
 import Control.Lens ((&), (%~), (.~))
 import "cryptonite" Crypto.Random (drgNew)
+import Data.Bifunctor (second)
 import Data.List (sort)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs, (<>))
