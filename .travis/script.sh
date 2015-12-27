@@ -25,4 +25,4 @@ pulp --version || npm install -g pulp@4.4.1
 psc  --version || npm install -g purescript@0.7.6
 
 echo -e "\n\n>>> ghc (deps only)\n\n"
-./misc/thentos-install.sh -c "--force-reinstalls" -t
+./misc/thentos-install.hs -c "--force-reinstalls" -t
