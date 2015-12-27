@@ -19,6 +19,7 @@ import qualified Thentos.Action.Types as AC
 
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Backend.Core
+import Thentos.Types
 
 
 a3ActionErrorToServantErr :: AC.ActionError ThentosA3Error -> IO ServantErr
