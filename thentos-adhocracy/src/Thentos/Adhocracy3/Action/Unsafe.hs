@@ -3,8 +3,8 @@
 {-# LANGUAGE OverloadedStrings          #-}
 
 module Thentos.Adhocracy3.Action.Unsafe
-    ( createUserInA3'P
-    , resetPasswordInA3'P
+    ( createUserInA3
+    , resetPasswordInA3
     ) where
 
 import Control.Monad.Except (MonadError, throwError)
@@ -31,11 +31,11 @@ import qualified Thentos.Action.Unsafe as U
 
 
 -- | Create a user in A3 from a persona name and return the user path.
-createUserInA3'P :: PersonaName -> A3Action Path
-createUserInA3'P persName = do
+createUserInA3 :: PersonaName -> A3Action Path
+createUserInA3 persName = do
     config <- U.unsafeAction U.getConfig
     let a3req = fromMaybe
-                (error "createUserInA3'P: mkUserCreationRequestForA3 failed, check config!") $
+                (error "createUserInA3: mkUserCreationRequestForA3 failed, check config!") $
                 mkUserCreationRequestForA3 config persName
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     when (responseCode a3resp >= 400) $ do
@@ -46,10 +46,10 @@ createUserInA3'P persName = do
     responseCode = Status.statusCode . Client.responseStatus
 
 -- | Send a password reset request to A3 and return the response.
-resetPasswordInA3'P :: Path -> A3Action RequestResult
-resetPasswordInA3'P path = do
+resetPasswordInA3 :: Path -> A3Action RequestResult
+resetPasswordInA3 path = do
     config <- U.unsafeAction U.getConfig
-    let a3req = fromMaybe (error "resetPasswordInA3'P: mkRequestForA3 failed, check config!") $
+    let a3req = fromMaybe (error "resetPasswordInA3: mkRequestForA3 failed, check config!") $
                 mkRequestForA3 config "/password_reset" reqData
     a3resp <- liftLIO . ioTCB . sendRequest $ a3req
     either (throwError . OtherError . A3BackendInvalidJson) return $

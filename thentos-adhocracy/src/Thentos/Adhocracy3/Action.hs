@@ -4,9 +4,9 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 module Thentos.Adhocracy3.Action
-    , a3ServiceId
+    ( a3ServiceId
     , activate
-    ( addUser
+    , addUser
     , externalUrlOfDefaultPersona
     , login
     , makeExternalUrl
@@ -82,7 +82,7 @@ activate ar@(ActivationRequest confToken) = U.logIfError' $ do
 -- | Make user path relative to our exposed URL instead of the proxied A3 backend URL.  Only works
 -- for @/principals/users/...@.  (Returns exposed url.)
 makeExternalUrl :: PersonaName -> A3Action Uri
-makeExternalUrl pn = U.createUserInA3'P pn >>= f
+makeExternalUrl pn = U.createUserInA3 pn >>= f
   where
     f :: Path -> A3Action Uri
     f (Path path@(ST.breakOn "/principals/users/" -> (_, localPath)))
@@ -115,7 +115,7 @@ login r = U.logIfError' $ do
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
 resetPassword (PasswordResetRequest path pass) = U.logIfError' $ do
     U.unsafeAction . U.logger DEBUG $ "route password_reset for path: " <> show path
-    reqResult <- U.resetPasswordInA3'P path
+    reqResult <- U.resetPasswordInA3 path
     case reqResult of
         RequestSuccess userPath _a3tok -> do
             uid  <- userIdFromPath userPath
