@@ -153,7 +153,7 @@ createDefaultUser conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
 autocreateMissingServices :: ThentosConfig -> Action Void s ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
-    mapM_ (autocreateServiceIfMissing'P agent) allSids
+    mapM_ (autocreateServiceIfMissing agent) allSids
   where
     dieOnDuplicates  =
         forM_ mDefaultProxySid $ \sid ->

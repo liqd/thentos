@@ -137,7 +137,7 @@ spec_service = describe "service" $ do
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldNotContain` [sid]
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing'P owner sid
+            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing owner sid
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
@@ -146,7 +146,7 @@ spec_service = describe "service" $ do
             (sid, _) <- runPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing'P owner sid
+            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing owner sid
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 

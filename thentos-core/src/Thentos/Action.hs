@@ -34,7 +34,7 @@ module Thentos.Action
     , lookupService
     , addService
     , deleteService
-    , autocreateServiceIfMissing'P
+    , autocreateServiceIfMissing
 
     , addPersona
     , deletePersona
@@ -401,8 +401,8 @@ deleteService sid = do
 --
 -- This allows adding services to the config which will automatically spring into life if the
 -- config is read.
-autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e s ()
-autocreateServiceIfMissing'P owner sid = do
+autocreateServiceIfMissing :: UserId -> ServiceId -> Action e s ()
+autocreateServiceIfMissing owner sid = do
     void (lookupService sid) `catchError`
         \case NoSuchService -> do
                 loggerA DEBUG $ "autocreating service with ID " ++ show sid
