@@ -118,6 +118,9 @@ import qualified Thentos.Transaction as T
 queryA :: ThentosQuery e a -> Action e s a
 queryA = U.unsafeAction . U.query
 
+loggerA :: Priority -> String -> Action e s ()
+loggerA prio = U.unsafeAction . U.logger prio
+
 
 -- * randomness
 
@@ -141,7 +144,7 @@ freshConfirmationToken = ConfirmationToken <$> freshRandomName
 freshRandom20 :: Action e s Random20
 freshRandom20 = do
     bytes <- U.unsafeAction $ U.genRandomBytes 20
-    maybe (error "freshRandom20: genRandomBytes'P broken") pure $ mkRandom20 bytes
+    maybe (error "freshRandom20: internal error") pure $ mkRandom20 bytes
 
 freshPasswordResetToken :: Action e s PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
@@ -402,7 +405,7 @@ autocreateServiceIfMissing'P :: UserId -> ServiceId -> Action e s ()
 autocreateServiceIfMissing'P owner sid = do
     void (lookupService sid) `catchError`
         \case NoSuchService -> do
-                U.unsafeAction . U.logger DEBUG $ "autocreating service with ID " ++ show sid
+                loggerA DEBUG $ "autocreating service with ID " ++ show sid
                 void $ addServicePrim owner sid "autocreated" "autocreated"
               e -> throwError e
     contexts <- contextsForService sid
@@ -744,7 +747,7 @@ deleteCaptcha = queryA . T.deleteCaptcha
 
 collectGarbage :: Exception (ActionError e) => Action e s ()
 collectGarbage = do
-    U.unsafeAction $ U.logger DEBUG "starting garbage collection."
+    loggerA DEBUG "starting garbage collection."
     guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
 
     queryA T.garbageCollectThentosSessions
@@ -760,4 +763,4 @@ collectGarbage = do
     queryA $ T.garbageCollectPasswordResetTokens passwordExpiry
     queryA $ T.garbageCollectCaptchas captchaExpiry
 
-    U.unsafeAction $ U.logger DEBUG "garbage collection complete!"
+    loggerA DEBUG "garbage collection complete!"
