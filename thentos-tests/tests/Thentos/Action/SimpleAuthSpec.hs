@@ -13,7 +13,6 @@ import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
 import Data.Void (Void)
-import LIO.DCLabel (toCNF)
 import Network.Wai (Application)
 import Servant.API ((:>), Get, JSON)
 import Servant.Server (serve, enter)
@@ -23,7 +22,9 @@ import qualified Data.Aeson as Aeson
 import qualified Network.Wreq as Wreq
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action.SimpleAuth
+import Thentos.Action.Unsafe
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
 import Thentos.Config
@@ -45,13 +46,14 @@ spec = do
 type Act = Action (ActionError Void) ()
 
 setTwoRoles :: Action e s ()
-setTwoRoles = grantAccessRights'P [toCNF RoleAdmin, toCNF RoleUser]
+setTwoRoles = extendClearanceOnPrincipals [RoleAdmin, RoleUser]
 
 setClearanceUid :: Integer -> Action e s ()
-setClearanceUid uid = grantAccessRights'P [toCNF . UserA . UserId $ uid, toCNF RoleUser]
+setClearanceUid uid = extendClearanceOnPrincipals [UserA $ UserId uid]
+                   >> extendClearanceOnPrincipals [RoleUser]
 
 setClearanceSid :: Integer -> Action e s ()
-setClearanceSid sid = grantAccessRights'P [toCNF . ServiceA . ServiceId . cs . show $ sid]
+setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . show $ sid]
 
 
 mkActionState :: IO ActionState
@@ -104,20 +106,6 @@ specWithActionState = before mkActionState $ do
         it "returns False if role is missing" $ \sta -> do
             (False, ()) <- runAction () sta (hasRole RoleUser :: Act Bool)
             (False, ()) <- runAction () sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
-            return ()
-
-    describe "guardedUnsafeAction" $ do
-        it "runs unsafe action if predicate is satisfied" $ \sta -> do
-            (3, ()) <- runAction () sta (guardedUnsafeAction (pure True) (pure 3) :: Act Int)
-            return ()
-        it "throws an error otherwise" $ \sta -> do
-            (Left (ActionErrorAnyLabel _), ())
-                <- runActionE () sta (guardedUnsafeAction (pure False) (pure 3) :: Act Int)
-            return ()
-
-    describe "unsafeAction" $ do
-        it "translates an UnsafeAction into an Action, unsafely" $ \sta -> do
-            (4, ()) <- runAction () sta (unsafeAction (pure 4) :: Act Int)
             return ()
 
 

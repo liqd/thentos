@@ -35,9 +35,11 @@ library
           -auto-all -caf-all -fforce-recomp
   exposed-modules:
       Thentos.Adhocracy3
-    , Thentos.Adhocracy3.Backend.Core
+    , Thentos.Adhocracy3.Action
+    , Thentos.Adhocracy3.Action.Types
+    , Thentos.Adhocracy3.Action.Unsafe
     , Thentos.Adhocracy3.Backend.Api.Simple
-    , Thentos.Adhocracy3.Types
+    , Thentos.Adhocracy3.Backend.Core
   other-modules:
       Paths_thentos_adhocracy
   build-depends:

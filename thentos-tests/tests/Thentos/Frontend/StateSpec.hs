@@ -26,7 +26,7 @@ import qualified Data.Attoparsec.ByteString.Char8 as AP
 import qualified Network.HTTP.Types.Status as HT
 import qualified Network.Wreq as Wreq
 
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Config
 import Thentos.Frontend.Handlers.Combinators (redirect')
 import Thentos.Frontend.State

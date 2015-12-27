@@ -17,7 +17,7 @@ import qualified Network.HTTP.Types.Status as C
 import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Config
 import qualified Thentos.Transaction as T
 import Thentos.Types

@@ -36,7 +36,8 @@ import qualified Data.Map as Map
 
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
-import Thentos.Action.Core (Action, ActionState(..), runActionWithPrivs)
+import Thentos.Action.Core (runActionWithPrivs)
+import Thentos.Action.Types (Action, ActionState(..))
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -152,7 +153,7 @@ createDefaultUser conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
 autocreateMissingServices :: ThentosConfig -> Action Void s ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
-    mapM_ (autocreateServiceIfMissing'P agent) allSids
+    mapM_ (autocreateServiceIfMissing agent) allSids
   where
     dieOnDuplicates  =
         forM_ mDefaultProxySid $ \sid ->

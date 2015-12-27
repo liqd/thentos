@@ -32,9 +32,12 @@ import qualified Network.Wai as S
 
 import Thentos.Action
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
+
+import qualified Thentos.Action.Unsafe as U
 
 
 data ServiceProxy
@@ -115,7 +118,7 @@ data RqMod = RqMod ProxyUri T.RequestHeaders
 -- To get the default behavior, use 'defaultProxyAdapter'.
 getRqMod :: ProxyAdapter e -> S.Request -> Action e () RqMod
 getRqMod adapter req = do
-    thentosConfig <- getConfig'P
+    thentosConfig <- U.unsafeAction U.getConfig
     let mTok = lookupThentosHeaderSession (renderHeader adapter) req
 
     (sid, target) <- case lookupThentosHeaderService (renderHeader adapter) req of
@@ -124,7 +127,7 @@ getRqMod adapter req = do
 
     hdrs <- createCustomHeaders adapter mTok sid
     let rqMod = RqMod target hdrs
-    logger'P DEBUG $ concat
+    U.unsafeAction . U.logger DEBUG $ concat
         ["forwarding proxy request ", cs showReqInfo, " with modifier: ", show rqMod]
     return rqMod
   where
@@ -157,7 +160,7 @@ createCustomHeaders ::
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do
     (uid, user) <- validateThentosUserSession tok
-    accessRightsByAgent'P (UserA uid) >>= grantAccessRights'P
+    U.extendClearanceOnAgent $ UserA uid
     renderedUser <- renderUser adapter uid user
     -- FIXME We may want to sent a persona's groups to the service (personaGroups action), but
     -- currently the Proxy doesn't know about personas and it's unclear whether/how services

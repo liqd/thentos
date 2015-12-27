@@ -9,7 +9,7 @@ module Thentos.Backend.Core
 where
 
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad ((>=>), when)
+import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
@@ -22,7 +22,6 @@ import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
-import LIO.DCLabel (toCNF)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
 import Network.Socket
     (SockAddr(SockAddrInet, SockAddrInet6, SockAddrUnix, SockAddrCan), HostAddress, inet_addr)
@@ -49,11 +48,14 @@ import qualified Network.HTTP.Types.Header as HttpTypes
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
-import Thentos.Action.SimpleAuth (unsafeLiftIO)
+import Thentos.Action.Types
+import Thentos.Action.Unsafe (unsafeLiftIO)
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
+
+import qualified Thentos.Action.Unsafe as U
 
 
 -- * action
@@ -72,11 +74,11 @@ enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toSer
     updatePrivs :: ThentosAuthCredentials -> Action e s ()
     updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g origin)
       where
-        f = mapM_ (accessRightsByThentosSession'P >=> grantAccessRights'P)
+        f = mapM_ U.extendClearanceOnThentosSession
 
         g :: SockAddr -> [HostAddress] -> Action e s ()
         g (SockAddrInet _ ip) ips =
-            when (ip `elem` ips) $ grantAccessRights'P [toCNF PrivilegedIP]
+            when (ip `elem` ips) $ U.extendClearanceOnPrincipals [PrivilegedIP]
         g (SockAddrInet6 _ _ _ _) _ = return ()  -- FIXME: support IPv6
         g (SockAddrUnix _) _ = return ()  -- FIXME: support unix sockets
         g (SockAddrCan _) _ = return ()  -- FIXME: ?

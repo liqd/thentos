@@ -23,6 +23,7 @@ import Test.Hspec (Spec, describe, it, shouldBe, shouldNotBe, shouldThrow)
 import qualified Data.ByteString as SBS
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Sybil.Captcha
 import Thentos.Test.Config (thentosTestConfig)
 import Thentos.Test.Core (createActionState)

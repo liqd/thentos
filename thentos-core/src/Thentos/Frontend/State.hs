@@ -9,7 +9,6 @@ module Thentos.Frontend.State where
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.State (get, gets, put)
-import Control.Monad ((>=>))
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
@@ -32,6 +31,7 @@ import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.Types
@@ -40,7 +40,6 @@ import Thentos.Util
 
 import qualified Thentos.Frontend.Pages as Pages
 import qualified Thentos.Action.Unsafe as U
-import qualified Thentos.Action.SimpleAuth as U
 
 
 -- BUG #406: EU-required user notifications about cookies
@@ -159,8 +158,7 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . 
         l _ = Nothing
 
     updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
-    updatePrivs' =
-        mapM_ $ accessRightsByThentosSession'P >=> grantAccessRights'P
+    updatePrivs' = mapM_ U.extendClearanceOnThentosSession
 
 
 -- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no

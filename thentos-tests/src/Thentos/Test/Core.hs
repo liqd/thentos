@@ -49,6 +49,7 @@ import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
 import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
@@ -58,6 +59,8 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
+
+import qualified Thentos.Action.Unsafe as U
 
 import Thentos.Test.Config
 
@@ -91,7 +94,7 @@ testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
 -- it.
 addTestUser :: Int -> Action Void s (UserId, UserFormData, User)
 addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
-    uid <- query'P $ addUser user
+    uid <- U.unsafeAction . U.query $ addUser user
     return (uid, uf, user)
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return

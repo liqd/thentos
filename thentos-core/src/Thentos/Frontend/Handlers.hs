@@ -41,14 +41,13 @@ module Thentos.Frontend.Handlers
   )
 where
 
-import Control.Arrow (first)
 import Control.Lens ((.~), (^.))
 import Control.Monad.Except (catchError, throwError)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.State (get, modify)
+import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, (<>))
-import LIO.DCLabel (toCNF)
 import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
 import Network.Wai (Request, Middleware, requestMethod)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
@@ -61,7 +60,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Data.Text.Encoding as STE
 
 import Thentos.Action
-import Thentos.Action.Core
+import Thentos.Action.Types
 import Thentos.Backend.Core (addHeadersToResponse)
 import Thentos.Ends.Types
 import Thentos.Frontend.Handlers.Combinators
@@ -70,7 +69,6 @@ import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
 
-import qualified Thentos.Action.SimpleAuth as U
 import qualified Thentos.Action.Unsafe as U
 
 
@@ -169,8 +167,8 @@ userRegisterConfirmH (Just token) = do
         (_uid, _sessTok) <- confirmNewUser token
         loggerF $ "registered new user: " ++ show _uid
         -- FIXME: we need a 'withAccessRights' for things like this.
-        grantAccessRights'P [toCNF RoleAdmin]
-        mapM_ (assignRole (UserA _uid)) $ defaultUserRoles
+        U.extendClearanceOnPrincipals [RoleAdmin]
+        mapM_ (assignRole (UserA _uid)) defaultUserRoles
         return (_uid, _sessTok)
 
     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
