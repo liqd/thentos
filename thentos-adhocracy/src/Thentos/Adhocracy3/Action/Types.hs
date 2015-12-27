@@ -10,7 +10,7 @@
 {-# LANGUAGE UndecidableInstances        #-}
 
 
-module Thentos.Adhocracy3.Types
+module Thentos.Adhocracy3.Action.Types
     ( module Thentos.Types
     , ThentosA3Error(..)
     , A3ErrorMessage(..)

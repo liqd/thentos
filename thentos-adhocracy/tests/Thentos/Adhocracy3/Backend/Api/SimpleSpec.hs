@@ -51,7 +51,7 @@ import Thentos
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Adhocracy3.Backend.Api.Simple
-import Thentos.Adhocracy3.Types
+import Thentos.Adhocracy3.Action.Types
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config

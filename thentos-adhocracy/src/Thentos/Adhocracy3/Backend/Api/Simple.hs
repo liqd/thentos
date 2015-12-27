@@ -80,7 +80,7 @@ import qualified URI.ByteString as URI
 
 import System.Log.Missing
 import Thentos.Adhocracy3.Backend.Core
-import Thentos.Adhocracy3.Types
+import Thentos.Adhocracy3.Action.Types
 import Thentos.Backend.Api.Docs.Common
     ( RestDocs, restDocs
     , HasDocExtras(getCabalPackageName, getCabalPackageVersion, getTitle, getIntros, getExtraInfo)
