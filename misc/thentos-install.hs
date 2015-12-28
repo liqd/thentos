@@ -187,7 +187,10 @@ changeToProjectRootMacOSX = do
 
 gitSubmodules :: IO ()
 gitSubmodules = do
-    ExitSuccess <- system "git submodule sync"
+    checkSync <- system "git status --porcelain | egrep -q '^\\s*M submodules'"
+    when (checkSync == ExitSuccess) $ do
+        ExitSuccess <- system "git submodule sync"
+        return ()
     ExitSuccess <- system "git submodule update --init"
     return ()
 
