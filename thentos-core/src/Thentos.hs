@@ -70,7 +70,7 @@ makeMain commandSwitch =
     rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
     let dbName = config >>. (Proxy :: Proxy '["database", "name"])
     connPool <- createConnPoolAndInitDb $ cs dbName
-    let actionState = ActionState (connPool, rng, config)
+    let actionState = ActionState config rng connPool
         logPath     = config >>. (Proxy :: Proxy '["log", "path"])
         logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
     configLogger logPath logLevel

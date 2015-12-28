@@ -15,6 +15,7 @@
 module Thentos.Backend.Api.PurescriptSpec (spec, tests)
 where
 
+import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
 import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.))
@@ -96,5 +97,5 @@ defaultApp havePurescript = do
 type Api = "js" :> Purescript.Api
 
 api :: Bool -> ActionState -> Server Api
-api True (ActionState (_, _, cfg)) = Purescript.api cfg
+api True as = Purescript.api (as ^. aStConfig)
 api False _ = Purescript.api' Nothing

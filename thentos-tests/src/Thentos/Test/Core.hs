@@ -218,7 +218,7 @@ withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
 -- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
 withFrontendAndBackend' dbname test = do
-    st@(ActionState (connPool, _, cfg)) <- createActionState dbname thentosTestConfig
+    st@(ActionState cfg _ connPool) <- createActionState dbname thentosTestConfig
     withFrontend' (getFrontendConfig cfg) st
         $ withBackend' (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
@@ -233,7 +233,7 @@ createActionState :: String -> ThentosConfig -> IO ActionState
 createActionState dbname config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     connPool <- createDb dbname
-    return $ ActionState (connPool, rng, config)
+    return $ ActionState config rng connPool
 
 -- | Create a connection to an empty DB.
 --

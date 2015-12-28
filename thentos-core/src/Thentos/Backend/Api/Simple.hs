@@ -27,7 +27,7 @@ import qualified Servant.Foreign as F
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState(ActionState), Action)
+import Thentos.Action.Types (ActionState(ActionState), Action, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -56,9 +56,9 @@ type Api =
   :<|> "js" :> Purs.Api
 
 api :: ActionState -> Server Api
-api actionState@(ActionState (_, _, cfg)) =
-       (\creds -> enter (enterAction () actionState baseActionErrorToServantErr creds) thentosBasic)
-  :<|> Purs.api cfg
+api as =
+       (\creds -> enter (enterAction () as baseActionErrorToServantErr creds) thentosBasic)
+  :<|> Purs.api (as ^. aStConfig)
 
 
 -- * combinators

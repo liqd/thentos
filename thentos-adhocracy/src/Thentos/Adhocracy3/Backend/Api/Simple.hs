@@ -156,7 +156,7 @@ thentosApiWithWidgets =
 
 
 api :: Client.Manager -> AC.ActionState -> Server Api
-api manager actionState@(AC.ActionState (_, _, cfg)) =
+api manager actionState@(AC.ActionState cfg _ _) =
        thentosApi actionState
   :<|> Thentos.Backend.Api.Purescript.api cfg
   :<|> serviceProxy manager a3ProxyAdapter actionState

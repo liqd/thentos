@@ -58,8 +58,8 @@ setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . s
 
 mkActionState :: IO ActionState
 mkActionState = do
-    actionState@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
-    withResource connPool createGod
+    actionState <- createActionState "test_thentos" thentosTestConfig
+    withResource (actionState ^. aStDb) createGod
     return actionState
 
 specWithActionState :: Spec
@@ -111,13 +111,13 @@ specWithActionState = before mkActionState $ do
 
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
-    as@(ActionState (_, _, cfg)) <- do
+    as <- do
         let sources = [ thentosTestConfigYaml
                       , YamlString . ("allow_ips: " <>) . cs . show $ allowIps
                       ]
         createActionState "test_thentos" $ mkThentosTestConfig sources
 
-    let Just becfg = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+    let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
     bracket (forkIO $ runWarpWithCfg becfg $ serveApi as)
         killThread
         (\_ -> testCase becfg)

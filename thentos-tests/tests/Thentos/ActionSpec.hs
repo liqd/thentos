@@ -37,9 +37,9 @@ tests = hspec spec
 spec :: Spec
 spec = do
     let b = do
-          db@(ActionState (connPool, _, _)) <- createActionState "test_thentos" thentosTestConfig
-          withResource connPool createGod
-          return db
+          as <- createActionState "test_thentos" thentosTestConfig
+          withResource (as ^. aStDb) createGod
+          return as
 
     describe "Thentos.Action" . before b $ do
         spec_user
@@ -99,8 +99,7 @@ spec_user = describe "user" $ do
 
     describe "confirmUserEmailChange" $ do
         it "changes user email after change request" $ \ sta -> do
-            let ActionState (conns, _, _) = sta
-                newEmail = forceUserEmail "changed@example.com"
+            let newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
                     (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
                     user ^. userEmail `shouldSatisfy` p
@@ -109,7 +108,7 @@ spec_user = describe "user" $ do
             checkEmail uid $ not . (==) newEmail
             void . runPrivs [UserA uid] sta $ requestUserEmailChange uid newEmail (const "")
             checkEmail uid $ not . (==) newEmail
-            [Only token] <- doQuery conns
+            [Only token] <- doQuery (sta ^. aStDb)
                 [sql| SELECT token FROM email_change_tokens WHERE uid = ?|] (Only uid)
             void . runWithoutPrivs sta $ confirmUserEmailChange token
             checkEmail uid $ (==) newEmail
@@ -210,19 +209,17 @@ spec_captcha :: SpecWith ActionState
 spec_captcha = describe "captcha" $ do
     describe "solveCaptcha" $ do
         it "returns true but doesn't delete the captcha if the solution is correct" $ \sta -> do
-            let ActionState (conns, _, _) = sta
-            void $ runVoidedQuery conns $ T.storeCaptcha cid solution
+            void $ runVoidedQuery (sta ^. aStDb) $ T.storeCaptcha cid solution
             captchaResult <- runA sta $ solveCaptcha cid solution
             captchaResult `shouldBe` True
-            [Only count] <- doQuery conns
+            [Only count] <- doQuery (sta ^. aStDb)
                 [sql| SELECT COUNT(*) FROM captchas WHERE id = ?|] (Only cid)
             count `shouldBe` (1 :: Int)
         it "returns false and deletes the captcha if the solution is wrong" $ \sta -> do
-            let ActionState (conns, _, _) = sta
-            void $ runVoidedQuery conns $ T.storeCaptcha cid solution
+            void $ runVoidedQuery (sta ^. aStDb) $ T.storeCaptcha cid solution
             captchaResult <- runA sta $ solveCaptcha cid "wrong"
             captchaResult `shouldBe` False
-            [Only count] <- doQuery conns
+            [Only count] <- doQuery (sta ^. aStDb)
                 [sql| SELECT COUNT(*) FROM captchas WHERE id = ?|] (Only cid)
             count `shouldBe` (0 :: Int)
   where
