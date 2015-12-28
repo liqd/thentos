@@ -1,15 +1,17 @@
 {- Safe -}
 
-{-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE DeriveFunctor               #-}
+{-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE PackageImports              #-}
+{-# LANGUAGE TemplateHaskell             #-}
 
 module Thentos.Action.Types where
 
 import Control.Concurrent (MVar)
 import Control.Exception (Exception, SomeException)
+import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError, catchError)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, ask, local)
@@ -29,13 +31,16 @@ import Thentos.Types
 import Thentos.Config
 
 
--- FIXME: we should make this a record (instead of a newtype around a tuple)
--- so we can get the fields without having to pattern-match
-newtype ActionState =
+data ActionState =
     ActionState
-      { fromActionState :: (Pool Connection, MVar ChaChaDRG, ThentosConfig)
+      { _aStConfig  :: ThentosConfig
+      , _aStRandom  :: MVar ChaChaDRG
+      , _aStDb      :: Pool Connection
       }
   deriving (Generic)
+
+makeLenses ''ActionState
+
 
 -- | The 'Action' monad transformer stack.  It contains:
 --

@@ -91,11 +91,11 @@ unsafeAction uaction = construct deconstruct
 
 query :: ThentosQuery e v -> UnsafeAction e s v
 query u = do
-    ActionState (connPool, _, _) <- UnsafeAction ask
+    ActionState _ _ connPool <- UnsafeAction ask
     liftIO (withResource connPool (`runThentosQuery` u)) >>= either throwError return
 
 getConfig :: UnsafeAction e s ThentosConfig
-getConfig = (\(ActionState (_, _, c)) -> c) <$> UnsafeAction ask
+getConfig = (^. aStConfig) <$> UnsafeAction ask
 
 getCurrentTime :: UnsafeAction e s Timestamp
 getCurrentTime = Timestamp <$> liftIO Thyme.getCurrentTime
@@ -105,8 +105,8 @@ genRandomBytes :: Int -> UnsafeAction e s SBS
 genRandomBytes i = do
     let f :: ChaChaDRG -> (ChaChaDRG, SBS)
         f r = case randomBytesGenerate i r of (output, r') -> (r', output)
-    ActionState (_, mr, _) <- UnsafeAction ask
-    liftIO . modifyMVar mr $ return . f
+    as <- UnsafeAction ask
+    liftIO . modifyMVar (as ^. aStRandom) $ return . f
 
 makeUserFromFormData :: UserFormData -> UnsafeAction e s User
 makeUserFromFormData = liftIO . TU.makeUserFromFormData

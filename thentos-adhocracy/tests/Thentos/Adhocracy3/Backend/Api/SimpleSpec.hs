@@ -243,7 +243,7 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        as@(ActionState (connPool, _, cfg)) <- createActionState "test_thentosa3" thentosTestConfig
+        as@(ActionState cfg _ connPool) <- createActionState "test_thentosa3" thentosTestConfig
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
         ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $

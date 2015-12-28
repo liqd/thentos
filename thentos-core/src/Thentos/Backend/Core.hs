@@ -8,6 +8,7 @@
 module Thentos.Backend.Core
 where
 
+import Control.Lens ((^.))
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
@@ -87,8 +88,7 @@ enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toSer
     allowedIps = mapM (unsafeLiftIO . inet_addr . cs) ts
         where
             ts :: [ST]
-            ts = fromMaybe [] $ case actionState of
-                ActionState (_, _, cfg) -> cfg >>. (Proxy :: Proxy '["allow_ips"])
+            ts = fromMaybe [] $ (actionState ^. aStConfig) >>. (Proxy :: Proxy '["allow_ips"])
 
 
 -- * error handling

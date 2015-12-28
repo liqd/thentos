@@ -181,7 +181,7 @@ runTokenBuilderState = unsafePerformIO $ do
     rng  <- drgNew >>= newMVar
     conn <- pure $ error "runTokenBuilder: no db"
     cfg  <- pure $ error "runTokenBuilder: no config"
-    return $ Action.ActionState (conn, rng, cfg)
+    return $ Action.ActionState cfg rng conn
 
 
 -- * instances for servant-docs

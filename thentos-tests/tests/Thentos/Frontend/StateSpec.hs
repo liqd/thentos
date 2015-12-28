@@ -89,7 +89,7 @@ spec_frontendState = do
 
     describe "the FAction monad, via warp" . around (withFrontendAndBackend "thentos_test_db") $ do
         let mkurl :: ActionState -> ST -> String
-            mkurl (ActionState (_, _, cfg)) = cs . (exposeUrl (getFrontendConfig cfg) <//>)
+            mkurl as = cs . (exposeUrl (getFrontendConfig (as ^. aStConfig)) <//>)
 
             post :: ActionState -> Maybe ST -> Maybe ST -> IO (Wreq.Response LBS)
             post astate name pass = liftIO . Wreq.post (mkurl astate "/user/login") . catMaybes $
