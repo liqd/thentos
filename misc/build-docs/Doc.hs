@@ -6,7 +6,7 @@
 -- | To generate and publish new docs, make sure your working copy is clean, chdir to the root of
 -- the git repo, and do this:
 --
--- >>> ./misc/thentos-install.sh
+-- >>> ./misc/thentos-install.hs
 -- >>> cabal exec -- ghc --make -main-is Doc misc/build-docs/Doc.hs
 -- >>> git checkout gh-pages
 -- >>> misc/build-docs/Doc

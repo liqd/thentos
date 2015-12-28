@@ -168,9 +168,7 @@ ln -s /usr/bin/nodejs /usr/bin/node
 Now run the installation script and the tests:
 
 ```shell
-$ ./misc/thentos-install.sh
-$ cd thentos-tests && cabal test
-$ cd thentos-adhocracy && cabal test
+$ ./misc/thentos-install.hs
 ```
 
 This will take a while, as it will pull and build a lot of library
@@ -182,13 +180,13 @@ to work (see there for more details and links to the download page),
 or do without that part of the test suite:
 
 ```shell
-$ cabal test --test-options="--skip selenium"
+$ ./misc/thentos-install.hs -c '--test-options="--skip selenium"'
 ```
 
 If you want to use vagrant to run Thentos in a virtual machine, visit
 https://github.com/tarleb/thentos-vagrant.
 
-If you run into any problems, you can check `.travis.yml` on an
+If you run into any problems, you can check `.travis.yml` for an
 up-to-date way of getting all the dependencies installed.
 
 

@@ -46,7 +46,7 @@ git submodule update --init
 And (assuming you're using sandboxes, and not stack):
 
 ```shell
-misc/thentos-install.sh
+misc/thentos-install.hs
 ```
 
 ## Running Thentos
@@ -129,7 +129,7 @@ in the before-version and the now-version, resp.
 `/thentos-purescript` contains frontend code to be run in the browser.
 It can be distributed via the `thentos-core` module
 `Thentos.Backend.Api.Purescript` (see test suite for examples).
-`./misc/thentos-install.sh` should build everything for you.  To watch
+`./misc/thentos-install.hs` should build everything for you.  To watch
 it, make sure that the `purescript` field in `devel.config` is aimed
 in the right direction and open browser at the backend under `/js/`.
 
@@ -194,7 +194,7 @@ do not, you can still use this to generate the documentation, but you
 can't publish it.)
 
 ```shell
-$ ./misc/thentos-install.sh -c "--enable-documentation --force-reinstalls"
+$ ./misc/thentos-install.hs -c "--enable-documentation --force-reinstalls"
 $ cabal exec -- ghc --make -main-is Doc misc/build-docs/Doc.hs
 $ git checkout gh-pages
 ```

@@ -13,7 +13,7 @@
 --     - the deployed binary.
 --     - with hspec's sensei (via the `Makefile` rules in the git repo root).
 --     - interactively (via the repl rules, same `Makefile`).
---     - the test suite (cabal `cabal test` or `./misc/thentos-install.sh`).
+--     - the test suite (cabal `cabal test` or `./misc/thentos-install.hs`).
 --     - via TH splices that run during compile time (e.g., to compile css source files as byte
 --       strings into the executable)
 --
