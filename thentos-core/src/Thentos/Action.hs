@@ -533,15 +533,6 @@ thentosSessionAndUserIdByToken_ tok = do
         UserA uid -> return (session, uid)
         ServiceA sid -> throwError $ NeedUserA tok sid
 
-serviceSessionUser_ :: ServiceSessionToken -> Action e s UserId
-serviceSessionUser_ tok = do
-    serviceSession <- lookupServiceSession tok
-    let thentosSessionToken = serviceSession ^. srvSessThentosSession
-    thentosSession <- lookupThentosSession_ thentosSessionToken
-    case thentosSession ^. thSessAgent of
-        UserA uid -> return uid
-        ServiceA sid -> throwError $ NeedUserA thentosSessionToken sid
-
 -- | Register a user with a service.  Requires 'RoleAdmin' or user privs.
 --
 -- FIXME: We do not ask for any authorization from 'ServiceId' as of now.  It is enough to know a
