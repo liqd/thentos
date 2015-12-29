@@ -413,8 +413,8 @@ lookupThentosSession token = do
             in return ( token
                       , ThentosSession agent start end period
                       )
-        []                          -> throwError NoSuchThentosSession
-        _                           -> impossible "lookupThentosSession: multiple results"
+        [] -> throwError NoSuchThentosSession
+        _  -> impossible "lookupThentosSession: multiple results"
 
 -- | Start a new thentos session. Start time is set to now, end time is calculated based on the
 -- specified 'Timeout'. If the agent is a user, this new session is added to their existing
