@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
-module Thentos.Backend.Api.PurescriptSpec (spec, tests)
+module Thentos.Backend.Api.PureScriptSpec (spec, tests)
 where
 
 import Control.Lens ((^.))
@@ -38,14 +38,14 @@ import Thentos.Action.Types
 import Thentos.Test.Config
 import Thentos.Test.Core
 
-import qualified Thentos.Backend.Api.Purescript as Purescript
+import qualified Thentos.Backend.Api.PureScript as PureScript
 
 
 tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "Thentos.Backend.Api.Purescript" specPurescript
+spec = describe "Thentos.Backend.Api.PureScript" specPurescript
 
 specPurescript :: Spec
 specPurescript = do
@@ -94,8 +94,8 @@ defaultApp havePurescript = do
     as <- createActionState "test_thentos" thentosTestConfig
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 
-type Api = "js" :> Purescript.Api
+type Api = "js" :> PureScript.Api
 
 api :: Bool -> ActionState -> Server Api
-api True as = Purescript.api (as ^. aStConfig)
-api False _ = Purescript.api' Nothing
+api True as = PureScript.api (as ^. aStConfig)
+api False _ = PureScript.api' Nothing

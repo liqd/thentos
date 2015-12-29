@@ -36,7 +36,7 @@ import Thentos.Ends.Types
 import Thentos.Types
 
 import qualified Paths_thentos_core__ as Paths
-import qualified Thentos.Backend.Api.Purescript as Purs
+import qualified Thentos.Backend.Api.PureScript as Purs
 
 
 -- * main
