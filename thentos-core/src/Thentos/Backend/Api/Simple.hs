@@ -27,7 +27,7 @@ import qualified Servant.Foreign as F
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState(ActionState), Action, aStConfig)
+import Thentos.Action.Types (ActionState, Action, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
