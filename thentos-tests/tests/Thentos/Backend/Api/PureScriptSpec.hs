@@ -56,7 +56,7 @@ specPurescript = around_ withLogger $ do
         it "response has right status, body, headers" $ do
             liftIO $ writeFile jsFile body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 200
-            get (cs $ "/js" </> jsFile) `shouldRespondWith` (fromString body)
+            get (cs $ "/js" </> jsFile) `shouldRespondWith` fromString body
             resp <- get (cs $ "/js" </> jsFile)
             liftIO $ simpleHeaders resp `shouldContain` [("Content-Type", "application/javascript")]
 
