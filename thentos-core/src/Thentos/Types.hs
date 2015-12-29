@@ -356,7 +356,6 @@ data Persona = Persona
   , _personaName        :: PersonaName
   , _personaUid         :: UserId
   , _personaExternalUrl :: Maybe Uri
-      -- FIXME: needs better explanation/name.  call it `_personaHomeContext`?
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
