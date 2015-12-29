@@ -649,14 +649,14 @@ contextsForService sid = queryA $ T.contextsForService sid
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
 -- Only a GroupAdmin may do this.
-addPersonaToGroup :: PersonaId -> Group -> Action e s ()
+addPersonaToGroup :: PersonaId -> ServiceGroup -> Action e s ()
 addPersonaToGroup pid group = do
     assertAuth $ hasRole RoleGroupAdmin
     queryA $ T.addPersonaToGroup pid group
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
 -- Only a GroupAdmin may do this.
-removePersonaFromGroup :: PersonaId -> Group -> Action e s ()
+removePersonaFromGroup :: PersonaId -> ServiceGroup -> Action e s ()
 removePersonaFromGroup pid group = do
     assertAuth $ hasRole RoleGroupAdmin
     queryA $ T.removePersonaFromGroup pid group
@@ -665,14 +665,14 @@ removePersonaFromGroup pid group = do
 -- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
 -- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
 -- Only a GroupAdmin may do this.
-addGroupToGroup :: Group -> Group -> Action e s ()
+addGroupToGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 addGroupToGroup subgroup supergroup = do
     assertAuth $ hasRole RoleGroupAdmin
     queryA $ T.addGroupToGroup subgroup supergroup
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing. Only a GroupAdmin may do this.
-removeGroupFromGroup :: Group -> Group -> Action e s ()
+removeGroupFromGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 removeGroupFromGroup subgroup supergroup = do
     assertAuth $ hasRole RoleGroupAdmin
     queryA $ T.removeGroupFromGroup subgroup supergroup
@@ -680,7 +680,7 @@ removeGroupFromGroup subgroup supergroup = do
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
 -- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
 -- Only the user owning the persona or a GroupAdmin may do this.
-personaGroups :: Persona -> Action e s [Group]
+personaGroups :: Persona -> Action e s [ServiceGroup]
 personaGroups persona = do
     assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole RoleGroupAdmin
     queryA $ T.personaGroups (persona ^. personaId)

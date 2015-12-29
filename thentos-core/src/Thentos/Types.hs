@@ -26,7 +26,7 @@ module Thentos.Types
     , ServiceKey(..)
     , ServiceName(..)
     , ServiceDescription(..)
-    , Group(..)
+    , ServiceGroup(..)
 
     , PersonaId(..)
     , PersonaName(..)
@@ -330,12 +330,12 @@ instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 -- the internals of the service) is that this puts us in a position to do anonymized authentication:
 -- we can assert a request is issued by a user member in a certain group, but not leak the name of
 -- the user.
-newtype Group = Group { fromGroup :: ST }
+newtype ServiceGroup = ServiceGroup { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
-instance Aeson.FromJSON Group where parseJSON = Aeson.withText "group string" (pure . Group)
+instance Aeson.FromJSON ServiceGroup where parseJSON = Aeson.withText "group string" (pure . ServiceGroup)
 
-instance Aeson.ToJSON Group where toJSON (Group name) = Aeson.toJSON name
+instance Aeson.ToJSON ServiceGroup where toJSON (ServiceGroup name) = Aeson.toJSON name
 
 
 -- * persona and context
@@ -552,7 +552,7 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
--- | Thentos-internal authorization classes.  (See 'Group' for service-side authorization classes.)
+-- | Thentos-internal authorization classes.  (See 'ServiceGroup' for service-side authorization classes.)
 data Role =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
@@ -751,7 +751,7 @@ data ThentosError e =
     | NoSuchPersona
     | NoSuchContext
     | MultiplePersonasPerContext
-    | GroupMembershipLoop Group Group
+    | GroupMembershipLoop ServiceGroup ServiceGroup
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService

@@ -337,7 +337,7 @@ contextsForService sid = map mkContext <$>
     mkContext (cxtId, name, description, mUrl) = Context cxtId sid name description mUrl
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
-addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()
+addPersonaToGroup :: PersonaId -> ServiceGroup -> ThentosQuery e ()
 addPersonaToGroup pid group = catchViolation catcher' . void $
     execT [sql| INSERT INTO persona_groups (pid, grp) VALUES (?, ?) |] (pid, group)
   where
@@ -345,14 +345,14 @@ addPersonaToGroup pid group = catchViolation catcher' . void $
     catcher' e _                                              = throwIO e
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
-removePersonaFromGroup :: PersonaId -> Group -> ThentosQuery e ()
+removePersonaFromGroup :: PersonaId -> ServiceGroup -> ThentosQuery e ()
 removePersonaFromGroup pid group = void $
     execT [sql| DELETE FROM persona_groups WHERE pid = ? AND grp = ? |] (pid, group)
 
 -- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
 -- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
 -- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
-addGroupToGroup :: Group -> Group -> ThentosQuery e ()
+addGroupToGroup :: ServiceGroup -> ServiceGroup -> ThentosQuery e ()
 addGroupToGroup subgroup supergroup = do
     -- Find all groups in which supergroup is a member and make sure that subgroup is not one
     -- of them
@@ -375,13 +375,13 @@ addGroupToGroup subgroup supergroup = do
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing.
-removeGroupFromGroup :: Group -> Group -> ThentosQuery e ()
+removeGroupFromGroup :: ServiceGroup -> ServiceGroup -> ThentosQuery e ()
 removeGroupFromGroup subgroup supergroup = void $ execT
     [sql| DELETE FROM group_tree WHERE subgroup = ? AND supergroup = ? |] (subgroup, supergroup)
 
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
 -- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
-personaGroups :: PersonaId -> ThentosQuery e [Group]
+personaGroups :: PersonaId -> ThentosQuery e [ServiceGroup]
 personaGroups pid = map fromOnly <$>
     queryT [sql| WITH RECURSIVE groups(name) AS (
             -- Non-recursive term
