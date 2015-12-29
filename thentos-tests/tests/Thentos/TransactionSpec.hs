@@ -117,7 +117,7 @@ addUserSpec = describe "addUser" $ do
 
     it "adds a user to the database" $ \connPool -> do
         void $ runVoidedQuery connPool $ mapM_ addUser testUsers
-        let names = _userName <$> testUsers
+        let names = (^. userName) <$> testUsers
         Right res <- runVoidedQuery connPool $ mapM lookupConfirmedUserByName names
         (snd <$> res) `shouldBe` testUsers
 
@@ -266,7 +266,7 @@ changePasswordSpec = describe "changePassword" $ do
         Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runVoidedQuery connPool $ changePassword userId newPass
         Right (_, usr) <- runVoidedQuery connPool $ lookupConfirmedUser userId
-        _userPassword usr `shouldBe` newPass
+        usr ^. userPassword `shouldBe` newPass
 
     it "fails if the user doesn't exist" $ \connPool -> do
         Left err <- runVoidedQuery connPool $ changePassword userId newPass
@@ -877,7 +877,7 @@ addPersonaToGroupSpec = describe "addPersonaToGroup" $ do
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
         [(pid, grp)] <- doQuery connPool [sql| SELECT pid, grp FROM persona_groups |] ()
         pid `shouldBe` persona ^. personaId
-        grp `shouldBe` ("dummy" :: Group)
+        grp `shouldBe` ("dummy" :: ServiceGroup)
 
     it "no-op if the persona is already a member of the group" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
@@ -911,8 +911,8 @@ addGroupToGroupSpec = describe "addGroupToGroup" $ do
         Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
         [(supergroup, subgroup)] <- doQuery connPool
             [sql| SELECT supergroup, subgroup FROM group_tree |] ()
-        supergroup `shouldBe` ("user" :: Group)
-        subgroup `shouldBe` ("admin" :: Group)
+        supergroup `shouldBe` ("user" :: ServiceGroup)
+        subgroup `shouldBe` ("admin" :: ServiceGroup)
 
     it "no-op if subgroup is already a direct member of supergroup" $ \connPool -> do
         Right () <- runVoidedQuery connPool $ addGroupToGroup "admin" "user"
@@ -958,7 +958,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "user"
         Right groups  <- runVoidedQuery connPool $ personaGroups pid
-        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user"]
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user"]
 
     it "includes indirect group memberships" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
@@ -968,7 +968,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Right ()      <- runVoidedQuery connPool $ addGroupToGroup "admin" "trustedUser"
         Right ()      <- runVoidedQuery connPool $ addGroupToGroup "trustedUser" "user"
         Right groups  <- runVoidedQuery connPool $ personaGroups pid
-        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user", "trustedUser"]
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user", "trustedUser"]
 
     it "eliminates duplicates" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
@@ -980,7 +980,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Right ()      <- runVoidedQuery connPool $ addGroupToGroup "trustedUser" "user"
         Right groups  <- runVoidedQuery connPool $ personaGroups pid
         length groups `shouldBe` length (Set.fromList groups)
-        Set.fromList groups `shouldBe` Set.fromList ["admin" :: Group, "user", "trustedUser"]
+        Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user", "trustedUser"]
 
     it "lists no groups if a persona doesn't belong to any" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)

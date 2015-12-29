@@ -27,7 +27,7 @@ import qualified Servant.Foreign as F
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState(ActionState), Action, aStConfig)
+import Thentos.Action.Types (ActionState, Action, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -36,7 +36,7 @@ import Thentos.Ends.Types
 import Thentos.Types
 
 import qualified Paths_thentos_core__ as Paths
-import qualified Thentos.Backend.Api.Purescript as Purs
+import qualified Thentos.Backend.Api.PureScript as Purs
 
 
 -- * main

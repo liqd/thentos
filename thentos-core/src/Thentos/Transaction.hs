@@ -337,7 +337,7 @@ contextsForService sid = map mkContext <$>
     mkContext (cxtId, name, description, mUrl) = Context cxtId sid name description mUrl
 
 -- | Add a persona to a group. If the persona is already a member of the group, do nothing.
-addPersonaToGroup :: PersonaId -> Group -> ThentosQuery e ()
+addPersonaToGroup :: PersonaId -> ServiceGroup -> ThentosQuery e ()
 addPersonaToGroup pid group = catchViolation catcher' . void $
     execT [sql| INSERT INTO persona_groups (pid, grp) VALUES (?, ?) |] (pid, group)
   where
@@ -345,14 +345,14 @@ addPersonaToGroup pid group = catchViolation catcher' . void $
     catcher' e _                                              = throwIO e
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
-removePersonaFromGroup :: PersonaId -> Group -> ThentosQuery e ()
+removePersonaFromGroup :: PersonaId -> ServiceGroup -> ThentosQuery e ()
 removePersonaFromGroup pid group = void $
     execT [sql| DELETE FROM persona_groups WHERE pid = ? AND grp = ? |] (pid, group)
 
 -- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
 -- be considered members of supergroup. If subgroup is already a direct member of supergroup, do
 -- nothing. Throws 'GroupMembershipLoop' if adding the relation would cause a loop.
-addGroupToGroup :: Group -> Group -> ThentosQuery e ()
+addGroupToGroup :: ServiceGroup -> ServiceGroup -> ThentosQuery e ()
 addGroupToGroup subgroup supergroup = do
     -- Find all groups in which supergroup is a member and make sure that subgroup is not one
     -- of them
@@ -375,13 +375,13 @@ addGroupToGroup subgroup supergroup = do
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing.
-removeGroupFromGroup :: Group -> Group -> ThentosQuery e ()
+removeGroupFromGroup :: ServiceGroup -> ServiceGroup -> ThentosQuery e ()
 removeGroupFromGroup subgroup supergroup = void $ execT
     [sql| DELETE FROM group_tree WHERE subgroup = ? AND supergroup = ? |] (subgroup, supergroup)
 
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
 -- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
-personaGroups :: PersonaId -> ThentosQuery e [Group]
+personaGroups :: PersonaId -> ThentosQuery e [ServiceGroup]
 personaGroups pid = map fromOnly <$>
     queryT [sql| WITH RECURSIVE groups(name) AS (
             -- Non-recursive term
@@ -413,8 +413,8 @@ lookupThentosSession token = do
             in return ( token
                       , ThentosSession agent start end period
                       )
-        []                          -> throwError NoSuchThentosSession
-        _                           -> impossible "lookupThentosSession: multiple results"
+        [] -> throwError NoSuchThentosSession
+        _  -> impossible "lookupThentosSession: multiple results"
 
 -- | Start a new thentos session. Start time is set to now, end time is calculated based on the
 -- specified 'Timeout'. If the agent is a user, this new session is added to their existing
@@ -497,9 +497,9 @@ endServiceSession token =
 
 -- * agents and roles
 
--- | Add a new role to the roles defined for an 'Agent'.  If 'Role' is already assigned to
+-- | Add a new role to the roles defined for an 'Agent'.  If 'Group' is already assigned to
 -- 'Agent', do nothing.
-assignRole :: Agent -> Role -> ThentosQuery e ()
+assignRole :: Agent -> Group -> ThentosQuery e ()
 assignRole agent role = case agent of
     ServiceA sid -> catchViolation catcher' $
         void $ execT [sql| INSERT INTO service_roles (sid, role)
@@ -513,9 +513,9 @@ assignRole agent role = case agent of
     catcher' _ (UniqueViolation "service_roles_sid_role_key") = return ()
     catcher' e _                                           = throwIO e
 
--- | Remove a 'Role' from the roles defined for an 'Agent'.  If 'Role' is not assigned to 'Agent',
+-- | Remove a 'Group' from the roles defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
 -- do nothing.
-unassignRole :: Agent -> Role -> ThentosQuery e ()
+unassignRole :: Agent -> Group -> ThentosQuery e ()
 unassignRole agent role = case agent of
     ServiceA sid -> void $ execT
         [sql| DELETE FROM service_roles WHERE sid = ? AND role = ? |] (sid, role)
@@ -523,8 +523,8 @@ unassignRole agent role = case agent of
         void $ execT [sql| DELETE FROM user_roles WHERE uid = ? AND role = ? |]
                            (uid, role)
 
--- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
-agentRoles :: Agent -> ThentosQuery e [Role]
+-- | All 'Group's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
+agentRoles :: Agent -> ThentosQuery e [Group]
 agentRoles agent = case agent of
     ServiceA sid -> do
         roles <- queryT [sql| SELECT role FROM service_roles WHERE sid = ? |]

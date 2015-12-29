@@ -28,14 +28,14 @@ withCurrentDirectory dir cmd = do
     setCurrentDirectory previous
     return r
 
-main :: IO ExitCode
+main :: IO ()
 main = do
     args <- getCliArgs
     rootPath <- changeToProjectRoot
-    exitValues <- newMVar ExitSuccess
+    exitCode <- newMVar ExitSuccess
 
     let storeResult :: ExitCode -> IO ()
-        storeResult e = modifyMVar exitValues $ \e' -> return (max e e', ())
+        storeResult e = modifyMVar exitCode $ \e' -> return (max e e', ())
 
     gitSubmodules
     cabalSandbox rootPath
@@ -68,7 +68,7 @@ main = do
                           when (ec == ExitSuccess)
                               (system "cabal test" >>= storeResult)
 
-    readMVar exitValues
+    readMVar exitCode >>= exitWith
 
 
 -- * config section

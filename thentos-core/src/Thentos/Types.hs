@@ -26,7 +26,7 @@ module Thentos.Types
     , ServiceKey(..)
     , ServiceName(..)
     , ServiceDescription(..)
-    , Group(..)
+    , ServiceGroup(..)
 
     , PersonaId(..)
     , PersonaName(..)
@@ -51,7 +51,7 @@ module Thentos.Types
     , secondsToString, secondsFromString
 
     , Agent(..)
-    , Role(..)
+    , Group(..)
 
     , RelRef(..)
     , Uri(..), parseUri, renderUri
@@ -323,19 +323,19 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
--- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Role'.)
+-- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Group'.)
 --
 -- Groups are opaque strings that services can use to manage authorizations for their users in
 -- thentos.  One reason why thentos offers this (rather than leaving the groups-to-users mapping to
 -- the internals of the service) is that this puts us in a position to do anonymized authentication:
 -- we can assert a request is issued by a user member in a certain group, but not leak the name of
 -- the user.
-newtype Group = Group { fromGroup :: ST }
+newtype ServiceGroup = ServiceGroup { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
-instance Aeson.FromJSON Group where parseJSON = Aeson.withText "group string" (pure . Group)
+instance Aeson.FromJSON ServiceGroup where parseJSON = Aeson.withText "group string" (pure . ServiceGroup)
 
-instance Aeson.ToJSON Group where toJSON (Group name) = Aeson.toJSON name
+instance Aeson.ToJSON ServiceGroup where toJSON (ServiceGroup name) = Aeson.toJSON name
 
 
 -- * persona and context
@@ -356,7 +356,6 @@ data Persona = Persona
   , _personaName        :: PersonaName
   , _personaUid         :: UserId
   , _personaExternalUrl :: Maybe Uri
-      -- FIXME: needs better explanation/name.  call it `_personaHomeContext`?
   } deriving (Eq, Show, Typeable, Generic)
 
 newtype ContextId = ContextId { fromContextId :: Integer }
@@ -552,12 +551,12 @@ data Agent = UserA !UserId | ServiceA !ServiceId
 instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
--- | Thentos-internal authorization classes.  (See 'Group' for service-side authorization classes.)
-data Role =
+-- | Thentos-internal authorization classes.  (See 'ServiceGroup' for service-side authorization classes.)
+data Group =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
-    -- 'Role'.)
+    -- 'Group'.)
 
   | RoleUser
     -- ^ Can sign up with services
@@ -572,16 +571,16 @@ data Role =
     -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
-instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
-instance ToCNF Role where toCNF = toCNF . show
+instance ToCNF Group where toCNF = toCNF . show
 
-instance ToField Role where
+instance ToField Group where
     toField = toField . show
 
-instance FromField Role where
+instance FromField Group where
     fromField f dat = do
         s <- fromField f dat
         case readMay s of
@@ -641,20 +640,20 @@ renderProxyUri (ProxyUri host port path) = "http://" <> host' <> port' <//> cs p
 parseProxyUri :: forall m . MonadError String m => ST -> m ProxyUri
 parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     Right uri -> do
-        when (schemeBS (uriScheme uri) /= "http") $ _fail "Expected http schema"
-        unless (null . queryPairs $ uriQuery uri) $ _fail "No query part allowed"
-        unless (isNothing $ uriFragment uri) $ _fail "No URI fragment allowed"
-        auth <- maybe (_fail "Missing URI authority") return $ uriAuthority uri
+        when (schemeBS (uriScheme uri) /= "http") $ fail_ "Expected http schema"
+        unless (null . queryPairs $ uriQuery uri) $ fail_ "No query part allowed"
+        unless (isNothing $ uriFragment uri) $ fail_ "No URI fragment allowed"
+        auth <- maybe (fail_ "Missing URI authority") return $ uriAuthority uri
         let host = authorityHost auth
             port = fromMaybe 80 $ portNumber <$> authorityPort auth
         return ProxyUri { proxyHost = hostBS host
                         , proxyPort = port
                         , proxyPath = uriPath uri
                         }
-    Left err -> _fail $ "Invalid URI: " ++ show err
+    Left err -> fail_ $ "Invalid URI: " ++ show err
   where
-    _fail :: String -> m a
-    _fail = throwError . ("parseProxyUri: " ++)
+    fail_ :: String -> m a
+    fail_ = throwError . ("parseProxyUri: " ++)
 
 instance Aeson.FromJSON ProxyUri
   where
@@ -751,7 +750,7 @@ data ThentosError e =
     | NoSuchPersona
     | NoSuchContext
     | MultiplePersonasPerContext
-    | GroupMembershipLoop Group Group
+    | GroupMembershipLoop ServiceGroup ServiceGroup
     | OperationNotPossibleInServiceSession
     | ServiceAlreadyExists
     | NotRegisteredWithService

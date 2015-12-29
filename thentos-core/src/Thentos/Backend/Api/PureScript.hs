@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds                                #-}
 {-# LANGUAGE OverloadedStrings                        #-}
 
-module Thentos.Backend.Api.Purescript where  -- FIXME: rename to "PureScript" (like the purescript hackage package)
+module Thentos.Backend.Api.PureScript where
 
 import Data.Configifier ((>>.))
 import Data.Proxy (Proxy(Proxy))

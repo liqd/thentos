@@ -78,7 +78,7 @@ import Thentos.Types
 import qualified Paths_thentos_adhocracy__ as Paths
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Types as AC
-import qualified Thentos.Backend.Api.Purescript
+import qualified Thentos.Backend.Api.PureScript
 
 
 -- * main
@@ -124,7 +124,7 @@ type ThentosApiWithWidgets =
 
 type Api =
        ThentosApi
-  :<|> "js" :> Thentos.Backend.Api.Purescript.Api
+  :<|> "js" :> Thentos.Backend.Api.PureScript.Api
   :<|> ServiceProxy
 
 -- | thentos-adhocracy's "Simple" api does not use thentos-core's "Auth" functionality, which is
@@ -158,7 +158,7 @@ thentosApiWithWidgets =
 api :: Client.Manager -> AC.ActionState -> Server Api
 api manager actionState@(AC.ActionState cfg _ _) =
        thentosApi actionState
-  :<|> Thentos.Backend.Api.Purescript.api cfg
+  :<|> Thentos.Backend.Api.PureScript.api cfg
   :<|> serviceProxy manager a3ProxyAdapter actionState
 
 

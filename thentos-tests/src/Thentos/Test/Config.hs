@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators     #-}
 
 module Thentos.Test.Config
@@ -12,10 +11,8 @@ import Data.Configifier
     ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), Source(YamlString), configify)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST, cs)
-import System.FilePath ((</>))
 import System.IO.Unsafe (unsafePerformIO)
 
-import Paths_thentos_core__ (getPackageSourceRoot)
 import Thentos.Config
 import Thentos (createDefaultUser)
 import Thentos.Types
@@ -41,8 +38,6 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    bind_host: \"127.0.0.1\"" :
     "    expose_port: 7119" :
     "    expose_host: \"127.0.0.1\"" :
-    "" :
-    ("purescript: " ++ $(getPackageSourceRoot "thentos-purescript") </> "static") :
     "" :
     "smtp:" :
     "    sender_name: \"Thentos\"" :

@@ -126,7 +126,7 @@ type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> UserEmail)
-  :*> Maybe ("roles"    :> [Role])
+  :*> Maybe ("roles"    :> [Group])
 
 type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
@@ -206,14 +206,14 @@ getProxyConfigMap cfg = fromMaybe Map.empty $ (Map.fromList . fmap (exposeKey . 
     exposeKey w = (ServiceId (w >>. (Proxy :: Proxy '["service_id"])), w)
 
 bindUrl :: HttpConfig -> ST
-bindUrl cfg = _renderUrl bs bh bp
+bindUrl cfg = renderUrl_ bs bh bp
   where
     bs = cfg >>. (Proxy :: Proxy '["bind_schema"])
     bh = cfg >>. (Proxy :: Proxy '["bind_host"])
     bp = cfg >>. (Proxy :: Proxy '["bind_port"])
 
 exposeUrl :: HttpConfig -> ST
-exposeUrl cfg = _renderUrl bs bh bp
+exposeUrl cfg = renderUrl_ bs bh bp
   where
     bs = cfg >>. (Proxy :: Proxy '["expose_schema"]) <|> cfg >>. (Proxy :: Proxy '["bind_schema"])
     bh = fromMaybe (cfg >>. (Proxy :: Proxy '["bind_host"])) (cfg >>. (Proxy :: Proxy '["expose_host"]))
@@ -222,8 +222,8 @@ exposeUrl cfg = _renderUrl bs bh bp
 extractTargetUrl :: ProxyConfig -> ProxyUri
 extractTargetUrl proxy = proxy >>. (Proxy :: Proxy '["endpoint"])
 
-_renderUrl :: Maybe HttpSchema -> ST -> Int -> ST
-_renderUrl mSchema host port = go (fromMaybe Http mSchema) port
+renderUrl_ :: Maybe HttpSchema -> ST -> Int -> ST
+renderUrl_ mSchema host port = go (fromMaybe Http mSchema) port
   where
     go Http   80  = "http://" <> host <> "/"
     go Https  443 = "https://" <> host <> "/"
@@ -239,7 +239,7 @@ getUserData cfg = UserFormData
     (UserPass  (cfg >>. (Proxy :: Proxy '["password"])))
     (cfg >>. (Proxy :: Proxy '["email"]))
 
-getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
+getDefaultUser :: DefaultUserConfig -> (UserFormData, [Group])
 getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))
 
 

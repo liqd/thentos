@@ -101,7 +101,7 @@ csrfProofForm _ v action = form v action . (<> csrfField)
 -- logged in.  The dashboard body shows further specifics.  It is the
 -- caller's responsibility to make sure that dashboard state and body
 -- correspond.
-dashboardPagelet :: FrontendSessionData -> [Role] -> Html -> Html
+dashboardPagelet :: FrontendSessionData -> [Group] -> Html -> Html
 dashboardPagelet fsd availableRoles body =
     basePagelet fsd "Thentos Dashboard" $ do
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
@@ -126,7 +126,7 @@ dashboardPagelet fsd availableRoles body =
         urlt :: H.AttributeValue
         urlt = H.textValue $ linkUrl tab
 
-    needsRoles :: DashboardTab -> [Role]
+    needsRoles :: DashboardTab -> [Group]
     needsRoles DashboardTabDetails = []
     needsRoles DashboardTabServices = [RoleUser]
     needsRoles DashboardTabOwnServices = [RoleServiceAdmin]

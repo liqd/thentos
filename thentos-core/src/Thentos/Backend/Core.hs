@@ -357,10 +357,10 @@ loggerMW :: Middleware
 loggerMW app req cont = do
     logger DEBUG $ "serviceProxy response: " ++ show req
     app req (\resp -> do
-        logger DEBUG $ "serviceProxy response: " ++ _show resp
+        logger DEBUG $ "serviceProxy response: " ++ show_ resp
         cont resp)
   where
-    _show (ResponseFile s hs fp mfpart) = "ResponseFile " ++ show (s, hs, fp, mfpart)
-    _show (ResponseBuilder s hs _) = "ResponseBuilder " ++ show (s, hs)
-    _show (ResponseStream s hs _) = "ResponseStream " ++ show (s, hs)
-    _show (ResponseRaw _ resp) = "ResponseRaw " ++ _show resp
+    show_ (ResponseFile s hs fp mfpart) = "ResponseFile " ++ show (s, hs, fp, mfpart)
+    show_ (ResponseBuilder s hs _) = "ResponseBuilder " ++ show (s, hs)
+    show_ (ResponseStream s hs _) = "ResponseStream " ++ show (s, hs)
+    show_ (ResponseRaw _ resp) = "ResponseRaw " ++ show_ resp

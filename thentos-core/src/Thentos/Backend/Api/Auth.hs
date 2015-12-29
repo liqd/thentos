@@ -15,7 +15,7 @@
 -- >>>             -> ServerT api (Action)
 -- >>>             -> Maybe ThentosSessionToken
 -- >>>             -> Server api
--- >>> thentosAuth actionState _api mTok = enter (enterAction actionState mTok) _api
+-- >>> thentosAuth actionState api mTok = enter (enterAction actionState mTok) api
 --
 -- because then here we could write:
 --
