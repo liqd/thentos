@@ -26,7 +26,7 @@ module Thentos.Action
     , addPasswordResetToken
     , resetPassword
     , changePassword
-    , _changePasswordUnconditionally
+    , changePasswordUnconditionally_
     , requestUserEmailChange
     , confirmUserEmailChange
 
@@ -168,14 +168,13 @@ freshCaptchaId = CaptchaId <$> freshRandomName
 -- * user
 
 -- | Return a user with its id.  Requires or privileges of admin or the user that is looked up.  If
--- no user is found or access is not granted, throw 'NoSuchUser'.  See '_lookupUserCheckPassword' for
+-- no user is found or access is not granted, throw 'NoSuchUser'.  See 'lookupUserCheckPassword_' for
 -- user lookup prior to authentication.
 lookupConfirmedUser :: UserId -> Action e s (UserId, User)
-lookupConfirmedUser uid = _lookupUser $ T.lookupConfirmedUser uid
+lookupConfirmedUser uid = lookupUser_ $ T.lookupConfirmedUser uid
 
--- FIXME: trailing underscore is slightly bad (ghc gets confused if TypedHoles are enabled).
-_lookupUser :: ThentosQuery e (UserId, User) -> Action e s (UserId, User)
-_lookupUser transaction = do
+lookupUser_ :: ThentosQuery e (UserId, User) -> Action e s (UserId, User)
+lookupUser_ transaction = do
     val@(uid, _) <- queryA transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
         (return val)
@@ -183,11 +182,11 @@ _lookupUser transaction = do
 
 -- | Like 'lookupConfirmedUser', but based on 'UserName'.
 lookupConfirmedUserByName :: UserName -> Action e s (UserId, User)
-lookupConfirmedUserByName name = _lookupUser $ T.lookupConfirmedUserByName name
+lookupConfirmedUserByName name = lookupUser_ $ T.lookupConfirmedUserByName name
 
 -- | Like 'lookupConfirmedUser', but based on 'UserEmail'.
 lookupConfirmedUserByEmail :: UserEmail -> Action e s (UserId, User)
-lookupConfirmedUserByEmail email = _lookupUser $ T.lookupConfirmedUserByEmail email
+lookupConfirmedUserByEmail email = lookupUser_ $ T.lookupConfirmedUserByEmail email
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
@@ -268,7 +267,7 @@ confirmNewUser :: ConfirmationToken -> Action e s (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["user_reg_expiration"])) <$> U.unsafeAction U.getConfig
     uid <- queryA $ T.finishUserRegistration expiryPeriod token
-    sessionToken <- _startThentosSessionByAgent (UserA uid)
+    sessionToken <- startThentosSessionByAgent_ (UserA uid)
     return (uid, sessionToken)
 
 
@@ -297,9 +296,9 @@ resetPassword token password = do
 -- 'NoSuchUser' is translated into 'BadCredentials'.
 -- NOTE: This should not be exported from this module, as it allows access to
 -- the user map without any clearance.
-_lookupUserCheckPassword ::
+lookupUserCheckPassword_ ::
     ThentosQuery e (UserId, User) -> UserPass -> Action e s (UserId, User)
-_lookupUserCheckPassword transaction password = a `catchError` h
+lookupUserCheckPassword_ transaction password = a `catchError` h
   where
     a = do
         (uid, user) <- queryA transaction
@@ -319,7 +318,7 @@ _lookupUserCheckPassword transaction password = a `catchError` h
 -- user to change the password to be logged in (or admin privs).
 changePassword :: UserId -> UserPass -> UserPass -> Action e s ()
 changePassword uid old new = do
-    _ <- _lookupUserCheckPassword (T.lookupAnyUser uid) old
+    _ <- lookupUserCheckPassword_ (T.lookupAnyUser uid) old
     hashedPw <- U.unsafeAction $ U.hashUserPass new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     queryA $ T.changePassword uid hashedPw
@@ -330,8 +329,8 @@ changePassword uid old new = do
 -- implementation of #321.  If we would keep the current setup, we would pull the code calling the
 -- service into the wrapping action, and taint that with the obtained user id.  Once #321 has been
 -- implemented, we should have something analogous happening here in this module.)
-_changePasswordUnconditionally :: UserId -> UserPass -> Action e s ()
-_changePasswordUnconditionally uid newPw = do
+changePasswordUnconditionally_ :: UserId -> UserPass -> Action e s ()
+changePasswordUnconditionally_ uid newPw = do
     hashedPw <- U.unsafeAction $ U.hashUserPass newPw
     queryA $ T.changePassword uid hashedPw
 
@@ -427,14 +426,14 @@ defaultSessionTimeout = fromDays 14
 -- not allow access, throw 'NoSuchThentosSession'.
 lookupThentosSession :: ThentosSessionToken -> Action e s ThentosSession
 lookupThentosSession tok = do
-    session <- _lookupThentosSession tok
+    session <- lookupThentosSession_ tok
     tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
         (return session)
         (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
 
 -- | Find 'ThentosSession' from token, without clearance check.
-_lookupThentosSession :: ThentosSessionToken -> Action e s ThentosSession
-_lookupThentosSession tok = snd <$> queryA (T.lookupThentosSession tok)
+lookupThentosSession_ :: ThentosSessionToken -> Action e s ThentosSession
+lookupThentosSession_ tok = snd <$> queryA (T.lookupThentosSession tok)
 
 -- | Like 'lookupThentosSession', but does not throw an exception if thentos session does not exist
 -- or is inaccessible, but returns 'False' instead.
@@ -447,21 +446,21 @@ existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError
 -- '_startThentosSessionByAgent'.
 startThentosSessionByUserId :: UserId -> UserPass -> Action e s ThentosSessionToken
 startThentosSessionByUserId uid pass = do
-    _ <- _lookupUserCheckPassword (T.lookupConfirmedUser uid) pass
-    _startThentosSessionByAgent (UserA uid)
+    _ <- lookupUserCheckPassword_ (T.lookupConfirmedUser uid) pass
+    startThentosSessionByAgent_ (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
 startThentosSessionByUserName ::
     UserName -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
-    (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByName name) pass
-    (,) uid <$> _startThentosSessionByAgent (UserA uid)
+    (uid, _) <- lookupUserCheckPassword_ (T.lookupConfirmedUserByName name) pass
+    (,) uid <$> startThentosSessionByAgent_ (UserA uid)
 
 startThentosSessionByUserEmail ::
     UserEmail -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
-    (uid, _) <- _lookupUserCheckPassword (T.lookupConfirmedUserByEmail email) pass
-    (,) uid <$> _startThentosSessionByAgent (UserA uid)
+    (uid, _) <- lookupUserCheckPassword_ (T.lookupConfirmedUserByEmail email) pass
+    (,) uid <$> startThentosSessionByAgent_ (UserA uid)
 
 -- | Check service credentials and create a session for service.
 startThentosSessionByServiceId ::
@@ -471,7 +470,7 @@ startThentosSessionByServiceId sid key = a `catchError` h
     a = do
         (_, service) <- queryA (T.lookupService sid)
         unless (verifyKey key service) $ throwError BadCredentials
-        _startThentosSessionByAgent (ServiceA sid)
+        startThentosSessionByAgent_ (ServiceA sid)
 
     h NoSuchService =
         throwError BadCredentials
@@ -490,15 +489,15 @@ endThentosSession = queryA . T.endThentosSession
 -- know, therefore no special clearance is required.
 validateThentosUserSession :: ThentosSessionToken -> Action e s (UserId, User)
 validateThentosUserSession tok = do
-    session <- _lookupThentosSession tok
+    session <- lookupThentosSession_ tok
     case session ^. thSessAgent of
         UserA uid  -> queryA $ T.lookupConfirmedUser uid
         ServiceA _ -> throwError NoSuchThentosSession
 
 -- | Open a session for any agent. Also promotes the access rights accordingly.
 -- NOTE: This should only be called after verifying the agent's credentials
-_startThentosSessionByAgent :: Agent -> Action e s ThentosSessionToken
-_startThentosSessionByAgent agent = do
+startThentosSessionByAgent_ :: Agent -> Action e s ThentosSessionToken
+startThentosSessionByAgent_ agent = do
     tok <- freshSessionToken
     queryA $ T.startThentosSession tok agent defaultSessionTimeout
     U.extendClearanceOnAgent agent
@@ -526,19 +525,19 @@ existsServiceSession tok = (lookupServiceSession tok >> return True) `catchError
           e                    -> throwError e
 
 -- | (As soon as there is a good reason, we can export this.  just need to think about the label.)
-_thentosSessionAndUserIdByToken ::
+thentosSessionAndUserIdByToken_ ::
     ThentosSessionToken -> Action e s (ThentosSession, UserId)
-_thentosSessionAndUserIdByToken tok = do
+thentosSessionAndUserIdByToken_ tok = do
     session <- lookupThentosSession tok
     case session ^. thSessAgent of
         UserA uid -> return (session, uid)
         ServiceA sid -> throwError $ NeedUserA tok sid
 
-_serviceSessionUser :: ServiceSessionToken -> Action e s UserId
-_serviceSessionUser tok = do
+serviceSessionUser_ :: ServiceSessionToken -> Action e s UserId
+serviceSessionUser_ tok = do
     serviceSession <- lookupServiceSession tok
     let thentosSessionToken = serviceSession ^. srvSessThentosSession
-    thentosSession <- _lookupThentosSession thentosSessionToken
+    thentosSession <- lookupThentosSession_ thentosSessionToken
     case thentosSession ^. thSessAgent of
         UserA uid -> return uid
         ServiceA sid -> throwError $ NeedUserA thentosSessionToken sid
@@ -551,7 +550,7 @@ _serviceSessionUser tok = do
 -- better look at oauth.
 addServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e s ()
 addServiceRegistration tok sid = do
-    (_, uid) <- _thentosSessionAndUserIdByToken tok
+    (_, uid) <- thentosSessionAndUserIdByToken_ tok
     queryA $ T.registerUserWithService uid sid newServiceAccount
 
 -- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
@@ -559,7 +558,7 @@ addServiceRegistration tok sid = do
 -- See FIXME in 'addServiceRegistration'.
 dropServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e s ()
 dropServiceRegistration tok sid = do
-    (_, uid) <- _thentosSessionAndUserIdByToken tok
+    (_, uid) <- thentosSessionAndUserIdByToken_ tok
     guardWriteMsg "dropServiceRegistration"
         (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
     queryA $ T.unregisterUserFromService uid sid

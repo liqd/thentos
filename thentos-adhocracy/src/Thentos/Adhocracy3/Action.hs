@@ -119,7 +119,7 @@ resetPassword (PasswordResetRequest path pass) = U.logIfError' $ do
     case reqResult of
         RequestSuccess userPath _a3tok -> do
             uid  <- userIdFromPath userPath
-            A._changePasswordUnconditionally uid pass
+            A.changePasswordUnconditionally_ uid pass
             stok <- A.startThentosSessionByUserId uid pass
             return $ RequestSuccess userPath stok
         RequestError errMsg -> throwError . OtherError $ GenericA3Error errMsg

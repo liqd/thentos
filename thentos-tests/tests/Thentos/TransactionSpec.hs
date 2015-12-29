@@ -117,7 +117,7 @@ addUserSpec = describe "addUser" $ do
 
     it "adds a user to the database" $ \connPool -> do
         void $ runVoidedQuery connPool $ mapM_ addUser testUsers
-        let names = _userName <$> testUsers
+        let names = (^. userName) <$> testUsers
         Right res <- runVoidedQuery connPool $ mapM lookupConfirmedUserByName names
         (snd <$> res) `shouldBe` testUsers
 
@@ -266,7 +266,7 @@ changePasswordSpec = describe "changePassword" $ do
         Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
         Right _ <- runVoidedQuery connPool $ changePassword userId newPass
         Right (_, usr) <- runVoidedQuery connPool $ lookupConfirmedUser userId
-        _userPassword usr `shouldBe` newPass
+        usr ^. userPassword `shouldBe` newPass
 
     it "fails if the user doesn't exist" $ \connPool -> do
         Left err <- runVoidedQuery connPool $ changePassword userId newPass

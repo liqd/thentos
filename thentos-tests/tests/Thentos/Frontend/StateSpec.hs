@@ -149,12 +149,12 @@ type TestApi =
   :<|> Get '[JSON] [ST]
 
 testApi :: ServerT TestApi FAction
-testApi = _post :<|> _read
+testApi = post_ :<|> read_
   where
-    _post msg (fromMaybe False -> _crash) = do
+    post_ msg (fromMaybe False -> crash_) = do
         modify $ fsdMessages %~ (FrontendMsgSuccess msg :)
-        when _crash $ redirect' "/wef"
-    _read = gets ((cs . show <$>) . (^. fsdMessages))
+        when crash_ $ redirect' "/wef"
+    read_ = gets ((cs . show <$>) . (^. fsdMessages))
 
 testApp :: IO Application
 testApp = createActionState "thentos_test" thentosTestConfig

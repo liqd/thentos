@@ -87,11 +87,11 @@ spec_resetPassword = it "reset password" $ \_ -> pendingWith "no test implemente
 
 spec_updateSelf :: SpecWith ActionState
 spec_updateSelf = describe "update self" $ do
-    let _fill :: ST -> ST -> WD.WD ()
-        _fill label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
+    let fill_ :: ST -> ST -> WD.WD ()
+        fill_ label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
 
-        _click :: ST -> WD.WD ()
-        _click label = WD.findElem (WD.ById label) >>= WD.clickSync
+        click_ :: ST -> WD.WD ()
+        click_ label = WD.findElem (WD.ById label) >>= WD.clickSync
 
         -- FIXME: test with ordinary user (not god).
         selfId   = godUid
@@ -103,10 +103,10 @@ spec_updateSelf = describe "update self" $ do
         withWebDriver $ do
             wdLogin (getFrontendConfig cfg) selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
             WD.openPageSync (cs $ exposeUrl (getFrontendConfig cfg) <//> "/user/update_password")
-            _fill "/user/update_password.old_password"  $ fromUserPass selfPass
-            _fill "/user/update_password.new_password1" $ fromUserPass newSelfPass
-            _fill "/user/update_password.new_password2" $ fromUserPass newSelfPass
-            _click "update_password_submit"
+            fill_ "/user/update_password.old_password"  $ fromUserPass selfPass
+            fill_ "/user/update_password.new_password1" $ fromUserPass newSelfPass
+            fill_ "/user/update_password.new_password2" $ fromUserPass newSelfPass
+            click_ "update_password_submit"
         Right (_, usr) <- runVoidedQuery conn $ T.lookupAnyUser selfId
         usr `shouldSatisfy` verifyPass newSelfPass
 

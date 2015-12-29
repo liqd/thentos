@@ -133,7 +133,7 @@ withLogger = inTempDirectory . withLogger'
 
 -- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
 withLogger' :: IO a -> IO a
-withLogger' = _withLogger False
+withLogger' = withLogger_ False
 
 withNoisyLogger :: IO a -> IO a
 withNoisyLogger = inTempDirectory . withNoisyLogger'
@@ -148,10 +148,10 @@ withNoisyLogger = inTempDirectory . withNoisyLogger'
 -- that logs into a 'Chan', and expose the Chan to the tests.  that would make it easy to use log
 -- file contents to formulate tests.
 withNoisyLogger' :: IO a -> IO a
-withNoisyLogger' = _withLogger True
+withNoisyLogger' = withLogger_ True
 
-_withLogger :: Bool -> IO a -> IO a
-_withLogger stderrAlways action = do
+withLogger_ :: Bool -> IO a -> IO a
+withLogger_ stderrAlways action = do
     removeAllHandlers
     updateGlobalLogger loggerName $ setLevel DEBUG
 
