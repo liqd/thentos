@@ -47,11 +47,11 @@ setTab :: DashboardTab -> FAction ()
 setTab = modify . (fsdLogin . _Just . fslDashboardTab .~) . Just
 
 -- | Call 'renderDashboard'' to construct a dashboard page and render it in the frontend monad.
-renderDashboard :: (User -> [Role] -> H.Html) -> FAction H.Html
+renderDashboard :: (User -> [Group] -> H.Html) -> FAction H.Html
 renderDashboard pagelet = renderDashboard' (\u -> return . pagelet u)
 
 -- | Like 'renderDashboard', but take a pagelet builder instead of a pagelet.
-renderDashboard' :: (User -> [Role] -> FAction H.Html) -> FAction H.Html
+renderDashboard' :: (User -> [Group] -> FAction H.Html) -> FAction H.Html
 renderDashboard' pageletBuilder = do
     runAsUserOrLogin $ \fsd sessionLoginData -> do
         (uid, user) <- lookupConfirmedUser (sessionLoginData ^. fslUserId)

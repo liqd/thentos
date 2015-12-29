@@ -51,7 +51,7 @@ module Thentos.Types
     , secondsToString, secondsFromString
 
     , Agent(..)
-    , Role(..)
+    , Group(..)
 
     , RelRef(..)
     , Uri(..), parseUri, renderUri
@@ -323,7 +323,7 @@ newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
 instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
--- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Role'.)
+-- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Group'.)
 --
 -- Groups are opaque strings that services can use to manage authorizations for their users in
 -- thentos.  One reason why thentos offers this (rather than leaving the groups-to-users mapping to
@@ -553,11 +553,11 @@ instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
 
 -- | Thentos-internal authorization classes.  (See 'ServiceGroup' for service-side authorization classes.)
-data Role =
+data Group =
     RoleAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
-    -- 'Role'.)
+    -- 'Group'.)
 
   | RoleUser
     -- ^ Can sign up with services
@@ -572,16 +572,16 @@ data Role =
     -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
-instance Aeson.FromJSON Role where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Role where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
+instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
-instance ToCNF Role where toCNF = toCNF . show
+instance ToCNF Group where toCNF = toCNF . show
 
-instance ToField Role where
+instance ToField Group where
     toField = toField . show
 
-instance FromField Role where
+instance FromField Group where
     fromField f dat = do
         s <- fromField f dat
         case readMay s of

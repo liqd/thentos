@@ -688,17 +688,17 @@ personaGroups persona = do
 
 -- * agents and roles
 
-assignRole :: Agent -> Role -> Action e s ()
+assignRole :: Agent -> Group -> Action e s ()
 assignRole agent role = do
     guardWriteMsg "assignRole" (RoleAdmin %% RoleAdmin)
     queryA $ T.assignRole agent role
 
-unassignRole :: Agent -> Role -> Action e s ()
+unassignRole :: Agent -> Group -> Action e s ()
 unassignRole agent role = do
     guardWriteMsg "unassignRole" (RoleAdmin %% RoleAdmin)
     queryA $ T.unassignRole agent role
 
-agentRoles :: Agent -> Action e s [Role]
+agentRoles :: Agent -> Action e s [Group]
 agentRoles agent = do
     taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
     queryA (T.agentRoles agent)

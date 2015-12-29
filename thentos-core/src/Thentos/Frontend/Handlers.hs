@@ -156,7 +156,7 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
 type UserRegisterConfirmH = "register_confirm" :>
     QueryParam "token" ConfirmationToken :> Get
 
-defaultUserRoles :: [Role]
+defaultUserRoles :: [Group]
 defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
 
 userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction

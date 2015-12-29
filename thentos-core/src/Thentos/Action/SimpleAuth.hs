@@ -38,7 +38,7 @@ hasUserId uid = guardWriteOk (UserA uid %% UserA uid)
 hasServiceId :: ServiceId -> Action e s Bool
 hasServiceId sid = guardWriteOk (ServiceA sid %% ServiceA sid)
 
-hasRole :: Role -> Action e s Bool
+hasRole :: Group -> Action e s Bool
 hasRole role = guardWriteOk (role %% role)
 
 hasPrivilegedIP :: Action e s Bool

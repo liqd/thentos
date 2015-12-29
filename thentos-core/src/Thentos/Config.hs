@@ -126,7 +126,7 @@ type DefaultUserConfig' =
             ("name"     :> ST)  -- FIXME: use more specific type?
   :*>       ("password" :> ST)  -- FIXME: use more specific type?
   :*>       ("email"    :> UserEmail)
-  :*> Maybe ("roles"    :> [Role])
+  :*> Maybe ("roles"    :> [Group])
 
 type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
@@ -239,7 +239,7 @@ getUserData cfg = UserFormData
     (UserPass  (cfg >>. (Proxy :: Proxy '["password"])))
     (cfg >>. (Proxy :: Proxy '["email"]))
 
-getDefaultUser :: DefaultUserConfig -> (UserFormData, [Role])
+getDefaultUser :: DefaultUserConfig -> (UserFormData, [Group])
 getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["roles"])))
 
 

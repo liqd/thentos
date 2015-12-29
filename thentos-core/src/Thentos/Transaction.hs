@@ -497,9 +497,9 @@ endServiceSession token =
 
 -- * agents and roles
 
--- | Add a new role to the roles defined for an 'Agent'.  If 'Role' is already assigned to
+-- | Add a new role to the roles defined for an 'Agent'.  If 'Group' is already assigned to
 -- 'Agent', do nothing.
-assignRole :: Agent -> Role -> ThentosQuery e ()
+assignRole :: Agent -> Group -> ThentosQuery e ()
 assignRole agent role = case agent of
     ServiceA sid -> catchViolation catcher' $
         void $ execT [sql| INSERT INTO service_roles (sid, role)
@@ -513,9 +513,9 @@ assignRole agent role = case agent of
     catcher' _ (UniqueViolation "service_roles_sid_role_key") = return ()
     catcher' e _                                           = throwIO e
 
--- | Remove a 'Role' from the roles defined for an 'Agent'.  If 'Role' is not assigned to 'Agent',
+-- | Remove a 'Group' from the roles defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
 -- do nothing.
-unassignRole :: Agent -> Role -> ThentosQuery e ()
+unassignRole :: Agent -> Group -> ThentosQuery e ()
 unassignRole agent role = case agent of
     ServiceA sid -> void $ execT
         [sql| DELETE FROM service_roles WHERE sid = ? AND role = ? |] (sid, role)
@@ -523,8 +523,8 @@ unassignRole agent role = case agent of
         void $ execT [sql| DELETE FROM user_roles WHERE uid = ? AND role = ? |]
                            (uid, role)
 
--- | All 'Role's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
-agentRoles :: Agent -> ThentosQuery e [Role]
+-- | All 'Group's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
+agentRoles :: Agent -> ThentosQuery e [Group]
 agentRoles agent = case agent of
     ServiceA sid -> do
         roles <- queryT [sql| SELECT role FROM service_roles WHERE sid = ? |]
