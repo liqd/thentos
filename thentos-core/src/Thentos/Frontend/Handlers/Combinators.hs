@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
 
 module Thentos.Frontend.Handlers.Combinators where
 
@@ -72,7 +71,7 @@ runAsUserOrLogin = (`runAsUser` redirect' "/user/login")
 runAsUser :: (FrontendSessionData -> FrontendSessionLoginData -> FAction a)
       -> FAction a -> FAction a
 runAsUser loggedInHandler loggedOutHandler = do
-    sessionData :: FrontendSessionData <- get
+    sessionData <- get
     case sessionData ^. fsdLogin of
         Just sessionLoginData -> loggedInHandler sessionData sessionLoginData
         Nothing               -> loggedOutHandler

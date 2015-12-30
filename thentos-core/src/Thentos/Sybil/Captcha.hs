@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE ViewPatterns         #-}
 
 -- | This is a port of https://hackage.haskell.org/package/hs-captcha (which is based on
@@ -69,7 +68,7 @@ text' :: String -> Dg
 text' s = strokeP (textSVG' (TextOpts lin2 INSIDE_H KERN False 1 1) s)
         # lw none # fc white # bg purple
 
-distortChallenge :: forall m. MonadRandom m => Dg -> m Dg
+distortChallenge :: MonadRandom m => Dg -> m Dg
 distortChallenge dg = mconcat <$> sequence [someCircle, someCircle, someCircle, pure dg]
 
 someCircle :: MonadRandom m => m Dg
@@ -266,7 +265,7 @@ mkAudioSolution = ST.intercalate " "
                 . ((cs . show . (`mod` 10) . ord <$>) :: String -> [ST])
                 . take 6 . cs . fromRandom20
 
-mkAudioChallenge :: forall e s. String -> ST -> Action e s SBS
+mkAudioChallenge :: String -> ST -> Action e s SBS
 mkAudioChallenge eSpeakVoice solution = do
     unless (validateLangCode eSpeakVoice) $ do
         throwError $ AudioCaptchaVoiceNotFound eSpeakVoice
