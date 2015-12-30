@@ -16,6 +16,19 @@ THENTOS_PURESCRIPT_OPTS=""
 #THENTOS_PURESCRIPT_OPTS="-O"
 
 case "$1" in
+    "pull-cache")
+        test "$2" == "" && ( echo "$0: please specify cache path."; exit 1 )
+        echo "pulling build cache from $2..."
+        rsync -a --delete "$2"/bower_components . || true
+        rsync -a --delete "$2"/node_modules .     || true
+        ;;
+    "push-cache")
+        test "$2" == "" && ( echo "$0: please specify cache path."; exit 1 )
+        echo "pushing build cache to $2..."
+        mkdir -p "$2"
+        rsync -a --delete bower_components "$2"
+        rsync -a --delete node_modules "$2"
+        ;;
     "dep")
         npm install --dev
         time pulp dep install
@@ -49,7 +62,7 @@ case "$1" in
         curl $URL/purs/Util.purs > src/Util.purs
         ;;
     *)
-        echo "usage: $0 [dep|it|watch|clean|generate]" >&2
+        echo "usage: $0 [dep|it|watch|clean|distclean|generate|pull-cache|push-cache]" >&2
         exit 1
         ;;
 esac

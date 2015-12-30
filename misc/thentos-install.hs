@@ -209,10 +209,11 @@ buildPurescript args = if CliArgNoPurescript `elem` args
     then return ExitSuccess
     else do
         printSectionHeading "building thentos-purescript"
-        e1 <- system "./thentos-purescript/build.sh clean"
+        e1 <- system "./thentos-purescript/build.sh pull-cache $HOME/.th-psc-cache"
         e2 <- system "./thentos-purescript/build.sh dep"
         e3 <- system "./thentos-purescript/build.sh it"
-        return $ maximum [e1, e2, e3]
+        e4 <- system "./thentos-purescript/build.sh push-cache $HOME/.th-psc-cache"
+        return $ maximum [e1, e2, e3, e4]
 
 runCabal :: [CliArg] -> String -> IO ExitCode
 runCabal args extraArgs = do

@@ -10,6 +10,7 @@ cache:
         - $HOME/build/liqd/thentos/.cabal-sandbox
         - $HOME/.cabal
         - $HOME/.nvm
+        - $HOME/.th-psc-cache
 
 addons:
     apt:
