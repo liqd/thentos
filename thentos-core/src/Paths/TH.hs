@@ -1,8 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Paths.TH (getPackageSourceRoot) where
 
-import Control.Exception (SomeException, catch)
+import Control.Exception (SomeException(SomeException), catch)
 import Data.Char (toUpper)
 import Data.Maybe (catMaybes)
 import Language.Haskell.TH (Q, Exp, runIO)
@@ -34,7 +32,7 @@ perhaps :: FilePath -> IO (Maybe FilePath)
 perhaps fp = exceptToMaybe $ getCurrentDirectory >>= canonicalizePath . (</> fp)
 
 exceptToMaybe :: IO a -> IO (Maybe a)
-exceptToMaybe a = (Just <$> a) `catch` \(_ :: SomeException) -> return Nothing
+exceptToMaybe a = (Just <$> a) `catch` \(SomeException _) -> return Nothing
 
 toShellVarName :: FilePath -> FilePath
 toShellVarName fp = "CABAL_PACKAGE_SOURCE_ROOT_" ++ (f <$> fp)

@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeOperators         #-}
 
@@ -55,7 +54,7 @@ frontendH =
 type StaticContent =
        "screen.css" :> Get '[TextCss] LBS
 
-staticContent :: forall m. Applicative m => ServerT StaticContent m
+staticContent :: Applicative m => ServerT StaticContent m
 staticContent =
        l $(loadStaticContent "screen.css")
   where

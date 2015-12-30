@@ -175,9 +175,9 @@ getConfig configFile = do
     sources <- defaultSources [configFile]
     logger DEBUG $ "config sources:\n" ++ ppShow sources
 
-    result :: Either Error ThentosConfig <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
+    result <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
     case result of
-        Left e -> do
+        Left (e :: Error) -> do
             logger CRITICAL $ "error parsing config: " ++ ppShow e
             throwIO e
         Right cfg -> do

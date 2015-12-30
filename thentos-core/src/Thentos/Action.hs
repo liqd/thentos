@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 
 module Thentos.Action
     ( freshRandomName
@@ -93,7 +92,7 @@ import Data.String.Conversions (ST, SBS, cs)
 import Data.Typeable (Typeable)
 import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
-import LIO.Error (AnyLabelError)
+import LIO.Error (AnyLabelError(AnyLabelError))
 import System.Log.Logger (Priority(DEBUG))
 import Text.Hastache.Context (mkStrContext)
 import Text.Hastache (MuType(MuVariable))
@@ -178,7 +177,7 @@ lookupUser_ transaction = do
     val@(uid, _) <- queryA transaction
     tryTaint (RoleAdmin \/ UserA uid %% False)
         (return val)
-        (\ (_ :: AnyLabelError) -> throwError NoSuchUser)
+        (\ (AnyLabelError _) -> throwError NoSuchUser)
 
 -- | Like 'lookupConfirmedUser', but based on 'UserName'.
 lookupConfirmedUserByName :: UserName -> Action e s (UserId, User)
@@ -429,7 +428,7 @@ lookupThentosSession tok = do
     session <- lookupThentosSession_ tok
     tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
         (return session)
-        (\ (_ :: AnyLabelError) -> throwError NoSuchThentosSession)
+        (\ (AnyLabelError _) -> throwError NoSuchThentosSession)
 
 -- | Find 'ThentosSession' from token, without clearance check.
 lookupThentosSession_ :: ThentosSessionToken -> Action e s ThentosSession
