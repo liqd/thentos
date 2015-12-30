@@ -145,18 +145,12 @@ $ echo "alter role $PGUSER superuser" | sudo -u postgres psql
 (Instead of `thentos`, you can choose your unix login name as postgres
 user name and skip setting the shell variable.)
 
-For building the purescript UI code, you will need to have a few more
-tools installed:
+For building the purescript UI code, you will need to install the
+javascript engine nodejs and its package manager npm:
 
 ```shell
 $ sudo apt-get install nodejs npm
-$ mkdir $HOME/opt
-$ cd $HOME/opt
-$ npm install pulp@4.4.1
-$ npm install purescript@0.7.6
 ```
-
-Then add `$HOME/opt/node_modules/.bin` to your `$PATH`.
 
 Make sure that nodejs is also found under the name "node", since some of
 the PureScript install scripts expect that:
@@ -168,9 +162,7 @@ ln -s /usr/bin/nodejs /usr/bin/node
 Now run the installation script and the tests:
 
 ```shell
-$ ./misc/thentos-install.sh
-$ cd thentos-tests && cabal test
-$ cd thentos-adhocracy && cabal test
+$ ./misc/thentos-install.hs
 ```
 
 This will take a while, as it will pull and build a lot of library
@@ -182,13 +174,13 @@ to work (see there for more details and links to the download page),
 or do without that part of the test suite:
 
 ```shell
-$ cabal test --test-options="--skip selenium"
+$ ./misc/thentos-install.hs -c '--test-options="--skip selenium"'
 ```
 
 If you want to use vagrant to run Thentos in a virtual machine, visit
 https://github.com/tarleb/thentos-vagrant.
 
-If you run into any problems, you can check `.travis.yml` on an
+If you run into any problems, you can check `.travis.yml` for an
 up-to-date way of getting all the dependencies installed.
 
 

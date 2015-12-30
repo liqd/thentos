@@ -39,7 +39,7 @@ main = do
 
     gitSubmodules
     cabalSandbox rootPath
-    buildBurescript args >>= storeResult
+    buildPurescript args >>= storeResult
 
     printSectionHeading "building dependencies"
     ExitSuccess <- runCabal args "--dependencies-only"
@@ -178,8 +178,7 @@ changeToProjectRootLinux = do
 changeToProjectRootMacOSX :: IO FilePath
 changeToProjectRootMacOSX = do
     hPutStrLn stderr $ "NOTE: only call this from git repo base directory!"
-    ("thentos":_) <- reverse . splitPath . takeDirectory <$>
-        (getCurrentDirectory >>= canonicalizePath)
+    "thentos" <- last . splitPath <$> (getCurrentDirectory >>= canonicalizePath)
     getCurrentDirectory
 
 
@@ -205,15 +204,16 @@ cabalSandbox rootPath = do
                 ExitSuccess <- system "cabal sandbox add-source ."
                 return ()
 
-buildBurescript :: [CliArg] -> IO ExitCode
-buildBurescript args = if CliArgNoPurescript `elem` args
+buildPurescript :: [CliArg] -> IO ExitCode
+buildPurescript args = if CliArgNoPurescript `elem` args
     then return ExitSuccess
     else do
         printSectionHeading "building thentos-purescript"
-        e1 <- system "./thentos-purescript/build.sh clean"
+        e1 <- system "./thentos-purescript/build.sh pull-cache $HOME/.th-psc-cache"
         e2 <- system "./thentos-purescript/build.sh dep"
         e3 <- system "./thentos-purescript/build.sh it"
-        return $ maximum [e1, e2, e3]
+        e4 <- system "./thentos-purescript/build.sh push-cache $HOME/.th-psc-cache"
+        return $ maximum [e1, e2, e3, e4]
 
 runCabal :: [CliArg] -> String -> IO ExitCode
 runCabal args extraArgs = do

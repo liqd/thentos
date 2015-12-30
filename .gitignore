@@ -21,6 +21,3 @@ output/
 .psci*
 log/*.log
 thentos-core/js/*.js
-src/.webpack.js
-thentos-purescript/static/thentos.js
-thentos-purescript/.browserify-cache.json

@@ -10,6 +10,7 @@ cache:
         - $HOME/build/liqd/thentos/.cabal-sandbox
         - $HOME/.cabal
         - $HOME/.nvm
+        - $HOME/.th-psc-cache
 
 addons:
     apt:
@@ -30,11 +31,8 @@ before_install:
     - export PATH=/opt/ghc/7.10.2/bin:/opt/alex/3.1.4/bin:/opt/happy/1.19.3/bin:/opt/cabal/1.22/bin:$PATH
     - export PATH=~/.cabal/bin:$PATH
     - cd misc/selenium
-    - mkdir log
     - "export DISPLAY=:1"
-    - make xvfb
-    - make init
-    - make start
+    - make init xvfb start
     - cd ../..
 
 script:
