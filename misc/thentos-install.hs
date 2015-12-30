@@ -178,8 +178,7 @@ changeToProjectRootLinux = do
 changeToProjectRootMacOSX :: IO FilePath
 changeToProjectRootMacOSX = do
     hPutStrLn stderr $ "NOTE: only call this from git repo base directory!"
-    ("thentos":_) <- reverse . splitPath . takeDirectory <$>
-        (getCurrentDirectory >>= canonicalizePath)
+    "thentos" <- last . splitPath <$> (getCurrentDirectory >>= canonicalizePath)
     getCurrentDirectory
 
 
