@@ -39,7 +39,7 @@ main = do
 
     gitSubmodules
     cabalSandbox rootPath
-    buildBurescript args >>= storeResult
+    buildPurescript args >>= storeResult
 
     printSectionHeading "building dependencies"
     ExitSuccess <- runCabal args "--dependencies-only"
@@ -205,8 +205,8 @@ cabalSandbox rootPath = do
                 ExitSuccess <- system "cabal sandbox add-source ."
                 return ()
 
-buildBurescript :: [CliArg] -> IO ExitCode
-buildBurescript args = if CliArgNoPurescript `elem` args
+buildPurescript :: [CliArg] -> IO ExitCode
+buildPurescript args = if CliArgNoPurescript `elem` args
     then return ExitSuccess
     else do
         printSectionHeading "building thentos-purescript"
