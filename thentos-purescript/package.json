@@ -30,6 +30,7 @@
     "devDependencies": {
         "bower": "1.7.1",
         "gulp": "3.9.0",
+        "gulp-minify": "0.0.5",
         "gulp-purescript": "0.8.0",
         "purescript": "0.7.6",
         "webpack-stream": "3.1.0"

@@ -2,6 +2,7 @@
 "use strict";
 
 var gulp = require("gulp");
+var minify = require('gulp-minify');
 var purescript = require("gulp-purescript");
 var webpack = require("webpack-stream");
 
@@ -39,6 +40,15 @@ gulp.task("bundle", ["prebundle"], function () {
 
 gulp.task("watch", function () {
     return gulp.watch(sources.concat(foreigns), ["bundle"]);
+});
+
+gulp.task('minify', function() {
+    gulp.src('./static/thentos.js')
+        .pipe(minify({
+            exclude: [],
+            ignoreFiles: []
+        }))
+        .pipe(gulp.dest('./static'))
 });
 
 gulp.task("default", ["bundle"]);
