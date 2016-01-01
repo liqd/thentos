@@ -103,3 +103,8 @@ repl: ./thentos-core/src/Thentos.hs.repl
 
 %.repl: .phony prepare-repl
 	cabal exec -- ghci $(SOURCE_PATHS) -optP-DDEVELOPMENT -ignore-dot-ghci $*
+
+# pip install --user cryptacular
+PYTHONPATH=$(HOME)/.local/lib/python2.7/site-packages/:$(PYTHONPATH)
+pytest:
+	python2.7 ./bcrypt-test.py

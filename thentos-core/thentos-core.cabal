@@ -89,6 +89,10 @@ library
   build-depends:
     -- losely based on: https://www.stackage.org/lts-3.5/cabal.config
       aeson >=0.8.0.2 && <0.9
+
+    , bcrypt
+    , text-icu
+
     , aeson-pretty >=0.7.2 && <0.8
     , aeson-utils >=0.3.0.2 && <0.4
     , asn1-encoding ==0.9.2
