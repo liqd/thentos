@@ -504,7 +504,7 @@ main' :: forall eff a.
 main' mCfg addToDOM = runAff throwException (const (pure unit)) <<< forkAff $ do
     { node: node, driver: driver } <- runUI ui (initialState cfg)
     addToDOM node
-    driver $ Q.action LoadNewCaptcha
+    driver (Q.action LoadNewCaptcha)
   where
     cfg = fromMaybe defaultStateConfig mCfg
 
