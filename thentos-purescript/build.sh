@@ -21,6 +21,11 @@ case "$1" in
     "watch")
         gulp watch
         ;;
+    "generate-translation-tables")
+        test -e ../.cabal-sandbox/bin/refresh-i18n \
+            || echo "refresh-i18n not found.  install cabal package?"
+        ../.cabal-sandbox/bin/refresh-i18n
+        ;;
     "clean")
         rm -rf ./.tmp ./output ./dist ./static/thentos.js
         ;;
@@ -42,7 +47,7 @@ case "$1" in
         rsync -a --delete node_modules "$2"
         ;;
     *)
-        echo "usage: $0 [dep|it|watch|clean|distclean|pull-cache|push-cache]" >&2
+        echo "usage: $0 [dep|it|watch|generate-translation-tables|clean|distclean|pull-cache|push-cache]" >&2
         exit 1
         ;;
 esac
