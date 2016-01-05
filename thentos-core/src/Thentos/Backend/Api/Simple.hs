@@ -23,7 +23,7 @@ import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
-import qualified Servant.Foreign as F
+import qualified Servant.Foreign as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -193,24 +193,24 @@ instance HasDocExtras (RestDocs Api) where
 --
 -- we more / less restrictive instances.  We should merge servant master in our submodule branch,
 -- though.
-instance {-# OVERLAPPABLE #-} F.HasForeign F.NoTypes (Post200 b a) where
-    type Foreign (Post200 b a) = F.Req
+instance {-# OVERLAPPABLE #-} Foreign.HasForeign Foreign.NoTypes (Post200 b a) where
+    type Foreign (Post200 b a) = Foreign.Req
     foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post200" :)
-            & F.reqMethod .~ "POST"
+        req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
 
-instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[PNG] a) where
-    type Foreign (Post '[PNG] a) = F.Req
+instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[PNG] a) where
+    type Foreign (Post '[PNG] a) = Foreign.Req
     foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post" :)
-            & F.reqMethod .~ "POST"
+        req & Foreign.funcName  %~ ("post" :)
+            & Foreign.reqMethod .~ "POST"
 
-instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[WAV] a) where
-    type Foreign (Post '[WAV] a) = F.Req
+instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[WAV] a) where
+    type Foreign (Post '[WAV] a) = Foreign.Req
     foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post" :)
-            & F.reqMethod .~ "POST"
+        req & Foreign.funcName  %~ ("post" :)
+            & Foreign.reqMethod .~ "POST"
 
-instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAssertHeaders :> sub) where
-    type Foreign (ThentosAssertHeaders :> sub) = F.Foreign sub
-    foreignFor plang Proxy = F.foreignFor plang (Proxy :: Proxy sub)
+instance Foreign.HasForeign Foreign.NoTypes sub => Foreign.HasForeign Foreign.NoTypes (ThentosAssertHeaders :> sub) where
+    type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
+    foreignFor plang Proxy = Foreign.foreignFor plang (Proxy :: Proxy sub)

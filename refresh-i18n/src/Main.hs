@@ -14,7 +14,7 @@ import Control.Exception (assert)
 import Control.Monad (void)
 import Data.Function (on)
 import Data.Functor.Infix ((<$$>))
-import Data.List (foldl', union, sort, nub, groupBy)
+import Data.List (sort, groupBy)
 import Data.Maybe (listToMaybe, catMaybes)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST, cs)
@@ -24,6 +24,7 @@ import System.FilePath ((</>), (<.>), takeExtension)
 import System.IO (hPutStrLn, stderr)
 import System.Process (system)
 
+import qualified Data.Set as Set
 import qualified Data.Text as ST
 import qualified Data.Text.IO as ST
 
@@ -35,7 +36,7 @@ main :: IO ()
 main = do
     setCurrentDirectoryToTarget
     purss :: [FilePath] <- getTranslateableFiles "."
-    transKeys :: [ST] <- nub . sort . foldl' union [] <$> mapM translationKeys purss
+    transKeys :: Set.Set ST <- Set.unions . map Set.fromList <$> mapM translationKeys purss
     !(tablesModule :: ST) <- ST.readFile (i18nModule <.> "js")
     ST.writeFile (i18nModule <.> "js-") $ updateKeys transKeys tablesModule
     void $ system ("mv " ++ (i18nModule <.> "js-") ++ " " ++ (i18nModule <.> "js"))
@@ -78,8 +79,9 @@ translationKeys purs = f <$> ST.readFile purs
 
 
 -- | Remove all inactive entires in dict; add missing entires into dict with "TODO" as translation.
-updateKeys :: [ST] -> ST -> ST
-updateKeys activeKeys = unGrp . (checkGrp <$>) . grp
+-- (FUTUREWORK: this function could benefit from heavier use of "Data.Set".)
+updateKeys :: Set.Set ST -> ST -> ST
+updateKeys (Set.toList -> activeKeys) = unGrp . (checkGrp <$>) . grp
   where
     grp :: ST -> [[ST]]
     grp = groupBy ((==) `on` ("\"TR__" `ST.isInfixOf`)) . ST.lines
@@ -93,7 +95,7 @@ updateKeys activeKeys = unGrp . (checkGrp <$>) . grp
     checkGrp table = (renderLine <$>) . refreshGrp . (parseLine <$>) $ table
 
     refreshGrp :: [(ST, ST, ST)] -> [(ST, ST, ST)]
-    refreshGrp orig = completed
+    refreshGrp orig = sort completed
       where
         fst3 (k, _, _) = k
         pruned = filter ((`elem` activeKeys) . fst3) orig
