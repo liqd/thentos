@@ -62,7 +62,7 @@ bad = ("incorrect", "$2a$10$KLJDd7d6VCKSIPcDA3QHGu9tYpfnOTSvgueXu/JmwlxfWY4fDOAl
 mainTest :: (SBS, SBS) -> IO ()
 mainTest (m, c) = do
   ms <- allEncodings m
-  let valid = or $ (`Crypto.BCrypt.validatePassword` c) <$> ms
+  let valid = or $ (Crypto.BCrypt.validatePassword c) <$> ms
   print valid
 
 -- come up with as many encodings as i could think of.  one of them should be the one used in
