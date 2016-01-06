@@ -3,7 +3,6 @@
 # release.sh
 #
 # Build a Thentos binary release tarball.
-# Must be run from the base of the thentos project, 
 #
 # Command line arguments:
 #
@@ -18,6 +17,8 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+cd `dirname $0`/..
+
 if ! git show-ref $1 >> /dev/null; then
     echo "\"$1\" is not a valid git reference"
     exit 1
@@ -28,7 +29,9 @@ if [ ! -f cabal.sandbox.config ]; then
     exit 1
 fi
 
-relname=thentos-$1.bin
+relname=thentos-$1
+tarballtar=$relname.bin.tar
+tarball=$tarballtar.gz
 tmpdir=`mktemp -d`
 gitdir=`pwd`
 cabal_sandbox=`cat cabal.sandbox.config | grep '^ *prefix' | awk -F ' ' '{print $2}'`
@@ -47,9 +50,15 @@ mkdir -p thentos-core/schema
 cp -r ../thentos/thentos-core/schema/* thentos-core/schema
 #TODO: Copy config
 cd ..
-tar cf $relname.tar.gz *
+tar cf $tarballtar *
+gzip $tarballtar
+sha1hash=`sha1sum $tarball | awk -F ' ' '{print $1}'`
+md5hash=`md5sum $tarball | awk -F ' ' '{print $1}'`
+echo -n $md5hash > $tarball.md5
+echo -n $sha1hash > $tarball.sha1
 popd
-cp $tmpdir/$relname.tar.gz .
+cp $tmpdir/$tarball* .
 rm -rf $tmpdir
-md5sum $relname.tar.gz
 echo "All done."
+echo "MD5:  $md5hash"
+echo "SHA1: $sha1hash"
