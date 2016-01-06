@@ -2,7 +2,7 @@
 
 # release.sh
 #
-# Build a Thentos binary release tarball.
+# Build a Thentos binary release targz.
 #
 # Command line arguments:
 #
@@ -30,8 +30,8 @@ if [ ! -f cabal.sandbox.config ]; then
 fi
 
 relname=thentos-$1
-tarballtar=$relname.bin.tar
-tarball=$tarballtar.gz
+tar=$relname.bin.tar
+targz=$tar.gz
 tmpdir=`mktemp -d`
 gitdir=`pwd`
 cabal_sandbox=`cat cabal.sandbox.config | grep '^ *prefix' | awk -F ' ' '{print $2}'`
@@ -50,14 +50,14 @@ mkdir -p thentos-core/schema
 cp -r ../thentos/thentos-core/schema/* thentos-core/schema
 #TODO: Copy config
 cd ..
-tar cf $tarballtar *
-gzip $tarballtar
-sha1hash=`sha1sum $tarball | awk -F ' ' '{print $1}'`
-md5hash=`md5sum $tarball | awk -F ' ' '{print $1}'`
-echo -n $md5hash > $tarball.md5
-echo -n $sha1hash > $tarball.sha1
+tar cf $tar *
+gzip $tar
+sha1hash=`sha1sum $targz | awk -F ' ' '{print $1}'`
+md5hash=`md5sum $targz | awk -F ' ' '{print $1}'`
+echo -n $md5hash > $targz.md5
+echo -n $sha1hash > $targz.sha1
 popd
-cp $tmpdir/$tarball* .
+cp $tmpdir/$targz* .
 rm -rf $tmpdir
 echo "All done."
 echo "MD5:  $md5hash"
