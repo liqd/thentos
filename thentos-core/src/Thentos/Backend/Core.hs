@@ -1,14 +1,16 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
-{-# LANGUAGE TypeFamilies                             #-}
-{-# LANGUAGE TypeOperators                            #-}
+{-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE TypeOperators          #-}
 
 module Thentos.Backend.Core
 where
 
-import Control.Lens ((^.))
+import Control.Lens ((^.), (&), (.~), (%~))
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
@@ -46,6 +48,7 @@ import Text.Show.Pretty (ppShow)
 import qualified Data.ByteString.Char8 as SBS
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Header as HttpTypes
+import qualified Servant.Foreign as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action.Core
@@ -364,3 +367,24 @@ loggerMW app req cont = do
     show_ (ResponseBuilder s hs _) = "ResponseBuilder " ++ show (s, hs)
     show_ (ResponseStream s hs _) = "ResponseStream " ++ show (s, hs)
     show_ (ResponseRaw _ resp) = "ResponseRaw " ++ show_ resp
+
+
+-- * servant foreign
+
+-- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
+-- which we don't have, so instead of:
+--
+-- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
+-- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
+--
+-- we more / less restrictive instances.  We should merge servant master in our submodule branch,
+-- though.
+instance {-# OVERLAPPABLE #-} Foreign.HasForeign Foreign.NoTypes (Post200 b a) where
+    type Foreign (Post200 b a) = Foreign.Req
+    foreignFor Proxy Proxy req =
+        req & Foreign.funcName  %~ ("post200" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance Foreign.HasForeign Foreign.NoTypes sub => Foreign.HasForeign Foreign.NoTypes (ThentosAssertHeaders :> sub) where
+    type Foreign (ThentosAssertHeaders :> sub) = Foreign.Foreign sub
+    foreignFor plang Proxy = Foreign.foreignFor plang (Proxy :: Proxy sub)
