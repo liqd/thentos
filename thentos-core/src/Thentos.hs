@@ -73,7 +73,11 @@ makeMain commandSwitch =
     let actionState = ActionState config rng connPool
         logPath     = config >>. (Proxy :: Proxy '["log", "path"])
         logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
+        signupLogPath = config >>. (Proxy :: Proxy '["signup_log"])
     configLogger logPath logLevel
+    case signupLogPath of
+        Just path -> configSignupLogger path
+        Nothing -> return ()
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
