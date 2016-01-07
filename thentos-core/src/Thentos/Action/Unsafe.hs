@@ -24,7 +24,7 @@ import LIO.Core (liftLIO, getClearance, setClearanceP)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), cFalse)
 import LIO.Label (lub)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
-import System.Log (Priority(DEBUG, ERROR, CRITICAL))
+import System.Log (Priority(ERROR, CRITICAL))
 import System.Log.Logger (logM)
 import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
