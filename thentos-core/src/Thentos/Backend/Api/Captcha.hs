@@ -57,7 +57,12 @@ type ThentosCaptcha =
        "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
   :<|> "audio_captcha" :> Capture "voice" ST
           :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
-  -- TODO add new endpoint
+  -- FIXME add new endpoint called "solve_captcha":
+  -- sample input: { "id": "<captcha-id>", "solution": "<solution>" }  (types: CaptchaId, ST)
+  -- sample output: { "data": true } (type: JsonTop Bool)
+  -- Calls solveCaptcha followed by deleteCaptcha (captcha-id must be pruned from the DB)
+  -- Result should be false if the solution is wrong OR the captcha-id doesn't exist
+  -- (catch and convert NoSuchCaptchaId)
 
 thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
 thentosCaptcha =
