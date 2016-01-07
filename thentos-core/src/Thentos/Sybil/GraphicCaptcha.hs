@@ -4,14 +4,16 @@
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
 import Control.Monad.Random (MonadRandom, StdGen, mkStdGen, evalRand)
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, forM_)
 import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
 import Data.String.Conversions (SBS, ST, cs)
 
 import Codec.Picture( PixelRGBA8( .. ), encodePng )
 import Graphics.Rasterific
+import Graphics.Rasterific.Linear
 import Graphics.Rasterific.Texture
+import Graphics.Rasterific.Transformations (translate)
 import Graphics.Text.TrueType (Font, loadFontFile)
 
 import Paths_thentos_core__
@@ -38,29 +40,36 @@ mkSolution :: MonadRandom m => m ST
 mkSolution = cs . unwords <$> replicateM 2 (mkPassword 3)
 
 
+type Pix = PixelRGBA8
+
 mkChallenge :: Font -> ST -> ImageData
 mkChallenge font solution = 
-    let w = 400
-        h = 70
+    let w = 500
+        h = 100
+        chars = cs solution :: String
         render = renderDrawing w h (PixelRGBA8 255 255 255 255)
-        text = printTextAt font (PointSize 50) (V2 20 40) $ cs solution
-        c1 = checker 10 10 (uniformTexture black) (uniformTexture white)
-        c2 = checker 10 10 (uniformTexture color1) (uniformTexture color2)
-        drawing = do withTexture c1 $ fill $ rectangle (V2 0 0) (fromIntegral w)
-                                                                (fromIntegral h)
-                     withTexture c2 text
-    in ImageData $ cs $ encodePng $ render $ drawing
+    in ImageData $ cs $ encodePng $ render $ do
+        let offsets = [20,70..]
+        forM_ (zip offsets chars) $ \(offset, char) -> do
+             biteLetter font 40 (V2 offset 20) char
 
 
-checker :: Int -> Int -> Texture PixelRGBA8 -> Texture PixelRGBA8 -> Texture PixelRGBA8
-checker w' h' t1 t2 = patternTexture (w'*2) (h'*2) 96 black $ do
-    withTexture t1 $ do fill $ rectangle (V2 0 0) w h
-                        fill $ rectangle (V2 w h) w h
-    withTexture t2 $ do fill $ rectangle (V2 w 0) w h
-                        fill $ rectangle (V2 0 h) w h
-  where
-    w = fromIntegral w'
-    h = fromIntegral h'
+biteLetter :: Font -> Float -> Point -> Char -> Drawing Pix ()
+biteLetter font size point@(V2 l t) char = do
+    let txBlack = uniformTexture black
+        pText = printTextAt font (PointSize size) (V2 0 60) [char]
+        letter = withTexture txBlack pText
+        txLetter = patternTexture 100 100 96 white letter
+        rect = rectangle point size 50
+        shift = transformTexture $ translate (V2 (-l) 0)
+        biteOffset = (V2 10 10)
+        bite = rectangle (point ^-^ biteOffset) 32 32
+        biteShift = transformTexture $ translate (V2 (-l) 0 ^+^ biteOffset)
+    -- Draw a box around the letter
+    --withTexture txBlack $ stroke 1 JoinRound (CapRound, CapRound) rect
+    withTexture (shift txLetter) $ fill rect
+    --withTexture (biteShift $ uniformTexture color1) fill bite
+    withTexture (biteShift txLetter) $ fill bite
 
 
 black = PixelRGBA8 0 0 0 255
