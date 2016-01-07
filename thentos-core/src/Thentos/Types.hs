@@ -62,6 +62,7 @@ module Thentos.Types
     , ImageData(..)
     , CaptchaId(..)
     , CaptchaSolution(..)
+    , CaptchaAttempt(..)
     , SignupAttempt(..)
 
     , ThentosError(..)
@@ -98,7 +99,6 @@ import Data.ByteString.Builder (doubleDec)
 import Data.ByteString.Conversion (ToByteString)
 import Data.Char (isAlpha)
 import Data.Csv ((.:))
-import Data.Csv.Missing ()
 import Data.EitherR (fmapL)
 import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
@@ -760,7 +760,19 @@ data CaptchaSolution = CaptchaSolution
 instance Aeson.FromJSON CaptchaSolution where parseJSON = Aeson.gparseJson
 instance Aeson.ToJSON CaptchaSolution where toJSON = Aeson.gtoJson
 
-data SignupAttempt = SignupAttempt UserName UserEmail Bool Timestamp
+data CaptchaAttempt = CaptchaIncorrect | CaptchaCorrect
+    deriving (Show, Eq, Ord)
+
+instance CSV.ToField CaptchaAttempt where
+    toField CaptchaCorrect = "1"
+    toField CaptchaIncorrect = "0"
+
+instance CSV.FromField CaptchaAttempt where
+    parseField "1" = pure CaptchaCorrect
+    parseField "0" = pure CaptchaIncorrect
+    parseField _   = mzero
+
+data SignupAttempt = SignupAttempt UserName UserEmail CaptchaAttempt Timestamp
     deriving (Show, Generic)
 
 instance CSV.ToNamedRecord SignupAttempt where

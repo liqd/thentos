@@ -250,7 +250,8 @@ sendUserExistsMail email = do
 addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     captchaCorrect <- solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)
-    U.unsafeAction $ U.logSignupAttempt (udName $ ucUser ucr) (udEmail $ ucUser ucr) captchaCorrect
+    let captchaAttempt = if captchaCorrect then CaptchaCorrect else CaptchaIncorrect
+    U.unsafeAction $ U.logSignupAttempt (udName $ ucUser ucr) (udEmail $ ucUser ucr) captchaAttempt
     unless captchaCorrect $
         throwError InvalidCaptchaSolution
     addUnconfirmedUser (ucUser ucr)

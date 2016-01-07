@@ -51,7 +51,6 @@ library
     cpp-options: -DDEVELOPMENT
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
-    , Data.Csv.Missing
     , LIO.Missing
     , Paths.TH
     , Paths_thentos_core__

@@ -146,9 +146,9 @@ renderTextTemplate template context = liftIO $ hastacheStr hastacheCfg template 
   where
     hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
 
-logSignupAttempt :: UserName -> UserEmail -> Bool -> UnsafeAction e s ()
-logSignupAttempt name email captchaCorrect = do
+logSignupAttempt :: UserName -> UserEmail -> CaptchaAttempt -> UnsafeAction e s ()
+logSignupAttempt name email captchaAttempt = do
     now <- getCurrentTime
-    let signupAttempt = SignupAttempt name email captchaCorrect now
+    let signupAttempt = SignupAttempt name email captchaAttempt now
         logLine = cs . Builder.toByteString $ CsvBuilder.encodeRecord signupAttempt
     liftIO $ logM signupLogger CRITICAL (init logLine)
