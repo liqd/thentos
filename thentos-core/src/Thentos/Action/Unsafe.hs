@@ -151,4 +151,5 @@ logSignupAttempt name email captchaAttempt = do
     now <- getCurrentTime
     let signupAttempt = SignupAttempt name email captchaAttempt now
         logLine = cs . Builder.toByteString $ CsvBuilder.encodeRecord signupAttempt
-    liftIO $ logM signupLogger CRITICAL (init logLine)
+        logLevel = CRITICAL -- for some reason the entries aren't written to the file at INFO
+    liftIO $ logM signupLogger logLevel (init logLine)
