@@ -9,6 +9,7 @@ module Thentos
     , makeMain
     , createConnPoolAndInitDb
     , createDefaultUser
+    , runGcLoop
     , autocreateMissingServices
     ) where
 

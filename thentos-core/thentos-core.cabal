@@ -33,6 +33,9 @@ flag profiling
 flag with-thentos-executable
   default: False
 
+flag with-captcha-executable
+  default: False
+
 flag development
   description: Development mode tweaks cabal search behavior in Paths_thentos_core__
   default: False
@@ -63,12 +66,14 @@ library
     , Thentos.Action.Unsafe
     , Thentos.Backend.Api.Auth
     , Thentos.Backend.Api.Auth.Types
+    , Thentos.Backend.Api.Captcha
     , Thentos.Backend.Api.Docs.Common
     , Thentos.Backend.Api.Docs.Proxy
     , Thentos.Backend.Api.Proxy
     , Thentos.Backend.Api.PureScript
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
+    , Thentos.CaptchaService
     , Thentos.Config
     , Thentos.Ends.Types
     , Thentos.Frontend
@@ -186,6 +191,29 @@ executable thentos
       exec
   main-is:
       Main.hs
+  ghc-options:
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
+  build-depends:
+      base
+    , thentos-core
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
+
+executable thentos-captcha
+  if flag(with-captcha-executable)
+    Buildable: True
+  else
+    Buildable: False
+
+  default-language:
+      Haskell2010
+  hs-source-dirs:
+      exec
+  main-is:
+      CaptchaMain.hs
   ghc-options:
       -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
