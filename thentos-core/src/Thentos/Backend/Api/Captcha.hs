@@ -8,12 +8,14 @@
 
 module Thentos.Backend.Api.Captcha where
 
+import Control.Monad (when)
+import Control.Monad.Except (catchError, throwError)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
 import Data.Void (Void)
 import Servant.API.Header (Header)
 import Network.Wai (Application)
-import Servant.API ((:<|>)((:<|>)), (:>), Post, Capture) -- , ReqBody, JSON
+import Servant.API ((:<|>)((:<|>)), (:>), Post, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
@@ -57,18 +59,23 @@ type ThentosCaptcha =
        "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
   :<|> "audio_captcha" :> Capture "voice" ST
           :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
-  -- FIXME add new endpoint called "solve_captcha":
-  -- sample input: { "id": "<captcha-id>", "solution": "<solution>" }  (types: CaptchaId, ST)
-  -- sample output: { "data": true } (type: JsonTop Bool)
-  -- Calls solveCaptcha followed by deleteCaptcha (captcha-id must be pruned from the DB)
-  -- Result should be false if the solution is wrong OR the captcha-id doesn't exist
-  -- (catch and convert NoSuchCaptchaId)
+  :<|> "solve_captcha" :>  ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool)
 
 thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
 thentosCaptcha =
        (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
   :<|> (\voice -> makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
+  :<|> (JsonTop <$>) . solveCaptcha'
 
+solveCaptcha' :: CaptchaSolution -> Action Void () Bool
+solveCaptcha' (CaptchaSolution cId solution) = do
+    correct <- solveCaptcha cId solution `catchError` h
+    when correct $
+        deleteCaptcha cId
+    return correct
+  where
+    h NoSuchCaptchaId = return False
+    h e               = throwError e
 
 -- * servant docs
 
