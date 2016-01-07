@@ -75,9 +75,7 @@ makeMain commandSwitch =
         logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
         signupLogPath = config >>. (Proxy :: Proxy '["signup_log"])
     configLogger logPath logLevel
-    case signupLogPath of
-        Just path -> configSignupLogger path
-        Nothing -> return ()
+    configSignupLogger signupLogPath
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))

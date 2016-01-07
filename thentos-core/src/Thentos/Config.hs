@@ -278,8 +278,9 @@ configLogger path prio = do
 signupLogger :: String
 signupLogger = "signupLogger"
 
-configSignupLogger :: ST -> IO ()
-configSignupLogger path = do
+configSignupLogger :: Maybe ST -> IO ()
+configSignupLogger Nothing = return ()
+configSignupLogger (Just path) = do
     let logfile = ST.unpack path
     createDirectoryIfMissing True $ takeDirectory logfile
     handler <- fileHandler logfile DEBUG
