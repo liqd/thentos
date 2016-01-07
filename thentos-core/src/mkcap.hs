@@ -13,8 +13,8 @@ img = do
     let baseNum = 11234567890123456789
     forM_ [0..20] $ \n -> do
         let Just rnd = mkRandom20 $ cs $ show $ baseNum + n
-            path = "/host/tmp/cap" ++ show n ++ ".png"
-        (ImageData pngData, _) <- generateCaptcha rnd
+        (ImageData pngData, solution) <- generateCaptcha rnd
+        let path = "/host/tmp/" ++ cs solution ++ ".png"
         BS.writeFile path pngData
 
 
