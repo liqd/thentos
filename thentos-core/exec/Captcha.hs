@@ -22,8 +22,9 @@ import qualified Thentos.Backend.Api.Captcha as Captcha
 main :: IO ()
 main = do
     config :: ThentosConfig <- getConfig "devel.config"
-    -- FIXME checkEspeak instead
-    checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
+    -- FIXME: we need a function Thentos.Sybil.Captcha.init that is called here and crashes if
+    -- espeak is not present on the system.  (it could also do other initialization IO like creating
+    -- fonts in the future, but that wouldn't change the module surface much.)
 
     connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
     actionState <- makeActionState config connPool
