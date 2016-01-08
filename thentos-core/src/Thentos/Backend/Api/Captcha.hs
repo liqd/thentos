@@ -55,10 +55,11 @@ api as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds) t
 
 -- * captcha
 
+type CaptchaHeaders a = Headers '[Header "Thentos-Captcha-Id" CaptchaId] a
+
 type ThentosCaptcha =
-       "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
-  :<|> "audio_captcha" :> Capture "voice" ST
-          :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
+       "captcha"                             :> Post '[PNG] (CaptchaHeaders ImageData)
+  :<|> "audio_captcha" :> Capture "voice" ST :> Post '[WAV] (CaptchaHeaders SBS)
   :<|> "solve_captcha" :>  ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool)
 
 thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
