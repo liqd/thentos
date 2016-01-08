@@ -3,9 +3,9 @@
 
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
-import Control.Monad.Random (StdGen, mkStdGen, evalRand)
+import Control.Monad.Except
+import Control.Monad.Random (mkStdGen, evalRand)
 import Control.Monad.Random.Class
-import Control.Monad (replicateM, forM_)
 import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
 import Data.String.Conversions (ST, cs)
@@ -27,30 +27,26 @@ generateCaptcha :: Random20 -> IO (ImageData, ST)
 generateCaptcha rnd = do
     fontPath <- getDataFileName "resources/fonts/Courier_Prime_Bold.ttf"
     font <- either error id <$> loadFontFile fontPath
-    return $ (`evalRand` (random20ToStdGen rnd)) $ do
-        solution <- mkSolution
-        randoms <- getRandoms
-        let challenge = mkChallenge font randoms solution
-        return (challenge, solution)
+    return (challenge font, cs solution)
+  where
+    (solution, randoms) = flip evalRand (random20ToStdGen rnd)
+        ((,) <$> mkSolution <*> getRandoms)
+    random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
+    challenge font = mkChallenge font randoms solution
 
 
-random20ToStdGen :: Random20 -> StdGen
-random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
+mkSolution :: MonadRandom m => m String
+mkSolution = unwords <$> replicateM 2 (mkPassword 3)
 
 
-mkSolution :: MonadRandom m => m ST
-mkSolution = cs . unwords <$> replicateM 2 (mkPassword 3)
-
-
-mkChallenge :: Font -> [Float] -> ST -> ImageData
+mkChallenge :: Font -> [Float] -> String -> ImageData
 mkChallenge font rnds solution =
     let w = 500
         h = 100
-        chars = cs solution :: String
         render = renderDrawing w h (PixelRGBA8 255 255 255 255)
-        offsets = [20,70..]
-    in ImageData $ cs $ encodePng $ render $ do
-        forM_ (zip3 offsets chars rnds) $ \(offset, char, rnd) -> do
+        letterParams = zip3 [20,70..] solution rnds
+    in ImageData $ cs $ encodePng $ render $
+        forM_ letterParams $ \(offset, char, rnd) ->
              withTransformation (translate $ V2 offset 20) $
                  biteLetter font 40 rnd char
 
