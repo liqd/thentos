@@ -3,11 +3,12 @@
 
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
-import Control.Monad.Random (MonadRandom, StdGen, mkStdGen, evalRand)
+import Control.Monad.Random (StdGen, mkStdGen, evalRand)
+import Control.Monad.Random.Class
 import Control.Monad (replicateM, forM_)
 import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
-import Data.String.Conversions (SBS, ST, cs)
+import Data.String.Conversions (ST, cs)
 
 import Codec.Picture( PixelRGBA8( .. ), encodePng )
 import Graphics.Rasterific
@@ -28,7 +29,8 @@ generateCaptcha rnd = do
     font <- either error id <$> loadFontFile fontPath
     return $ (`evalRand` (random20ToStdGen rnd)) $ do
         solution <- mkSolution
-        let challenge = mkChallenge font solution
+        randoms <- getRandoms
+        let challenge = mkChallenge font randoms solution
         return (challenge, solution)
 
 
@@ -40,39 +42,38 @@ mkSolution :: MonadRandom m => m ST
 mkSolution = cs . unwords <$> replicateM 2 (mkPassword 3)
 
 
-type Pix = PixelRGBA8
-
-mkChallenge :: Font -> ST -> ImageData
-mkChallenge font solution = 
+mkChallenge :: Font -> [Float] -> ST -> ImageData
+mkChallenge font rnds solution =
     let w = 500
         h = 100
         chars = cs solution :: String
         render = renderDrawing w h (PixelRGBA8 255 255 255 255)
+        offsets = [20,70..]
     in ImageData $ cs $ encodePng $ render $ do
-        let offsets = [20,70..]
-        forM_ (zip offsets chars) $ \(offset, char) -> do
-             biteLetter font 40 (V2 offset 20) char
+        forM_ (zip3 offsets chars rnds) $ \(offset, char, rnd) -> do
+             withTransformation (translate $ V2 offset 20) $
+                 biteLetter font 40 rnd char
 
 
-biteLetter :: Font -> Float -> Point -> Char -> Drawing Pix ()
-biteLetter font size point@(V2 l t) char = do
-    let txBlack = uniformTexture black
-        pText = printTextAt font (PointSize size) (V2 0 60) [char]
-        letter = withTexture txBlack pText
-        txLetter = patternTexture 100 100 96 white letter
-        rect = rectangle point size 50
-        shift = transformTexture $ translate (V2 (-l) 0)
-        biteOffset = (V2 10 10)
-        bite = rectangle (point ^-^ biteOffset) 32 32
-        biteShift = transformTexture $ translate (V2 (-l) 0 ^+^ biteOffset)
-    -- Draw a box around the letter
-    --withTexture txBlack $ stroke 1 JoinRound (CapRound, CapRound) rect
-    withTexture (shift txLetter) $ fill rect
-    --withTexture (biteShift $ uniformTexture color1) fill bite
-    withTexture (biteShift txLetter) $ fill bite
+-- | Render a letter with a chunk displaced.
+biteLetter :: Font -> Float -> Float -> Char -> Drawing PixelRGBA8 ()
+biteLetter _ _ _ ' ' = return ()
+biteLetter font size rnd char = do
+    withTexture texLetter $ fill rect
+    withTexture (biteShift texLetter) $ fill bite
+  where
+    -- Render letter to texture
+    black = PixelRGBA8 0 0 0 255
+    white = PixelRGBA8 255 255 255 255
+    texBlack = uniformTexture black
+    printText = printTextAt font (PointSize size) (V2 0 size) [char]
+    letter = withTexture texBlack printText
+    texLetter = patternTexture 100 100 96 white letter
+    rect = rectangle (V2 0 0) size 50
+    -- Take a chunk of the letter and displace it randomly
+    radius = 20
+    biteX = rnd * radius
+    biteOffset = V2 biteX (radius - biteX)
+    bite = rectangle biteOffset 20 20
+    biteShift = transformTexture $ translate (biteOffset ^/ 2)
 
-
-black = PixelRGBA8 0 0 0 255
-white = PixelRGBA8 255 255 255 255
-color1 = PixelRGBA8 0 0 255 255
-color2 = PixelRGBA8 0 255 0 255
