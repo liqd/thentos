@@ -64,12 +64,18 @@ type ThentosCaptcha =
 
 thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
 thentosCaptcha =
-       (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
-  :<|> (\voice -> makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
-  :<|> (JsonTop <$>) . solveCaptcha'
+       img
+  :<|> wav
+  :<|> solve
 
-solveCaptcha' :: CaptchaSolution -> Action Void () Bool
-solveCaptcha' (CaptchaSolution cId solution) = do
+img :: Action Void () (CaptchaHeaders ImageData)
+img = (\(cid, img) -> addHeader cid img) <$> makeCaptcha
+
+wav :: ST -> Action Void () (CaptchaHeaders SBS)
+wav voice = (\(cid, wav) -> addHeader cid wav) <$> makeAudioCaptcha (cs voice)
+
+solve :: CaptchaSolution -> Action Void () (JsonTop Bool)
+solve (CaptchaSolution cId solution) = JsonTop <$> do
     correct <- solveCaptcha cId solution `catchError` h
     when correct $
         deleteCaptcha cId
