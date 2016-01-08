@@ -1,8 +1,6 @@
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 module Main (main) where
 

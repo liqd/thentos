@@ -98,7 +98,7 @@ makeMain commandSwitch =
 -- * helpers
 
 -- | Initialise ActionState
-makeActionState :: ThentosConfig -> (Pool Connection) -> IO ActionState
+makeActionState :: ThentosConfig -> Pool Connection -> IO ActionState
 makeActionState config connPool = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
     return $ ActionState config rng connPool
