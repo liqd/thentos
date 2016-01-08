@@ -73,7 +73,6 @@ library
     , Thentos.Backend.Api.PureScript
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
-    , Thentos.CaptchaService
     , Thentos.Config
     , Thentos.Ends.Types
     , Thentos.Frontend
@@ -213,7 +212,7 @@ executable thentos-captcha
   hs-source-dirs:
       exec
   main-is:
-      CaptchaMain.hs
+      Captcha.hs
   ghc-options:
       -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
   if flag(profiling)
@@ -222,5 +221,7 @@ executable thentos-captcha
   build-depends:
       base
     , thentos-core
+    , configifier
+    , hslogger
   if flag(development)
     cpp-options: -DDEVELOPMENT
