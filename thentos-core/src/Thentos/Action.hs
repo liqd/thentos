@@ -721,6 +721,7 @@ makeAudioCaptcha eSpeakVoice = do
 -- never did or because it was deleted). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
 solveCaptcha cid solution = do
+    assertAuth hasPrivilegedIP
     solutionCorrect <- queryA $ T.solveCaptcha cid solution
     unless solutionCorrect $ deleteCaptcha cid
     return solutionCorrect
@@ -729,7 +730,7 @@ solveCaptcha cid solution = do
 -- 'CaptchaId' doesn't exist in the DB (either because it never did or because it was deleted due
 -- to garbage collection or a prior call to this action). Does not require any privileges.
 deleteCaptcha :: CaptchaId -> Action e s ()
-deleteCaptcha = queryA . T.deleteCaptcha
+deleteCaptcha = (assertAuth hasPrivilegedIP >>) . queryA . T.deleteCaptcha
 
 
 -- * garbage collection
