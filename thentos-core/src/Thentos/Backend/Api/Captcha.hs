@@ -1,8 +1,8 @@
-{-# LANGUAGE DataKinds                                #-}
-{-# LANGUAGE FlexibleContexts                         #-}
-{-# LANGUAGE FlexibleInstances                        #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE TypeOperators                            #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -75,14 +75,15 @@ captchaWavH :: ST -> Action Void () (CaptchaHeaders SBS)
 captchaWavH voice = (\(cid, wav) -> addHeader cid wav) <$> makeAudioCaptcha (cs voice)
 
 captchaSolveH :: CaptchaSolution -> Action Void () (JsonTop Bool)
-captchaSolveH (CaptchaSolution cId solution) = JsonTop <$> do
-    correct <- solveCaptcha cId solution `catchError` h
+captchaSolveH (CaptchaSolution cid solution) = JsonTop <$> do
+    correct <- solveCaptcha cid solution `catchError` h
     when correct $
-        deleteCaptcha cId
+        deleteCaptcha cid
     return correct
   where
     h NoSuchCaptchaId = return False
     h e               = throwError e
+
 
 -- * servant docs
 
