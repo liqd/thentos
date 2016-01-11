@@ -85,7 +85,7 @@ import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad (when, unless)
-import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
+import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
@@ -731,10 +731,19 @@ data CaptchaSolution = CaptchaSolution
     { csId       :: CaptchaId
     , csSolution :: ST
     }
-    deriving (Eq, Typeable, Generic)
+    deriving (Eq, Typeable, Generic, Show)
 
-instance Aeson.FromJSON CaptchaSolution where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON CaptchaSolution where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON CaptchaSolution where
+    parseJSON (Aeson.Object m) = CaptchaSolution <$>
+                                    m .: "id" <*>
+                                    m .: "solution"
+    parseJSON bad = aesonError "CaptchaSolution" bad
+
+instance Aeson.ToJSON CaptchaSolution where
+    toJSON (CaptchaSolution cId cSol) =
+        Aeson.object [ "id" .= Aeson.toJSON cId
+                     , "solution" .= Aeson.toJSON cSol
+                     ]
 
 
 -- * errors
