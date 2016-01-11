@@ -76,13 +76,13 @@ type CaptchaOptionsHeaders =
      ]
 
 addCaptchaOptionsHeaders :: a -> Headers CaptchaOptionsHeaders a
-addCaptchaOptionsHeaders a = a
-     & addHeader "*"
-     & addHeader "X-Thentos-Captcha-Id"
-     & addHeader "900"
-     & addHeader "true"
-     & addHeader "POST,GET,DELETE,PUT,OPTIONS"
-     & addHeader "Origin, Content-Type, Accept, X-User-Path, X-User-Token"
+addCaptchaOptionsHeaders =
+       addHeader "*"
+     . addHeader "X-Thentos-Captcha-Id"
+     . addHeader "900"
+     . addHeader "true"
+     . addHeader "POST, GET, DELETE, PUT, OPTIONS"
+     . addHeader "Origin, Content-Type, Accept, X-User-Path, X-User-Token"
 
 type CaptchaHeaders = Header "X-Thentos-Captcha-Id" CaptchaId ': CaptchaOptionsHeaders
 
