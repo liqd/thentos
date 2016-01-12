@@ -221,6 +221,7 @@ executable thentos-captcha
   build-depends:
       base
     , thentos-core
+    , async
     , configifier
     , hslogger
   if flag(development)

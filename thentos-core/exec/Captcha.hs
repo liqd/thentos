@@ -4,15 +4,17 @@
 
 module Main (main) where
 
+import Control.Concurrent.Async (concurrently)
 import Control.Exception (finally)
+import Control.Monad (void)
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
 import System.Log.Logger (Priority(INFO), removeAllHandlers)
 
 import System.Log.Missing (logger, announceAction)
 import Thentos (createConnPoolAndInitDb, runGcLoop, makeActionState)
 import Thentos.Config
-import Thentos.Smtp (checkSendmail)
 
 import qualified Thentos.Backend.Api.Captcha as Captcha
 
@@ -30,11 +32,14 @@ main = do
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
 
-    case Tagged <$> config >>. (Proxy :: Proxy '["backend"]) of
-        Nothing -> return () -- TODO: error message
-        Just backendConfig -> do
-            logger INFO "Press ^C to abort."
-            let run = Captcha.runApi backendConfig actionState
-                finalize = announceAction "shutting down hslogger" removeAllHandlers
+    let backendCfg  = forceCfg "backend" $ Tagged <$> config >>. (Proxy :: Proxy '["backend"])
+        backend     = Captcha.runBackendApi backendCfg actionState
+        frontendCfg = forceCfg "frontend" $ Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+        frontend    = Captcha.runFrontendApi frontendCfg actionState
+        run         = void $ concurrently backend frontend
+        finalize    = announceAction "shutting down hslogger" removeAllHandlers
 
-            run `finally` finalize
+    logger INFO "Press ^C to abort."
+    run `finally` finalize
+  where
+    forceCfg name = fromMaybe . error $ name ++ " not configured"

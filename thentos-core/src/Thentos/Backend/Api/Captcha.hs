@@ -11,7 +11,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Captcha where
+module Thentos.Backend.Api.Captcha (runFrontendApi, runBackendApi) where
 
 import Control.Lens ((&), (%~), (.~))
 import Control.Monad.Except (catchError, throwError)
@@ -46,22 +46,49 @@ import Thentos.Types
 import qualified Paths_thentos_core__ as Paths
 
 
--- * main
+-- * main for frontend interface (called from browsers to generate captchas)
 
-runApi :: HttpConfig -> ActionState -> IO ()
-runApi cfg asg = do
-    logger INFO $ "running rest api Thentos.Backend.Api.Captcha on " ++ show (bindUrl cfg) ++ "."
-    runWarpWithCfg cfg $ serveApi cfg asg
+runFrontendApi :: HttpConfig -> ActionState -> IO ()
+runFrontendApi cfg asg = do
+    logStart "ThentosCaptchaFrontend" cfg
+    runWarpWithCfg cfg $ serveFrontendApi cfg asg
 
-serveApi :: HttpConfig -> ActionState -> Application
-serveApi cfg astate = addCacheControlHeaders $
-    let p = Proxy :: Proxy (RestDocs Api)
-    in serve p (restDocs cfg p :<|> api astate)
+serveFrontendApi :: HttpConfig -> ActionState -> Application
+serveFrontendApi cfg astate = addCacheControlHeaders $
+    let p = Proxy :: Proxy (RestDocs FrontendApi)
+    in serve p (restDocs cfg p :<|> frontendApi astate)
 
-type Api = ThentosAuth :> ThentosCaptcha
+type FrontendApi = ThentosAuth :> ThentosCaptchaFrontend
 
-api :: ActionState -> Server Api
-api as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds) thentosCaptcha
+frontendApi :: ActionState -> Server FrontendApi
+frontendApi as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds)
+                           thentosCaptchaFrontend
+
+
+-- * main for backend interface (called as service from backends to validate solutions)
+
+runBackendApi :: HttpConfig -> ActionState -> IO ()
+runBackendApi cfg asg = do
+    logStart "ThentosCaptchaBackend" cfg
+    runWarpWithCfg cfg $ serveBackendApi cfg asg
+
+serveBackendApi :: HttpConfig -> ActionState -> Application
+serveBackendApi cfg astate = addCacheControlHeaders $
+    let p = Proxy :: Proxy (RestDocs BackendApi)
+    in serve p (restDocs cfg p :<|> backendApi astate)
+
+type BackendApi = ThentosAuth :> ThentosCaptchaBackend
+
+backendApi :: ActionState -> Server BackendApi
+backendApi as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds)
+                                thentosCaptchaBackend
+
+
+-- * helpers
+
+logStart :: String -> HttpConfig -> IO ()
+logStart cmd cfg = logger INFO $ concat
+    ["running rest api Thentos.Backend.Api.Captcha.", cmd, " on ", show (bindUrl cfg), "."]
 
 
 -- * captcha
@@ -89,8 +116,6 @@ type CaptchaHeaders = Header "X-Thentos-Captcha-Id" CaptchaId ': CaptchaOptionsH
 addCaptchaHeaders :: CaptchaId -> a -> Headers CaptchaHeaders a
 addCaptchaHeaders cid = addHeader cid . addCaptchaOptionsHeaders
 
-type ThentosCaptcha = ThentosCaptchaFrontend :<|> ThentosCaptchaBackend
-
 type ThentosCaptchaFrontend =
        "captcha"                             :> Options (Headers CaptchaOptionsHeaders ())
   :<|> "captcha"                             :> Post    '[PNG] (Headers CaptchaHeaders ImageData)
@@ -99,9 +124,6 @@ type ThentosCaptchaFrontend =
 
 type ThentosCaptchaBackend =
        "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool) -- FIXME: this should return status 200, not 201
-
-thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
-thentosCaptcha = thentosCaptchaFrontend :<|> thentosCaptchaBackend
 
 thentosCaptchaFrontend :: ServerT ThentosCaptchaFrontend (Action Void ())
 thentosCaptchaFrontend =
@@ -135,16 +157,28 @@ captchaSolveH (CaptchaSolution cid solution) = JsonTop <$> do
 
 -- * servant docs
 
-instance HasDocExtras (RestDocs Api) where
+instance HasDocExtras (RestDocs FrontendApi) where
     getCabalPackageName _ = "thentos-core"
     getCabalPackageVersion _ = Paths.version
 
-    getTitle _ = "The thentos API family: Captcha"
+    getTitle _ = "The thentos API family: Captcha Frontend "
 
     getIntros _ =
         [ Docs.DocIntro "@@0.2@@Overview" [unlines $
-            [ "A lean service that provides visual and audio captchas and verifies whether"
-            , "submitted solutions are correct."
+            [ "A lean service that generates visual and audio captchas (called from browsers)."
+            ]]]
+
+
+instance HasDocExtras (RestDocs BackendApi) where
+    getCabalPackageName _ = "thentos-core"
+    getCabalPackageVersion _ = Paths.version
+
+    getTitle _ = "The thentos API family: Captcha Backend"
+
+    getIntros _ =
+        [ Docs.DocIntro "@@0.2@@Overview" [unlines $
+            [ "A lean service that verifies whether submitted captcha solutions are correct"
+            , "(called as service from backends)."
             ]]]
 
 
@@ -168,4 +202,4 @@ instance {-# OVERLAPPABLE #-} Foreign.HasForeign Foreign.NoTypes
             & Foreign.reqMethod .~ "OPTIONS"
 
 instance Docs.HasDocs (Options (Headers CaptchaOptionsHeaders ())) where
-    docsFor _ dat opts = mempty  -- FIXME: be more helpful here?
+    docsFor _ _dat _opts = mempty  -- FIXME: be more helpful here?
