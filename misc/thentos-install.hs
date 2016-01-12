@@ -223,7 +223,8 @@ runCabal args extraArgs = do
                   , "--enable-tests", "--enable-bench"
                   , "--max-backjumps -1", "--reorder-goals"
                   , "-fwith-thentos-executable"
-                        -- (should only be here for thentos-core source)
+                  , "-fwith-captcha-executable"
+                        -- (these should only be here for thentos-core source)
                   ] ++ sources
 
         userArgs = concat $ fmap f args

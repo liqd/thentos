@@ -7,8 +7,10 @@
 module Thentos
     ( main
     , makeMain
+    , makeActionState
     , createConnPoolAndInitDb
     , createDefaultUser
+    , runGcLoop
     , autocreateMissingServices
     ) where
 
@@ -26,7 +28,7 @@ import Data.Monoid ((<>))
 import Data.Foldable (forM_)
 import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (SBS, cs)
+import Data.String.Conversions (cs, ST)
 import Data.Void (Void)
 import LIO.DCLabel (toCNF)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
@@ -65,15 +67,12 @@ makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO
 makeMain commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
-    checkSendmail (Tagged $ config >>. (Proxy :: Proxy '["smtp"]))
+    connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
 
-    rng :: MVar ChaChaDRG   <- drgNew >>= newMVar
-    let dbName = config >>. (Proxy :: Proxy '["database", "name"])
-    connPool <- createConnPoolAndInitDb $ cs dbName
-    let actionState = ActionState config rng connPool
-        logPath     = config >>. (Proxy :: Proxy '["log", "path"])
-        logLevel    = config >>. (Proxy :: Proxy '["log", "level"])
-    configLogger logPath logLevel
+    actionState <- makeActionState config connPool
+    checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
+    configLogger . Tagged $ config >>. (Proxy :: Proxy '["log"])
+
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
         createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
@@ -98,6 +97,12 @@ makeMain commandSwitch =
 
 -- * helpers
 
+-- | Initialise ActionState
+makeActionState :: ThentosConfig -> Pool Connection -> IO ActionState
+makeActionState config connPool = do
+    rng :: MVar ChaChaDRG <- drgNew >>= newMVar
+    return $ ActionState config rng connPool
+
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
@@ -109,7 +114,7 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
 -- is empty. Tables already existing in the DB won't be touched. The DB itself must already exist.
-createConnPoolAndInitDb :: SBS -> IO (Pool Connection)
+createConnPoolAndInitDb :: ST -> IO (Pool Connection)
 createConnPoolAndInitDb dbName = do
     connPool <- createPool createConn close
                            1    -- # of stripes (sub-pools)
@@ -118,7 +123,7 @@ createConnPoolAndInitDb dbName = do
     withResource connPool createDB
     return connPool
   where
-    createConn = connectPostgreSQL $ "dbname=" <> dbName
+    createConn = connectPostgreSQL $ "dbname=" <> cs dbName
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
