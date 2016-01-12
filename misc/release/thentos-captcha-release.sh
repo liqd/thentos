@@ -49,7 +49,7 @@ cp $cabal_sandbox/bin/thentos-captcha .
 mkdir -p thentos-core/schema
 cp -r ../thentos/thentos-core/schema/* thentos-core/schema
 cp ../thentos/misc/release/thentos-captcha-README.md README.md
-#TODO: Copy config
+cp ../thentos/thentos-core/devel.config thentos-captcha.config
 cd ..
 tar cf $tar *
 gzip $tar
