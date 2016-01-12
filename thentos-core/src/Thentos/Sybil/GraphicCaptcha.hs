@@ -2,6 +2,7 @@
 
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
+import Control.Exception (throwIO, ErrorCall(ErrorCall))
 import Control.Monad.Except
 import Control.Monad.Random (mkStdGen, evalRand)
 import Control.Monad.Random.Class
@@ -25,7 +26,7 @@ import Thentos.Types
 generateCaptcha :: Random20 -> IO (ImageData, ST)
 generateCaptcha rnd = do
     fontPath <- getDataFileName "resources/fonts/Courier_Prime_Bold.ttf"
-    font <- either error id <$> loadFontFile fontPath
+    font <- loadFontFile fontPath >>= either (throwIO . ErrorCall) return
     return (challenge font, cs solution)
   where
     solution = evalRand mkSolution (random20ToStdGen rnd)
