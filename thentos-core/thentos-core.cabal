@@ -85,6 +85,8 @@ library
     , Thentos.Frontend.Types
     , Thentos.Smtp
     , Thentos.Sybil
+    , Thentos.Sybil.AudioCaptcha
+    , Thentos.Sybil.GraphicCaptcha
     , Thentos.Transaction
     , Thentos.Transaction.Core
     , Thentos.Types
