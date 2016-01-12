@@ -15,6 +15,7 @@ import System.Log.Logger (Priority(INFO), removeAllHandlers)
 import System.Log.Missing (logger, announceAction)
 import Thentos (createConnPoolAndInitDb, runGcLoop, makeActionState)
 import Thentos.Config
+import Thentos.Sybil.AudioCaptcha (checkEspeak)
 
 import qualified Thentos.Backend.Api.Captcha as Captcha
 
@@ -22,14 +23,10 @@ import qualified Thentos.Backend.Api.Captcha as Captcha
 main :: IO ()
 main = do
     config :: ThentosConfig <- getConfig "devel.config"
-    -- FIXME: we need a function Thentos.Sybil.Captcha.init that is called here and crashes if
-    -- espeak is not present on the system.  (it could also do other initialization IO like creating
-    -- fonts in the future, but that wouldn't change the module surface much.)
-
+    checkEspeak  -- Make sure that we can successfully generate audio captchas
     connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
     actionState <- makeActionState config connPool
     configLogger . Tagged $ config >>. (Proxy :: Proxy '["log"])
-
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
 
     let backendCfg  = forceCfg "backend" $ Tagged <$> config >>. (Proxy :: Proxy '["backend"])
