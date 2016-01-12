@@ -5,16 +5,16 @@
 -- FIXME: provide start-time check (`init` function) for existence
 -- of executables.  use it in main.
 
-module Thentos.Sybil.AudioCaptcha (generateAudioCaptcha) where
+module Thentos.Sybil.AudioCaptcha (checkEspeak, generateAudioCaptcha) where
 
 import Control.Monad.Except (throwError)
-import Control.Monad (unless)
+import Control.Monad (unless, void)
 import Data.Char (ord)
 import Data.String.Conversions (ST, SBS, cs)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process (runInteractiveProcess, waitForProcess)
+import System.Process (readProcess, runInteractiveProcess, waitForProcess)
 
 import qualified Data.Text as ST
 import qualified Data.ByteString as SBS
@@ -23,6 +23,10 @@ import Thentos.Types
 import Thentos.Action.Types
 import Thentos.Action.Unsafe (unsafeLiftIO)
 
+-- | Test whether espeak is available on this system, throwing an error if it isn't.
+-- In that case, generating audio captchas won't work.
+checkEspeak :: IO ()
+checkEspeak = void $ readProcess "espeak" ["--version"] ""
 
 -- | Generate a captcha. Returns a pair of the binary audio data in WAV format and the correct
 -- solution to the captcha.  (Return value is wrapped in 'Action' for access to 'IO' and for
@@ -35,9 +39,6 @@ generateAudioCaptcha eSpeakVoice rnd = do
 
 -- | Returns 6 digits of randomness.  (This loses a lot of the input randomness, but captchas are a
 -- low-threshold counter-measure, so they should be at least reasonably convenient to use.)
---
--- FIXME: use nato spelling alphabet on the letters from the visual challenge instead.  makes for a
--- better UI *and* slightly better security.
 mkAudioSolution :: Random20 -> ST
 mkAudioSolution = ST.intercalate " "
                 . ((cs . show . (`mod` 10) . ord <$>) :: String -> [ST])
