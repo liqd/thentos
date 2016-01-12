@@ -97,7 +97,7 @@ specBackend = do
             liftIO $ captchaCorrect `shouldBe` True
             liftIO $ rowCountShouldBe connPool "captchas" 0
 
-        it "returns False if an correct solution is posted" $ do
+        it "returns False if an incorrect solution is posted" $ do
             connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
             void . liftIO $ doTransaction connPool
                 [sql| INSERT INTO captchas (id, solution)
