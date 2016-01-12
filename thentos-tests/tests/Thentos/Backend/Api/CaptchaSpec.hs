@@ -22,7 +22,7 @@ import Test.Hspec (Spec, SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (with, request)
 
 import Thentos.Action.Types
-import Thentos.Backend.Api.Captcha (serveApi)
+import Thentos.Backend.Api.Captcha (serveFrontendApi, serveBackendApi)
 import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.Transaction
@@ -31,23 +31,34 @@ import Thentos.Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
 
-captchaApp :: IO Application
-captchaApp = do
+backendApp :: IO Application
+backendApp = do
     as@(ActionState cfg _ connPool) <- createActionState "test_thentos" thentosTestConfig
     void $ tryTakeMVar connPoolVar -- discard old value, if any
     putMVar connPoolVar connPool
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
-    return $! serveApi beConfig as
+    return $! serveBackendApi beConfig as
+
+frontendApp :: IO Application
+frontendApp = do
+    as@(ActionState cfg _ connPool) <- createActionState "test_thentos" thentosTestConfig
+    void $ tryTakeMVar connPoolVar -- discard old value, if any
+    putMVar connPoolVar connPool
+    let Just feConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["frontend"])
+    return $! serveFrontendApi feConfig as
+
 
 spec :: Spec
-spec = describe "Thentos.Backend.Api.Simple" $ with captchaApp specRest
+spec = describe "Thentos.Backend.Api.Captcha" $ do
+        with frontendApp specFrontend
+        with backendApp specBackend
 
 connPoolVar :: MVar (Pool Connection)
 connPoolVar = unsafePerformIO $ newEmptyMVar
 {-# NOINLINE connPoolVar #-}
 
-specRest :: SpecWith Application
-specRest = do
+specFrontend :: SpecWith Application
+specFrontend = do
     describe "/captcha" $ do
         it "returns a png image on empty POST request" $ do
             res <- request "POST" "/captcha" [] ""
@@ -64,6 +75,8 @@ specRest = do
             connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
             liftIO $ rowCountShouldBe connPool "captchas" 1
 
+specBackend :: SpecWith Application
+specBackend = do
     describe "/solve_captcha" $ do
         it "returns false when the captcha id does not exist" $ do
             let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") "solution"

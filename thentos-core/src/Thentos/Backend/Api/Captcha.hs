@@ -11,7 +11,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Thentos.Backend.Api.Captcha (runFrontendApi, runBackendApi) where
+module Thentos.Backend.Api.Captcha (runFrontendApi, runBackendApi, serveBackendApi, serveFrontendApi) where
 
 import Control.Lens ((&), (%~), (.~))
 import Control.Monad.Except (catchError, throwError)
