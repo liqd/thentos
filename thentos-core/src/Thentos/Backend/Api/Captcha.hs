@@ -98,7 +98,7 @@ type ThentosCaptchaFrontend =
   :<|> "audio_captcha" :> Capture "voice" ST :> Post    '[WAV] (Headers CaptchaHeaders SBS)
 
 type ThentosCaptchaBackend =
-       "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool)
+       "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool) -- FIXME: this should return status 200, not 201
 
 thentosCaptcha :: ServerT ThentosCaptcha (Action Void ())
 thentosCaptcha = thentosCaptchaFrontend :<|> thentosCaptchaBackend
