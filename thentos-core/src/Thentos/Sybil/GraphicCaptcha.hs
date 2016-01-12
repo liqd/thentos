@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
@@ -29,7 +28,7 @@ generateCaptcha rnd = do
     font <- either error id <$> loadFontFile fontPath
     return (challenge font, cs solution)
   where
-    solution = flip evalRand (random20ToStdGen rnd) mkSolution
+    solution = evalRand mkSolution (random20ToStdGen rnd)
     random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
     challenge font = mkChallenge font solution
 
