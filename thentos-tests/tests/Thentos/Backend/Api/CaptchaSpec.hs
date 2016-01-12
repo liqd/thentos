@@ -59,55 +59,43 @@ connPoolVar = unsafePerformIO $ newEmptyMVar
 
 specFrontend :: SpecWith Application
 specFrontend = do
-    describe "/captcha" $ do
-        it "returns a png image on empty POST request" $ do
-            res <- request "POST" "/captcha" [] ""
+    let f url = do
+            res <- request "POST" url [] ""
             liftIO $ statusCode (simpleStatus res) `shouldBe` 201
             liftIO $ LBS.length (simpleBody res) > 0 `shouldBe` True
             connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
             liftIO $ rowCountShouldBe connPool "captchas" 1
 
+    describe "/captcha" $ do
+        it "returns a png image on empty POST request" $ f "/captcha"
+
     describe "/audio_captcha" $ do
-        it "returns a sound file on empty POST request" $ do
-            res <- request "POST" "/audio_captcha/en" [] ""
-            liftIO $ statusCode (simpleStatus res) `shouldBe` 201
-            liftIO $ LBS.length (simpleBody res) > 0 `shouldBe` True
-            connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-            liftIO $ rowCountShouldBe connPool "captchas" 1
+        it "returns a sound file on empty POST request" $ f "/audio_captcha/en"
 
 specBackend :: SpecWith Application
 specBackend = do
     describe "/solve_captcha" $ do
-        it "returns false when the captcha id does not exist" $ do
-            let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") "solution"
-            res <- request "POST" "/solve_captcha" jsonHeaders captchaSolution
-            let Just (JsonTop (captchaCorrect :: Bool)) = Aeson.decode (simpleBody res)
-            liftIO $ statusCode (simpleStatus res) `shouldBe` 201
-            liftIO $ captchaCorrect `shouldBe` False
+        let f guess good = do
+                let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") guess
+                res <- request "POST" "/solve_captcha" jsonHeaders captchaSolution
+                let Just (JsonTop (captchaCorrect :: Bool)) = Aeson.decode (simpleBody res)
+                liftIO $ statusCode (simpleStatus res) `shouldBe` 201
+                liftIO $ captchaCorrect `shouldBe` good
 
-        it "returns True if the correct solution is posted" $ do
-            connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-            void . liftIO $ doTransaction connPool
-                [sql| INSERT INTO captchas (id, solution)
-                      VALUES ('id', 'solution') |] ()
-            let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") "solution"
-            res <- request "POST" "/solve_captcha" jsonHeaders captchaSolution
-            let Just (JsonTop (captchaCorrect :: Bool)) = Aeson.decode (simpleBody res)
-            liftIO $ statusCode (simpleStatus res) `shouldBe` 201
-            liftIO $ captchaCorrect `shouldBe` True
-            liftIO $ rowCountShouldBe connPool "captchas" 0
+            g = do
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                void . liftIO $ doTransaction connPool
+                    [sql| INSERT INTO captchas (id, solution)
+                          VALUES ('id', 'right') |] ()
+                return connPool
 
-        it "returns False if an incorrect solution is posted" $ do
-            connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-            void . liftIO $ doTransaction connPool
-                [sql| INSERT INTO captchas (id, solution)
-                      VALUES ('id', 'solution') |] ()
-            let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") "wrong"
-            res <- request "POST" "/solve_captcha" jsonHeaders captchaSolution
-            let Just (JsonTop (captchaCorrect :: Bool)) = Aeson.decode (simpleBody res)
-            liftIO $ statusCode (simpleStatus res) `shouldBe` 201
-            liftIO $ captchaCorrect `shouldBe` False
-            liftIO $ rowCountShouldBe connPool "captchas" 0
+            h guess good connPool = do
+                f guess good
+                liftIO $ rowCountShouldBe connPool "captchas" 0
+
+        it "returns false when the captcha id does not exist" $       f "not" False
+        it "returns False if an incorrect solution is posted" $ g >>= h "wrong" False
+        it "returns True if the correct solution is posted"   $ g >>= h "right" True
 
 jsonHeaders :: [Header]
 jsonHeaders = [("Content-Type", "application/json")]
