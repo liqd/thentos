@@ -58,8 +58,9 @@ md5hash=`md5sum $targz | awk -F ' ' '{print $1}'`
 echo -n $md5hash > $targz.md5
 echo -n $sha1hash > $targz.sha1
 popd
-cp $tmpdir/$targz* .
+mkdir -p "output/releases"
+cp $tmpdir/$targz* output/releases/
 rm -rf $tmpdir
-echo "All done."
+echo "Created release tarball in output/releases/$targz"
 echo "MD5:  $md5hash"
 echo "SHA1: $sha1hash"
