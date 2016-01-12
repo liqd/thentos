@@ -32,10 +32,10 @@ import Thentos.Types
 
 spec :: Spec
 spec = describe "Thentos.Sybil.Captcha" $ do
-    it "produces three-word phrases as solutions" $ do
+    it "produces two-word phrases as solutions" $ do
         let Just r = mkRandom20 "--------------------"
         x <- generateCaptcha r
-        (length . words . cs . snd $ x) `shouldBe` 3
+        (length . words . cs . snd $ x) `shouldBe` 2
 
     it "different rnd seed produces different solutions" $ do
         let Just rx = mkRandom20 "--------------------"
