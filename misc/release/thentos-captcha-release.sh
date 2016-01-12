@@ -17,7 +17,7 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-cd `dirname $0`/..
+cd `dirname $0`/../..
 
 if ! git show-ref $1 >> /dev/null; then
     echo "\"$1\" is not a valid git reference"
@@ -29,7 +29,7 @@ if [ ! -f cabal.sandbox.config ]; then
     exit 1
 fi
 
-relname=thentos-$1
+relname=thentos-captcha-$1
 tar=$relname.bin.tar
 targz=$tar.gz
 tmpdir=`mktemp -d`
@@ -45,9 +45,10 @@ CABAL_PACKAGE_SOURCE_ROOT_THENTOS_CORE=. \
 cd ..
 mkdir $relname
 cd $relname
-cp $cabal_sandbox/bin/thentos-adhocracy . # TODO: copy correct binary(s)
+cp $cabal_sandbox/bin/thentos-captcha .
 mkdir -p thentos-core/schema
 cp -r ../thentos/thentos-core/schema/* thentos-core/schema
+cp ../thentos/misc/release/thentos-captcha-README.md README.md
 #TODO: Copy config
 cd ..
 tar cf $tar *
