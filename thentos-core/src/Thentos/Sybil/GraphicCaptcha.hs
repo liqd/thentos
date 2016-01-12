@@ -52,8 +52,8 @@ mkChallenge font solution =
         letterParams = zip offsets solution
     in ImageData $ cs $ encodePng $ render $
         forM_ letterParams $ \(offset, char) ->
-             withTransformation (translate $ V2 offset yOffset) $
-                 biteLetter font textPx char
+            withTransformation (translate $ V2 offset yOffset) $
+                biteLetter font textPx char
 
 
 -- | Render a letter with a chunk displaced.
