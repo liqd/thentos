@@ -224,7 +224,7 @@ spec_captcha = describe "captcha" $ do
             count `shouldBe` (0 :: Int)
   where
     cid      = "RandomId"
-    solution = "some text"
+    solution = "some-text"
 
 -- specialize to error type 'Void' and state '()'
 runA :: ActionState -> Action Void () a -> IO a
