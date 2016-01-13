@@ -3,11 +3,12 @@
 
 module Thentos.Test.Transaction where
 
+import Data.Int (Int64)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Void (Void)
 import Data.String.Conversions (SBS)
-import Database.PostgreSQL.Simple (Connection, FromRow, ToRow, Only(..), query, query_)
+import Database.PostgreSQL.Simple (Connection, FromRow, ToRow, Only(..), query, query_, execute)
 import Database.PostgreSQL.Simple.Types (Query(..))
 import GHC.Stack (CallStack)
 import Test.Hspec (shouldBe)
@@ -29,6 +30,9 @@ doQuery connPool stmt params = withResource connPool $ \conn -> query conn stmt 
 
 doQuery_ :: FromRow r => Pool Connection -> Query -> IO [r]
 doQuery_ connPool stmt = withResource connPool $ \conn -> query_ conn stmt
+
+doTransaction :: ToRow q => Pool Connection -> Query -> q -> IO Int64
+doTransaction connPool stmt params = withResource connPool $ \conn -> execute conn stmt params
 
 -- | Check that a database table contains the expected number of rows.
 -- DON'T use this in production case, it's totally unprotected against SQL injection!

@@ -98,7 +98,6 @@ import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
 import Data.ByteString.Conversion (ToByteString)
 import Data.Char (isAlpha)
-import Data.Csv ((.:))
 import Data.EitherR (fmapL)
 import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
@@ -755,10 +754,19 @@ data CaptchaSolution = CaptchaSolution
     { csId       :: CaptchaId
     , csSolution :: ST
     }
-    deriving (Show, Eq, Typeable, Generic)
+    deriving (Eq, Typeable, Generic, Show)
 
-instance Aeson.FromJSON CaptchaSolution where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON CaptchaSolution where toJSON = Aeson.gtoJson
+instance Aeson.FromJSON CaptchaSolution where
+    parseJSON (Aeson.Object m) = CaptchaSolution <$>
+                                    m Aeson..: "id" <*>
+                                    m Aeson..: "solution"
+    parseJSON bad = aesonError "CaptchaSolution" bad
+
+instance Aeson.ToJSON CaptchaSolution where
+    toJSON (CaptchaSolution cId cSol) =
+        Aeson.object [ "id" .= Aeson.toJSON cId
+                     , "solution" .= Aeson.toJSON cSol
+                     ]
 
 data CaptchaAttempt = CaptchaIncorrect | CaptchaCorrect
     deriving (Show, Eq, Ord)
@@ -786,10 +794,10 @@ instance CSV.ToNamedRecord SignupAttempt where
 
 instance CSV.FromNamedRecord SignupAttempt where
     parseNamedRecord v = SignupAttempt <$>
-            v .: "name" <*>
-            v .: "email" <*>
-            v .: "captcha_solved" <*>
-            v .: "timestamp"
+            v CSV..: "name" <*>
+            v CSV..: "email" <*>
+            v CSV..: "captcha_solved" <*>
+            v CSV..: "timestamp"
 
 instance CSV.ToRecord SignupAttempt where
     toRecord (SignupAttempt n e c ts) =

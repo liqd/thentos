@@ -24,7 +24,7 @@ import qualified Data.ByteString as SBS
 
 import Thentos.Action.Core
 import Thentos.Action.Types
-import Thentos.Sybil.Captcha
+import Thentos.Sybil
 import Thentos.Test.Config (thentosTestConfig)
 import Thentos.Test.Core (createActionState)
 import Thentos.Types
@@ -32,18 +32,21 @@ import Thentos.Types
 
 spec :: Spec
 spec = describe "Thentos.Sybil.Captcha" $ do
-    it "produces three-word phrases as solutions" $ do
-        let Just x = generateCaptcha <$> mkRandom20 "--------------------"
-        (length . words . cs . snd $ x) `shouldBe` 3
+    it "produces two-word phrases as solutions" $ do
+        let Just r = mkRandom20 "--------------------"
+        x <- generateCaptcha r
+        (length . words . cs . snd $ x) `shouldBe` 2
 
     it "different rnd seed produces different solutions" $ do
-        let Just x = generateCaptcha <$> mkRandom20 "--------------------"
-            Just y = generateCaptcha <$> mkRandom20 "---------------+----"
+        let Just rx = mkRandom20 "--------------------"
+            Just ry = mkRandom20 "---------------+----"
+        x <- generateCaptcha rx
+        y <- generateCaptcha ry
         snd x `shouldNotBe` snd y
 
     describe "mkChallenge" $ do
         it "writes pngs" $ do
-            (img, _) <- generateCaptcha <$> mkRandom20'
+            (img, _) <- mkRandom20' >>= generateCaptcha
             previewImg False img
             (isRight . decodePng . fromImageData $ img) `shouldBe` True
 

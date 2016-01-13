@@ -39,6 +39,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    expose_port: 7119" :
     "    expose_host: \"127.0.0.1\"" :
     "" :
+    "allow_ips: [\"0.0.0.0\"]" :
     "smtp:" :
     "    sender_name: \"Thentos\"" :
     "    sender_address: \"thentos@thentos.org\"" :
