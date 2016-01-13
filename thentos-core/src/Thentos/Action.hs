@@ -110,7 +110,7 @@ import Thentos.Types
 import Thentos.Util
 
 import qualified Thentos.Action.Unsafe as U
-import qualified Thentos.Sybil.Captcha as Captcha
+import qualified Thentos.Sybil as Sybil
 import qualified Thentos.Transaction as T
 
 
@@ -701,7 +701,7 @@ makeCaptcha :: Action e s (CaptchaId, ImageData)
 makeCaptcha = do
     cid    <- freshCaptchaId
     random <- freshRandom20
-    let (imgdata, solution) = Captcha.generateCaptcha random
+    (imgdata, solution) <- U.unsafeLiftIO $ Sybil.generateCaptcha random
     queryA $ T.storeCaptcha cid solution
     pure (cid, imgdata)
 
@@ -711,7 +711,7 @@ makeAudioCaptcha :: String -> Action e s (CaptchaId, SBS)
 makeAudioCaptcha eSpeakVoice = do
     cid    <- freshCaptchaId
     random <- freshRandom20
-    (wav, solution) <- Captcha.generateAudioCaptcha eSpeakVoice random
+    (wav, solution) <- Sybil.generateAudioCaptcha eSpeakVoice random
     queryA $ T.storeCaptcha cid solution
     pure (cid, wav)
 

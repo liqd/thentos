@@ -24,7 +24,7 @@ import LIO.Core (liftLIO, getClearance, setClearanceP)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), cFalse)
 import LIO.Label (lub)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
-import System.Log (Priority(DEBUG, CRITICAL))
+import System.Log (Priority(ERROR, CRITICAL))
 import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
 import qualified Data.Thyme as Thyme
@@ -130,19 +130,11 @@ sendMail mName address subject msg = do
 logger :: Priority -> String -> UnsafeAction e s ()
 logger prio = liftIO . SLM.logger prio
 
-logIfError :: (Show e) => UnsafeAction e s v -> UnsafeAction e s v
-logIfError = (`catchError` f)
-  where
-    f e = do
-        logger DEBUG $ "*** error: " ++ show e
-        throwError e
+logIfError  :: (Show e) => UnsafeAction e s v -> UnsafeAction e s v
+logIfError  = (`catchError` \e ->               logger ERROR (show e)  >> throwError e)
 
 logIfError' :: (Show e) => Action e s v -> Action e s v
-logIfError' = (`catchError` f)
-  where
-    f e = do
-        unsafeAction . logger DEBUG $ "*** error: " ++ show e
-        throwError e
+logIfError' = (`catchError` \e -> unsafeAction (logger ERROR (show e)) >> throwError e)
 
 -- | Render a Hastache template for plain-text output (none of the characters in context variables
 -- will be escaped).

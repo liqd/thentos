@@ -11,7 +11,7 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Lens ((^.), (&), (<>~), (%~), (.~))
+import Control.Lens ((^.), (&), (<>~))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
 import Data.Void (Void)
@@ -23,7 +23,6 @@ import Servant.API.ResponseHeaders (Headers, addHeader)
 import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
-import qualified Servant.Foreign as F
 
 import System.Log.Missing (logger)
 import Thentos.Action
@@ -181,36 +180,3 @@ instance HasDocExtras (RestDocs Api) where
                 $ Docs.defAction & Docs.notes <>~
             [Docs.DocNote "delete a service and unregister all its users" []]
         ]
-
-
--- * servant foreign
-
--- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
--- which we don't have, so instead of:
---
--- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
--- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
---
--- we more / less restrictive instances.  We should merge servant master in our submodule branch,
--- though.
-instance {-# OVERLAPPABLE #-} F.HasForeign F.NoTypes (Post200 b a) where
-    type Foreign (Post200 b a) = F.Req
-    foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post200" :)
-            & F.reqMethod .~ "POST"
-
-instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[PNG] a) where
-    type Foreign (Post '[PNG] a) = F.Req
-    foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post" :)
-            & F.reqMethod .~ "POST"
-
-instance {-# OVERLAPPING #-} F.HasForeign F.NoTypes (Post '[WAV] a) where
-    type Foreign (Post '[WAV] a) = F.Req
-    foreignFor Proxy Proxy req =
-        req & F.funcName  %~ ("post" :)
-            & F.reqMethod .~ "POST"
-
-instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAssertHeaders :> sub) where
-    type Foreign (ThentosAssertHeaders :> sub) = F.Foreign sub
-    foreignFor plang Proxy = F.foreignFor plang (Proxy :: Proxy sub)

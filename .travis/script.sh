@@ -6,7 +6,7 @@ TIMEOUT=$[2*60-5]
 THIS_PID=$$
 ( sleep $[$TIMEOUT*60] ; kill $THIS_PID ) &
 
-# We install hlint because we don't want to invalidate i's cache together
+# We install hlint because we don't want to invalidate its cache together
 # with the thentos cache
 git clone --depth 1 https://github.com/liqd/travis-cache
 export PATH=$PWD/travis-cache:$PATH

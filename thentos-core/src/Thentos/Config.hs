@@ -255,10 +255,10 @@ getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["
 
 -}
 
-configLogger :: ST -> Prio -> IO ()
-configLogger path prio = do
-    let logfile = ST.unpack path
-        loglevel = fromPrio prio
+configLogger :: LogConfig -> IO ()
+configLogger config = do
+    let logfile = ST.unpack $ config >>. (Proxy :: Proxy '["path"])
+        loglevel = fromPrio $ config >>. (Proxy :: Proxy '["level"])
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"

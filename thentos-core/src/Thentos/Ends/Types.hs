@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE TypeFamilies           #-}
 
 -- | Types required by both backend and frontend.
 module Thentos.Ends.Types
@@ -13,13 +15,16 @@ module Thentos.Ends.Types
     )
 where
 
+import Control.Lens ((&), (%~), (.~))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, LT, SBS, LBS, cs)
 import Network.HTTP.Media ((//), (/:))
-import Servant.API (Accept (..), MimeRender (..))
+import Servant.API (Accept (..), MimeRender (..), Post)
 import Servant.HTML.Blaze (HTML)
 import Text.Blaze.Html (Html, ToMarkup, toHtml)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
+
+import qualified Servant.Foreign as Foreign
 
 import Thentos.Types
 
@@ -76,3 +81,26 @@ instance Accept WAV where
 
 instance MimeRender WAV SBS where
     mimeRender _ = cs
+
+
+-- * servant foreign
+
+-- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
+-- which we don't have, so instead of:
+--
+-- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
+-- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
+--
+-- we more / less restrictive instances.  We should merge servant master in our submodule branch,
+-- though.
+instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[PNG] a) where
+    type Foreign (Post '[PNG] a) = Foreign.Req
+    foreignFor Proxy Proxy req =
+        req & Foreign.funcName  %~ ("post" :)
+            & Foreign.reqMethod .~ "POST"
+
+instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[WAV] a) where
+    type Foreign (Post '[WAV] a) = Foreign.Req
+    foreignFor Proxy Proxy req =
+        req & Foreign.funcName  %~ ("post" :)
+            & Foreign.reqMethod .~ "POST"
