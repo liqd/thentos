@@ -30,10 +30,10 @@ thentosTestConfigSources :: IO [Source]
 thentosTestConfigSources = do
     e <- getEnvironment
     a <- getArgs
-    return [thentosTestConfigYaml', ShellEnv e, CommandLine a]
+    return [thentosTestConfigYaml, ShellEnv e, CommandLine a]
 
-thentosTestConfigYaml' :: Source
-thentosTestConfigYaml' = YamlString . cs . unlines $
+thentosTestConfigYaml :: Source
+thentosTestConfigYaml = YamlString . cs . unlines $
     "root_path: ." :
     "" :
     "backend:" :

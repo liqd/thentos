@@ -28,9 +28,11 @@ import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
+import Data.Configifier ((>>.))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource, destroyAllResources)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
@@ -237,24 +239,23 @@ withFrontendAndBackend' dbname test = do
 
 -- * set up state
 
--- | Create an @ActionState@ with a connection to an empty DB and the specified
--- config.
-createActionState :: String -> ThentosConfig -> IO ActionState
-createActionState dbname config = do
+-- | Create an @ActionState@ with default config and a connection to a DB.  Whipes the DB.
+createActionState :: IO ActionState
+createActionState = thentosTestConfig >>= createActionState'
+
+-- | Create an @ActionState@ with an explicit config and a connection to a DB.  Whipes the DB.
+createActionState' :: ThentosConfig -> IO ActionState
+createActionState' config = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    connPool <- createDb dbname
+    connPool <- createDb $ config >>. (Proxy :: Proxy '["database", "name"])
     return $ ActionState config rng connPool
 
--- | Create a connection to an empty DB.
---
--- FIXME: the tests shouldn't have to pick a database name.  it should work like 'withLogger' in
--- that it finds a free suitable database name, and garbage-collects the database when the test is
--- done.
-createDb :: String -> IO (Pool Connection)
+-- | Create a connection to a DB.  Whipes the DB.
+createDb :: ST -> IO (Pool Connection)
 createDb dbname = do
-    callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
-               <> " && psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
-    createConnPoolAndInitDb $ cs dbname
+    callCommand $ "createdb " <> cs dbname <> " 2>/dev/null || true"
+               <> " && psql --quiet --file=" <> wipeFile <> " " <> cs dbname <> " >/dev/null 2>&1"
+    createConnPoolAndInitDb dbname
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do
