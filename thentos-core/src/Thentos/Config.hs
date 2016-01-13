@@ -25,7 +25,7 @@ import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
+import System.Log.Logger (Priority(DEBUG, INFO, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
 import System.Log.Missing (loggerName, logger, Prio(..))
 import Text.Show.Pretty (ppShow)

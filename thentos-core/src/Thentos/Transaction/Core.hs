@@ -33,22 +33,21 @@ import Database.PostgreSQL.Simple.ToField (ToField(toField))
 import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Database.PostgreSQL.Simple.Types (Default(Default))
 
-import Paths_thentos_core__
 import Thentos.Types
 
 
 type ThentosQuery e a = EitherT (ThentosError e) (ReaderT Connection IO) a
 
-schemaFile :: IO FilePath
-schemaFile = getDataFileName "schema/schema.sql"
+schemaFile :: FilePath
+schemaFile = "./schema/schema.sql"
 
-wipeFile :: IO FilePath
-wipeFile = getDataFileName "schema/wipe.sql"
+wipeFile :: FilePath
+wipeFile = "./schema/wipe.sql"
 
 -- | Creates the database schema if it does not already exist.
 createDB :: Connection -> IO ()
 createDB conn = do
-    schema <- readFile =<< schemaFile
+    schema <- readFile schemaFile
     void $ execute_ conn (fromString schema)
 
 -- | Execute a 'ThentosQuery'. Every query is a DB transaction, so the DB state won't change

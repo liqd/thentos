@@ -75,7 +75,7 @@ import Thentos.Config
 import Thentos.Ends.Types (PNG, WAV)
 import Thentos.Types
 
-import qualified Paths_thentos_adhocracy__ as Paths
+import qualified Paths_thentos_adhocracy__ as Paths (version)
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Types as AC
 import qualified Thentos.Backend.Api.PureScript

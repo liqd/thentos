@@ -252,9 +252,8 @@ createActionState dbname config = do
 -- done.
 createDb :: String -> IO (Pool Connection)
 createDb dbname = do
-    wipe <- wipeFile
     callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
-               <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
+               <> " && psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
     createConnPoolAndInitDb $ cs dbname
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
