@@ -55,7 +55,7 @@ import Thentos.Test.Transaction
 -- | FIXME: This is stuff also provided in a similar way from "Thentos.Test.Core".  remove redundancy!
 defaultApp :: IO Application
 defaultApp = do
-    as@(ActionState cfg _ connPool) <- createActionState "test_thentos" thentosTestConfig
+    as@(ActionState cfg _ connPool) <- createActionState
     withResource connPool createGod
     writeIORef godHeaders . snd =<< loginAsGod as
     void $ tryTakeMVar connPoolVar  -- discard old value, if any

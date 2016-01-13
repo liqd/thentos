@@ -43,7 +43,7 @@ tests = hspec spec
 spec :: Spec
 spec = do
     let b = do
-          as <- createActionState "test_thentos" thentosTestConfig
+          as <- createActionState
           withResource (as ^. aStDb) createGod
           return as
 

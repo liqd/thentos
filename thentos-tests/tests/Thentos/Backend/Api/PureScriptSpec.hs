@@ -62,8 +62,9 @@ specPurescript = around_ withLogger $ do
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
-    cfg <- configify $ thentosTestConfigYaml : [ YamlString "purescript: ." | havePurescript ]
-    as <- createActionState "test_thentos" cfg
+    srcs <- thentosTestConfigSources
+    cfg <- configify $ srcs ++ [ YamlString "purescript: ." | havePurescript ]
+    as <- createActionState' cfg
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 
 type Api = "js" :> PureScript.Api

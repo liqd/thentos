@@ -8,7 +8,7 @@ module Thentos.Action.SimpleAuthSpec where
 import Control.Concurrent (forkIO, killThread)
 import Control.Exception (bracket)
 import Control.Lens ((^.))
-import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
+import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.), configify)
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
@@ -58,7 +58,7 @@ setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . s
 
 mkActionState :: IO ActionState
 mkActionState = do
-    actionState <- createActionState "test_thentos" thentosTestConfig
+    actionState <- createActionState
     withResource (actionState ^. aStDb) createGod
     return actionState
 
@@ -111,11 +111,9 @@ specWithActionState = before mkActionState $ do
 
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
-    as <- do
-        let sources = [ thentosTestConfigYaml
-                      , YamlString . ("allow_ips: " <>) . cs . show $ allowIps
-                      ]
-        createActionState "test_thentos" $ mkThentosTestConfig sources
+    srcs <- thentosTestConfigSources
+    cfg <- configify $ srcs ++ [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
+    as <- createActionState' cfg
 
     let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
     bracket (forkIO $ runWarpWithCfg becfg $ serveApi as)

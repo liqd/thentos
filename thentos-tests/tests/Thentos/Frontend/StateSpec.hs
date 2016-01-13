@@ -33,7 +33,6 @@ import Thentos.Frontend.State
 import Thentos.Frontend.Types
 import Thentos.Types
 
-import Thentos.Test.Config
 import Thentos.Test.Core
 
 
@@ -87,7 +86,7 @@ spec_frontendState = do
             -- (https://github.com/haskell-servant/servant/issues/257), or in a small middleware.
             liftIO $ cs (simpleBody resp) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
-    describe "the FAction monad, via warp" . around (withFrontendAndBackend "thentos_test_db") $ do
+    describe "the FAction monad, via warp" . around withFrontendAndBackend $ do
         let mkurl :: ActionState -> ST -> String
             mkurl as = cs . (exposeUrl (getFrontendConfig (as ^. aStConfig)) <//>)
 
@@ -157,5 +156,4 @@ testApi = post_ :<|> read_
     read_ = gets ((cs . show <$>) . (^. fsdMessages))
 
 testApp :: IO Application
-testApp = createActionState "thentos_test" thentosTestConfig
-      >>= serveFAction (Proxy :: Proxy TestApi) testApi
+testApp = createActionState >>= serveFAction (Proxy :: Proxy TestApi) testApi

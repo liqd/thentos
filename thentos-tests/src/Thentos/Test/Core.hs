@@ -223,14 +223,14 @@ withBackend' beConfig as action = do
             killThread
             (const action)
 
-withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
+withFrontendAndBackend :: (ActionState -> IO r) -> IO r
+withFrontendAndBackend = inTempDirectory . withFrontendAndBackend'
 
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend' dbname test = do
-    st@(ActionState cfg _ connPool) <- createActionState dbname thentosTestConfig
+withFrontendAndBackend' :: (ActionState -> IO r) -> IO r
+withFrontendAndBackend' test = do
+    st@(ActionState cfg _ connPool) <- createActionState
     withFrontend' (getFrontendConfig cfg) st
         $ withBackend' (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
