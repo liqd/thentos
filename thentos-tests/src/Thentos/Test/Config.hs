@@ -8,26 +8,34 @@ where
 
 import Database.PostgreSQL.Simple (Connection)
 import Data.Configifier
-    ((:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO), Source(YamlString), configify)
+    ( (:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO)
+    , Source(YamlString, ShellEnv, CommandLine), configify
+    )
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST, cs)
-import System.IO.Unsafe (unsafePerformIO)
+import System.Environment (getEnvironment, getArgs)
 
 import Thentos.Config
 import Thentos (createDefaultUser)
 import Thentos.Types
 
 
-thentosTestConfig :: ThentosConfig
-thentosTestConfig = mkThentosTestConfig [thentosTestConfigYaml]
+thentosTestConfig :: IO ThentosConfig
+thentosTestConfig = do
+    cfg <- thentosTestConfigSources >>= configify
+    setRootPath cfg
+    return cfg
 
-{-# NOINLINE mkThentosTestConfig #-}
-mkThentosTestConfig :: [Source] -> ThentosConfig
-mkThentosTestConfig = unsafePerformIO . configify
+thentosTestConfigSources :: IO [Source]
+thentosTestConfigSources = do
+    e <- getEnvironment
+    a <- getArgs
+    return [thentosTestConfigYaml', ShellEnv e, CommandLine a]
 
-thentosTestConfigYaml :: Source
-thentosTestConfigYaml = YamlString . cs . unlines $
+thentosTestConfigYaml' :: Source
+thentosTestConfigYaml' = YamlString . cs . unlines $
     "root_path: ." :
+    "" :
     "backend:" :
     "    bind_port: 7118" :
     "    bind_host: \"127.0.0.1\"" :
