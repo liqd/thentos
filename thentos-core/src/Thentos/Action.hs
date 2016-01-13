@@ -703,6 +703,7 @@ makeCaptcha = do
     random <- freshRandom20
     (imgdata, solution) <- U.unsafeLiftIO $ Sybil.generateCaptcha random
     queryA $ T.storeCaptcha cid solution
+    loggerA DEBUG $ show cid
     pure (cid, imgdata)
 
 -- | Argument must be an espeak voice installed on the server system.  Try "en", "de", "fi", "ru" or
@@ -713,6 +714,7 @@ makeAudioCaptcha eSpeakVoice = do
     random <- freshRandom20
     (wav, solution) <- Sybil.generateAudioCaptcha eSpeakVoice random
     queryA $ T.storeCaptcha cid solution
+    loggerA DEBUG $ show cid
     pure (cid, wav)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
@@ -722,6 +724,7 @@ makeAudioCaptcha eSpeakVoice = do
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
 solveCaptcha cid solution = do
     solutionCorrect <- queryA $ T.solveCaptcha cid solution
+    loggerA DEBUG $ show (cid, solution, solutionCorrect)
     unless solutionCorrect $ deleteCaptcha cid
     return solutionCorrect
 
