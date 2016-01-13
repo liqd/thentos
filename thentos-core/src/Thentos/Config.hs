@@ -20,7 +20,7 @@ import Data.String.Conversions (ST, cs, (<>))
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, setCurrentDirectory)
 import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
@@ -43,7 +43,8 @@ import Thentos.Types
 
 type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
-      Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
+            ("root_path"    :> ST                    :>: "Directory to which all paths are relative (default: .)")
+  :*> Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
   :*> Maybe ("allow_ips"    :> [ST]                  :>: "IP addresses for privileged access.")
   :*> Maybe ("purescript"   :> ST                    :>: "File system location of frontend code")
@@ -65,7 +66,8 @@ type ThentosConfig' =
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
-      NothingO
+      Just "."
+  :*> NothingO
   :*> NothingO
   :*> NothingO
   :*> NothingO
@@ -185,10 +187,18 @@ getConfig configFile = do
         Right cfg -> do
             logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
             logger DEBUG $ "parsed config (raw):\n" ++ ppShow cfg
+            setRootPath cfg
             return cfg
 
 
 -- ** helpers
+
+setRootPath :: ThentosConfig -> IO ()
+setRootPath cfg = do
+    let path :: FilePath = cs (cfg >>. (Proxy :: Proxy '["root_path"]))
+    logger INFO $ "setting current working directory to " ++ show path
+    setCurrentDirectory path
+
 
 -- this section contains code that works around missing features in
 -- the supported leaf types in the config structure.  we hope it'll

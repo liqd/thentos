@@ -27,6 +27,7 @@ mkThentosTestConfig = unsafePerformIO . configify
 
 thentosTestConfigYaml :: Source
 thentosTestConfigYaml = YamlString . cs . unlines $
+    "root_path: ." :
     "backend:" :
     "    bind_port: 7118" :
     "    bind_host: \"127.0.0.1\"" :
