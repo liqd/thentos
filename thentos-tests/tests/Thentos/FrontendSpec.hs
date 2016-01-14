@@ -34,8 +34,7 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "selenium grid"
-         . around (withLogger . withFrontendAndBackend) $ do
+spec = describe "selenium grid" . around withFrontendAndBackend $ do
     spec_createUser
     spec_resetPassword
     spec_logIntoThentos

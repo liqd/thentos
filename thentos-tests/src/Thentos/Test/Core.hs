@@ -165,7 +165,7 @@ withNoisyLogger action = do
     return result
 
 withSignupLogger :: IO a -> IO a
-withSignupLogger action = inTempDirectory $ do
+withSignupLogger action = Test.Mockery.Directory.inTempDirectory $ do
     removeAllHandlers
     updateGlobalLogger signupLogger $ setLevel DEBUG
     let addh h = addHandler $ h { formatter = nullFormatter }

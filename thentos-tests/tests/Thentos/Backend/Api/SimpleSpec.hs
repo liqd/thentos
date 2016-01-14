@@ -167,38 +167,37 @@ specRest = do
                 return (cid, solution)
 
         describe "register POST" $ do
-            around_ withLogger $ do
-                it "responds with 204 No Content and sends mail with confirmation token" $ do
-                    (cid, solution) <- getCaptchaAndSolution
-                    -- Register user
-                    let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                        reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                    request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
-                    -- Find token in sent email and make sure it's correct
-                    let actPrefix = "/activate/"
-                    actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
-                    let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
-                    connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                    [Only (actualTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
-                        [sql| SELECT token FROM user_confirmation_tokens |] ()
-                    liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
+            it "responds with 204 No Content and sends mail with confirmation token" $ do
+                (cid, solution) <- getCaptchaAndSolution
+                -- Register user
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                    reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
+                -- Find token in sent email and make sure it's correct
+                let actPrefix = "/activate/"
+                actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
+                let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                [Only (actualTok :: ConfirmationToken)] <- liftIO $ doQuery connPool
+                    [sql| SELECT token FROM user_confirmation_tokens |] ()
+                liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
 
-                it "responds with 204 No Content and sends warn mail if email is duplicate" $ do
-                    (cid, solution) <- getCaptchaAndSolution
-                    -- Create user
-                    void postDefaultUser
-                    -- Try to register another user with the same email
-                    let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                        user    = UserFormData "Another" "pwd" (udEmail defaultUserData)
-                        reqBody = Aeson.encode $ UserCreationRequest user csol
-                    request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
-                    -- Check that no confirmation token was generated
-                    connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
-                    liftIO $ rowCountShouldBe connPool "user_confirmation_tokens" 0
-                    -- Check that "Attempted Signup" mail was sent
-                    actLine <- liftIO $
-                        readProcess "grep" ["Thentos: Attempted Signup", "everything.log"] ""
-                    liftIO $ actLine `shouldNotBe` ""
+            it "responds with 204 No Content and sends warn mail if email is duplicate" $ do
+                (cid, solution) <- getCaptchaAndSolution
+                -- Create user
+                void postDefaultUser
+                -- Try to register another user with the same email
+                let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
+                    user    = UserFormData "Another" "pwd" (udEmail defaultUserData)
+                    reqBody = Aeson.encode $ UserCreationRequest user csol
+                request "POST" "/user/register" jsonHeader reqBody `shouldRespondWith` 204
+                -- Check that no confirmation token was generated
+                connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
+                liftIO $ rowCountShouldBe connPool "user_confirmation_tokens" 0
+                -- Check that "Attempted Signup" mail was sent
+                actLine <- liftIO $
+                    readProcess "grep" ["Thentos: Attempted Signup", "everything.log"] ""
+                liftIO $ actLine `shouldNotBe` ""
 
             it "refuses to accept the correct solution to the same captcha twice" $ do
                 (cid, solution) <- getCaptchaAndSolution

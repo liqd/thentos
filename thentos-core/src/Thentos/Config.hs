@@ -26,6 +26,7 @@ module Thentos.Config
     , extractTargetUrl
     , getDefaultUser
     , buildEmailAddress
+    , signupLogger
     )
 where
 

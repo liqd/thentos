@@ -28,6 +28,7 @@ import Servant.Server (serve, Server)
 import System.FilePath ((</>))
 import Test.Hspec (Spec, Spec, hspec, describe, context, around, around_, it, shouldContain)
 import Test.Hspec.Wai (shouldRespondWith, with, get)
+import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
 
 import Thentos.Config (getConfigWithSources)
 import Thentos.Action.Types
@@ -48,18 +49,21 @@ specPurescript = around outsideTempDirectory $ do
     let jsFile :: FilePath = "find-me.js"
         body   :: String   = "9VA4I5xpOAXRE"
 
-    context "When purescript path not given in config" . with (defaultApp False) $ do
-        it "response has status 404" $ \tmp -> do
+    context "When purescript path not given in config" $ do
+        it "response has status 404" . runSession False $ \tmp -> do
             liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 404
 
-    context "When path given in config" . with (defaultApp True) $ do
-        it "response has right status, body, headers" $ \tmp -> do
+    context "When path given in config" $ do
+        it "response has right status, body, headers" . runSession True $ \tmp -> do
             liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 200
             get (cs $ "/js" </> jsFile) `shouldRespondWith` fromString body
             resp <- get (cs $ "/js" </> jsFile)
             liftIO $ simpleHeaders resp `shouldContain` [("Content-Type", "application/javascript")]
+
+runSession :: Bool -> (FilePath -> WaiSession a) -> FilePath -> IO a
+runSession havePurescript session tmp = defaultApp havePurescript >>= runWaiSession (session tmp)
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
