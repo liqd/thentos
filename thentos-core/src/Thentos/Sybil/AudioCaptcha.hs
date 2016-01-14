@@ -9,7 +9,6 @@ module Thentos.Sybil.AudioCaptcha (checkEspeak, generateAudioCaptcha) where
 
 import Control.Monad.Except (throwError)
 import Control.Monad (unless, void)
-import Data.Char (ord)
 import Data.String.Conversions (ST, SBS, cs)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>))
@@ -41,8 +40,8 @@ generateAudioCaptcha eSpeakVoice rnd = do
 -- low-threshold counter-measure, so they should be at least reasonably convenient to use.)
 mkAudioSolution :: Random20 -> ST
 mkAudioSolution = ST.intercalate " "
-                . ((cs . show . (`mod` 10) . ord <$>) :: String -> [ST])
-                . take 6 . cs . fromRandom20
+                . (cs . show . (`mod` 10) <$>)
+                . take 6 . SBS.unpack . fromRandom20
 
 mkAudioChallenge :: String -> ST -> Action e s SBS
 mkAudioChallenge eSpeakVoice solution = do
