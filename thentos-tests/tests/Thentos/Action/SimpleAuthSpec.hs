@@ -136,5 +136,5 @@ specWithBackends = describe "hasPrivilegedIp" $ do
                 resp ^. Wreq.responseBody `shouldBe` Aeson.encode y
 
     works ["127.0.0.1"] True
-    works  ["1.2.3.4"] False
+    works ["1.2.3.4"] False
     works [] False
