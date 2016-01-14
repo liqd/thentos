@@ -67,6 +67,7 @@ makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO
 makeMain commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
+    configSignupLogger $ config >>. (Proxy :: Proxy '["signup_log"])
     connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
 
     actionState <- makeActionState config connPool

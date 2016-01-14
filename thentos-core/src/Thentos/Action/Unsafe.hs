@@ -19,12 +19,13 @@ import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (LT, ST, SBS)
+import Data.String.Conversions (cs, LT, ST, SBS)
 import LIO.Core (liftLIO, getClearance, setClearanceP)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), cFalse)
 import LIO.Label (lub)
 import LIO.TCB (Priv(PrivTCB), ioTCB)
 import System.Log (Priority(ERROR, CRITICAL))
+import System.Log.Logger (logM)
 import Text.Hastache (MuConfig(..), MuContext, defaultConfig, emptyEscape, hastacheStr)
 
 import qualified Data.Thyme as Thyme
@@ -37,6 +38,8 @@ import Thentos.Transaction.Core (ThentosQuery, runThentosQuery)
 import Thentos.Types
 import Thentos.Util as TU
 
+import qualified Blaze.ByteString.Builder as Builder
+import qualified Data.Csv.Builder as CsvBuilder
 import qualified System.Log.Missing as SLM
 import qualified Thentos.Transaction as T
 
@@ -142,3 +145,11 @@ renderTextTemplate :: ST -> MuContext IO -> UnsafeAction e s LT
 renderTextTemplate template context = liftIO $ hastacheStr hastacheCfg template context
   where
     hastacheCfg = defaultConfig { muEscapeFunc = emptyEscape }
+
+logSignupAttempt :: UserName -> UserEmail -> CaptchaAttempt -> UnsafeAction e s ()
+logSignupAttempt name email captchaAttempt = do
+    now <- getCurrentTime
+    let signupAttempt = SignupAttempt name email captchaAttempt now
+        logLine = cs . Builder.toByteString $ CsvBuilder.encodeRecord signupAttempt
+        logLevel = CRITICAL -- for some reason the entries aren't written to the file at INFO
+    liftIO $ logM signupLogger logLevel (init logLine)

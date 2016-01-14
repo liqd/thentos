@@ -62,6 +62,8 @@ module Thentos.Types
     , ImageData(..)
     , CaptchaId(..)
     , CaptchaSolution(..)
+    , CaptchaAttempt(..)
+    , SignupAttempt(..)
 
     , ThentosError(..)
 
@@ -83,9 +85,9 @@ where
 
 import Control.Exception (Exception)
 import Control.Lens (makeLenses)
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (MonadError, throwError, mzero)
 import Control.Monad (when, unless)
-import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
+import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
@@ -122,8 +124,9 @@ import Web.HttpApiData (parseQueryParam)
 
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
-import qualified Data.HashMap.Strict as H
+import qualified Data.Csv as CSV
 import qualified Data.ByteString as SBS
+import qualified Data.HashMap.Strict as H
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
 
@@ -187,6 +190,12 @@ newtype UserName = UserName { fromUserName :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString, FromField,
               ToField)
 
+instance CSV.ToField UserName where
+    toField = CSV.toField . fromUserName
+
+instance CSV.FromField UserName where
+    parseField = pure . UserName . cs
+
 -- | BUG #399: ToJSON instance should go away in order to avoid accidental leakage of cleartext
 -- passwords.  but for the experimentation phase this is too much of a headache.  (Under no
 -- circumstances render to something like "[password hidden]".  Causes a lot of confusion.)
@@ -213,6 +222,14 @@ instance FromField UserEmail where
 
 instance ToField UserEmail where
     toField = toField . fromUserEmail
+
+instance CSV.ToField UserEmail where
+    toField = toByteString . userEmailAddress
+
+instance CSV.FromField UserEmail where
+    parseField s = case parseUserEmail (cs s) of
+        Just e -> pure e
+        Nothing -> mzero
 
 parseUserEmail :: ST -> Maybe UserEmail
 parseUserEmail t = do
@@ -459,6 +476,12 @@ instance ToField Timestamp where
 
 instance FromField Timestamp where
     fromField f dat = Timestamp . toThyme <$> fromField f dat
+
+instance CSV.ToField Timestamp where
+    toField = cs . timestampToString
+
+instance CSV.FromField Timestamp where
+    parseField = timestampFromString . cs
 
 newtype Timeout = Timeoutms { toMilliseconds :: Int }
   deriving (Eq, Ord, Show)
@@ -735,8 +758,8 @@ data CaptchaSolution = CaptchaSolution
 
 instance Aeson.FromJSON CaptchaSolution where
     parseJSON (Aeson.Object m) = CaptchaSolution <$>
-                                    m .: "id" <*>
-                                    m .: "solution"
+                                    m Aeson..: "id" <*>
+                                    m Aeson..: "solution"
     parseJSON bad = aesonError "CaptchaSolution" bad
 
 instance Aeson.ToJSON CaptchaSolution where
@@ -744,6 +767,54 @@ instance Aeson.ToJSON CaptchaSolution where
         Aeson.object [ "id" .= Aeson.toJSON cId
                      , "solution" .= Aeson.toJSON cSol
                      ]
+
+data CaptchaAttempt = CaptchaIncorrect | CaptchaCorrect
+    deriving (Show, Eq, Ord)
+
+instance CSV.ToField CaptchaAttempt where
+    toField CaptchaCorrect = "1"
+    toField CaptchaIncorrect = "0"
+
+instance CSV.FromField CaptchaAttempt where
+    parseField "1" = pure CaptchaCorrect
+    parseField "0" = pure CaptchaIncorrect
+    parseField _   = mzero
+
+data SignupAttempt = SignupAttempt UserName UserEmail CaptchaAttempt Timestamp
+    deriving (Show, Generic)
+
+instance CSV.ToNamedRecord SignupAttempt where
+    toNamedRecord (SignupAttempt name email captcha ts) =
+        CSV.namedRecord [
+            ("name", CSV.toField name),
+            ("email", CSV.toField email),
+            ("captcha_solved", CSV.toField captcha),
+            ("timestamp", CSV.toField ts)
+        ]
+
+instance CSV.FromNamedRecord SignupAttempt where
+    parseNamedRecord v = SignupAttempt <$>
+            v CSV..: "name" <*>
+            v CSV..: "email" <*>
+            v CSV..: "captcha_solved" <*>
+            v CSV..: "timestamp"
+
+instance CSV.ToRecord SignupAttempt where
+    toRecord (SignupAttempt n e c ts) =
+        CSV.record [CSV.toField n, CSV.toField e, CSV.toField c, CSV.toField ts]
+
+instance CSV.FromRecord SignupAttempt where
+    parseRecord v
+        | length v == 4 =
+            SignupAttempt <$>
+                v CSV..! 0 <*>
+                v CSV..! 1 <*>
+                v CSV..! 2 <*>
+                v CSV..! 3
+        | otherwise = mzero
+
+instance CSV.DefaultOrdered SignupAttempt where
+    headerOrder _ = CSV.header ["name", "email", "captcha_solved", "timestamp"]
 
 
 -- * errors

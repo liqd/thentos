@@ -23,7 +23,7 @@ import Network.Mail.Mime (Address(Address))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeDirectory)
 import System.IO (stdout)
-import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
@@ -60,6 +60,7 @@ type ThentosConfig' =
   :*>       ("captcha_expiration"      :> Timeout    :>: "Captcha expiration period")
   :*> Maybe ("gc_interval"             :> Timeout    :>: "Garbage collection interval")
   :*>       ("log"          :> LogConfig'            :>: "Logging")
+  :*> Maybe ("signup_log"   :> ST                    :>: "Path of signup log file")
   :*>       ("email_templates" :> EmailTemplates'    :>: "Mail templates")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
@@ -79,6 +80,7 @@ defaultThentosConfig =
   :*> Just (fromHours 1)
   :*> NothingO
   :*> Nothing
+  :*> NothingO
   :*> Just defaultEmailTemplates
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
@@ -272,3 +274,15 @@ configLogger config = do
     updateGlobalLogger loggerName $
         System.Log.Logger.setLevel loglevel .
         setHandlers [sHandler, fHandler]
+
+signupLogger :: String
+signupLogger = "signupLogger"
+
+configSignupLogger :: Maybe ST -> IO ()
+configSignupLogger Nothing = return ()
+configSignupLogger (Just path) = do
+    let logfile = ST.unpack path
+    createDirectoryIfMissing True $ takeDirectory logfile
+    handler <- fileHandler logfile DEBUG
+    let handler' = handler { formatter = nullFormatter }
+    updateGlobalLogger signupLogger (setHandlers [handler'])
