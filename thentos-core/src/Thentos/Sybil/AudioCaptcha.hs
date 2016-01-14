@@ -9,7 +9,6 @@ module Thentos.Sybil.AudioCaptcha (checkEspeak, generateAudioCaptcha) where
 
 import Control.Monad.Except (throwError)
 import Control.Monad (unless, void)
-import Data.Char (ord)
 import Data.String.Conversions (ST, SBS, cs)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>))
