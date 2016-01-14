@@ -37,16 +37,17 @@ import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
+import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import System.IO (stderr)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
                           setLevel, addHandler)
 import System.Process (callCommand)
-import Test.Mockery.Directory (inTempDirectory)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Test.Mockery.Directory (inTempDirectory)
 import qualified Test.WebDriver as WD
 
 import System.Log.Missing (loggerName)
@@ -130,39 +131,34 @@ persName = "MyOtherSelf"
 
 -- * runners
 
-withLogger :: IO a -> IO a
-withLogger = inTempDirectory . withLogger'
+-- | Mockery calls 'setCurrentDirectory', which interferes with the fact that thentos allows for
+-- `root_path` to be relative to the working directory from which the executable is started: Two
+-- current directories break things.
+--
+-- This function solves this problem by leaving the current directory intact for the wrapped action,
+-- and passing the temp directory in as an explicit argument.
+outsideTempDirectory :: (FilePath -> IO a) -> IO a
+outsideTempDirectory action = do
+    wd <- getCurrentDirectory
+    Test.Mockery.Directory.inTempDirectory $ do
+        wd' <- getCurrentDirectory
+        setCurrentDirectory wd
+        action wd'
 
--- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
-withLogger' :: IO a -> IO a
-withLogger' = withLogger_ False
-
+-- | Wrap a spec in `withNoisyLogger`, and everything will go to stderr.
+--
+-- FIXME: show log contents for failing test cases automatically.  or provide a log handler that
+-- logs into a 'Chan', and exposes the Chan to the tests.  that would make it fast and easy to use
+-- log file contents to formulate tests.
 withNoisyLogger :: IO a -> IO a
-withNoisyLogger = inTempDirectory . withNoisyLogger'
-
--- | This is a workaround for the fact that log file contents is not included in the output of
--- failing test cases.  If you replace the call to `withLogger` with one ot `withNoisyLogger` in a
--- test, everything will go to stderr immediately.
---
--- FIXME: include log contents in failing test cases.
---
--- FIXME: while we are at it, it would be really cool (and not that hard) to provide a log handler
--- that logs into a 'Chan', and expose the Chan to the tests.  that would make it easy to use log
--- file contents to formulate tests.
-withNoisyLogger' :: IO a -> IO a
-withNoisyLogger' = withLogger_ True
-
-withLogger_ :: Bool -> IO a -> IO a
-withLogger_ stderrAlways action = do
+withNoisyLogger action = do
     removeAllHandlers
     updateGlobalLogger loggerName $ setLevel DEBUG
 
     let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
         addh h = addHandler $ h { formatter = fmt }
 
-    fileHandler "./everything.log" DEBUG >>= updateGlobalLogger loggerName . addh
-    when stderrAlways $
-        streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
+    streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
 
     result <- action
     removeAllHandlers
@@ -178,12 +174,9 @@ withSignupLogger action = inTempDirectory $ do
     removeAllHandlers
     return result
 
-withWebDriver :: WD.WD r -> IO r
-withWebDriver = inTempDirectory . withWebDriver'
-
 -- | Start and shutdown webdriver on localhost:4451, running the action in between.
-withWebDriver' :: WD.WD r -> IO r
-withWebDriver' = withWebDriverAt' "localhost" 4451
+withWebDriver :: WD.WD r -> IO r
+withWebDriver = withWebDriverAt' "localhost" 4451
 
 -- | Start and shutdown webdriver on the specified host and port, running the
 -- action in between.
@@ -202,37 +195,28 @@ withWebDriverAt' host port action = WD.runSession wdConfig . WD.finallyClose $ d
             , WD.wdPort = port
             }
 
-withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend feConfig as = inTempDirectory . withFrontend' feConfig as
-
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend' :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend' feConfig as action =
+withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
-withBackend :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend beConfig as = inTempDirectory . withBackend' beConfig as
-
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend' beConfig as action = do
+withBackend :: HttpConfig -> ActionState -> IO r -> IO r
+withBackend beConfig as action = do
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi beConfig as)
             killThread
             (const action)
 
-withFrontendAndBackend :: (ActionState -> IO r) -> IO r
-withFrontendAndBackend = inTempDirectory . withFrontendAndBackend'
-
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend' :: (ActionState -> IO r) -> IO r
-withFrontendAndBackend' test = do
+withFrontendAndBackend :: (ActionState -> IO r) -> IO r
+withFrontendAndBackend test = do
     st@(ActionState cfg _ connPool) <- createActionState
-    withFrontend' (getFrontendConfig cfg) st
-        $ withBackend' (getBackendConfig cfg) st
+    withFrontend (getFrontendConfig cfg) st
+        $ withBackend (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
                 `finally` destroyAllResources connPool
 

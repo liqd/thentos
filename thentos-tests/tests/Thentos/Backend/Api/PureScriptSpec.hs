@@ -26,7 +26,7 @@ import Network.Wai.Test (simpleHeaders)
 import Servant.API ((:>))
 import Servant.Server (serve, Server)
 import System.FilePath ((</>))
-import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain)
+import Test.Hspec (Spec, Spec, hspec, describe, context, around, around_, it, shouldContain)
 import Test.Hspec.Wai (shouldRespondWith, with, get)
 
 import Thentos.Config (getConfigWithSources)
@@ -44,18 +44,18 @@ spec :: Spec
 spec = describe "Thentos.Backend.Api.PureScript" specPurescript
 
 specPurescript :: Spec
-specPurescript = around_ withLogger $ do
+specPurescript = around outsideTempDirectory $ do
     let jsFile :: FilePath = "find-me.js"
         body   :: String   = "9VA4I5xpOAXRE"
 
     context "When purescript path not given in config" . with (defaultApp False) $ do
-        it "response has status 404" $ do
-            liftIO $ writeFile jsFile body
+        it "response has status 404" $ \tmp -> do
+            liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 404
 
     context "When path given in config" . with (defaultApp True) $ do
-        it "response has right status, body, headers" $ do
-            liftIO $ writeFile jsFile body
+        it "response has right status, body, headers" $ \tmp -> do
+            liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 200
             get (cs $ "/js" </> jsFile) `shouldRespondWith` fromString body
             resp <- get (cs $ "/js" </> jsFile)

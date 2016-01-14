@@ -6,6 +6,7 @@
 module Thentos.Test.Config
 where
 
+import Control.Concurrent.MVar (MVar, readMVar, newMVar)
 import Database.PostgreSQL.Simple (Connection)
 import Data.Configifier
     ( (:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO)
@@ -13,15 +14,28 @@ import Data.Configifier
     )
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST, cs)
+import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.Environment (getEnvironment, getArgs)
+import System.IO.Unsafe (unsafePerformIO)
 
 import Thentos.Config
 import Thentos (createDefaultUser)
 import Thentos.Types
 
 
+-- | The test suite calls `getConfig` many times, which in turn changes to the `root_path`.  If the
+-- latter is relative, this won't work.  So every time we construct 'thentosTestConfig', we want to
+-- change to the current directory of the last time it was called.  This function does that.
+memoizeCurrentDirectory :: IO ()
+memoizeCurrentDirectory = readMVar memoizeCurrentDirectoryState >>= setCurrentDirectory
+
+{-# NOINLINE memoizeCurrentDirectoryState #-}
+memoizeCurrentDirectoryState :: MVar FilePath
+memoizeCurrentDirectoryState = unsafePerformIO $ getCurrentDirectory >>= newMVar
+
+
 thentosTestConfig :: IO ThentosConfig
-thentosTestConfig = thentosTestConfigSources >>= getConfigWithSources
+thentosTestConfig = memoizeCurrentDirectory >> thentosTestConfigSources >>= getConfigWithSources
 
 thentosTestConfigSources :: IO [Source]
 thentosTestConfigSources = do
@@ -31,7 +45,7 @@ thentosTestConfigSources = do
 
 thentosTestConfigYaml :: Source
 thentosTestConfigYaml = YamlString . cs . unlines $
-    "root_path: ." :
+    "root_path: ../thentos-core/" :
     "" :
     "backend:" :
     "    bind_port: 7118" :
