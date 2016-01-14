@@ -118,8 +118,7 @@ spec_user = describe "user" $ do
                 let userCreationRequest = UserCreationRequest userData captchaSolution
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "secret"
                 Right _ <- runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
-                userCreated <- aliceExists sta
-                userCreated `shouldBe` True
+                True <- aliceExists sta
                 checkSignupLog CaptchaCorrect
 
             it "doesn't create a user if the captcha is incorrect, logs signup attempt" $ \sta -> do
@@ -128,9 +127,7 @@ spec_user = describe "user" $ do
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "wrong"
                 Left (ActionErrorThentos InvalidCaptchaSolution) <-
                     runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
-
-                userCreated <- aliceExists sta
-                userCreated `shouldBe` False
+                False <- aliceExists sta
                 checkSignupLog CaptchaIncorrect
 
     describe "DeleteUser" $ do
