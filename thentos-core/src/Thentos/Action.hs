@@ -701,10 +701,9 @@ makeCaptcha :: Action e s (CaptchaId, ImageData)
 makeCaptcha = do
     cid    <- freshCaptchaId
     random <- freshRandom20
-    (imgdata, solution) <- U.unsafeLiftIO $ Sybil.generateCaptcha random
-    let solution' = discardWhitespace solution
-    queryA $ T.storeCaptcha cid solution'
-    loggerA DEBUG $ concat ["Generated visual captcha: ", show cid, ", solution = ", cs solution']
+    (imgdata, discardWhitespace -> solution) <- U.unsafeLiftIO $ Sybil.generateCaptcha random
+    queryA $ T.storeCaptcha cid solution
+    loggerA DEBUG $ concat ["Generated visual captcha: ", show cid, ", solution = ", cs solution]
     pure (cid, imgdata)
 
 -- | Argument must be an espeak voice installed on the server system.  Try "en", "de", "fi", "ru" or
@@ -713,10 +712,9 @@ makeAudioCaptcha :: String -> Action e s (CaptchaId, SBS)
 makeAudioCaptcha eSpeakVoice = do
     cid    <- freshCaptchaId
     random <- freshRandom20
-    (wav, solution) <- Sybil.generateAudioCaptcha eSpeakVoice random
-    let solution' = discardWhitespace solution
-    queryA $ T.storeCaptcha cid solution'
-    loggerA DEBUG $ concat ["Generated audio captcha: ", show cid, ", solution = ", cs solution']
+    (wav, discardWhitespace -> solution) <- Sybil.generateAudioCaptcha eSpeakVoice random
+    queryA $ T.storeCaptcha cid solution
+    loggerA DEBUG $ concat ["Generated audio captcha: ", show cid, ", solution = ", cs solution]
     pure (cid, wav)
 
 -- | Submit a solution to a captcha, returning whether or not the solution is correct.
@@ -724,11 +722,10 @@ makeAudioCaptcha eSpeakVoice = do
 -- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
 -- never did or because it was deleted). Does not require any privileges.
 solveCaptcha :: CaptchaId -> ST -> Action e s Bool
-solveCaptcha cid solution = do
-    let solution' = discardWhitespace solution
-    solutionCorrect <- queryA $ T.solveCaptcha cid solution'
+solveCaptcha cid (discardWhitespace -> solution) = do
+    solutionCorrect <- queryA $ T.solveCaptcha cid solution
     loggerA DEBUG $ concat ["Captcha solution submitted: ", show cid, ", submitted solution = ",
-                            cs solution', ", correct = ", show solutionCorrect]
+                            cs solution, ", correct = ", show solutionCorrect]
     unless solutionCorrect $ deleteCaptcha cid
     return solutionCorrect
 
