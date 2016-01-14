@@ -66,6 +66,8 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    path: ./log/thentos.log" :
     "    level: DEBUG" :
     "" :
+    "signup_log: signups.log" :
+    "" :
     "database:" :
     "    name: unused" :
     "" :

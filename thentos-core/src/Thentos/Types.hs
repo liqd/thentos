@@ -803,6 +803,16 @@ instance CSV.ToRecord SignupAttempt where
     toRecord (SignupAttempt n e c ts) =
         CSV.record [CSV.toField n, CSV.toField e, CSV.toField c, CSV.toField ts]
 
+instance CSV.FromRecord SignupAttempt where
+    parseRecord v
+        | length v == 4 =
+            SignupAttempt <$>
+                v CSV..! 0 <*>
+                v CSV..! 1 <*>
+                v CSV..! 2 <*>
+                v CSV..! 3
+        | otherwise = mzero
+
 instance CSV.DefaultOrdered SignupAttempt where
     headerOrder _ = CSV.header ["name", "email", "captcha_solved", "timestamp"]
 

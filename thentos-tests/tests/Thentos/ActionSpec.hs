@@ -7,6 +7,7 @@ module Thentos.ActionSpec where
 
 import Control.Lens ((.~), (^.))
 import Control.Monad (void)
+import Control.Monad.IO.Class (liftIO)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Data.Either (isLeft, isRight)
@@ -14,8 +15,13 @@ import Data.Functor.Infix ((<$$>))
 import Data.Pool (withResource)
 import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
+import System.Process (readProcess)
 import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
-                   shouldNotContain, shouldSatisfy, hspec)
+                   shouldNotContain, shouldSatisfy, hspec, around_)
+
+import qualified Data.ByteString.Lazy.Char8 as BC
+import qualified Data.Csv as CSV
+import qualified Data.Vector as V
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
@@ -79,6 +85,53 @@ spec_user = describe "user" $ do
                                             (user ^. userEmail)
             Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
+
+    describe "addUnconfirmedUserWithCaptcha" $ do
+        around_ withSignupLogger $ do
+            let email = forceUserEmail "alice@example.com"
+                name = UserName "alice"
+                userData = UserFormData name (UserPass "pass") email
+
+                createCaptcha sta = doTransaction (sta ^. aStDb)
+                    [sql| INSERT INTO captchas (id, solution)
+                          VALUES ('cid', 'secret')|] ()
+
+                checkSignupLog captchaStatus = do
+                    content <- liftIO $ readProcess "cat" ["signups.log"] ""
+                    let bs = BC.pack content
+                        Right (records :: V.Vector SignupAttempt) =
+                            CSV.decode CSV.NoHeader bs
+                        SignupAttempt name' email' captchaAttempt _ = V.last records
+
+                    V.length records `shouldBe` 1
+                    name `shouldBe` name'
+                    email `shouldBe` email'
+                    captchaAttempt `shouldBe` captchaStatus
+
+                aliceExists sta = do
+                    [Only (count :: Int)] <- doQuery (sta ^. aStDb)
+                        [sql| SELECT COUNT(*) FROM users WHERE name = 'alice' |] ()
+                    return $ count == 1
+
+            it "creates a new user if the captcha is correct, logs signup attempt" $ \sta -> do
+                _ <- createCaptcha sta
+                let userCreationRequest = UserCreationRequest userData captchaSolution
+                    captchaSolution = CaptchaSolution (CaptchaId "cid") "secret"
+                Right _ <- runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
+                userCreated <- aliceExists sta
+                userCreated `shouldBe` True
+                checkSignupLog CaptchaCorrect
+
+            it "doesn't create a user if the captcha is incorrect, logs signup attempt" $ \sta -> do
+                _ <- createCaptcha sta
+                let userCreationRequest = UserCreationRequest userData captchaSolution
+                    captchaSolution = CaptchaSolution (CaptchaId "cid") "wrong"
+                Left (ActionErrorThentos InvalidCaptchaSolution) <-
+                    runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
+
+                userCreated <- aliceExists sta
+                userCreated `shouldBe` False
+                checkSignupLog CaptchaIncorrect
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \ sta -> do

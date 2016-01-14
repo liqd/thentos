@@ -36,7 +36,7 @@ import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
 import System.IO (stderr)
-import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
                           setLevel, addHandler)
@@ -162,6 +162,16 @@ withLogger_ stderrAlways action = do
     when stderrAlways $
         streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
 
+    result <- action
+    removeAllHandlers
+    return result
+
+withSignupLogger :: IO a -> IO a
+withSignupLogger action = inTempDirectory $ do
+    removeAllHandlers
+    updateGlobalLogger signupLogger $ setLevel DEBUG
+    let addh h = addHandler $ h { formatter = nullFormatter }
+    fileHandler "./signups.log" DEBUG >>= updateGlobalLogger signupLogger . addh
     result <- action
     removeAllHandlers
     return result
