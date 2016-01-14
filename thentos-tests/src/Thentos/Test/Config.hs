@@ -9,7 +9,7 @@ where
 import Database.PostgreSQL.Simple (Connection)
 import Data.Configifier
     ( (:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO)
-    , Source(YamlString, ShellEnv, CommandLine), configify
+    , Source(YamlString, ShellEnv, CommandLine)
     )
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (ST, cs)
@@ -21,10 +21,7 @@ import Thentos.Types
 
 
 thentosTestConfig :: IO ThentosConfig
-thentosTestConfig = do
-    cfg <- thentosTestConfigSources >>= configify
-    setRootPath cfg
-    return cfg
+thentosTestConfig = thentosTestConfigSources >>= getConfigWithSources
 
 thentosTestConfigSources :: IO [Source]
 thentosTestConfigSources = do
@@ -72,8 +69,9 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "captcha_expiration: 30m" :
     "" :
     "log:" :
-    "    path: ./log/thentos.log" :
-    "    level: DEBUG" :
+    "    path: /dev/null" :
+    "    level: EMERGENCY" :
+        -- (override this in individual test cases or use 'withLogger')
     "" :
     "signup_log: signups.log" :
     "" :

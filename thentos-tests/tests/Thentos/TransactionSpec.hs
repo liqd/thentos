@@ -25,7 +25,7 @@ import Thentos.Test.Config
 import Thentos.Test.Transaction
 
 spec :: Spec
-spec = describe "Thentos.Transaction" . before (createDb "test_thentos")
+spec = describe "Thentos.Transaction" . before (thentosTestConfig >>= createDb)
   $ do
     addUserPrimSpec
     addUserSpec

@@ -243,11 +243,11 @@ spec =
   where
     setupBackend :: IO Application
     setupBackend = do
-        as@(ActionState cfg _ connPool) <- createActionState "test_thentosa3" thentosTestConfig
+        as@(ActionState cfg _ connPool) <- createActionState
         mgr <- newManager defaultManagerSettings
         withResource connPool createGod
         ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
-              autocreateMissingServices thentosTestConfig
+              autocreateMissingServices cfg
         let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
         return $! serveApi mgr beConfig as
 

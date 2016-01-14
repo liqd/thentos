@@ -26,7 +26,6 @@ main = do
     checkEspeak  -- Make sure that we can successfully generate audio captchas
     connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
     actionState <- makeActionState config connPool
-    configLogger . Tagged $ config >>. (Proxy :: Proxy '["log"])
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
 
     let backendCfg  = forceCfg "backend" $ Tagged <$> config >>. (Proxy :: Proxy '["backend"])

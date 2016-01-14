@@ -3,14 +3,36 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Config
+    ( ThentosConfig
+    , getConfig
+    , getConfigWithSources
+
+    , HttpConfig
+    , SmtpConfig
+    , LogConfig
+    , DatabaseConfig
+    , EmailTemplates
+    , EmailTemplate
+    , DefaultUserConfig
+
+    , getBackendConfig
+    , getFrontendConfig
+    , getProxyConfigMap
+    , bindUrl
+    , exposeUrl
+    , extractTargetUrl
+    , getDefaultUser
+    , buildEmailAddress
+    )
 where
 
 import Control.Applicative ((<|>))
 import Control.Exception (throwIO, try)
 import Data.Configifier
-    ( (:>), (:*>)((:*>)), (:>:), (>>.)
+    ( (:>), (:*>)((:*>)), (:>:), (>>.), Source
     , configifyWithDefault, renderConfigFile, docs, defaultSources
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
@@ -20,7 +42,7 @@ import Data.String.Conversions (ST, cs, (<>))
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
-import System.Directory (createDirectoryIfMissing, setCurrentDirectory)
+import System.Directory (createDirectoryIfMissing, setCurrentDirectory, canonicalizePath)
 import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
@@ -170,33 +192,36 @@ instance Aeson.FromJSON HttpSchema where parseJSON = Aeson.gparseJson
 
 printConfigUsage :: IO ()
 printConfigUsage = do
-    -- ST.putStrLn $ docs (Proxy :: Proxy ThentosConfigDesc)
     ST.putStrLn $ docs (Proxy :: Proxy (ToConfigCode ThentosConfig'))
 
 
 getConfig :: FilePath -> IO ThentosConfig
-getConfig configFile = do
-    sources <- defaultSources [configFile]
+getConfig configFile = defaultSources [configFile] >>= getConfigWithSources
+
+getConfigWithSources :: [Source] -> IO ThentosConfig
+getConfigWithSources sources = do
     logger DEBUG $ "config sources:\n" ++ ppShow sources
 
     result <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
     case result of
         Left (e :: Error) -> do
             logger CRITICAL $ "error parsing config: " ++ ppShow e
+            printConfigUsage
             throwIO e
         Right cfg -> do
             logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
             logger DEBUG $ "parsed config (raw):\n" ++ ppShow cfg
-            setRootPath cfg
+            configLogger (Tagged $ cfg >>. (Proxy :: Proxy '["log"]))
+            configSignupLogger (cfg >>. (Proxy :: Proxy '["signup_log"]))
+            setRootPath (cfg >>. (Proxy :: Proxy '["root_path"]))
             return cfg
 
 
 -- ** helpers
 
-setRootPath :: ThentosConfig -> IO ()
-setRootPath cfg = do
-    let path :: FilePath = cs (cfg >>. (Proxy :: Proxy '["root_path"]))
-    logger INFO $ "setting current working directory to " ++ show path
+setRootPath :: ST -> IO ()
+setRootPath (cs -> path) = do
+    canonicalizePath path >>= logger INFO . ("Current working directory: " ++) . show
     setCurrentDirectory path
 
 

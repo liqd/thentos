@@ -3,7 +3,9 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Thentos.Adhocracy3.Backend.Api.ProxySpec where
 
 import Control.Concurrent.Async (Async)
@@ -32,26 +34,24 @@ import Test.QuickCheck (property, NonEmptyList(..), (==>))
 import qualified Network.Wreq as Wreq
 
 import Thentos.Adhocracy3.Backend.Api.Simple (serveApi)
+import Thentos.Action.Types
 import Thentos.Test.Core
-import Thentos.Test.Config
 import Thentos.Test.Network
 
 
 type Env = (PortNumber, Async (), Async ())
 
 spec :: Spec
-spec = do
-    beforeAll setup (afterAll teardown tests)
-
+spec = beforeAll setup . afterAll teardown $ tests
   where
     setup :: IO Env
     setup = do
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- startDaemon $ runSettings settings proxyDestServer
         mgr <- newManager defaultManagerSettings
-        db <- createActionState "test_thentosa3" thentosTestConfig
-        let application = serveApi mgr beConfig db
-            Just beConfig = Tagged <$> thentosTestConfig >>. (Proxy :: Proxy '["backend"])
+        as <- createActionState
+        let application = serveApi mgr beConfig as
+            Just beConfig = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
         (proxyPort, proxySocket) <- openTestSocket
         proxy <- startDaemon $ runSettingsSocket defaultSettings proxySocket application
         return (proxyPort, dest, proxy)

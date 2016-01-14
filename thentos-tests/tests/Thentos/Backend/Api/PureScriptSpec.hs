@@ -17,7 +17,7 @@ where
 
 import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
-import Data.Configifier (Source(YamlString), configify)
+import Data.Configifier (Source(YamlString))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.String (fromString)
@@ -29,6 +29,7 @@ import System.FilePath ((</>))
 import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain)
 import Test.Hspec.Wai (shouldRespondWith, with, get)
 
+import Thentos.Config (getConfigWithSources)
 import Thentos.Action.Types
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -63,7 +64,7 @@ specPurescript = around_ withLogger $ do
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
     srcs <- thentosTestConfigSources
-    cfg <- configify $ srcs ++ [ YamlString "purescript: ." | havePurescript ]
+    cfg <- getConfigWithSources $ srcs ++ [ YamlString "purescript: ." | havePurescript ]
     as <- createActionState' cfg
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 

@@ -1,5 +1,6 @@
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Thentos.Transaction.Core
     ( ThentosQuery
@@ -16,13 +17,13 @@ module Thentos.Transaction.Core
     )
 where
 
-import Control.Monad.Except (throwError)
 import Control.Exception.Lifted (catch, throwIO)
-import Control.Monad (void, liftM)
+import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
-import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Monad.Trans.Either (EitherT, runEitherT)
+import Control.Monad (void, liftM)
 import Data.Int (Int64)
 import Data.String (fromString)
 import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute,

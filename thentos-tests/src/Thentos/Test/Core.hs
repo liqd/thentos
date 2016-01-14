@@ -20,11 +20,11 @@ module Thentos.Test.Core
 where
 
 import Control.Concurrent (forkIO, killThread)
-import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Control.Monad (when)
-import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
+import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
 import Data.CaseInsensitive (mk)
@@ -140,7 +140,7 @@ withLogger' = withLogger_ False
 withNoisyLogger :: IO a -> IO a
 withNoisyLogger = inTempDirectory . withNoisyLogger'
 
--- | this is a workaround for the fact that log file contents is not included in the output of
+-- | This is a workaround for the fact that log file contents is not included in the output of
 -- failing test cases.  If you replace the call to `withLogger` with one ot `withNoisyLogger` in a
 -- test, everything will go to stderr immediately.
 --
@@ -245,17 +245,15 @@ createActionState = thentosTestConfig >>= createActionState'
 
 -- | Create an @ActionState@ with an explicit config and a connection to a DB.  Whipes the DB.
 createActionState' :: ThentosConfig -> IO ActionState
-createActionState' config = do
-    rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    connPool <- createDb $ config >>. (Proxy :: Proxy '["database", "name"])
-    return $ ActionState config rng connPool
+createActionState' cfg = ActionState cfg <$> (drgNew >>= newMVar) <*> createDb cfg
 
 -- | Create a connection to a DB.  Whipes the DB.
-createDb :: ST -> IO (Pool Connection)
-createDb dbname = do
-    callCommand $ "createdb " <> cs dbname <> " 2>/dev/null || true"
-               <> " && psql --quiet --file=" <> wipeFile <> " " <> cs dbname <> " >/dev/null 2>&1"
-    createConnPoolAndInitDb dbname
+createDb :: ThentosConfig -> IO (Pool Connection)
+createDb cfg = callCommand (create_ <> " && " <> wipe_) >> createConnPoolAndInitDb cfg
+  where
+    dbname  = cs $ cfg >>. (Proxy :: Proxy '["database", "name"])
+    create_ = "createdb " <> dbname <> " 2>/dev/null || true"
+    wipe_   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
 loginAsGod actionState = do

@@ -8,7 +8,7 @@ module Thentos.Action.SimpleAuthSpec where
 import Control.Concurrent (forkIO, killThread)
 import Control.Exception (bracket)
 import Control.Lens ((^.))
-import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.), configify)
+import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
 import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
@@ -112,7 +112,7 @@ specWithActionState = before mkActionState $ do
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
     srcs <- thentosTestConfigSources
-    cfg <- configify $ srcs ++ [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
+    cfg <- getConfigWithSources $ srcs ++ [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
     as <- createActionState' cfg
 
     let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])

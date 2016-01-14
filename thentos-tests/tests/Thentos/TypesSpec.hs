@@ -20,6 +20,7 @@ import Test.QuickCheck (property)
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
+import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.Transaction
 
@@ -29,7 +30,7 @@ testSizeFactor = 1
 spec :: Spec
 spec = do
     typesSpec
-    before (createDb "test_thentos") dbSpec
+    before (thentosTestConfig >>= createDb) dbSpec
 
 typesSpec :: Spec
 typesSpec = modifyMaxSize (* testSizeFactor) $ do
