@@ -30,7 +30,6 @@ import Test.Hspec (Spec, Spec, hspec, describe, context, around, around_, it, sh
 import Test.Hspec.Wai (shouldRespondWith, with, get)
 import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
 
-import Thentos.Config (getConfigWithSources)
 import Thentos.Action.Types
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -67,8 +66,7 @@ runSession havePurescript session tmp = defaultApp havePurescript >>= runWaiSess
 
 defaultApp :: Bool -> IO Application
 defaultApp havePurescript = do
-    srcs <- thentosTestConfigSources
-    cfg <- getConfigWithSources $ srcs ++ [ YamlString "purescript: ." | havePurescript ]
+    cfg <- thentosTestConfig' [ YamlString "purescript: ." | havePurescript ]
     as <- createActionState' cfg
     return $! serve (Proxy :: Proxy Api) (api havePurescript as)
 

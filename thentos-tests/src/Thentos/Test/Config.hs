@@ -4,6 +4,16 @@
 {-# LANGUAGE TypeOperators     #-}
 
 module Thentos.Test.Config
+    ( thentosTestConfig
+    , thentosTestConfig'
+    , thentosTestConfigSources
+    , thentosTestConfigYaml
+    , godUid
+    , godName
+    , godPass
+    , createGod
+    , forceUserEmail
+    )
 where
 
 import Control.Concurrent.MVar (MVar, readMVar, newMVar)
@@ -35,7 +45,13 @@ memoizeCurrentDirectoryState = unsafePerformIO $ getCurrentDirectory >>= newMVar
 
 
 thentosTestConfig :: IO ThentosConfig
-thentosTestConfig = memoizeCurrentDirectory >> thentosTestConfigSources >>= getConfigWithSources
+thentosTestConfig = thentosTestConfig' []
+
+thentosTestConfig' :: [Source] -> IO ThentosConfig
+thentosTestConfig' extra =
+    memoizeCurrentDirectory >>
+    thentosTestConfigSources >>=
+    getConfigWithSources . (++ extra)
 
 thentosTestConfigSources :: IO [Source]
 thentosTestConfigSources = do

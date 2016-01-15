@@ -111,8 +111,7 @@ specWithActionState = before mkActionState $ do
 
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
-    srcs <- thentosTestConfigSources
-    cfg <- getConfigWithSources $ srcs ++ [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
+    cfg <- thentosTestConfig' [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
     as <- createActionState' cfg
 
     let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
