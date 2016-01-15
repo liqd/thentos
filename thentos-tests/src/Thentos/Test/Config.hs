@@ -103,8 +103,6 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    level: EMERGENCY" :
         -- (override this in individual test cases or use 'withLogger')
     "" :
-    "signup_log: signups.log" :
-    "" :
     "database:" :
     "    name: unused" :
     "" :

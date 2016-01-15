@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE QuasiQuotes          #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
@@ -10,13 +11,17 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import Data.Configifier (Source(YamlString), (>>.))
 import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$$>))
 import Data.Pool (withResource)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
+import System.FilePath ((</>))
 import System.Process (readProcess)
-import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
+import Test.Hspec (Spec, SpecWith, describe, it, around, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec, around_)
 
 import qualified Data.ByteString.Lazy.Char8 as BC
@@ -42,12 +47,13 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    let b = do
-          as <- createActionState
+    let b action = outsideTempDirectory $ \tmp -> do
+          cfg <- thentosTestConfig' [YamlString . cs $ "signup_log: " ++ tmp </> "signups.log"]
+          as <- createActionState' cfg
           withResource (as ^. aStDb) createGod
-          return as
+          action as
 
-    describe "Thentos.Action" . before b $ do
+    describe "Thentos.Action" . around b $ do
         spec_user
         spec_service
         spec_agentsAndRoles
@@ -87,7 +93,6 @@ spec_user = describe "user" $ do
             e `shouldBe` UserEmailAlreadyExists
 
     describe "addUnconfirmedUserWithCaptcha" $ do
-        around_ withSignupLogger $ do
             let email = forceUserEmail "alice@example.com"
                 name = UserName "alice"
                 userData = UserFormData name (UserPass "pass") email
@@ -96,8 +101,10 @@ spec_user = describe "user" $ do
                     [sql| INSERT INTO captchas (id, solution)
                           VALUES ('cid', 'secret')|] ()
 
-                checkSignupLog captchaStatus = do
-                    content <- liftIO $ readProcess "cat" ["signups.log"] ""
+                checkSignupLog as captchaStatus = do
+                    let logfile :: FilePath
+                        Just logfile = cs <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["signup_log"])
+                    content <- liftIO $ readProcess "cat" [logfile] ""
                     let bs = BC.pack content
                         Right (records :: V.Vector SignupAttempt) =
                             CSV.decode CSV.NoHeader bs
@@ -119,7 +126,7 @@ spec_user = describe "user" $ do
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "secret"
                 Right _ <- runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 True <- aliceExists sta
-                checkSignupLog CaptchaCorrect
+                checkSignupLog sta CaptchaCorrect
 
             it "doesn't create a user if the captcha is incorrect, logs signup attempt" $ \sta -> do
                 _ <- createCaptcha sta
@@ -128,7 +135,7 @@ spec_user = describe "user" $ do
                 Left (ActionErrorThentos InvalidCaptchaSolution) <-
                     runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 False <- aliceExists sta
-                checkSignupLog CaptchaIncorrect
+                checkSignupLog sta CaptchaIncorrect
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \ sta -> do

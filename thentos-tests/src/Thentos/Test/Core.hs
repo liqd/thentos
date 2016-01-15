@@ -164,16 +164,6 @@ withNoisyLogger action = do
     removeAllHandlers
     return result
 
-withSignupLogger :: IO a -> IO a
-withSignupLogger action = Test.Mockery.Directory.inTempDirectory $ do
-    removeAllHandlers
-    updateGlobalLogger signupLogger $ setLevel DEBUG
-    let addh h = addHandler $ h { formatter = nullFormatter }
-    fileHandler "./signups.log" DEBUG >>= updateGlobalLogger signupLogger . addh
-    result <- action
-    removeAllHandlers
-    return result
-
 -- | Start and shutdown webdriver on localhost:4451, running the action in between.
 withWebDriver :: WD.WD r -> IO r
 withWebDriver = withWebDriverAt' "localhost" 4451
