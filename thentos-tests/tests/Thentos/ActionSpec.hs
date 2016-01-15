@@ -75,7 +75,7 @@ spec_user = describe "user" $ do
                 runClearanceE dcBottom sta $ lookupConfirmedUser uid
             return ()
 
-        it "guarantee that user names are unique" $ \ sta -> do
+        it "guarantee that user names are unique" $ \sta -> do
             (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (user ^. userName)
                                             (UserPass "foo")
@@ -84,7 +84,7 @@ spec_user = describe "user" $ do
                 addUser userFormData
             e `shouldBe` UserNameAlreadyExists
 
-        it "guarantee that user email addresses are unique" $ \ sta -> do
+        it "guarantee that user email addresses are unique" $ \sta -> do
             (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (UserName "newOne")
                                             (UserPass "foo")
@@ -138,24 +138,24 @@ spec_user = describe "user" $ do
                 checkSignupLog sta CaptchaIncorrect
 
     describe "DeleteUser" $ do
-        it "user can delete herself, even if not admin" $ \ sta -> do
+        it "user can delete herself, even if not admin" $ \sta -> do
             (uid, _, _) <- runClearance dcBottom sta $ addTestUser 3
             result <- runPrivsE [UserA uid] sta $ deleteUser uid
             result `shouldSatisfy` isRight
 
-        it "nobody else but the deleted user and admin can do this" $ \ sta -> do
+        it "nobody else but the deleted user and admin can do this" $ \sta -> do
             (uid,  _, _) <- runClearance dcBottom sta $ addTestUser 3
             (uid', _, _) <- runClearance dcBottom sta $ addTestUser 4
             result <- runPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
     describe "checkPassword" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             void . runA sta $ startThentosSessionByUserId godUid godPass
             void . runA sta $ startThentosSessionByUserName godName godPass
 
     describe "confirmUserEmailChange" $ do
-        it "changes user email after change request" $ \ sta -> do
+        it "changes user email after change request" $ \sta -> do
             let newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
                     (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
@@ -173,7 +173,7 @@ spec_user = describe "user" $ do
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             let addsvc name desc = runClearanceE (UserA godUid %% UserA godUid) sta
                     $ addService (UserId 0) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
@@ -188,7 +188,7 @@ spec_service = describe "service" $ do
             return ()
 
     describe "autocreateServiceIfMissing" $ do
-        it "adds service if missing" $ \ sta -> do
+        it "adds service if missing" $ \sta -> do
             let owner = UserId 0
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
@@ -197,7 +197,7 @@ spec_service = describe "service" $ do
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
-        it "does nothing if service exists" $ \ sta -> do
+        it "does nothing if service exists" $ \sta -> do
             let owner = UserId 0
             (sid, _) <- runPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"
@@ -210,28 +210,28 @@ spec_agentsAndRoles :: SpecWith ActionState
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
-            it "can be called by admins" $ \ sta -> do
+            it "can be called by admins" $ \sta -> do
                 (UserA -> targetAgent, _, _) <- runClearance dcBottom sta $ addTestUser 1
                 result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by any non-admin agents" $ \ sta -> do
+            it "can NOT be called by any non-admin agents" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [targetAgent] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
-            it "can be called by admins" $ \ sta -> do
+            it "can be called by admins" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [RoleAdmin] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can be called by user for her own roles" $ \ sta -> do
+            it "can be called by user for her own roles" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [targetAgent] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by other users" $ \ sta -> do
+            it "can NOT be called by other users" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
                 result <- runPrivsE [askingAgent] sta $ agentRoles targetAgent
@@ -241,13 +241,13 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
 spec_session :: SpecWith ActionState
 spec_session = describe "session" $ do
     describe "StartSession" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             result <- runAE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()
 
     describe "lookupThentosSession" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             ((ernieId, ernieF, _) : (bertId, _, _) : _)
                 <- runClearance dcTop sta initializeTestUsers
 
