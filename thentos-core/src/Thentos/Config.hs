@@ -159,6 +159,7 @@ type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
         ("path" :> ST)
     :*> ("level" :> Prio)
+    :*> ("stdout" :> Bool)
 
 type EmailTemplates = Tagged (ToConfigCode EmailTemplates')
 type EmailTemplates' =
@@ -283,33 +284,27 @@ getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["
 
 -- * logging
 
-{- FIXME: rewrite along the following lines:
-
-- 'configLogger' should take 'LogConfig' as argument
-- 'LogConfig' should allow for missing path.
-- there should be a way to override an already-set log file with 'no log file' on e.g. the command
-  line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
-- 'LogConfig' should have additional keys 'stderr', 'stdout' that do the obvious.
-
--}
-
+-- | Note: logging to stderr does not work very well together with multiple threads.  stdout is
+-- line-buffered and works better that way.
+--
+-- FIXME: there should be a way to override an already-set log file with 'no log file' on e.g. the
+-- command line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
 configLogger :: LogConfig -> IO ()
 configLogger config = do
     let logfile = ST.unpack $ config >>. (Proxy :: Proxy '["path"])
         loglevel = fromPrio $ config >>. (Proxy :: Proxy '["level"])
+        logstdout :: Bool = config >>. (Proxy :: Proxy '["stdout"])
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
-    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stdout loglevel
 
-    -- NOTE: `sHandler` was originally writing to stderr, but since thentos has more than one
-    -- thread, this lead a lot of chaos where threads would log concurrently.  stdout is
-    -- line-buffered and works better that way.
+    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+        mkHandler f = (\h -> h { formatter = fmt }) <$> f loglevel
+
+    handlers <- sequence $ mkHandler <$> fileHandler logfile : [streamHandler stdout | logstdout]
 
     updateGlobalLogger loggerName $
         System.Log.Logger.setLevel loglevel .
-        setHandlers [sHandler, fHandler]
+        setHandlers handlers
 
 signupLogger :: String
 signupLogger = "signupLogger"

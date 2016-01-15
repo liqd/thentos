@@ -101,6 +101,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "log:" :
     "    path: /dev/null" :
     "    level: EMERGENCY" :
+    "    stdout: False" :
         -- (override this in individual test cases or use 'withLogger')
     "" :
     "database:" :
