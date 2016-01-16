@@ -22,7 +22,7 @@ import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
 import System.FilePath ((</>))
 import System.Process (readProcess)
 import Test.Hspec (Spec, SpecWith, describe, it, around, shouldBe, shouldContain,
-                   shouldNotContain, shouldSatisfy, hspec, around_)
+                   shouldNotContain, shouldSatisfy, hspec)
 
 import qualified Data.ByteString.Lazy.Char8 as BC
 import qualified Data.Csv as CSV

@@ -19,15 +19,15 @@ import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
 import Data.Configifier (Source(YamlString))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (cs, (<>))
 import Data.String (fromString)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleHeaders)
 import Servant.API ((:>))
-import Servant.Server (serve, Server)
+import Servant.Server (serve)
 import System.FilePath ((</>))
-import Test.Hspec (Spec, Spec, hspec, describe, context, around, around_, it, shouldContain)
-import Test.Hspec.Wai (shouldRespondWith, with, get)
+import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
+import Test.Hspec.Wai (shouldRespondWith, get)
 import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
 
 import Thentos.Action.Types
@@ -44,7 +44,7 @@ spec :: Spec
 spec = describe "Thentos.Backend.Api.PureScript" specPurescript
 
 specPurescript :: Spec
-specPurescript = around outsideTempDirectory $ do
+specPurescript = do
     let jsFile :: FilePath = "find-me.js"
         body   :: String   = "9VA4I5xpOAXRE"
 
@@ -61,17 +61,15 @@ specPurescript = around outsideTempDirectory $ do
             resp <- get (cs $ "/js" </> jsFile)
             liftIO $ simpleHeaders resp `shouldContain` [("Content-Type", "application/javascript")]
 
-runSession :: Bool -> (FilePath -> WaiSession a) -> FilePath -> IO a
-runSession havePurescript session tmp = defaultApp havePurescript >>= runWaiSession (session tmp)
+runSession :: Bool -> (FilePath -> WaiSession a) -> IO a
+runSession havePurescript session = outsideTempDirectory $ \tmp -> do
+    app <- defaultApp havePurescript tmp
+    runWaiSession (session tmp) app
 
-defaultApp :: Bool -> IO Application
-defaultApp havePurescript = do
-    cfg <- thentosTestConfig' [ YamlString "purescript: ." | havePurescript ]
+defaultApp :: Bool -> FilePath -> IO Application
+defaultApp havePurescript tmp = do
+    cfg <- thentosTestConfig' [ YamlString $ "purescript: " <> cs tmp | havePurescript ]
     as <- createActionState' cfg
-    return $! serve (Proxy :: Proxy Api) (api havePurescript as)
+    return $! serve (Proxy :: Proxy Api) (PureScript.api (as ^. aStConfig))
 
 type Api = "js" :> PureScript.Api
-
-api :: Bool -> ActionState -> Server Api
-api True as = PureScript.api (as ^. aStConfig)
-api False _ = PureScript.api' Nothing

@@ -13,6 +13,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans      #-}
 
 module Thentos.Adhocracy3.Backend.Api.SimpleSpec
@@ -22,7 +23,7 @@ import Control.Exception (bracket)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson (Value(String), object, (.=))
-import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
 import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
@@ -32,14 +33,16 @@ import Data.String.Conversions (LBS, ST, cs)
 import GHC.Stack (CallStack)
 import LIO.DCLabel (toCNF)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
-import Network.HTTP.Types (Status, status200, status400)
+import Network.HTTP.Types (Header, Status, status200, status400)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort, runSettings)
 import Network.Wai.Test (simpleBody, simpleStatus)
+import System.FilePath ((</>))
 import System.Process (readProcess)
-import Test.Hspec (Spec, around_, describe, hspec, it, shouldBe, shouldContain, shouldSatisfy,
-                   pendingWith)
+import Test.Hspec (ActionWith, Spec, around_, around, describe, hspec, it,
+                   shouldBe, shouldContain, shouldSatisfy, pendingWith)
 import Test.Hspec.Wai (request, with)
+import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
 import Test.QuickCheck (Arbitrary(..), property)
 
 import qualified Data.Aeson as Aeson
@@ -52,6 +55,7 @@ import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Adhocracy3.Backend.Api.Simple
+import Thentos.Config (ThentosConfig)
 import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
@@ -127,7 +131,7 @@ spec =
                  (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
                      `shouldBe` Left "password too short (less than 6 characters)"
 
-        describe "create user" $ with setupBackend $ do
+        describe "create user" $ do
             let a3userCreated   = encodePretty $ object
                     [ "content_type" .= String "adhocracy_core.resources.principal.IUser"
                     , "path"         .= String "http://127.0.0.1:6541/principals/users/0000111/"
@@ -135,8 +139,8 @@ spec =
                 smartA3backend = routingReplyServer Nothing $ Map.fromList
                     [ ("/path/principals/users", (status200, a3userCreated)) ]
 
-            around_ (withLogger . withApp smartA3backend) $ do
-                it "works" $ do
+            around (withTestState smartA3backend) $ do
+                it "works" . runTestState $ \(_, cfg) -> do
                     let name    = "Anna Müller"
                         pass    = "EckVocUbs3"
                         reqBody = mkUserJson name "anna@example.org" pass
@@ -154,10 +158,9 @@ spec =
                     -- Find the confirmation token. We use a system call to "grep" it ouf the
                     -- log file, which is ugly but works, while reading the log file within
                     -- Haskell doesn't (openFile: resource busy (file is locked)).
-                    --
-                    -- (See FIXME comment about 'Chan' near 'withLogger'.)
                     let actPrefix = ":7119/activate/"
-                    actLine <- liftIO $ readProcess "grep" [actPrefix, "everything.log"] ""
+                        logPath = cs $ cfg >>. (Proxy :: Proxy '["log", "path"])
+                    actLine <- liftIO $ readProcess "grep" [actPrefix, logPath] ""
                     let confToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
 
                     -- Make sure that we cannot log in since the account isn't yet active
@@ -240,18 +243,36 @@ spec =
                 -- It should contain the quoted string "internal error"
                 liftIO $ cs rspBody `shouldContain` ("\"internal error\"" :: String)
 
-  where
-    setupBackend :: IO Application
-    setupBackend = do
-        as@(ActionState cfg _ connPool) <- createActionState
-        mgr <- newManager defaultManagerSettings
-        withResource connPool createGod
-        ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
-              autocreateMissingServices cfg
-        let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
-        return $! serveApi mgr beConfig as
 
-    ctJson = ("Content-Type", "application/json")
+type TestState = (Application, ThentosConfig)
+
+runTestState :: (TestState -> WaiSession a) -> TestState -> IO a
+runTestState session (app, cfg) = runWaiSession (session (app, cfg)) app
+
+withTestState :: Application -> ActionWith TestState -> IO ()
+withTestState a3backend action = outsideTempDirectory $ \tmp ->
+    setupBackend' [ YamlString . cs . unlines $
+                      [ "log:"
+                      , "  level: DEBUG"
+                      , "  stdout: False"
+                      , "  path: " ++ tmp </> "log" ]]
+      >>= withApp a3backend . action
+
+setupBackend :: IO Application
+setupBackend = fst <$> setupBackend' []
+
+setupBackend' :: [Source] -> IO (Application, ThentosConfig)
+setupBackend' extraCfg = do
+    as@(ActionState cfg _ connPool) <- thentosTestConfig' extraCfg >>= createActionState'
+    mgr <- newManager defaultManagerSettings
+    withResource connPool createGod
+    ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
+          autocreateMissingServices cfg
+    let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
+    return (serveApi mgr beConfig as, cfg)
+
+ctJson :: Header
+ctJson = ("Content-Type", "application/json")
 
 
 -- * helper functions

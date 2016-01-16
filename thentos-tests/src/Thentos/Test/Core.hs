@@ -23,11 +23,9 @@ import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad (when)
 import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
-import Data.CaseInsensitive (mk)
 import Data.Configifier ((>>.))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
@@ -39,8 +37,8 @@ import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
 import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import System.IO (stderr)
-import System.Log.Formatter (simpleLogFormatter, nullFormatter)
-import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
+import System.Log.Formatter (simpleLogFormatter)
+import System.Log.Handler.Simple (formatter, streamHandler)
 import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
                           setLevel, addHandler)
 import System.Process (callCommand)
@@ -229,12 +227,12 @@ createDb cfg = callCommand (create_ <> " && " <> wipe_) >> createConnPoolAndInit
     create_ = "createdb " <> dbname <> " 2>/dev/null || true"
     wipe_   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
 
-loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
+loginAsGod :: ActionState -> IO (ThentosSessionToken, Header)
 loginAsGod actionState = do
     let action :: Action Void () (UserId, ThentosSessionToken)
         action = startThentosSessionByUserName godName godPass
     ((_, tok), _) <- runAction () actionState action
-    let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
+    let credentials :: Header = ("X-Thentos-Session", cs $ fromThentosSessionToken tok)
     return (tok, credentials)
 
 
