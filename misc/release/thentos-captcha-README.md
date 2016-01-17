@@ -8,7 +8,7 @@ Web service that serves captcha images and sounds and verifies captcha solutions
 
 ## Configure
 
-The relavent sections in `thentos-captcha.config` are: `frontend`, `backend`, `log`, and `database.
+The relavent sections in `thentos-captcha.config` are: `frontend`, `backend`, `log`, and `database`.
 
 ## Run
 
