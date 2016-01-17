@@ -40,8 +40,7 @@ pushd $tmpdir
 git clone --reference $gitdir --branch $1 $gitdir
 cd thentos
 cabal sandbox init --sandbox=$cabal_sandbox
-CABAL_PACKAGE_SOURCE_ROOT_THENTOS_CORE=. \
-    misc/thentos-install.hs -p 
+./misc/thentos-install.hs -p
 cd ..
 mkdir $relname
 cd $relname
