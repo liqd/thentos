@@ -13,7 +13,7 @@ for f in thentos-{core,tests,adhocracy}/thentos-*.cabal; do
     git add $f
 done
 
-git commit -m 'Bump version to '"$NEW_VERSION"'.'
+git commit -m 'Release '"$NEW_VERSION"'.'
 git tag v$NEW_VERSION
 
 echo "created new commit and tag."

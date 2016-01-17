@@ -2,7 +2,7 @@
 
 # release.sh
 #
-# Build a Thentos binary release targz.
+# Build a Thentos binary release.
 #
 # Command line arguments:
 #
@@ -30,36 +30,46 @@ if [ ! -f cabal.sandbox.config ]; then
 fi
 
 relname=thentos-captcha-$1
-tar=$relname.bin.tar
-targz=$tar.gz
+tarxz=$relname.`uname -m`.tar.xz
 tmpdir=`mktemp -d`
 gitdir=`pwd`
 cabal_sandbox=`cat cabal.sandbox.config | grep '^ *prefix' | awk -F ' ' '{print $2}'`
 
+echo -e "\n\n\n"
+echo "git ref: $1"
+echo "release file: $tarxz"
+echo "build path: `pwd`"
+echo -e "\n\n\n"
+
 pushd $tmpdir
+
+# clone and build
 git clone --reference $gitdir --branch $1 $gitdir
 cd thentos
 cabal sandbox init --sandbox=$cabal_sandbox
 ./misc/thentos-install.hs -p
 cd ..
+
+# collect files
 mkdir $relname
 cd $relname
 cp $cabal_sandbox/bin/thentos-captcha .
-mkdir -p thentos-core/schema
-cp -r ../thentos/thentos-core/schema/* thentos-core/schema
+cp -r ../thentos/thentos-core/schema .
+cp -r ../thentos/thentos-core/resources .
 cp ../thentos/misc/release/thentos-captcha-README.md README.md
-cp ../thentos/thentos-core/example.config thentos-captcha.config
+cp ../thentos/thentos-core/devel.config thentos-captcha.config
 cd ..
-tar cf $tar *
-gzip $tar
-sha1hash=`sha1sum $targz | awk -F ' ' '{print $1}'`
-md5hash=`md5sum $targz | awk -F ' ' '{print $1}'`
-echo -n $md5hash > $targz.md5
-echo -n $sha1hash > $targz.sha1
+
+# build package, cleanup, report
+tar cJf $tarxz $relname
 popd
 mkdir -p "output/releases"
-cp $tmpdir/$targz* output/releases/
+mv $tmpdir/$tarxz* output/releases/
 rm -rf $tmpdir
-echo "Created release tarball in output/releases/$targz"
-echo "MD5:  $md5hash"
-echo "SHA1: $sha1hash"
+echo "Created release tarball in output/releases/$tarxz"
+cd ./output/releases
+for hash in sha256 sha1 md5; do
+    echo -n "${hash}: "
+    ${hash}sum $tarxz | awk -F ' ' '{print $1}' | tee $tarxz.$hash
+done
+cd -
