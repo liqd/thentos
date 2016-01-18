@@ -19,4 +19,4 @@ cp -r travis-cache/data ./hlint/.cabal-sandbox/share/x86_64-linux-ghc-7.8.4/hlin
 sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
 
 cabal update
-./misc/thentos-install.hs -c "--force-reinstalls" -t
+./misc/thentos-install.hs -c "--force-reinstalls" -t -p

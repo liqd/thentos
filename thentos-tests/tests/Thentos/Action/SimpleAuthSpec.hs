@@ -58,7 +58,7 @@ setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . s
 
 mkActionState :: IO ActionState
 mkActionState = do
-    actionState <- createActionState "test_thentos" thentosTestConfig
+    actionState <- createActionState
     withResource (actionState ^. aStDb) createGod
     return actionState
 
@@ -111,11 +111,8 @@ specWithActionState = before mkActionState $ do
 
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
-    as <- do
-        let sources = [ thentosTestConfigYaml
-                      , YamlString . ("allow_ips: " <>) . cs . show $ allowIps
-                      ]
-        createActionState "test_thentos" $ mkThentosTestConfig sources
+    cfg <- thentosTestConfig' [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
+    as <- createActionState' cfg
 
     let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
     bracket (forkIO $ runWarpWithCfg becfg $ serveApi as)
@@ -138,5 +135,5 @@ specWithBackends = describe "hasPrivilegedIp" $ do
                 resp ^. Wreq.responseBody `shouldBe` Aeson.encode y
 
     works ["127.0.0.1"] True
-    works  ["1.2.3.4"] False
+    works ["1.2.3.4"] False
     works [] False

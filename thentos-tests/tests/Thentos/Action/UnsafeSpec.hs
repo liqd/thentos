@@ -31,7 +31,7 @@ type Act = Action (ActionError Void) ()
 
 mkActionState :: IO ActionState
 mkActionState = do
-    actionState <- createActionState "test_thentos" thentosTestConfig
+    actionState <- createActionState
     withResource (actionState ^. aStDb) createGod
     return actionState
 

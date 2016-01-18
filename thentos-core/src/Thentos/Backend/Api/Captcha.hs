@@ -43,7 +43,7 @@ import Thentos.Config
 import Thentos.Ends.Types
 import Thentos.Types
 
-import qualified Paths_thentos_core__ as Paths
+import qualified Paths_thentos_core__ as Paths (version)
 
 
 -- * main for frontend interface (called from browsers to generate captchas)

@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE QuasiQuotes          #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
@@ -10,14 +11,18 @@ import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
+import Data.Configifier (Source(YamlString), (>>.))
 import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$$>))
 import Data.Pool (withResource)
+import Data.Proxy (Proxy(Proxy))
+import Data.String.Conversions (cs)
 import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
+import System.FilePath ((</>))
 import System.Process (readProcess)
-import Test.Hspec (Spec, SpecWith, describe, it, before, shouldBe, shouldContain,
-                   shouldNotContain, shouldSatisfy, hspec, around_)
+import Test.Hspec (Spec, SpecWith, describe, it, around, shouldBe, shouldContain,
+                   shouldNotContain, shouldSatisfy, hspec)
 
 import qualified Data.ByteString.Lazy.Char8 as BC
 import qualified Data.Csv as CSV
@@ -42,12 +47,13 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    let b = do
-          as <- createActionState "test_thentos" thentosTestConfig
+    let b action = outsideTempDirectory $ \tmp -> do
+          cfg <- thentosTestConfig' [YamlString . cs $ "signup_log: " ++ tmp </> "signups.log"]
+          as <- createActionState' cfg
           withResource (as ^. aStDb) createGod
-          return as
+          action as
 
-    describe "Thentos.Action" . before b $ do
+    describe "Thentos.Action" . around b $ do
         spec_user
         spec_service
         spec_agentsAndRoles
@@ -69,7 +75,7 @@ spec_user = describe "user" $ do
                 runClearanceE dcBottom sta $ lookupConfirmedUser uid
             return ()
 
-        it "guarantee that user names are unique" $ \ sta -> do
+        it "guarantee that user names are unique" $ \sta -> do
             (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (user ^. userName)
                                             (UserPass "foo")
@@ -78,7 +84,7 @@ spec_user = describe "user" $ do
                 addUser userFormData
             e `shouldBe` UserNameAlreadyExists
 
-        it "guarantee that user email addresses are unique" $ \ sta -> do
+        it "guarantee that user email addresses are unique" $ \sta -> do
             (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
             let userFormData = UserFormData (UserName "newOne")
                                             (UserPass "foo")
@@ -87,7 +93,6 @@ spec_user = describe "user" $ do
             e `shouldBe` UserEmailAlreadyExists
 
     describe "addUnconfirmedUserWithCaptcha" $ do
-        around_ withSignupLogger $ do
             let email = forceUserEmail "alice@example.com"
                 name = UserName "alice"
                 userData = UserFormData name (UserPass "pass") email
@@ -96,8 +101,10 @@ spec_user = describe "user" $ do
                     [sql| INSERT INTO captchas (id, solution)
                           VALUES ('cid', 'secret')|] ()
 
-                checkSignupLog captchaStatus = do
-                    content <- liftIO $ readProcess "cat" ["signups.log"] ""
+                checkSignupLog as captchaStatus = do
+                    let logfile :: FilePath
+                        Just logfile = cs <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["signup_log"])
+                    content <- liftIO $ readProcess "cat" [logfile] ""
                     let bs = BC.pack content
                         Right (records :: V.Vector SignupAttempt) =
                             CSV.decode CSV.NoHeader bs
@@ -119,7 +126,7 @@ spec_user = describe "user" $ do
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "secret"
                 Right _ <- runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 True <- aliceExists sta
-                checkSignupLog CaptchaCorrect
+                checkSignupLog sta CaptchaCorrect
 
             it "doesn't create a user if the captcha is incorrect, logs signup attempt" $ \sta -> do
                 _ <- createCaptcha sta
@@ -128,27 +135,27 @@ spec_user = describe "user" $ do
                 Left (ActionErrorThentos InvalidCaptchaSolution) <-
                     runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 False <- aliceExists sta
-                checkSignupLog CaptchaIncorrect
+                checkSignupLog sta CaptchaIncorrect
 
     describe "DeleteUser" $ do
-        it "user can delete herself, even if not admin" $ \ sta -> do
+        it "user can delete herself, even if not admin" $ \sta -> do
             (uid, _, _) <- runClearance dcBottom sta $ addTestUser 3
             result <- runPrivsE [UserA uid] sta $ deleteUser uid
             result `shouldSatisfy` isRight
 
-        it "nobody else but the deleted user and admin can do this" $ \ sta -> do
+        it "nobody else but the deleted user and admin can do this" $ \sta -> do
             (uid,  _, _) <- runClearance dcBottom sta $ addTestUser 3
             (uid', _, _) <- runClearance dcBottom sta $ addTestUser 4
             result <- runPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
     describe "checkPassword" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             void . runA sta $ startThentosSessionByUserId godUid godPass
             void . runA sta $ startThentosSessionByUserName godName godPass
 
     describe "confirmUserEmailChange" $ do
-        it "changes user email after change request" $ \ sta -> do
+        it "changes user email after change request" $ \sta -> do
             let newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
                     (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
@@ -166,7 +173,7 @@ spec_user = describe "user" $ do
 spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             let addsvc name desc = runClearanceE (UserA godUid %% UserA godUid) sta
                     $ addService (UserId 0) name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
@@ -181,7 +188,7 @@ spec_service = describe "service" $ do
             return ()
 
     describe "autocreateServiceIfMissing" $ do
-        it "adds service if missing" $ \ sta -> do
+        it "adds service if missing" $ \sta -> do
             let owner = UserId 0
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
@@ -190,7 +197,7 @@ spec_service = describe "service" $ do
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
-        it "does nothing if service exists" $ \ sta -> do
+        it "does nothing if service exists" $ \sta -> do
             let owner = UserId 0
             (sid, _) <- runPrivs [RoleAdmin] sta
                             $ addService owner "fake name" "fake description"
@@ -203,28 +210,28 @@ spec_agentsAndRoles :: SpecWith ActionState
 spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
-            it "can be called by admins" $ \ sta -> do
+            it "can be called by admins" $ \sta -> do
                 (UserA -> targetAgent, _, _) <- runClearance dcBottom sta $ addTestUser 1
                 result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by any non-admin agents" $ \ sta -> do
+            it "can NOT be called by any non-admin agents" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [targetAgent] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
-            it "can be called by admins" $ \ sta -> do
+            it "can be called by admins" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [RoleAdmin] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can be called by user for her own roles" $ \ sta -> do
+            it "can be called by user for her own roles" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                 result <- runPrivsE [targetAgent] sta $ agentRoles targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can NOT be called by other users" $ \ sta -> do
+            it "can NOT be called by other users" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
                 result <- runPrivsE [askingAgent] sta $ agentRoles targetAgent
@@ -234,13 +241,13 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
 spec_session :: SpecWith ActionState
 spec_session = describe "session" $ do
     describe "StartSession" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             result <- runAE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()
 
     describe "lookupThentosSession" $ do
-        it "works" $ \ sta -> do
+        it "works" $ \sta -> do
             ((ernieId, ernieF, _) : (bertId, _, _) : _)
                 <- runClearance dcTop sta initializeTestUsers
 

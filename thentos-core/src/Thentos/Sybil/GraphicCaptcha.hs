@@ -21,7 +21,6 @@ import Graphics.Rasterific.Texture (uniformTexture, patternTexture, transformTex
 import Graphics.Rasterific.Transformations (translate)
 import Graphics.Text.TrueType (Font, loadFontFile)
 
-import Paths_thentos_core__
 import Thentos.Types
 
 
@@ -29,7 +28,7 @@ import Thentos.Types
 -- solution to the captcha.
 generateCaptcha :: Random20 -> IO (ImageData, ST)
 generateCaptcha rnd = do
-    fontPath <- getDataFileName "resources/fonts/Courier_Prime_Bold.ttf"
+    let fontPath = "./resources/fonts/Courier_Prime_Bold.ttf"
     font <- loadFontFile fontPath >>= either (throwIO . ErrorCall) return
     let random20ToStdGen = mkStdGen . sum . map ord . cs . fromRandom20
     return $ flip evalRand (random20ToStdGen rnd) $ do

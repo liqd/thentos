@@ -1,5 +1,6 @@
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Thentos.Transaction.Core
     ( ThentosQuery
@@ -16,13 +17,13 @@ module Thentos.Transaction.Core
     )
 where
 
-import Control.Monad.Except (throwError)
 import Control.Exception.Lifted (catch, throwIO)
-import Control.Monad (void, liftM)
+import Control.Monad.Except (throwError)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
-import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Monad.Trans.Either (EitherT, runEitherT)
+import Control.Monad (void, liftM)
 import Data.Int (Int64)
 import Data.String (fromString)
 import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute,
@@ -33,22 +34,21 @@ import Database.PostgreSQL.Simple.ToField (ToField(toField))
 import Database.PostgreSQL.Simple.Transaction (withTransaction)
 import Database.PostgreSQL.Simple.Types (Default(Default))
 
-import Paths_thentos_core__
 import Thentos.Types
 
 
 type ThentosQuery e a = EitherT (ThentosError e) (ReaderT Connection IO) a
 
-schemaFile :: IO FilePath
-schemaFile = getDataFileName "schema/schema.sql"
+schemaFile :: FilePath
+schemaFile = "./schema/schema.sql"
 
-wipeFile :: IO FilePath
-wipeFile = getDataFileName "schema/wipe.sql"
+wipeFile :: FilePath
+wipeFile = "./schema/wipe.sql"
 
 -- | Creates the database schema if it does not already exist.
 createDB :: Connection -> IO ()
 createDB conn = do
-    schema <- readFile =<< schemaFile
+    schema <- readFile schemaFile
     void $ execute_ conn (fromString schema)
 
 -- | Execute a 'ThentosQuery'. Every query is a DB transaction, so the DB state won't change
