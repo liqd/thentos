@@ -143,25 +143,6 @@ outsideTempDirectory action = do
         setCurrentDirectory wd
         action wd'
 
--- | Wrap a spec in `withNoisyLogger`, and everything will go to stderr.
---
--- FIXME: show log contents for failing test cases automatically.  or provide a log handler that
--- logs into a 'Chan', and exposes the Chan to the tests.  that would make it fast and easy to use
--- log file contents to formulate tests.
-withNoisyLogger :: IO a -> IO a
-withNoisyLogger action = do
-    removeAllHandlers
-    updateGlobalLogger loggerName $ setLevel DEBUG
-
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-        addh h = addHandler $ h { formatter = fmt }
-
-    streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
-
-    result <- action
-    removeAllHandlers
-    return result
-
 -- | Start and shutdown webdriver on localhost:4451, running the action in between.
 withWebDriver :: WD.WD r -> IO r
 withWebDriver = withWebDriverAt' "localhost" 4451
