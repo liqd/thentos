@@ -202,11 +202,11 @@ createActionState' cfg = ActionState cfg <$> (drgNew >>= newMVar) <*> createDb c
 
 -- | Create a connection to a DB.  Whipes the DB.
 createDb :: ThentosConfig -> IO (Pool Connection)
-createDb cfg = callCommand (create_ <> " && " <> wipe_) >> createConnPoolAndInitDb cfg
+createDb cfg = callCommand (createCmd <> " && " <> wipeCmd) >> createConnPoolAndInitDb cfg
   where
-    dbname  = cs $ cfg >>. (Proxy :: Proxy '["database", "name"])
-    create_ = "createdb " <> dbname <> " 2>/dev/null || true"
-    wipe_   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
+    dbname    = cs $ cfg >>. (Proxy :: Proxy '["database", "name"])
+    createCmd = "createdb " <> dbname <> " 2>/dev/null || true"
+    wipeCmd   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
 
 loginAsGod :: ActionState -> IO (ThentosSessionToken, Header)
 loginAsGod actionState = do
