@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
-module Main (main) where
+module Main (main, runCaptchaBench) where
 
 import Control.Concurrent (threadDelay)
 import Database.PostgreSQL.Simple (Connection, query_, fromOnly)
@@ -125,6 +125,80 @@ decodeLenient input = do
 
 
 -- specific benchmarks
+
+-- captchas
+
+-- | Only works with running thentos-captcha service (see url in the code).  The following figures
+-- are from a thinkpad t420s quad-core laptop with logging in thentos-captcha disabled (logging to
+-- stdout on DEBUG level made a difference of 10% in both `runpar` tests).
+--
+-- >>> Benchmark load-test: RUNNING...
+-- >>> Captcha Benchmark p/g:  in 29.51 sec (31.2% CPU)
+-- >>> latency:
+-- >>>     mean:    2.514 sec
+-- >>>     std dev: 280.3 msec
+-- >>>     99%:     3.199 sec
+-- >>>     99.9%:   3.518 sec
+-- >>>
+-- >>> throughput:  33.89 req/sec
+-- >>> Captcha Benchmark s/g:  in 7.814 sec (1.9% CPU)
+-- >>> latency:
+-- >>>     mean:    77.99 msec
+-- >>>     std dev: 79.19 msec
+-- >>>     99%:     341.5 msec
+-- >>>     99.9%:   678.9 msec
+-- >>>
+-- >>> throughput:  12.80 req/sec
+-- >>> Captcha Benchmark p/a:  in 8.759 sec (77.8% CPU)
+-- >>> latency:
+-- >>>     mean:    739.1 msec
+-- >>>     std dev: 134.4 msec
+-- >>>     99%:     997.2 msec
+-- >>>     99.9%:   1.123 sec
+-- >>>
+-- >>> throughput:  114.2 req/sec
+-- >>> Captcha Benchmark s/a:  in 1.287 sec (7.8% CPU)
+-- >>> latency:
+-- >>>     mean:    12.69 msec
+-- >>>     std dev: 2.301 msec
+-- >>>     99%:     22.49 msec
+-- >>>     99.9%:   25.71 msec
+-- >>>
+-- >>> throughput:  77.68 req/sec
+-- >>> Benchmark load-test: FINISH
+runCaptchaBench :: IO ()
+runCaptchaBench = do
+    let frontend = "http://localhost:7002/"
+    reqGraphics <- (\r -> r { method = methodPost }) <$> parseUrl (frontend <> "captcha")
+    reqAudio <- (\r -> r { method = methodPost }) <$> parseUrl (frontend <> "audio_captcha/en")
+
+    let conf = Pronk.Config {
+                      concurrency = 0
+                    , numRequests = 0
+                    , requestsPerSecond = 0
+                    , timeout = 30
+                    , requests = []
+                    }
+
+        injectReq cnf req = cnf
+            { requests = [Pronk.RequestGeneratorConstant $ Pronk.Req req]
+            }
+        runpar cnf = cnf
+            { concurrency = 100
+            , numRequests = 1000
+            , requestsPerSecond = 1000
+            }
+        runseq cnf = cnf
+            { concurrency = 1
+            , numRequests = 100
+            , requestsPerSecond = 1000
+            }
+
+    runBench "Captcha Benchmark p/g: " . runpar . injectReq conf $ reqGraphics
+    runBench "Captcha Benchmark s/g: " . runseq . injectReq conf $ reqGraphics
+    runBench "Captcha Benchmark p/a: " . runpar . injectReq conf $ reqAudio
+    runBench "Captcha Benchmark s/a: " . runseq . injectReq conf $ reqAudio
+
 
 -- signup
 
