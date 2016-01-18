@@ -16,6 +16,8 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
+{-# OPTIONS_GHC  #-}
+
 module Thentos.Test.Core
 where
 
@@ -36,11 +38,6 @@ import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
 import System.Directory (getCurrentDirectory, setCurrentDirectory)
-import System.IO (stderr)
-import System.Log.Formatter (simpleLogFormatter)
-import System.Log.Handler.Simple (formatter, streamHandler)
-import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
-                          setLevel, addHandler)
 import System.Process (callCommand)
 
 import qualified Data.Aeson as Aeson
@@ -48,7 +45,6 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Test.Mockery.Directory (inTempDirectory)
 import qualified Test.WebDriver as WD
 
-import System.Log.Missing (loggerName)
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action hiding (addUser)
