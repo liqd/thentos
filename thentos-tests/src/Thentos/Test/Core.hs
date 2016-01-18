@@ -88,7 +88,7 @@ testUid :: UserId
 testUid = UserId 7
 
 testHashedSecret :: HashedSecret ServiceKey
-testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
+testHashedSecret = SCryptHash (EncryptedPass "afhbadigba")
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
@@ -104,7 +104,7 @@ initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
 encryptTestSecret :: ByteString -> HashedSecret a
 encryptTestSecret pw =
-    HashedSecret $
+    SCryptHash $
         encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
 
 

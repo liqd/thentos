@@ -14,6 +14,7 @@ module Thentos.Types
     , UserName(..)
     , UserPass(..)
     , HashedSecret(..)
+    , PasswordHashType(..)
     , UserEmail(..), parseUserEmail, fromUserEmail
     , ConfirmationToken(..)
     , PasswordResetToken(..)
@@ -89,6 +90,7 @@ import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
+import Database.PostgreSQL.Simple.FromField (typename)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
@@ -193,14 +195,28 @@ newtype UserName = UserName { fromUserName :: ST }
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
-newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
-    deriving (Eq, Show, Typeable, Generic)
+data HashedSecret a = BCryptHash SBS | SCryptHash Scrypt.EncryptedPass
+    deriving (Eq, Show)
 
-instance FromField (HashedSecret a) where
-    fromField f dat = HashedSecret . Scrypt.EncryptedPass <$> fromField f dat
+data PasswordHashType = SCrypt | BCrypt
+    deriving (Eq, Show)
 
-instance ToField (HashedSecret a) where
-    toField = toField . Scrypt.getEncryptedPass . fromHashedSecret
+instance FromField PasswordHashType where
+    fromField f bs = do
+        t <- typename f
+        case t of
+            "pw_hash_type" ->
+                case bs of
+                    Nothing -> returnError UnexpectedNull f ""
+                    Just "bcrypt" -> return BCrypt
+                    Just "scrypt" -> return SCrypt
+                    _ -> returnError ConversionFailed f "could not convert to PasswordHashType"
+            _ -> returnError Incompatible f ""
+
+instance ToField PasswordHashType where
+    toField t = Plain $ case t of
+        BCrypt -> "bcrypt"
+        SCrypt -> "scrypt"
 
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -297,7 +313,7 @@ data Service =
       , _serviceName           :: !ServiceName
       , _serviceDescription    :: !ServiceDescription
       }
-  deriving (Eq, Show, Typeable, Generic)
+  deriving (Show, Typeable, Generic)
 
 newtype ServiceId = ServiceId { fromServiceId :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)

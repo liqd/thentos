@@ -13,55 +13,56 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..))
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
-import Data.String.Conversions (ST)
+import Data.String.Conversions (SBS, ST)
 import Data.Typeable (Typeable)
 import Data.Int (Int64)
 
 import Thentos.Types
 import Thentos.Transaction.Core
+import Thentos.Util (mkHashedSecret, destructureHashedSecret)
 
 
 -- * user
 
 lookupConfirmedUser :: UserId -> ThentosQuery e (UserId, User)
 lookupConfirmedUser uid = do
-    users <- queryT [sql| SELECT name, password, email
+    users <- queryT [sql| SELECT name, password, pw_hash_type, email
                           FROM users
                           WHERE id = ? AND confirmed = true |] (Only uid)
     case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
+      [(name, pwd, pwType, email)] -> return (uid, mkUser name pwd pwType email)
       []                   -> throwError NoSuchUser
       _                    -> impossible "lookupConfirmedUser: multiple results"
 
 -- | Lookup any user (whether confirmed or not) by their ID.
 lookupAnyUser :: UserId -> ThentosQuery e (UserId, User)
 lookupAnyUser uid = do
-    users <- queryT [sql| SELECT name, password, email
+    users <- queryT [sql| SELECT name, password, pw_hash_type, email
                           FROM users
                           WHERE id = ? |] (Only uid)
     case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
+      [(name, pwd, pwType, email)] -> return (uid, mkUser name pwd pwType email)
       []                   -> throwError NoSuchUser
       _                    -> impossible "lookupAnyUser: multiple results"
 
 lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
 lookupConfirmedUserByName uname = do
-    users <- queryT [sql| SELECT id, name, password, email
+    users <- queryT [sql| SELECT id, name, password, pw_hash_type, email
                           FROM users
                           WHERE name = ? AND confirmed = true |] (Only uname)
     case users of
-      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, pwType, email)] -> return (uid, mkUser name pwd pwType email)
       []                        -> throwError NoSuchUser
       _                         -> impossible "lookupConfirmedUserByName: multiple users"
 
 
 lookupConfirmedUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
 lookupConfirmedUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
+    users <- queryT [sql| SELECT id, name, password, pw_hash_type
                           FROM users
                           WHERE email = ? AND confirmed = true |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, pwType)] -> return (uid, mkUser name pwd pwType email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupConfirmedUserByEmail: multiple users"
 
@@ -72,7 +73,7 @@ lookupAnyUserByEmail email = do
                           FROM users
                           WHERE email = ? |] (Only email)
     case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
+      [(uid, name, pwd, pwType)] -> return (uid, mkUser name pwd pwType email)
       []                 -> throwError NoSuchUser
       _                  -> impossible "lookupAnyUserByEmail: multiple users"
 
@@ -82,10 +83,11 @@ lookupAnyUserByEmail email = do
 -- is a very bad idea and will quickly lead to errors!
 addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
 addUserPrim mUid user confirmed = do
+    let (pwHash, pwType) = destructureHashedSecret (user ^. userPassword)
     res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?)
                         RETURNING id |]
-            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
+            (orDefault mUid, user ^. userName, pwHash, pwType, user ^. userEmail, confirmed)
     case res of
         [Only uid] -> return uid
         []         -> impossible "addUserPrim created user without ID"
@@ -148,12 +150,14 @@ resetPassword :: Timeout -> PasswordResetToken -> HashedSecret UserPass -> Thent
 resetPassword timeout token newPassword =
     checkUnique NoSuchToken "password reset token exists multiple times"
         =<< execT     [sql| UPDATE users
-                            SET password = ?
+                            SET password = ?, pw_hash_type = ?
                             FROM password_reset_tokens
                             WHERE password_reset_tokens.timestamp + ? > now()
                             AND users.id = password_reset_tokens.uid
                             AND password_reset_tokens.token = ?
-                      |] (newPassword, timeout, token)
+                      |] (pwHash, pwType, timeout, token)
+  where
+    (pwType, pwHash) = destructureHashedSecret newPassword
 
 addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
 addUserEmailChangeRequest uid newEmail token = do
@@ -179,8 +183,10 @@ confirmUserEmailChange timeout token = do
 changePassword :: UserId -> HashedSecret UserPass -> ThentosQuery e ()
 changePassword uid newpass = do
     checkUnique NoSuchUser "changePassword: unique constraint on id violated"
-        =<< execT [sql| UPDATE users SET password = ? WHERE id = ? |]
-                (newpass, uid)
+        =<< execT [sql| UPDATE users SET password = ?, pw_hash_type = ?
+                        WHERE id = ? |] (pw_hash, pw_type, uid)
+  where
+    (pw_type, pw_hash) = destructureHashedSecret newpass
 
 
 -- | Delete user with given 'UserId'.  Throw an error if user does not exist.
@@ -197,11 +203,11 @@ allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
-    services <- queryT [sql| SELECT key, owner_user, name, description
+    services <- queryT [sql| SELECT key, key_hash_type, owner_user, name, description
                              FROM services
                              WHERE id = ? |] (Only sid)
     service <- case services of
-        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc
+        [(key, hash_type, owner, name, desc)] -> return $ Service (mkHashedSecret hash_type key) owner Nothing name desc
         []                         -> throwError NoSuchService
         _                          -> impossible "lookupService: multiple results"
     return (sid, service)
@@ -211,9 +217,11 @@ addService ::
     UserId -> ServiceId -> HashedSecret ServiceKey -> ServiceName
     -> ServiceDescription -> ThentosQuery e ()
 addService uid sid secret name description = void $
-    execT [sql| INSERT INTO services (id, owner_user, name, description, key)
-                VALUES (?, ?, ?, ?, ?)
-          |] (sid, uid, name, description, secret)
+    execT [sql| INSERT INTO services (id, owner_user, name, description, key, key_hash_type)
+                VALUES (?, ?, ?, ?, ?, ?)
+          |] (sid, uid, name, description, key, hash_type)
+  where
+    (hash_type, key) = destructureHashedSecret secret
 
 -- | Delete service with given 'ServiceId'.  Throw an error if service does not exist.
 deleteService :: ServiceId -> ThentosQuery e ()
@@ -615,3 +623,6 @@ makeAgent :: Maybe UserId -> Maybe ServiceId -> Agent
 makeAgent (Just uid) Nothing  = UserA uid
 makeAgent Nothing (Just sid) = ServiceA sid
 makeAgent _ _ = impossible "makeAgent: invalid arguments"
+
+mkUser :: UserName -> SBS -> PasswordHashType -> UserEmail -> User
+mkUser name pw hashType email = User name (mkHashedSecret hashType pw) email

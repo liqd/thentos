@@ -16,7 +16,7 @@ import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn,
 
 import qualified Data.Set as Set
 
-import Thentos.Transaction
+import Thentos.Transaction hiding (mkUser)
 import Thentos.Types
 import Thentos.Util (hashUserPass, hashServiceKey)
 

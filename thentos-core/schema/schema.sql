@@ -1,11 +1,15 @@
 -- All statements in this file must be idempotent (it is called at start time, every time).
+
+CREATE TYPE pw_hash_type AS ENUM ('scrypt', 'bcrypt');
+
 CREATE TABLE IF NOT EXISTS users (
-    id         bigserial   PRIMARY KEY,
-    name       text        NOT NULL UNIQUE,
-    password   text        NOT NULL,
-    email      text        NOT NULL UNIQUE,
-    confirmed  bool        NOT NULL,
-    created    timestamptz NOT NULL DEFAULT now()
+    id            bigserial   PRIMARY KEY,
+    name          text         NOT NULL UNIQUE,
+    password      text         NOT NULL,
+    password_type pw_hash_type NOT NULL,
+    email         text         NOT NULL UNIQUE,
+    confirmed     bool         NOT NULL,
+    created       timestamptz  NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS user_confirmation_tokens (
@@ -34,11 +38,12 @@ CREATE TABLE IF NOT EXISTS user_roles (
 );
 
 CREATE TABLE IF NOT EXISTS services (
-    id            text       PRIMARY KEY,
-    owner_user    bigint     NOT NULL REFERENCES users (id),
-    name          text       NOT NULL,
-    description   text       NOT NULL,
-    key           text       NOT NULL
+    id            text         PRIMARY KEY,
+    owner_user    bigint       NOT NULL REFERENCES users (id),
+    name          text         NOT NULL,
+    description   text         NOT NULL,
+    key           text         NOT NULL,
+    key_hash_type pw_hash_type NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS service_roles (
