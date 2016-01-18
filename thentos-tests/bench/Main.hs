@@ -3,18 +3,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds           #-}
 
+{-# OPTIONS_GHC -Wall #-}
+
 module Main (main) where
 
 import Control.Concurrent (threadDelay)
-import Data.Aeson (encode)
 import Database.PostgreSQL.Simple (Connection, query_, fromOnly)
 import Data.Configifier ((>>.))
 import Data.Functor.Infix ((<$$>))
 import Data.List (unfoldr)
-import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (LBS, cs, (<>))
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Conduit
     ( Request(..), RequestBody(RequestBodyLBS), Response(responseBody)
@@ -26,14 +26,18 @@ import System.IO (stdout)
 import System.Random (RandomGen, split, randoms, newStdGen)
 
 import qualified Codec.Binary.Base32 as Base32
-import qualified Network.HTTP.LoadTest as Pronk
-import qualified Network.HTTP.LoadTest.Report as Pronk
-import qualified Network.HTTP.LoadTest.Analysis as Pronk
+import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Parser as Aeson
+import qualified Data.Aeson.Types as Aeson
+import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as ST
+import qualified Network.HTTP.LoadTest.Analysis as Pronk
+import qualified Network.HTTP.LoadTest as Pronk
+import qualified Network.HTTP.LoadTest.Report as Pronk
 
 import Thentos.Config (ThentosConfig)
-import Thentos.Action.Core (ActionState(..))
+import Thentos.Action.Types (ActionState(..))
 import Thentos.Types
     ( UserFormData(UserFormData), UserName(..), UserPass(..), parseUserEmail
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
@@ -45,7 +49,7 @@ import Thentos.Test.Core
 
 main :: IO ()
 main = do
-    withFrontendAndBackend "thentos_bench" $ \ as@(ActionState (_, _, cfg)) -> do
+    withFrontendAndBackend $ \as@(ActionState cfg _ _) -> do
         threadDelay $ let s = (* (1000 * 1000)) in s 2
 
         Just sessToken <- getThentosSessionToken cfg
@@ -87,7 +91,7 @@ getThentosSessionToken :: ThentosConfig -> IO (Maybe ThentosSessionToken)
 getThentosSessionToken cfg = do
     let (Just req_) = makeEndpoint cfg "/thentos_session"
         req = req_
-                { requestBody = RequestBodyLBS $ encode (godUid, godPass)
+                { requestBody = RequestBodyLBS $ Aeson.encode (godUid, godPass)
                 , method = methodPost
                 }
     m <- newManager tlsManagerSettings
@@ -126,7 +130,7 @@ signupGenTrans cfg sessionToken charSource =
     mkReq name =
         (makeRequest cfg (Just sessionToken) "/user")
             { method = methodPost
-            , requestBody = RequestBodyLBS (encode formData)
+            , requestBody = RequestBodyLBS (Aeson.encode formData)
             }
       where
         tName = ST.pack name
@@ -165,7 +169,7 @@ loginGenTrans cfg (MachineState uid loginState) =
     loginReq =
         (makeRequest cfg Nothing "/thentos_session")
             { method = methodPost
-            , requestBody = RequestBodyLBS $ encode (uid, UserPass "dummyPassword")
+            , requestBody = RequestBodyLBS $ Aeson.encode (uid, UserPass "dummyPassword")
             }
 
     logout tok = (logoutReq tok, const LoggedOut)
@@ -173,11 +177,11 @@ loginGenTrans cfg (MachineState uid loginState) =
     logoutReq tok =
         (makeRequest cfg (Just tok) "/thentos_session")
             { method = methodDelete
-            , requestBody = RequestBodyLBS $ encode tok
+            , requestBody = RequestBodyLBS $ Aeson.encode tok
             }
 
 mkLoginGens :: ActionState -> IO [Pronk.RequestGenerator]
-mkLoginGens (ActionState (connPool, _, cfg)) = do
+mkLoginGens (ActionState cfg _ connPool) = do
     uids <- getUIDs connPool
     -- take out god user so all users have the same password
     let uids' = filter (\(UserId n) -> n /= 0) uids
@@ -203,7 +207,7 @@ sessionCheckGen :: ThentosConfig -> ThentosSessionToken -> Pronk.RequestGenerato
 sessionCheckGen cfg sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
     req = (makeRequest cfg (Just sessionToken) "/thentos_session")
-            {requestBody = RequestBodyLBS $ encode sessionToken }
+            {requestBody = RequestBodyLBS $ Aeson.encode sessionToken }
 
 -- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
 -- objects and arrays.
