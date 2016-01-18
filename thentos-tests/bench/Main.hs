@@ -58,6 +58,7 @@ main = do
         runLoginBench as
         runCheckTokenBench cfg sessToken
 
+
 runSignupBench :: ThentosConfig -> ThentosSessionToken -> IO ()
 runSignupBench cfg sessionToken = do
     gen <- newStdGen
@@ -68,11 +69,6 @@ runLoginBench :: ActionState -> IO ()
 runLoginBench as = do
     conf <- pronkConfig `fmap` mkLoginGens as
     runBench "Login Benchmark" conf
-
-runCheckTokenBench :: ThentosConfig -> ThentosSessionToken -> IO ()
-runCheckTokenBench cfg sessionToken = do
-    let conf = pronkConfig (repeat $ sessionCheckGen cfg sessionToken)
-    runBench "Session-check Benchmark" conf
 
 runBench :: ST.Text -> Pronk.Config -> IO ()
 runBench benchmarkName conf = do
@@ -116,6 +112,17 @@ makeRequest cfg mSession endpoint = req {requestHeaders = requestHeaders req ++ 
         Nothing -> []
         Just token -> [("X-Thentos-Session", encodeUtf8 $ fromThentosSessionToken token)]
 
+-- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
+-- objects and arrays.
+--
+-- FIXME: upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode' instead of this: See
+-- 4b370592242d4e4367ca46d852109c3927210f4b.  for this to work, we need to either upgrade pronk
+-- (criterion in particular) benchmarking or, preferably, factor it out into a separate package.
+decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
+decodeLenient input = do
+    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
+    Aeson.parseEither Aeson.parseJSON v
+
 
 -- specific benchmarks
 
@@ -149,6 +156,7 @@ mkSignupGens cfg r sessionToken =
                                                   (signupGenTrans cfg sessionToken)
         )
         (unfoldr (Just . split) r)
+
 
 -- login
 
@@ -199,24 +207,20 @@ getUIDs :: Pool Connection -> IO [UserId]
 getUIDs connPool = withResource connPool $
     \conn -> fromOnly <$$> query_ conn "select id from users"
 
+
 -- checking session tokens
+
 -- This is an intentionally trivial benchmark that is supposed to give
 -- us a performance baseline by measuring mostly overhead (routing, json
 -- decoding etc.)
+
+runCheckTokenBench :: ThentosConfig -> ThentosSessionToken -> IO ()
+runCheckTokenBench cfg sessionToken = do
+    let conf = pronkConfig (repeat $ sessionCheckGen cfg sessionToken)
+    runBench "Session-check Benchmark" conf
 
 sessionCheckGen :: ThentosConfig -> ThentosSessionToken -> Pronk.RequestGenerator
 sessionCheckGen cfg sessionToken = Pronk.RequestGeneratorConstant $ Req req
   where
     req = (makeRequest cfg (Just sessionToken) "/thentos_session")
             {requestBody = RequestBodyLBS $ Aeson.encode sessionToken }
-
--- | Like 'Data.Aeson.decode' but allows all JSON values instead of just
--- objects and arrays.
---
--- FIXME: upgrade to aeson >= 0.10 and use 'Aeson.eitherDecode' instead of this: See
--- 4b370592242d4e4367ca46d852109c3927210f4b.  for this to work, we need to either upgrade pronk
--- (criterion in particular) benchmarking or, preferably, factor it out into a separate package.
-decodeLenient :: Aeson.FromJSON a => LBS -> Either String a
-decodeLenient input = do
-    v :: Aeson.Value <- AP.parseOnly (Aeson.value <* AP.endOfInput) (cs input)
-    Aeson.parseEither Aeson.parseJSON v
