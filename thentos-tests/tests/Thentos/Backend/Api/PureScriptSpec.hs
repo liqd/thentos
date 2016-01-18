@@ -17,17 +17,18 @@ where
 
 import Control.Lens ((^.))
 import Control.Monad.State (liftIO)
-import Data.Configifier (Source(YamlString), configify)
+import Data.Configifier (Source(YamlString))
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
+import Data.String.Conversions (cs, (<>))
 import Data.String (fromString)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleHeaders)
 import Servant.API ((:>))
-import Servant.Server (serve, Server)
+import Servant.Server (serve)
 import System.FilePath ((</>))
-import Test.Hspec (Spec, Spec, hspec, describe, context, around_, it, shouldContain)
-import Test.Hspec.Wai (shouldRespondWith, with, get)
+import Test.Hspec (Spec, Spec, hspec, describe, context, it, shouldContain)
+import Test.Hspec.Wai (shouldRespondWith, get)
+import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
 
 import Thentos.Action.Types
 import Thentos.Test.Config
@@ -43,31 +44,32 @@ spec :: Spec
 spec = describe "Thentos.Backend.Api.PureScript" specPurescript
 
 specPurescript :: Spec
-specPurescript = around_ withLogger $ do
+specPurescript = do
     let jsFile :: FilePath = "find-me.js"
         body   :: String   = "9VA4I5xpOAXRE"
 
-    context "When purescript path not given in config" . with (defaultApp False) $ do
-        it "response has status 404" $ do
-            liftIO $ writeFile jsFile body
+    context "When purescript path not given in config" $ do
+        it "response has status 404" . runSession False $ \tmp -> do
+            liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 404
 
-    context "When path given in config" . with (defaultApp True) $ do
-        it "response has right status, body, headers" $ do
-            liftIO $ writeFile jsFile body
+    context "When path given in config" $ do
+        it "response has right status, body, headers" . runSession True $ \tmp -> do
+            liftIO $ writeFile (tmp </> jsFile) body
             get (cs $ "/js" </> jsFile) `shouldRespondWith` 200
             get (cs $ "/js" </> jsFile) `shouldRespondWith` fromString body
             resp <- get (cs $ "/js" </> jsFile)
             liftIO $ simpleHeaders resp `shouldContain` [("Content-Type", "application/javascript")]
 
-defaultApp :: Bool -> IO Application
-defaultApp havePurescript = do
-    cfg <- configify $ thentosTestConfigYaml : [ YamlString "purescript: ." | havePurescript ]
-    as <- createActionState "test_thentos" cfg
-    return $! serve (Proxy :: Proxy Api) (api havePurescript as)
+runSession :: Bool -> (FilePath -> WaiSession a) -> IO a
+runSession havePurescript session = outsideTempDirectory $ \tmp -> do
+    app <- defaultApp havePurescript tmp
+    runWaiSession (session tmp) app
+
+defaultApp :: Bool -> FilePath -> IO Application
+defaultApp havePurescript tmp = do
+    cfg <- thentosTestConfig' [ YamlString $ "purescript: " <> cs tmp | havePurescript ]
+    as <- createActionState' cfg
+    return $! serve (Proxy :: Proxy Api) (PureScript.api (as ^. aStConfig))
 
 type Api = "js" :> PureScript.Api
-
-api :: Bool -> ActionState -> Server Api
-api True as = PureScript.api (as ^. aStConfig)
-api False _ = PureScript.api' Nothing

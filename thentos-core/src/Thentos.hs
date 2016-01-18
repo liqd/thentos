@@ -28,7 +28,7 @@ import Data.Monoid ((<>))
 import Data.Foldable (forM_)
 import Data.Pool (Pool, createPool, withResource)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs, ST)
+import Data.String.Conversions (cs)
 import Data.Void (Void)
 import LIO.DCLabel (toCNF)
 import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
@@ -67,12 +67,10 @@ makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO
 makeMain commandSwitch =
   do
     config :: ThentosConfig <- getConfig "devel.config"
-    configSignupLogger $ config >>. (Proxy :: Proxy '["signup_log"])
-    connPool <- createConnPoolAndInitDb $ config >>. (Proxy :: Proxy '["database", "name"])
+    connPool <- createConnPoolAndInitDb config
 
     actionState <- makeActionState config connPool
     checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
-    configLogger . Tagged $ config >>. (Proxy :: Proxy '["log"])
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     withResource connPool $ \conn ->
@@ -115,8 +113,8 @@ runGcLoop actionState (Just interval) = forkIO . forever $ do
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
 -- is empty. Tables already existing in the DB won't be touched. The DB itself must already exist.
-createConnPoolAndInitDb :: ST -> IO (Pool Connection)
-createConnPoolAndInitDb dbName = do
+createConnPoolAndInitDb :: ThentosConfig -> IO (Pool Connection)
+createConnPoolAndInitDb cfg = do
     connPool <- createPool createConn close
                            1    -- # of stripes (sub-pools)
                            60   -- close unused connections after .. secs
@@ -124,6 +122,7 @@ createConnPoolAndInitDb dbName = do
     withResource connPool createDB
     return connPool
   where
+    dbName = cfg >>. (Proxy :: Proxy '["database", "name"])
     createConn = connectPostgreSQL $ "dbname=" <> cs dbName
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do

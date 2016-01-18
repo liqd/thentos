@@ -16,38 +16,35 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 
+{-# OPTIONS_GHC  #-}
+
 module Thentos.Test.Core
 where
 
 import Control.Concurrent (forkIO, killThread)
-import Control.Concurrent.MVar (MVar, newMVar)
+import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad (when)
-import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
+import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
 import Data.ByteString (ByteString)
-import Data.CaseInsensitive (mk)
+import Data.Configifier ((>>.))
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource, destroyAllResources)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
-import System.IO (stderr)
-import System.Log.Formatter (simpleLogFormatter, nullFormatter)
-import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG), removeAllHandlers, updateGlobalLogger,
-                          setLevel, addHandler)
+import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import System.Process (callCommand)
-import Test.Mockery.Directory (inTempDirectory)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Test.Mockery.Directory (inTempDirectory)
 import qualified Test.WebDriver as WD
 
-import System.Log.Missing (loggerName)
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action hiding (addUser)
@@ -128,60 +125,23 @@ persName = "MyOtherSelf"
 
 -- * runners
 
-withLogger :: IO a -> IO a
-withLogger = inTempDirectory . withLogger'
-
--- | Run an action, logging everything with 'DEBUG' level to @./everything.log@.
-withLogger' :: IO a -> IO a
-withLogger' = withLogger_ False
-
-withNoisyLogger :: IO a -> IO a
-withNoisyLogger = inTempDirectory . withNoisyLogger'
-
--- | this is a workaround for the fact that log file contents is not included in the output of
--- failing test cases.  If you replace the call to `withLogger` with one ot `withNoisyLogger` in a
--- test, everything will go to stderr immediately.
+-- | Mockery calls 'setCurrentDirectory', which interferes with the fact that thentos allows for
+-- `root_path` to be relative to the working directory from which the executable is started: Two
+-- current directories break things.
 --
--- FIXME: include log contents in failing test cases.
---
--- FIXME: while we are at it, it would be really cool (and not that hard) to provide a log handler
--- that logs into a 'Chan', and expose the Chan to the tests.  that would make it easy to use log
--- file contents to formulate tests.
-withNoisyLogger' :: IO a -> IO a
-withNoisyLogger' = withLogger_ True
-
-withLogger_ :: Bool -> IO a -> IO a
-withLogger_ stderrAlways action = do
-    removeAllHandlers
-    updateGlobalLogger loggerName $ setLevel DEBUG
-
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-        addh h = addHandler $ h { formatter = fmt }
-
-    fileHandler "./everything.log" DEBUG >>= updateGlobalLogger loggerName . addh
-    when stderrAlways $
-        streamHandler stderr DEBUG >>= updateGlobalLogger loggerName . addh
-
-    result <- action
-    removeAllHandlers
-    return result
-
-withSignupLogger :: IO a -> IO a
-withSignupLogger action = inTempDirectory $ do
-    removeAllHandlers
-    updateGlobalLogger signupLogger $ setLevel DEBUG
-    let addh h = addHandler $ h { formatter = nullFormatter }
-    fileHandler "./signups.log" DEBUG >>= updateGlobalLogger signupLogger . addh
-    result <- action
-    removeAllHandlers
-    return result
-
-withWebDriver :: WD.WD r -> IO r
-withWebDriver = inTempDirectory . withWebDriver'
+-- This function solves this problem by leaving the current directory intact for the wrapped action,
+-- and passing the temp directory in as an explicit argument.
+outsideTempDirectory :: (FilePath -> IO a) -> IO a
+outsideTempDirectory action = do
+    wd <- getCurrentDirectory
+    Test.Mockery.Directory.inTempDirectory $ do
+        wd' <- getCurrentDirectory
+        setCurrentDirectory wd
+        action wd'
 
 -- | Start and shutdown webdriver on localhost:4451, running the action in between.
-withWebDriver' :: WD.WD r -> IO r
-withWebDriver' = withWebDriverAt' "localhost" 4451
+withWebDriver :: WD.WD r -> IO r
+withWebDriver = withWebDriverAt' "localhost" 4451
 
 -- | Start and shutdown webdriver on the specified host and port, running the
 -- action in between.
@@ -200,69 +160,56 @@ withWebDriverAt' host port action = WD.runSession wdConfig . WD.finallyClose $ d
             , WD.wdPort = port
             }
 
-withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend feConfig as = inTempDirectory . withFrontend' feConfig as
-
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend' :: HttpConfig -> ActionState -> IO r -> IO r
-withFrontend' feConfig as action =
+withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
-withBackend :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend beConfig as = inTempDirectory . withBackend' beConfig as
-
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend' :: HttpConfig -> ActionState -> IO r -> IO r
-withBackend' beConfig as action = do
+withBackend :: HttpConfig -> ActionState -> IO r -> IO r
+withBackend beConfig as action = do
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi beConfig as)
             killThread
             (const action)
 
-withFrontendAndBackend :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend dbname = inTempDirectory . withFrontendAndBackend' dbname
-
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend' :: String -> (ActionState -> IO r) -> IO r
-withFrontendAndBackend' dbname test = do
-    st@(ActionState cfg _ connPool) <- createActionState dbname thentosTestConfig
-    withFrontend' (getFrontendConfig cfg) st
-        $ withBackend' (getBackendConfig cfg) st
+withFrontendAndBackend :: (ActionState -> IO r) -> IO r
+withFrontendAndBackend test = do
+    st@(ActionState cfg _ connPool) <- createActionState
+    withFrontend (getFrontendConfig cfg) st
+        $ withBackend (getBackendConfig cfg) st
             $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
                 `finally` destroyAllResources connPool
 
 
 -- * set up state
 
--- | Create an @ActionState@ with a connection to an empty DB and the specified
--- config.
-createActionState :: String -> ThentosConfig -> IO ActionState
-createActionState dbname config = do
-    rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    connPool <- createDb dbname
-    return $ ActionState config rng connPool
+-- | Create an @ActionState@ with default config and a connection to a DB.  Whipes the DB.
+createActionState :: IO ActionState
+createActionState = thentosTestConfig >>= createActionState'
 
--- | Create a connection to an empty DB.
---
--- FIXME: the tests shouldn't have to pick a database name.  it should work like 'withLogger' in
--- that it finds a free suitable database name, and garbage-collects the database when the test is
--- done.
-createDb :: String -> IO (Pool Connection)
-createDb dbname = do
-    wipe <- wipeFile
-    callCommand $ "createdb " <> dbname <> " 2>/dev/null || true"
-               <> " && psql --quiet --file=" <> wipe <> " " <> dbname <> " >/dev/null 2>&1"
-    createConnPoolAndInitDb $ cs dbname
+-- | Create an @ActionState@ with an explicit config and a connection to a DB.  Whipes the DB.
+createActionState' :: ThentosConfig -> IO ActionState
+createActionState' cfg = ActionState cfg <$> (drgNew >>= newMVar) <*> createDb cfg
 
-loginAsGod :: ActionState -> IO (ThentosSessionToken, [Header])
+-- | Create a connection to a DB.  Whipes the DB.
+createDb :: ThentosConfig -> IO (Pool Connection)
+createDb cfg = callCommand (createCmd <> " && " <> wipeCmd) >> createConnPoolAndInitDb cfg
+  where
+    dbname    = cs $ cfg >>. (Proxy :: Proxy '["database", "name"])
+    createCmd = "createdb " <> dbname <> " 2>/dev/null || true"
+    wipeCmd   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
+
+loginAsGod :: ActionState -> IO (ThentosSessionToken, Header)
 loginAsGod actionState = do
     let action :: Action Void () (UserId, ThentosSessionToken)
         action = startThentosSessionByUserName godName godPass
     ((_, tok), _) <- runAction () actionState action
-    let credentials :: [Header] = [(mk "X-Thentos-Session", cs $ fromThentosSessionToken tok)]
+    let credentials :: Header = ("X-Thentos-Session", cs $ fromThentosSessionToken tok)
     return (tok, credentials)
 
 

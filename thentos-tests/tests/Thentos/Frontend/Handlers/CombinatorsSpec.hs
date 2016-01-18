@@ -24,7 +24,6 @@ import Thentos.Frontend.State
 import Thentos.Frontend.Types
 
 import Thentos.Test.Arbitrary ()
-import Thentos.Test.Config
 import Thentos.Test.Core
 
 
@@ -42,9 +41,7 @@ apiRedirect :: ServerT ApiRedirect FAction
 apiRedirect = redirect' "/there"
 
 appRedirect :: IO Application
-appRedirect =
-    createActionState "thentos_test" thentosTestConfig >>=
-    serveFAction (Proxy :: Proxy ApiRedirect) apiRedirect
+appRedirect = createActionState >>= serveFAction (Proxy :: Proxy ApiRedirect) apiRedirect
 
 specRedirect :: Spec
 specRedirect = do

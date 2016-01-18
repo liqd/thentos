@@ -3,14 +3,37 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Config
+    ( ThentosConfig
+    , getConfig
+    , getConfigWithSources
+
+    , HttpConfig
+    , SmtpConfig
+    , LogConfig
+    , DatabaseConfig
+    , EmailTemplates
+    , EmailTemplate
+    , DefaultUserConfig
+
+    , getBackendConfig
+    , getFrontendConfig
+    , getProxyConfigMap
+    , bindUrl
+    , exposeUrl
+    , extractTargetUrl
+    , getDefaultUser
+    , buildEmailAddress
+    , signupLogger
+    )
 where
 
 import Control.Applicative ((<|>))
 import Control.Exception (throwIO, try)
 import Data.Configifier
-    ( (:>), (:*>)((:*>)), (:>:), (>>.)
+    ( (:>), (:*>)((:*>)), (:>:), (>>.), Source
     , configifyWithDefault, renderConfigFile, docs, defaultSources
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
@@ -20,12 +43,12 @@ import Data.String.Conversions (ST, cs, (<>))
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, setCurrentDirectory, canonicalizePath)
 import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG, CRITICAL), removeAllHandlers, updateGlobalLogger,
+import System.Log.Logger (Priority(DEBUG, INFO, CRITICAL), removeAllHandlers, updateGlobalLogger,
                           setLevel, setHandlers)
 import System.Log.Missing (loggerName, logger, Prio(..))
 import Text.Show.Pretty (ppShow)
@@ -43,7 +66,8 @@ import Thentos.Types
 
 type ThentosConfig = Tagged (ToConfigCode ThentosConfig')
 type ThentosConfig' =
-      Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
+            ("root_path"    :> ST                    :>: "Directory to which all paths are relative (default: .)")
+  :*> Maybe ("frontend"     :> HttpConfig'           :>: "HTTP server for html forms.")
   :*> Maybe ("backend"      :> HttpConfig'           :>: "HTTP server for rest api.")
   :*> Maybe ("allow_ips"    :> [ST]                  :>: "IP addresses for privileged access.")
   :*> Maybe ("purescript"   :> ST                    :>: "File system location of frontend code")
@@ -65,7 +89,8 @@ type ThentosConfig' =
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
-      NothingO
+      Just "."
+  :*> NothingO
   :*> NothingO
   :*> NothingO
   :*> NothingO
@@ -134,6 +159,7 @@ type LogConfig = Tagged (ToConfigCode LogConfig')
 type LogConfig' =
         ("path" :> ST)
     :*> ("level" :> Prio)
+    :*> ("stdout" :> Bool)
 
 type EmailTemplates = Tagged (ToConfigCode EmailTemplates')
 type EmailTemplates' =
@@ -168,27 +194,38 @@ instance Aeson.FromJSON HttpSchema where parseJSON = Aeson.gparseJson
 
 printConfigUsage :: IO ()
 printConfigUsage = do
-    -- ST.putStrLn $ docs (Proxy :: Proxy ThentosConfigDesc)
     ST.putStrLn $ docs (Proxy :: Proxy (ToConfigCode ThentosConfig'))
 
 
 getConfig :: FilePath -> IO ThentosConfig
-getConfig configFile = do
-    sources <- defaultSources [configFile]
+getConfig configFile = defaultSources [configFile] >>= getConfigWithSources
+
+getConfigWithSources :: [Source] -> IO ThentosConfig
+getConfigWithSources sources = do
     logger DEBUG $ "config sources:\n" ++ ppShow sources
 
     result <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
     case result of
         Left (e :: Error) -> do
             logger CRITICAL $ "error parsing config: " ++ ppShow e
+            printConfigUsage
             throwIO e
         Right cfg -> do
             logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
             logger DEBUG $ "parsed config (raw):\n" ++ ppShow cfg
+            configLogger (Tagged $ cfg >>. (Proxy :: Proxy '["log"]))
+            configSignupLogger (cfg >>. (Proxy :: Proxy '["signup_log"]))
+            setRootPath (cfg >>. (Proxy :: Proxy '["root_path"]))
             return cfg
 
 
 -- ** helpers
+
+setRootPath :: ST -> IO ()
+setRootPath (cs -> path) = do
+    canonicalizePath path >>= logger INFO . ("Current working directory: " ++) . show
+    setCurrentDirectory path
+
 
 -- this section contains code that works around missing features in
 -- the supported leaf types in the config structure.  we hope it'll
@@ -247,33 +284,27 @@ getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["
 
 -- * logging
 
-{- FIXME: rewrite along the following lines:
-
-- 'configLogger' should take 'LogConfig' as argument
-- 'LogConfig' should allow for missing path.
-- there should be a way to override an already-set log file with 'no log file' on e.g. the command
-  line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
-- 'LogConfig' should have additional keys 'stderr', 'stdout' that do the obvious.
-
--}
-
+-- | Note: logging to stderr does not work very well together with multiple threads.  stdout is
+-- line-buffered and works better that way.
+--
+-- FIXME: there should be a way to override an already-set log file with 'no log file' on e.g. the
+-- command line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
 configLogger :: LogConfig -> IO ()
 configLogger config = do
     let logfile = ST.unpack $ config >>. (Proxy :: Proxy '["path"])
         loglevel = fromPrio $ config >>. (Proxy :: Proxy '["level"])
+        logstdout :: Bool = config >>. (Proxy :: Proxy '["stdout"])
     removeAllHandlers
     createDirectoryIfMissing True $ takeDirectory logfile
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-    fHandler <- (\ h -> h { formatter = fmt }) <$> fileHandler logfile loglevel
-    sHandler <- (\ h -> h { formatter = fmt }) <$> streamHandler stdout loglevel
 
-    -- NOTE: `sHandler` was originally writing to stderr, but since thentos has more than one
-    -- thread, this lead a lot of chaos where threads would log concurrently.  stdout is
-    -- line-buffered and works better that way.
+    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
+        mkHandler f = (\h -> h { formatter = fmt }) <$> f loglevel
+
+    handlers <- sequence $ mkHandler <$> fileHandler logfile : [streamHandler stdout | logstdout]
 
     updateGlobalLogger loggerName $
         System.Log.Logger.setLevel loglevel .
-        setHandlers [sHandler, fHandler]
+        setHandlers handlers
 
 signupLogger :: String
 signupLogger = "signupLogger"
