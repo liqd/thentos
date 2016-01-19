@@ -56,7 +56,7 @@ cd $relname
 cp $cabal_sandbox/bin/thentos-captcha .
 cp -r ../thentos/thentos-core/schema .
 cp -r ../thentos/thentos-core/resources .
-cp ../thentos/misc/release/thentos-captcha-README.md README.md
+cp ../thentos/docs/thentos-captcha-README.md README.md
 cp ../thentos/thentos-core/devel.config thentos-captcha.config
 cd ..
 

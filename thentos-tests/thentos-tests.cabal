@@ -162,6 +162,7 @@ benchmark load-test
           -auto-all -caf-all -fforce-recomp
   build-depends:
       aeson >=0.8.0.2 && <0.9
+    , attoparsec >=0.12.1.6 && <0.14
     , base >=4.8.1.0 && <5
     , bytestring >=0.10.6.0 && <0.11
     , configifier >=0.0.8 && <0.1

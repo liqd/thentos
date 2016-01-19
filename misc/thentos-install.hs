@@ -55,18 +55,27 @@ main = do
               then do
                   runCabal args "" >>= storeResult
               else do
+                  -- un-compile so recompilation with -Werror is more thorough
                   forM_ sources $ \s -> do
                       withCurrentDirectory (rootPath </> s) $ do
                           ExitSuccess <- system "cabal clean"
                           return ()
+
+                  -- hlint, compile with -Werror
                   system "make hlint" >>= storeResult
                   runCabal args "--ghc-options=-Werror" >>= storeResult
+
+                  -- run test suites
                   forM_ sources $ \s -> do
                       printSectionHeading $ "searching for tests in " ++ s
                       withCurrentDirectory (rootPath </> s) $ do
                           ec <- system $ "grep -q ^test-suite " ++ s ++ ".cabal"
                           when (ec == ExitSuccess)
                               (system "cabal test" >>= storeResult)
+
+                  -- compile benchmark tests
+                  withCurrentDirectory (rootPath </> "thentos-tests") $ do
+                      system "cabal exec -- ghc -isrc --make bench/Main.hs" >>= storeResult
 
     readMVar exitCode >>= exitWith
 

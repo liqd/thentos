@@ -447,7 +447,7 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
 
-data ByUserOrServiceId = ByUser (UserId, UserPass)
+data ByUserOrServiceId = ByUser (UserId, UserPass)  -- FIXME: @ByUser UserId UserPass@?  (same in next line)
                        | ByService (ServiceId, ServiceKey)
   deriving (Eq, Typeable, Generic)
 
