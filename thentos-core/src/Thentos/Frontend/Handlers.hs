@@ -48,6 +48,7 @@ import Control.Monad.State (get, modify)
 import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, (<>))
+import Control.Monad (void)
 import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
 import Network.Wai (Request, Middleware, requestMethod)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
@@ -59,7 +60,7 @@ import qualified Servant
 import qualified Text.Blaze.Html5 as H
 import qualified Data.Text.Encoding as STE
 
-import Thentos.Action
+import Thentos.Action hiding (sendPasswordResetMail)
 import Thentos.Action.Types
 import Thentos.Backend.Core (addHeadersToResponse)
 import Thentos.Ends.Types
@@ -242,7 +243,7 @@ resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
     p :: Maybe PasswordResetToken -> UserPass -> FAction H.Html
     p Nothing _ = crash FActionErrorNoToken
     p (Just tok) password = do
-        resetPassword tok password
+        void $ resetPassword tok password
         sendFrontendMsg $ FrontendMsgSuccess "Password changed successfully.  Welcome back to Thentos!"
 
         -- FIXME: what we would like to do here is login the user right away, with something like

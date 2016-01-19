@@ -15,8 +15,10 @@ module Thentos.Types
     , UserPass(..)
     , HashedSecret(..)
     , UserEmail(..), parseUserEmail, fromUserEmail
+    , WrappedEmail(..)
     , ConfirmationToken(..)
     , PasswordResetToken(..)
+    , PasswordResetRequest(..)
     , UserFormData(..)
     , UserCreationRequest(..)
     , LoginFormData(..)
@@ -87,7 +89,7 @@ import Control.Exception (Exception)
 import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError, mzero)
 import Control.Monad (when, unless)
-import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
+import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
@@ -239,22 +241,34 @@ parseUserEmail t = do
 fromUserEmail :: UserEmail -> ST
 fromUserEmail = cs . toByteString . userEmailAddress
 
-instance Aeson.FromJSON UserEmail
+instance FromJSON UserEmail
   where
     parseJSON (String (emailAddress . cs -> Just email)) = return $ UserEmail email
     parseJSON bad = aesonError "UserEmail" bad
 
-instance Aeson.ToJSON UserEmail
+instance ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
+
+
+-- UserEmail wrapped in an 'email' object (as JSON representation)
+newtype WrappedEmail = WrappedEmail UserEmail
+    deriving (Eq, Ord, Show, Read)
+
+instance FromJSON WrappedEmail where
+    parseJSON (Aeson.Object (H.toList -> [("email", val)])) = WrappedEmail <$> Aeson.parseJSON val
+    parseJSON bad                                           = aesonError "WrappedEmail" bad
+
+instance ToJSON WrappedEmail where
+    toJSON (WrappedEmail email) = Aeson.object [ "email" .= email]
 
 
 newtype ConfirmationToken = ConfirmationToken { fromConfirmationToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, ToField, FromField, IsString)
 
-instance Aeson.FromJSON ConfirmationToken where
+instance FromJSON ConfirmationToken where
     parseJSON = Aeson.withText "confirmation token" (pure . ConfirmationToken)
 
-instance Aeson.ToJSON ConfirmationToken where toJSON (ConfirmationToken tok) = Aeson.toJSON tok
+instance ToJSON ConfirmationToken where toJSON (ConfirmationToken tok) = Aeson.toJSON tok
 
 
 -- FIXME: why are some FromHttpApiData instances in this module derived and some explicitly defined?
@@ -269,6 +283,29 @@ instance FromHttpApiData PasswordResetToken where
     parseQueryParam tok = PasswordResetToken <$>
         either (Left . cs . show) Right (decodeUtf8' $ cs tok)
 
+instance FromJSON PasswordResetToken where
+    parseJSON = Aeson.withText "PasswordResetToken" (pure . PasswordResetToken)
+
+instance ToJSON PasswordResetToken where toJSON (PasswordResetToken tok) = Aeson.toJSON tok
+
+
+data PasswordResetRequest = PasswordResetRequest
+    { prPath     :: PasswordResetToken
+    , prPassword :: UserPass
+    }
+    deriving (Eq)
+
+instance FromJSON PasswordResetRequest where
+    parseJSON (Aeson.Object m) = PasswordResetRequest <$> m .: "path" <*> m .: "password"
+    parseJSON bad = aesonError "PasswordResetRequest" bad
+
+instance ToJSON PasswordResetRequest where
+    toJSON (PasswordResetRequest path pass) =
+        Aeson.object [ "path" .= Aeson.toJSON path
+                     , "password" .= Aeson.toJSON pass
+                     ]
+
+
 -- | Information required to create a new User
 data UserFormData =
     UserFormData
@@ -278,8 +315,8 @@ data UserFormData =
         }
     deriving (Eq, Typeable, Generic)
 
-instance Aeson.FromJSON UserFormData where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON UserFormData where toJSON = Aeson.gtoJson
+instance FromJSON UserFormData where parseJSON = Aeson.gparseJson
+instance ToJSON UserFormData where toJSON = Aeson.gtoJson
 
 data UserCreationRequest = UserCreationRequest
     { ucUser    :: UserFormData
@@ -287,8 +324,8 @@ data UserCreationRequest = UserCreationRequest
     }
     deriving (Eq, Typeable, Generic)
 
-instance Aeson.FromJSON UserCreationRequest where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON UserCreationRequest where toJSON = Aeson.gtoJson
+instance FromJSON UserCreationRequest where parseJSON = Aeson.gparseJson
+instance ToJSON UserCreationRequest where toJSON = Aeson.gtoJson
 
 data LoginFormData =
     LoginFormData
@@ -297,8 +334,8 @@ data LoginFormData =
         }
     deriving (Eq, Typeable, Generic)
 
-instance Aeson.FromJSON LoginFormData where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON LoginFormData where toJSON = Aeson.gtoJson
+instance FromJSON LoginFormData where parseJSON = Aeson.gparseJson
+instance ToJSON LoginFormData where toJSON = Aeson.gtoJson
 
 
 -- * service
@@ -319,26 +356,26 @@ data Service =
 newtype ServiceId = ServiceId { fromServiceId :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
-instance Aeson.FromJSON ServiceId where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceId where toJSON = Aeson.gtoJson
+instance FromJSON ServiceId where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceId where toJSON = Aeson.gtoJson
 
 newtype ServiceKey = ServiceKey { fromServiceKey :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString)
 
-instance Aeson.FromJSON ServiceKey where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceKey where toJSON = Aeson.gtoJson
+instance FromJSON ServiceKey where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceKey where toJSON = Aeson.gtoJson
 
 newtype ServiceName = ServiceName { fromServiceName :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
-instance Aeson.FromJSON ServiceName where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceName where toJSON = Aeson.gtoJson
+instance FromJSON ServiceName where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceName where toJSON = Aeson.gtoJson
 
 newtype ServiceDescription = ServiceDescription { fromServiceDescription :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
-instance Aeson.FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
+instance FromJSON ServiceDescription where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 
 -- | Service-side authoriziation classes.  (For thentos-internal authorization classes, see 'Group'.)
 --
@@ -350,9 +387,9 @@ instance Aeson.ToJSON ServiceDescription where toJSON = Aeson.gtoJson
 newtype ServiceGroup = ServiceGroup { fromGroup :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField)
 
-instance Aeson.FromJSON ServiceGroup where parseJSON = Aeson.withText "group string" (pure . ServiceGroup)
+instance FromJSON ServiceGroup where parseJSON = Aeson.withText "group string" (pure . ServiceGroup)
 
-instance Aeson.ToJSON ServiceGroup where toJSON (ServiceGroup name) = Aeson.toJSON name
+instance ToJSON ServiceGroup where toJSON (ServiceGroup name) = Aeson.toJSON name
 
 
 -- * persona and context
@@ -418,8 +455,8 @@ data ThentosSession =
 newtype ServiceSessionToken = ServiceSessionToken { fromServiceSessionToken :: ST }
     deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromHttpApiData, FromField, ToField)
 
-instance Aeson.FromJSON ServiceSessionToken where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
+instance FromJSON ServiceSessionToken where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceSessionToken where toJSON = Aeson.gtoJson
 
 data ServiceSession =
     ServiceSession
@@ -432,8 +469,8 @@ data ServiceSession =
       }
   deriving (Eq, Ord, Show, Typeable, Generic)
 
-instance Aeson.FromJSON ServiceSession where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceSession where toJSON = Aeson.gtoJson
+instance FromJSON ServiceSession where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceSession where toJSON = Aeson.gtoJson
 
 data ServiceSessionMetadata =
     ServiceSessionMetadata
@@ -441,8 +478,8 @@ data ServiceSessionMetadata =
       }
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-instance Aeson.FromJSON ServiceSessionMetadata where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
+instance FromJSON ServiceSessionMetadata where parseJSON = Aeson.gparseJson
+instance ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
@@ -524,11 +561,11 @@ timestampFromString :: Monad m => String -> m Timestamp
 timestampFromString raw = maybe (fail $ "Timestamp: no parse: " ++ show raw) return $
     Timestamp <$> parseTime defaultTimeLocale "%FT%T%Q%z" raw
 
-instance Aeson.FromJSON Timestamp
+instance FromJSON Timestamp
   where
     parseJSON = (>>= timestampFromString) . Aeson.parseJSON
 
-instance Aeson.ToJSON Timestamp
+instance ToJSON Timestamp
   where
     toJSON = Aeson.toJSON . timestampToString
 
@@ -554,11 +591,11 @@ secondsFromString raw = do
         _    -> fail $ "interval: no parse: unit: " ++ suff
     return $ mult * n
 
-instance Aeson.FromJSON Timeout
+instance FromJSON Timeout
   where
     parseJSON = (>>= timeoutFromString) . Aeson.parseJSON
 
-instance Aeson.ToJSON Timeout
+instance ToJSON Timeout
   where
     toJSON = Aeson.toJSON . timeoutToString
 
@@ -571,8 +608,8 @@ instance Aeson.ToJSON Timeout
 data Agent = UserA !UserId | ServiceA !ServiceId
   deriving (Eq, Ord, Show, Read, Typeable, Generic)
 
-instance Aeson.FromJSON Agent where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Agent where toJSON = Aeson.gtoJson
+instance FromJSON Agent where parseJSON = Aeson.gparseJson
+instance ToJSON Agent where toJSON = Aeson.gtoJson
 
 -- | Thentos-internal authorization classes.  (See 'ServiceGroup' for service-side authorization classes.)
 data Group =
@@ -594,8 +631,8 @@ data Group =
     -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
-instance Aeson.FromJSON Group where parseJSON = Aeson.gparseJson
-instance Aeson.ToJSON Group where toJSON = Aeson.gtoJson
+instance FromJSON Group where parseJSON = Aeson.gparseJson
+instance ToJSON Group where toJSON = Aeson.gtoJson
 
 instance ToCNF Agent where toCNF = toCNF . show
 instance ToCNF Group where toCNF = toCNF . show
@@ -631,11 +668,11 @@ parseUri bs = Uri <$> parseURI laxURIParserOptions bs
 renderUri :: Uri -> SBS
 renderUri (Uri uri) = serializeURI' uri
 
-instance Aeson.FromJSON Uri
+instance FromJSON Uri
   where
     parseJSON = Aeson.withText "URI string" $ either (fail . show) return . parseUri . cs
 
-instance Aeson.ToJSON Uri where toJSON uri = Aeson.toJSON (cs $ renderUri uri :: ST)
+instance ToJSON Uri where toJSON uri = Aeson.toJSON (cs $ renderUri uri :: ST)
 
 instance Show Uri where
     show = cs . renderUri
@@ -678,12 +715,12 @@ parseProxyUri t = case parseURI laxURIParserOptions $ cs t of
     fail_ :: String -> m a
     fail_ = throwError . ("parseProxyUri: " ++)
 
-instance Aeson.FromJSON ProxyUri
+instance FromJSON ProxyUri
   where
     parseJSON (String t) = either fail return $ parseProxyUri t
     parseJSON bad        = aesonError "ProxyUri" bad
 
-instance Aeson.ToJSON ProxyUri where
+instance ToJSON ProxyUri where
     toJSON = Aeson.String . renderProxyUri
 
 instance Show ProxyUri where
@@ -743,10 +780,10 @@ newtype ImageData = ImageData { fromImageData :: SBS }
 newtype CaptchaId = CaptchaId { fromCaptchaId :: ST }
   deriving (Eq, Ord, Show, Read, Typeable, Generic, IsString, FromField, ToField, ToByteString)
 
-instance Aeson.FromJSON CaptchaId where
+instance FromJSON CaptchaId where
     parseJSON = Aeson.withText "captcha ID string" (pure . CaptchaId)
 
-instance Aeson.ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
+instance ToJSON CaptchaId where toJSON (CaptchaId cid) = Aeson.toJSON cid
 
 
 
@@ -756,13 +793,11 @@ data CaptchaSolution = CaptchaSolution
     }
     deriving (Eq, Typeable, Generic, Show)
 
-instance Aeson.FromJSON CaptchaSolution where
-    parseJSON (Aeson.Object m) = CaptchaSolution <$>
-                                    m Aeson..: "id" <*>
-                                    m Aeson..: "solution"
+instance FromJSON CaptchaSolution where
+    parseJSON (Aeson.Object m) = CaptchaSolution <$> m .: "id" <*> m .: "solution"
     parseJSON bad = aesonError "CaptchaSolution" bad
 
-instance Aeson.ToJSON CaptchaSolution where
+instance ToJSON CaptchaSolution where
     toJSON (CaptchaSolution cId cSol) =
         Aeson.object [ "id" .= Aeson.toJSON cId
                      , "solution" .= Aeson.toJSON cSol
