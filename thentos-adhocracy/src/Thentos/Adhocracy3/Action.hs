@@ -30,7 +30,7 @@ import qualified URI.ByteString as URI
 
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Config
-import Thentos.Types
+import Thentos.Types hiding (PasswordResetRequest)
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Unsafe as U

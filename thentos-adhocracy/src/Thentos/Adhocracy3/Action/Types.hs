@@ -34,7 +34,7 @@ import Safe (readMay)
 import URI.ByteString (URIParseError)
 
 import Thentos.Backend.Api.Docs.Proxy ()
-import Thentos.Types
+import Thentos.Types hiding (PasswordResetRequest)
 import Thentos.Util
 
 import qualified Data.Aeson as Aeson
@@ -279,6 +279,7 @@ data LoginRequest =
   | LoginByEmail UserEmail UserPass
   deriving (Eq, Typeable, Generic)
 
+-- FIXME unify with type in Thentos.Types
 data PasswordResetRequest =
     PasswordResetRequest Path UserPass
   deriving (Eq, Typeable, Generic)
