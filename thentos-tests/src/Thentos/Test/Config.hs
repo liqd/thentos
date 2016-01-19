@@ -119,6 +119,14 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    user_exists:" :
     "        subject: \"Thentos: Attempted Signup\"" :
     "        body: \"Someone tried to sign up to Thentos with your email address.\"" :
+    "    password_reset:" :
+    "        subject: \"Thentos: Reset Password\"" :
+    "        body: |" :
+    "            Dear {{user_name}}," :
+    "" :
+    "            please use the link below to reset your password." :
+    "" :
+    "            {{activation_url}}" :
     []
 
 godUid :: UserId

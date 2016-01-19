@@ -24,7 +24,9 @@ module Thentos.Action
     , addUnconfirmedUserWithCaptcha
     , confirmNewUser
     , addPasswordResetToken
+    , sendPasswordResetMail
     , resetPassword
+    , resetPasswordAndLogin
     , changePassword
     , changePasswordUnconditionally_
     , requestUserEmailChange
@@ -283,14 +285,40 @@ addPasswordResetToken email = do
     user <- queryA $ T.addPasswordResetToken email tok
     return (user, tok)
 
--- | Finish password reset with email confirmation.
+-- | Create a password reset token and send the link by email to the user.
+-- No authentication required, obviously.
+sendPasswordResetMail :: UserEmail -> Action e s ()
+sendPasswordResetMail email = do
+    (user, PasswordResetToken tok) <- addPasswordResetToken email
+    cfg <- U.unsafeAction U.getConfig
+    let subject = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "body"])
+        feHttp = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+            Nothing -> error "sendPasswordResetMail: frontend not configured!"
+            Just v -> Tagged v
+        context "user_name" = MuVariable . fromUserName $ user ^. userName
+        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> tok
+        context _           = error "sendPasswordResetMail: no such context"
+    body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
+    U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
+
+-- | Finish password reset with email confirmation. Returns the ID of the updated user.
 --
 -- SECURITY: See 'confirmNewUser'.
-resetPassword :: PasswordResetToken -> UserPass -> Action e s ()
+resetPassword :: PasswordResetToken -> UserPass -> Action e s UserId
 resetPassword token password = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> U.unsafeAction U.getConfig
     hashedPassword <- U.unsafeAction $ U.hashUserPass password
     queryA $ T.resetPassword expiryPeriod token hashedPassword
+
+
+-- | Finish password reset with email confirmation and open a new ThentosSession for the user.
+--
+-- SECURITY: See 'confirmNewUser'.
+resetPasswordAndLogin :: PasswordResetToken -> UserPass -> Action e s ThentosSessionToken
+resetPasswordAndLogin token password = do
+    uid <- resetPassword token password
+    startThentosSessionByAgent_ (UserA uid)
 
 
 -- ** login

@@ -165,6 +165,7 @@ type EmailTemplates = Tagged (ToConfigCode EmailTemplates')
 type EmailTemplates' =
         "account_verification" :> EmailTemplate'
     :*> "user_exists"          :> EmailTemplate'
+    :*> "password_reset"       :> EmailTemplate'
 
 type EmailTemplate = Tagged (ToConfigCode EmailTemplate')
 type EmailTemplate' =
@@ -174,6 +175,7 @@ type EmailTemplate' =
 defaultEmailTemplates :: ToConfig (ToConfigCode EmailTemplates') Maybe
 defaultEmailTemplates =
         Nothing
+    :*> Nothing
     :*> Nothing
 
 

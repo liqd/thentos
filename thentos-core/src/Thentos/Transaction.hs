@@ -135,25 +135,23 @@ addPasswordResetToken email token = do
     return user
 
 
-checkUnique :: ThentosError e -> String -> Int64 -> ThentosQuery e ()
-checkUnique zero multi n =
-    case n of
-        0 -> throwError zero
-        1 -> return ()
-        _ -> impossible multi
-
 -- | Change a password with a given password reset token and remove the token.  Throw an error if
--- the token does not exist or has expired.
-resetPassword :: Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery e ()
-resetPassword timeout token newPassword =
-    checkUnique NoSuchToken "password reset token exists multiple times"
-        =<< execT     [sql| UPDATE users
-                            SET password = ?
-                            FROM password_reset_tokens
-                            WHERE password_reset_tokens.timestamp + ? > now()
-                            AND users.id = password_reset_tokens.uid
-                            AND password_reset_tokens.token = ?
+-- the token does not exist or has expired.  Returns the ID of the updated user.
+resetPassword :: Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery e UserId
+resetPassword timeout token newPassword = do
+    res <- queryT [sql| UPDATE users
+                        SET password = ?
+                        FROM password_reset_tokens
+                        WHERE password_reset_tokens.timestamp + ? > now()
+                        AND users.id = password_reset_tokens.uid
+                        AND password_reset_tokens.token = ?
+                        RETURNING users.id
                       |] (newPassword, timeout, token)
+    void $ execT [sql| DELETE FROM password_reset_tokens WHERE token = ? |] (Only token)
+    case res of
+        [Only uid] -> return uid
+        []         -> throwError NoSuchToken
+        _          -> impossible "resetPassword: password reset token exists multiple times"
 
 addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
 addUserEmailChangeRequest uid newEmail token = do
@@ -603,6 +601,13 @@ garbageCollectCaptchas timeout = void $ execT
 
 
 -- * helpers
+
+checkUnique :: ThentosError e -> String -> Int64 -> ThentosQuery e ()
+checkUnique zero multi n =
+    case n of
+        0 -> throwError zero
+        1 -> return ()
+        _ -> impossible multi
 
 -- | Throw an error from a situation which (we believe) will never arise.
 impossible :: String -> a
