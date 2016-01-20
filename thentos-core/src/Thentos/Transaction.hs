@@ -135,12 +135,13 @@ addPasswordResetToken email token = do
     return user
 
 
--- | Change a password with a given password reset token and remove the token.  Throw an error if
--- the token does not exist or has expired.  Returns the ID of the updated user.
+-- | Change a password with a given password reset token and remove the token.  Also confirms the
+-- user's email address if that hasn't happened before.  Throw an error if the token does not
+-- exist or has expired.  Returns the ID of the updated user.
 resetPassword :: Timeout -> PasswordResetToken -> HashedSecret UserPass -> ThentosQuery e UserId
 resetPassword timeout token newPassword = do
     res <- queryT [sql| UPDATE users
-                        SET password = ?
+                        SET password = ?, confirmed = true
                         FROM password_reset_tokens
                         WHERE password_reset_tokens.timestamp + ? > now()
                         AND users.id = password_reset_tokens.uid

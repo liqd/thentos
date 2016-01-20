@@ -233,7 +233,7 @@ sendUserConfirmationMail user (ConfirmationToken confToken) = do
             Just v -> Tagged v
         context "user_name"      = MuVariable . fromUserName $ udName user
         context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
-        context _                = error "sendUserConfirmationMail: no such context"
+        context x                = error $ "sendUserConfirmationMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
     U.unsafeAction $ U.sendMail (Just $ udName user) (udEmail user) subject (cs body)
 
@@ -298,11 +298,12 @@ sendPasswordResetMail email = do
             Just v -> Tagged v
         context "user_name" = MuVariable . fromUserName $ user ^. userName
         context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> tok
-        context _           = error "sendPasswordResetMail: no such context"
+        context x           = error $ "sendPasswordResetMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
     U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
 
--- | Finish password reset with email confirmation. Returns the ID of the updated user.
+-- | Finish password reset with email confirmation. Also confirms the user's email address if
+-- that hasn't happened before. Returns the ID of the updated user.
 --
 -- SECURITY: See 'confirmNewUser'.
 resetPassword :: PasswordResetToken -> UserPass -> Action e s UserId
