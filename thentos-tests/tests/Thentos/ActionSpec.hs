@@ -195,7 +195,7 @@ spec_user = describe "user" $ do
             let userData = head testUserForms
                 email    = udEmail userData
             uid <- runPrivs [RoleAdmin] sta $ addUser userData
-            resetTok <- snd <$> (runWithoutPrivs sta $ addPasswordResetToken email)
+            resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
             void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
             rowCountShouldBe (sta ^. aStDb) "password_reset_tokens" 0
             -- Check that user can login with new pass
@@ -211,7 +211,7 @@ spec_user = describe "user" $ do
             let userData = head testUserForms
                 email    = udEmail userData
             runWithoutPrivs sta $ addUnconfirmedUser userData
-            resetTok <- snd <$> (runWithoutPrivs sta $ addPasswordResetToken email)
+            resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
             void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
             -- Check that user can login (= is confirmed)
             void . runWithoutPrivs sta $ startThentosSessionByUserEmail email "newpass"
