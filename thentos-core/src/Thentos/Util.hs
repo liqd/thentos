@@ -1,13 +1,16 @@
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE OverloadedStrings   #-}
 
 module Thentos.Util
     ( hashUserPass
-    , hashServiceKey
-    , secretMatches
-    , verifyPass
-    , verifyKey
     , makeUserFromFormData
+    , verifyUserPass
+    , hashServiceKey
+    , verifyServiceKey
+    , hashSecret
+    , hashSecretWith
     , mailEncode
     , cshow
     , readsPrecEnumBoundedShow
@@ -22,6 +25,7 @@ import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
 
+import qualified Crypto.BCrypt as BCrypt
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Text as ST
 
@@ -30,34 +34,8 @@ import Thentos.Types
 
 -- * crypto
 
--- | @[2 2 1]@ is fast, but does not provide adequate
--- protection for passwords in production mode!
-thentosScryptParams :: Scrypt.ScryptParams
-thentosScryptParams = Scrypt.defaultParams
--- thentosScryptParams = fromJust $ Scrypt.scryptParams 2 1 1
-
 hashUserPass :: (Functor m, MonadIO m) => UserPass -> m (HashedSecret UserPass)
 hashUserPass = hashSecret fromUserPass
-
-hashServiceKey :: (Functor m, MonadIO m) => ServiceKey -> m (HashedSecret ServiceKey)
-hashServiceKey = hashSecret fromServiceKey
-
--- | 'encryptPassIO'' gets its entropy from /dev/urandom
-hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
-hashSecret a s = HashedSecret <$>
-    (liftIO . Scrypt.encryptPassIO thentosScryptParams . Scrypt.Pass . encodeUtf8 $ a s)
-
-secretMatches :: ST -> HashedSecret a -> Bool
-secretMatches t s = Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t)
-                                       (fromHashedSecret s)
-
-verifyPass :: UserPass -> User -> Bool
-verifyPass pass user = secretMatches (fromUserPass pass)
-                                     (user ^. userPassword)
-
-verifyKey :: ServiceKey -> Service -> Bool
-verifyKey key service = secretMatches (fromServiceKey key)
-                                      (service ^. serviceKey)
 
 makeUserFromFormData :: (Functor m, MonadIO m) => UserFormData -> m User
 makeUserFromFormData userData = do
@@ -65,6 +43,31 @@ makeUserFromFormData userData = do
     return $ User (udName userData)
                   hashedPassword
                   (udEmail userData)
+
+verifyUserPass :: UserPass -> User -> Bool
+verifyUserPass pass user = secretMatches (fromUserPass pass) (user ^. userPassword)
+
+hashServiceKey :: (Functor m, MonadIO m) => ServiceKey -> m (HashedSecret ServiceKey)
+hashServiceKey = hashSecret fromServiceKey
+
+verifyServiceKey :: ServiceKey -> Service -> Bool
+verifyServiceKey key service = secretMatches (fromServiceKey key) (service ^. serviceKey)
+
+
+-- | Call 'hasSecretWith' with fresh salt and default params.
+hashSecret :: (Functor m, MonadIO m) => (a -> ST) -> a -> m (HashedSecret a)
+hashSecret a s = (\salt -> hashSecretWith Scrypt.defaultParams salt a s) <$> liftIO Scrypt.newSalt
+
+hashSecretWith :: Scrypt.ScryptParams -> Scrypt.Salt -> (a -> ST) -> a -> HashedSecret a
+hashSecretWith params salt a =
+    SCryptHash . Scrypt.getEncryptedPass .
+    Scrypt.encryptPass params salt . Scrypt.Pass . encodeUtf8 . a
+
+secretMatches :: ST -> HashedSecret a -> Bool
+secretMatches t s = case s of
+    SCryptHash hash -> Scrypt.verifyPass' (Scrypt.Pass $ encodeUtf8 t) (Scrypt.EncryptedPass hash)
+    BCryptHash hash -> BCrypt.validatePassword hash (encodeUtf8 t)
+
 
 -- * networking
 

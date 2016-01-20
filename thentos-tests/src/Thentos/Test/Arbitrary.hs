@@ -1,5 +1,7 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE FlexibleInstances  #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Thentos.Test.Arbitrary () where
 
@@ -7,7 +9,6 @@ import Data.String.Conversions (cs)
 import LIO.DCLabel (DCLabel(DCLabel), (%%), (/\), (\/), CNF, toCNF)
 import Test.QuickCheck (Arbitrary(..), sized, vectorOf, elements, Gen)
 
-import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 
 import Thentos.Types
@@ -16,8 +17,11 @@ import Thentos.Test.Config
 import Thentos.Test.Core
 
 
-instance Arbitrary (HashedSecret a) where
-    arbitrary = encryptTestSecret . SBS.pack <$> arbitrary
+instance Arbitrary (HashedSecret UserPass) where
+    arbitrary = encryptTestSecret fromUserPass <$> arbitrary
+
+instance Arbitrary (HashedSecret ServiceKey) where
+    arbitrary = encryptTestSecret fromServiceKey <$> arbitrary
 
 instance Arbitrary DCLabel where
     arbitrary = DCLabel <$> arbitrary <*> arbitrary
@@ -67,6 +71,9 @@ instance Arbitrary UserPass where
         return . UserPass . cs $ pass
       where
         passwordChar = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
+
+instance Arbitrary ServiceKey where
+    arbitrary = ServiceKey . fromUserPass <$> arbitrary
 
 instance Arbitrary UserFormData where
     arbitrary = UserFormData <$> arbitrary <*> arbitrary <*> arbitrary

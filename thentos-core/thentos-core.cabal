@@ -104,6 +104,8 @@ library
     , async >=2.0.2 && <2.1
     , attoparsec >=0.13 && <0.14
     , base >=4.8.1.0 && <5
+    , bcrypt >=0.0.7 && <0.1
+    , binary >= 0.7.5 && <0.8
     , blaze-builder >= 0.4.0 && <0.5
     , blaze-html >=0.8.1.0 && <0.9
     , blaze-markup >=0.7 && <0.8

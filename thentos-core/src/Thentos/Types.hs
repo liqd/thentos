@@ -90,6 +90,7 @@ import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
+import Database.PostgreSQL.Simple.Types (Binary(Binary, fromBinary))
 import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
@@ -122,8 +123,8 @@ import URI.ByteString (URI, RelativeRef, URIParseError,
                        authorityHost, authorityPort, portNumber, hostBS, uriPath)
 import Web.HttpApiData (parseQueryParam)
 
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
+import qualified Data.Binary
 import qualified Data.Csv as CSV
 import qualified Data.ByteString as SBS
 import qualified Data.HashMap.Strict as H
@@ -202,14 +203,16 @@ instance CSV.FromField UserName where
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
-newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
-    deriving (Eq, Show, Typeable, Generic)
+data HashedSecret a = BCryptHash SBS | SCryptHash SBS
+    deriving (Eq, Show, Generic)
+
+instance Data.Binary.Binary (HashedSecret a)
 
 instance FromField (HashedSecret a) where
-    fromField f dat = HashedSecret . Scrypt.EncryptedPass <$> fromField f dat
+    fromField f dat = Data.Binary.decode . fromBinary <$> fromField f dat
 
 instance ToField (HashedSecret a) where
-    toField = toField . Scrypt.getEncryptedPass . fromHashedSecret
+    toField = toField . Binary . Data.Binary.encode
 
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
