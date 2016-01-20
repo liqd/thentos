@@ -126,7 +126,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "" :
     "            please use the link below to reset your password." :
     "" :
-    "            {{activation_url}}" :
+    "            {{reset_url}}" :
     []
 
 godUid :: UserId
