@@ -27,7 +27,6 @@ import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
 import Data.Foldable (for_)
 import Data.Maybe (isJust)
 import Data.Monoid ((<>))
-import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
 import GHC.Stack (CallStack)
@@ -265,7 +264,7 @@ setupBackend' :: [Source] -> IO (Application, ThentosConfig)
 setupBackend' extraCfg = do
     as@(ActionState cfg _ connPool) <- thentosTestConfig' extraCfg >>= createActionState'
     mgr <- newManager defaultManagerSettings
-    withResource connPool createGod
+    createGod connPool
     ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
           autocreateMissingServices cfg
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])

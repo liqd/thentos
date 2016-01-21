@@ -73,8 +73,7 @@ makeMain commandSwitch =
     checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
-    withResource connPool $ \conn ->
-        createDefaultUser conn (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
+    createDefaultUser connPool (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
     _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState
         (autocreateMissingServices config :: Action Void () ())
 
@@ -127,7 +126,7 @@ createConnPoolAndInitDb cfg = do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: Connection -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser :: Pool Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
     eq <- runThentosQuery conn $ (void $ T.lookupConfirmedUser (UserId 0) :: ThentosQuery Void ())
     case eq of

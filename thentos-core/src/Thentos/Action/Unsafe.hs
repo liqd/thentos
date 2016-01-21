@@ -17,7 +17,6 @@ import Control.Monad.State (StateT(StateT), runStateT)
 import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, LT, ST, SBS)
 import LIO.Core (liftLIO, getClearance, setClearanceP)
@@ -95,7 +94,7 @@ unsafeAction uaction = construct deconstruct
 query :: ThentosQuery e v -> UnsafeAction e s v
 query u = do
     ActionState _ _ connPool <- UnsafeAction ask
-    liftIO (withResource connPool (`runThentosQuery` u)) >>= either throwError return
+    liftIO (runThentosQuery connPool u) >>= either throwError return
 
 getConfig :: UnsafeAction e s ThentosConfig
 getConfig = (^. aStConfig) <$> UnsafeAction ask

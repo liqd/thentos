@@ -6,6 +6,7 @@ module Thentos.Transaction.Core
     ( ThentosQuery
     , Defaultable(..)
     , runThentosQuery
+    , runThentosQuery'
     , queryT
     , execT
     , createDB
@@ -25,6 +26,7 @@ import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Trans.Either (EitherT, runEitherT)
 import Control.Monad (void, liftM)
 import Data.Int (Int64)
+import Data.Pool (Pool, withResource)
 import Data.String (fromString)
 import Database.PostgreSQL.Simple (Connection, SqlError, ToRow, FromRow, Query, query, execute,
     execute_)
@@ -53,8 +55,12 @@ createDB conn = do
 
 -- | Execute a 'ThentosQuery'. Every query is a DB transaction, so the DB state won't change
 -- if there are any errors, nor will other queries encouter a possibly inconsistent interim state.
-runThentosQuery :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
-runThentosQuery conn q = do
+runThentosQuery :: Pool Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
+runThentosQuery connPool q = withResource connPool $ \conn -> runThentosQuery' conn q
+
+-- | Like 'runThentosQuery', but on a single connection handle, not a pool.
+runThentosQuery' :: Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
+runThentosQuery' conn q = do
     withTransaction conn $ runReaderT (runEitherT q) conn
 
 queryT :: (ToRow q, FromRow r) => Query -> q -> ThentosQuery e [r]
@@ -98,7 +104,7 @@ catcher e = f
 catchViolation :: MonadBaseControl IO m => (SqlError -> ConstraintViolation -> m a) -> m a -> m a
 catchViolation f m = m `catch` (\e -> maybe (throwIO e) (f e) $ constraintViolation e)
 
--- Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
+-- | Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
 -- 'Maybe a', but postgresql-simple will convert 'Nothing' to "NULL", while we convert
 -- 'DefaultVal' to "DEFAULT". This allows using default values specified by the DB schema,
 -- e.g. auto-incrementing sequences.
@@ -109,6 +115,6 @@ instance (ToField a) => ToField (Defaultable a) where
     toField DefaultVal    = toField Default
     toField (CustomVal a) = toField a
 
--- Convert a 'Maybe' into a 'Defaultable' instance.
+-- | Convert a 'Maybe' into a 'Defaultable' instance.
 orDefault :: ToField a => Maybe a -> Defaultable a
 orDefault = maybe DefaultVal CustomVal

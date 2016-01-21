@@ -37,6 +37,9 @@ flag with-thentos-executable
 flag with-captcha-executable
   default: False
 
+flag with-importa3u-executable
+  default: False
+
 flag development
   description: Development mode tweaks cabal search behavior in Paths_thentos_core__
   default: False
@@ -228,5 +231,35 @@ executable thentos-captcha
     , async
     , configifier
     , hslogger
+  if flag(development)
+    cpp-options: -DDEVELOPMENT
+
+executable thentos-importa3u
+  if flag(with-importa3u-executable)
+    Buildable: True
+  else
+    Buildable: False
+
+  default-language:
+      Haskell2010
+  hs-source-dirs:
+      exec
+  main-is:
+      ImportA3Users.hs
+  ghc-options:
+      -Wall -j1 -threaded -rtsopts -with-rtsopts=-N
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
+  build-depends:
+      base
+    , thentos-core
+
+    , bytestring
+    , cassava
+    , postgresql-simple
+    , string-conversions
+    , time
+    , vector
   if flag(development)
     cpp-options: -DDEVELOPMENT

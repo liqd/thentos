@@ -23,6 +23,7 @@ import Data.Configifier
     , Source(YamlString, ShellEnv, CommandLine)
     )
 import Data.Maybe (fromMaybe)
+import Data.Pool (Pool)
 import Data.String.Conversions (ST, cs)
 import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.Environment (getEnvironment, getArgs)
@@ -138,7 +139,7 @@ godName = "god"
 godPass :: UserPass
 godPass = "god"
 
-createGod :: Connection -> IO ()
+createGod :: Pool Connection -> IO ()
 createGod conn = createDefaultUser conn
     (Just . Tagged $
           Id (fromUserName godName)
