@@ -98,7 +98,7 @@ catcher e = f
 catchViolation :: MonadBaseControl IO m => (SqlError -> ConstraintViolation -> m a) -> m a -> m a
 catchViolation f m = m `catch` (\e -> maybe (throwIO e) (f e) $ constraintViolation e)
 
--- Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
+-- | Wrap a value that may have a default value. 'Defaultable a' is structurally equivalent to
 -- 'Maybe a', but postgresql-simple will convert 'Nothing' to "NULL", while we convert
 -- 'DefaultVal' to "DEFAULT". This allows using default values specified by the DB schema,
 -- e.g. auto-incrementing sequences.
@@ -109,6 +109,6 @@ instance (ToField a) => ToField (Defaultable a) where
     toField DefaultVal    = toField Default
     toField (CustomVal a) = toField a
 
--- Convert a 'Maybe' into a 'Defaultable' instance.
+-- | Convert a 'Maybe' into a 'Defaultable' instance.
 orDefault :: ToField a => Maybe a -> Defaultable a
 orDefault = maybe DefaultVal CustomVal
