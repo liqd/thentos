@@ -51,7 +51,10 @@ mkChallenge font solution =
         letterParams = zip offsets solution
 
         fuzz :: Float -> m Float
-        fuzz i = getRandomR (i * 0.7 + 0.2, i * 1.3 - 0.2)
+        fuzz i = getRandomR (i * (1-a) + b, i * (1+a) - b)
+          where
+            a = 0.3
+            b = 0.2
 
         action :: m (Drawing PixelRGBA8 ())
         action = do

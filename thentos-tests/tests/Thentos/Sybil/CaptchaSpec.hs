@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables                      #-}
 
 module Thentos.Sybil.CaptchaSpec where
+  -- FIXME: module structure has changed in thentos-core.  re-align!
 
 import Codec.ByteString.Parser (runParser)
 import Codec.Picture (decodePng)
