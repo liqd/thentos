@@ -71,6 +71,7 @@ spec = describe "Thentos.Util" $ do
     describe "bcrypt verification" $ do
         let run (clear :: ST) (hashed :: SBS) = (clear, verdict) `shouldSatisfy` snd
                 where verdict :: Bool = verifyUserPass (UserPass clear) (mkUser (BCryptHash hashed))
+                                     && verifyServiceKey (ServiceKey clear) (mkService (BCryptHash hashed))
 
             samples = [ ("", "$2a$10$5lEQtZWJ9BglditOGuARrugb8g79hXeMhc7aWtNY5/QowmxEcSnBi")
                       , ("***", "$2a$10$Ktrbw39lib1doqd.hSQ7UOKSkuLYIsUbTrcEsYPofsnrkIsGFCaXW")
@@ -86,6 +87,9 @@ spec = describe "Thentos.Util" $ do
         it "falsifies." $ do
             s <- mkService <$> hashServiceKey "good"
             verifyServiceKey "bad" s `shouldBe` False
+
+            let s' = mkService (BCryptHash "$2a$10$5lEQtZWJ9BglditOGuARrugb8g79hXeMhc7aWtNY5/QowmxEcSnBi")
+            verifyServiceKey "bad" s' `shouldBe` False
 
             u <- mkUser <$> hashUserPass "good"
             verifyUserPass "bad" u `shouldBe` False
