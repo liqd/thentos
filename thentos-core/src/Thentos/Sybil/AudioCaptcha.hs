@@ -36,13 +36,12 @@ generateAudioCaptcha eSpeakVoice rnd = do
     challenge <- mkAudioChallenge eSpeakVoice solution
     return (challenge, solution)
 
--- | Returns 4 random numbers between 0 and 31.  (This loses a lot of the input randomness, but
--- captchas are a low-threshold counter-measure, so they should be at least reasonably convenient to
--- use.)
+-- | Returns 6 digits of randomness.  (This loses a lot of the input randomness, but captchas are a
+-- low-threshold counter-measure, so they should be at least reasonably convenient to use.)
 mkAudioSolution :: Random20 -> ST
 mkAudioSolution = ST.intercalate " "
-                . (cs . show . (`mod` 32) <$>)
-                . take 4 . SBS.unpack . fromRandom20
+                . (cs . show . (`mod` 10) <$>)
+                . take 6 . SBS.unpack . fromRandom20
 
 mkAudioChallenge :: String -> ST -> Action e s SBS
 mkAudioChallenge eSpeakVoice solution = do
