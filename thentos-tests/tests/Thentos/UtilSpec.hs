@@ -8,8 +8,6 @@ module Thentos.UtilSpec where
 import Data.String.Conversions (ST, SBS)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
-import qualified Data.Binary
-
 import Thentos.Types
 import Thentos.Util
 
@@ -25,11 +23,6 @@ mkService h = Service h (UserId 0) Nothing "name" "description"
 
 spec :: Spec
 spec = describe "Thentos.Util" $ do
-    describe "HashedSecret" $ do
-        it "has working binary instance." $ do
-            let f h = (Data.Binary.decode . Data.Binary.encode) h `shouldBe` h
-            mapM_ f [h s | h <- [BCryptHash, SCryptHash], s <- ["", "...", "„¡33 € – hilfäh!“"]]
-
     describe "UserPass <-> HashedSecret" $ do
         let f p = do
                 h <- hashUserPass p

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id         bigserial   PRIMARY KEY,
     name       text        NOT NULL UNIQUE,
-    password   bytea       NOT NULL,
+    password   text        NOT NULL,
     email      text        NOT NULL UNIQUE,
     confirmed  bool        NOT NULL,
     created    timestamptz NOT NULL DEFAULT now()
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS services (
     owner_user    bigint     NOT NULL REFERENCES users (id),
     name          text       NOT NULL,
     description   text       NOT NULL,
-    key           bytea      NOT NULL
+    key           text       NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS service_roles (

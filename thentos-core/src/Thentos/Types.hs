@@ -6,6 +6,8 @@
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE ViewPatterns                #-}
 
+{-# OPTIONS_GHC  #-}
+
 module Thentos.Types
     ( JsonTop(..)
     , User(..)
@@ -90,8 +92,8 @@ import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
-import Database.PostgreSQL.Simple.Types (Binary(Binary, fromBinary))
-import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
+import Database.PostgreSQL.Simple.FromField
+    (FromField, fromField, Conversion, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
@@ -124,7 +126,6 @@ import URI.ByteString (URI, RelativeRef, URIParseError,
 import Web.HttpApiData (parseQueryParam)
 
 import qualified Data.Aeson as Aeson
-import qualified Data.Binary
 import qualified Data.Csv as CSV
 import qualified Data.ByteString as SBS
 import qualified Data.HashMap.Strict as H
@@ -206,13 +207,18 @@ newtype UserPass = UserPass { fromUserPass :: ST }
 data HashedSecret a = BCryptHash SBS | SCryptHash SBS
     deriving (Eq, Show, Generic)
 
-instance Data.Binary.Binary (HashedSecret a)
-
-instance FromField (HashedSecret a) where
-    fromField f dat = Data.Binary.decode . fromBinary <$> fromField f dat
+instance (Typeable a) => FromField (HashedSecret a) where
+    fromField f = maybe (returnError Incompatible f "") parsePrefix
+      where
+        parsePrefix :: SBS -> Conversion (HashedSecret a)
+        parsePrefix s = case SBS.splitAt 2 s of
+            ("S_", h) -> return $ SCryptHash h
+            ("B_", h) -> return $ BCryptHash h
+            _         -> returnError ConversionFailed f ""
 
 instance ToField (HashedSecret a) where
-    toField = toField . Binary . Data.Binary.encode
+    toField (SCryptHash s) = toField $ "S_" <> s
+    toField (BCryptHash s) = toField $ "B_" <> s
 
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)

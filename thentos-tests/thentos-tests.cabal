@@ -102,7 +102,6 @@ test-suite tests
     , attoparsec >=0.12.1.6 && <0.14
     , base >=4.8.1.0 && <5
     , bcrypt >=0.0.7 && <0.1
-    , binary >= 0.7.5 && <0.8
     , blaze-html
     , bytestring
     , case-insensitive >=1
