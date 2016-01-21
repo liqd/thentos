@@ -81,3 +81,14 @@ spec = describe "Thentos.Util" $ do
                       ]
 
         it "works." $ mapM_ (uncurry run) samples
+
+    describe "bad password" $ do
+        it "falsifies." $ do
+            s <- mkService <$> hashServiceKey "good"
+            verifyServiceKey "bad" s `shouldBe` False
+
+            u <- mkUser <$> hashUserPass "good"
+            verifyUserPass "bad" u `shouldBe` False
+
+            let u' = mkUser (BCryptHash "$2a$10$5lEQtZWJ9BglditOGuARrugb8g79hXeMhc7aWtNY5/QowmxEcSnBi")
+            verifyUserPass "bad" u' `shouldBe` False
