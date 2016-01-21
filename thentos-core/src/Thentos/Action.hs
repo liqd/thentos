@@ -279,6 +279,19 @@ confirmNewUser token = do
 -- ** password reset
 
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
+--
+-- NOTE: This leaks existence info on email addresses.  But if we do not want to throw 'NoSuchUser'
+-- here, we run into other issues:
+--
+-- - If we send mail to people not in your DB ("somebody entered your address in your password reset
+--   field, but you're not registered. If you want to register, please do so at X. If not, sorry and
+--   just ignore this email.") we could annoy them. It's not so bad if that happens just once, but
+--   what if somebody triggers a password reset for Angela Merkel's email address every two seconds?
+--
+-- - If we just silently ignore the error, it would be a bad UI experience for people who thought
+--   they registered with one address but actually used another one -- since we don't tell them that
+--   that the address is unkown and don't take any further action, it's very hard for them to figure
+--   out why they never receive the expected reset link.
 addPasswordResetToken :: UserEmail -> Action e s (User, PasswordResetToken)
 addPasswordResetToken email = do
     tok <- freshPasswordResetToken
