@@ -66,22 +66,22 @@ parseA3Time t = chk . parseTimeM True defaultTimeLocale fmt . cs $ t
       fmt = "%F_%T"
 
 instance FromRecord A3User where
-    parseRecord (Vector.toList -> [n, e, t, p]) = do
-        e' <- parseField e
-        t' <- parseA3Time t
-        let n' = UserName $ cs n
-            p' = BCryptHash $ cs p
-        return $ A3User n' e' t' p'
+    parseRecord (Vector.toList -> [name, email, time, pass]) = do
+        email' <- parseField email
+        time' <- parseA3Time time
+        let name' = UserName $ cs name
+            pass' = BCryptHash $ cs pass
+        return $ A3User name' email' time' pass'
     parseRecord bad = fail $ show bad
 
 readA3User :: FilePath -> IO [A3User]
 readA3User path = do
-    s <- LBS.readFile path
-    case decodeWith opts HasHeader s of
-        Right (Vector.toList -> v) -> do
-            putStrLn $ "loaded " ++ show (length v) ++ " records."
-            return v
-        Left e -> throwIO $ ErrorCall e
+    raw <- LBS.readFile path
+    case decodeWith opts HasHeader raw of
+        Right (Vector.toList -> val) -> do
+            putStrLn $ "loaded " ++ show (length val) ++ " records."
+            return val
+        Left err -> throwIO $ ErrorCall err
   where
     opts = DecodeOptions (fromIntegral $ ord ';')
 
@@ -91,14 +91,14 @@ writeA3User tzone dbName users = do
     result <- runThentosQuery' conn . sequence $ addA3User tzone <$> users
     case result of
         Right uids -> putStrLn $ "created " ++ show (length uids) ++ " new users."
-        Left e -> throwIO . ErrorCall $ show e
+        Left err -> throwIO . ErrorCall $ show err
 
 addA3User :: TimeZone -> A3User -> ThentosQuery Void UserId
-addA3User tzone (A3User n e c p) = do
+addA3User tzone (A3User name email time pass) = do
     res <- queryT [sql| INSERT INTO users (name, email, created, password, confirmed)
                         VALUES (?, ?, ?, ?, ?)
                         RETURNING id |]
-            (n, e, localTimeToUTC tzone c, p, True)
+            (name, email, localTimeToUTC tzone time, pass, True)
     case res of
         [Only uid] -> return uid
         bad -> error $ "addA3User: impossible: " ++ show bad
@@ -108,7 +108,7 @@ main = do
     prog <- getProgName
     args <- getArgs
     case args of
-        [f, d] -> main' f d
+        [filePath, dbName] -> main' filePath dbName
         _ -> throwIO . ErrorCall $ "usage: " ++ prog ++ " <file name> <db name>"
 
 main' :: String -> String -> IO ()
