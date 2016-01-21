@@ -233,6 +233,7 @@ runCabal args extraArgs = do
                   , "--max-backjumps -1", "--reorder-goals"
                   , "-fwith-thentos-executable"
                   , "-fwith-captcha-executable"
+                  , "-fwith-importa3u-executable"
                         -- (these should only be here for thentos-core source)
                   ] ++ sources
 
