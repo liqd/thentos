@@ -330,7 +330,7 @@ specRest = do
                 response1 <- postDefaultUser its
                 let Right uid = decodeJsonTop $ simpleBody response1
                 response2 <- request "POST" "/thentos_session" hdr $
-                    Aeson.encode $ ByUser (UserId uid, udPassword defaultUserData)
+                    Aeson.encode $ ByUser (UserId uid) (udPassword defaultUserData)
                 request "GET" "/thentos_session/" hdr (simpleBody response2)
                     `shouldRespondWith` "true" { matchStatus = 200 }
 

@@ -26,10 +26,8 @@ import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import "cryptonite" Crypto.Random (drgNew)
-import Crypto.Scrypt (Pass(Pass), EncryptedPass(..), encryptPass, Salt(Salt), scryptParams)
-import Data.ByteString (ByteString)
+import Crypto.Scrypt (Salt(Salt), scryptParams)
 import Data.Configifier ((>>.))
-import Data.Maybe (fromJust)
 import Data.Monoid ((<>))
 import Data.Pool (Pool, withResource, destroyAllResources)
 import Data.Proxy (Proxy(Proxy))
@@ -56,6 +54,7 @@ import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
+import Thentos.Util (hashSecretWith)
 
 import qualified Thentos.Action.Unsafe as U
 
@@ -75,7 +74,7 @@ testUserForms =
 
 testUsers :: [User]
 testUsers = (\ (UserFormData name pass email) ->
-                User name (encryptTestSecret . cs . fromUserPass $ pass) email)
+                User name (encryptTestSecret fromUserPass pass) email)
     <$> testUserForms
 
 testUser :: User
@@ -85,7 +84,7 @@ testUid :: UserId
 testUid = UserId 7
 
 testHashedSecret :: HashedSecret ServiceKey
-testHashedSecret = HashedSecret (EncryptedPass "afhbadigba")
+testHashedSecret = SCryptHash "afhbadigba"
 
 -- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
 -- it.
@@ -99,10 +98,11 @@ addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
 initializeTestUsers :: Action Void s [(UserId, UserFormData, User)]
 initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
 
-encryptTestSecret :: ByteString -> HashedSecret a
-encryptTestSecret pw =
-    HashedSecret $
-        encryptPass (fromJust $ scryptParams 2 1 1) (Salt "") (Pass pw)
+encryptTestSecret :: (a -> ST) -> a -> HashedSecret a
+encryptTestSecret = hashSecretWith params salt
+  where
+    salt = Salt ""
+    Just params = scryptParams 2 1 1
 
 
 -- * Sample data for making services, contexts, and personas

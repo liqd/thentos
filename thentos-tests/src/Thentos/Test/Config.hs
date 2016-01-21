@@ -105,7 +105,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
         -- (change this to your like during debugging)
     "" :
     "database:" :
-    "    name: unused" :
+    "    name: thentos_tests" :
     "" :
     "email_templates:" :
     "    account_verification:" :

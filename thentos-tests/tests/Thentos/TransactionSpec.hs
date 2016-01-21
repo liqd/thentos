@@ -9,7 +9,7 @@ import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
 import Data.Pool (Pool)
-import Data.String.Conversions (ST, SBS)
+import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn, shouldSatisfy)
@@ -260,7 +260,7 @@ changePasswordSpec :: SpecWith (Pool Connection)
 changePasswordSpec = describe "changePassword" $ do
     let user = mkUser "name" "super secret" "me@example.com"
         userId = UserId 111
-        newPass = encryptTestSecret "new"
+        newPass = encryptTestSecret fromUserPass (UserPass "new")
 
     it "changes the password" $ \connPool -> do
         Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
@@ -1176,8 +1176,8 @@ garbageCollectCaptchasSpec = describe "garbageCollectCaptchas" $ do
 
 -- * Utils
 
-mkUser :: UserName -> SBS -> ST -> User
+mkUser :: UserName -> UserPass -> ST -> User
 mkUser name pass email = User { _userName = name
-                              , _userPassword = encryptTestSecret pass
+                              , _userPassword = encryptTestSecret fromUserPass pass
                               , _userEmail = forceUserEmail email
                               }
