@@ -21,7 +21,7 @@ import Data.Void (Void)
 import LIO.DCLabel (ToCNF, DCLabel, (%%), toCNF)
 import System.FilePath ((</>))
 import System.Process (readProcess)
-import Test.Hspec (Spec, SpecWith, describe, it, around, shouldBe, shouldContain,
+import Test.Hspec (Spec, SpecWith, context, describe, it, around, shouldBe, shouldContain,
                    shouldNotContain, shouldSatisfy, hspec)
 
 import qualified Data.ByteString.Lazy.Char8 as BC
@@ -181,47 +181,52 @@ spec_user = describe "user" $ do
             checkEmail uid $ (==) newEmail
 
     describe "sendPasswordResetMail" $ do
-        it "sends email with PasswordResetToken and stores token if user exists" $ \sta -> do
-            let userData = head testUserForms
-            uid <- runPrivs [RoleAdmin] sta $ addUser userData
-            void . runWithoutPrivs sta . sendPasswordResetMail . udEmail $ userData
-            [Only token] <- doQuery (sta ^. aStDb)
-                [sql| SELECT token FROM password_reset_tokens WHERE uid = ?|] (Only uid)
-            let logPath = cs $ (sta ^. aStConfig) >>. (Proxy :: Proxy '["log", "path"])
-            line <- liftIO $ readProcess "grep" [cs $ fromPasswordResetToken token, logPath] ""
-            line `shouldContain` "/password_reset/"
+        context "if user exists" $ do
+            it "sends email with PasswordResetToken and stores token" $ \sta -> do
+                let userData = head testUserForms
+                uid <- runPrivs [RoleAdmin] sta $ addUser userData
+                void . runWithoutPrivs sta . sendPasswordResetMail . udEmail $ userData
+                [Only token] <- doQuery (sta ^. aStDb)
+                    [sql| SELECT token FROM password_reset_tokens WHERE uid = ?|] (Only uid)
+                let logPath = cs $ (sta ^. aStConfig) >>. (Proxy :: Proxy '["log", "path"])
+                line <- liftIO $ readProcess "grep" [cs $ fromPasswordResetToken token, logPath] ""
+                line `shouldContain` "/password_reset/"
 
-        it "fails with NoSuchUser if user doesn't exist" $ \sta -> do
-            Left (ActionErrorThentos err) <-
-                runClearanceE dcBottom sta . sendPasswordResetMail . udEmail . head $ testUserForms
-            err `shouldBe` NoSuchUser
+        context "if user doesn't exist" $ do
+            it "fails with NoSuchUser" $ \sta -> do
+                Left (ActionErrorThentos err) <- runClearanceE dcBottom sta .
+                    sendPasswordResetMail . udEmail . head $ testUserForms
+                err `shouldBe` NoSuchUser
 
     describe "resetPasswordAndLogin" $ do
-        it "changes password, logs user in, deletes token if token is valid" $ \sta -> do
-            let userData = head testUserForms
-                email    = udEmail userData
-            uid <- runPrivs [RoleAdmin] sta $ addUser userData
-            resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
-            void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
-            rowCountShouldBe (sta ^. aStDb) "password_reset_tokens" 0
-            -- Check that user can login with new pass
-            void . runWithoutPrivs sta $ startThentosSessionByUserId uid "newpass"
-            pure ()
+        context "if token is valid" $ do
+            it "changes password, logs user in, deletes token" $ \sta -> do
+                let userData = head testUserForms
+                    email    = udEmail userData
+                uid <- runPrivs [RoleAdmin] sta $ addUser userData
+                resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
+                void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
+                rowCountShouldBe (sta ^. aStDb) "password_reset_tokens" 0
+                -- Check that user can login with new pass
+                void . runWithoutPrivs sta $ startThentosSessionByUserId uid "newpass"
+                pure ()
 
-        it "fails with NoSuchToken if token is not valid" $ \sta -> do
-            Left (ActionErrorThentos err) <-
-                runClearanceE dcBottom sta $ resetPasswordAndLogin "dummytoken" "dummypass"
-            err `shouldBe` NoSuchToken
+        context "if token is not valid" $ do
+            it "fails with NoSuchToken" $ \sta -> do
+                Left (ActionErrorThentos err) <-
+                    runClearanceE dcBottom sta $ resetPasswordAndLogin "dummytoken" "dummypass"
+                err `shouldBe` NoSuchToken
 
-        it "activates unconfirmed user" $ \sta -> do
-            let userData = head testUserForms
-                email    = udEmail userData
-            runWithoutPrivs sta $ addUnconfirmedUser userData
-            resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
-            void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
-            -- Check that user can login (= is confirmed)
-            void . runWithoutPrivs sta $ startThentosSessionByUserEmail email "newpass"
-            pure ()
+        context "if user is unconfirmed" $ do
+            it "confirms (activates) them" $ \sta -> do
+                let userData = head testUserForms
+                    email    = udEmail userData
+                runWithoutPrivs sta $ addUnconfirmedUser userData
+                resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
+                void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
+                -- Check that user can login (= is confirmed)
+                void . runWithoutPrivs sta $ startThentosSessionByUserEmail email "newpass"
+                pure ()
 
   where
     runWithoutPrivs = runPrivs ([] :: [Bool])
