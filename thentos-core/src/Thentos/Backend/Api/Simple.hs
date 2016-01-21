@@ -93,6 +93,9 @@ type ThentosUser =
   :<|> "captcha" :> Post '[PNG] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] ImageData)
   :<|> "audio_captcha" :> Capture "voice" ST
           :> Post '[WAV] (Headers '[Header "Thentos-Captcha-Id" CaptchaId] SBS)
+  :<|> "create_password_reset" :> ReqBody '[JSON] WrappedEmail :> Post '[JSON] ()
+  :<|> "password_reset" :> ReqBody '[JSON] PasswordResetRequest
+                        :> Post '[JSON] (JsonTop ThentosSessionToken)
 
 thentosUser :: ServerT ThentosUser (Action Void ())
 thentosUser =
@@ -105,6 +108,8 @@ thentosUser =
   :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
   :<|> (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
   :<|> (\voice -> makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
+  :<|> (\(WrappedEmail e) -> sendPasswordResetMail e)
+  :<|> (JsonTop <$>) . (\(PasswordResetRequest tok pass) -> resetPasswordAndLogin tok pass)
 
 
 -- * service

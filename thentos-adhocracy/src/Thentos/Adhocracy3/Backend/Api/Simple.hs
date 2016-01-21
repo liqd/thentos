@@ -73,7 +73,7 @@ import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Ends.Types (PNG, WAV)
-import Thentos.Types
+import Thentos.Types hiding (PasswordResetRequest)
 
 import qualified Paths_thentos_adhocracy__ as Paths (version)
 import qualified Thentos.Action as A

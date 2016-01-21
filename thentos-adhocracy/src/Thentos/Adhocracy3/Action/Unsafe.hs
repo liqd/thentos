@@ -24,7 +24,7 @@ import qualified Network.HTTP.Types.Status as Status
 
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Config
-import Thentos.Types
+import Thentos.Types hiding (PasswordResetRequest)
 import Thentos.Util
 
 import qualified Thentos.Action.Unsafe as U

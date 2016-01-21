@@ -228,6 +228,9 @@ instance ToSample UserName where
 instance ToSample UserEmail where
     toSamples _ = Docs.singleSample . (\(Just e) -> e) $ parseUserEmail "alice@example.com"
 
+instance ToSample WrappedEmail where
+    toSamples _ = second WrappedEmail <$> toSamples (Proxy :: Proxy UserEmail)
+
 instance ToSample UserId where
     toSamples _ = Docs.singleSample $ UserId 12
 
@@ -252,6 +255,10 @@ instance ToSample ConfirmationToken where
 
 instance ToSample PasswordResetToken where
     toSamples _ = runTokenBuilder Action.freshPasswordResetToken
+
+instance ToSample PasswordResetRequest where
+    toSamples _ = second (uncurry PasswordResetRequest)
+                    <$> toSamples (Proxy :: Proxy (PasswordResetToken, UserPass))
 
 instance ToSample ServiceId where
     toSamples _ = runTokenBuilder Action.freshServiceId

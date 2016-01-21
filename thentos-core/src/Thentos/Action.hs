@@ -24,7 +24,9 @@ module Thentos.Action
     , addUnconfirmedUserWithCaptcha
     , confirmNewUser
     , addPasswordResetToken
+    , sendPasswordResetMail
     , resetPassword
+    , resetPasswordAndLogin
     , changePassword
     , changePasswordUnconditionally_
     , requestUserEmailChange
@@ -231,7 +233,7 @@ sendUserConfirmationMail user (ConfirmationToken confToken) = do
             Just v -> Tagged v
         context "user_name"      = MuVariable . fromUserName $ udName user
         context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
-        context _                = error "sendUserConfirmationMail: no such context"
+        context x                = error $ "sendUserConfirmationMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
     U.unsafeAction $ U.sendMail (Just $ udName user) (udEmail user) subject (cs body)
 
@@ -277,20 +279,60 @@ confirmNewUser token = do
 -- ** password reset
 
 -- | Initiate password reset with email confirmation.  No authentication required, obviously.
+--
+-- NOTE: This leaks existence info on email addresses.  But if we do not want to throw 'NoSuchUser'
+-- here, we run into other issues:
+--
+-- - If we send mail to people not in your DB ("somebody entered your address in your password reset
+--   field, but you're not registered. If you want to register, please do so at X. If not, sorry and
+--   just ignore this email.") we could annoy them. It's not so bad if that happens just once, but
+--   what if somebody triggers a password reset for Angela Merkel's email address every two seconds?
+--
+-- - If we just silently ignore the error, it would be a bad UI experience for people who thought
+--   they registered with one address but actually used another one -- since we don't tell them that
+--   that the address is unkown and don't take any further action, it's very hard for them to figure
+--   out why they never receive the expected reset link.
 addPasswordResetToken :: UserEmail -> Action e s (User, PasswordResetToken)
 addPasswordResetToken email = do
     tok <- freshPasswordResetToken
     user <- queryA $ T.addPasswordResetToken email tok
     return (user, tok)
 
--- | Finish password reset with email confirmation.
+-- | Create a password reset token and send the link by email to the user.
+-- No authentication required, obviously.
+sendPasswordResetMail :: UserEmail -> Action e s ()
+sendPasswordResetMail email = do
+    (user, PasswordResetToken tok) <- addPasswordResetToken email
+    cfg <- U.unsafeAction U.getConfig
+    let subject = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
+        bodyTemplate = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "body"])
+        feHttp = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+            Nothing -> error "sendPasswordResetMail: frontend not configured!"
+            Just v -> Tagged v
+        context "user_name" = MuVariable . fromUserName $ user ^. userName
+        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> tok
+        context x           = error $ "sendPasswordResetMail: no such context: " ++ x
+    body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
+    U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
+
+-- | Finish password reset with email confirmation. Also confirms the user's email address if
+-- that hasn't happened before. Returns the ID of the updated user.
 --
 -- SECURITY: See 'confirmNewUser'.
-resetPassword :: PasswordResetToken -> UserPass -> Action e s ()
+resetPassword :: PasswordResetToken -> UserPass -> Action e s UserId
 resetPassword token password = do
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> U.unsafeAction U.getConfig
     hashedPassword <- U.unsafeAction $ U.hashUserPass password
     queryA $ T.resetPassword expiryPeriod token hashedPassword
+
+
+-- | Finish password reset with email confirmation and open a new ThentosSession for the user.
+--
+-- SECURITY: See 'confirmNewUser'.
+resetPasswordAndLogin :: PasswordResetToken -> UserPass -> Action e s ThentosSessionToken
+resetPasswordAndLogin token password = do
+    uid <- resetPassword token password
+    startThentosSessionByAgent_ (UserA uid)
 
 
 -- ** login
