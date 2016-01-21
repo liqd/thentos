@@ -34,7 +34,7 @@ import Safe (readMay)
 import URI.ByteString (URIParseError)
 
 import Thentos.Backend.Api.Docs.Proxy ()
-import Thentos.Types hiding (PasswordResetRequest)
+import Thentos.Types
 import Thentos.Util
 
 import qualified Data.Aeson as Aeson
@@ -279,11 +279,6 @@ data LoginRequest =
   | LoginByEmail UserEmail UserPass
   deriving (Eq, Typeable, Generic)
 
--- FIXME unify with type in Thentos.Types
-data PasswordResetRequest =
-    PasswordResetRequest Path UserPass
-  deriving (Eq, Typeable, Generic)
-
 -- | Reponse to a login or similar request.
 --
 -- Note: this generic form is useful for parsing a result from A3, but you should never *return* a
@@ -318,16 +313,6 @@ instance FromJSON LoginRequest where
           (Just x,  Nothing) -> return $ LoginByName x pass
           (Nothing, Just x)  -> return $ LoginByEmail x pass
           (_,       _)       -> fail $ "malformed login request body: " ++ show v
-
-instance ToJSON PasswordResetRequest where
-    toJSON (PasswordResetRequest path pass) = object ["path" .= path, "password" .= pass]
-
-instance FromJSON PasswordResetRequest where
-    parseJSON = withObject "password reset request" $ \v -> do
-        path <- Path <$> v .: "path"
-        pass <- v .: "password"
-        failOnError $ passwordAcceptable pass
-        return $ PasswordResetRequest path $ UserPass pass
 
 instance ToJSON RequestResult where
     toJSON (RequestSuccess p t) = object $

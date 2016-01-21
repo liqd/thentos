@@ -11,17 +11,14 @@ module Thentos.Adhocracy3.Action
     , login
     , makeExternalUrl
     , resetPassword
-    , userIdFromPath
     ) where
 
 import Control.Lens ((^.))
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (throwError)
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.List (dropWhileEnd, stripPrefix)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, ST, cs)
-import Safe (readMay)
 import System.Log (Priority(DEBUG))
 
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -30,7 +27,7 @@ import qualified URI.ByteString as URI
 
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Config
-import Thentos.Types hiding (PasswordResetRequest)
+import Thentos.Types
 
 import qualified Thentos.Action as A
 import qualified Thentos.Action.Unsafe as U
@@ -105,24 +102,14 @@ login r = U.logIfError' $ do
     userUrl <- externalUrlOfDefaultPersona uid
     return $ RequestSuccess (Path $ cs userUrl) stok
 
--- | Allow a user to reset their password. This endpoint is called by the A3 frontend after the user
--- has clicked on the link in a reset-password mail sent by the A3 backend. To check whether the
--- reset path is valid, we forward the request to the backend, but replacing the new password by a
--- dummy (as usual). If the backend indicates success, we update the password in Thentos.
--- A successful password reset will activate not-yet-activated users, as per the A3 API spec.
--- BUG #321: Process is now broken, adapt to new user management (user is now stored in
--- Thentos with a corresponding persona in A3 for activated users only.)
+-- | Finish password reset with email confirmation and open a new ThentosSession for the user.
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
-resetPassword (PasswordResetRequest path pass) = U.logIfError' $ do
-    U.unsafeAction . U.logger DEBUG $ "route password_reset for path: " <> show path
-    reqResult <- U.resetPasswordInA3 path
-    case reqResult of
-        RequestSuccess userPath _a3tok -> do
-            uid  <- userIdFromPath userPath
-            A.changePasswordUnconditionally_ uid pass
-            stok <- A.startThentosSessionByUserId uid pass
-            return $ RequestSuccess userPath stok
-        RequestError errMsg -> throwError . OtherError $ GenericA3Error errMsg
+resetPassword (PasswordResetRequest resetTok pass) = U.logIfError' $ do
+    U.unsafeAction . U.logger DEBUG $ "route password_reset for token: " <> show resetTok
+    uid <- A.resetPassword resetTok pass
+    sessTok <- A.startThentosSessionByUserId uid pass
+    userUrl <- externalUrlOfDefaultPersona uid
+    return $ RequestSuccess (Path $ cs userUrl) sessTok
 
 -- | Convert a local file name into a absolute path relative to the A3 backend endpoint.  (Returns
 -- exposed url.)
@@ -132,15 +119,6 @@ a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
     beHttp     = case config >>. (Proxy :: Proxy '["backend"]) of
                      Nothing -> error "a3backendPath: backend not configured!"
                      Just v -> Tagged v
-
-userIdFromPath :: MonadError (ThentosError e) m => Path -> m UserId
-userIdFromPath (Path s) = do
-    uri <- either (const . throwError . MalformedUserPath $ s) return $
-        URI.parseURI URI.laxURIParserOptions $ cs s
-    rawId <- maybe (throwError $ MalformedUserPath s) return $
-        stripPrefix "/principals/users/" $ dropWhileEnd (== '/') (cs $ URI.uriPath uri)
-    maybe (throwError NoSuchUser) (return . UserId) $ readMay rawId
-
 
 -- * helper actions
 
