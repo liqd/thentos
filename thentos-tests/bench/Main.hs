@@ -39,7 +39,7 @@ import qualified Network.HTTP.LoadTest.Report as Pronk
 import Thentos.Config (ThentosConfig)
 import Thentos.Action.Types (ActionState(..))
 import Thentos.Types
-    ( UserFormData(UserFormData), UserName(..), UserPass(..), parseUserEmail
+    ( UserFormData(UserFormData), UserName(..), parseUserEmail
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
     , ByUserOrServiceId(ByUser)
     )
@@ -88,7 +88,7 @@ getThentosSessionToken :: ThentosConfig -> IO (Maybe ThentosSessionToken)
 getThentosSessionToken cfg = do
     let (Just req_) = makeEndpoint cfg "/thentos_session"
         req = req_
-                { requestBody = RequestBodyLBS $ Aeson.encode (ByUser (godUid, godPass))
+                { requestBody = RequestBodyLBS $ Aeson.encode (ByUser godUid godPass)
                 , method = methodPost
                 }
     m <- newManager tlsManagerSettings
@@ -252,7 +252,7 @@ loginGenTrans cfg (MachineState uid loginState) =
     loginReq =
         (makeRequest cfg Nothing "/thentos_session")
             { method = methodPost
-            , requestBody = RequestBodyLBS $ Aeson.encode (ByUser (uid, UserPass "dummyPassword"))
+            , requestBody = RequestBodyLBS $ Aeson.encode (ByUser uid "dummyPassword")
             }
 
     logout tok = (logoutReq tok, const LoggedOut)

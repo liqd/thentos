@@ -450,19 +450,19 @@ instance Aeson.ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
 
-data ByUserOrServiceId = ByUser (UserId, UserPass)  -- FIXME: @ByUser UserId UserPass@?  (same in next line)
-                       | ByService (ServiceId, ServiceKey)
+data ByUserOrServiceId = ByUser UserId UserPass
+                       | ByService ServiceId ServiceKey
   deriving (Eq, Typeable, Generic)
 
 instance FromJSON ByUserOrServiceId where
     parseJSON (Aeson.Object (H.toList -> [(key, val)]))
-        | key == "user"    = ByUser <$> Aeson.parseJSON val
-        | key == "service" = ByService <$> Aeson.parseJSON val
+        | key == "user"    = uncurry ByUser <$> Aeson.parseJSON val
+        | key == "service" = uncurry ByService <$> Aeson.parseJSON val
     parseJSON bad = aesonError "ByUserOrServiceId" bad
 
 instance ToJSON ByUserOrServiceId where
-    toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
-    toJSON (ByService v) = Aeson.object [ "service" .= Aeson.toJSON v]
+    toJSON (ByUser i k)    = Aeson.object [ "user" .= Aeson.toJSON (i, k)]
+    toJSON (ByService i k) = Aeson.object [ "service" .= Aeson.toJSON (i, k)]
 
 
 -- * timestamp, timeout
