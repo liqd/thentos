@@ -24,7 +24,7 @@ mkService :: HashedSecret ServiceKey -> Service
 mkService h = Service h (UserId 0) Nothing "name" "description"
 
 spec :: Spec
-spec = describe "UtilSpec" $ do
+spec = describe "Thentos.Util" $ do
     describe "HashedSecret" $ do
         it "has working binary instance." $ do
             let f h = (Data.Binary.decode . Data.Binary.encode) h `shouldBe` h
