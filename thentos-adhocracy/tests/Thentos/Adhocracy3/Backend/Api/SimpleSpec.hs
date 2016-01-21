@@ -9,7 +9,6 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-{-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE ViewPatterns              #-}
@@ -42,7 +41,7 @@ import Test.Hspec (ActionWith, Spec, around_, around, describe, hspec, it,
                    shouldBe, shouldContain, shouldSatisfy, pendingWith)
 import Test.Hspec.Wai (request, with)
 import Test.Hspec.Wai.Internal (WaiSession, runWaiSession)
-import Test.QuickCheck (Arbitrary(..), property)
+import Test.QuickCheck (property)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
@@ -55,7 +54,7 @@ import Thentos.Action.Types
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Adhocracy3.Backend.Api.Simple
 import Thentos.Config (ThentosConfig)
-import Thentos.Types hiding (PasswordResetRequest)
+import Thentos.Types
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
@@ -120,15 +119,6 @@ spec =
                  fromA3UserWithPass <$>
                      (Aeson.eitherDecode userdata :: Either String A3UserWithPass)
                      `shouldBe` Left "Illegal whitespace sequence in user name: \" Anna  Toll\""
-
-        describe "PasswordResetRequest" $ do
-            it "has invertible *JSON instances" . property $
-                \(p :: PasswordResetRequest) -> (Aeson.eitherDecode . Aeson.encode) p == Right p
-
-            it "rejects short passwords" $ do
-                 let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "short"
-                 (Aeson.eitherDecode reqdata :: Either String PasswordResetRequest)
-                     `shouldBe` Left "password too short (less than 6 characters)"
 
         describe "create user" $ do
             let a3userCreated   = encodePretty $ object
@@ -336,15 +326,3 @@ withApp app test = bracket
     (const test)
   where
     settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
-
-
--- * instances
-
-instance Arbitrary Path where
-    arbitrary = Path <$> arbitrary
-
-instance Arbitrary PasswordResetRequest where
-    arbitrary = PasswordResetRequest <$> arbitrary <*> arbitrary
-
--- | We don't want to accidentally show passwords in production code but it's harmless in tests.
-deriving instance Show PasswordResetRequest

@@ -1,13 +1,14 @@
-{-# LANGUAGE DeriveGeneric                            #-}
-{-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE QuasiQuotes                              #-}
-{-# LANGUAGE ScopedTypeVariables                      #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE QuasiQuotes               #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Thentos.TypesSpec where
 
-import Data.Aeson (decode, FromJSON)
+import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson (decode, eitherDecode, encode, object, (.=), FromJSON, Value(String))
 import Data.Pool (Pool)
-import Data.String.Conversions (cs)
+import Data.String.Conversions (LBS, ST, cs)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import GHC.Generics (Generic)
@@ -148,8 +149,22 @@ typesSpec = modifyMaxSize (* testSizeFactor) $ do
             secondsFromString "" `shouldBe` (Nothing :: Maybe Double)
 
 
+    describe "PasswordResetRequest" $ do
+        it "has invertible *JSON instances" . property $
+            \(p :: PasswordResetRequest) -> (eitherDecode . encode) p == Right p
+
+        it "rejects short passwords" $ do
+             let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "short"
+             (eitherDecode reqdata :: Either String PasswordResetRequest)
+                 `shouldBe` Left "password too short (less than 6 characters)"
+
+
 decodeProxy :: String -> Maybe ProxyUri
 decodeProxy str = val <$> (decode . cs $ "{ \"val\" : \"" ++ str ++ "\"}")
+
+mkPwResetRequestJson :: ST -> ST -> LBS
+mkPwResetRequestJson path pass = encodePretty $ object
+    ["path" .= String path, "password" .= String pass]
 
 -- @Wrapper@ is used to get around the restriction from top-level strings in
 -- pre 0.9 versions of @aeson@
