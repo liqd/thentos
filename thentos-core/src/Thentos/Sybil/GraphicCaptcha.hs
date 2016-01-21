@@ -56,11 +56,14 @@ mkChallenge font solution =
             a = 0.3
             b = 0.2
 
+        holeOffsetParam = 10
+        chunkOffsetParam = 2
+
         action :: m (Drawing PixelRGBA8 ())
         action = do
             offsetParams <- forM solution $ \_ -> do
-                holeOffset@(V2 x y) <- V2 <$> fuzz 10 <*> fuzz 0
-                chunkOffset         <- V2 <$> fuzz (-x) <*> fuzz (-5-y)
+                holeOffset@(V2 x y) <- V2 <$> fuzz holeOffsetParam <*> fuzz 0
+                chunkOffset         <- V2 <$> fuzz (-x) <*> fuzz (-chunkOffsetParam-y)
                 return (holeOffset, chunkOffset)
 
             let allParams = zip letterParams offsetParams
