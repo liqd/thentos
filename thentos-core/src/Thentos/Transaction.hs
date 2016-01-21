@@ -10,7 +10,7 @@ import Control.Exception.Lifted (throwIO)
 import Control.Lens ((^.))
 import Control.Monad (void, when)
 import Control.Monad.Except (throwError)
-import Database.PostgreSQL.Simple         (Only(..))
+import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
 import Data.String.Conversions (ST)
@@ -24,58 +24,46 @@ import Thentos.Transaction.Core
 -- * user
 
 lookupConfirmedUser :: UserId -> ThentosQuery e (UserId, User)
-lookupConfirmedUser uid = do
-    users <- queryT [sql| SELECT name, password, email
-                          FROM users
-                          WHERE id = ? AND confirmed = true |] (Only uid)
-    case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
-      []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupConfirmedUser: multiple results"
+lookupConfirmedUser uid =
+    queryT [sql| SELECT name, password, email
+                 FROM users
+                 WHERE id = ? AND confirmed = true |] (Only uid) >>=
+    returnUnique (\(name, pwd, email) -> (uid, User name pwd email))
+                 NoSuchUser "lookupConfirmedUser: multiple results"
 
 -- | Lookup any user (whether confirmed or not) by their ID.
 lookupAnyUser :: UserId -> ThentosQuery e (UserId, User)
-lookupAnyUser uid = do
-    users <- queryT [sql| SELECT name, password, email
-                          FROM users
-                          WHERE id = ? |] (Only uid)
-    case users of
-      [(name, pwd, email)] -> return (uid, User name pwd email)
-      []                   -> throwError NoSuchUser
-      _                    -> impossible "lookupAnyUser: multiple results"
+lookupAnyUser uid =
+    queryT [sql| SELECT name, password, email
+                 FROM users
+                 WHERE id = ? |] (Only uid) >>=
+    returnUnique (\(name, pwd, email) -> (uid, User name pwd email))
+                 NoSuchUser "lookupAnyUser: multiple results"
 
 lookupConfirmedUserByName :: UserName -> ThentosQuery e (UserId, User)
-lookupConfirmedUserByName uname = do
-    users <- queryT [sql| SELECT id, name, password, email
-                          FROM users
-                          WHERE name = ? AND confirmed = true |] (Only uname)
-    case users of
-      [(uid, name, pwd, email)] -> return (uid, User name pwd email)
-      []                        -> throwError NoSuchUser
-      _                         -> impossible "lookupConfirmedUserByName: multiple users"
-
+lookupConfirmedUserByName uname =
+    queryT [sql| SELECT id, name, password, email
+                 FROM users
+                 WHERE name = ? AND confirmed = true |] (Only uname) >>=
+    returnUnique (\(uid, name, pwd, email) -> (uid, User name pwd email))
+                 NoSuchUser "lookupConfirmedUserByName: multiple results"
 
 lookupConfirmedUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
-lookupConfirmedUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
-                          FROM users
-                          WHERE email = ? AND confirmed = true |] (Only email)
-    case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
-      []                 -> throwError NoSuchUser
-      _                  -> impossible "lookupConfirmedUserByEmail: multiple users"
+lookupConfirmedUserByEmail email =
+    queryT [sql| SELECT id, name, password
+                 FROM users
+                 WHERE email = ? AND confirmed = true |] (Only email) >>=
+    returnUnique (\(uid, name, pwd) -> (uid, User name pwd email))
+                 NoSuchUser "lookupConfirmedUserByEmail: multiple results"
 
 -- | Lookup any user (whether confirmed or not) by their email address.
 lookupAnyUserByEmail :: UserEmail -> ThentosQuery e (UserId, User)
-lookupAnyUserByEmail email = do
-    users <- queryT [sql| SELECT id, name, password
-                          FROM users
-                          WHERE email = ? |] (Only email)
-    case users of
-      [(uid, name, pwd)] -> return (uid, User name pwd email)
-      []                 -> throwError NoSuchUser
-      _                  -> impossible "lookupAnyUserByEmail: multiple users"
-
+lookupAnyUserByEmail email =
+    queryT [sql| SELECT id, name, password
+                 FROM users
+                 WHERE email = ? |] (Only email) >>=
+    returnUnique (\(uid, name, pwd) -> (uid, User name pwd email))
+                 NoSuchUser "lookupAnyUserByEmail: multiple results"
 
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
 -- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
@@ -109,8 +97,8 @@ addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> Thent
 addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
 
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
-finishUserRegistration timeout token = do
-    res <- queryT [sql|
+finishUserRegistration timeout token =
+    queryT [sql|
         UPDATE users SET confirmed = true
         FROM user_confirmation_tokens
         WHERE users.id = user_confirmation_tokens.id
@@ -120,11 +108,9 @@ finishUserRegistration timeout token = do
         DELETE FROM user_confirmation_tokens
         WHERE token = ? AND timestamp + ? > now()
         RETURNING id;
-    |] (timeout, token, token, timeout)
-    case res of
-        [] -> throwError NoSuchPendingUserConfirmation
-        [Only uid] -> return uid
-        _ -> impossible "repeated user confirmation token"
+    |] (timeout, token, token, timeout) >>=
+    returnUnique fromOnly NoSuchPendingUserConfirmation
+                 "finishUserRegistration: repeated user confirmation token"
 
 -- | Add a password reset token.  Return the user whose password this token can change.
 addPasswordResetToken :: UserEmail -> PasswordResetToken -> ThentosQuery e User
@@ -149,10 +135,8 @@ resetPassword timeout token newPassword = do
                         RETURNING users.id
                       |] (newPassword, timeout, token)
     void $ execT [sql| DELETE FROM password_reset_tokens WHERE token = ? |] (Only token)
-    case res of
-        [Only uid] -> return uid
-        []         -> throwError NoSuchToken
-        _          -> impossible "resetPassword: password reset token exists multiple times"
+    returnUnique fromOnly NoSuchToken
+                 "resetPassword: password reset token exists multiple times" res
 
 addUserEmailChangeRequest :: UserId -> UserEmail -> ConfirmationToken -> ThentosQuery e ()
 addUserEmailChangeRequest uid newEmail token = do
@@ -163,7 +147,7 @@ addUserEmailChangeRequest uid newEmail token = do
 -- exist or has expired.
 confirmUserEmailChange :: Timeout -> ConfirmationToken -> ThentosQuery e ()
 confirmUserEmailChange timeout token = do
-    checkUnique NoSuchToken "email change token exists multiple times"
+    checkUnique NoSuchToken "confirmUserEmailChange: email change token exists multiple times"
             =<< execT [sql| UPDATE users
                             SET email = email_change_tokens.new_email
                             FROM email_change_tokens
@@ -199,10 +183,8 @@ lookupService sid = do
     services <- queryT [sql| SELECT key, owner_user, name, description
                              FROM services
                              WHERE id = ? |] (Only sid)
-    service <- case services of
-        [(key, owner, name, desc)] -> return $ Service key owner Nothing name desc
-        []                         -> throwError NoSuchService
-        _                          -> impossible "lookupService: multiple results"
+    service <- returnUnique (\(key, owner, name, desc) -> Service key owner Nothing name desc)
+                            NoSuchService "lookupService: multiple results" services
     return (sid, service)
 
 -- | Add new service.
@@ -403,17 +385,12 @@ lookupThentosSession token = do
                        SET end_ = now()::timestamptz + period
                        WHERE token = ? AND end_ >= now()
                  |] (Only token)
-    sesss <- queryT [sql| SELECT uid, sid, start, end_, period FROM thentos_sessions
-                          WHERE token = ? AND end_ >= now()
-                    |] (Only token)
-    case sesss of
-        [(uid, sid, start, end, period)] ->
-            let agent = makeAgent uid sid
-            in return ( token
-                      , ThentosSession agent start end period
-                      )
-        [] -> throwError NoSuchThentosSession
-        _  -> impossible "lookupThentosSession: multiple results"
+    sess <- queryT [sql| SELECT uid, sid, start, end_, period FROM thentos_sessions
+                         WHERE token = ? AND end_ >= now()
+                   |] (Only token)
+    returnUnique (\(uid, sid, start, end, period) ->
+                    (token, ThentosSession (makeAgent uid sid) start end period))
+                 NoSuchThentosSession "lookupThentosSession: multiple results" sess
 
 -- | Start a new thentos session. Start time is set to now, end time is calculated based on the
 -- specified 'Timeout'. If the agent is a user, this new session is added to their existing
@@ -457,16 +434,13 @@ serviceNamesFromThentosSession tok = do
 -- thentos session.  If the service session is still active, but the associated thentos session has
 -- expired, update service sessions expiry time to @now@ and throw 'NoSuchThentosSession'.
 lookupServiceSession :: ServiceSessionToken -> ThentosQuery e (ServiceSessionToken, ServiceSession)
-lookupServiceSession token = do
-    sessions <- queryT
-        [sql| SELECT service, start, end_, period, thentos_session_token, meta
-              FROM service_sessions
-              WHERE token = ? |] (Only token)
-    case sessions of
-        []        -> throwError NoSuchServiceSession
-        [(service, start, end, period, thentosSessionToken, meta)] ->
-            return (token, ServiceSession service start end period thentosSessionToken meta)
-        _         -> impossible "multiple sessions with the same token"
+lookupServiceSession token =
+    queryT [sql| SELECT service, start, end_, period, thentos_session_token, meta
+                 FROM service_sessions
+                 WHERE token = ? |] (Only token) >>=
+    returnUnique (\(service, start, end, period, thentosSessionToken, meta) ->
+                     (token, ServiceSession service start end period thentosSessionToken meta))
+                 NoSuchServiceSession "lookupServiceSession: multiple sessions with the same token"
 
 -- | Like 'startThentosSession' for service sessions.  Bump associated thentos session.  Throw an
 -- error if thentos session lookup fails.  If a service session already exists for the given
@@ -491,7 +465,7 @@ endServiceSession :: ServiceSessionToken -> ThentosQuery e ()
 endServiceSession token =
     execT [sql| DELETE FROM service_sessions WHERE token = ? |] (Only token)
     >>=
-    checkUnique NoSuchServiceSession "multiple service sessions with same token"
+    checkUnique NoSuchServiceSession "endServiceSession: multiple service sessions with same token"
 
 
 -- * agents and roles
@@ -545,23 +519,18 @@ storeCaptcha cid solution = void $
 -- Throws 'NoSuchCaptchaId' if the given 'CaptchaId' doesn't exist in the DB (either because it
 -- never did or because it was deleted).
 solveCaptcha :: CaptchaId -> ST -> ThentosQuery e Bool
-solveCaptcha cid solution = do
-    res <- queryT [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
-    case res of
-      [Only correct] -> pure $ solution == correct
-      []             -> throwError NoSuchCaptchaId
-      _              -> impossible "solveCaptcha: multiple results"
+solveCaptcha cid solution =
+    queryT [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid) >>=
+    returnUnique (\(Only correct) -> solution == correct)
+                 NoSuchCaptchaId "solveCaptcha: multiple results"
 
 -- | Delete a captcha and its solution from the DB. Throws 'NoSuchCaptchaId' if the given
 -- 'CaptchaId' doesn't exist in the DB (either because it never did or because it was deleted due
 -- to garbage collection or a prior call to this action).
 deleteCaptcha :: CaptchaId -> ThentosQuery e ()
-deleteCaptcha cid = do
-    res <- execT [sql| DELETE FROM captchas WHERE id = ? |] (Only cid)
-    case res of
-      1 -> pure ()
-      0 -> throwError NoSuchCaptchaId
-      _ -> impossible "deleteCaptcha: multiple results"
+deleteCaptcha cid =
+    execT [sql| DELETE FROM captchas WHERE id = ? |] (Only cid) >>=
+    checkUnique NoSuchCaptchaId "deleteCaptcha: multiple results"
 
 
 -- * garbage collection
@@ -609,6 +578,11 @@ checkUnique zero multi n =
         0 -> throwError zero
         1 -> return ()
         _ -> impossible multi
+
+returnUnique :: FromRow r => (r -> v) -> ThentosError e -> String -> [r] -> ThentosQuery e v
+returnUnique conv _    _     [res] = return $ conv res
+returnUnique _    zero _     []    = throwError zero
+returnUnique _    _    multi _     = impossible multi
 
 -- | Throw an error from a situation which (we believe) will never arise.
 impossible :: String -> a
