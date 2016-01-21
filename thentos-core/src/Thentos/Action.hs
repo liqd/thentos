@@ -334,7 +334,7 @@ lookupUserCheckPassword_ transaction password = a `catchError` h
   where
     a = do
         (uid, user) <- queryA transaction
-        if verifyPass password user
+        if verifyUserPass password user
             then return (uid, user)
             else throwError BadCredentials
 
@@ -501,7 +501,7 @@ startThentosSessionByServiceId sid key = a `catchError` h
   where
     a = do
         (_, service) <- queryA (T.lookupService sid)
-        unless (verifyKey key service) $ throwError BadCredentials
+        unless (verifyServiceKey key service) $ throwError BadCredentials
         startThentosSessionByAgent_ (ServiceA sid)
 
     h NoSuchService =

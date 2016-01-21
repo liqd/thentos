@@ -72,12 +72,18 @@ spec_user = describe "user" $ do
         it "works" $ \sta -> do
             let user = testUsers !! 0
             uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
-            (uid', user') <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
+
+            Left (ActionErrorThentos NoSuchUser)
+                <- runClearanceE dcBottom sta $ lookupConfirmedUser uid
+            (uid', user')
+                <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
             uid' `shouldBe` uid
-            user' `shouldBe` (userPassword .~ (user' ^. userPassword) $ user)
+            let clearPassword = userPassword .~ (user ^. userPassword)
+                in clearPassword user' `shouldBe` clearPassword user
+
             void . runPrivs [RoleAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
-                runClearanceE dcBottom sta $ lookupConfirmedUser uid
+                runPrivsE [RoleAdmin] sta $ lookupConfirmedUser uid
             return ()
 
         it "guarantee that user names are unique" $ \sta -> do

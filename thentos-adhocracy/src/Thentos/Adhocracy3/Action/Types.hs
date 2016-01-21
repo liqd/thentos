@@ -313,7 +313,7 @@ instance FromJSON LoginRequest where
     parseJSON = withObject "login request" $ \v -> do
         name <- UserName  <$$> v .:? "name"
         email <- v .:? "email"
-        pass <- UserPass  <$>  v .: "password"
+        pass <- UserPass <$>  v .: "password"
         case (name, email) of
           (Just x,  Nothing) -> return $ LoginByName x pass
           (Nothing, Just x)  -> return $ LoginByEmail x pass

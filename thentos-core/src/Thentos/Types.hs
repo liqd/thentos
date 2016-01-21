@@ -6,6 +6,8 @@
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE ViewPatterns                #-}
 
+{-# OPTIONS_GHC  #-}
+
 module Thentos.Types
     ( JsonTop(..)
     , User(..)
@@ -92,7 +94,8 @@ import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
 import Data.Aeson.Types (Parser)
 import Data.Attoparsec.ByteString.Char8 (parseOnly)
-import Database.PostgreSQL.Simple.FromField (FromField, fromField, ResultError(..), returnError, typeOid)
+import Database.PostgreSQL.Simple.FromField
+    (FromField, fromField, Conversion, ResultError(..), returnError, typeOid)
 import Database.PostgreSQL.Simple.Missing (intervalSeconds)
 import Database.PostgreSQL.Simple.ToField (Action(Plain), ToField, inQuotes, toField)
 import Database.PostgreSQL.Simple.TypeInfo.Static (interval)
@@ -124,7 +127,6 @@ import URI.ByteString (URI, RelativeRef, URIParseError,
                        authorityHost, authorityPort, portNumber, hostBS, uriPath)
 import Web.HttpApiData (parseQueryParam)
 
-import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Aeson as Aeson
 import qualified Data.Csv as CSV
 import qualified Data.ByteString as SBS
@@ -204,14 +206,21 @@ instance CSV.FromField UserName where
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
-newtype HashedSecret a = HashedSecret { fromHashedSecret :: Scrypt.EncryptedPass }
-    deriving (Eq, Show, Typeable, Generic)
+data HashedSecret a = BCryptHash SBS | SCryptHash SBS
+    deriving (Eq, Show, Generic)
 
-instance FromField (HashedSecret a) where
-    fromField f dat = HashedSecret . Scrypt.EncryptedPass <$> fromField f dat
+instance (Typeable a) => FromField (HashedSecret a) where
+    fromField f = maybe (returnError Incompatible f "") parsePrefix
+      where
+        parsePrefix :: SBS -> Conversion (HashedSecret a)
+        parsePrefix s = case SBS.splitAt 2 s of
+            ("S_", h) -> return $ SCryptHash h
+            ("B_", h) -> return $ BCryptHash h
+            _         -> returnError ConversionFailed f ""
 
 instance ToField (HashedSecret a) where
-    toField = toField . Scrypt.getEncryptedPass . fromHashedSecret
+    toField (SCryptHash s) = toField $ "S_" <> s
+    toField (BCryptHash s) = toField $ "B_" <> s
 
 newtype UserEmail = UserEmail { userEmailAddress :: EmailAddress }
     deriving (Eq, Ord, Show, Read, Typeable, Generic)
@@ -484,19 +493,19 @@ instance ToJSON ServiceSessionMetadata where toJSON = Aeson.gtoJson
 instance FromField ServiceSessionMetadata where
     fromField f dat = ServiceSessionMetadata <$> fromField f dat
 
-data ByUserOrServiceId = ByUser (UserId, UserPass)
-                       | ByService (ServiceId, ServiceKey)
+data ByUserOrServiceId = ByUser UserId UserPass
+                       | ByService ServiceId ServiceKey
   deriving (Eq, Typeable, Generic)
 
 instance FromJSON ByUserOrServiceId where
     parseJSON (Aeson.Object (H.toList -> [(key, val)]))
-        | key == "user"    = ByUser <$> Aeson.parseJSON val
-        | key == "service" = ByService <$> Aeson.parseJSON val
+        | key == "user"    = uncurry ByUser <$> Aeson.parseJSON val
+        | key == "service" = uncurry ByService <$> Aeson.parseJSON val
     parseJSON bad = aesonError "ByUserOrServiceId" bad
 
 instance ToJSON ByUserOrServiceId where
-    toJSON (ByUser v)    = Aeson.object [ "user" .= Aeson.toJSON v]
-    toJSON (ByService v) = Aeson.object [ "service" .= Aeson.toJSON v]
+    toJSON (ByUser i k)    = Aeson.object [ "user" .= Aeson.toJSON (i, k)]
+    toJSON (ByService i k) = Aeson.object [ "service" .= Aeson.toJSON (i, k)]
 
 
 -- * timestamp, timeout

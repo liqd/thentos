@@ -143,8 +143,8 @@ thentosThentosSession =
        startThentosSession
   :<|> existsThentosSession
   :<|> endThentosSession
-  where startThentosSession (ByUser (id', pass)) = startThentosSessionByUserId id' pass
-        startThentosSession (ByService (id', key)) = startThentosSessionByServiceId id' key
+  where startThentosSession (ByUser id' pass) = startThentosSessionByUserId id' pass
+        startThentosSession (ByService id' key) = startThentosSessionByServiceId id' key
 
 
 -- * service session
