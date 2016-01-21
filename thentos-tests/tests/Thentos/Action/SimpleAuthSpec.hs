@@ -9,7 +9,6 @@ import Control.Concurrent (forkIO, killThread)
 import Control.Exception (bracket)
 import Control.Lens ((^.))
 import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
-import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs, (<>))
 import Data.Void (Void)
@@ -59,7 +58,7 @@ setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . s
 mkActionState :: IO ActionState
 mkActionState = do
     actionState <- createActionState
-    withResource (actionState ^. aStDb) createGod
+    createGod (actionState ^. aStDb)
     return actionState
 
 specWithActionState :: Spec

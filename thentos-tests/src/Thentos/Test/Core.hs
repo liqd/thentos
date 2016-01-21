@@ -29,7 +29,7 @@ import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Salt(Salt), scryptParams)
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
-import Data.Pool (Pool, withResource, destroyAllResources)
+import Data.Pool (Pool, destroyAllResources)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Data.Void (Void)
@@ -182,7 +182,7 @@ withFrontendAndBackend test = do
     st@(ActionState cfg _ connPool) <- createActionState
     withFrontend (getFrontendConfig cfg) st
         $ withBackend (getBackendConfig cfg) st
-            $ withResource connPool (\conn -> liftIO (createGod conn) >> test st)
+            $ liftIO (createGod connPool) >> test st
                 `finally` destroyAllResources connPool
 
 

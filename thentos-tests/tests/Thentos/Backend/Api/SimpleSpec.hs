@@ -24,7 +24,6 @@ import Database.PostgreSQL.Simple (Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Data.Configifier (Tagged(Tagged), (>>.), Source(YamlString))
 import Data.Monoid ((<>))
-import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, LBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
@@ -78,7 +77,7 @@ setupIt mTmp = do
     as <- createActionState' cfg
     let Just becfg = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
         app = serveApi becfg as
-    withResource (as ^. aStDb) createGod
+    createGod (as ^. aStDb)
     godHeader <- snd <$> loginAsGod as
     return $! ItsState app as godHeader
 

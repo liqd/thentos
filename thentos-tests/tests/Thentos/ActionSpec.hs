@@ -14,7 +14,6 @@ import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Data.Configifier (Source(YamlString), (>>.))
 import Data.Either (isLeft, isRight)
 import Data.Functor.Infix ((<$$>))
-import Data.Pool (withResource)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
 import Data.Void (Void)
@@ -50,7 +49,7 @@ spec = do
     let b action = outsideTempDirectory $ \tmp -> do
           cfg <- thentosTestConfig' [YamlString . cs $ "signup_log: " ++ tmp </> "signups.log"]
           as <- createActionState' cfg
-          withResource (as ^. aStDb) createGod
+          createGod (as ^. aStDb)
           action as
 
     describe "Thentos.Action" . around b $ do

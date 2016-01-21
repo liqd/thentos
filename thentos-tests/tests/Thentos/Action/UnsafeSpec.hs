@@ -8,7 +8,6 @@
 module Thentos.Action.UnsafeSpec where
 
 import Control.Lens ((^.))
-import Data.Pool (withResource)
 import Data.Void (Void)
 import Test.Hspec (Spec, describe, it, before, hspec)
 
@@ -32,7 +31,7 @@ type Act = Action (ActionError Void) ()
 mkActionState :: IO ActionState
 mkActionState = do
     actionState <- createActionState
-    withResource (actionState ^. aStDb) createGod
+    createGod (actionState ^. aStDb)
     return actionState
 
 specWithActionState :: Spec

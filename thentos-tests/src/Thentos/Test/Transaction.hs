@@ -16,13 +16,9 @@ import Test.Hspec (shouldBe)
 import Thentos.Transaction.Core
 import Thentos.Types
 
--- | Like 'runThentosQuery', but take connection from pool.
-runPooledQuery :: Pool Connection -> ThentosQuery e a -> IO (Either (ThentosError e) a)
-runPooledQuery connPool q = withResource connPool $ \conn -> runThentosQuery conn q
-
--- | Like 'runPooledQuery', but specialize error type to Void.
+-- | Like 'runThentosQuery', but specialize error type to Void.
 runVoidedQuery :: Pool Connection -> ThentosQuery Void a -> IO (Either (ThentosError Void) a)
-runVoidedQuery = runPooledQuery
+runVoidedQuery = runThentosQuery
 
 -- | Take a connection from the pool and execute the query.
 doQuery :: (ToRow q, FromRow r) => Pool Connection -> Query -> q -> IO [r]

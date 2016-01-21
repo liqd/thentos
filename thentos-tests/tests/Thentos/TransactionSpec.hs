@@ -17,6 +17,7 @@ import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn,
 import qualified Data.Set as Set
 
 import Thentos.Transaction
+import Thentos.Transaction.Core (runThentosQuery)
 import Thentos.Types
 import Thentos.Util (hashUserPass, hashServiceKey)
 
@@ -367,30 +368,30 @@ unassignRoleSpec = describe "unassignRole" $ do
 emailChangeRequestSpec :: SpecWith (Pool Connection)
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runThentosQuery connPool $
             addUserEmailChangeRequest userId newEmail testToken
         [Only tokenInDb] <- doQuery connPool
             [sql| SELECT token FROM email_change_tokens|] ()
         tokenInDb `shouldBe` testToken
 
     it "changes a user's email if given a valid token" $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runThentosQuery connPool $
             addUserEmailChangeRequest userId newEmail testToken
         Right _ <-
-            runPooledQuery connPool $ confirmUserEmailChange (fromHours 1) testToken
+            runThentosQuery connPool $ confirmUserEmailChange (fromHours 1) testToken
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` newEmail
 
     it "throws NoSuchToken if given an invalid token and does not update the email" $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runThentosQuery connPool $
             addUserEmailChangeRequest userId newEmail testToken
         let badToken = ConfirmationToken "badtoken"
         Left NoSuchToken <-
-            runPooledQuery connPool $ confirmUserEmailChange (Timeoutms 3600) badToken
+            runThentosQuery connPool $ confirmUserEmailChange (Timeoutms 3600) badToken
         [Only expectedEmail] <- doQuery connPool
             [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
         expectedEmail `shouldBe` forceUserEmail "me@example.com"
@@ -404,9 +405,9 @@ emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
 addServiceSpec :: SpecWith (Pool Connection)
 addServiceSpec = describe "addService" $ do
     it "adds a service to the db" $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just uid) user True
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just uid) user True
         rowCountShouldBe connPool "services" 0
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $
             addService uid sid testHashedSecret name description
         [(owner', sid', key', name', desc')] <- doQuery connPool
             [sql| SELECT owner_user, id, key, name, description
@@ -427,14 +428,14 @@ addServiceSpec = describe "addService" $ do
 deleteServiceSpec :: SpecWith (Pool Connection)
 deleteServiceSpec = describe "deleteService" $ do
     it "deletes a service" $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQuery connPool $
             addService testUid sid testHashedSecret "" ""
-        Right _ <- runPooledQuery connPool $ deleteService sid
+        Right _ <- runThentosQuery connPool $ deleteService sid
         rowCountShouldBe connPool "services" 0
 
     it "fails if the service doesn't exist" $ \connPool -> do
-        Left NoSuchService <- runPooledQuery connPool $ deleteService sid
+        Left NoSuchService <- runThentosQuery connPool $ deleteService sid
         return ()
   where
     sid = ServiceId "blablabla"
@@ -442,11 +443,11 @@ deleteServiceSpec = describe "deleteService" $ do
 lookupServiceSpec :: SpecWith (Pool Connection)
 lookupServiceSpec = describe "lookupService" $ do
     it "looks up a service"  $ \connPool -> do
-        Right _ <- runPooledQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $ addUserPrim (Just testUid) testUser True
+        Right _ <- runThentosQuery connPool $
             addService testUid sid testHashedSecret "name" "desc"
 
-        Right (sid', service) <- runPooledQuery connPool $ lookupService sid
+        Right (sid', service) <- runThentosQuery connPool $ lookupService sid
         service ^. serviceKey `shouldBe` testHashedSecret
         sid' `shouldBe` sid
         service ^. serviceName `shouldBe` name
@@ -483,7 +484,7 @@ startThentosSessionSpec = describe "startThentosSession" $ do
     it "creates a thentos session for a service" $ \connPool -> do
         let sid = "sid"
         void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $
             addService testUid sid testHashedSecret "name" "desc"
         Right () <- runVoidedQuery connPool $ startThentosSession tok (ServiceA sid) period
         [Only sid'] <- doQuery connPool [sql| SELECT sid
@@ -517,7 +518,7 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
         s ^. thSessAgent `shouldBe` agent
 
         let tok2 = "anothertoken"
-        Right _ <- runPooledQuery connPool $
+        Right _ <- runThentosQuery connPool $
             addService userId sid testHashedSecret "name" "desc"
         Right _ <- runVoidedQuery connPool $ startThentosSession tok2 (ServiceA sid) period
         Right (tok2', sess) <- runVoidedQuery connPool $ lookupThentosSession tok2
@@ -646,7 +647,7 @@ addPersonaSpec = describe "addPersona" $ do
     it "adds a persona to the DB" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         rowCountShouldBe connPool "personas" 0
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         persona ^. personaName `shouldBe` persName
         persona ^. personaUid `shouldBe` uid
         [(id', name', uid')] <- doQuery connPool [sql| SELECT id, name, uid FROM personas |] ()
@@ -669,7 +670,7 @@ deletePersonaSpec = describe "deletePersona" $ do
     it "deletes a persona" $ \connPool -> do
         Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
         rowCountShouldBe connPool "personas" 0
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right () <- runVoidedQuery connPool . deletePersona $ persona ^. personaId
         rowCountShouldBe connPool "personas" 0
 
@@ -684,7 +685,7 @@ addContextSpec = describe "addContext" $ do
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         cxt ^. contextService `shouldBe` servId
         cxt ^. contextName `shouldBe` cxtName
         cxt ^. contextDescription `shouldBe` cxtDesc
@@ -702,7 +703,7 @@ addContextSpec = describe "addContext" $ do
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         cxt ^. contextService `shouldBe` servId
         cxt ^. contextName `shouldBe` cxtName
         cxt ^. contextDescription `shouldBe` cxtDesc
@@ -734,8 +735,8 @@ deleteContextSpec = describe "deleteContext" $ do
         Right ()  <- runVoidedQuery connPool $
                         addService uid servId testHashedSecret "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
-        Right _   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()  <- runPooledQuery connPool $ deleteContext servId cxtName
+        Right _   <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()  <- runThentosQuery connPool $ deleteContext servId cxtName
         rowCountShouldBe connPool "contexts" 0
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
@@ -746,11 +747,11 @@ registerPersonaWithContextSpec :: SpecWith (Pool Connection)
 registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
     it "connects a persona with a context" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()      <- runPooledQuery connPool $
+        Right cxt     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right ()      <- runThentosQuery connPool $
                             registerPersonaWithContext persona servId cxtName
         [(pid, cid)] <- doQuery connPool
                             [sql| SELECT persona_id, context_id FROM personas_per_context |] ()
@@ -759,11 +760,11 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
 
     it "throws MultiplePersonasPerContext if the persona is already registered" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right _       <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()      <- runPooledQuery connPool $
+        Right _       <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()      <- runThentosQuery connPool $
                             registerPersonaWithContext persona servId cxtName
         Left err      <- runVoidedQuery connPool $
                             registerPersonaWithContext persona servId cxtName
@@ -771,12 +772,12 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
 
     it "throws MultiplePersonasPerContext if the user registered another persona" $ \connPool -> do
         Right uid      <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona  <- runPooledQuery connPool $ addPersona persName uid Nothing
-        Right persona' <- runPooledQuery connPool $ addPersona "MyMyMy" uid Nothing
+        Right persona  <- runThentosQuery connPool $ addPersona persName uid Nothing
+        Right persona' <- runThentosQuery connPool $ addPersona "MyMyMy" uid Nothing
         Right ()  <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right _   <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()  <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
+        Right _   <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right ()  <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
         Left err  <- runVoidedQuery connPool $ registerPersonaWithContext persona' servId cxtName
         err `shouldBe` MultiplePersonasPerContext
 
@@ -785,13 +786,13 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         let persona = Persona (PersonaId 5904) persName uid Nothing
         Right () <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right _  <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right _  <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Left err <- runVoidedQuery connPool $ registerPersonaWithContext persona servId cxtName
         err `shouldBe` NoSuchPersona
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
         Left err      <- runVoidedQuery connPool $
@@ -802,21 +803,21 @@ unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
 unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
     it "disconnects a persona from a context" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right ()  <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
+        Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right ()  <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
         [Only entryCount]  <- doQuery connPool countEntries (Only $ cxt ^. contextId)
         entryCount `shouldBe` (1 :: Int)
-        Right ()      <- runPooledQuery connPool $ unregisterPersonaFromContext
+        Right ()      <- runThentosQuery connPool $ unregisterPersonaFromContext
                             (persona ^. personaId) servId cxtName
         [Only entryCount'] <- doQuery connPool countEntries (Only $ cxt ^. contextId)
         entryCount' `shouldBe` (0 :: Int)
 
     it "is a no-op if persona and context don't exist" $ \connPool -> do
         rowCountShouldBe connPool "personas_per_context" 0
-        Right ()      <- runPooledQuery connPool $ unregisterPersonaFromContext
+        Right ()      <- runThentosQuery connPool $ unregisterPersonaFromContext
                             (PersonaId 5432) servId "no-such-context"
         rowCountShouldBe connPool "personas_per_context" 0
 
@@ -827,21 +828,21 @@ findPersonaSpec :: SpecWith (Pool Connection)
 findPersonaSpec = describe "findPersona" $ do
     it "find the persona a user wants to use for a context" $ \connPool -> do
         Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right persona <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right _     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right ()    <- runPooledQuery connPool $ registerPersonaWithContext persona servId cxtName
-        Right mPers <- runPooledQuery connPool $ findPersona uid servId cxtName
+        Right _     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right ()    <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
+        Right mPers <- runThentosQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Just persona
 
     it "doesn't find a persona if none was registered" $ \connPool -> do
         Right uid   <- runVoidedQuery connPool $ addUser (head testUsers)
-        Right _     <- runPooledQuery connPool $ addPersona persName uid Nothing
+        Right _     <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()    <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right _     <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right mPers <- runPooledQuery connPool $ findPersona uid servId cxtName
+        Right _     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right mPers <- runThentosQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Nothing
 
 contextsForServiceSpec :: SpecWith (Pool Connection)
@@ -850,10 +851,10 @@ contextsForServiceSpec = describe "contextsForService" $ do
         Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
         Right ()   <- runVoidedQuery connPool $
                             addService uid servId testHashedSecret "sName" "sDescription"
-        Right cxt1 <- runPooledQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
-        Right cxt2 <- runPooledQuery connPool . addContext servId "MeinMoabit"
+        Right cxt1 <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
+        Right cxt2 <- runThentosQuery connPool . addContext servId "MeinMoabit"
                             "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
-        Right contexts <- runPooledQuery connPool $ contextsForService servId
+        Right contexts <- runThentosQuery connPool $ contextsForService servId
         Set.fromList contexts `shouldBe` Set.fromList [cxt1, cxt2]
 
     it "doesn't return contexts registered for other services" $ \connPool -> do
@@ -862,10 +863,10 @@ contextsForServiceSpec = describe "contextsForService" $ do
                             addService uid servId testHashedSecret "sName" "sDescription"
         Right ()   <- runVoidedQuery connPool $
                             addService uid "sid2" testHashedSecret "s2Name" "s2Description"
-        Right _    <- runPooledQuery connPool $ addContext servId cxtName cxtDesc Nothing
-        Right _    <- runPooledQuery connPool . addContext servId "MeinMoabit"
+        Right _    <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
+        Right _    <- runThentosQuery connPool . addContext servId "MeinMoabit"
                             "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
-        Right contexts <- runPooledQuery connPool $ contextsForService "sid2"
+        Right contexts <- runThentosQuery connPool $ contextsForService "sid2"
         contexts `shouldBe` []
 
 addPersonaToGroupSpec :: SpecWith (Pool Connection)
