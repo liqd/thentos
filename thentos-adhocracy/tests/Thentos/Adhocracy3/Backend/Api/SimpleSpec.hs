@@ -265,7 +265,7 @@ setupBackend' :: [Source] -> IO (Application, ThentosConfig)
 setupBackend' extraCfg = do
     as@(ActionState cfg _ connPool) <- thentosTestConfig' extraCfg >>= createActionState'
     mgr <- newManager defaultManagerSettings
-    withResource connPool createGod
+    createGod connPool
     ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $
           autocreateMissingServices cfg
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])

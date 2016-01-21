@@ -4,8 +4,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns        #-}
 
-{- OPTIONS_GHC -Wall -Werror #-}
-
 {- | Script for importing users from Adhocracy3.
 
 Reads users from a file and writes them to a thentos db.  CSV must be of the form:
