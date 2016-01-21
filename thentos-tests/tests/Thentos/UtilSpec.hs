@@ -28,11 +28,7 @@ spec = describe "Thentos.Util" $ do
     describe "HashedSecret" $ do
         it "has working binary instance." $ do
             let f h = (Data.Binary.decode . Data.Binary.encode) h `shouldBe` h
-            mapM_ f [ BCryptHash ""
-                    , BCryptHash "..."
-                    , SCryptHash ""
-                    , SCryptHash "..."
-                    ]
+            mapM_ f [h s | h <- [BCryptHash, SCryptHash], s <- ["", "...", "„¡33 € – hilfäh!“"]]
 
     describe "UserPass <-> HashedSecret" $ do
         let f p = do
@@ -66,8 +62,6 @@ spec = describe "Thentos.Util" $ do
     -- >>> run('aI0ZUDmx0DVJI')
     -- >>> run('jaDEzQ7MQpN26')
     -- >>> run('„¡33 € – hilfäh!“')
-    --
-    -- Note that the unicode string literal in the last line looks a little different in Haskell.
     describe "bcrypt verification" $ do
         let run (clear :: ST) (hashed :: SBS) = (clear, verdict) `shouldSatisfy` snd
                 where verdict :: Bool = verifyUserPass (UserPass clear) (mkUser (BCryptHash hashed))
