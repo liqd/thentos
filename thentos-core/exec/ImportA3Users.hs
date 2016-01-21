@@ -36,7 +36,7 @@ SEE ALSO:
 https://github.com/liqd/adhocracy3/blob/8826073bdd1de56a43406bd59f602c2c066fcddd/src/adhocracy_mercator/adhocracy_mercator/scripts/export_users.py
 
 -}
-module Main where
+module Main (main) where
 
 import Control.Exception (throwIO, ErrorCall(ErrorCall))
 import Database.PostgreSQL.Simple (Only(Only), connectPostgreSQL)
@@ -44,7 +44,8 @@ import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Data.Char (ord)
 import Data.Csv (FromRecord, HasHeader(..), DecodeOptions(..), parseRecord, parseField, decodeWith)
 import Data.String.Conversions (cs, (<>), SBS)
-import Data.Time (LocalTime, TimeZone, parseTimeM, defaultTimeLocale, localTimeToUTC, getCurrentTimeZone)
+import Data.Time
+    (LocalTime, TimeZone, parseTimeM, defaultTimeLocale, localTimeToUTC, getCurrentTimeZone)
 import Data.Void (Void)
 import System.Environment (getArgs, getProgName)
 import Thentos.Transaction.Core (ThentosQuery, runThentosQuery', queryT)
