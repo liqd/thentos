@@ -82,7 +82,6 @@ catcher e = f
   where
     r = return . Left
 
-    f (UniqueViolation "users_pkey") = r UserIdAlreadyExists
     f (UniqueViolation "users_name_key") = r UserNameAlreadyExists
     f (UniqueViolation "users_email_key") = r UserEmailAlreadyExists
     f (UniqueViolation "personas_name_key") = r PersonaNameAlreadyExists
