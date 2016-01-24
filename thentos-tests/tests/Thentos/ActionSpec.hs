@@ -31,6 +31,7 @@ import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
 import Thentos.Test.Core
 import Thentos.Test.Transaction
+import Thentos (createDefaultUser)
 
 import LIO.Missing
 import Thentos.Action
@@ -54,7 +55,7 @@ spec = do
                       , "  stdout: False"
                       , "  path: " ++ tmp </> "log" ]]
           as <- createActionState' cfg
-          createGod (as ^. aStDb)
+          createDefaultUser as
           action as
 
     describe "Thentos.Action" . around b $ do
@@ -69,16 +70,16 @@ spec_user :: SpecWith ActionState
 spec_user = describe "user" $ do
     describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
-            let user = testUsers !! 0
-            uid <- runPrivs [RoleAdmin] sta $ addUser (head testUserForms)
+            let (userForm:_) = testUserForms
+            uid <- runPrivs [RoleAdmin] sta $ addUser userForm
 
             Left (ActionErrorThentos NoSuchUser)
                 <- runClearanceE dcBottom sta $ lookupConfirmedUser uid
             (uid', user')
                 <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
             uid' `shouldBe` uid
-            let clearPassword = userPassword .~ (user ^. userPassword)
-                in clearPassword user' `shouldBe` clearPassword user
+            let clearPassword = userPassword .~ testHashedUserPass
+                in clearPassword user' `shouldBe` clearPassword (mkUser userForm)
 
             void . runPrivs [RoleAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
@@ -86,7 +87,7 @@ spec_user = describe "user" $ do
             return ()
 
         it "guarantee that user names are unique" $ \sta -> do
-            (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
+            [(_, _, user)] <- createTestUsers (sta ^. aStDb) 1
             let userFormData = UserFormData (user ^. userName)
                                             (UserPass "foo")
                                             (forceUserEmail "new@one.com")
@@ -95,7 +96,7 @@ spec_user = describe "user" $ do
             e `shouldBe` UserNameAlreadyExists
 
         it "guarantee that user email addresses are unique" $ \sta -> do
-            (_, _, user) <- runClearance dcBottom sta $ addTestUser 1
+            [(_, _, user)] <- createTestUsers (sta ^. aStDb) 1
             let userFormData = UserFormData (UserName "newOne")
                                             (UserPass "foo")
                                             (user ^. userEmail)
@@ -149,18 +150,22 @@ spec_user = describe "user" $ do
 
     describe "DeleteUser" $ do
         it "user can delete herself, even if not admin" $ \sta -> do
-            (uid, _, _) <- runClearance dcBottom sta $ addTestUser 3
+            [(uid, _, _)] <- createTestUsers (sta ^. aStDb) 1
             result <- runPrivsE [UserA uid] sta $ deleteUser uid
             result `shouldSatisfy` isRight
 
         it "nobody else but the deleted user and admin can do this" $ \sta -> do
-            (uid,  _, _) <- runClearance dcBottom sta $ addTestUser 3
-            (uid', _, _) <- runClearance dcBottom sta $ addTestUser 4
+            [(uid, _, _), (uid', _, _)] <- createTestUsers (sta ^. aStDb) 2
             result <- runPrivsE [UserA uid] sta $ deleteUser uid'
             result `shouldSatisfy` isLeft
 
     describe "checkPassword" $ do
         it "works" $ \sta -> do
+            let Just godName = UserName <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
+                Just godPass = UserPass <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"]))
+            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
             void . runA sta $ startThentosSessionByUserId godUid godPass
             void . runA sta $ startThentosSessionByUserName godName godPass
 
@@ -170,7 +175,7 @@ spec_user = describe "user" $ do
                 checkEmail uid p = do
                     (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
                     user ^. userEmail `shouldSatisfy` p
-            (uid, _, _) <- runClearance dcBottom sta $ addTestUser 1
+            [(uid, _, _)] <- createTestUsers (sta ^. aStDb) 1
             checkEmail uid $ not . (==) newEmail
             void . runPrivs [UserA uid] sta $ requestUserEmailChange uid newEmail (const "")
             checkEmail uid $ not . (==) newEmail
@@ -234,8 +239,11 @@ spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \sta -> do
+            let Just godName = UserName <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
+            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
             let addsvc name desc = runClearanceE (UserA godUid %% UserA godUid) sta
-                    $ addService (UserId 0) name desc
+                    $ addService godUid name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
             Right (service2_id, _s2_key) <- addsvc "different name" "different description"
             service1 <- runPrivs [RoleAdmin] sta $ lookupService service1_id
@@ -249,20 +257,24 @@ spec_service = describe "service" $ do
 
     describe "autocreateServiceIfMissing" $ do
         it "adds service if missing" $ \sta -> do
-            let owner = UserId 0
+            let Just godName = UserName <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
+            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldNotContain` [sid]
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing owner sid
+            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing godUid sid
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
         it "does nothing if service exists" $ \sta -> do
-            let owner = UserId 0
+            let Just godName = UserName <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
+            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
             (sid, _) <- runPrivs [RoleAdmin] sta
-                            $ addService owner "fake name" "fake description"
+                            $ addService godUid "fake name" "fake description"
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing owner sid
+            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing godUid sid
             allSids' <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
@@ -271,7 +283,7 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
     describe "agents and roles" $ do
         describe "assign" $ do
             it "can be called by admins" $ \sta -> do
-                (UserA -> targetAgent, _, _) <- runClearance dcBottom sta $ addTestUser 1
+                [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
                 result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isRight
 
@@ -302,17 +314,20 @@ spec_session :: SpecWith ActionState
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \sta -> do
+            let Just godName = UserName <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
+                Just godPass = UserPass <$>
+                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"]))
             result <- runAE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()
 
     describe "lookupThentosSession" $ do
         it "works" $ \sta -> do
-            ((ernieId, ernieF, _) : (bertId, _, _) : _)
-                <- runClearance dcTop sta initializeTestUsers
+            [(ernieId, erniePass, _), (bertId, _, _)] <- createTestUsers (sta ^. aStDb) 2
 
             tok <- runClearance dcTop sta $
-                    startThentosSessionByUserId ernieId (udPassword ernieF)
+                    startThentosSessionByUserId ernieId erniePass
             v1 <- runAsAgent (UserA ernieId) sta (existsThentosSession tok)
             v2 <- runAsAgent (UserA bertId)  sta (existsThentosSession tok)
 

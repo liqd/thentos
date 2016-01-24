@@ -82,17 +82,14 @@ addUserPrim user confirmed = do
 addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
 addUser user = addUserPrim user True
 
-addUnconfirmedUserPrim :: ConfirmationToken -> User -> ThentosQuery e UserId
-addUnconfirmedUserPrim token user = do
+-- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
+-- Ensures that user name and email address are unique.
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosQuery e UserId
+addUnconfirmedUser token user = do
     uid <- addUserPrim user False
     void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
                        VALUES (?, ?) |] (uid, token)
     return uid
-
--- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
--- Ensures that user name and email address are unique.
-addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
-addUnconfirmedUser token user = addUnconfirmedUserPrim token user
 
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration timeout token =

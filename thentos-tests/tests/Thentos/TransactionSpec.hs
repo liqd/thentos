@@ -8,8 +8,8 @@ import Control.Lens ((^.))
 import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
+import Data.Functor.Infix ((<$$>))
 import Data.Pool (Pool)
-import Data.String.Conversions (ST)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn, shouldSatisfy)
@@ -79,52 +79,44 @@ addUserPrimSpec :: SpecWith (Pool Connection)
 addUserPrimSpec = describe "addUserPrim" $ do
 
     it "adds a confirmed user to the database" $ \connPool -> do
-        let user   = testUsers !! 2
-            userId = UserId 289
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        let (user:_) = mkUser <$> testUserForms
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         Right (_, res) <- runVoidedQuery connPool $ lookupConfirmedUser userId
         res `shouldBe` user
 
     it "adds an unconfirmed user to the database" $ \connPool -> do
-        let user   = testUsers !! 2
-            userId = UserId 290
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user False
+        let (user:_) = mkUser <$> testUserForms
+        Right userId <- runVoidedQuery connPool $ addUserPrim user False
         runVoidedQuery connPool (lookupConfirmedUser userId) `shouldReturn` Left NoSuchUser
         Right (_, res) <- runVoidedQuery connPool $ lookupAnyUser userId
         res `shouldBe` user
 
-    it "fails if the id is not unique" $ \connPool -> do
-        let userId = UserId 289
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) (testUsers !! 2) True
-        x <- runVoidedQuery connPool $ addUserPrim (Just userId) (testUsers !! 3) True
-        x `shouldBe` Left UserIdAlreadyExists
-
     it "fails if the username is not unique" $ \connPool -> do
-        let user1 = mkUser "name" "pass1" "email1@example.com"
-            user2 = mkUser "name" "pass2" "email2@example.com"
-        void $ runVoidedQuery connPool $ addUserPrim (Just $ UserId 372) user1 True
-        x <- runVoidedQuery connPool $ addUserPrim (Just $ UserId 482) user2 True
+        let user1 = mkUser' "name" "pass1" "email1@example.com"
+            user2 = mkUser' "name" "pass2" "email2@example.com"
+        _ <- runVoidedQuery connPool $ addUserPrim user1 True
+        x <- runVoidedQuery connPool $ addUserPrim user2 True
         x `shouldBe` Left UserNameAlreadyExists
 
     it "fails if the email is not unique" $  \connPool -> do
-        let user1 = mkUser "name1" "pass1" "email@example.com"
-            user2 = mkUser "name2" "pass2" "email@example.com"
-        void $ runVoidedQuery connPool $ addUserPrim (Just $ UserId 372) user1 True
-        x <- runVoidedQuery connPool $ addUserPrim (Just $ UserId 482) user2 True
+        let user1 = mkUser' "name1" "pass1" "email@example.com"
+            user2 = mkUser' "name2" "pass2" "email@example.com"
+        _ <- runVoidedQuery connPool $ addUserPrim user1 True
+        x <- runVoidedQuery connPool $ addUserPrim user2 True
         x `shouldBe` Left UserEmailAlreadyExists
 
 addUserSpec :: SpecWith (Pool Connection)
 addUserSpec = describe "addUser" $ do
 
     it "adds a user to the database" $ \connPool -> do
-        void $ runVoidedQuery connPool $ mapM_ addUser testUsers
+        testUsers <- (\(_, _, u) -> u) <$$> createTestUsers connPool 5
         let names = (^. userName) <$> testUsers
         Right res <- runVoidedQuery connPool $ mapM lookupConfirmedUserByName names
         (snd <$> res) `shouldBe` testUsers
 
 addUnconfirmedUserSpec :: SpecWith (Pool Connection)
 addUnconfirmedUserSpec = describe "addUnconfirmedUser" $ do
-    let user  = mkUser "name" "pass" "email@example.com"
+    let user  = mkUser' "name" "pass" "email@example.com"
         token = "sometoken"
 
     it "adds an unconfirmed a user to the database" $ \connPool -> do
@@ -136,6 +128,7 @@ addUnconfirmedUserSpec = describe "addUnconfirmedUser" $ do
 finishUserRegistrationSpec :: SpecWith (Pool Connection)
 finishUserRegistrationSpec = describe "finishUserRegistration" $ do
     it "confirms the user if the given token exists" $ \connPool -> do
+        let (testUser:_) = mkUser <$> testUserForms
         Right uid <- runVoidedQuery connPool $ addUnconfirmedUser token testUser
         Right uid' <- runVoidedQuery connPool $ finishUserRegistration timeout token
         uid `shouldBe` uid'
@@ -145,6 +138,7 @@ finishUserRegistrationSpec = describe "finishUserRegistration" $ do
         rowCountShouldBe connPool "user_confirmation_tokens" 0
 
     it "fails if the given token does not exist" $ \connPool -> do
+        let (testUser:_) = mkUser <$> testUserForms
         Right uid <- runVoidedQuery connPool $ addUnconfirmedUser token testUser
         Left tok <- runVoidedQuery connPool $ finishUserRegistration timeout "badToken"
         tok `shouldBe` NoSuchPendingUserConfirmation
@@ -160,15 +154,13 @@ lookupConfirmedUserByNameSpec :: SpecWith (Pool Connection)
 lookupConfirmedUserByNameSpec = describe "lookupConfirmedUserByName" $ do
 
     it "returns a confirmed user" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         runVoidedQuery connPool (lookupConfirmedUserByName "name") `shouldReturn` Right (userId, user)
 
     it "returns NoSuchUser for unconfirmed users" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user False
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right _ <- runVoidedQuery connPool $ addUserPrim user False
         runVoidedQuery connPool (lookupConfirmedUserByName "name") `shouldReturn` Left NoSuchUser
 
     it "returns NoSuchUser if no user has the name" $ \connPool -> do
@@ -178,16 +170,14 @@ lookupConfirmedUserByEmailSpec :: SpecWith (Pool Connection)
 lookupConfirmedUserByEmailSpec = describe "lookupConfirmedUserByEmail" $ do
 
     it "returns a confirmed user" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         runVoidedQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
             `shouldReturn` Right (userId, user)
 
     it "returns NoSuchUser for unconfirmed users" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user False
+        let user = mkUser' "name" "pass" "email@example.com"
+        _ <- runVoidedQuery connPool $ addUserPrim user False
         runVoidedQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
             `shouldReturn` Left NoSuchUser
 
@@ -199,16 +189,14 @@ lookupAnyUserByEmailSpec :: SpecWith (Pool Connection)
 lookupAnyUserByEmailSpec = describe "lookupAnyUserByEmail" $ do
 
     it "returns a confirmed user" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         runVoidedQuery connPool (lookupAnyUserByEmail $ forceUserEmail "email@example.com")
             `shouldReturn` Right (userId, user)
 
     it "returns an unconfirmed user" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 437
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user False
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right userId<- runVoidedQuery connPool $ addUserPrim user False
         runVoidedQuery connPool (lookupAnyUserByEmail $ forceUserEmail "email@example.com")
             `shouldReturn` Right (userId, user)
 
@@ -220,9 +208,8 @@ deleteUserSpec :: SpecWith (Pool Connection)
 deleteUserSpec = describe "deleteUser" $ do
 
     it "deletes a user" $ \connPool -> do
-        let user = mkUser "name" "pass" "email@example.com"
-            userId = UserId 371
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        let user = mkUser' "name" "pass" "email@example.com"
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         Right _  <- runVoidedQuery connPool $ lookupAnyUser userId
         Right () <- runVoidedQuery connPool $ deleteUser userId
         runVoidedQuery connPool (lookupAnyUser userId) `shouldReturn` Left NoSuchUser
@@ -233,10 +220,9 @@ deleteUserSpec = describe "deleteUser" $ do
 passwordResetTokenSpec :: SpecWith (Pool Connection)
 passwordResetTokenSpec = describe "addPasswordResetToken" $ do
     it "adds a password reset to the db" $ \connPool -> do
-        let user = mkUser "name" "super secret" "me@example.com"
-            userId = UserId 584
+        let user = mkUser' "name" "super secret" "me@example.com"
             testToken = PasswordResetToken "asgbagbaosubgoas"
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runVoidedQuery connPool $ addUserPrim user True
         Right _ <- runVoidedQuery connPool $
             addPasswordResetToken (user ^. userEmail) testToken
         [Only token_in_db] <- doQuery connPool
@@ -244,11 +230,10 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
         token_in_db `shouldBe` testToken
 
     it "resets a password if the given token exists" $ \connPool -> do
-        let user = mkUser "name" "super secret" "me@example.com"
-            userId = UserId 594
+        let user = mkUser' "name" "super secret" "me@example.com"
             testToken = PasswordResetToken "asgbagbaosubgoas"
         newEncryptedPass <- hashUserPass "newSecretP4ssw0rd"
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         Right _ <- runVoidedQuery connPool $
             addPasswordResetToken (user ^. userEmail) testToken
         Right _ <- runVoidedQuery connPool $
@@ -259,17 +244,18 @@ passwordResetTokenSpec = describe "addPasswordResetToken" $ do
 
 changePasswordSpec :: SpecWith (Pool Connection)
 changePasswordSpec = describe "changePassword" $ do
-    let user = mkUser "name" "super secret" "me@example.com"
-        userId = UserId 111
+    let user = mkUser' "name" "super secret" "me@example.com"
         newPass = encryptTestSecret fromUserPass (UserPass "new")
 
     it "changes the password" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        Right userId <- runVoidedQuery connPool $ addUserPrim user True
         Right _ <- runVoidedQuery connPool $ changePassword userId newPass
         Right (_, usr) <- runVoidedQuery connPool $ lookupConfirmedUser userId
         usr ^. userPassword `shouldBe` newPass
 
     it "fails if the user doesn't exist" $ \connPool -> do
+        let userId = UserId 183681
+        Left _ <- runVoidedQuery connPool $ lookupConfirmedUser userId
         Left err <- runVoidedQuery connPool $ changePassword userId newPass
         err `shouldBe` NoSuchUser
 
@@ -278,52 +264,53 @@ agentRolesSpec :: SpecWith (Pool Connection)
 agentRolesSpec = describe "agentRoles" $ do
     it "returns an empty set for a user or service without roles" $
       \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        x <- runVoidedQuery connPool $ agentRoles (UserA testUid)
+        [(userId, _, _)] <- createTestUsers connPool 1
+        x <- runVoidedQuery connPool $ agentRoles (UserA userId)
         x `shouldBe` Right []
 
         Right _ <- runVoidedQuery connPool $
-            addService testUid sid testHashedSecret "name" "desc"
+            addService userId sid testHashedServiceKey "name" "desc"
         roles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
         roles `shouldBe` Right []
+
   where
     sid = "sid"
 
 assignRoleSpec :: SpecWith (Pool Connection)
 assignRoleSpec = describe "assignRole" $ do
     it "adds a role" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleAdmin
-        Right roles <- runVoidedQuery connPool $ agentRoles (UserA testUid)
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
         roles `shouldBe` [RoleAdmin]
 
-        addTestService connPool
+        addTestService connPool uid
         Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
         serviceRoles `shouldBe` [RoleAdmin]
 
     it "silently allows adding a duplicate role" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleAdmin
-        x <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleAdmin
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        x <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
         x `shouldBe` Right ()
-        Right roles <- runVoidedQuery connPool $ agentRoles (UserA testUid)
+        Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
         roles `shouldBe` [RoleAdmin]
 
-        addTestService connPool
+        addTestService connPool uid
         Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
         serviceRoles `shouldBe` [RoleAdmin]
 
     it "adds a second role" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleUser
-        Right roles <- runVoidedQuery connPool $ agentRoles (UserA testUid)
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleUser
+        Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
         Set.fromList roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
 
-        addTestService connPool
+        addTestService connPool uid
         Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleUser
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
@@ -331,29 +318,29 @@ assignRoleSpec = describe "assignRole" $ do
 
   where
     sid = "sid"
-    addTestService connPool = void . runVoidedQuery connPool $
-        addService testUid sid testHashedSecret "name" "desc"
+    addTestService connPool uid = void . runVoidedQuery connPool $
+        addService uid sid testHashedServiceKey "name" "desc"
 
 unassignRoleSpec :: SpecWith (Pool Connection)
 unassignRoleSpec = describe "unassignRole" $ do
     it "silently allows removing a non-assigned role" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        x <- runVoidedQuery connPool $ unassignRole (UserA testUid) RoleAdmin
+        [(uid, _, _)] <- createTestUsers connPool 1
+        x <- runVoidedQuery connPool $ unassignRole (UserA uid) RoleAdmin
         x `shouldBe` Right ()
 
-        addTestService connPool
+        addTestService connPool uid
         res <- runVoidedQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
         res `shouldBe` Right ()
 
     it "removes the specified role" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA testUid) RoleUser
-        Right _ <- runVoidedQuery connPool $ unassignRole (UserA testUid) RoleAdmin
-        Right roles <- runVoidedQuery connPool $ agentRoles (UserA testUid)
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleUser
+        Right _ <- runVoidedQuery connPool $ unassignRole (UserA uid) RoleAdmin
+        Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
         roles `shouldBe` [RoleUser]
 
-        addTestService connPool
+        addTestService connPool uid
         Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
         Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleUser
         Right _ <- runVoidedQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
@@ -362,75 +349,68 @@ unassignRoleSpec = describe "unassignRole" $ do
 
   where
     sid = "sid"
-    addTestService connPool = void . runVoidedQuery connPool $
-        addService testUid sid testHashedSecret "name" "desc"
+    addTestService connPool uid = void . runVoidedQuery connPool $
+        addService uid sid testHashedServiceKey "name" "desc"
 
 emailChangeRequestSpec :: SpecWith (Pool Connection)
 emailChangeRequestSpec = describe "addUserEmailChangeToken" $ do
     it "adds an email change token to the db" $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runThentosQuery connPool $
-            addUserEmailChangeRequest userId newEmail testToken
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runThentosQuery connPool $ addUserEmailChangeRequest uid newEmail testToken
         [Only tokenInDb] <- doQuery connPool
             [sql| SELECT token FROM email_change_tokens|] ()
         tokenInDb `shouldBe` testToken
 
     it "changes a user's email if given a valid token" $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runThentosQuery connPool $
-            addUserEmailChangeRequest userId newEmail testToken
-        Right _ <-
-            runThentosQuery connPool $ confirmUserEmailChange (fromHours 1) testToken
-        [Only expectedEmail] <- doQuery connPool
-            [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
-        expectedEmail `shouldBe` newEmail
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runThentosQuery connPool $ addUserEmailChangeRequest uid newEmail testToken
+        Right _ <- runThentosQuery connPool $ confirmUserEmailChange (fromHours 1) testToken
+        [Only actualEmail] <- doQuery connPool
+            [sql| SELECT email FROM users WHERE id = ?|] (Only uid)
+        actualEmail `shouldBe` newEmail
 
     it "throws NoSuchToken if given an invalid token and does not update the email" $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just userId) user True
+        [(uid, _, user)] <- createTestUsers connPool 1
         Right _ <- runThentosQuery connPool $
-            addUserEmailChangeRequest userId newEmail testToken
+            addUserEmailChangeRequest uid newEmail testToken
         let badToken = ConfirmationToken "badtoken"
         Left NoSuchToken <-
             runThentosQuery connPool $ confirmUserEmailChange (Timeoutms 3600) badToken
         [Only expectedEmail] <- doQuery connPool
-            [sql| SELECT email FROM users WHERE id = ?|] (Only userId)
-        expectedEmail `shouldBe` forceUserEmail "me@example.com"
+            [sql| SELECT email FROM users WHERE id = ?|] (Only uid)
+        expectedEmail `shouldBe` (user ^. userEmail)
 
   where
-    user = mkUser "name" "super secret" "me@example.com"
-    userId = UserId 584
     testToken = ConfirmationToken "asgbagbaosubgoas"
     newEmail = forceUserEmail "new@example.com"
 
 addServiceSpec :: SpecWith (Pool Connection)
 addServiceSpec = describe "addService" $ do
     it "adds a service to the db" $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just uid) user True
+        [(uid, _, _)] <- createTestUsers connPool 1
         rowCountShouldBe connPool "services" 0
         Right _ <- runThentosQuery connPool $
-            addService uid sid testHashedSecret name description
+            addService uid sid testHashedServiceKey name description
         [(owner', sid', key', name', desc')] <- doQuery connPool
             [sql| SELECT owner_user, id, key, name, description
                   FROM services |] ()
         owner' `shouldBe` uid
         sid' `shouldBe` sid
-        key' `shouldBe` testHashedSecret
+        key' `shouldBe` testHashedServiceKey
         name' `shouldBe` name
         desc' `shouldBe` description
 
   where
     sid = ServiceId "serviceid1"
-    uid = UserId 9
-    user = mkUser "name" "super secret" "me@example.com"
     name = ServiceName "MyLittleService"
     description = ServiceDescription "it serves"
 
 deleteServiceSpec :: SpecWith (Pool Connection)
 deleteServiceSpec = describe "deleteService" $ do
     it "deletes a service" $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just testUid) testUser True
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right _ <- runThentosQuery connPool $
-            addService testUid sid testHashedSecret "" ""
+            addService uid sid testHashedServiceKey "" ""
         Right _ <- runThentosQuery connPool $ deleteService sid
         rowCountShouldBe connPool "services" 0
 
@@ -443,16 +423,16 @@ deleteServiceSpec = describe "deleteService" $ do
 lookupServiceSpec :: SpecWith (Pool Connection)
 lookupServiceSpec = describe "lookupService" $ do
     it "looks up a service"  $ \connPool -> do
-        Right _ <- runThentosQuery connPool $ addUserPrim (Just testUid) testUser True
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right _ <- runThentosQuery connPool $
-            addService testUid sid testHashedSecret "name" "desc"
+            addService uid sid testHashedServiceKey "name" "desc"
 
         Right (sid', service) <- runThentosQuery connPool $ lookupService sid
-        service ^. serviceKey `shouldBe` testHashedSecret
+        service ^. serviceKey `shouldBe` testHashedServiceKey
         sid' `shouldBe` sid
         service ^. serviceName `shouldBe` name
         service ^. serviceDescription `shouldBe` desc
-        service ^. serviceOwner `shouldBe` testUid
+        service ^. serviceOwner `shouldBe` uid
   where
     sid = ServiceId "blablabla"
     name = "name"
@@ -460,17 +440,21 @@ lookupServiceSpec = describe "lookupService" $ do
 
 startThentosSessionSpec :: SpecWith (Pool Connection)
 startThentosSessionSpec = describe "startThentosSession" $ do
-    let tok = "something"
-        user = UserA (UserId 55)
+    let toks = "session"
+        tokc = "confirmation"
         period = fromMinutes 1
 
     it "creates a thentos session for a confirmed user" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right () <- runVoidedQuery connPool $ startThentosSession tok (UserA testUid) period
+        [(testUid, _, _)] <- createTestUsers connPool 1
+        Right () <- runVoidedQuery connPool $ startThentosSession toks (UserA testUid) period
         [Only uid] <- doQuery connPool [sql| SELECT uid
                                              FROM thentos_sessions
-                                             WHERE token = ? |] (Only tok)
+                                             WHERE token = ? |] (Only toks)
         uid `shouldBe` testUid
+
+    it "fails if the user doesn't exist" $ \connPool -> do
+        x <- runVoidedQuery connPool $ startThentosSession toks (UserA (UserId 9187)) period
+        x `shouldBe` Left NoSuchUser
 
     it "fails if the user is unconfirmed" $ \connPool -> do
         let (user:_) = mkUser <$> testUserForms
@@ -478,63 +462,54 @@ startThentosSessionSpec = describe "startThentosSession" $ do
         x <- runVoidedQuery connPool $ startThentosSession toks (UserA uid) period
         x `shouldBe` Left NoSuchUser
 
-    it "fails if the user doesn't exist" $ \connPool -> do
-        x <- runVoidedQuery connPool $ startThentosSession tok user period
-        x `shouldBe` Left NoSuchUser
-
     it "creates a thentos session for a service" $ \connPool -> do
         let sid = "sid"
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runThentosQuery connPool $
-            addService testUid sid testHashedSecret "name" "desc"
-        Right () <- runVoidedQuery connPool $ startThentosSession tok (ServiceA sid) period
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runThentosQuery connPool $ addService uid sid testHashedServiceKey "name" "desc"
+        Right () <- runVoidedQuery connPool $ startThentosSession toks (ServiceA sid) period
         [Only sid'] <- doQuery connPool [sql| SELECT sid
                                          FROM thentos_sessions
-                                         WHERE token = ? |] (Only tok)
+                                         WHERE token = ? |] (Only toks)
         sid' `shouldBe` sid
 
     it "fails if the service doesn't exist" $ \connPool -> do
-        x <- runVoidedQuery connPool $ startThentosSession tok (ServiceA "sid") period
+        x <- runVoidedQuery connPool $ startThentosSession toks (ServiceA "sid") period
         x `shouldBe` Left NoSuchService
 
 lookupThentosSessionSpec :: SpecWith (Pool Connection)
 lookupThentosSessionSpec = describe "lookupThentosSession" $ do
-    let tok = ThentosSessionToken "hellohello"
-        userId = UserId 777
-        user = mkUser "name" "pass" "email@example.com"
-        agent = UserA userId
-        period = fromMinutes 1
+    let tok = "hellohello"
         sid = "sid"
+        period = fromMinutes 1
 
     it "fails if there is no session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
         x <- runVoidedQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
     it "reads back a fresh session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runVoidedQuery connPool $ startThentosSession tok agent period
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ startThentosSession tok (UserA uid) period
         Right (t, s) <- runVoidedQuery connPool $ lookupThentosSession tok
         t `shouldBe` tok
-        s ^. thSessAgent `shouldBe` agent
+        s ^. thSessAgent `shouldBe` UserA uid
 
         let tok2 = "anothertoken"
         Right _ <- runThentosQuery connPool $
-            addService userId sid testHashedSecret "name" "desc"
+            addService uid sid testHashedServiceKey "name" "desc"
         Right _ <- runVoidedQuery connPool $ startThentosSession tok2 (ServiceA sid) period
         Right (tok2', sess) <- runVoidedQuery connPool $ lookupThentosSession tok2
         tok2' `shouldBe` tok2
         sess ^. thSessAgent `shouldBe` ServiceA sid
 
     it "fails for an expired session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runVoidedQuery connPool $ startThentosSession tok agent (fromSeconds 0)
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ startThentosSession tok (UserA uid) (fromSeconds 0)
         x <- runVoidedQuery connPool $ lookupThentosSession tok
         x `shouldBe` Left NoSuchThentosSession
 
     it "extends the session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
-        Right _ <- runVoidedQuery connPool $ startThentosSession tok agent period
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ startThentosSession tok (UserA uid) period
         Right (_, sess1) <- runVoidedQuery connPool $ lookupThentosSession tok
         Right (t, sess2) <- runVoidedQuery connPool $ lookupThentosSession tok
         t `shouldBe` tok
@@ -543,14 +518,11 @@ lookupThentosSessionSpec = describe "lookupThentosSession" $ do
 endThentosSessionSpec :: SpecWith (Pool Connection)
 endThentosSessionSpec = describe "endThentosSession" $ do
     let tok = "something"
-        userId = UserId 777
-        user = mkUser "name" "pass" "email@example.com"
-        agent = UserA userId
         period = fromMinutes 1
 
     it "deletes a session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
-        void $ runVoidedQuery connPool $ startThentosSession tok agent period
+        [(uid, _, _)] <- createTestUsers connPool 1
+        void $ runVoidedQuery connPool $ startThentosSession tok (UserA uid) period
         Right _ <- runVoidedQuery connPool $ lookupThentosSession tok
         Right _ <- runVoidedQuery connPool $ endThentosSession tok
         x <- runVoidedQuery connPool $ lookupThentosSession tok
@@ -564,10 +536,10 @@ serviceNamesFromThentosSessionSpec :: SpecWith (Pool Connection)
 serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $ do
     it "gets the names of all services that a thentos session is signed into" $ \conn -> do
         let go = void . runVoidedQuery conn
-        go $ addUserPrim (Just testUid) testUser True
-        go $ addService testUid "sid1" testHashedSecret "s1-name" "s1-desc"
-        go $ addService testUid "sid2" testHashedSecret "s2-name" "s2-desc"
-        go $ addService testUid "sid3" testHashedSecret "s3-name" "s3-desc"
+        [(testUid, _, _)] <- createTestUsers conn 1
+        go $ addService testUid "sid1" testHashedServiceKey "s1-name" "s1-desc"
+        go $ addService testUid "sid2" testHashedServiceKey "s2-name" "s2-desc"
+        go $ addService testUid "sid3" testHashedServiceKey "s3-name" "s3-desc"
         go $ startThentosSession thentosSessionToken (UserA testUid) period
         go $ startServiceSession thentosSessionToken "sst1" "sid1" period
         go $ startServiceSession thentosSessionToken "sst2" "sid2" period
@@ -581,13 +553,11 @@ serviceNamesFromThentosSessionSpec = describe "serviceNamesFromThentosSession" $
 startServiceSessionSpec :: SpecWith (Pool Connection)
 startServiceSessionSpec = describe "startServiceSession" $ do
     it "starts a service session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        void $ runVoidedQuery connPool $
-            startThentosSession thentosSessionToken (UserA testUid) period
-        void $ runVoidedQuery connPool $
-            addService testUid sid testHashedSecret "" ""
-        void $ runVoidedQuery connPool $
-            startServiceSession thentosSessionToken serviceSessionToken sid period
+        let go = void . runVoidedQuery connPool
+        [(testUid, _, _)] <- createTestUsers connPool 1
+        go $ startThentosSession thentosSessionToken (UserA testUid) period
+        go $ addService testUid sid testHashedServiceKey "" ""
+        go $ startServiceSession thentosSessionToken serviceSessionToken sid period
         rowCountShouldBe connPool "service_sessions" 1
   where
     period = fromMinutes 1
@@ -598,13 +568,11 @@ startServiceSessionSpec = describe "startServiceSession" $ do
 endServiceSessionSpec :: SpecWith (Pool Connection)
 endServiceSessionSpec = describe "endServiceSession" $ do
     it "ends an service session" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        void $ runVoidedQuery connPool $
-            startThentosSession thentosSessionToken (UserA testUid) period
-        void $ runVoidedQuery connPool $
-            addService testUid sid testHashedSecret "" ""
-        void $ runVoidedQuery connPool $
-            startServiceSession thentosSessionToken serviceSessionToken sid period
+        let go = void . runVoidedQuery connPool
+        [(testUid, _, _)] <- createTestUsers connPool 1
+        go $ startThentosSession thentosSessionToken (UserA testUid) period
+        go $ addService testUid sid testHashedServiceKey "" ""
+        go $ startServiceSession thentosSessionToken serviceSessionToken sid period
         rowCountShouldBe connPool "service_sessions" 1
         void $ runVoidedQuery connPool $ endServiceSession serviceSessionToken
         rowCountShouldBe connPool "service_sessions" 0
@@ -617,22 +585,20 @@ endServiceSessionSpec = describe "endServiceSession" $ do
 lookupServiceSessionSpec :: SpecWith (Pool Connection)
 lookupServiceSessionSpec = describe "lookupServiceSession" $ do
     it "looks up the service session with a given token" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        void $ runVoidedQuery connPool $
-            startThentosSession thentosSessionToken (UserA testUid) period
-        void $ runVoidedQuery connPool $
-            addService testUid sid testHashedSecret "" ""
-        void $ runVoidedQuery connPool $
-            startServiceSession thentosSessionToken serviceSessionToken sid period
+        let go = void . runVoidedQuery connPool
+        [(testUid, _, _)] <- createTestUsers connPool 1
+        go $ startThentosSession thentosSessionToken (UserA testUid) period
+        go $ addService testUid sid testHashedServiceKey "" ""
+        go $ startServiceSession thentosSessionToken serviceSessionToken sid period
         Right (tok, sess) <- runVoidedQuery connPool $ lookupServiceSession serviceSessionToken
         sess ^. srvSessService `shouldBe` sid
         sess ^. srvSessExpirePeriod `shouldBe` period
         tok `shouldBe` serviceSessionToken
 
     it "returns NoSuchServiceSession error if no service with the given id exists" $
-      \connPool -> do
-        Left err <- runVoidedQuery connPool $ lookupServiceSession "non-existent token"
-        err `shouldBe` NoSuchServiceSession
+        \connPool -> do
+            Left err <- runVoidedQuery connPool $ lookupServiceSession "non-existent token"
+            err `shouldBe` NoSuchServiceSession
 
   where
     period = fromMinutes 1
@@ -646,7 +612,7 @@ lookupServiceSessionSpec = describe "lookupServiceSession" $ do
 addPersonaSpec :: SpecWith (Pool Connection)
 addPersonaSpec = describe "addPersona" $ do
     it "adds a persona to the DB" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         rowCountShouldBe connPool "personas" 0
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         persona ^. personaName `shouldBe` persName
@@ -661,7 +627,7 @@ addPersonaSpec = describe "addPersona" $ do
         err `shouldBe` NoSuchUser
 
     it "throws PersonaNameAlreadyExists if the name is not unique" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right _   <- runVoidedQuery connPool $ addPersona persName uid Nothing
         Left err  <- runVoidedQuery connPool $ addPersona persName uid Nothing
         err `shouldBe` PersonaNameAlreadyExists
@@ -669,7 +635,7 @@ addPersonaSpec = describe "addPersona" $ do
 deletePersonaSpec :: SpecWith (Pool Connection)
 deletePersonaSpec = describe "deletePersona" $ do
     it "deletes a persona" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         rowCountShouldBe connPool "personas" 0
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right () <- runVoidedQuery connPool . deletePersona $ persona ^. personaId
@@ -682,9 +648,9 @@ deletePersonaSpec = describe "deletePersona" $ do
 addContextSpec :: SpecWith (Pool Connection)
 addContextSpec = describe "addContext" $ do
     it "adds a context with URL to the DB" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()  <- runVoidedQuery connPool $
-                        addService uid servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedServiceKey "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         cxt ^. contextService `shouldBe` servId
@@ -700,9 +666,9 @@ addContextSpec = describe "addContext" $ do
         url `shouldBe` Just cxtUrl
 
     it "adds a context without URL to the DB" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()  <- runVoidedQuery connPool $
-                        addService uid servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedServiceKey "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         cxt ^. contextService `shouldBe` servId
@@ -722,9 +688,9 @@ addContextSpec = describe "addContext" $ do
         err `shouldBe` NoSuchService
 
     it "throws ContextNameAlreadyExists if the name is not unique" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()  <- runVoidedQuery connPool $
-                        addService uid servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _   <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Left err  <- runVoidedQuery connPool $ addContext servId cxtName cxtDesc Nothing
         err `shouldBe` ContextNameAlreadyExists
@@ -732,9 +698,9 @@ addContextSpec = describe "addContext" $ do
 deleteContextSpec :: SpecWith (Pool Connection)
 deleteContextSpec = describe "deleteContext" $ do
     it "deletes a context from the DB" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()  <- runVoidedQuery connPool $
-                        addService uid servId testHashedSecret "sName" "sDescription"
+                        addService uid servId testHashedServiceKey "sName" "sDescription"
         rowCountShouldBe connPool "contexts" 0
         Right _   <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()  <- runThentosQuery connPool $ deleteContext servId cxtName
@@ -747,10 +713,10 @@ deleteContextSpec = describe "deleteContext" $ do
 registerPersonaWithContextSpec :: SpecWith (Pool Connection)
 registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
     it "connects a persona with a context" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right cxt     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()      <- runThentosQuery connPool $
                             registerPersonaWithContext persona servId cxtName
@@ -760,10 +726,10 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         pid `shouldBe` persona ^. personaId
 
     it "throws MultiplePersonasPerContext if the persona is already registered" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _       <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()      <- runThentosQuery connPool $
                             registerPersonaWithContext persona servId cxtName
@@ -772,30 +738,30 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws MultiplePersonasPerContext if the user registered another persona" $ \connPool -> do
-        Right uid      <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)]  <- createTestUsers connPool 1
         Right persona  <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right persona' <- runThentosQuery connPool $ addPersona "MyMyMy" uid Nothing
         Right ()  <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _   <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()  <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
         Left err  <- runVoidedQuery connPool $ registerPersonaWithContext persona' servId cxtName
         err `shouldBe` MultiplePersonasPerContext
 
     it "throws NoSuchPersona if the persona doesn't exist" $ \connPool -> do
-        Right uid <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         let persona = Persona (PersonaId 5904) persName uid Nothing
         Right () <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _  <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Left err <- runVoidedQuery connPool $ registerPersonaWithContext persona servId cxtName
         err `shouldBe` NoSuchPersona
 
     it "throws NoSuchContext if the context doesn't exist" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Left err      <- runVoidedQuery connPool $
                             registerPersonaWithContext persona servId "not-a-context"
         err `shouldBe` NoSuchContext
@@ -803,10 +769,10 @@ registerPersonaWithContextSpec = describe "registerPersonaWithContext" $ do
 unregisterPersonaFromContextSpec :: SpecWith (Pool Connection)
 unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
     it "disconnects a persona from a context" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right cxt <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right ()  <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
         [Only entryCount]  <- doQuery connPool countEntries (Only $ cxt ^. contextId)
@@ -828,20 +794,20 @@ unregisterPersonaFromContextSpec = describe "unregisterPersonaFromContext" $ do
 findPersonaSpec :: SpecWith (Pool Connection)
 findPersonaSpec = describe "findPersona" $ do
     it "find the persona a user wants to use for a context" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right ()    <- runThentosQuery connPool $ registerPersonaWithContext persona servId cxtName
         Right mPers <- runThentosQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Just persona
 
     it "doesn't find a persona if none was registered" $ \connPool -> do
-        Right uid   <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right _     <- runThentosQuery connPool $ addPersona persName uid Nothing
         Right ()    <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right _     <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right mPers <- runThentosQuery connPool $ findPersona uid servId cxtName
         mPers `shouldBe` Nothing
@@ -849,9 +815,9 @@ findPersonaSpec = describe "findPersona" $ do
 contextsForServiceSpec :: SpecWith (Pool Connection)
 contextsForServiceSpec = describe "contextsForService" $ do
     it "finds contexts registered for a service" $ \connPool -> do
-        Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()   <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right cxt1 <- runThentosQuery connPool $ addContext servId cxtName cxtDesc (Just cxtUrl)
         Right cxt2 <- runThentosQuery connPool . addContext servId "MeinMoabit"
                             "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
@@ -859,11 +825,11 @@ contextsForServiceSpec = describe "contextsForService" $ do
         Set.fromList contexts `shouldBe` Set.fromList [cxt1, cxt2]
 
     it "doesn't return contexts registered for other services" $ \connPool -> do
-        Right uid  <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right ()   <- runVoidedQuery connPool $
-                            addService uid servId testHashedSecret "sName" "sDescription"
+                            addService uid servId testHashedServiceKey "sName" "sDescription"
         Right ()   <- runVoidedQuery connPool $
-                            addService uid "sid2" testHashedSecret "s2Name" "s2Description"
+                            addService uid "sid2" testHashedServiceKey "s2Name" "s2Description"
         Right _    <- runThentosQuery connPool $ addContext servId cxtName cxtDesc Nothing
         Right _    <- runThentosQuery connPool . addContext servId "MeinMoabit"
                             "Another context" . Just $ ProxyUri "example.org" 80 "/mmoabit"
@@ -873,7 +839,7 @@ contextsForServiceSpec = describe "contextsForService" $ do
 addPersonaToGroupSpec :: SpecWith (Pool Connection)
 addPersonaToGroupSpec = describe "addPersonaToGroup" $ do
     it "adds a persona to a group" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         rowCountShouldBe connPool "persona_groups" 0
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
@@ -882,7 +848,7 @@ addPersonaToGroupSpec = describe "addPersonaToGroup" $ do
         grp `shouldBe` ("dummy" :: ServiceGroup)
 
     it "no-op if the persona is already a member of the group" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
         rowCountShouldBe connPool "persona_groups" 1
@@ -892,7 +858,7 @@ addPersonaToGroupSpec = describe "addPersonaToGroup" $ do
 removePersonaFromGroupSpec :: SpecWith (Pool Connection)
 removePersonaFromGroupSpec = describe "removePersonaFromGroup" $ do
     it "removes a persona from a group" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup (persona ^. personaId) "dummy"
         Right ()      <- runVoidedQuery connPool $
@@ -900,7 +866,7 @@ removePersonaFromGroupSpec = describe "removePersonaFromGroup" $ do
         rowCountShouldBe connPool "persona_groups" 0
 
     it "no-op if the persona is not a member of the group" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         Right ()      <- runVoidedQuery connPool $
             removePersonaFromGroup (persona ^. personaId) "dummy"
@@ -954,7 +920,7 @@ removeGroupFromGroupSpec = describe "removeGroupFromGroup" $ do
 personaGroupsSpec :: SpecWith (Pool Connection)
 personaGroupsSpec = describe "personaGroups" $ do
     it "lists all groups a persona belongs to" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         let pid = persona ^. personaId
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
@@ -963,7 +929,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user"]
 
     it "includes indirect group memberships" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         let pid = persona ^. personaId
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
@@ -973,7 +939,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user", "trustedUser"]
 
     it "eliminates duplicates" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         let pid = persona ^. personaId
         Right ()      <- runVoidedQuery connPool $ addPersonaToGroup pid "admin"
@@ -985,7 +951,7 @@ personaGroupsSpec = describe "personaGroups" $ do
         Set.fromList groups `shouldBe` Set.fromList ["admin" :: ServiceGroup, "user", "trustedUser"]
 
     it "lists no groups if a persona doesn't belong to any" $ \connPool -> do
-        Right uid     <- runVoidedQuery connPool $ addUser (head testUsers)
+        [(uid, _, _)] <- createTestUsers connPool 1
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         let pid = persona ^. personaId
         Right groups  <- runVoidedQuery connPool $ personaGroups pid
@@ -1060,9 +1026,9 @@ deleteCaptchaSpec = describe "deleteCaptcha" $ do
 
 garbageCollectUnconfirmedUsersSpec :: SpecWith (Pool Connection)
 garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $ do
-    let user1   = mkUser "name1" "pass" "email1@example.com"
+    let user1   = mkUser' "name1" "pass" "email1@example.com"
         token1  = "sometoken1"
-        user2   = mkUser "name2" "pass" "email2@example.com"
+        user2   = mkUser' "name2" "pass" "email2@example.com"
         token2  = "sometoken2"
 
     it "deletes all expired unconfirmed users" $ \connPool -> do
@@ -1080,20 +1046,19 @@ garbageCollectUnconfirmedUsersSpec = describe "garbageCollectUnconfirmedUsers" $
 
 garbageCollectPasswordResetTokensSpec :: SpecWith (Pool Connection)
 garbageCollectPasswordResetTokensSpec = describe "garbageCollectPasswordResetTokens" $ do
-    let user   = mkUser "name1" "pass" "email1@example.com"
-        userId = UserId 321
+    let user   = mkUser' "name1" "pass" "email1@example.com"
         email = forceUserEmail "email1@example.com"
         passToken = "sometoken2"
 
     it "deletes all expired tokens" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        Right _ <- runVoidedQuery connPool $ addUserPrim user True
         void $ runVoidedQuery connPool $ addPasswordResetToken email passToken
         rowCountShouldBe connPool "password_reset_tokens" 1
         Right () <- runVoidedQuery connPool $ garbageCollectPasswordResetTokens $ fromSeconds 0
         rowCountShouldBe connPool "password_reset_tokens" 0
 
     it "only deletes expired tokens" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just userId) user True
+        void $ runVoidedQuery connPool $ addUserPrim user True
         void $ runVoidedQuery connPool $ addPasswordResetToken email passToken
         void $ runVoidedQuery connPool $ garbageCollectPasswordResetTokens $ fromHours 1
         rowCountShouldBe connPool "password_reset_tokens" 1
@@ -1104,15 +1069,15 @@ garbageCollectEmailChangeTokensSpec = describe "garbageCollectEmailChangeTokens"
         token = "sometoken2"
 
     it "deletes all expired tokens" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ addUserEmailChangeRequest testUid newEmail token
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ addUserEmailChangeRequest uid newEmail token
         rowCountShouldBe connPool "email_change_tokens" 1
         Right () <- runVoidedQuery connPool $ garbageCollectEmailChangeTokens $ fromSeconds 0
         rowCountShouldBe connPool "email_change_tokens" 0
 
     it "only deletes expired tokens" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ addUserEmailChangeRequest testUid newEmail token
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ addUserEmailChangeRequest uid newEmail token
         Right () <- runVoidedQuery connPool $ garbageCollectEmailChangeTokens $ fromHours 1
         rowCountShouldBe connPool "email_change_tokens" 1
 
@@ -1120,15 +1085,15 @@ garbageCollectThentosSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ do
     it "deletes all expired thentos sessions" $ \connPool -> do
         let immediateTimeout = fromSeconds 0
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ startThentosSession token (UserA testUid) immediateTimeout
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ startThentosSession token (UserA uid) immediateTimeout
         Right () <- runVoidedQuery connPool garbageCollectThentosSessions
         rowCountShouldBe connPool "thentos_sessions" 0
 
     it "doesn't delete active sessions" $ \connPool -> do
         let timeout = fromMinutes 1
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
-        Right _ <- runVoidedQuery connPool $ startThentosSession token (UserA testUid) timeout
+        [(uid, _, _)] <- createTestUsers connPool 1
+        Right _ <- runVoidedQuery connPool $ startThentosSession token (UserA uid) timeout
         Right () <- runVoidedQuery connPool garbageCollectThentosSessions
         rowCountShouldBe connPool "thentos_sessions" 1
 
@@ -1138,13 +1103,13 @@ garbageCollectThentosSessionsSpec = describe "garbageCollectThentosSessions" $ d
 garbageCollectServiceSessionsSpec :: SpecWith (Pool Connection)
 garbageCollectServiceSessionsSpec = describe "garbageCollectServiceSessions" $ do
     it "deletes (only) expired service sessions" $ \connPool -> do
-        Right _ <- runVoidedQuery connPool $ addUserPrim (Just testUid) testUser True
+        [(uid, _, _)] <- createTestUsers connPool 1
         hashedKey <- hashServiceKey "secret"
         Right _ <- runVoidedQuery connPool $
-            addService testUid sid hashedKey "sName" "sDescription"
+            addService uid sid hashedKey "sName" "sDescription"
 
-        Right _ <- runVoidedQuery connPool $ startThentosSession tTok1 (UserA testUid) laterTimeout
-        Right _ <- runVoidedQuery connPool $ startThentosSession tTok2 (UserA testUid) laterTimeout
+        Right _ <- runVoidedQuery connPool $ startThentosSession tTok1 (UserA uid) laterTimeout
+        Right _ <- runVoidedQuery connPool $ startThentosSession tTok2 (UserA uid) laterTimeout
         Right () <- runVoidedQuery connPool $ startServiceSession tTok1 sTok1 sid laterTimeout
         Right () <- runVoidedQuery connPool $ startServiceSession tTok2 sTok2 sid immediateTimeout
         Right () <- runVoidedQuery connPool garbageCollectServiceSessions

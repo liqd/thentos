@@ -44,7 +44,7 @@ import Thentos.Action.Types (Action, ActionState(..), aStDb, aStConfig)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
-import Thentos.Transaction.Core (createDB, runThentosQuery, ThentosQuery)
+import Thentos.Transaction.Core (createDB, runThentosQuery)
 import Thentos.Types
 import Thentos.Util
 
@@ -178,4 +178,5 @@ autocreateMissingServices cfg = do
     allSids          = maybeToList mDefaultProxySid ++ proxySids
     mDefaultProxySid = ServiceId <$> cfg >>. (Proxy :: Proxy '["proxy", "service_id"])
     proxySids        = Map.keys $ getProxyConfigMap cfg
-    agent            = UserId 0
+    agent            = UserId 1  -- FIXME: should this be owned by default user?  probably, but that
+                                 -- should be made more explicit.  retrieve correct uid, don't guess it!

@@ -13,13 +13,8 @@ module Thentos.Test.Config
 where
 
 import Control.Concurrent.MVar (MVar, readMVar, newMVar)
-import Database.PostgreSQL.Simple (Connection)
-import Data.Configifier
-    ( (:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO)
-    , Source(YamlString, ShellEnv, CommandLine)
-    )
+import Data.Configifier (Source(YamlString, ShellEnv, CommandLine))
 import Data.Maybe (fromMaybe)
-import Data.Pool (Pool)
 import Data.String.Conversions (ST, cs)
 import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.Environment (getEnvironment, getArgs)
@@ -126,5 +121,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     []
 
 -- | Force a Text to be parsed as email address, throwing an error if it fails.
+--
+-- FIXME: rename to @mkUserEmail@
 forceUserEmail :: ST -> UserEmail
 forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t

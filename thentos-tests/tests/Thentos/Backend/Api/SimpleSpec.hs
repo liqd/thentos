@@ -46,6 +46,7 @@ import qualified Data.Text as ST
 import Thentos.Action.Types
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
+import Thentos (createDefaultUser)
 
 import Thentos.Test.Config
 import Thentos.Test.Core
@@ -77,8 +78,8 @@ setupIt mTmp = do
     as <- createActionState' cfg
     let Just becfg = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
         app = serveApi becfg as
-    createGod (as ^. aStDb)
-    godHeader <- snd <$> loginAsGod as
+    createDefaultUser as
+    godHeader <- snd <$> loginAsDefaultUser as
     return $! ItsState app as godHeader
 
 tests :: IO ()
@@ -98,7 +99,7 @@ specRest = do
 
     describe "user" $ do
         describe "Capture \"userid\" UserId :> \"name\" :> Get (JsonTop UserName)" $ do
-            let resource = "/user/0/name"
+            let resource = "/user/1/name"
             it "yields a name" . runIt $ \its -> do
                 let hdr = [jsonHeader, itsGodHeader its]
                 request "GET" resource hdr "" `shouldRespondWith` "{\"data\":\"god\"}"
@@ -114,7 +115,7 @@ specRest = do
                 pendingWith "test missing."
 
         describe "Capture \"userid\" UserId :> \"email\" :> Get (JsonTop UserEmail)" $ do
-            let resource = "/user/0/email"
+            let resource = "/user/1/email"
             it "yields an email address" . runIt $ \its -> do
                 let hdr = [jsonHeader, itsGodHeader its]
                 request "GET" resource hdr "" `shouldRespondWith` 200

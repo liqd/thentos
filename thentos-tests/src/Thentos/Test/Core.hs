@@ -14,7 +14,6 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC  #-}
 
@@ -74,15 +73,12 @@ import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
-import Thentos (createConnPoolAndInitDb)
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
 import Thentos.Util (hashSecretWith)
-import Thentos (createDefaultUser)
-
-import qualified Thentos.Action.Unsafe as U
+import Thentos (createConnPoolAndInitDb, createDefaultUser)
 
 import Thentos.Test.Config
 
@@ -94,7 +90,7 @@ testUserForms = [ let n = "name" <> cs (show i)
                       p = "passwd"
                       e = n <> "@example.org"
                   in UserFormData (UserName n) (UserPass p) (forceUserEmail e)
-                  | i <- [0..]
+                  | i <- [(0 :: Int) ..]
                 ]
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
