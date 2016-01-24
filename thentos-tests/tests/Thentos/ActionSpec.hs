@@ -276,7 +276,7 @@ spec_agentsAndRoles = describe "agentsAndRoles" $ do
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \sta -> do
-                let targetAgent = UserA $ UserId 1
+                [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
                 result <- runPrivsE [targetAgent] sta $ assignRole targetAgent RoleAdmin
                 result `shouldSatisfy` isLeft
 
