@@ -472,9 +472,10 @@ startThentosSessionSpec = describe "startThentosSession" $ do
                                              WHERE token = ? |] (Only tok)
         uid `shouldBe` testUid
 
-    it "fails if the user is uconfirmed" $ \connPool -> do
-        void $ runVoidedQuery connPool $ addUserPrim (Just testUid) testUser False
-        x <- runVoidedQuery connPool $ startThentosSession tok user period
+    it "fails if the user is unconfirmed" $ \connPool -> do
+        let (user:_) = mkUser <$> testUserForms
+        Right uid <- runVoidedQuery connPool $ addUnconfirmedUser tokc user
+        x <- runVoidedQuery connPool $ startThentosSession toks (UserA uid) period
         x `shouldBe` Left NoSuchUser
 
     it "fails if the user doesn't exist" $ \connPool -> do
