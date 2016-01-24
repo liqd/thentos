@@ -8,10 +8,6 @@ module Thentos.Test.Config
     , thentosTestConfig'
     , thentosTestConfigSources
     , thentosTestConfigYaml
-    , godUid
-    , godName
-    , godPass
-    , createGod
     , forceUserEmail
     )
 where
@@ -30,7 +26,6 @@ import System.Environment (getEnvironment, getArgs)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Thentos.Config
-import Thentos (createDefaultUser)
 import Thentos.Types
 
 
@@ -129,23 +124,6 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "" :
     "            {{reset_url}}" :
     []
-
-godUid :: UserId
-godUid = UserId 0
-
-godName :: UserName
-godName = "god"
-
-godPass :: UserPass
-godPass = "god"
-
-createGod :: Pool Connection -> IO ()
-createGod conn = createDefaultUser conn
-    (Just . Tagged $
-          Id (fromUserName godName)
-      :*> Id (fromUserPass godPass)
-      :*> Id (forceUserEmail "postmaster@localhost")
-      :*> JustO (Id [RoleAdmin]) :: Maybe DefaultUserConfig)
 
 -- | Force a Text to be parsed as email address, throwing an error if it fails.
 forceUserEmail :: ST -> UserEmail
