@@ -1173,12 +1173,3 @@ garbageCollectCaptchasSpec = describe "garbageCollectCaptchas" $ do
         Right () <- runVoidedQuery connPool $ storeCaptcha "cid-1" "solution-1"
         Right () <- runVoidedQuery connPool $ garbageCollectCaptchas $ fromHours 1
         rowCountShouldBe connPool "captchas" 1
-
-
--- * Utils
-
-mkUser :: UserName -> UserPass -> ST -> User
-mkUser name pass email = User { _userName = name
-                              , _userPassword = encryptTestSecret fromUserPass pass
-                              , _userEmail = forceUserEmail email
-                              }
