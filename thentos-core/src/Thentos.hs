@@ -17,7 +17,8 @@ module Thentos
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
-import Control.Exception (finally)
+import Control.Exception (finally, throwIO, ErrorCall(ErrorCall))
+import Control.Lens ((^.))
 import Control.Monad (void, when, forever)
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
@@ -39,7 +40,7 @@ import qualified Data.Map as Map
 import System.Log.Missing (logger, announceAction)
 import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
-import Thentos.Action.Types (Action, ActionState(..))
+import Thentos.Action.Types (Action, ActionState(..), aStDb, aStConfig)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Smtp (checkSendmail)
@@ -73,7 +74,7 @@ makeMain commandSwitch =
     checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
-    createDefaultUser connPool (Tagged <$> config >>. (Proxy :: Proxy '["default_user"]))
+    createDefaultUser actionState
     _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState
         (autocreateMissingServices config :: Action Void () ())
 
@@ -126,31 +127,43 @@ createConnPoolAndInitDb cfg = do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: Pool Connection -> Maybe DefaultUserConfig -> IO ()
-createDefaultUser conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
-    eq <- runThentosQuery conn $ (void $ T.lookupConfirmedUser (UserId 0) :: ThentosQuery Void ())
-    case eq of
-        Right _         -> logger DEBUG $ "default user already exists"
+createDefaultUser :: ActionState -> IO ()
+createDefaultUser as = createDefaultUser'
+    (as ^. aStDb)
+    (Tagged <$> as ^. aStConfig >>. (Proxy :: Proxy '["default_user"]))
+
+createDefaultUser' :: Pool Connection -> Maybe DefaultUserConfig -> IO ()
+createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
+                                                               -- FIXME: 'roles' should be called 'groups' now.
+                                                               -- FIXME: git grep roles and see what else is still named wrong.
+    let failHard :: String -> IO ()
+        failHard msg = logger ERROR msg >> throwIO (ErrorCall msg)
+
+    eq <- runThentosQuery conn $ T.lookupConfirmedUserByName (udName userData)
+    case eq :: Either (ThentosError Void) (UserId, User) of
+        Right _ -> do
+            logger DEBUG $ "Default user (name: " ++ show (udName userData) ++ ") already exists."
+
         Left NoSuchUser -> do
             -- user
             user <- makeUserFromFormData userData
-            logger DEBUG $ "No users.  Creating default user: " ++ ppShow (UserId 0, user)
-            (eu :: Either (ThentosError Void) UserId) <- runThentosQuery conn $ T.addUserPrim
-                    (Just $ UserId 0) user True
+            (eu :: Either (ThentosError Void) UserId) <- runThentosQuery conn $ T.addUserPrim user True
+            case eu of
+                Right uid -> do
+                    logger DEBUG $ "Default user created: " ++ ppShow (user, uid)
 
-            if eu == Right (UserId 0)
-                then logger DEBUG $ "[ok]"
-                else logger ERROR $ "failed to create default user: " ++ ppShow (UserId 0, eu, user)
+                    -- roles
+                    logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+                    (result :: [Either (ThentosError Void) ()]) <-
+                         mapM (runThentosQuery conn . T.assignRole (UserA uid)) roles
+                    if all isRight result
+                        then logger DEBUG $ "Ok."
+                        else failHard $ "Failed: " ++ ppShow (result, uid, user, roles)
 
-            -- roles
-            logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
-            (result :: [Either (ThentosError Void) ()]) <-
-                 mapM (runThentosQuery conn . T.assignRole (UserA . UserId $ 0)) roles
+                Left err -> do
+                    failHard $ "Failed to create default user: " ++ ppShow (user, err)
 
-            if all isRight result
-                then logger DEBUG $ "[ok]"
-                else logger ERROR $ "failed to assign default user to roles: " ++ ppShow (UserId 0, result, user, roles)
-        Left e          -> logger ERROR $ "error looking up default user: " ++ show e
+        Left e -> failHard $ "Internal error looking up default user: " ++ show e
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
