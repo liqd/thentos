@@ -10,7 +10,7 @@
 module Thentos.Backend.Core
 where
 
-import Control.Lens ((^.), (&), (.~), (%~))
+import Control.Lens ((^.), (&), (.~), (%~), _Left)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
@@ -73,7 +73,7 @@ enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toSer
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
         -> Action e s a -> IO (Either ServantErr a)
-    run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs creds >>)
+    run e = (>>= _Left e . fst) . runActionE polyState actionState . (updatePrivs creds >>)
 
     updatePrivs :: ThentosAuthCredentials -> Action e s ()
     updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g origin)

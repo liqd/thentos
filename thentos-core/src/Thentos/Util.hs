@@ -14,13 +14,10 @@ module Thentos.Util
     , mailEncode
     , cshow
     , readsPrecEnumBoundedShow
-    , fmapLM
-    , fmapLTM
 ) where
 
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
@@ -95,20 +92,3 @@ readsPrecEnumBoundedShow _ s = f [minBound..]
         (s0, s1) -> if s0 == s' then [(x, s1)] else f xs
       where
         s' = show x
-
-
--- | Like 'fmapL' from "Data.EitherR", but with the update of the
--- left value constructed in an impure action.
-fmapLM :: (Monad m, Functor m) => (a -> m b) -> Either a r -> m (Either b r)
-fmapLM trans (Left e) = Left <$> trans e
-fmapLM _ (Right s) = return $ Right s
-
-
--- | Like 'fmapLT' from "Data.EitherR", but with the update of the
--- left value constructed in an impure action.
-fmapLTM :: (Monad m, Functor m) => (a -> m b) -> EitherT a m r -> EitherT b m r
-fmapLTM trans e = EitherT $ do
-    result <- runEitherT e
-    case result of
-        Right r -> return $ Right r
-        Left l -> Left <$> trans l
