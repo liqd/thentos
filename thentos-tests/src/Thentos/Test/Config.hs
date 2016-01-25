@@ -122,6 +122,10 @@ thentosTestConfigYaml = YamlString . cs . unlines $
 
 -- | Force a Text to be parsed as email address, throwing an error if it fails.
 --
--- FIXME: rename to @mkUserEmail@
+-- FIXME: rename to @mkUserEmail@ or @mkUserEmailFailing@.  (Motivation: `force` is something that
+-- takes a lazy thunk and returns a reduced value (e.g. in WHNF).  `unsafe` is something with wobbly
+-- or incomplete semantics.  I think we sometimes use `mk` for smart constructors that work like ADT
+-- constructors, but carry more logic.  `mk` should preferably be total, therefore the proposed
+-- alternative @mkUserEmailFailing@.)
 forceUserEmail :: ST -> UserEmail
 forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t
