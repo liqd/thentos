@@ -79,7 +79,7 @@ hlint: .phony thentos-core.hlint thentos-tests.hlint thentos-adhocracy.hlint
 # docs for details.
 
 prepare-repl: .phony
-	echo $(SENSEI_ARGS)
+	@echo $(SENSEI_ARGS)
 	cabal sandbox hc-pkg -- unregister --force thentos-adhocracy || true
 	cabal sandbox hc-pkg -- unregister --force thentos-tests || true
 	cabal sandbox hc-pkg -- unregister --force thentos-core || true
