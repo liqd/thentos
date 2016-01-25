@@ -78,12 +78,19 @@ instance Arbitrary ServiceKey where
 instance Arbitrary UserFormData where
     arbitrary = UserFormData <$> arbitrary <*> arbitrary <*> arbitrary
 
+instance Arbitrary PasswordResetToken where
+    arbitrary = PasswordResetToken <$> arbitrary
+
+instance Arbitrary PasswordResetRequest where
+    arbitrary = PasswordResetRequest <$> arbitrary <*> arbitrary
+
 -- | 'UserPass' has no 'Show' instance so we cannot accidentally leak
 -- it into, say, a log file.  For testing, password leakage is not a
 -- problem, but it helps using quickcheck, so we add orphan instances
 -- here.
 deriving instance Show UserPass
 deriving instance Show UserFormData
+deriving instance Show PasswordResetRequest
 
 -- | Orphan instance for ST. An alternative would be to use the quickcheck-instances package, but
 -- for just this instance it's probably overkill.

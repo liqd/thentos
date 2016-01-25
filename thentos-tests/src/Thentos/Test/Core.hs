@@ -14,16 +14,40 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 
 {-# OPTIONS_GHC  #-}
 
 module Thentos.Test.Core
+    ( testUserForms
+    , createTestUsers
+    , mkUser
+    , mkUser'
+    , encryptTestSecret
+    , testHashedServiceKey
+    , testHashedUserPass
+    , servId
+    , cxtName
+    , cxtDesc
+    , cxtUrl
+    , persName
+    , outsideTempDirectory
+    , withWebDriver
+    , withWebDriverAt'
+    , withFrontend
+    , withBackend
+    , withFrontendAndBackend
+    , createActionState
+    , createActionState'
+    , createDb
+    , loginAsDefaultUser
+    , (..=)
+    )
 where
 
 import Control.Concurrent (forkIO, killThread)
 import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
+import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Salt(Salt), scryptParams)
@@ -49,14 +73,12 @@ import Thentos.Action hiding (addUser)
 import Thentos.Backend.Api.Simple as Simple
 import Thentos.Backend.Core
 import Thentos.Config
-import Thentos (createConnPoolAndInitDb)
 import Thentos.Frontend (runFrontend)
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
 import Thentos.Util (hashSecretWith)
-
-import qualified Thentos.Action.Unsafe as U
+import Thentos (createConnPoolAndInitDb, createDefaultUser)
 
 import Thentos.Test.Config
 
@@ -64,45 +86,48 @@ import Thentos.Test.Config
 -- * test users
 
 testUserForms :: [UserFormData]
-testUserForms =
-    [ UserFormData "name1" "passwd" $ forceUserEmail "em@il.org"
-    , UserFormData "name2" "passwd" $ forceUserEmail "em38@il.org"
-    , UserFormData "name3" "3" $ forceUserEmail "3@example.org"
-    , UserFormData "name4" "4" $ forceUserEmail "4@example.org"
-    , UserFormData "name5" "5" $ forceUserEmail "5@example.org"
-    ]
-
-testUsers :: [User]
-testUsers = (\ (UserFormData name pass email) ->
-                User name (encryptTestSecret fromUserPass pass) email)
-    <$> testUserForms
-
-testUser :: User
-testUser = head testUsers
-
-testUid :: UserId
-testUid = UserId 7
-
-testHashedSecret :: HashedSecret ServiceKey
-testHashedSecret = SCryptHash "afhbadigba"
-
--- | Add a single test user (with fast scrypt params) from 'testUsers' to the database and return
--- it.
-addTestUser :: Int -> Action Void s (UserId, UserFormData, User)
-addTestUser ((zip testUserForms testUsers !!) -> (uf, user)) = do
-    uid <- U.unsafeAction . U.query $ addUser user
-    return (uid, uf, user)
+testUserForms = [ let n = "name" <> cs (show i)
+                      p = "passwd"
+                      e = n <> "@example.org"
+                  in UserFormData (UserName n) (UserPass p) (forceUserEmail e)
+                  | i <- [(0 :: Int) ..]
+                ]
 
 -- | Create a list of test users (with fast scrypt params), store them in the database, and return
 -- them for use in test cases.
-initializeTestUsers :: Action Void s [(UserId, UserFormData, User)]
-initializeTestUsers = mapM addTestUser [0 .. length testUsers - 1]
+createTestUsers :: MonadIO m => Pool Connection -> Int -> m [(UserId, UserPass, User)]
+createTestUsers connPool num = do
+    Right users <- liftIO . runThentosQuery connPool . createTestUsers' $ num
+    return users
+
+createTestUsers' :: Int -> ThentosQuery Void [(UserId, UserPass, User)]
+createTestUsers' num = mapM addTestUser (take num testUserForms)
+
+addTestUser :: UserFormData -> ThentosQuery Void (UserId, UserPass, User)
+addTestUser uf@(UserFormData _ pass _) = do
+    let user = mkUser uf
+    uid <- addUser user
+    return (uid, pass, user)
+
+mkUser :: UserFormData -> User
+mkUser (UserFormData name pass email) = User name pass' email
+  where
+    pass' = encryptTestSecret fromUserPass pass
+
+mkUser' :: UserName -> UserPass -> ST -> User
+mkUser' n p e = mkUser (UserFormData n p (forceUserEmail e))
 
 encryptTestSecret :: (a -> ST) -> a -> HashedSecret a
 encryptTestSecret = hashSecretWith params salt
   where
     salt = Salt ""
     Just params = scryptParams 2 1 1
+
+testHashedServiceKey :: HashedSecret ServiceKey
+testHashedServiceKey = SCryptHash "afhbadigba"
+
+testHashedUserPass :: HashedSecret UserPass
+testHashedUserPass = SCryptHash "afhbadigba"
 
 
 -- * Sample data for making services, contexts, and personas
@@ -182,7 +207,7 @@ withFrontendAndBackend test = do
     st@(ActionState cfg _ connPool) <- createActionState
     withFrontend (getFrontendConfig cfg) st
         $ withBackend (getBackendConfig cfg) st
-            $ liftIO (createGod connPool) >> test st
+            $ liftIO (createDefaultUser st) >> test st
                 `finally` destroyAllResources connPool
 
 
@@ -204,10 +229,15 @@ createDb cfg = callCommand (createCmd <> " && " <> wipeCmd) >> createConnPoolAnd
     createCmd = "createdb " <> dbname <> " 2>/dev/null || true"
     wipeCmd   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
 
-loginAsGod :: ActionState -> IO (ThentosSessionToken, Header)
-loginAsGod actionState = do
+loginAsDefaultUser :: ActionState -> IO (ThentosSessionToken, Header)
+loginAsDefaultUser actionState = do
     let action :: Action Void () (UserId, ThentosSessionToken)
-        action = startThentosSessionByUserName godName godPass
+        action = startThentosSessionByUserName (UserName uname) (UserPass upass)
+          where
+            uname, upass :: ST
+            Just uname = actionState ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"])
+            Just upass = actionState ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"])
+
     ((_, tok), _) <- runAction () actionState action
     let credentials :: Header = ("X-Thentos-Session", cs $ fromThentosSessionToken tok)
     return (tok, credentials)

@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -8,29 +9,26 @@ module Thentos.Test.Config
     , thentosTestConfig'
     , thentosTestConfigSources
     , thentosTestConfigYaml
-    , godUid
-    , godName
-    , godPass
-    , createGod
     , forceUserEmail
+    , getDefaultUser
+    , getDefaultUser'
     )
 where
 
 import Control.Concurrent.MVar (MVar, readMVar, newMVar)
-import Database.PostgreSQL.Simple (Connection)
-import Data.Configifier
-    ( (:*>)((:*>)), Id(Id), Tagged(Tagged), MaybeO(JustO)
-    , Source(YamlString, ShellEnv, CommandLine)
-    )
+import Data.Configifier (Source(YamlString, ShellEnv, CommandLine), (>>.))
 import Data.Maybe (fromMaybe)
 import Data.Pool (Pool)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
+import Database.PostgreSQL.Simple (Connection)
 import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.Environment (getEnvironment, getArgs)
 import System.IO.Unsafe (unsafePerformIO)
 
-import Thentos.Config
-import Thentos (createDefaultUser)
+import Thentos.Config hiding (getDefaultUser)
+import Thentos.Transaction.Core (runThentosQuery)
+import Thentos.Transaction (lookupConfirmedUserByName)
 import Thentos.Types
 
 
@@ -130,23 +128,25 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "            {{reset_url}}" :
     []
 
-godUid :: UserId
-godUid = UserId 0
-
-godName :: UserName
-godName = "god"
-
-godPass :: UserPass
-godPass = "god"
-
-createGod :: Pool Connection -> IO ()
-createGod conn = createDefaultUser conn
-    (Just . Tagged $
-          Id (fromUserName godName)
-      :*> Id (fromUserPass godPass)
-      :*> Id (forceUserEmail "postmaster@localhost")
-      :*> JustO (Id [RoleAdmin]) :: Maybe DefaultUserConfig)
-
 -- | Force a Text to be parsed as email address, throwing an error if it fails.
+--
+-- FIXME: rename to @mkUserEmail@ or @mkUserEmailFailing@.  (Motivation: `force` is something that
+-- takes a lazy thunk and returns a reduced value (e.g. in WHNF).  `unsafe` is something with wobbly
+-- or incomplete semantics.  I think we sometimes use `mk` for smart constructors that work like ADT
+-- constructors, but carry more logic.  `mk` should preferably be total, therefore the proposed
+-- alternative @mkUserEmailFailing@.)
 forceUserEmail :: ST -> UserEmail
 forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t
+
+-- | Return details of the default user for testing.  Fails if default user has not been created.
+getDefaultUser :: ThentosConfig -> Pool Connection -> IO (UserId, UserPass, UserName)
+getDefaultUser cfg conn = do
+    let (upass, uname) = getDefaultUser' cfg
+    Right (uid, _) <- runThentosQuery conn $ lookupConfirmedUserByName uname
+    return (uid, upass, uname)
+
+getDefaultUser' :: ThentosConfig -> (UserPass, UserName)
+getDefaultUser' cfg = (upass, uname)
+  where
+    Just uname = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
+    Just upass = UserPass <$> cfg >>. (Proxy :: Proxy '["default_user", "password"])

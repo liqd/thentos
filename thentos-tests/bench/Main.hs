@@ -1,7 +1,7 @@
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ViewPatterns        #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns        #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
@@ -38,13 +38,14 @@ import qualified Network.HTTP.LoadTest.Report as Pronk
 
 import Thentos.Config (ThentosConfig)
 import Thentos.Action.Types (ActionState(..))
+import Thentos.Transaction
+import Thentos.Transaction.Core
 import Thentos.Types
-    ( UserFormData(UserFormData), UserName(..), parseUserEmail
+    ( UserFormData(UserFormData), UserName(..), UserPass(..), parseUserEmail
     , UserId, ThentosSessionToken(fromThentosSessionToken), UserId(..)
     , ByUserOrServiceId(ByUser)
     )
 
-import Thentos.Test.Config (godUid, godPass)
 import Thentos.Test.Core
 
 
@@ -53,7 +54,7 @@ main = do
     withFrontendAndBackend $ \as@(ActionState cfg _ _) -> do
         threadDelay $ let s = (* (1000 * 1000)) in s 2
 
-        Just sessToken <- getThentosSessionToken cfg
+        Just sessToken <- getThentosSessionToken as
         runSignupBench cfg sessToken
         runLoginBench as
         runCheckTokenBench cfg sessToken
@@ -84,9 +85,12 @@ pronkConfig reqs = Pronk.Config {
     , requests = reqs
     }
 
-getThentosSessionToken :: ThentosConfig -> IO (Maybe ThentosSessionToken)
-getThentosSessionToken cfg = do
-    let (Just req_) = makeEndpoint cfg "/thentos_session"
+getThentosSessionToken :: ActionState -> IO (Maybe ThentosSessionToken)
+getThentosSessionToken (ActionState cfg _ conn) = do
+    let Just godName = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
+        Just godPass = UserPass <$> cfg >>. (Proxy :: Proxy '["default_user", "password"])
+    Right (godUid, _) <- runThentosQuery conn $ lookupConfirmedUserByName godName
+    let Just req_ = makeEndpoint cfg "/thentos_session"
         req = req_
                 { requestBody = RequestBodyLBS $ Aeson.encode (ByUser godUid godPass)
                 , method = methodPost
@@ -245,12 +249,10 @@ loginGenTrans cfg (MachineState uid loginState) =
     in (Req r, MachineState uid . c)
   where
     login = (loginReq, loginCont)
-    loginCont resp =
-        let Right sessionToken = decodeLenient $ responseBody resp in
-        LoggedIn sessionToken
+    loginCont (decodeLenient . responseBody -> Right tok) = LoggedIn tok
+    loginCont bad = error $ "loginGenTrans: " ++ show (uid, bad)
 
-    loginReq =
-        (makeRequest cfg Nothing "/thentos_session")
+    loginReq = (makeRequest cfg Nothing "/thentos_session")
             { method = methodPost
             , requestBody = RequestBodyLBS $ Aeson.encode (ByUser uid "dummyPassword")
             }
@@ -267,7 +269,10 @@ mkLoginGens :: ActionState -> IO [Pronk.RequestGenerator]
 mkLoginGens (ActionState cfg _ connPool) = do
     uids <- getUIDs connPool
     -- take out god user so all users have the same password
-    let uids' = filter (\(UserId n) -> n /= 0) uids
+    uids' <- do
+        let Just godName = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
+        Right (godUid, _) <- runThentosQuery connPool $ lookupConfirmedUserByName godName
+        return $ filter (/= godUid) uids
     return . cycle $ map makeGenerator uids'
   where
     makeGenerator :: UserId -> Pronk.RequestGenerator

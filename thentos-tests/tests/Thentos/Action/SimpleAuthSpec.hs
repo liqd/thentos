@@ -28,6 +28,7 @@ import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
+import Thentos (createDefaultUser)
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
@@ -58,7 +59,7 @@ setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . s
 mkActionState :: IO ActionState
 mkActionState = do
     actionState <- createActionState
-    createGod (actionState ^. aStDb)
+    createDefaultUser actionState
     return actionState
 
 specWithActionState :: Spec

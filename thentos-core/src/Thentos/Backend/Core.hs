@@ -171,8 +171,6 @@ thentosErrorInfo other e = f e
         (Nothing, err403, "email already in use")
     f UserNameAlreadyExists =
         (Nothing, err403, "user name already in use")
-    f UserIdAlreadyExists =    -- must be prevented earlier on
-        (Just (ERROR, ppShow e), err500, "internal error")
     f PersonaNameAlreadyExists =
         (Nothing, err403, "persona name already in use")
     f ContextNameAlreadyExists =
