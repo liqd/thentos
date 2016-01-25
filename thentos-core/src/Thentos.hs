@@ -134,8 +134,8 @@ createDefaultUser as = createDefaultUser'
 
 createDefaultUser' :: Pool Connection -> Maybe DefaultUserConfig -> IO ()
 createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
-                                                               -- FIXME: 'roles' should be called 'groups' now.
-                                                               -- FIXME: git grep roles and see what else is still named wrong.
+                                    -- FIXME: 'roles' should be called 'groups' now.
+                                    -- FIXME: git grep roles and see what else is still named wrong.
     let failHard :: String -> IO ()
         failHard msg = logger ERROR msg >> throwIO (ErrorCall msg)
 
@@ -147,7 +147,8 @@ createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
         Left NoSuchUser -> do
             -- user
             user <- makeUserFromFormData userData
-            (eu :: Either (ThentosError Void) UserId) <- runThentosQuery conn $ T.addUserPrim user True
+            (eu :: Either (ThentosError Void) UserId)
+                <- runThentosQuery conn $ T.addUserPrim user True
             case eu of
                 Right uid -> do
                     logger DEBUG $ "Default user created: " ++ ppShow (user, uid)
@@ -178,5 +179,6 @@ autocreateMissingServices cfg = do
     allSids          = maybeToList mDefaultProxySid ++ proxySids
     mDefaultProxySid = ServiceId <$> cfg >>. (Proxy :: Proxy '["proxy", "service_id"])
     proxySids        = Map.keys $ getProxyConfigMap cfg
-    agent            = UserId 1  -- FIXME: should this be owned by default user?  probably, but that
-                                 -- should be made more explicit.  retrieve correct uid, don't guess it!
+    agent            = UserId 1
+        -- FIXME: should this be owned by default user?  probably, but that
+        -- should be made more explicit.  retrieve correct uid, don't guess it!
