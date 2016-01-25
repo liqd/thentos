@@ -37,7 +37,6 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.Types
 import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
-import Thentos.Util
 
 import qualified Thentos.Frontend.Pages as Pages
 import qualified Thentos.Action.Unsafe as U
