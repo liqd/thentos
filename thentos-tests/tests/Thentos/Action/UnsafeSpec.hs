@@ -7,15 +7,14 @@
 
 module Thentos.Action.UnsafeSpec where
 
-import Control.Lens ((^.))
 import Data.Void (Void)
 import Test.Hspec (Spec, describe, it, before, hspec)
 
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action.Unsafe
+import Thentos (createDefaultUser)
 
-import Thentos.Test.Config
 import Thentos.Test.Core
 
 
@@ -31,7 +30,7 @@ type Act = Action (ActionError Void) ()
 mkActionState :: IO ActionState
 mkActionState = do
     actionState <- createActionState
-    createGod (actionState ^. aStDb)
+    createDefaultUser actionState
     return actionState
 
 specWithActionState :: Spec

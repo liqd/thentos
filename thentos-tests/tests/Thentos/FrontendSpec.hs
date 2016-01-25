@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
@@ -18,10 +19,11 @@ import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
 import Thentos.Action.Types
-import Thentos.Config
-import qualified Thentos.Transaction as T
+import Thentos.Config hiding (getDefaultUser)
 import Thentos.Types
-import Thentos.Util
+import Thentos.Util (verifyUserPass)
+
+import qualified Thentos.Transaction as T
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
@@ -92,12 +94,9 @@ spec_updateSelf = describe "update self" $ do
         click_ :: ST -> WD.WD ()
         click_ label = WD.findElem (WD.ById label) >>= WD.clickSync
 
-        -- FIXME: test with ordinary user (not god).
-        selfId   = godUid
-        selfName = godName
-        selfPass = godPass
-
     it "password" $ \(ActionState cfg _ conn) -> do
+        (selfId, selfPass, selfName) <- getDefaultUser cfg conn
+            -- FIXME: test with ordinary user (not god).
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         withWebDriver $ do
             wdLogin (getFrontendConfig cfg) selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -164,6 +163,7 @@ spec_logIntoThentos :: SpecWith ActionState
 spec_logIntoThentos = describe "log into thentos" $ do
     describe "with good credentials" $ do
         it "gets you to dashboard" $ \(ActionState cfg _ _) -> withWebDriver $ do
+            let (godPass, godName) = getDefaultUser' cfg
             wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
             WD.getSource >>= liftIO . (`shouldContain` ("Login successful" :: String)) . cs
     describe "with bad credentials" $ do
@@ -174,6 +174,8 @@ spec_logIntoThentos = describe "log into thentos" $ do
 
 spec_logOutOfThentos :: SpecWith ActionState
 spec_logOutOfThentos = it "log out of thentos" $ \(ActionState cfg _ _) -> withWebDriver $ do
+    let (godPass, godName) = getDefaultUser' cfg
+
     -- logout when logged in
     wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     wdLogout (getFrontendConfig cfg) >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -191,6 +193,7 @@ spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \(ActionState cfg _
 spec_dontRedirectWhenLoggedIn :: SpecWith ActionState
 spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \(ActionState cfg _ _) -> do
     pendingWith "FIXME"
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         isLoggedIn (getFrontendConfig cfg)
@@ -198,6 +201,7 @@ spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \(ActionStat
 
 spec_deletingCookiesLogsOut :: SpecWith ActionState
 spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \(ActionState cfg _ _) -> do
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
@@ -207,6 +211,7 @@ spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \(ActionState c
 spec_logInSetsSessionCookie :: SpecWith ActionState
 spec_logInSetsSessionCookie = it "set cookie on login" $ \(ActionState cfg _ _) -> do
     pendingWith "FIXME"
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -221,6 +226,7 @@ spec_restoringCookieRestoresSession :: SpecWith ActionState
 spec_restoringCookieRestoresSession =
     it "restore session by restoring cookie" $ \(ActionState cfg _ _) -> do
         liftIO $ pendingWith "FIXME"
+        let (godPass, godName) = getDefaultUser' cfg
         withWebDriver $ do
             wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
             cookies <- WD.cookies
@@ -244,6 +250,7 @@ spec_serviceCreate = it "service create" $ \(ActionState cfg _  conn) -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
+        (godPass, godName) = getDefaultUser' cfg
     sid <- withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl (getFrontendConfig cfg) <//> "/service/create")
@@ -298,6 +305,7 @@ spec_failOnCsrf :: SpecWith ActionState
 spec_failOnCsrf =  it "fails on csrf" $ \(ActionState cfg _ _) -> withWebDriver $ do
     liftIO $ pendingWith "FIXME"
 
+    let (godPass, godName) = getDefaultUser' cfg
     wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies
