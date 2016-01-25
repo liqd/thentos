@@ -4,7 +4,6 @@
 
 module Thentos.Adhocracy3.Action.Unsafe
     ( createUserInA3
-    , resetPasswordInA3
     ) where
 
 import Control.Monad.Except (MonadError, throwError)
@@ -24,7 +23,7 @@ import qualified Network.HTTP.Types.Status as Status
 
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Config
-import Thentos.Types hiding (PasswordResetRequest)
+import Thentos.Types
 import Thentos.Util
 
 import qualified Thentos.Action.Unsafe as U
@@ -44,19 +43,6 @@ createUserInA3 persName = do
     extractUserPath a3resp
   where
     responseCode = Status.statusCode . Client.responseStatus
-
--- | Send a password reset request to A3 and return the response.
-resetPasswordInA3 :: Path -> A3Action RequestResult
-resetPasswordInA3 path = do
-    config <- U.unsafeAction U.getConfig
-    let a3req = fromMaybe (error "resetPasswordInA3: mkRequestForA3 failed, check config!") $
-                mkRequestForA3 config "/password_reset" reqData
-    a3resp <- liftLIO . ioTCB . sendRequest $ a3req
-    either (throwError . OtherError . A3BackendInvalidJson) return $
-        (Aeson.eitherDecode . Client.responseBody $ a3resp :: Either String RequestResult)
-  where
-    reqData = PasswordResetRequest path "dummypass"
-
 
 -- | Convert a persona name into a user creation request to be sent to the A3 backend.
 -- The persona name is used as user name. The email address is set to a unique dummy value

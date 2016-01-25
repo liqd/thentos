@@ -65,15 +65,13 @@ lookupAnyUserByEmail email =
     returnUnique (\(uid, name, pwd) -> (uid, User name pwd email))
                  NoSuchUser "lookupAnyUserByEmail: multiple results"
 
--- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
--- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
--- is a very bad idea and will quickly lead to errors!
-addUserPrim :: Maybe UserId -> User -> Bool -> ThentosQuery e UserId
-addUserPrim mUid user confirmed = do
-    res <- queryT [sql| INSERT INTO users (id, name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?, ?)
+-- | Add a new user.  The DB will automatically create a new 'UserId' (auto-increment).
+addUserPrim :: User -> Bool -> ThentosQuery e UserId
+addUserPrim user confirmed = do
+    res <- queryT [sql| INSERT INTO users (name, password, email, confirmed)
+                        VALUES (?, ?, ?, ?)
                         RETURNING id |]
-            (orDefault mUid, user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
+            (user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
     case res of
         [Only uid] -> return uid
         []         -> impossible "addUserPrim created user without ID"
@@ -82,19 +80,16 @@ addUserPrim mUid user confirmed = do
 -- | Add a new user and return the new user's 'UserId'.
 -- Ensures that user name and email address are unique.
 addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
-addUser user = addUserPrim Nothing user True
-
-addUnconfirmedUserPrim :: ConfirmationToken -> User -> Maybe UserId -> ThentosQuery e UserId
-addUnconfirmedUserPrim token user mUid = do
-    uid <- addUserPrim mUid user False
-    void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
-                       VALUES (?, ?) |] (uid, token)
-    return uid
+addUser user = addUserPrim user True
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
 -- Ensures that user name and email address are unique.
-addUnconfirmedUser :: (Show e, Typeable e) => ConfirmationToken -> User -> ThentosQuery e UserId
-addUnconfirmedUser token user = addUnconfirmedUserPrim token user Nothing
+addUnconfirmedUser :: ConfirmationToken -> User -> ThentosQuery e UserId
+addUnconfirmedUser token user = do
+    uid <- addUserPrim user False
+    void $ execT [sql| INSERT INTO user_confirmation_tokens (id, token)
+                       VALUES (?, ?) |] (uid, token)
+    return uid
 
 finishUserRegistration :: Timeout -> ConfirmationToken -> ThentosQuery e UserId
 finishUserRegistration timeout token =

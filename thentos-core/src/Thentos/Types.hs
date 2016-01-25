@@ -879,7 +879,6 @@ data ThentosError e =
     | NotRegisteredWithService
     | UserEmailAlreadyExists
     | UserNameAlreadyExists
-    | UserIdAlreadyExists
     | PersonaNameAlreadyExists
     | ContextNameAlreadyExists
     | CaptchaIdAlreadyExists

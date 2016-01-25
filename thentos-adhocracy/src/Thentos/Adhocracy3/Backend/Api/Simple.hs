@@ -29,7 +29,6 @@ module Thentos.Adhocracy3.Backend.Api.Simple
     , Api
     , ContentType(..)
     , LoginRequest(..)
-    , PasswordResetRequest(..)
     , Path(..)
     , RequestResult(..)
     , ThentosApi
@@ -73,7 +72,7 @@ import Thentos.Backend.Api.Proxy
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Ends.Types (PNG, WAV)
-import Thentos.Types hiding (PasswordResetRequest)
+import Thentos.Types
 
 import qualified Paths_thentos_adhocracy__ as Paths (version)
 import qualified Thentos.Action as A
@@ -110,6 +109,7 @@ type ThentosApi =
                                :> Post200 '[JSON] RequestResult
   :<|> "login_email"           :> ReqBody '[JSON] LoginRequest
                                :> Post200 '[JSON] RequestResult
+  :<|> "create_password_reset" :> ReqBody '[JSON] WrappedEmail :> Post200 '[JSON] ()
   :<|> "password_reset"        :> ReqBody '[JSON] PasswordResetRequest
                                :> Post200 '[JSON] RequestResult
   :<|> "thentos" :> "user" :> ThentosApiWithWidgets
@@ -144,6 +144,7 @@ thentosApi as = enter (enterAction () as a3ActionErrorToServantErr emptyCreds) $
   :<|> activate
   :<|> login
   :<|> login
+  :<|> (\(WrappedEmail e) -> A.sendPasswordResetMail (Just "?path=") e)
   :<|> resetPassword
   :<|> thentosApiWithWidgets
 
@@ -268,8 +269,6 @@ instance ToSample LoginRequest
 
 instance ToSample RequestResult where
     toSamples _ = [ ("Success", RequestSuccess (Path "somepath") "sometoken")]
-
-instance ToSample PasswordResetRequest
 
 instance ToSample ContentType where
     toSamples _ = Docs.singleSample CTUser

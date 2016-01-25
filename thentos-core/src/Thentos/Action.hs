@@ -28,7 +28,6 @@ module Thentos.Action
     , resetPassword
     , resetPasswordAndLogin
     , changePassword
-    , changePasswordUnconditionally_
     , requestUserEmailChange
     , confirmUserEmailChange
 
@@ -89,6 +88,7 @@ import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
@@ -299,18 +299,20 @@ addPasswordResetToken email = do
     return (user, tok)
 
 -- | Create a password reset token and send the link by email to the user.
+-- The first argument can be used to modify the reset link sent per email.
 -- No authentication required, obviously.
-sendPasswordResetMail :: UserEmail -> Action e s ()
-sendPasswordResetMail email = do
+sendPasswordResetMail :: Maybe ST -> UserEmail -> Action e s ()
+sendPasswordResetMail beforeToken email = do
     (user, PasswordResetToken tok) <- addPasswordResetToken email
     cfg <- U.unsafeAction U.getConfig
-    let subject = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
+    let subject      = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
         bodyTemplate = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "body"])
-        feHttp = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+        feHttp       = case cfg >>. (Proxy :: Proxy '["frontend"]) of
             Nothing -> error "sendPasswordResetMail: frontend not configured!"
             Just v -> Tagged v
+        fullTok      = fromMaybe "" beforeToken <> tok
         context "user_name" = MuVariable . fromUserName $ user ^. userName
-        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> tok
+        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> fullTok
         context x           = error $ "sendPasswordResetMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
     U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
@@ -366,17 +368,6 @@ changePassword uid old new = do
     _ <- lookupUserCheckPassword_ (T.lookupAnyUser uid) old
     hashedPw <- U.unsafeAction $ U.hashUserPass new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
-    queryA $ T.changePassword uid hashedPw
-
--- BUG #407: As the '_' says, this function shouldn't be exported, but wrapped in a public action
--- that establishes that the password change is legitimate.  (Currently, this function is only
--- called in "Thentos.Adhocracy3.Backend.Api.Simple", and that will change heavily during
--- implementation of #321.  If we would keep the current setup, we would pull the code calling the
--- service into the wrapping action, and taint that with the obtained user id.  Once #321 has been
--- implemented, we should have something analogous happening here in this module.)
-changePasswordUnconditionally_ :: UserId -> UserPass -> Action e s ()
-changePasswordUnconditionally_ uid newPw = do
-    hashedPw <- U.unsafeAction $ U.hashUserPass newPw
     queryA $ T.changePassword uid hashedPw
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
