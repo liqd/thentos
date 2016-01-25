@@ -19,9 +19,11 @@ import qualified Test.WebDriver as WD
 import qualified Test.WebDriver.Class as WD
 
 import Thentos.Action.Types
-import Thentos.Config
-import qualified Thentos.Transaction as T
+import Thentos.Config hiding (getDefaultUser)
 import Thentos.Types
+import Thentos.Util (verifyUserPass)
+
+import qualified Thentos.Transaction as T
 
 import Thentos.Test.WebDriver.Missing as WD
 import Thentos.Test.Arbitrary ()
@@ -86,22 +88,15 @@ spec_resetPassword = it "reset password" $ \_ -> pendingWith "no test implemente
 
 spec_updateSelf :: SpecWith ActionState
 spec_updateSelf = describe "update self" $ do
-{-
     let fill_ :: ST -> ST -> WD.WD ()
         fill_ label text = WD.findElem (WD.ById label) >>= (\e -> WD.clearInput e >> WD.sendKeys text e)
 
         click_ :: ST -> WD.WD ()
         click_ label = WD.findElem (WD.ById label) >>= WD.clickSync
 
-        -- FIXME: test with ordinary user (not god).
-        selfId   = godUid
-        selfName = godName
-        selfPass = godPass
--}
-
-    it "password" $ \(ActionState _cfg _ _conn) -> do
-        pendingWith "test needs fix."
-{-
+    it "password" $ \(ActionState cfg _ conn) -> do
+        (selfId, selfPass, selfName) <- getDefaultUser cfg conn
+            -- FIXME: test with ordinary user (not god).
         let newSelfPass = UserPass "da39a3ee5e6b4b0d3255bfef95601890afd80709"
         withWebDriver $ do
             wdLogin (getFrontendConfig cfg) selfName selfPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -112,7 +107,6 @@ spec_updateSelf = describe "update self" $ do
             click_ "update_password_submit"
         Right (_, usr) <- runVoidedQuery conn $ T.lookupAnyUser selfId
         usr `shouldSatisfy` verifyUserPass newSelfPass
--}
 
     -- FIXME: test failure cases.  same restrictions apply as in
     -- "create_user" and "reset_password" (make sure the check is in
