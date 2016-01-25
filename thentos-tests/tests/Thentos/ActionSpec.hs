@@ -161,11 +161,7 @@ spec_user = describe "user" $ do
 
     describe "checkPassword" $ do
         it "works" $ \sta -> do
-            let Just godName = UserName <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
-                Just godPass = UserPass <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"]))
-            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
+            (godUid, godPass, godName) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
             void . runA sta $ startThentosSessionByUserId godUid godPass
             void . runA sta $ startThentosSessionByUserName godName godPass
 
@@ -239,9 +235,7 @@ spec_service :: SpecWith ActionState
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \sta -> do
-            let Just godName = UserName <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
-            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
+            (godUid, _, _) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
             let addsvc name desc = runClearanceE (UserA godUid %% UserA godUid) sta
                     $ addService godUid name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
@@ -257,9 +251,7 @@ spec_service = describe "service" $ do
 
     describe "autocreateServiceIfMissing" $ do
         it "adds service if missing" $ \sta -> do
-            let Just godName = UserName <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
-            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
+            (godUid, _, _) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
             sid <- runPrivs [RoleAdmin] sta $ freshServiceId
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
             allSids `shouldNotContain` [sid]
@@ -268,9 +260,7 @@ spec_service = describe "service" $ do
             allSids' `shouldContain` [sid]
 
         it "does nothing if service exists" $ \sta -> do
-            let Just godName = UserName <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
-            (godUid, _) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUserByName godName
+            (godUid, _, _) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
             (sid, _) <- runPrivs [RoleAdmin] sta
                             $ addService godUid "fake name" "fake description"
             allSids <- runPrivs [RoleAdmin] sta allServiceIds
@@ -314,10 +304,7 @@ spec_session :: SpecWith ActionState
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \sta -> do
-            let Just godName = UserName <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"]))
-                Just godPass = UserPass <$>
-                    (sta ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"]))
+            let (godPass, godName) = getDefaultUser' (sta ^. aStConfig)
             result <- runAE sta $ startThentosSessionByUserName godName godPass
             result `shouldSatisfy` isRight
             return ()

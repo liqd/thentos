@@ -8,9 +8,7 @@ module Thentos.FrontendSpec where
 
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (liftIO)
-import Data.Configifier ((>>.))
 import Data.Maybe (fromJust, isJust, listToMaybe)
-import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Test.Hspec (Spec, SpecWith, hspec, around, describe, it,
                    shouldBe, shouldContain, shouldSatisfy, pendingWith)
@@ -171,8 +169,7 @@ spec_logIntoThentos :: SpecWith ActionState
 spec_logIntoThentos = describe "log into thentos" $ do
     describe "with good credentials" $ do
         it "gets you to dashboard" $ \(ActionState cfg _ _) -> withWebDriver $ do
-            let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-                Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+            let (godPass, godName) = getDefaultUser' cfg
             wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
             WD.getSource >>= liftIO . (`shouldContain` ("Login successful" :: String)) . cs
     describe "with bad credentials" $ do
@@ -183,8 +180,7 @@ spec_logIntoThentos = describe "log into thentos" $ do
 
 spec_logOutOfThentos :: SpecWith ActionState
 spec_logOutOfThentos = it "log out of thentos" $ \(ActionState cfg _ _) -> withWebDriver $ do
-    let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+    let (godPass, godName) = getDefaultUser' cfg
 
     -- logout when logged in
     wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -203,8 +199,7 @@ spec_redirectWhenNotLoggedIn = it "redirect to login page" $ \(ActionState cfg _
 spec_dontRedirectWhenLoggedIn :: SpecWith ActionState
 spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \(ActionState cfg _ _) -> do
     pendingWith "FIXME"
-    let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         isLoggedIn (getFrontendConfig cfg)
@@ -212,8 +207,7 @@ spec_dontRedirectWhenLoggedIn = it "don't redirect to login page" $ \(ActionStat
 
 spec_deletingCookiesLogsOut :: SpecWith ActionState
 spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \(ActionState cfg _ _) -> do
-    let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.deleteVisibleCookies
@@ -223,8 +217,7 @@ spec_deletingCookiesLogsOut = it "log out by deleting cookies" $ \(ActionState c
 spec_logInSetsSessionCookie :: SpecWith ActionState
 spec_logInSetsSessionCookie = it "set cookie on login" $ \(ActionState cfg _ _) -> do
     pendingWith "FIXME"
-    let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+    let (godPass, godName) = getDefaultUser' cfg
     withWebDriver $ do
         WD.cookies >>= \cc -> liftIO $ cc `shouldBe` []
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
@@ -239,8 +232,7 @@ spec_restoringCookieRestoresSession :: SpecWith ActionState
 spec_restoringCookieRestoresSession =
     it "restore session by restoring cookie" $ \(ActionState cfg _ _) -> do
         liftIO $ pendingWith "FIXME"
-        let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-            Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+        let (godPass, godName) = getDefaultUser' cfg
         withWebDriver $ do
             wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
             cookies <- WD.cookies
@@ -264,8 +256,7 @@ spec_serviceCreate = it "service create" $ \(ActionState cfg _  conn) -> do
         extractId s = case snd . ST.breakOn "Service id: " $ s of
             "" -> Nothing
             m  -> Just . ServiceId . ST.take 24 . ST.drop (ST.length pat) $ m
-        Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+        (godPass, godName) = getDefaultUser' cfg
     sid <- withWebDriver $ do
         wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
         WD.openPageSync (cs $ exposeUrl (getFrontendConfig cfg) <//> "/service/create")
@@ -320,8 +311,7 @@ spec_failOnCsrf :: SpecWith ActionState
 spec_failOnCsrf =  it "fails on csrf" $ \(ActionState cfg _ _) -> withWebDriver $ do
     liftIO $ pendingWith "FIXME"
 
-    let Just godName = UserName <$> (cfg >>. (Proxy :: Proxy '["default_user", "name"]))
-        Just godPass = UserPass <$> (cfg >>. (Proxy :: Proxy '["default_user", "password"]))
+    let (godPass, godName) = getDefaultUser' cfg
     wdLogin (getFrontendConfig cfg) godName godPass >>= liftIO . (`shouldBe` 200) . C.statusCode
     storedCookies <- WD.cookies
     WD.deleteVisibleCookies

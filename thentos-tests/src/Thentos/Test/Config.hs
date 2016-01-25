@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
@@ -9,18 +10,25 @@ module Thentos.Test.Config
     , thentosTestConfigSources
     , thentosTestConfigYaml
     , forceUserEmail
+    , getDefaultUser
+    , getDefaultUser'
     )
 where
 
 import Control.Concurrent.MVar (MVar, readMVar, newMVar)
-import Data.Configifier (Source(YamlString, ShellEnv, CommandLine))
+import Data.Configifier (Source(YamlString, ShellEnv, CommandLine), (>>.))
 import Data.Maybe (fromMaybe)
+import Data.Pool (Pool)
+import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
+import Database.PostgreSQL.Simple (Connection)
 import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.Environment (getEnvironment, getArgs)
 import System.IO.Unsafe (unsafePerformIO)
 
-import Thentos.Config
+import Thentos.Config hiding (getDefaultUser)
+import Thentos.Transaction.Core (runThentosQuery)
+import Thentos.Transaction (lookupConfirmedUserByName)
 import Thentos.Types
 
 
@@ -129,3 +137,16 @@ thentosTestConfigYaml = YamlString . cs . unlines $
 -- alternative @mkUserEmailFailing@.)
 forceUserEmail :: ST -> UserEmail
 forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t
+
+-- | Return details of the default user for testing.  Fails if default user has not been created.
+getDefaultUser :: ThentosConfig -> Pool Connection -> IO (UserId, UserPass, UserName)
+getDefaultUser cfg conn = do
+    let (upass, uname) = getDefaultUser' cfg
+    Right (uid, _) <- runThentosQuery conn $ lookupConfirmedUserByName uname
+    return (uid, upass, uname)
+
+getDefaultUser' :: ThentosConfig -> (UserPass, UserName)
+getDefaultUser' cfg = (upass, uname)
+  where
+    Just uname = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
+    Just upass = UserPass <$> cfg >>. (Proxy :: Proxy '["default_user", "password"])
