@@ -59,6 +59,7 @@ library
   exposed-modules:
       Database.PostgreSQL.Simple.Missing
     , LIO.Missing
+    , Network.HostAddr
     , Paths.TH
     , Paths_thentos_core__
     , System.Log.Missing

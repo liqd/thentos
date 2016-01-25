@@ -136,3 +136,5 @@ specWithBackends = describe "hasPrivilegedIp" $ do
     works ["127.0.0.1"] True
     works ["1.2.3.4"] False
     works [] False
+    works ["::1"] False
+    works ["fe80::42:d4ff:fec0:544d"] False

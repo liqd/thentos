@@ -26,8 +26,7 @@ import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
-import Network.Socket
-    (SockAddr(SockAddrInet, SockAddrInet6, SockAddrUnix, SockAddrCan), HostAddress, inet_addr)
+import Network.HostAddr (HostAddr, hostAddr, getHostAddr)
 import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
@@ -61,7 +60,6 @@ import Thentos.Util
 
 import qualified Thentos.Action.Unsafe as U
 
-
 -- * action
 
 enterAction :: forall s e. (Show e, Typeable e) =>
@@ -76,19 +74,15 @@ enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toSer
     run e = (>>= fmapLM e . fst) . runActionE polyState actionState . (updatePrivs creds >>)
 
     updatePrivs :: ThentosAuthCredentials -> Action e s ()
-    updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g origin)
+    updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g (hostAddr origin))
       where
         f = mapM_ U.extendClearanceOnThentosSession
 
-        g :: SockAddr -> [HostAddress] -> Action e s ()
-        g (SockAddrInet _ ip) ips =
-            when (ip `elem` ips) $ U.extendClearanceOnPrincipals [PrivilegedIP]
-        g (SockAddrInet6 _ _ _ _) _ = return ()  -- FIXME: support IPv6
-        g (SockAddrUnix _) _ = return ()  -- FIXME: support unix sockets
-        g (SockAddrCan _) _ = return ()  -- FIXME: ?
+        g :: HostAddr -> [HostAddr] -> Action e s ()
+        g ip ips = when (ip `elem` ips) $ U.extendClearanceOnPrincipals [PrivilegedIP]
 
-    allowedIps :: Action e s [HostAddress]
-    allowedIps = mapM (unsafeLiftIO . inet_addr . cs) ts
+    allowedIps :: Action e s [HostAddr]
+    allowedIps = mapM (unsafeLiftIO . getHostAddr . cs) ts
         where
             ts :: [ST]
             ts = fromMaybe [] $ (actionState ^. aStConfig) >>. (Proxy :: Proxy '["allow_ips"])
