@@ -18,7 +18,6 @@ module Thentos.Util
 
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Either (EitherT(EitherT), runEitherT)
 import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
