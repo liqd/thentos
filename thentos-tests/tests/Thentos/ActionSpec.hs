@@ -185,7 +185,7 @@ spec_user = describe "user" $ do
             it "sends email with PasswordResetToken and stores token" $ \sta -> do
                 let userData = head testUserForms
                 uid <- runPrivs [RoleAdmin] sta $ addUser userData
-                void . runWithoutPrivs sta . sendPasswordResetMail . udEmail $ userData
+                void . runWithoutPrivs sta . sendPasswordResetMail Nothing . udEmail $ userData
                 [Only token] <- doQuery (sta ^. aStDb)
                     [sql| SELECT token FROM password_reset_tokens WHERE uid = ?|] (Only uid)
                 let logPath = cs $ (sta ^. aStConfig) >>. (Proxy :: Proxy '["log", "path"])
@@ -195,7 +195,7 @@ spec_user = describe "user" $ do
         context "if user doesn't exist" $ do
             it "fails with NoSuchUser" $ \sta -> do
                 Left (ActionErrorThentos err) <- runClearanceE dcBottom sta .
-                    sendPasswordResetMail . udEmail . head $ testUserForms
+                    sendPasswordResetMail Nothing . udEmail . head $ testUserForms
                 err `shouldBe` NoSuchUser
 
     describe "resetPasswordAndLogin" $ do

@@ -144,7 +144,7 @@ thentosApi as = enter (enterAction () as a3ActionErrorToServantErr emptyCreds) $
   :<|> activate
   :<|> login
   :<|> login
-  :<|> (\(WrappedEmail e) -> A.sendPasswordResetMail e)
+  :<|> (\(WrappedEmail e) -> A.sendPasswordResetMail (Just "?path=") e)
   :<|> resetPassword
   :<|> thentosApiWithWidgets
 

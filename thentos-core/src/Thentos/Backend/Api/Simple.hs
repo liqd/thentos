@@ -108,7 +108,7 @@ thentosUser =
   :<|> (JsonTop . ((^. userEmail) . snd) <$>) . lookupConfirmedUser
   :<|> (makeCaptcha >>= \(cid, img) -> return $ addHeader cid img)
   :<|> (\voice -> makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
-  :<|> (\(WrappedEmail e) -> sendPasswordResetMail e)
+  :<|> (\(WrappedEmail e) -> sendPasswordResetMail Nothing e)
   :<|> (JsonTop <$>) . (\(PasswordResetRequest tok pass) -> resetPasswordAndLogin tok pass)
 
 

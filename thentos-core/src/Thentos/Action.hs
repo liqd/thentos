@@ -88,6 +88,7 @@ import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
@@ -298,18 +299,20 @@ addPasswordResetToken email = do
     return (user, tok)
 
 -- | Create a password reset token and send the link by email to the user.
+-- The first argument can be used to modify the reset link sent per email.
 -- No authentication required, obviously.
-sendPasswordResetMail :: UserEmail -> Action e s ()
-sendPasswordResetMail email = do
+sendPasswordResetMail :: Maybe ST -> UserEmail -> Action e s ()
+sendPasswordResetMail beforeToken email = do
     (user, PasswordResetToken tok) <- addPasswordResetToken email
     cfg <- U.unsafeAction U.getConfig
-    let subject = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
+    let subject      = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "subject"])
         bodyTemplate = cfg >>. (Proxy :: Proxy '["email_templates", "password_reset", "body"])
-        feHttp = case cfg >>. (Proxy :: Proxy '["frontend"]) of
+        feHttp       = case cfg >>. (Proxy :: Proxy '["frontend"]) of
             Nothing -> error "sendPasswordResetMail: frontend not configured!"
             Just v -> Tagged v
+        fullTok      = fromMaybe "" beforeToken <> tok
         context "user_name" = MuVariable . fromUserName $ user ^. userName
-        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> tok
+        context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> fullTok
         context x           = error $ "sendPasswordResetMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
     U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
