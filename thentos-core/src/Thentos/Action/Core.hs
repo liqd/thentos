@@ -10,7 +10,6 @@ import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (runStateT)
 import Control.Monad.Trans.Either (eitherT)
 import Data.Bifunctor (first)
-import Data.EitherR (fmapL)
 import Data.Typeable (Typeable)
 import LIO.Core (LIOState(LIOState), liftLIO, evalLIO, taint, guardWrite)
 import LIO.DCLabel (CNF, DCLabel)
@@ -74,7 +73,7 @@ runActionE polyState actionState action = catchUnknown
           . (`runReaderT` actionState)
           . fromAction
 
-    catchAnyLabelError = (first (fmapL ActionErrorThentos) <$> inner action)
+    catchAnyLabelError = (first (first ActionErrorThentos) <$> inner action)
         `catch` \e -> return (Left $ ActionErrorAnyLabel e, polyState)
 
     catchUnknown = catchAnyLabelError

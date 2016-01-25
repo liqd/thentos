@@ -9,6 +9,7 @@ module Thentos.Frontend.State where
 import Control.Monad.Except (throwError, catchError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Control.Monad.State (get, gets, put)
+import Control.Lens (_Left)
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
@@ -130,7 +131,7 @@ enterFAction ::
     -> Vault.Key FSession
     -> FSessionMap
     -> FAction :~> ExceptT ServantErr IO
-enterFAction aState key smap = Nat $ ExceptT . (>>= fmapLM fActionServantErr) . run
+enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . run
   where
     run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
     run fServer = fst <$> runActionE emptyFrontendSessionData aState fServer'

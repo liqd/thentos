@@ -88,7 +88,7 @@ module Thentos.Types
 where
 
 import Control.Exception (Exception)
-import Control.Lens (makeLenses)
+import Control.Lens (makeLenses, _Left, over)
 import Control.Monad.Except (MonadError, throwError, mzero)
 import Control.Monad (when, unless)
 import Data.Aeson (FromJSON, ToJSON, Value(String), (.=), (.:))
@@ -103,7 +103,6 @@ import Database.PostgreSQL.Simple.TypeInfo (typoid)
 import Data.ByteString.Builder (doubleDec)
 import Data.ByteString.Conversion (ToByteString)
 import Data.Char (isAlpha)
-import Data.EitherR (fmapL)
 import Data.Function (on)
 import Data.Maybe (isNothing, fromMaybe)
 import Data.Monoid ((<>))
@@ -668,7 +667,7 @@ newtype RelRef = RelRef { fromRelRef :: RelativeRef }
 
 instance FromHttpApiData RelRef where
     parseQueryParam s = case decodeUtf8' $ cs s of
-        Right r -> fmapL (cs . show) $ RelRef <$> parseRelativeRef laxURIParserOptions (cs r)
+        Right r -> over _Left (cs . show) $ RelRef <$> parseRelativeRef laxURIParserOptions (cs r)
         Left  e -> Left . cs . show $ e
 
 parseUri :: SBS -> Either URIParseError Uri
