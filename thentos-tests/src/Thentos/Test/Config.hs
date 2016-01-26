@@ -16,14 +16,13 @@ module Thentos.Test.Config
 where
 
 import Control.Concurrent.MVar (MVar, readMVar, newMVar)
-import Data.Configifier (Source(YamlString, ShellEnv, CommandLine), (>>.))
+import Data.Configifier (Source(YamlString), (>>.), defaultSources')
 import Data.Maybe (fromMaybe)
 import Data.Pool (Pool)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Database.PostgreSQL.Simple (Connection)
 import System.Directory (setCurrentDirectory, getCurrentDirectory)
-import System.Environment (getEnvironment, getArgs)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Thentos.Config hiding (getDefaultUser)
@@ -53,10 +52,7 @@ thentosTestConfig' extra =
     getConfigWithSources . (++ extra)
 
 thentosTestConfigSources :: IO [Source]
-thentosTestConfigSources = do
-    e <- getEnvironment
-    a <- getArgs
-    return [thentosTestConfigYaml, ShellEnv e, CommandLine a]
+thentosTestConfigSources = (thentosTestConfigYaml:) <$> defaultSources' "THENTOS_" []
 
 thentosTestConfigYaml :: Source
 thentosTestConfigYaml = YamlString . cs . unlines $

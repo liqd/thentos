@@ -34,7 +34,7 @@ import Control.Applicative ((<|>))
 import Control.Exception (throwIO, try)
 import Data.Configifier
     ( (:>), (:*>)((:*>)), (:>:), (>>.), Source
-    , configifyWithDefault, renderConfigFile, docs, defaultSources
+    , configifyWithDefault, renderConfigFile, docs, defaultSources'
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
 import Data.Maybe (fromMaybe)
@@ -200,7 +200,7 @@ printConfigUsage = do
 
 
 getConfig :: FilePath -> IO ThentosConfig
-getConfig configFile = defaultSources [configFile] >>= getConfigWithSources
+getConfig configFile = defaultSources' "THENTOS_" [configFile] >>= getConfigWithSources
 
 getConfigWithSources :: [Source] -> IO ThentosConfig
 getConfigWithSources sources = do
