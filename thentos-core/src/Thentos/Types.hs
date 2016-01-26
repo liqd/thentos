@@ -15,6 +15,7 @@ module Thentos.Types
     , UserId(..)
     , UserName(..)
     , UserPass(..)
+    , minPasswordLength
     , HashedSecret(..)
     , UserEmail(..), parseUserEmail, fromUserEmail
     , WrappedEmail(..)
@@ -206,6 +207,10 @@ instance CSV.FromField UserName where
 newtype UserPass = UserPass { fromUserPass :: ST }
     deriving (Eq, FromJSON, ToJSON, Typeable, Generic, IsString)
 
+-- | The minimum length enforced when setting passwords.
+minPasswordLength :: Int
+minPasswordLength = 6
+
 data HashedSecret a = BCryptHash SBS | SCryptHash SBS
     deriving (Eq, Show, Generic)
 
@@ -257,7 +262,6 @@ instance FromJSON UserEmail
 
 instance ToJSON UserEmail
     where toJSON = Aeson.toJSON . fromUserEmail
-
 
 -- UserEmail wrapped in an 'email' object (as JSON representation)
 newtype WrappedEmail = WrappedEmail UserEmail
@@ -895,6 +899,7 @@ data ThentosError e =
     | NeedUserA ThentosSessionToken ServiceId
     | MalformedUserPath ST
     | InvalidCaptchaSolution
+    | PasswordTooShort
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 
