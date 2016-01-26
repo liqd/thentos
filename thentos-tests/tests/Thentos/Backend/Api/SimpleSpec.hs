@@ -93,7 +93,8 @@ spec = describe "Thentos.Backend.Api.Simple" $ do
 specRest :: SpecWith ItsState
 specRest = do
     describe "headers" $ do
-        it "bad unknown headers matching /X-Thentos-*/ yields an error response." . runIt $ \its -> do
+        it "bad unknown headers matching /X-Thentos-*/ yields an error response." . runIt $
+          \its -> do
             let headers = [("X-Thentos-No-Such-Header", "3"), jsonHeader, itsGodHeader its]
             request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
 
@@ -182,7 +183,8 @@ specRest = do
                             >>. (Proxy :: Proxy '["log", "path"])
                     readProcess "grep" [line, logFile] ""
 
-            it "responds with 204 No Content and sends mail with confirmation token" . runIt $ \its -> do
+            it "responds with 204 No Content and sends mail with confirmation token" . runIt $
+              \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
@@ -192,17 +194,19 @@ specRest = do
                 let actPrefix = "/activate/"
                 actLine <- grepLogFile its actPrefix
                 let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
-                [Only (actualTok :: ConfirmationToken)] <- liftIO $ doQuery (itsActionState its ^. aStDb)
-                    [sql| SELECT token FROM user_confirmation_tokens |] ()
+                [Only (actualTok :: ConfirmationToken)] <-
+                    liftIO $ doQuery (itsActionState its ^. aStDb)
+                        [sql| SELECT token FROM user_confirmation_tokens |] ()
                 liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
 
-            it "responds with 204 No Content and sends warn mail if email is duplicate" . runIt $ \its -> do
+            it "responds with 204 No Content and sends warn mail if email is duplicate" . runIt $
+              \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Create user
                 void $ postDefaultUser its
                 -- Try to register another user with the same email
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                    user    = UserFormData "Another" "pwd" (udEmail defaultUserData)
+                    user    = UserFormData "Another" "password" (udEmail defaultUserData)
                     reqBody = Aeson.encode $ UserCreationRequest user csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
                 -- Check that no confirmation token was generated
@@ -211,24 +215,26 @@ specRest = do
                 actLine <- grepLogFile its "Thentos: Attempted Signup"
                 liftIO $ actLine `shouldNotBe` ""
 
-            it "refuses to accept the correct solution to the same captcha twice" . runIt $ \its -> do
+            it "refuses to accept the correct solution to the same captcha twice" . runIt $
+              \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
                 -- Try to register another user
-                let user2    = UserFormData "name2" "pwd" $ forceUserEmail "another@example.org"
+                let user2 = UserFormData "name2" "password" $ forceUserEmail "another@example.org"
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
                 request "POST" "/user/register" [jsonHeader] reqBody2 `shouldRespondWith` 400
 
-            it "allows resubmitting the same captcha solution if the user name was not unique" . runIt $ \its -> do
+            it "allows resubmitting the same captcha solution if the user name was not unique" .
+              runIt $ \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Create user
                 void $ postDefaultUser its
                 -- Try to register another user with the same name
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
-                    user    = UserFormData (udName defaultUserData) "pwd" $
+                    user    = UserFormData (udName defaultUserData) "password" $
                                            forceUserEmail "another@example.org"
                     reqBody = Aeson.encode $ UserCreationRequest user csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 403
@@ -249,15 +255,24 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 400
 
+            it "fails if the user's password is too short" . runIt $ \its -> do
+                (cid, solution) <- getCaptchaAndSolution its
+                let csol     = CaptchaSolution (CaptchaId $ cs cid) solution
+                    userData = defaultUserData { udPassword = "short" }
+                    reqBody  = Aeson.encode $ UserCreationRequest userData csol
+                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 400
+
         -- Note: this code assumes that there is just one unconfirmed user in the DB.
-        let registerUserAndGetConfirmationToken :: ItsState -> (SBS, ST) -> WaiSession ConfirmationToken
+        let registerUserAndGetConfirmationToken :: ItsState -> (SBS, ST)
+                                                 -> WaiSession ConfirmationToken
             registerUserAndGetConfirmationToken its (cid, solution) = do
                 -- Register user and get confirmation token
                 let csol     = CaptchaSolution (CaptchaId $ cs cid) solution
                     rreqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
                 void $ request "POST" "/user/register" [jsonHeader] rreqBody
                 -- There should be just one token in the DB
-                [Only (confTok :: ConfirmationToken)] <- liftIO $ doQuery (itsActionState its ^. aStDb)
+                [Only (confTok :: ConfirmationToken)] <-
+                    liftIO $ doQuery (itsActionState its ^. aStDb)
                     [sql| SELECT token FROM user_confirmation_tokens |] ()
                 return confTok
 
@@ -354,4 +369,4 @@ jsonHeader :: Header
 jsonHeader = ("Content-Type", "application/json")
 
 defaultUserData :: UserFormData
-defaultUserData = UserFormData "name" "pwd" $ forceUserEmail "somebody@example.org"
+defaultUserData = UserFormData "name" "PASSword" $ forceUserEmail "somebody@example.org"

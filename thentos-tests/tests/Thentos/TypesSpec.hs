@@ -15,7 +15,7 @@ import GHC.Generics (Generic)
 import LIO (canFlowTo, lub, glb)
 import LIO.DCLabel (DCLabel, (%%), (/\), (\/), toCNF)
 import Test.Hspec.QuickCheck (modifyMaxSize)
-import Test.Hspec (Spec, SpecWith, before, context, describe, it, shouldBe, pendingWith)
+import Test.Hspec (Spec, SpecWith, before, context, describe, it, shouldBe)
 import Test.QuickCheck (property)
 
 import Thentos.Types
@@ -152,12 +152,6 @@ typesSpec = modifyMaxSize (* testSizeFactor) $ do
     describe "PasswordResetRequest" $ do
         it "has invertible *JSON instances" . property $
             \(p :: PasswordResetRequest) -> (eitherDecode . encode) p == Right p
-
-        it "rejects short passwords" $ do
-             pendingWith "FIXME length check not yet implemented"
-             let reqdata = mkPwResetRequestJson "/principals/resets/dummypath" "short"
-             (eitherDecode reqdata :: Either String PasswordResetRequest)
-                 `shouldBe` Left "password too short (less than 6 characters)"
 
 
 decodeProxy :: String -> Maybe ProxyUri
