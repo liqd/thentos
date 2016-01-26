@@ -629,7 +629,7 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- | Send an email. Only a privileged IP is allowed to use this endpoint.
 sendEmail :: SendEmailRequest -> Action e s ()
 sendEmail req = do
-    hasPrivilegedIP
+    void hasPrivilegedIP
     U.unsafeAction $
         U.sendMail Nothing (req ^. emailRecipient) (req ^. emailSubject) (req ^. emailPlainTextBody)
 

@@ -23,7 +23,7 @@ module Thentos.Types
     , PasswordResetToken(..)
     , PasswordResetRequest(..)
     , UserFormData(..)
-    , UserCreationRequest(..), emailRecipient, emailSubject, emailPlainTextBody
+    , UserCreationRequest(..)
     , LoginFormData(..)
 
     , Service(..)
@@ -48,7 +48,7 @@ module Thentos.Types
     , ServiceSessionMetadata(..)
     , ByUserOrServiceId(..)
 
-    , SendEmailRequest(..)
+    , SendEmailRequest(..), emailRecipient, emailSubject, emailPlainTextBody
 
     , Timestamp(..)
     , Timeout(..), toSeconds
@@ -515,7 +515,6 @@ instance ToJSON ByUserOrServiceId where
 
 -- * send email
 
--- TODO: Service ID? Pseudonyms? From address?
 data SendEmailRequest =
     SendEmailRequest
       { _emailRecipient     :: !UserEmail

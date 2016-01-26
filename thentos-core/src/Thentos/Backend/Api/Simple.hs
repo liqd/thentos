@@ -168,6 +168,7 @@ thentosServiceSession =
 type SendEmail =
     ReqBody '[JSON] SendEmailRequest :> Post '[JSON] ()
 
+
 -- * servant docs
 
 instance HasDocExtras (RestDocs Api) where
