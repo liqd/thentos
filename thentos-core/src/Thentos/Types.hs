@@ -23,7 +23,7 @@ module Thentos.Types
     , PasswordResetToken(..)
     , PasswordResetRequest(..)
     , UserFormData(..)
-    , UserCreationRequest(..)
+    , UserCreationRequest(..), emailRecipient, emailSubject, emailPlainTextBody
     , LoginFormData(..)
 
     , Service(..)
@@ -47,6 +47,8 @@ module Thentos.Types
     , ServiceSession(..)
     , ServiceSessionMetadata(..)
     , ByUserOrServiceId(..)
+
+    , SendEmailRequest(..)
 
     , Timestamp(..)
     , Timeout(..), toSeconds
@@ -511,6 +513,22 @@ instance ToJSON ByUserOrServiceId where
     toJSON (ByService i k) = Aeson.object [ "service" .= Aeson.toJSON (i, k)]
 
 
+-- * send email
+
+-- TODO: Service ID? Pseudonyms? From address?
+data SendEmailRequest =
+    SendEmailRequest
+      { _emailRecipient     :: !UserEmail
+      , _emailSubject       :: !ST
+      , _emailPlainTextBody :: !ST
+--    , _emailHTMLBody      :: !(Maybe ST) FIXME
+      }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance FromJSON SendEmailRequest where parseJSON = Aeson.gparseJson
+instance ToJSON SendEmailRequest where toJSON = Aeson.gtoJson
+
+
 -- * timestamp, timeout
 
 -- FIXME: move this section to module (Data.Timeout) in separate package `store-expire`.  (also move
@@ -915,3 +933,4 @@ makeLenses ''ServiceAccount
 makeLenses ''ServiceSession
 makeLenses ''ThentosSession
 makeLenses ''User
+makeLenses ''SendEmailRequest

@@ -70,6 +70,8 @@ module Thentos.Action
     , endServiceSession
     , getServiceSessionMetadata
 
+    , sendEmail
+
     , assignRole
     , unassignRole
     , agentRoles
@@ -620,6 +622,16 @@ endServiceSession tok = queryA $ T.endServiceSession tok
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: ServiceSessionToken -> Action e s ServiceSessionMetadata
 getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
+
+
+-- * send emails
+
+-- | Send an email. Only a privileged IP is allowed to use this endpoint.
+sendEmail :: SendEmailRequest -> Action e s ()
+sendEmail req = do
+    hasPrivilegedIP
+    U.unsafeAction $
+        U.sendMail Nothing (req ^. emailRecipient) (req ^. emailSubject) (req ^. emailPlainTextBody)
 
 
 -- * personas, contexts, and groups

@@ -280,6 +280,7 @@ instance ToSample ServiceSessionToken where
 
 instance ToSample ByUserOrServiceId
 
+instance ToSample SendEmailRequest
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
     docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intro:)

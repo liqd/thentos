@@ -353,6 +353,20 @@ specRest = do
                     `shouldRespondWith` "false" { matchStatus = 200 }
 
 
+    describe "email" $ do
+        describe "ReqBody '[JSON] SendEmailRequest :> Post '[JSON] ()" $ do
+            it "sends an email." . runIt $ \its -> do
+                let hdr  = [jsonHeader]
+                    addr = defaultUserData ^. userEmail
+                    subj = "Email subject"
+                    body = "Email body"
+                request "POST" "/email" hdr $ Aeson.encode $ SendEmailRequest addr subj body
+                    `shouldRespondWith` "true" { matchStatus = 200 }
+
+            it "can only be called from privileged IPs" . runIt $ \_its -> do
+                pendingWith "test missing."
+
+
 -- | Parse and unwrap an element wrapped in JsonTop.
 decodeJsonTop :: Aeson.FromJSON a => LBS -> Either String a
 decodeJsonTop bs = fromJsonTop <$> Aeson.eitherDecode bs
