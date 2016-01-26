@@ -134,6 +134,7 @@ test-suite tests
     , servant-blaze
     , servant-server
     , servant-session >=0.5 && <0.6
+    , servant-docs
     , string-conversions >=0.4 && <0.5
     , text >=1.2.1.3 && <1.3
     , thentos-core ==0.2.1

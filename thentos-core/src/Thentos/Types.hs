@@ -48,7 +48,8 @@ module Thentos.Types
     , ServiceSessionMetadata(..)
     , ByUserOrServiceId(..)
 
-    , SendEmailRequest(..), emailRecipient, emailSubject, emailPlainTextBody
+    , EmailRecipients(..), erEmails, erPersonas
+    , SendEmailRequest(..), emailRecipients, emailSubject, emailBody, emailHtml
 
     , Timestamp(..)
     , Timeout(..), toSeconds
@@ -515,17 +516,46 @@ instance ToJSON ByUserOrServiceId where
 
 -- * send email
 
-data SendEmailRequest =
-    SendEmailRequest
-      { _emailRecipient     :: !UserEmail
-      , _emailSubject       :: !ST
-      , _emailPlainTextBody :: !ST
---    , _emailHTMLBody      :: !(Maybe ST) FIXME
+data EmailRecipients =
+    EmailRecipients
+      { _erEmails   :: ![UserEmail]
+      , _erPersonas :: ![Uri]
       }
   deriving (Eq, Show, Typeable, Generic)
 
-instance FromJSON SendEmailRequest where parseJSON = Aeson.gparseJson
-instance ToJSON SendEmailRequest where toJSON = Aeson.gtoJson
+instance FromJSON EmailRecipients where
+    parseJSON (Aeson.Object m) = EmailRecipients <$> m .: "emails" <*> m .: "personas"
+    parseJSON bad = aesonError "EmailRecipients" bad
+
+instance ToJSON EmailRecipients where
+    toJSON (EmailRecipients emails personas) =
+        Aeson.object [ "emails"   .= Aeson.toJSON emails
+                     , "personas" .= Aeson.toJSON personas
+                     ]
+
+data SendEmailRequest =
+    SendEmailRequest
+      { _emailRecipients :: !EmailRecipients
+      , _emailSubject    :: !ST
+      , _emailBody       :: !ST
+      , _emailHtml       :: !(Maybe ST)
+      }
+  deriving (Eq, Show, Typeable, Generic)
+
+instance FromJSON SendEmailRequest where
+    parseJSON (Aeson.Object m) = SendEmailRequest <$> m .: "recipients"
+                                                  <*> m .: "subject"
+                                                  <*> m .: "body"
+                                                  <*> m .: "html"
+    parseJSON bad = aesonError "SendEmailRequest" bad
+
+instance ToJSON SendEmailRequest where
+    toJSON (SendEmailRequest recipients subject body html) =
+        Aeson.object [ "recipients" .= Aeson.toJSON recipients
+                     , "subject"    .= Aeson.toJSON subject
+                     , "body"       .= Aeson.toJSON body
+                     , "html"       .= Aeson.toJSON html
+                     ]
 
 
 -- * timestamp, timeout
@@ -932,4 +962,5 @@ makeLenses ''ServiceAccount
 makeLenses ''ServiceSession
 makeLenses ''ThentosSession
 makeLenses ''User
+makeLenses ''EmailRecipients
 makeLenses ''SendEmailRequest

@@ -90,6 +90,8 @@ import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Foldable (for_)
+import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -627,11 +629,38 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 -- * send emails
 
 -- | Send an email. Only a privileged IP is allowed to use this endpoint.
+{- TODO
+* HTML: I guess this should be handled in U.sendMail
+* Templating issues:
+    * Privacy:
+        In a way the purpose of having thentos sending emails is to avoid
+        the privacy leakage that would be caused if we would instead provide
+        a method of access the email addresses.
+        However the templating is also a way to leak information in particular
+        when the variable is used in a URL calling home.
+        So if there is any templating it should be about what the service already knows.
+    * Duplicates:
+        In case of duplicates (see docs/messaging.md) what should be the templates variables?
+    * Mixed recipients:
+        When sending directly to an email address on has no additional information for templating,
+        while when sending to a persona one has access to some information for templating.
+* Authorization:
+    The calls to T.lookupConfirmedUser are NOT using lookupUser_ which does some tainting, the
+    reason being that this is used only with a privileged IP.
+-}
 sendEmail :: SendEmailRequest -> Action e s ()
 sendEmail req = do
     void hasPrivilegedIP
+    let recipients = req ^. emailRecipients
+        personaEmail uri = queryA $ do
+            p <- T.lookupPersonaByUri uri
+            (_, u) <- T.lookupConfirmedUser (p ^. personaUid)
+            return $ u ^. userEmail
+    personaEmails <- mapM personaEmail (recipients ^. erPersonas)
+    let emails = nub $ recipients ^. erEmails ++ personaEmails
     U.unsafeAction $
-        U.sendMail Nothing (req ^. emailRecipient) (req ^. emailSubject) (req ^. emailPlainTextBody)
+        for_ emails $ \email ->
+            U.sendMail Nothing email (req ^. emailSubject) (req ^. emailBody)
 
 
 -- * personas, contexts, and groups

@@ -29,6 +29,7 @@ import Data.String.Conversions (SBS, LBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
 import Network.Wai (Application)
 import Network.Wai.Test (simpleBody, simpleHeaders, SResponse)
+import Servant.Docs (toSample)
 import System.FilePath ((</>))
 import System.Process (readProcess)
 import Test.Hspec
@@ -45,6 +46,8 @@ import qualified Data.Text as ST
 import Thentos.Action.Types
 import Thentos.Backend.Api.Simple (serveApi)
 import Thentos.Types
+import Thentos.Transaction.Core (runThentosQuery)
+import Thentos.Transaction (addPersona)
 import Thentos (createDefaultUser)
 
 import Thentos.Test.Config
@@ -355,14 +358,22 @@ specRest = do
 
     describe "email" $ do
         describe "ReqBody '[JSON] SendEmailRequest :> Post '[JSON] ()" $ do
-            it "sends an email." . runIt $ \its -> do
-                let hdr  = [jsonHeader]
-                    addr = defaultUserData ^. userEmail
-                    subj = "Email subject"
-                    body = "Email body"
-                request "POST" "/email" hdr $ Aeson.encode $ SendEmailRequest addr subj body
-                    `shouldRespondWith` "true" { matchStatus = 200 }
-
+            let sendEmail emails personas = do
+                    let hdr  = [jsonHeader]
+                        recp = EmailRecipients emails personas
+                        subj = "Email subject"
+                        body = "Email body"
+                    request "POST" "/email" hdr (Aeson.encode $ SendEmailRequest recp subj body Nothing)
+                Just uri = toSample (Proxy :: Proxy Uri)
+            it "sends an email to an explicit email address." . runIt $ \_its -> do
+                sendEmail [udEmail defaultUserData] [] `shouldRespondWith` "" { matchStatus = 204 }
+            it "sends an email to a persona id." . runIt $ \its -> do
+                let connPool = itsActionState its ^. aStDb
+                (uid, _, _):_ <- createTestUsers connPool 2
+                Right _persona <- liftIO $ runThentosQuery connPool $ addPersona persName uid (Just uri)
+                sendEmail [] [uri] `shouldRespondWith` "" { matchStatus = 204 }
+            it "fails if the persona does not exist" . runIt $ \_its ->
+                sendEmail [] [uri] `shouldRespondWith` 400
             it "can only be called from privileged IPs" . runIt $ \_its -> do
                 pendingWith "test missing."
 
