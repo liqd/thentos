@@ -373,6 +373,7 @@ lookupUserCheckPassword_ transaction password = a `catchError` h
 -- user to change the password to be logged in (or admin privs).
 changePassword :: UserId -> UserPass -> UserPass -> Action e s ()
 changePassword uid old new = do
+    passwordAcceptable new
     _ <- lookupUserCheckPassword_ (T.lookupAnyUser uid) old
     hashedPw <- U.unsafeAction $ U.hashUserPass new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
