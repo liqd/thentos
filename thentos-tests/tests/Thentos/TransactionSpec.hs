@@ -35,6 +35,8 @@ spec = describe "Thentos.Transaction" . before (thentosTestConfig >>= createDb)
     lookupConfirmedUserByNameSpec
     lookupConfirmedUserByEmailSpec
     lookupAnyUserByEmailSpec
+    lookupLdapUserSpec
+    recordNewLdapUserSpec
     deleteUserSpec
     passwordResetTokenSpec
     changePasswordSpec
@@ -194,6 +196,26 @@ lookupConfirmedUserByEmailSpec = describe "lookupConfirmedUserByEmail" $ do
     it "returns NoSuchUser if no user has the email" $ \connPool -> do
         runVoidedQuery connPool (lookupConfirmedUserByEmail $ forceUserEmail "email@example.com")
             `shouldReturn` Left NoSuchUser
+
+lookupLdapUserSpec :: SpecWith (Pool Connection)
+lookupLdapUserSpec = describe "lookupLdapUser" $ do
+    it "returns a user id if the user exists" $ \connPool -> do
+        count <- doTransaction connPool
+            [sql| INSERT INTO users (ldap_name) VALUES ('ldap_carl') |] ()
+        count `shouldBe` 1
+        Right (_uid, name) <- runVoidedQuery connPool (lookupLdapUser "ldap_carl")
+        name `shouldBe` "ldap_carl"
+
+
+recordNewLdapUserSpec :: SpecWith (Pool Connection)
+recordNewLdapUserSpec = describe "recordNewLdapUser" $ do
+    it "creates a new entry in the users table for a new ldap name" $ \connPool -> do
+        Right uid <- runVoidedQuery connPool (recordNewLdapUser "newHere")
+        [Only ldapName] <- doQuery connPool
+                                   [sql| SELECT ldap_name
+                                         FROM users
+                                         WHERE id = ?|] (Only uid)
+        ldapName `shouldBe` ("newHere" :: LdapUserName)
 
 lookupAnyUserByEmailSpec :: SpecWith (Pool Connection)
 lookupAnyUserByEmailSpec = describe "lookupAnyUserByEmail" $ do

@@ -65,6 +65,24 @@ lookupAnyUserByEmail email =
     returnUnique (\(uid, name, pwd) -> (uid, User name pwd email))
                  NoSuchUser "lookupAnyUserByEmail: multiple results"
 
+lookupLdapUser :: LdapUserName -> ThentosQuery e (UserId, LdapUserName)
+lookupLdapUser name = do
+    res <- queryT [sql| SELECT id FROM users WHERE ldap_name = ?|] (Only name)
+    returnUnique (\(Only uid) -> (uid, name)) NoSuchUser "lookupLdapUser: multiple results" res
+
+recordNewLdapUser :: LdapUserName -> ThentosQuery e UserId
+recordNewLdapUser name = do
+    -- FIXME: INSERT returns the number of rows inserted, not the user id
+    res <- queryT [sql| INSERT INTO users (ldap_name)
+                             SELECT ?
+                             WHERE NOT EXISTS (SELECT * FROM users
+                                               WHERE name = ?)
+                             RETURNING id|]
+                  (name, name)
+    case res of
+        [Only uid] -> return uid
+        _ -> undefined -- TODO: handle this
+
 -- | Actually add a new user. The user may already have an ID, otherwise the DB will automatically
 -- create one (auto-increment). NOTE that mixing calls with 'Just' an ID with those without
 -- is a very bad idea and will quickly lead to errors!

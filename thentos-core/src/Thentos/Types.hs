@@ -84,6 +84,8 @@ module Thentos.Types
     , userEmail, userName, userPassword
 
     , aesonError
+    , LdapUserName
+    , LdapUser
     )
 where
 
@@ -165,6 +167,11 @@ data User =
       , _userEmail           :: !UserEmail
       }
   deriving (Eq, Show, Typeable, Generic)
+
+data LdapUser = LdapUser { ldapUserName :: LdapUserName }
+
+newtype LdapUserName = LdapUserName { fromLdapUserName :: ST }
+    deriving (Eq, Ord, Show, ToField, FromField, IsString)
 
 -- | the data a user maintains about a service they are signed up
 -- with.

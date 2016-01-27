@@ -81,6 +81,7 @@ module Thentos.Action
     , deleteCaptcha
 
     , collectGarbage
+    , lookupLdapUser
     )
 where
 
@@ -189,6 +190,14 @@ lookupConfirmedUserByName name = lookupUser_ $ T.lookupConfirmedUserByName name
 -- | Like 'lookupConfirmedUser', but based on 'UserEmail'.
 lookupConfirmedUserByEmail :: UserEmail -> Action e s (UserId, User)
 lookupConfirmedUserByEmail email = lookupUser_ $ T.lookupConfirmedUserByEmail email
+
+lookupLdapUser :: LdapUserName -> Action e s (UserId, LdapUser)
+lookupLdapUser = undefined
+    -- TODO:
+        -- check database for ldap user
+        -- check ldap server for user
+        -- if we did not already have a database, add them to the database
+            -- (and thereby assign them a user id)
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
@@ -355,6 +364,8 @@ lookupUserCheckPassword_ transaction password = a `catchError` h
     h e          = throwError e
 
 
+-- loginWithLDAP :: LdapUserName -> LdapPassword -> Action e s (UserId, User)
+
 -- ** change user data
 
 -- | Authenticate user against old password, and then change password to new password.
@@ -495,12 +506,14 @@ startThentosSessionByUserId uid pass = do
     startThentosSessionByAgent_ (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
+-- TODO: needs to handle ldap users
 startThentosSessionByUserName ::
     UserName -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- lookupUserCheckPassword_ (T.lookupConfirmedUserByName name) pass
     (,) uid <$> startThentosSessionByAgent_ (UserA uid)
 
+-- TODO: should handle ldap users if possible
 startThentosSessionByUserEmail ::
     UserEmail -> UserPass -> Action e s (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do

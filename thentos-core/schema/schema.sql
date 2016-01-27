@@ -1,11 +1,18 @@
 -- All statements in this file must be idempotent (it is called at start time, every time).
+-- TODO: this table should hold both local users and ldap users.
+    -- so we should have constraints to make sure every row has
+        -- a ldap user name XOR all the stuff that local users have
 CREATE TABLE IF NOT EXISTS users (
     id         bigserial   PRIMARY KEY,
-    name       text        NOT NULL UNIQUE,
-    password   text        NOT NULL,
-    email      text        NOT NULL UNIQUE,
-    confirmed  bool        NOT NULL,
-    created    timestamptz NOT NULL DEFAULT now()
+    name       text        UNIQUE,
+    password   text,
+    email      text        UNIQUE,
+    confirmed  bool,
+    created    timestamptz NOT NULL DEFAULT now(),
+    ldap_name  text        UNIQUE
+
+    CHECK ((ldap_name IS NULL) <>
+            (name IS NULL AND password IS NULL AND email IS NULL AND confirmed IS NULL))
 );
 
 CREATE TABLE IF NOT EXISTS user_confirmation_tokens (
