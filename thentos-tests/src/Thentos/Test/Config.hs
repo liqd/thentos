@@ -74,7 +74,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "smtp:" :
     "    sender_name: \"Thentos\"" :
     "    sender_address: \"thentos@thentos.org\"" :
-    "    sendmail_path: \"/bin/cat\"" :
+    "    sendmail_path: \"cat\"" :
     "    sendmail_args: [\"-t\"]" :
     "" :
     "proxy:" :
