@@ -212,6 +212,7 @@ deleteUser uid = do
 -- See also: 'confirmNewUser'.
 addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s ()
 addUnconfirmedUser userData = do
+    passwordAcceptable $ udPassword userData
     tok  <- freshConfirmationToken
     user <- U.unsafeAction $ U.makeUserFromFormData userData
     let happy = do
@@ -221,6 +222,12 @@ addUnconfirmedUser userData = do
         `catchError`
             \case UserEmailAlreadyExists -> sendUserExistsMail (udEmail userData)
                   e                      -> throwError e
+
+-- | Helper action: Check that the new or changed password of a user is acceptable, throwing an
+-- error otherwise. Currently we only check that the password is not too short.
+passwordAcceptable :: UserPass -> Action e s ()
+passwordAcceptable (UserPass pass) =
+    if ST.length pass < minPasswordLength then throwError PasswordTooShort else pure ()
 
 -- | Helper action: Send a confirmation mail to a newly registered user.
 sendUserConfirmationMail :: UserFormData -> ConfirmationToken -> Action e s ()
@@ -323,6 +330,7 @@ sendPasswordResetMail beforeToken email = do
 -- SECURITY: See 'confirmNewUser'.
 resetPassword :: PasswordResetToken -> UserPass -> Action e s UserId
 resetPassword token password = do
+    passwordAcceptable password
     expiryPeriod <- (>>. (Proxy :: Proxy '["pw_reset_expiration"])) <$> U.unsafeAction U.getConfig
     hashedPassword <- U.unsafeAction $ U.hashUserPass password
     queryA $ T.resetPassword expiryPeriod token hashedPassword
@@ -365,6 +373,7 @@ lookupUserCheckPassword_ transaction password = a `catchError` h
 -- user to change the password to be logged in (or admin privs).
 changePassword :: UserId -> UserPass -> UserPass -> Action e s ()
 changePassword uid old new = do
+    passwordAcceptable new
     _ <- lookupUserCheckPassword_ (T.lookupAnyUser uid) old
     hashedPw <- U.unsafeAction $ U.hashUserPass new
     guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)

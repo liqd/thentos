@@ -98,7 +98,7 @@ spec_user = describe "user" $ do
         it "guarantee that user email addresses are unique" $ \sta -> do
             [(_, _, user)] <- createTestUsers (sta ^. aStDb) 1
             let userFormData = UserFormData (UserName "newOne")
-                                            (UserPass "foo")
+                                            (UserPass "foobar")
                                             (user ^. userEmail)
             Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
@@ -106,7 +106,7 @@ spec_user = describe "user" $ do
     describe "addUnconfirmedUserWithCaptcha" $ do
             let email = forceUserEmail "alice@example.com"
                 name = UserName "alice"
-                userData = UserFormData name (UserPass "pass") email
+                userData = UserFormData name (UserPass "passwd") email
 
                 createCaptcha sta = doTransaction (sta ^. aStDb)
                     [sql| INSERT INTO captchas (id, solution)
@@ -216,6 +216,16 @@ spec_user = describe "user" $ do
                 Left (ActionErrorThentos err) <-
                     runClearanceE dcBottom sta $ resetPasswordAndLogin "dummytoken" "dummypass"
                 err `shouldBe` NoSuchToken
+
+        context "if password is too short" $ do
+            it "fails with PasswordTooShort" $ \sta -> do
+                let userData = head testUserForms
+                    email    = udEmail userData
+                void . runPrivs [RoleAdmin] sta $ addUser userData
+                resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
+                Left (ActionErrorThentos err) <-
+                    runClearanceE dcBottom sta $ resetPasswordAndLogin resetTok "short"
+                err `shouldBe` PasswordTooShort
 
         context "if user is unconfirmed" $ do
             it "confirms (activates) them" $ \sta -> do
