@@ -25,10 +25,11 @@ import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
 import Data.Typeable (Typeable)
 import Data.Void (Void, absurd)
-import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200)
+import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, statusCode)
 import Network.HostAddr (HostAddr, hostAddr, getHostAddr)
 import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
-import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod)
+import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod,
+                    responseHeaders, responseStatus)
 import Network.Wai.Handler.Warp (runSettings, setHost, setPort, defaultSettings)
 import Network.Wai.Internal (Response(ResponseFile, ResponseBuilder, ResponseStream, ResponseRaw))
 import Servant.API ((:>))
@@ -45,6 +46,7 @@ import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
 import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString.Char8 as SBS
+import qualified Blaze.ByteString.Builder as Builder
 import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Header as HttpTypes
 import qualified Servant.Foreign as Foreign
@@ -106,6 +108,32 @@ mkServantErr baseErr msg = baseErr
     }
 
 type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
+
+-- | Convert plain-text errors not caught by 'mkServantErr' into proper JSON objects.
+-- This concerns e.g. errors thrown by aeson if the request body cannot be decoded as JSON into
+-- the expected type. If the response status indicates that an error occurred (400 or higher)
+-- and no Content-Type is set, we set it to "application/json" and wrap the response body (=
+-- error message) in an 'ErrorMessage' object.
+jsonifyPlainTextErrors :: Middleware
+jsonifyPlainTextErrors app req respond = app req $ respond . jsonifyErrorResponse
+  where
+    jsonifyErrorResponse :: Response -> Response
+    jsonifyErrorResponse resp | isErrorWithoutContentType resp = addHeaderAndConvertBody resp
+                              | otherwise                      = resp
+    isErrorWithoutContentType :: Response -> Bool
+    isErrorWithoutContentType resp = statusCode (responseStatus resp) >= 400 &&
+                                     "Content-Type" `notElem` map fst (responseHeaders resp)
+    addHeaderAndConvertBody :: Response -> Response
+    addHeaderAndConvertBody resp = case resp of
+        ResponseBuilder status hdrs builder    ->
+            ResponseBuilder status (updH hdrs) (updBuilder builder)
+        -- FIXME Do we need to handle ResponseStream and ResponseFile too? ResponseBuilder seems
+        -- to be the typical case
+        ResponseStream status hdrs body        -> ResponseStream status hdrs body
+        ResponseFile status hdrs filepath part -> ResponseFile status hdrs filepath part
+        ResponseRaw action resp'               -> ResponseRaw action $ addHeaderAndConvertBody resp'
+    updH hdrs  = contentTypeJsonHeader : hdrs
+    updBuilder = Builder.fromByteString . cs . encode . ErrorMessage . cs . Builder.toByteString
 
 -- | Log things, and construct a 'ServantErr'.
 --
@@ -337,7 +365,7 @@ addCorsHeaders policy app req respond = app req $
 
 -- FIXME: move this to a module for use both by frontend and backend.
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
-runWarpWithCfg cfg = runSettings settings
+runWarpWithCfg cfg app = runSettings settings $ jsonifyPlainTextErrors app
   where
     settings = setPort (cfg >>. (Proxy :: Proxy '["bind_port"]))
              . setHost hostnameHack
