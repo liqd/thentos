@@ -232,7 +232,7 @@ deletePersona persId = do
             "deletePersona: unique constraint on id violated"
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
--- NOPE: May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
+-- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri ->
     ThentosQuery e Context
 addContext sid name desc mUrl =
