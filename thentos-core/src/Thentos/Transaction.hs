@@ -13,6 +13,7 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.Functor.Infix ((<$$>))
 import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 import Data.Int (Int64)
@@ -67,15 +68,14 @@ lookupAnyUserByEmail email =
 
 -- | Add a new user.  The DB will automatically create a new 'UserId' (auto-increment).
 addUserPrim :: User -> Bool -> ThentosQuery e UserId
-addUserPrim user confirmed = do
-    res <- queryT [sql| INSERT INTO users (name, password, email, confirmed)
-                        VALUES (?, ?, ?, ?)
-                        RETURNING id |]
-            (user ^. userName, user ^. userPassword, user ^. userEmail, confirmed)
-    case res of
-        [Only uid] -> return uid
-        []         -> impossible "addUserPrim created user without ID"
-        _          -> impossible "addUserPrim created multiple users"
+addUserPrim user confirmed =
+    queryT [sql| INSERT INTO users (name, password, email, confirmed)
+                 VALUES (?, ?, ?, ?)
+                 RETURNING id |]
+           (user ^. userName, user ^. userPassword, user ^. userEmail, confirmed) >>=
+    returnUnique' fromOnly
+        (impossible "addUserPrim created user without ID")
+        (impossible "addUserPrim created multiple users")
 
 -- | Add a new user and return the new user's 'UserId'.
 -- Ensures that user name and email address are unique.
@@ -171,7 +171,7 @@ deleteUser uid =
 -- * service
 
 allServiceIds :: ThentosQuery e [ServiceId]
-allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
+allServiceIds = fromOnly <$$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
@@ -216,14 +216,13 @@ unregisterUserFromService uid sid = void $
 -- | Add a new persona to the DB. A persona has a unique name and a user to which it belongs.
 -- The 'PersonaId' is assigned by the DB. May throw 'NoSuchUser' or 'PersonaNameAlreadyExists'.
 addPersona :: PersonaName -> UserId -> Maybe Uri -> ThentosQuery e Persona
-addPersona name uid mExternalUrl = do
-    res <- queryT [sql| INSERT INTO personas (name, uid, external_url)
-                        VALUES (?, ?, ?)
-                        RETURNING id |]
-                  (name, uid, mExternalUrl)
-    case res of
-        [Only persId] -> return $ Persona persId name uid mExternalUrl
-        _             -> impossible "addContext didn't return a single ID"
+addPersona name uid mExternalUrl =
+    queryT [sql| INSERT INTO personas (name, uid, external_url)
+                 VALUES (?, ?, ?)
+                 RETURNING id |]
+           (name, uid, mExternalUrl) >>=
+    returnUnique' (\(Only persId) -> Persona persId name uid mExternalUrl) e e
+    where e = impossible "addContext didn't return a single ID"
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 deletePersona :: PersonaId -> ThentosQuery e ()
@@ -236,14 +235,13 @@ deletePersona persId = do
 -- May throw 'NoSuchService' or 'ContextNameAlreadyExists'.
 addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri ->
     ThentosQuery e Context
-addContext sid name desc mUrl = do
-    res <- queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
-                        VALUES (?, ?, ?, ?)
-                        RETURNING id |]
-                  (sid, name, desc, mUrl)
-    case res of
-        [Only cxtId] -> return $ Context cxtId sid name desc mUrl
-        _            -> impossible "addContext didn't return a single ID"
+addContext sid name desc mUrl =
+    queryT [sql| INSERT INTO contexts (owner_service, name, description, url)
+                 VALUES (?, ?, ?, ?)
+                 RETURNING id |]
+           (sid, name, desc, mUrl) >>=
+    returnUnique' (\(Only cxtId) -> Context cxtId sid name desc mUrl) e e
+    where e = impossible "addContext didn't return a single ID"
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 deleteContext :: ServiceId -> ContextName -> ThentosQuery e ()
@@ -256,13 +254,11 @@ deleteContext sid cname = do
 -- Retrieve 'ContextId' based on 'ServiceId' and 'ContextName'.
 -- Throws 'NoSuchContext' if the combination doesn't exist.
 findContextId :: ServiceId -> ContextName -> ThentosQuery e (Maybe ContextId)
-findContextId sid cname = do
-    res <- queryT [sql| SELECT id FROM contexts WHERE owner_service = ? AND name = ? |]
-                  (sid, cname)
-    case res of
-        [Only cxtId] -> pure $ Just cxtId
-        [] -> pure Nothing
-        _  -> impossible "findContextId: unique constraint on owner_service + name violated"
+findContextId sid cname =
+    queryT [sql| SELECT id FROM contexts WHERE owner_service = ? AND name = ? |]
+           (sid, cname) >>=
+    returnUnique' (Just . fromOnly) (return Nothing)
+        (impossible "findContextId: unique constraint on owner_service + name violated")
 
 -- Connect a persona with a context. Throws an error if the persona is already registered for the
 -- context or if the user has any *other* persona registered for the context
@@ -292,21 +288,19 @@ unregisterPersonaFromContext persId sid cname = findContextId sid cname >>=
 
 -- Find the persona that a user wants to use for a context (if any).
 findPersona :: UserId -> ServiceId -> ContextName -> ThentosQuery e (Maybe Persona)
-findPersona uid sid cname = do
-    res <- queryT [sql| SELECT pers.id, pers.name, pers.external_url
-                        FROM personas pers, personas_per_context pc, contexts cxt
-                        WHERE pers.id = pc.persona_id AND pc.context_id = cxt.id
-                              AND pers.uid = ? AND cxt.owner_service = ? AND cxt.name = ? |]
-                  (uid, sid, cname)
-    case res of
-        [(persId, name, mExternalUrl)] -> return . Just $ Persona persId name uid mExternalUrl
-        []               -> return Nothing
-        -- This is not 'impossible', since the constraint is enforced by us, not by the DB
-        _                -> error "findPersona: multiple personas per context"
+findPersona uid sid cname =
+    queryT [sql| SELECT pers.id, pers.name, pers.external_url
+                 FROM personas pers, personas_per_context pc, contexts cxt
+                 WHERE pers.id = pc.persona_id AND pc.context_id = cxt.id
+                       AND pers.uid = ? AND cxt.owner_service = ? AND cxt.name = ? |]
+           (uid, sid, cname) >>=
+    returnUnique' (\(persId, name, mExternalUrl) -> Just $ Persona persId name uid mExternalUrl)
+                  (return Nothing)
+                  (error "findPersona: multiple personas per context")
 
 -- List all contexts owned by a service.
 contextsForService :: ServiceId -> ThentosQuery e [Context]
-contextsForService sid = map mkContext <$>
+contextsForService sid = mkContext <$$>
     queryT [sql| SELECT id, name, description, url FROM contexts WHERE owner_service = ? |]
            (Only sid)
   where
@@ -358,7 +352,7 @@ removeGroupFromGroup subgroup supergroup = void $ execT
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
 -- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
 personaGroups :: PersonaId -> ThentosQuery e [ServiceGroup]
-personaGroups pid = map fromOnly <$>
+personaGroups pid = fromOnly <$$>
     queryT [sql| WITH RECURSIVE groups(name) AS (
             -- Non-recursive term
             SELECT grp FROM persona_groups WHERE pid = ?
@@ -416,14 +410,12 @@ endThentosSession tok =
 
 -- | Get the names of all services that a given thentos session is signed into
 serviceNamesFromThentosSession :: ThentosSessionToken -> ThentosQuery e [ServiceName]
-serviceNamesFromThentosSession tok = do
-    res <- queryT
+serviceNamesFromThentosSession tok =
+    map fromOnly <$> queryT
         [sql| SELECT services.name
               FROM services, service_sessions
               WHERE services.id = service_sessions.service
                   AND service_sessions.thentos_session_token = ? |] (Only tok)
-    return $ map fromOnly res
-
 
 -- | Like 'lookupThentosSession', but for 'ServiceSession'.  Bump both service and associated
 -- thentos session.  If the service session is still active, but the associated thentos session has
@@ -574,10 +566,13 @@ checkUnique zero multi n =
         1 -> return ()
         _ -> impossible multi
 
+returnUnique' :: FromRow r => (r -> v) -> ThentosQuery e v -> ThentosQuery e v -> [r] -> ThentosQuery e v
+returnUnique' conv _    _     [res] = return $ conv res
+returnUnique' _    zero _     []    = zero
+returnUnique' _    _    multi _     = multi
+
 returnUnique :: FromRow r => (r -> v) -> ThentosError e -> String -> [r] -> ThentosQuery e v
-returnUnique conv _    _     [res] = return $ conv res
-returnUnique _    zero _     []    = throwError zero
-returnUnique _    _    multi _     = impossible multi
+returnUnique conv zero multi = returnUnique' conv (throwError zero) (impossible multi)
 
 -- | Throw an error from a situation which (we believe) will never arise.
 impossible :: String -> a

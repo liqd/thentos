@@ -27,9 +27,8 @@ import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (SBS, LBS, ST, cs)
 import Network.HTTP.Types.Header (Header)
-import Network.HTTP.Types.Status (statusCode)
 import Network.Wai (Application)
-import Network.Wai.Test (simpleBody, simpleHeaders, simpleStatus, SResponse)
+import Network.Wai.Test (simpleBody, simpleHeaders, SResponse)
 import System.FilePath ((</>))
 import System.Process (readProcess)
 import Test.Hspec
@@ -37,7 +36,7 @@ import Test.Hspec
     , shouldBe, shouldContain, shouldNotBe )
 import Test.Hspec.Wai.Internal (runWaiSession)
 import Test.Hspec.Wai
-    (shouldRespondWith, WaiSession, with, request, matchStatus, pendingWith)
+    (shouldRespondWith, WaiSession, with, post, request, matchStatus, pendingWith)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
@@ -156,20 +155,20 @@ specRest = do
 
         describe "captcha POST" $ do
             it "returns a PNG image with Thentos-Captcha-Id header" . runIt $ \_its -> do
-                rsp <- request "POST" "/user/captcha" [] ""
-                liftIO $ statusCode (simpleStatus rsp) `shouldBe` 201
+                rsp <- post "/user/captcha" ""
+                pure rsp `shouldRespondWith` 201
                 -- Check for magic bytes at start of PNG
                 liftIO $ LBS.take 4 (simpleBody rsp) `shouldBe` "\137PNG"
                 liftIO $ map fst (simpleHeaders rsp) `shouldContain` ["Thentos-Captcha-Id"]
 
             it "returns different data on repeated calls" . runIt $ \_its -> do
-                rsp1 <- request "POST" "/user/captcha" [] ""
-                rsp2 <- request "POST" "/user/captcha" [] ""
+                rsp1 <- post "/user/captcha" ""
+                rsp2 <- post "/user/captcha" ""
                 liftIO $ simpleBody rsp1 `shouldNotBe` simpleBody rsp2
 
         let getCaptchaAndSolution :: ItsState -> WaiSession (SBS, ST)
             getCaptchaAndSolution its = do
-                crsp <- request "POST" "/user/captcha" [] ""
+                crsp <- post "/user/captcha" ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 [Only solution] <- liftIO $ doQuery (itsActionState its ^. aStDb)
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
@@ -249,7 +248,7 @@ specRest = do
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 400
 
             it "fails if called without correct captcha solution" . runIt $ \_its -> do
-                crsp <- request "POST" "/user/captcha" [] ""
+                crsp <- post "/user/captcha" ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) "probably wrong"
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
@@ -283,7 +282,7 @@ specRest = do
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
                 arsp <- request "POST" "/user/activate" [jsonHeader] areqBody
-                liftIO $ statusCode (simpleStatus arsp) `shouldBe` 201
+                pure arsp `shouldRespondWith` 201
                 let Right (sessTok :: ThentosSessionToken) = decodeJsonTop $ simpleBody arsp
                 liftIO $ fromThentosSessionToken sessTok `shouldNotBe` ""
 
@@ -292,8 +291,7 @@ specRest = do
                 confTok <- registerUserAndGetConfirmationToken its (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
-                arsp <- request "POST" "/user/activate" [jsonHeader] areqBody
-                liftIO $ statusCode (simpleStatus arsp) `shouldBe` 201
+                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 201
                 -- Try to activate again
                 request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 400
 
@@ -307,12 +305,11 @@ specRest = do
                 confTok <- registerUserAndGetConfirmationToken its (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
-                arsp <- request "POST" "/user/activate" [jsonHeader] areqBody
-                liftIO $ statusCode (simpleStatus arsp) `shouldBe` 201
+                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 201
                 -- Log them in
                 let loginData = LoginFormData (udName defaultUserData) (udPassword defaultUserData)
                 lrsp <- request "POST" "/user/login" [jsonHeader] $ Aeson.encode loginData
-                liftIO $ statusCode (simpleStatus lrsp) `shouldBe` 201
+                pure lrsp `shouldRespondWith` 201
                 let Right (sessTok :: ThentosSessionToken) = decodeJsonTop $ simpleBody lrsp
                 liftIO $ fromThentosSessionToken sessTok `shouldNotBe` ""
 
@@ -320,10 +317,10 @@ specRest = do
                 void $ postDefaultUser its
                 let loginData1 = LoginFormData "wrong name" (udPassword defaultUserData)
                 rsp1 <- request "POST" "/user/login" [jsonHeader] $ Aeson.encode loginData1
-                liftIO $ statusCode (simpleStatus rsp1) `shouldBe` 401
+                pure rsp1 `shouldRespondWith` 401
                 let loginData2 = LoginFormData (udName defaultUserData) "wrong pass"
                 rsp2 <- request "POST" "/user/login" [jsonHeader] $ Aeson.encode loginData2
-                liftIO $ statusCode (simpleStatus rsp2) `shouldBe` 401
+                pure rsp2 `shouldRespondWith` 401
                 liftIO $ simpleBody rsp1 `shouldBe` simpleBody rsp2
 
             it "fails if user isn't yet activated" . runIt $ \its -> do
@@ -334,8 +331,8 @@ specRest = do
                 void $ request "POST" "/user/register" [jsonHeader] rreqBody
                 -- Try to log them in
                 let loginData = LoginFormData (udName defaultUserData) (udPassword defaultUserData)
-                lrsp <- request "POST" "/user/login" [jsonHeader] $ Aeson.encode loginData
-                liftIO $ statusCode (simpleStatus lrsp) `shouldBe` 401
+                request "POST" "/user/login" [jsonHeader] (Aeson.encode loginData)
+                    `shouldRespondWith` 401
 
 
     describe "thentos_session" $ do
