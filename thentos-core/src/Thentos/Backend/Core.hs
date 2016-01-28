@@ -112,7 +112,7 @@ type ErrorInfo a = (Maybe (Priority, String), ServantErr, a)
 -- | Convert plain-text errors not caught by 'mkServantErr' into proper JSON objects.
 -- This concerns e.g. errors thrown by aeson if the request body cannot be decoded as JSON into
 -- the expected type. If the response status indicates that an error occurred (400 or higher)
--- and no Content-Type is set, we set it to "application/json" and wrap the response body (=
+-- and no Content-Type is set, we set it to "application/json" and wrap the response body (i.e.,
 -- error message) in an 'ErrorMessage' object.
 jsonifyPlainTextErrors :: Middleware
 jsonifyPlainTextErrors app req respond = app req $ respond . jsonifyErrorResponse
@@ -125,13 +125,13 @@ jsonifyPlainTextErrors app req respond = app req $ respond . jsonifyErrorRespons
                                      "Content-Type" `notElem` map fst (responseHeaders resp)
     addHeaderAndConvertBody :: Response -> Response
     addHeaderAndConvertBody resp = case resp of
-        ResponseBuilder status hdrs builder    ->
+        ResponseBuilder status hdrs builder ->
             ResponseBuilder status (updH hdrs) (updBuilder builder)
         -- FIXME Do we need to handle ResponseStream and ResponseFile too? ResponseBuilder seems
         -- to be the typical case
-        ResponseStream status hdrs body        -> ResponseStream status hdrs body
-        ResponseFile status hdrs filepath part -> ResponseFile status hdrs filepath part
-        ResponseRaw action resp'               -> ResponseRaw action $ addHeaderAndConvertBody resp'
+        r@(ResponseStream _ _ _) -> r
+        r@(ResponseFile _ _ _ _) -> r
+        ResponseRaw action resp' -> ResponseRaw action $ addHeaderAndConvertBody resp'
     updH hdrs  = contentTypeJsonHeader : hdrs
     updBuilder = Builder.fromByteString . cs . encode . ErrorMessage . cs . Builder.toByteString
 
