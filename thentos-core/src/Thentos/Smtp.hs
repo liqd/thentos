@@ -6,9 +6,9 @@ module Thentos.Smtp (sendMail, SendmailError(..), checkSendmail)
 where
 
 import Control.Exception (try, IOException, ErrorCall(..), throwIO)
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Data.Configifier ((>>.))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
 import Network.Mail.Mime (Mail, Address(Address), sendmailCustomCaptureOutput,
@@ -24,9 +24,10 @@ import Thentos.Types
 
 data SendmailError = SendmailError String
 
-sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> IO (Either SendmailError ())
-sendMail config mName address subject message = do
+sendMail :: SmtpConfig -> Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> IO (Either SendmailError ())
+sendMail config mName address subject message html = do
     logger DEBUG $ "sending email: " ++ ppShow (address, subject, message)
+    when (isJust html) . logger WARNING $ "No support for the optional HTML part"
     renderedMail <- renderMail' mail
     r <- try $ sendmailCustomCaptureOutput sendmailPath sendmailArgs renderedMail
     case r of
@@ -53,7 +54,7 @@ sendMail config mName address subject message = do
 checkSendmail :: SmtpConfig -> IO ()
 checkSendmail cfg = do
     let address = fromJust $ parseUserEmail "user@example.com"
-    result <- sendMail cfg Nothing address "Test Mail" "This is a test"
+    result <- sendMail cfg Nothing address "Test Mail" "This is a test" Nothing
     case result of
         Left _ -> throwIO $ ErrorCall "sendmail seems to not work.\
                                         \ Maybe the sendmail path is misconfigured?"

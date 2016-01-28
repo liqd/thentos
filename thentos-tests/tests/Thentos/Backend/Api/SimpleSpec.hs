@@ -38,6 +38,7 @@ import Test.Hspec
 import Test.Hspec.Wai.Internal (runWaiSession)
 import Test.Hspec.Wai
     (shouldRespondWith, WaiSession, with, post, request, matchStatus, pendingWith)
+import Text.Email.Validate (unsafeEmailAddress)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
@@ -372,9 +373,11 @@ specRest = do
                 (uid, _, _):_ <- createTestUsers connPool 2
                 Right _persona <- liftIO $ runThentosQuery connPool $ addPersona persName uid (Just uri)
                 sendEmail [] [uri] `shouldRespondWith` "" { matchStatus = 204 }
-            it "fails if the persona does not exist" . runIt $ \_its ->
+            it "fails if the email is malformed." . runIt $ \_its ->
+                sendEmail [malformedUserEmail] [] `shouldRespondWith` 400
+            it "fails if the persona does not exist." . runIt $ \_its ->
                 sendEmail [] [uri] `shouldRespondWith` 400
-            it "can only be called from privileged IPs" . runIt $ \_its -> do
+            it "can only be called from privileged IPs." . runIt $ \_its -> do
                 pendingWith "test missing."
 
 
@@ -392,3 +395,6 @@ jsonHeader = ("Content-Type", "application/json")
 
 defaultUserData :: UserFormData
 defaultUserData = UserFormData "name" "PASSword" $ forceUserEmail "somebody@example.org"
+
+malformedUserEmail :: UserEmail
+malformedUserEmail = UserEmail $ unsafeEmailAddress "wrong" ""

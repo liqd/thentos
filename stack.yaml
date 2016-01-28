@@ -25,6 +25,7 @@ extra-deps:
 - digestive-functors-blaze-0.6.0.6
 - elocrypt-0.4.1
 - engine-io-wai-1.0.5
+- email-validate-2.2.0
 - functor-infix-0.0.3
 - http-accept-0.2
 - http-api-data-0.1.1.1

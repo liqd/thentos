@@ -119,10 +119,10 @@ hashUserPass = liftIO . TU.hashUserPass
 hashServiceKey :: ServiceKey -> UnsafeAction e s (HashedSecret ServiceKey)
 hashServiceKey = liftIO . TU.hashServiceKey
 
-sendMail :: Maybe UserName -> UserEmail -> ST -> ST -> UnsafeAction e s ()
-sendMail mName address subject msg = do
+sendMail :: Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> UnsafeAction e s ()
+sendMail mName address subject body html = do
     config <- Tagged . (>>. (Proxy :: Proxy '["smtp"])) <$> Thentos.Action.Unsafe.getConfig
-    result <- liftIO $ TS.sendMail config mName address subject msg
+    result <- liftIO $ TS.sendMail config mName address subject body html
     case result of
         Right () -> return ()
         Left (SendmailError s) -> liftIO $ do
