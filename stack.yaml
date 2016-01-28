@@ -11,14 +11,9 @@ packages:
 - servant-session/
 - submodules/servant/servant/
 - submodules/servant/servant-blaze/
-- submodules/servant/servant-cassava/
-- submodules/servant/servant-client/
 - submodules/servant/servant-docs/
-- submodules/servant/servant-examples/
 - submodules/servant/servant-foreign/
 - submodules/servant/servant-js/
-- submodules/servant/servant-lucid/
-- submodules/servant/servant-mock/
 - submodules/servant/servant-server/
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
