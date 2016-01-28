@@ -36,7 +36,7 @@ main :: IO ()
 main = do
     setCurrentDirectoryToTarget
     purss :: [FilePath] <- getTranslateableFiles "."
-    transKeys :: Set.Set ST <- Set.unions . map Set.fromList <$> mapM translationKeys purss
+    transKeys :: Set.Set ST <- Set.unions . Set.fromList <$$> mapM translationKeys purss
     !(tablesModule :: ST) <- ST.readFile (i18nModule <.> "js")
     ST.writeFile (i18nModule <.> "js-") $ updateKeys transKeys tablesModule
     void $ system ("mv " ++ (i18nModule <.> "js-") ++ " " ++ (i18nModule <.> "js"))

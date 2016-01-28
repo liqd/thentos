@@ -13,6 +13,7 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.Functor.Infix ((<$$>))
 import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 import Data.Int (Int64)
@@ -170,7 +171,7 @@ deleteUser uid =
 -- * service
 
 allServiceIds :: ThentosQuery e [ServiceId]
-allServiceIds = map fromOnly <$> queryT [sql| SELECT id FROM services |] ()
+allServiceIds = fromOnly <$$> queryT [sql| SELECT id FROM services |] ()
 
 lookupService :: ServiceId -> ThentosQuery e (ServiceId, Service)
 lookupService sid = do
@@ -299,7 +300,7 @@ findPersona uid sid cname =
 
 -- List all contexts owned by a service.
 contextsForService :: ServiceId -> ThentosQuery e [Context]
-contextsForService sid = map mkContext <$>
+contextsForService sid = mkContext <$$>
     queryT [sql| SELECT id, name, description, url FROM contexts WHERE owner_service = ? |]
            (Only sid)
   where
@@ -351,7 +352,7 @@ removeGroupFromGroup subgroup supergroup = void $ execT
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
 -- g1 is a member of g2, and g2 is a member of g3, [g1, g2, g3] will be returned.
 personaGroups :: PersonaId -> ThentosQuery e [ServiceGroup]
-personaGroups pid = map fromOnly <$>
+personaGroups pid = fromOnly <$$>
     queryT [sql| WITH RECURSIVE groups(name) AS (
             -- Non-recursive term
             SELECT grp FROM persona_groups WHERE pid = ?
