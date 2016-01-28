@@ -13,6 +13,7 @@ import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
+import Data.Functor.Infix ((<$$>))
 import Data.String.Conversions (ST)
 import Data.Typeable (Typeable)
 import Data.Int (Int64)
@@ -367,6 +368,20 @@ personaGroups pid = map fromOnly <$>
             SELECT supergroup FROM group_tree, groups WHERE subgroup = name
         ) SELECT name FROM groups ORDER BY name
     |] (Only pid)
+
+-- | List all personas belonging to a group, directly or indirectly. If p1 is a member of g1,
+-- p2 a member of g2, and g a supergroup of g1 and g2, then the personas for g are p1 and p2.
+personasFromGroup :: ServiceGroup -> ThentosQuery e [PersonaId]
+personasFromGroup grp = fromOnly <$$>
+    queryT [sql|WITH RECURSIVE subgroups(grp) AS (
+                    -- Non-recursive term
+                    values(?)
+                UNION
+                    -- Recursive term
+                    SELECT gt.subgroup FROM group_tree gt, subgroups sg WHERE gt.supergroup = sg.grp
+                )
+                SELECT DISTINCT pg.pid FROM subgroups sg, persona_groups pg WHERE pg.grp = sg.grp
+           |] (Only grp)
 
 
 -- * thentos and service session
