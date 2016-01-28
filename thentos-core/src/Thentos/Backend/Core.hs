@@ -365,7 +365,7 @@ addCorsHeaders policy app req respond = app req $
 
 -- FIXME: move this to a module for use both by frontend and backend.
 runWarpWithCfg :: HttpConfig -> Application -> IO ()
-runWarpWithCfg cfg app = runSettings settings $ jsonifyPlainTextErrors app
+runWarpWithCfg cfg = runSettings settings . jsonifyPlainTextErrors
   where
     settings = setPort (cfg >>. (Proxy :: Proxy '["bind_port"]))
              . setHost hostnameHack
