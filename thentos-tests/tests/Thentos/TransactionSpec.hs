@@ -964,8 +964,11 @@ personasFromGroupSpec :: SpecWith (Pool Connection)
 personasFromGroupSpec = describe "personasFromGroup" $ do
     let setup connPool = do
             uids <- view _1 <$$> createTestUsers connPool 3
-            mpids <- for uids $ \uid -> runVoidedQuery connPool $ addPersona (PersonaName $ cs $ "Persona " ++ show uid) uid Nothing
-            Right p3 <- view personaId <$$> runVoidedQuery connPool (addPersona persName (head uids) Nothing)
+            mpids <- for uids $ \uid ->
+                runVoidedQuery connPool $
+                    addPersona (PersonaName $ cs $ "Persona " ++ show uid) uid Nothing
+            Right p3 <- view personaId <$$>
+                runVoidedQuery connPool (addPersona persName (head uids) Nothing)
             let [p0, p1, p2] = mpids ^.. traverse . _Right . personaId
             Right () <- runVoidedQuery connPool $ do
                 addPersonaToGroup p0 "admin"
