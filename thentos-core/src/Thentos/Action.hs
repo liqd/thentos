@@ -628,7 +628,8 @@ getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession to
 
 -- * send emails
 
--- | Send an email. Only a privileged IP is allowed to use this endpoint.
+-- | Send an email to one or many recipients.  See docs/messaging.md for more details.  Only a
+-- privileged IP is allowed to use this endpoint.
 {- FIXME Templating issues:
     * Privacy:
         In a way the purpose of having thentos sending emails is to avoid

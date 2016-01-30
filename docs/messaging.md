@@ -54,14 +54,10 @@ sure 500 is the right one.  perhaps then it depends on the smtp error?
 
 ## Duplicate Handling
 
-Thentos makes sure that a message is sent at most once to each user. If the
-recepient fields contains a persona path / email address several times,
-the message is rejected with 400 Bad Request and a suitable error message.
-FIXME document how the error looks
+Thentos makes sure that a message is sent at most once to each user.
 
-Several personas may belong to the same user, but services cannot know
-this. If several of the user paths listed in `recepient.personas` belong to the
-same user, Thentos sends exactly only copy of the message to the user. This
-is not an error.
-
-FIXME same thing with groups.
+If one recipient is listed more than once (either directly or via
+different personas belonging to the same user, or groups that the same
+user is a member of), the email is only sent once.  This behavior
+guarantees that the service does not learn about which personas belong
+to the same user.
