@@ -130,7 +130,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
 -- takes a lazy thunk and returns a reduced value (e.g. in WHNF).  `unsafe` is something with wobbly
 -- or incomplete semantics.  I think we sometimes use `mk` for smart constructors that work like ADT
 -- constructors, but carry more logic.  `mk` should preferably be total, therefore the proposed
--- alternative @mkUserEmailFailing@.)
+-- alternative @mkUserEmailFailing@.)  See also: `Text.Email.Validate.unsafeEmailAddress`.
 forceUserEmail :: ST -> UserEmail
 forceUserEmail t = fromMaybe (error $ "Invalid email address: " ++ show t) $ parseUserEmail t
 
