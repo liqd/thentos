@@ -988,14 +988,15 @@ personasFromGroupSpec = describe "personasFromGroup" $ do
             return (admins, androids, humans, users, p0, p1, p2, p3)
 
     it "lists all personas belonging a group." $ \connPool -> do
-        (admins, androids, humans, _users, p0, p1, p2, p3) <- setup connPool
+        (admins, androids, humans, users, p0, p1, p2, p3) <- setup connPool
         Set.fromList admins   `shouldBe` Set.fromList [p0, p3]
         Set.fromList androids `shouldBe` Set.fromList [p2, p3]
         Set.fromList humans   `shouldBe` Set.fromList [p0, p1]
+        Set.fromList users    `shouldBe` Set.fromList [p0, p1, p2, p3]
 
     it "eliminates duplicates." $ \connPool -> do
         (_admins, _androids, _humans, users, p0, p1, p2, p3) <- setup connPool
-        Set.fromList users    `shouldBe` Set.fromList [p0, p1, p2, p3]
+        length users `shouldBe` length [p0, p1, p2, p3]
 
     it "lists no personas if a group doesn't have any." $ \connPool -> do
         Right personas <- runVoidedQuery connPool $ personasFromGroup "emptygroup"
