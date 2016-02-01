@@ -4,12 +4,14 @@
 
 module Thentos.TransactionSpec (spec) where
 
-import Control.Lens ((^.))
+import Control.Lens ((^.), (^..), view, _1, _3, _Right)
 import Control.Monad (void)
 import Data.Either (isRight)
 import Data.List (sort)
 import Data.Functor.Infix ((<$$>))
 import Data.Pool (Pool)
+import Data.String.Conversions (cs)
+import Data.Traversable (for)
 import Database.PostgreSQL.Simple (Connection, Only(..))
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Test.Hspec (Spec, SpecWith, before, describe, it, shouldBe, shouldReturn, shouldSatisfy)
@@ -54,6 +56,7 @@ spec = describe "Thentos.Transaction" . before (thentosTestConfig >>= createDb)
     addGroupToGroupSpec
     removeGroupFromGroupSpec
     personaGroupsSpec
+    personasFromGroupSpec
     storeCaptchaSpec
     solveCaptchaSpec
     deleteCaptchaSpec
@@ -109,8 +112,8 @@ addUserSpec :: SpecWith (Pool Connection)
 addUserSpec = describe "addUser" $ do
 
     it "adds a user to the database" $ \connPool -> do
-        testUsers <- (\(_, _, u) -> u) <$$> createTestUsers connPool 5
-        let names = (^. userName) <$> testUsers
+        testUsers <- view _3 <$$> createTestUsers connPool 5
+        let names = view userName <$> testUsers
         Right res <- runVoidedQuery connPool $ mapM lookupConfirmedUserByName names
         (snd <$> res) `shouldBe` testUsers
 
@@ -955,7 +958,49 @@ personaGroupsSpec = describe "personaGroups" $ do
         Right persona <- runVoidedQuery connPool $ addPersona persName uid Nothing
         let pid = persona ^. personaId
         Right groups  <- runVoidedQuery connPool $ personaGroups pid
-        length groups `shouldBe` 0
+        groups `shouldBe` []
+
+personasFromGroupSpec :: SpecWith (Pool Connection)
+personasFromGroupSpec = describe "personasFromGroup" $ do
+    let setup connPool = do
+            uids <- view _1 <$$> createTestUsers connPool 3
+            mpids <- for uids $ \uid ->
+                runVoidedQuery connPool $
+                    addPersona (PersonaName $ cs $ "Persona " ++ show uid) uid Nothing
+            Right p3 <- view personaId <$$>
+                runVoidedQuery connPool (addPersona persName (head uids) Nothing)
+            let [p0, p1, p2] = mpids ^.. traverse . _Right . personaId
+            Right () <- runVoidedQuery connPool $ do
+                addPersonaToGroup p0 "admin"
+                addPersonaToGroup p0 "human"
+                addPersonaToGroup p1 "user"
+                addPersonaToGroup p1 "human"
+                addPersonaToGroup p2 "android"
+                addPersonaToGroup p3 "admin"
+                addPersonaToGroup p3 "android"
+                addGroupToGroup "human"   "user"
+                addGroupToGroup "android" "user"
+                addGroupToGroup "admin"   "user"
+            Right admins   <- runVoidedQuery connPool $ personasFromGroup "admin"
+            Right androids <- runVoidedQuery connPool $ personasFromGroup "android"
+            Right users    <- runVoidedQuery connPool $ personasFromGroup "user"
+            Right humans   <- runVoidedQuery connPool $ personasFromGroup "human"
+            return (admins, androids, humans, users, p0, p1, p2, p3)
+
+    it "lists all personas belonging a group." $ \connPool -> do
+        (admins, androids, humans, users, p0, p1, p2, p3) <- setup connPool
+        Set.fromList admins   `shouldBe` Set.fromList [p0, p3]
+        Set.fromList androids `shouldBe` Set.fromList [p2, p3]
+        Set.fromList humans   `shouldBe` Set.fromList [p0, p1]
+        Set.fromList users    `shouldBe` Set.fromList [p0, p1, p2, p3]
+
+    it "eliminates duplicates." $ \connPool -> do
+        (_admins, _androids, _humans, users, p0, p1, p2, p3) <- setup connPool
+        length users `shouldBe` length [p0, p1, p2, p3]
+
+    it "lists no personas if a group doesn't have any." $ \connPool -> do
+        Right personas <- runVoidedQuery connPool $ personasFromGroup "emptygroup"
+        personas `shouldBe` []
 
 
 -- * Sybil attack prevention
