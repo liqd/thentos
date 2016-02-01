@@ -286,6 +286,14 @@ unregisterPersonaFromContext persId sid cname = findContextId sid cname >>=
                 [sql| DELETE FROM personas_per_context WHERE persona_id = ? AND context_id = ? |]
                 (persId, cxtId))
 
+lookupPersonaByUri :: Uri -> ThentosQuery e Persona
+lookupPersonaByUri uri =
+    queryT [sql| SELECT pers.id, pers.name, pers.uid
+                 FROM personas pers
+                 WHERE pers.external_url = ? |] (Only uri) >>=
+    returnUnique (\(pid, name, uid) -> Persona pid name uid (Just uri))
+                 NoSuchPersona "lookupPersonaByUri: multiple results"
+
 -- Find the persona that a user wants to use for a context (if any).
 findPersona :: UserId -> ServiceId -> ContextName -> ThentosQuery e (Maybe Persona)
 findPersona uid sid cname =

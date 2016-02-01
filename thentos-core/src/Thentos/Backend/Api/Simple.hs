@@ -67,6 +67,7 @@ type ThentosBasic =
   :<|> "service" :> ThentosService
   :<|> "thentos_session" :> ThentosThentosSession
   :<|> "service_session" :> ThentosServiceSession
+  :<|> "email" :> SendEmail
 
 thentosBasic :: ServerT ThentosBasic (Action Void ())
 thentosBasic =
@@ -74,6 +75,7 @@ thentosBasic =
   :<|> thentosService
   :<|> thentosThentosSession
   :<|> thentosServiceSession
+  :<|> sendEmail
 
 
 -- * user
@@ -159,6 +161,12 @@ thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
   :<|> endServiceSession
+
+
+-- * send email
+
+type SendEmail =
+    ReqBody '[JSON] SendEmailRequest :> Post '[JSON] ()
 
 
 -- * servant docs

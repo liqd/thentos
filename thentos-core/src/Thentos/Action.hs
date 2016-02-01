@@ -70,6 +70,8 @@ module Thentos.Action
     , endServiceSession
     , getServiceSessionMetadata
 
+    , sendEmail
+
     , assignRole
     , unassignRole
     , agentRoles
@@ -88,6 +90,8 @@ import Control.Lens ((^.))
 import Control.Monad (unless, void, when)
 import Control.Monad.Except (throwError, catchError)
 import Data.Configifier ((>>.), Tagged(Tagged))
+import Data.Foldable (for_)
+import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
@@ -242,7 +246,7 @@ sendUserConfirmationMail user (ConfirmationToken confToken) = do
         context "activation_url" = MuVariable $ exposeUrl feHttp <//> "/activate/" <//> confToken
         context x                = error $ "sendUserConfirmationMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
-    U.unsafeAction $ U.sendMail (Just $ udName user) (udEmail user) subject (cs body)
+    U.unsafeAction $ U.sendMail (Just $ udName user) (udEmail user) subject (cs body) Nothing
 
 -- | Helper action: Send a confirmation mail to a newly registered user.
 sendUserExistsMail :: UserEmail -> Action e s ()
@@ -250,7 +254,7 @@ sendUserExistsMail email = do
     cfg <- U.unsafeAction U.getConfig
     let subject = cfg >>. (Proxy :: Proxy '["email_templates", "user_exists", "subject"])
         body    = cfg >>. (Proxy :: Proxy '["email_templates", "user_exists", "body"])
-    U.unsafeAction $ U.sendMail Nothing email subject body
+    U.unsafeAction $ U.sendMail Nothing email subject body Nothing
 
 -- | Initiate email-verified user creation.  Does not require any privileges, but the user must
 -- have correctly solved a captcha to prove that they are human.  After the new user has been
@@ -322,7 +326,7 @@ sendPasswordResetMail beforeToken email = do
         context "reset_url" = MuVariable $ exposeUrl feHttp <//> "/password_reset/" <//> fullTok
         context x           = error $ "sendPasswordResetMail: no such context: " ++ x
     body <- U.unsafeAction $ U.renderTextTemplate bodyTemplate (mkStrContext context)
-    U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body)
+    U.unsafeAction $ U.sendMail (Just $ user ^. userName) (user ^. userEmail) subject (cs body) Nothing
 
 -- | Finish password reset with email confirmation. Also confirms the user's email address if
 -- that hasn't happened before. Returns the ID of the updated user.
@@ -392,7 +396,7 @@ requestUserEmailChange uid newEmail callbackUrlBuilder = do
 
     let message = "Please go to " <> callbackUrlBuilder tok <> " to confirm your change of email address."
         subject = "Thentos email address change"
-    U.unsafeAction $ U.sendMail Nothing newEmail subject message
+    U.unsafeAction $ U.sendMail Nothing newEmail subject message Nothing
 
 -- | Look up the given confirmation token and updates the user's email address iff 1) the token
 -- exists, 2) the token belongs to the user currently logged in, and 3) the token has not
@@ -620,6 +624,39 @@ endServiceSession tok = queryA $ T.endServiceSession tok
 -- | Inherits label from 'lookupServiceSession'.
 getServiceSessionMetadata :: ServiceSessionToken -> Action e s ServiceSessionMetadata
 getServiceSessionMetadata tok = (^. srvSessMetadata) <$> lookupServiceSession tok
+
+
+-- * send emails
+
+-- | Send an email to one or many recipients.  See docs/messaging.md for more details.  Only a
+-- privileged IP is allowed to use this endpoint.
+{- FIXME Templating issues:
+    * Privacy:
+        In a way the purpose of having thentos sending emails is to avoid
+        the privacy leakage that would be caused if we would instead provide
+        a method of access the email addresses.
+        However the templating is also a way to leak information in particular
+        when the variable is used in a URL calling home (.e.g. http://example.com/{{name}}).
+        So if there is any templating it should be about what the service already knows.
+    * Duplicates:
+        In case of duplicates (see docs/messaging.md) what should be the templates variables?
+    * Mixed recipients:
+        When sending directly to an email address on has no additional information for templating,
+        while when sending to a persona one has access to some information for templating.
+-}
+sendEmail :: SendEmailRequest -> Action e s ()
+sendEmail req = do
+    void hasPrivilegedIP
+    let recipients = req ^. emailRecipients
+        personaEmail uri = queryA $ do
+            p <- T.lookupPersonaByUri uri
+            (_, u) <- T.lookupConfirmedUser (p ^. personaUid)
+            return $ u ^. userEmail
+    personaEmails <- mapM personaEmail (recipients ^. erPersonas)
+    let emails = nub $ recipients ^. erEmails ++ personaEmails
+    U.unsafeAction $
+        for_ emails $ \email ->
+            U.sendMail Nothing email (req ^. emailSubject) (req ^. emailBody) (req ^. emailHtml)
 
 
 -- * personas, contexts, and groups

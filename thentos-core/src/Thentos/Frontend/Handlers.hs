@@ -227,7 +227,7 @@ resetPasswordRequestH =
 
 sendPasswordResetMail :: User -> ST -> Action FActionError FrontendSessionData ()
 sendPasswordResetMail user callbackUrl = U.unsafeAction $ do
-    U.sendMail Nothing (user ^. userEmail) subject message
+    U.sendMail Nothing (user ^. userEmail) subject message Nothing
   where
     message = "To set a new password, go to " <> callbackUrl
     subject = "Thentos Password Reset"

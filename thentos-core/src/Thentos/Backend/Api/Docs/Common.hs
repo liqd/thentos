@@ -24,7 +24,7 @@ module Thentos.Backend.Api.Docs.Common
 where
 
 import Control.Concurrent.MVar (newMVar)
-import Control.Lens ((&), (%~), (.~))
+import Control.Lens ((&), (%~), (.~), (^?!), _Right)
 import "cryptonite" Crypto.Random (drgNew)
 import Data.Bifunctor (second)
 import Data.List (sort)
@@ -280,6 +280,15 @@ instance ToSample ServiceSessionToken where
 
 instance ToSample ByUserOrServiceId
 
+instance ToSample Uri where
+    toSamples _ = Docs.singleSample $ parseUri "https://example.com/some-service/user/41" ^?! _Right
+
+instance ToSample PersonaId where
+    toSamples _ = Docs.singleSample $ PersonaId 32
+
+instance ToSample EmailRecipients
+
+instance ToSample SendEmailRequest
 
 instance HasDocs sublayout => HasDocs (ThentosAuth :> sublayout) where
     docsFor _ dat opts = docsFor (Proxy :: Proxy sublayout) dat opts & Docs.apiIntros %~ (intro:)
