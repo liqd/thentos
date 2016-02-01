@@ -7,16 +7,11 @@ module Thentos.Transaction
 where
 
 import Control.Exception.Lifted (throwIO)
-import Control.Lens ((^.))
-import Control.Monad (void, when)
-import Control.Monad.Except (throwError)
 import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
-import Data.Functor.Infix ((<$$>))
-import Data.String.Conversions (ST)
-import Data.Int (Int64)
 
+import Thentos.Prelude
 import Thentos.Types
 import Thentos.Transaction.Core
 

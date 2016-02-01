@@ -5,20 +5,14 @@
 module Thentos.Smtp (sendMail, SendmailError(..), checkSendmail)
 where
 
+import Thentos.Prelude
 import Control.Exception (try, IOException, ErrorCall(..), throwIO)
-import Control.Monad (unless, when)
 import Data.Configifier ((>>.))
-import Data.Maybe (fromJust, isJust)
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
 import Network.Mail.Mime (Mail, Address(Address), sendmailCustomCaptureOutput,
     simpleMail', renderMail')
-import System.Log (Priority(DEBUG, WARNING))
-import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString as SB
 
-import System.Log.Missing
 import Thentos.Config
 import Thentos.Types
 

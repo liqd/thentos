@@ -10,23 +10,12 @@
 module Thentos.Backend.Core
 where
 
-import Control.Lens ((^.), (&), (.~), (%~), _Left)
+import Thentos.Prelude
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
-import Data.Foldable (for_)
-import Data.Function (on)
-import Data.Functor (($>))
-import Data.List (nubBy)
-import Data.Maybe (fromMaybe)
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (SBS, ST, cs, (<>))
-import Data.String (fromString)
 import Data.Text.Encoding (decodeUtf8')
-import Data.Typeable (Typeable)
-import Data.Void (Void, absurd)
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, statusCode)
 import Network.HostAddr (HostAddr, hostAddr, getHostAddr)
 import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
@@ -44,8 +33,6 @@ import Servant.Server.Internal.ServantErr
     , errHeaders
     )
 import Servant.Utils.Links (HasLink(MkLink, toLink), linkURI)
-import System.Log.Logger (Priority(DEBUG, INFO, ERROR, CRITICAL))
-import Text.Show.Pretty (ppShow)
 
 import qualified Data.ByteString.Char8 as SBS
 import qualified Blaze.ByteString.Builder as Builder
@@ -53,7 +40,6 @@ import qualified Data.Text as ST
 import qualified Network.HTTP.Types.Header as HttpTypes
 import qualified Servant.Foreign as Foreign
 
-import System.Log.Missing (logger)
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action.Unsafe (unsafeLiftIO)
