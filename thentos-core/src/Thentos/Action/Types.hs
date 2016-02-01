@@ -1,7 +1,9 @@
 {- Safe -}
 
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE PackageImports              #-}
@@ -82,6 +84,12 @@ instance MonadState s (Action e s) where
 instance MonadLIO DCLabel (Action e s) where
     liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
+-- FIXME: use me instead of 'Action'.
+type MonadAction e s m =
+    (MonadReader ActionState m,
+     MonadError (ThentosError e) m,
+     MonadState s m,
+     MonadLIO DCLabel m)
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --

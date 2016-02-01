@@ -6,10 +6,11 @@
 
 module Thentos.Frontend.State where
 
-import Control.Monad.Except (throwError, catchError)
+import Control.Monad.Except (throwError)
+import Control.Monad.Except.Missing (finally)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad.State (get, gets, put)
-import Control.Lens (_Left)
+import Control.Monad.State (get, put)
+import Control.Lens (_Left, _Just, preuse)
 import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
 import Data.Monoid ((<>))
@@ -114,7 +115,7 @@ serveFAction :: forall api.
         , Enter (ServerT api FAction) (FAction :~> ExceptT ServantErr IO) (Server api)
         )
      => Proxy api -> ServerT api FAction -> ActionState -> IO Application
-serveFAction _ fServer aState = thentosSessionMiddleware >>= \(mw, key) -> return (mw $ app key)
+serveFAction _ fServer aState = (\(mw, key) -> mw $ app key) <$> thentosSessionMiddleware
   where
     app :: Vault.Key FSession -> Application
     app key = serve (Proxy :: Proxy (FServantSession :> api)) (server' key)
@@ -145,17 +146,8 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . r
                     fServer `finally`
                         cookieFromFSession (ins ())
 
-    finally :: FAction a -> FAction b -> FAction a
-    finally action finalizer = do
-        a <- action `catchError` \e -> finalizer >> throwError e
-        finalizer >> return a
-
     updatePrivs :: FAction ()
-    updatePrivs = gets l >>= updatePrivs'
-      where
-        l :: FrontendSessionData -> Maybe ThentosSessionToken
-        l (FrontendSessionData (Just (FrontendSessionLoginData t _ _)) _ _) = Just t
-        l _ = Nothing
+    updatePrivs = preuse (fsdLogin . _Just . fslToken) >>= updatePrivs'
 
     updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
     updatePrivs' = mapM_ U.extendClearanceOnThentosSession

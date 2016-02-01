@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -41,24 +42,19 @@ module Thentos.Frontend.Handlers
   )
 where
 
-import Control.Lens ((.~), (^.))
+import Control.Lens ((^.), (.=))
 import Control.Monad.Except (catchError, throwError)
-import Control.Monad.Identity (Identity, runIdentity)
-import Control.Monad.State (get, modify)
-import Data.Bifunctor (first)
-import Data.Proxy (Proxy(Proxy))
+import Control.Monad.State (get)
 import Data.String.Conversions (ST, (<>))
 import Control.Monad (void)
-import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
-import Network.Wai (Request, Middleware, requestMethod)
+import Network.Wai (Middleware, requestMethod)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
-import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
-                                route, addBodyCheck)
-import Text.Digestive (Env, Form, FormInput(TextInput), View, fromPath, getForm, postForm)
+import Servant.Missing (formH)
 
 import qualified Servant
+import qualified Servant.Missing as FormH
 import qualified Text.Blaze.Html5 as H
-import qualified Data.Text.Encoding as STE
+import Data.Foldable (for_)
 
 import Thentos.Action hiding (sendPasswordResetMail)
 import Thentos.Action.Types
@@ -77,62 +73,7 @@ import qualified Thentos.Action.Unsafe as U
 
 type Get = Servant.Get '[HTM] H.Html
 type Post = Servant.Post '[HTM] H.Html
-
-type FormH payload = Get :<|> FormReqBody :> Post
-
-data FormReqBody
-
-instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
-  type ServerT (FormReqBody :> sublayout) m = Env Identity -> ServerT sublayout m
-
-  route Proxy subserver = WithRequest $ \request ->
-      route (Proxy :: Proxy sublayout) (addBodyCheck subserver (bodyCheck request))
-    where
-      -- FIXME: honor accept header
-      -- FIXME: file upload.  shouldn't be hard!
-      bodyCheck :: Request -> IO (RouteResult (Env Identity))
-      bodyCheck req = do
-          q :: [Param]
-              <- parseRequestBody lbsBackEnd req >>=
-                  \case (q, []) -> return q
-                        (_, _:_) -> error "servant-digestive-functors: file upload not implemented!"
-
-          let env :: Env Identity
-              env query = return
-                        . map (TextInput . STE.decodeUtf8 . snd)
-                        . filter ((== fromPath query) . fst)
-                        . map (first STE.decodeUtf8)
-                        $ q
-
-          return $ Route env
-
-
--- | There are two form processor functions that are combined in the execution: the
--- digestive-functors part that composes the form payload or a list of errors to be sent back to the
--- browser, and the part that has effects on system and session state.  The first is factored out so
--- it can live in the Safe "Pages" module.  The renderer needs to be an action so it can e.g. flush
--- and render the 'FrontendMsg' queue.
---
--- FIXME: why does processor I have 'FAction' in its type?
--- FIXME: replace H.Html in processor2 and renderer with @(MimeRender 'HTML a => a)@ (or something).
--- FIXME: move this to servant-digestive-functors.
-formH :: forall payload.
-     ST                                     -- ^ formAction
-  -> Form H.Html FAction payload            -- ^ processor I
-  -> (payload -> FAction H.Html)            -- ^ processor II
-  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
-  -> ServerT (FormH payload) FAction
-formH formAction processor1 processor2 renderer = getH :<|> postH
-  where
-    getH = do
-        v <- getForm formAction processor1
-        H.toHtml <$> renderer v formAction
-
-    postH :: Env Identity -> FAction H.Html
-    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
-        \case (_,                Just payload) -> processor2 payload
-              (v :: View H.Html, Nothing)      -> renderer v formAction
-
+type FormH a = FormH.FormH HTM H.Html a
 
 -- * register (thentos)
 
@@ -169,7 +110,7 @@ userRegisterConfirmH (Just token) = do
         loggerF $ "registered new user: " ++ show uid_
         -- FIXME: we need a 'withAccessRights' for things like this.
         U.extendClearanceOnPrincipals [RoleAdmin]
-        mapM_ (assignRole (UserA uid_)) defaultUserRoles
+        for_ defaultUserRoles (assignRole (UserA uid_))
         return (uid_, sessTok_)
 
     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"
@@ -192,7 +133,7 @@ userLoginH = formH "/user/login" userLoginForm p (showPageWithMessages userLogin
 -- message that asks to try again.
 userFinishLogin :: (UserId, ThentosSessionToken) -> FAction H.Html
 userFinishLogin (uid, tok) = do
-    modify $ fsdLogin .~ Just (FrontendSessionLoginData tok uid (Just DashboardTabDetails))
+    fsdLogin .= Just (FrontendSessionLoginData tok uid (Just DashboardTabDetails))
     sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
     redirectToDashboardOrService
 
@@ -266,13 +207,12 @@ userLogoutConfirmH :: FAction H.Html
 userLogoutConfirmH = runAsUserOrLogin $ \_ fsl -> do
     serviceNames <- serviceNamesFromThentosSession (fsl ^. fslToken)
     -- BUG #403: do we need csrf protection for this?
-    setTab DashboardTabLogout
-    renderDashboard (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
+    switchTab' DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
 
 userLogoutDoneH :: FAction H.Html
 userLogoutDoneH = runAsUserOrLogin $ \_ fsl -> do
     endThentosSession (fsl ^. fslToken)
-    modify $ fsdLogin .~ Nothing
+    fsdLogin .= Nothing
     userLogoutDonePage <$> get
 
 
@@ -284,10 +224,7 @@ type EmailUpdateH = "update_email" :> FormH UserEmail
 emailUpdateH :: ServerT EmailUpdateH FAction
 emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
   where
-    r v a = do
-        setTab DashboardTabDetails
-        fsd <- get
-        renderDashboard $ emailUpdateSnippet fsd v a
+    r = switchTab DashboardTabDetails emailUpdateSnippet
 
     p :: UserEmail -> FAction H.Html
     p uemail = do
@@ -330,10 +267,7 @@ type PasswordUpdateH = "update_password" :> FormH (UserPass, UserPass)
 passwordUpdateH :: ServerT PasswordUpdateH FAction
 passwordUpdateH = formH "/user/update_password" p1 p2 r
   where
-    r v a = do
-        setTab DashboardTabDetails
-        fsd <- get
-        renderDashboard $ passwordUpdateSnippet fsd v a
+    r = switchTab DashboardTabDetails passwordUpdateSnippet
 
     p1 = passwordUpdateForm
 
@@ -363,13 +297,28 @@ type DashboardH =
 dashboardH :: ServerT DashboardH FAction
 dashboardH =
        redirect' "/dashboard/details"
-  :<|> (setTab DashboardTabDetails  >> renderDashboard userDisplaySnippet)
-  :<|> (setTab DashboardTabServices >> renderDashboard userServicesDisplaySnippet)
+  :<|> switchTab' DashboardTabDetails  userDisplaySnippet
+  :<|> switchTab' DashboardTabServices userServicesDisplaySnippet
   :<|> redirect' "/service/create"
-  :<|> (setTab DashboardTabUsers    >> renderDashboard (\_ _ -> "nothing here yet!"))
+  :<|> switchTab' DashboardTabUsers    (\_ _ -> "nothing here yet!")
 
 
 -- * services
+
+-- (FIXME: the whole way tabs are switched could use a bit more work.)
+-- At least switching tab is no factored at a single place.
+switchTab  :: DashboardTab
+           -> (FrontendSessionData -> v -> a -> User -> [Group] -> H.Html)
+           -> v -> a -> Action FActionError FrontendSessionData H.Html
+switchTab tab snippet v a = do
+    setTab tab
+    fsd <- get
+    renderDashboard $ snippet fsd v a
+
+switchTab'  :: DashboardTab
+            -> (User -> [Group] -> H.Html)
+            -> Action FActionError FrontendSessionData H.Html
+switchTab' tab snippet = setTab tab >> renderDashboard snippet
 
 -- FIXME: this route should be something more like @/service/create@.
 type ServiceCreateH = "create" :> FormH (ServiceName, ServiceDescription)
@@ -378,11 +327,7 @@ type ServiceCreateH = "create" :> FormH (ServiceName, ServiceDescription)
 serviceCreateH :: ServerT ServiceCreateH FAction
 serviceCreateH = formH "/service/create" serviceCreateForm p r
   where
-    r v a = do
-        -- (FIXME: the whole way tabs are switched could use a bit more work.)
-        setTab DashboardTabDetails
-        fsd <- get
-        renderDashboard $ serviceCreateSnippet fsd v a
+    r = switchTab DashboardTabDetails serviceCreateSnippet
 
     p :: (ServiceName, ServiceDescription) -> FAction H.Html
     p (name, description) = do
@@ -450,7 +395,7 @@ serviceLoginH _ Nothing = crash $ FActionError500 "Service login: no or malforme
 serviceLoginH (Just sid) (Just (RelRef rr)) = do
     let sls = ServiceLoginState sid rr
     loggerF $ "setServiceLoginState: " ++ show sls
-    modify $ fsdServiceLoginState .~ Just sls
+    fsdServiceLoginState .= Just sls
 
     runAsUserOrLogin $ \_ fsl -> do
         -- BUG #405: the token needs to be stored in the query of the redirect url.
@@ -468,8 +413,8 @@ redirectToDashboardOrService :: FAction H.Html
 redirectToDashboardOrService = do
     mCallback <- popServiceLoginState
     case mCallback of
-        Just (ServiceLoginState _ rr) -> redirectRR rr
-        Nothing                       -> redirect' "/dashboard"
+        Just sls -> redirectRR $ sls ^. fslRR
+        Nothing  -> redirect' "/dashboard"
 
 
 -- * Cache control
