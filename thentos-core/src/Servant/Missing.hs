@@ -60,18 +60,17 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
           return $ Route env
 
 
--- FIXME: parts of this comment are specific to thentos
--- | There are two form processor functions that are combined in the execution: the
--- digestive-functors part that composes the form payload or a list of errors to be sent back to the
--- browser, and the part that has effects on system and session state.  The first is factored out so
--- it can live in the Safe "Pages" module.  The renderer needs to be an action so it can e.g. flush
--- and render the 'FrontendMsg' queue.
---
+-- | Handle a route of type @'FormH' htm html payload@.  'formAction' is used by digestive-functors
+-- as submit path for the HTML @FORM@ element.  'processor1' constructs the form, either as empty in
+-- response to a @GET@, or displaying validation errors in response to a @POST@.  'processor2'
+-- responds to a @POST@, handles the validated input values, and returns a new page displaying the
+-- result.  Note that the renderer is monadic so that it can have effects (such as e.g. flushing a
+-- message queue in the session state).
 formH :: forall payload m htm html.
      Monad m
   => ST                           -- ^ formAction
-  -> Form html m payload          -- ^ processor I
-  -> (payload -> m html)          -- ^ processor II
+  -> Form html m payload          -- ^ processor1
+  -> (payload -> m html)          -- ^ processor2
   -> (View html -> ST -> m html)  -- ^ renderer
   -> ServerT (FormH htm html payload) m
 formH formAction processor1 processor2 renderer = getH :<|> postH
