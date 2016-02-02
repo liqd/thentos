@@ -6,7 +6,6 @@
 module Thentos.Transaction
 where
 
-import Control.Exception.Lifted (throwIO)
 import Database.PostgreSQL.Simple         (Only(..), FromRow)
 import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)

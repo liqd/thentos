@@ -6,14 +6,10 @@ module Main (main) where
 
 import Control.Concurrent.Async (concurrently)
 import Control.Exception (finally)
-import Control.Monad (void)
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Maybe (fromMaybe)
-import Data.Proxy (Proxy(Proxy))
-import System.Log.Logger (Priority(INFO), removeAllHandlers)
 
-import System.Log.Missing (logger, announceAction)
 import Thentos (createConnPoolAndInitDb, runGcLoop, makeActionState)
+import Thentos.Prelude
 import Thentos.Config
 import Thentos.Sybil.AudioCaptcha (checkEspeak)
 

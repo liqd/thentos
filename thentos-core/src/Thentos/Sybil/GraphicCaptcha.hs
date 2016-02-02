@@ -3,13 +3,7 @@
 
 module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 
-import Control.Exception (throwIO, ErrorCall(ErrorCall))
-import Control.Monad.Except (replicateM, forM_, forM)
-import Control.Monad.Random.Class (MonadRandom, getRandomR)
-import Control.Monad.Random (mkStdGen, evalRand)
-import Data.Char (ord)
 import Data.Elocrypt (mkPassword)
-import Data.String.Conversions (ST, cs)
 
 import Codec.Picture (PixelRGBA8(PixelRGBA8), encodePng)
 import Graphics.Rasterific
@@ -21,6 +15,7 @@ import Graphics.Rasterific.Texture (uniformTexture, patternTexture, transformTex
 import Graphics.Rasterific.Transformations (translate)
 import Graphics.Text.TrueType (Font, loadFontFile)
 
+import Thentos.Prelude
 import Thentos.Types
 
 

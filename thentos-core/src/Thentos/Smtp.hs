@@ -6,7 +6,6 @@ module Thentos.Smtp (sendMail, SendmailError(..), checkSendmail)
 where
 
 import Thentos.Prelude
-import Control.Exception (try, IOException, ErrorCall(..), throwIO)
 import Data.Configifier ((>>.))
 import Network.Mail.Mime (Mail, Address(Address), sendmailCustomCaptureOutput,
     simpleMail', renderMail')

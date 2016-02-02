@@ -17,27 +17,15 @@ module Thentos
 import Control.Concurrent.Async (concurrently)
 import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
-import Control.Exception (finally, throwIO, ErrorCall(ErrorCall))
-import Control.Lens ((^.))
-import Control.Monad (void, when, forever)
+import Control.Exception (finally)
 import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Either (isRight)
-import Data.Maybe (maybeToList)
-import Data.Monoid ((<>))
-import Data.Foldable (forM_)
 import Data.Pool (Pool, createPool, withResource)
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs)
-import Data.Void (Void)
-import LIO.DCLabel (toCNF)
-import System.Log.Logger (Priority(DEBUG, INFO, ERROR), removeAllHandlers)
-import Text.Show.Pretty (ppShow)
 
 import qualified Data.Map as Map
 
-import System.Log.Missing (logger, announceAction)
+import Thentos.Prelude
 import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
 import Thentos.Action.Types (Action, ActionState(..), aStDb, aStConfig)

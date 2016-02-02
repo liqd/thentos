@@ -87,7 +87,6 @@ where
 
 import Thentos.Prelude
 import Data.Configifier ((>>.), Tagged(Tagged))
-import GHC.Exception (Exception)
 import Text.Hastache.Context (mkStrContext)
 import Text.Hastache (MuType(MuVariable))
 

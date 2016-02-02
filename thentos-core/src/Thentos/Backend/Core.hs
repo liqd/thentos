@@ -10,7 +10,7 @@
 module Thentos.Backend.Core
 where
 
-import Thentos.Prelude
+import Thentos.Prelude hiding ((.=))
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
