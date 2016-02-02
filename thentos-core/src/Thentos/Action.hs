@@ -96,7 +96,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
-import Data.Typeable (Typeable)
 import GHC.Exception (Exception)
 import LIO.DCLabel ((%%), (\/), (/\))
 import LIO.Error (AnyLabelError(AnyLabelError))
@@ -196,7 +195,7 @@ lookupConfirmedUserByEmail email = lookupUser_ $ T.lookupConfirmedUserByEmail em
 
 -- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
-addUser :: (Show e, Typeable e) => UserFormData -> Action e s UserId
+addUser :: UserFormData -> Action e s UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     U.unsafeAction $ U.makeUserFromFormData userData >>= U.query . T.addUser
@@ -214,7 +213,7 @@ deleteUser uid = do
 -- | Initiate email-verified user creation.  Does not require any privileges.
 -- This also sends an email containing an activation link on which the user must click.
 -- See also: 'confirmNewUser'.
-addUnconfirmedUser :: (Show e, Typeable e) => UserFormData -> Action e s ()
+addUnconfirmedUser :: UserFormData -> Action e s ()
 addUnconfirmedUser userData = do
     passwordAcceptable $ udPassword userData
     tok  <- freshConfirmationToken
@@ -261,7 +260,7 @@ sendUserExistsMail email = do
 -- created, the captcha is deleted to prevent an attacker from creating multiple users with
 -- the same captcha solution.  If user creation fails (e.g. because of a duplicate user name), the
 -- captcha remains in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
-addUnconfirmedUserWithCaptcha :: (Show e, Typeable e) => UserCreationRequest -> Action e s ()
+addUnconfirmedUserWithCaptcha :: UserCreationRequest -> Action e s ()
 addUnconfirmedUserWithCaptcha ucr = do
     captchaCorrect <- solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)
     let captchaAttempt = if captchaCorrect then CaptchaCorrect else CaptchaIncorrect

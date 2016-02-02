@@ -15,7 +15,6 @@ import Database.PostgreSQL.Simple.Errors  (ConstraintViolation(UniqueViolation))
 import Database.PostgreSQL.Simple.SqlQQ   (sql)
 import Data.Functor.Infix ((<$$>))
 import Data.String.Conversions (ST)
-import Data.Typeable (Typeable)
 import Data.Int (Int64)
 
 import Thentos.Types
@@ -79,7 +78,7 @@ addUserPrim user confirmed =
 
 -- | Add a new user and return the new user's 'UserId'.
 -- Ensures that user name and email address are unique.
-addUser :: (Show e, Typeable e) => User -> ThentosQuery e UserId
+addUser :: User -> ThentosQuery e UserId
 addUser user = addUserPrim user True
 
 -- | Add a new unconfirmed user (i.e. one whose email address we haven't confirmed yet).
