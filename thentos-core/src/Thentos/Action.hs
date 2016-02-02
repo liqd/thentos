@@ -19,6 +19,7 @@ module Thentos.Action
     , lookupConfirmedUserByName
     , lookupConfirmedUserByEmail
     , addUser
+    , addUserWithTempPassword
     , deleteUser
     , addUnconfirmedUser
     , addUnconfirmedUserWithCaptcha
@@ -144,6 +145,9 @@ freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> U.unsafeAction (U.
 freshConfirmationToken :: Action e s ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
+freshTempPassword :: Action e s UserPass
+freshTempPassword = UserPass . ST.take 10 <$> freshRandomName
+
 -- | Generate 20 bytes of random data.
 -- For comparison: an UUID has 16 bytes, so that should be enough for all practical purposes.
 freshRandom20 :: Action e s Random20
@@ -199,6 +203,13 @@ addUser :: UserFormData -> Action e s UserId
 addUser userData = do
     guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
     U.unsafeAction $ U.makeUserFromFormData userData >>= U.query . T.addUser
+
+-- FIXME: for AULA, UserEmail should be optional
+addUserWithTempPassword :: UserName -> UserEmail -> Action e s (UserId, UserPass)
+addUserWithTempPassword name email = do
+    password <- freshTempPassword
+    uid <- addUser $ UserFormData name password email
+    return (uid, password)
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.

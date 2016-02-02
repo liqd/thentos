@@ -25,6 +25,7 @@ import Test.Hspec (Spec, SpecWith, context, describe, it, around, shouldBe, shou
 
 import qualified Data.ByteString.Lazy.Char8 as BC
 import qualified Data.Csv as CSV
+import qualified Data.Text as ST
 import qualified Data.Vector as V
 
 import Thentos.Test.Arbitrary ()
@@ -102,6 +103,17 @@ spec_user = describe "user" $ do
                                             (user ^. userEmail)
             Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
+
+    describe "addUserWithTempPassword" $ do
+        it "creates a new user with a random password" $ \sta -> do
+            let email = forceUserEmail "bob@example.com"
+                name = UserName "bob"
+            Right (_uid, tempPass) <- runPrivsE [RoleAdmin] sta $
+                addUserWithTempPassword name email
+            ST.length (fromUserPass tempPass) `shouldBe` 10
+            [Only (count :: Int)] <- doQuery (sta ^. aStDb)
+                [sql| SELECT COUNT(*) FROM users WHERE name = 'bob' |] ()
+            count `shouldBe` 1
 
     describe "addUnconfirmedUserWithCaptcha" $ do
             let email = forceUserEmail "alice@example.com"
