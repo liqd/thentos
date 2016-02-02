@@ -305,8 +305,8 @@ dashboardH =
 
 -- * services
 
--- (FIXME: the whole way tabs are switched could use a bit more work.)
--- At least switching tab is no factored at a single place.
+-- (FIXME: the whole way tabs are switched could use a bit more work.
+-- At least switching tab is now factored at a single place.)
 switchTab  :: DashboardTab
            -> (FrontendSessionData -> v -> a -> User -> [Group] -> H.Html)
            -> v -> a -> Action FActionError FrontendSessionData H.Html
