@@ -17,7 +17,6 @@ import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
 import Data.Text.Encoding (decodeUtf8')
 import Network.HTTP.Types (Header, methodGet, methodHead, methodPost, ok200, statusCode)
-import Network.HostAddr (HostAddr, hostAddr, getHostAddr)
 import Network.URI (URI)  -- FIXME: suggest replacing network-uri with uri-bytestring in servant.
 import Network.Wai (Application, Middleware, Request, requestHeaders, requestMethod,
                     responseHeaders, responseStatus)
@@ -41,41 +40,25 @@ import qualified Network.HTTP.Types.Header as HttpTypes
 import qualified Servant.Foreign as Foreign
 
 import Thentos.Action.Core
+import Thentos.Action.TCB
 import Thentos.Action.Types
-import Thentos.Action.Unsafe (unsafeLiftIO)
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
-
-import qualified Thentos.Action.Unsafe as U
 
 -- * action
 
 enterAction :: forall s e. (Show e, Typeable e) =>
     s -> ActionState ->
     (ActionError e -> IO ServantErr) ->
-    ThentosAuthCredentials -> Action e s :~> ExceptT ServantErr IO
+    ThentosAuthCredentials -> ActionStack e s :~> ExceptT ServantErr IO
 enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toServantErr
   where
     run :: (Show e, Typeable e)
         => (ActionError e -> IO ServantErr)
-        -> Action e s a -> IO (Either ServantErr a)
-    run e = (>>= _Left e . fst) . runActionE polyState actionState . (updatePrivs creds >>)
-
-    updatePrivs :: ThentosAuthCredentials -> Action e s ()
-    updatePrivs (ThentosAuthCredentials mTok origin) = f mTok >> (allowedIps >>= g (hostAddr origin))
-      where
-        f = mapM_ U.extendClearanceOnThentosSession
-
-        g :: HostAddr -> [HostAddr] -> Action e s ()
-        g ip ips = when (ip `elem` ips) $ U.extendClearanceOnPrincipals [PrivilegedIP]
-
-    allowedIps :: Action e s [HostAddr]
-    allowedIps = mapM (unsafeLiftIO . getHostAddr . cs) ts
-        where
-            ts :: [ST]
-            ts = fromMaybe [] $ (actionState ^. aStConfig) >>. (Proxy :: Proxy '["allow_ips"])
+        -> ActionStack e s a -> IO (Either ServantErr a)
+    run e = (>>= _Left e . fst) . runActionE polyState actionState . (extendClearanceOnThentosAuthCredentials creds >>)
 
 
 -- * error handling

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -34,7 +35,7 @@ spec = describe "Thentos.Frontend.Handlers.CombinatorsSpec" specRedirect
 
 type ApiRedirect = "here" :> Get '[HTML] H.Html
 
-apiRedirect :: ServerT ApiRedirect FAction
+apiRedirect :: FormHandler (ServerT ApiRedirect)
 apiRedirect = redirect' "/there"
 
 appRedirect :: IO Application

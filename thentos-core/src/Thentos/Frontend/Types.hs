@@ -1,5 +1,8 @@
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE RankNTypes                  #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 {-# LANGUAGE TemplateHaskell             #-}
 
@@ -14,12 +17,16 @@ import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Prelude
 import Thentos.Types
-import Thentos.Action.Types (Action)
+import Thentos.Action.Types (MonadAction)
 
 
 -- * frontend actions
 
-type FAction = Action FActionError FrontendSessionData
+type MonadThentosFError m = MonadThentosError FActionError m
+type MonadThentosFState m = MonadState FrontendSessionData m
+type MonadFAction m = MonadAction FActionError FrontendSessionData m
+type FAction a = forall m. MonadFAction m => m a
+type FormHandler f = forall m. MonadFAction m => f m
 
 data FActionError =
     FActionError303 SBS

@@ -31,7 +31,7 @@ import Thentos.Transaction (lookupConfirmedUserByName)
 import Thentos.Types
 
 
--- | The test suite calls `getConfig` many times, which in turn changes to the `root_path`.  If the
+-- | The test suite calls `readConfig` many times, which in turn changes to the `root_path`.  If the
 -- latter is relative, this won't work.  So every time we construct 'thentosTestConfig', we want to
 -- change to the current directory of the last time it was called.  This function does that.
 memoizeCurrentDirectory :: IO ()
@@ -49,7 +49,7 @@ thentosTestConfig' :: [Source] -> IO ThentosConfig
 thentosTestConfig' extra =
     memoizeCurrentDirectory >>
     thentosTestConfigSources >>=
-    getConfigWithSources . (++ extra)
+    readConfigWithSources . (++ extra)
 
 thentosTestConfigSources :: IO [Source]
 thentosTestConfigSources = (thentosTestConfigYaml:) <$> defaultSources' "THENTOS_" []

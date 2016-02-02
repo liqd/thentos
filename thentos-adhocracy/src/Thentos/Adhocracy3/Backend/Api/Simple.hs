@@ -173,7 +173,7 @@ a3corsPolicy = CorsPolicy
     }
 
 -- | A3-specific ProxyAdapter.
-a3ProxyAdapter :: ProxyAdapter ThentosA3Error
+a3ProxyAdapter :: ProxyAdapter A3Action ThentosA3Error
 a3ProxyAdapter = ProxyAdapter
   { renderHeader = renderA3HeaderName
   , renderUser   = a3RenderUser

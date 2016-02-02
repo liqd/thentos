@@ -18,7 +18,7 @@ import qualified Thentos.Backend.Api.Captcha as Captcha
 
 main :: IO ()
 main = do
-    config :: ThentosConfig <- getConfig "devel.config"
+    config :: ThentosConfig <- readConfig "devel.config"
     checkEspeak  -- Make sure that we can successfully generate audio captchas
     connPool <- createConnPoolAndInitDb config
     actionState <- makeActionState config connPool

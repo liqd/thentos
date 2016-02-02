@@ -164,7 +164,7 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 
 -- * generating sample tokens
 
-runTokenBuilder :: Action.Action Void () a -> [(ST, a)]
+runTokenBuilder :: Action.ActionStack Void () a -> [(ST, a)]
 runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
     fst <$> Action.runActionWithClearance dcTop () runTokenBuilderState action
 

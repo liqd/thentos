@@ -15,7 +15,6 @@ import Control.Concurrent (MVar)
 import Control.Exception (Exception, SomeException)
 import Control.Lens (makeLenses)
 import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, ask, local)
 import Control.Monad.State (MonadState, StateT, state)
 import Control.Monad.Trans.Class (lift)
@@ -53,8 +52,8 @@ makeLenses ''ActionState
 --     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
 --       will have authorized effect.  Since it is contained in a reader, actions do not have the
 --       power to corrupt it.
-newtype Action e s a =
-    Action
+newtype ActionStack e s a =
+    ActionStack
       { fromAction :: ReaderT ActionState
                           (EitherT (ThentosError e)
                               (StateT s
@@ -62,37 +61,45 @@ newtype Action e s a =
       }
   deriving (Functor, Generic)
 
-instance Applicative (Action e s) where
-    pure = Action . pure
-    (Action ua) <*> (Action ua') = Action $ ua <*> ua'
+instance Applicative (ActionStack e s) where
+    pure = ActionStack . pure
+    (ActionStack ua) <*> (ActionStack ua') = ActionStack $ ua <*> ua'
 
-instance Monad (Action e s) where
+instance Monad (ActionStack e s) where
     return = pure
-    (Action ua) >>= f = Action $ ua >>= fromAction . f
+    (ActionStack ua) >>= f = ActionStack $ ua >>= fromAction . f
 
-instance MonadReader ActionState (Action e s) where
-    ask = Action ask
-    local f = Action . local f . fromAction
+instance MonadReader ActionState (ActionStack e s) where
+    ask = ActionStack ask
+    local f = ActionStack . local f . fromAction
 
-instance MonadError (ThentosError e) (Action e s) where
-    throwError = Action . throwError
-    catchError (Action ua) h = Action $ catchError ua (fromAction . h)
+instance MonadError (ThentosError e) (ActionStack e s) where
+    throwError = ActionStack . throwError
+    catchError (ActionStack ua) h = ActionStack $ catchError ua (fromAction . h)
 
-instance MonadState s (Action e s) where
-    state = Action . state
+instance MonadState s (ActionStack e s) where
+    state = ActionStack . state
 
-instance MonadLIO DCLabel (Action e s) where
-    liftLIO lio = Action . ReaderT $ \_ -> EitherT (Right <$> lift lio)
+instance MonadLIO DCLabel (ActionStack e s) where
+    liftLIO lio = ActionStack . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
--- FIXME: use me instead of 'Action'.
+type MonadThentosIO m = MonadLIO DCLabel m
+type MonadThentosReader m = MonadReader ActionState m
+
+type MonadQuery e m =
+    (MonadThentosReader m,
+     MonadThentosError e m,
+     MonadThentosIO m)
+
 type MonadAction e s m =
-    (MonadReader ActionState m,
-     MonadError (ThentosError e) m,
+    (MonadThentosReader m,
+     MonadThentosError e m,
      MonadState s m,
-     MonadLIO DCLabel m)
+     MonadThentosIO m)
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --
+-- FIXME DOC
 -- The 'MonadError' instance of newtype 'Action' lets you throw and catch errors from *within* the
 -- 'Action', i.e., at construction time).  These are errors are handled in the 'ActionErrorThentos'
 -- constructor.  Label errors and other (possibly async) exceptions are caught (if possible) in
@@ -104,36 +111,3 @@ data ActionError e =
   deriving (Show)
 
 instance (Show e, Typeable e) => Exception (ActionError e)
-
-
--- | Like 'Action', but with 'IO' at the base.
-newtype UnsafeAction e s a =
-    UnsafeAction
-      { fromUnsafeAction :: ReaderT ActionState
-                                (EitherT (ThentosError e)
-                                    (StateT s
-                                        IO)) a
-      }
-  deriving (Functor, Generic)
-
-instance Applicative (UnsafeAction e s) where
-    pure = UnsafeAction . pure
-    (UnsafeAction ua) <*> (UnsafeAction ua') = UnsafeAction $ ua <*> ua'
-
-instance Monad (UnsafeAction e s) where
-    return = pure
-    (UnsafeAction ua) >>= f = UnsafeAction $ ua >>= fromUnsafeAction . f
-
-instance MonadReader ActionState (UnsafeAction e s) where
-    ask = UnsafeAction ask
-    local f = UnsafeAction . local f . fromUnsafeAction
-
-instance MonadError (ThentosError e) (UnsafeAction e s) where
-    throwError = UnsafeAction . throwError
-    catchError (UnsafeAction ua) h = UnsafeAction $ catchError ua (fromUnsafeAction . h)
-
-instance MonadState s (UnsafeAction e s) where
-    state = UnsafeAction . state
-
-instance MonadIO (UnsafeAction e s) where
-    liftIO = UnsafeAction . liftIO

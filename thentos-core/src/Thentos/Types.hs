@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
@@ -74,6 +75,7 @@ module Thentos.Types
     , SignupAttempt(..)
 
     , ThentosError(..)
+    , MonadThentosError
 
     , personaId, personaName, personaUid, personaExternalUrl
     , contextDescription, contextId, contextName, contextService, contextUrl
@@ -937,6 +939,8 @@ data ThentosError e =
 
 
 instance (Show e, Typeable e) => Exception (ThentosError e)
+
+type MonadThentosError e m = MonadError (ThentosError e) m
 
 
 -- * boilerplate

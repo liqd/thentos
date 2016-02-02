@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -28,7 +29,7 @@ import qualified Data.Map as Map
 import Thentos.Prelude
 import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
-import Thentos.Action.Types (Action, ActionState(..), aStDb, aStConfig)
+import Thentos.Action.Types (ActionStack, ActionState(..), aStDb, aStConfig, MonadQuery)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Frontend.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
@@ -56,7 +57,7 @@ main = makeMain $ \ actionState mBeConfig mFeConfig -> do
 makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO ()
 makeMain commandSwitch =
   do
-    config :: ThentosConfig <- getConfig "devel.config"
+    config :: ThentosConfig <- readConfig "devel.config"
     connPool <- createConnPoolAndInitDb config
 
     actionState <- makeActionState config connPool
@@ -65,7 +66,7 @@ makeMain commandSwitch =
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser actionState
     _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState
-        (autocreateMissingServices config :: Action Void () ())
+        (autocreateMissingServices config :: ActionStack Void () ())
 
     let mBeConfig :: Maybe HttpConfig
         mBeConfig = Tagged <$> config >>. (Proxy :: Proxy '["backend"])
@@ -118,7 +119,7 @@ makeActionState config connPool = do
 runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState (collectGarbage :: Action Void () ())
+    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState (collectGarbage :: ActionStack Void () ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
@@ -176,7 +177,7 @@ createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, groups)) -> do
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
-autocreateMissingServices :: ThentosConfig -> Action Void s ()
+autocreateMissingServices :: MonadQuery e m => ThentosConfig -> m ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing agent) allSids

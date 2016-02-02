@@ -356,24 +356,24 @@ spec_captcha = describe "captcha" $ do
     solution = "some-text"
 
 -- specialize to error type 'Void' and state '()'
-runA :: ActionState -> Action Void () a -> IO a
+runA :: ActionState -> ActionStack Void () a -> IO a
 runA = (fst <$$>) . runAction ()
 
-runAE :: ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+runAE :: ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runAE = (fst <$$>) . runActionE ()
 
-runAsAgent :: Agent -> ActionState -> Action Void () a -> IO a
+runAsAgent :: Agent -> ActionState -> ActionStack Void () a -> IO a
 runAsAgent agent = (fst <$$>) . runActionAsAgent agent ()
 
-runPrivs :: ToCNF cnf => [cnf] -> ActionState -> Action Void () a -> IO a
+runPrivs :: ToCNF cnf => [cnf] -> ActionState -> ActionStack Void () a -> IO a
 runPrivs xs = (fst <$$>) . runActionWithPrivs (toCNF <$> xs) ()
 
 runPrivsE :: ToCNF cnf
-        => [cnf] -> ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+        => [cnf] -> ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runPrivsE xs = (fst <$$>) . runActionWithPrivsE (toCNF <$> xs) ()
 
-runClearanceE :: DCLabel -> ActionState -> Action Void () a -> IO (Either (ActionError Void) a)
+runClearanceE :: DCLabel -> ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runClearanceE l = (fst <$$>) . runActionWithClearanceE l ()
 
-runClearance :: DCLabel -> ActionState -> Action Void () a -> IO a
+runClearance :: DCLabel -> ActionState -> ActionStack Void () a -> IO a
 runClearance l = (fst <$$>) . runActionWithClearance l ()

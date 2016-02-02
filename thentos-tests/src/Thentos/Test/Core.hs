@@ -237,7 +237,7 @@ createDb cfg = do
 
 loginAsDefaultUser :: ActionState -> IO (ThentosSessionToken, Header)
 loginAsDefaultUser actionState = do
-    let action :: Action Void () (UserId, ThentosSessionToken)
+    let action :: ActionStack Void () (UserId, ThentosSessionToken)
         action = startThentosSessionByUserName (UserName uname) (UserPass upass)
           where
             uname, upass :: ST

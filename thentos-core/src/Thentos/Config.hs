@@ -7,8 +7,9 @@
 
 module Thentos.Config
     ( ThentosConfig
-    , getConfig
-    , getConfigWithSources
+    , ThentosConfig'
+    , readConfig
+    , readConfigWithSources
 
     , HttpConfig
     , SmtpConfig
@@ -191,11 +192,11 @@ printConfigUsage = do
     ST.putStrLn $ docs (Proxy :: Proxy (ToConfigCode ThentosConfig'))
 
 
-getConfig :: FilePath -> IO ThentosConfig
-getConfig configFile = defaultSources' "THENTOS_" [configFile] >>= getConfigWithSources
+readConfig :: FilePath -> IO ThentosConfig
+readConfig configFile = defaultSources' "THENTOS_" [configFile] >>= readConfigWithSources
 
-getConfigWithSources :: [Source] -> IO ThentosConfig
-getConfigWithSources sources = do
+readConfigWithSources :: [Source] -> IO ThentosConfig
+readConfigWithSources sources = do
     logger DEBUG $ "config sources:\n" ++ ppShow sources
 
     result <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources

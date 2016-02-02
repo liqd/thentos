@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -45,12 +46,12 @@ import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
 import Text.Blaze.Html (Html)
 
 import Thentos.Action hiding (sendPasswordResetMail)
-import Thentos.Action.Types
-import Thentos.Prelude
+import Thentos.Action.TCB
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
+import Thentos.Prelude
 import Thentos.Types
 
 import qualified Thentos.Action.Unsafe as U
@@ -59,12 +60,11 @@ import qualified Thentos.Action.Unsafe as U
 
 type UserRegisterH = "register" :> FormH UserFormData
 
-userRegisterH :: ServerT UserRegisterH FAction
+userRegisterH :: FormHandler (ServerT UserRegisterH)
 userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages userRegisterPage)
   where
-    p :: UserFormData -> FAction Html
     p userFormData = do
-        loggerF ("registering new user: " ++ show (udName userFormData))
+        loggerA DEBUG ("registering new user: " ++ show (udName userFormData))
         addUnconfirmedUser userFormData
         -- BUG #402: the frontend expects "/user/register_confirm/<ConfirmationToken>",
         -- but the link is now generated in the backend and has the form
@@ -81,13 +81,13 @@ type UserRegisterConfirmH = "register_confirm" :>
 defaultUserGroups :: [Group]
 defaultUserGroups = [GroupUser, GroupUserAdmin, GroupServiceAdmin]
 
-userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction
+userRegisterConfirmH :: FormHandler (ServerT UserRegisterConfirmH)
 userRegisterConfirmH Nothing = crash FActionErrorNoToken
 userRegisterConfirmH (Just token) = do
     (uid, sessTok) <- do
-        loggerF $ "received user register confirm token: " ++ show token
+        loggerA DEBUG $ "received user register confirm token: " ++ show token
         (uid_, sessTok_) <- confirmNewUser token
-        loggerF $ "registered new user: " ++ show uid_
+        loggerA DEBUG $ "registered new user: " ++ show uid_
         -- FIXME: we need a 'withAccessRights' for things like this.
         U.extendClearanceOnPrincipals [GroupAdmin]
         for_ defaultUserGroups (assignGroup (UserA uid_))
@@ -103,10 +103,9 @@ type UserLoginH = "login" :> FormH (UserName, UserPass)
 
 -- | The login form does not need to be protected against CSRF moreover since we have no session
 -- yet we couldn't
-userLoginH :: ServerT UserLoginH FAction
+userLoginH :: FormHandler (ServerT UserLoginH)
 userLoginH = unprotectedFormH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
   where
-    p :: (UserName, UserPass) -> FAction Html
     p (uname, passwd) =
         (startThentosSessionByUserName uname passwd >>= userFinishLogin)
             `catchError` userFailLogin
@@ -131,15 +130,14 @@ userFailLogin e = throwError e
 
 type ResetPasswordRequestH = "reset_password_request" :> FormH UserEmail
 
-resetPasswordRequestH :: ServerT ResetPasswordRequestH FAction
+resetPasswordRequestH :: FormHandler (ServerT ResetPasswordRequestH)
 resetPasswordRequestH =
     formH "/user/reset_password_request" resetPasswordRequestForm p
                                 (showPageWithMessages resetPasswordRequestPage)
   where
-    p :: UserEmail -> FAction Html
     p uemail = do
         fcfg <- getFrontendCfg
-        loggerF ("password reset request: " ++ show uemail)
+        loggerA DEBUG ("password reset request: " ++ show uemail)
         (do
             (user, token) <- addPasswordResetToken uemail
             let url = emailConfirmUrl fcfg "/user/reset_password" (fromPasswordResetToken token)
@@ -149,9 +147,9 @@ resetPasswordRequestH =
             NoSuchUser -> resetPasswordRequestedPage <$> get  -- FIXME: send out warning, too?
             e -> throwError e
 
-sendPasswordResetMail :: User -> ST -> Action FActionError FrontendSessionData ()
-sendPasswordResetMail user callbackUrl = U.unsafeAction $ do
-    U.sendMail Nothing (user ^. userEmail) subject message Nothing
+sendPasswordResetMail :: User -> ST -> FAction ()
+sendPasswordResetMail user callbackUrl =
+    sendMail Nothing (user ^. userEmail) subject message Nothing
   where
     message = "To set a new password, go to " <> callbackUrl
     subject = "Thentos Password Reset"
@@ -160,11 +158,10 @@ sendPasswordResetMail user callbackUrl = U.unsafeAction $ do
 type ResetPasswordH =
       "reset_password" :> QueryParam "token" PasswordResetToken :> FormH UserPass
 
-resetPasswordH :: ServerT ResetPasswordH FAction
+resetPasswordH :: FormHandler (ServerT ResetPasswordH)
 resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
                                             (showPageWithMessages resetPasswordPage)
   where
-    p :: Maybe PasswordResetToken -> UserPass -> FAction Html
     p Nothing _ = crash FActionErrorNoToken
     p (Just tok) password = do
         void $ resetPassword tok password
@@ -183,7 +180,7 @@ resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
 
 type UserLogoutH = "logout" :> FormH ()
 
-userLogoutH :: ServerT UserLogoutH FAction
+userLogoutH :: FormHandler (ServerT UserLogoutH)
 userLogoutH = formH "/user/logout" (pure ()) (const p) r
   where
     r v a = runAsUserOrLogin $ \_ fsl -> do
@@ -201,14 +198,13 @@ userLogoutH = formH "/user/logout" (pure ()) (const p) r
 type EmailUpdateH = "update_email" :> FormH UserEmail
 
 -- BUG #403: csrf?
-emailUpdateH :: ServerT EmailUpdateH FAction
+emailUpdateH :: FormHandler (ServerT EmailUpdateH)
 emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
   where
     r = switchTab DashboardTabDetails emailUpdateSnippet
 
-    p :: UserEmail -> FAction Html
     p uemail = do
-        loggerF ("email change request: " ++ show uemail)
+        loggerA DEBUG ("email change request: " ++ show uemail)
         fcfg <- getFrontendCfg
         let go = do
               runAsUserOrLogin $ \_ fsl -> requestUserEmailChange (fsl ^. fslUserId) uemail
@@ -230,7 +226,7 @@ emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
 type EmailUpdateConfirmH = "update_email_confirm" :>
     QueryParam "token" ConfirmationToken :> GetH
 
-emailUpdateConfirmH :: ServerT EmailUpdateConfirmH FAction
+emailUpdateConfirmH :: FormHandler (ServerT EmailUpdateConfirmH)
 emailUpdateConfirmH Nothing = crash FActionErrorNoToken
 emailUpdateConfirmH (Just token) = go `catchError`
       \case NoSuchToken -> crash FActionErrorNoToken
@@ -244,16 +240,15 @@ emailUpdateConfirmH (Just token) = go `catchError`
 
 type PasswordUpdateH = "update_password" :> FormH (UserPass, UserPass)
 
-passwordUpdateH :: ServerT PasswordUpdateH FAction
+passwordUpdateH :: FormHandler (ServerT PasswordUpdateH)
 passwordUpdateH = formH "/user/update_password" p1 p2 r
   where
     r = switchTab DashboardTabDetails passwordUpdateSnippet
 
     p1 = passwordUpdateForm
 
-    p2 :: (UserPass, UserPass) -> FAction Html
     p2 (oldPass, newPass) = do
-        loggerF ("password change request." :: String)
+        loggerA DEBUG "password change request."
         let go = runAsUserOrLogin $ \_ fsl -> changePassword (fsl ^. fslUserId) oldPass newPass
             worked = sendFrontendMsg (FrontendMsgSuccess "Change password: success!")
                 >> redirect' "/dashboard"
@@ -274,7 +269,7 @@ type DashboardH =
   :<|> "ownservices" :> GetH
   :<|> "users"       :> GetH
 
-dashboardH :: ServerT DashboardH FAction
+dashboardH :: FormHandler (ServerT DashboardH)
 dashboardH =
        redirect' "/dashboard/details"
   :<|> switchTab' DashboardTabDetails  userDisplaySnippet
@@ -287,31 +282,32 @@ dashboardH =
 
 -- (FIXME: the whole way tabs are switched could use a bit more work.
 -- At least switching tab is now factored at a single place.)
-switchTab  :: DashboardTab
+switchTab  :: MonadFAction m
+           => DashboardTab
            -> (FrontendSessionData -> v -> a -> User -> [Group] -> Html)
-           -> v -> a -> Action FActionError FrontendSessionData Html
+           -> v -> a -> m Html
 switchTab tab snippet v a = do
     setTab tab
     fsd <- get
     renderDashboard $ snippet fsd v a
 
-switchTab'  :: DashboardTab
+switchTab'  :: MonadFAction m
+            => DashboardTab
             -> (User -> [Group] -> Html)
-            -> Action FActionError FrontendSessionData Html
+            -> m Html
 switchTab' tab snippet = setTab tab >> renderDashboard snippet
 
 -- FIXME: this route should be something more like @/service/create@.
 type ServiceCreateH = "create" :> FormH (ServiceName, ServiceDescription)
 
 -- BUG #403: csrf
-serviceCreateH :: ServerT ServiceCreateH FAction
+serviceCreateH :: FormHandler (ServerT ServiceCreateH)
 serviceCreateH = formH "/service/create" serviceCreateForm p r
   where
     r = switchTab DashboardTabDetails serviceCreateSnippet
 
-    p :: (ServiceName, ServiceDescription) -> FAction Html
     p (name, description) = do
-        loggerF ("service creation request." :: String)
+        loggerA DEBUG "service creation request."
         (sid, key) <- runAsUserOrLogin $ \_ fsl -> addService (fsl ^. fslUserId) name description
         sendFrontendMsgs
             [ FrontendMsgSuccess "Added a service!"
@@ -329,7 +325,7 @@ type ServiceRegisterH = "register" :> FormH ()
 -- on whether the user is allowed to look it up.  the user needs to present a cryptographic proof of
 -- the service's ok for lookup here.
 
-serviceRegisterH :: ServerT ServiceRegisterH FAction
+serviceRegisterH :: FormHandler (ServerT ServiceRegisterH)
 serviceRegisterH = formH "/service/register" serviceRegisterForm (\() -> p) r
   where
     r v a = do
@@ -339,7 +335,6 @@ serviceRegisterH = formH "/service/register" serviceRegisterForm (\() -> p) r
         (_, user) <- runAsUserOrLogin $ \_ fsl -> lookupConfirmedUser $ fsl ^. fslUserId
         pure $ serviceRegisterPage fsd v a sid service user
 
-    p :: FAction Html
     p = do
         ServiceLoginState sid rr <- getServiceLoginState
         runAsUserOrLogin $ \_ fsl -> addServiceRegistration (fsl ^. fslToken) sid
@@ -374,7 +369,7 @@ serviceLoginH Nothing _ = crash $ FActionError500 "Service login: no Service ID.
 serviceLoginH _ Nothing = crash $ FActionError500 "Service login: no or malformed redirect URI"
 serviceLoginH (Just sid) (Just (RelRef rr)) = do
     let sls = ServiceLoginState sid rr
-    loggerF $ "setServiceLoginState: " ++ show sls
+    loggerA DEBUG $ "setServiceLoginState: " ++ show sls
     fsdServiceLoginState .= Just sls
 
     runAsUserOrLogin $ \_ fsl -> do
