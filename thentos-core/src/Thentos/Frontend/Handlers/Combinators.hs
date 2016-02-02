@@ -2,7 +2,7 @@
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Control.Lens ((^.), (%=), (.~), (.=), use, _Just)
+import Control.Lens ((^.), (%=), (.~), (?=), use, _Just)
 import Control.Monad.State.Class (get, gets, state)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (SBS, ST, cs)
@@ -43,7 +43,7 @@ loggerU = U.logger System.Log.DEBUG . show
 
 -- | If logged in: set current dashboard tab.
 setTab :: DashboardTab -> FAction ()
-setTab t = fsdLogin . _Just . fslDashboardTab .= Just t
+setTab = (fsdLogin . _Just . fslDashboardTab ?=)
 
 -- | Call 'renderDashboard'' to construct a dashboard page and render it in the frontend monad.
 renderDashboard :: (User -> [Group] -> H.Html) -> FAction H.Html
