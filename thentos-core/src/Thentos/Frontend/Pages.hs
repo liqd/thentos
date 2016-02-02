@@ -48,6 +48,7 @@ module Thentos.Frontend.Pages
 
 import Control.Lens ((^.))
 import Control.Monad (when)
+import Data.Foldable (for_)
 import Data.Monoid ((<>))
 import Data.String.Conversions (ST)
 import Data.String (IsString)
@@ -260,9 +261,9 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
         []
-    case serviceNames of
-        []    -> H.p "(none)"
-        (_:_) -> H.ul $ mapM_ (H.li . H.text . fromServiceName) serviceNames
+    if null serviceNames
+        then H.p "(none)"
+        else H.ul . for_ serviceNames $ H.li . H.text . fromServiceName
     H.table . H.tr $ do
         H.td $ do
             H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
@@ -317,7 +318,7 @@ userServicesDisplaySnippet :: u -> rs -> Html
 userServicesDisplaySnippet _ _ = do
     H.table $ do
         H.tr $ do
-            H.td . H.ol $ mapM_ H.li ["Evil Corp.", "Facebook", H.b "Faceboot", "mein.berlin.de"]
+            H.td . H.ol $ for_ ["Evil Corp.", "Facebook", H.b "Faceboot", "mein.berlin.de"] H.li
             H.td . H.table $ do
                 H.tr $ H.td "Service ID" >> H.td "Faceboot"
                 H.tr $ H.td "Description" >> H.td "Something about boats?"
@@ -448,11 +449,11 @@ validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m User
 validateEmail = validate $ maybe (Error "email address invalid") Success . parseUserEmail
 
 validatePass :: (UserPass, UserPass) -> Result Html UserPass
-validatePass (p1, p2) = if p1 == p2
-    then Success p1
-    else Error "passwords don't match"
+validatePass (p1, p2)
+    | p1 == p2  = Success p1
+    | otherwise = Error "passwords don't match"
 
 validatePassChange :: (UserPass, UserPass, UserPass) -> Result Html (UserPass, UserPass)
-validatePassChange (old, new1, new2) = if new1 == new2
-    then Success (old, new1)
-    else Error "passwords don't match"
+validatePassChange (old, new1, new2)
+    | new1 == new2 = Success (old, new1)
+    | otherwise    = Error "passwords don't match"

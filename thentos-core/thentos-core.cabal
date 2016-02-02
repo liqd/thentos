@@ -57,11 +57,13 @@ library
   if flag(development)
     cpp-options: -DDEVELOPMENT
   exposed-modules:
-      Database.PostgreSQL.Simple.Missing
+      Control.Monad.Except.Missing
+    , Database.PostgreSQL.Simple.Missing
     , LIO.Missing
     , Network.HostAddr
     , Paths.TH
     , Paths_thentos_core__
+    , Servant.Missing
     , System.Log.Missing
     , Thentos
     , Thentos.Action

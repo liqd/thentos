@@ -2,8 +2,8 @@
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Control.Lens ((^.), (%~), (.~), _Just)
-import Control.Monad.State.Class (get, gets, modify, state)
+import Control.Lens ((^.), (%=), (.~), (?=), use, _Just)
+import Control.Monad.State.Class (get, gets, state)
 import Data.ByteString.Builder (toLazyByteString)
 import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
@@ -43,7 +43,7 @@ loggerU = U.logger System.Log.DEBUG . show
 
 -- | If logged in: set current dashboard tab.
 setTab :: DashboardTab -> FAction ()
-setTab = modify . (fsdLogin . _Just . fslDashboardTab .~) . Just
+setTab = (fsdLogin . _Just . fslDashboardTab ?=)
 
 -- | Call 'renderDashboard'' to construct a dashboard page and render it in the frontend monad.
 renderDashboard :: (User -> [Group] -> H.Html) -> FAction H.Html
@@ -86,14 +86,14 @@ popServiceLoginState = state $
     \fsd -> (fsd ^. fsdServiceLoginState, fsdServiceLoginState .~ Nothing $ fsd)
 
 getServiceLoginState :: FAction ServiceLoginState
-getServiceLoginState = gets (^. fsdServiceLoginState) >>= maybe err pure
+getServiceLoginState = use fsdServiceLoginState >>= maybe err pure
   where
     err = crash $ FActionError500 "Service login: no state."
 
 sendFrontendMsgs :: [FrontendMsg] -> FAction ()
 sendFrontendMsgs msgs = do
     loggerF msgs
-    modify $ fsdMessages %~ (++ msgs)
+    fsdMessages %= (++ msgs)
 
 sendFrontendMsg :: FrontendMsg -> FAction ()
 sendFrontendMsg = sendFrontendMsgs . (:[])
@@ -104,7 +104,7 @@ clearAllFrontendMsgs = state $ \s -> ((), fsdMessages .~ [] $ s)
 showPageWithMessages :: (FrontendSessionData -> View H.Html -> ST -> H.Html)
     -> View H.Html -> ST -> FAction H.Html
 showPageWithMessages page v a = do
-    html <- (\fsd -> page fsd v a) <$> get
+    html <- gets $ \fsd -> page fsd v a
     clearAllFrontendMsgs
     return html
 

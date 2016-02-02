@@ -16,7 +16,9 @@ import Control.Monad (when)
 import Data.Aeson (Value(String), ToJSON(toJSON), (.=), encode, object)
 import Data.CaseInsensitive (CI, mk, foldCase, foldedCase)
 import Data.Configifier ((>>.))
+import Data.Foldable (for_)
 import Data.Function (on)
+import Data.Functor (($>))
 import Data.List (nubBy)
 import Data.Maybe (fromMaybe)
 import Data.Proxy (Proxy(Proxy))
@@ -140,9 +142,7 @@ jsonifyPlainTextErrors app req respond = app req $ respond . jsonifyErrorRespons
 -- If any logging is to take place, it should take place here, not near the place where the error is
 -- thrown.
 errorInfoToServantErr :: (ServantErr -> a -> ServantErr) -> ErrorInfo a -> IO ServantErr
-errorInfoToServantErr mkServErr (l, se, x) = do
-    mapM_ (uncurry logger) l
-    return $ mkServErr se x
+errorInfoToServantErr mkServErr (l, se, x) = for_ l (uncurry logger) $> mkServErr se x
 
 baseActionErrorToServantErr :: ActionError Void -> IO ServantErr
 baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
@@ -151,9 +151,9 @@ baseActionErrorToServantErr = errorInfoToServantErr mkServantErr .
 actionErrorInfo :: Show e => (ThentosError e -> ErrorInfo ST) -> ActionError e -> ErrorInfo ST
 actionErrorInfo thentosInfo e =
     case e of
-        (ActionErrorThentos  te) -> thentosInfo te
-        (ActionErrorAnyLabel _)  -> (Just (DEBUG, ppShow e), err401, "unauthorized")
-        (ActionErrorUnknown  _)  -> (Just (CRITICAL, ppShow e), err500, "internal error")
+        ActionErrorThentos  te -> thentosInfo te
+        ActionErrorAnyLabel _  -> (Just (DEBUG, ppShow e), err401, "unauthorized")
+        ActionErrorUnknown  _  -> (Just (CRITICAL, ppShow e), err500, "internal error")
 
 thentosErrorInfo :: Show e
                  => (e -> ErrorInfo ST)
