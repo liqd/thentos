@@ -16,9 +16,6 @@ module Thentos.Util
     , readsPrecEnumBoundedShow
 ) where
 
-import Control.Lens ((^.))
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.String.Conversions (ConvertibleStrings, SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
 
@@ -26,6 +23,7 @@ import qualified Crypto.BCrypt as BCrypt
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.Text as ST
 
+import Thentos.Prelude
 import Thentos.Types
 
 

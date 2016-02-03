@@ -30,28 +30,17 @@ module Thentos.Config
     )
 where
 
-import Control.Applicative ((<|>))
-import Control.Exception (throwIO, try)
 import Data.Configifier
     ( (:>), (:*>)((:*>)), (:>:), (>>.), Source
     , configifyWithDefault, renderConfigFile, docs, defaultSources'
     , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
     )
-import Data.Maybe (fromMaybe)
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs, (<>))
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
 import Network.Mail.Mime (Address(Address))
 import System.Directory (createDirectoryIfMissing, setCurrentDirectory, canonicalizePath)
 import System.FilePath (takeDirectory)
 import System.IO (stdout)
 import System.Log.Formatter (simpleLogFormatter, nullFormatter)
 import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
-import System.Log.Logger (Priority(DEBUG, INFO, CRITICAL), removeAllHandlers, updateGlobalLogger,
-                          setLevel, setHandlers)
-import System.Log.Missing (loggerName, logger, Prio(..))
-import Text.Show.Pretty (ppShow)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
@@ -59,6 +48,7 @@ import qualified Data.Text as ST
 import qualified Data.Text.IO as ST
 import qualified Generics.Generic.Aeson as Aeson
 
+import Thentos.Prelude
 import Thentos.Types
 
 
@@ -305,7 +295,7 @@ configLogger config = do
     handlers <- sequence $ mkHandler <$> fileHandler logfile : [streamHandler stdout | logstdout]
 
     updateGlobalLogger loggerName $
-        System.Log.Logger.setLevel loglevel .
+        setLevel loglevel .
         setHandlers handlers
 
 signupLogger :: String

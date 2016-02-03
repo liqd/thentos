@@ -7,9 +7,6 @@
 
 module Thentos.Sybil.AudioCaptcha (checkEspeak, generateAudioCaptcha) where
 
-import Control.Monad.Except (throwError)
-import Control.Monad (unless, void)
-import Data.String.Conversions (ST, SBS, cs)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -18,6 +15,7 @@ import System.Process (readProcess, runInteractiveProcess, waitForProcess)
 import qualified Data.Text as ST
 import qualified Data.ByteString as SBS
 
+import Thentos.Prelude
 import Thentos.Types
 import Thentos.Action.Types
 import Thentos.Action.Unsafe (unsafeLiftIO)

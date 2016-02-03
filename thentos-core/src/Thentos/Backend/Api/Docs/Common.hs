@@ -24,15 +24,8 @@ module Thentos.Backend.Api.Docs.Common
 where
 
 import Control.Concurrent.MVar (newMVar)
-import Control.Lens ((&), (%~), (.~), (^?!), _Right)
 import "cryptonite" Crypto.Random (drgNew)
-import Data.Bifunctor (second)
-import Data.List (sort)
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, SBS, cs, (<>))
 import Data.Version (Version, showVersion)
-import Data.Void (Void)
-import Safe (fromJustNote)
 import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
 import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
@@ -49,12 +42,12 @@ import qualified Servant.Docs.Internal as Docs
 import qualified Servant.Foreign as F
 import qualified Servant.JS as JS
 
+import Thentos.Prelude
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
 
-import qualified LIO.Missing
 import qualified Thentos.Action as Action
 import qualified Thentos.Action.Core as Action
 import qualified Thentos.Action.Types as Action
@@ -173,7 +166,7 @@ hackTogetherSomeReasonableOrder (Docs.API intros endpoints) = Docs.API (f <$> so
 
 runTokenBuilder :: Action.Action Void () a -> [(ST, a)]
 runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
-    fst <$> Action.runActionWithClearance LIO.Missing.dcTop () runTokenBuilderState action
+    fst <$> Action.runActionWithClearance dcTop () runTokenBuilderState action
 
 {-# NOINLINE runTokenBuilderState #-}
 runTokenBuilderState :: Action.ActionState

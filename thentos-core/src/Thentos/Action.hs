@@ -85,28 +85,14 @@ module Thentos.Action
     )
 where
 
-import Control.Conditional ((<||>))
-import Control.Lens ((^.))
-import Control.Monad (unless, void, when)
-import Control.Monad.Except (throwError, catchError)
+import Thentos.Prelude
 import Data.Configifier ((>>.), Tagged(Tagged))
-import Data.Foldable (for_)
-import Data.List (nub)
-import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, SBS, cs)
-import GHC.Exception (Exception)
-import LIO.DCLabel ((%%), (\/), (/\))
-import LIO.Error (AnyLabelError(AnyLabelError))
-import System.Log.Logger (Priority(DEBUG))
 import Text.Hastache.Context (mkStrContext)
 import Text.Hastache (MuType(MuVariable))
 
 import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Text as ST
 
-import LIO.Missing
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action.SimpleAuth

@@ -89,6 +89,7 @@ library
     , Thentos.Frontend.State
     , Thentos.Frontend.TH
     , Thentos.Frontend.Types
+    , Thentos.Prelude
     , Thentos.Smtp
     , Thentos.Sybil
     , Thentos.Sybil.AudioCaptcha
