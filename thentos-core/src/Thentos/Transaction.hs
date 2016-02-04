@@ -476,17 +476,18 @@ endServiceSession token =
 -- 'Agent', do nothing.
 assignGroup :: Agent -> Group -> ThentosQuery e ()
 assignGroup agent group = case agent of
-    ServiceA sid -> catchViolation catcher' $
+    ServiceA sid -> catchViolation catcherS $
         void $ execT [sql| INSERT INTO service_groups (sid, grp)
                            VALUES (?, ?) |] (sid, group)
-    UserA uid  -> do
-        catchViolation catcher' $ void $
-            execT [sql| INSERT INTO user_groups (uid, grp)
-                        VALUES (?, ?) |] (uid, group)
+    UserA uid -> catchViolation catcherU $
+         void $ execT [sql| INSERT INTO user_groups (uid, grp)
+                           VALUES (?, ?) |] (uid, group)
   where
-    catcher' _ (UniqueViolation "user_groups_uid_grp_key")    = return ()
-    catcher' _ (UniqueViolation "service_groups_sid_grp_key") = return ()
-    catcher' e _                                              = throwIO e
+    catcherS _ (UniqueViolation "service_groups_sid_grp_key") = return ()
+    catcherS e _ = throwIO e
+
+    catcherU _ (UniqueViolation "user_groups_uid_grp_key") = return ()
+    catcherU e _ = throwIO e
 
 -- | Remove a 'Group' from the groups defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
 -- do nothing.
