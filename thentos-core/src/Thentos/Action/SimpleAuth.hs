@@ -10,7 +10,7 @@ module Thentos.Action.SimpleAuth
   , hasAgent
   , hasUserId
   , hasServiceId
-  , hasRole
+  , hasGroup
   , hasPrivilegedIP
   ) where
 
@@ -38,8 +38,8 @@ hasUserId uid = guardWriteOk (UserA uid %% UserA uid)
 hasServiceId :: ServiceId -> Action e s Bool
 hasServiceId sid = guardWriteOk (ServiceA sid %% ServiceA sid)
 
-hasRole :: Group -> Action e s Bool
-hasRole role = guardWriteOk (role %% role)
+hasGroup :: Group -> Action e s Bool
+hasGroup g = guardWriteOk (g %% g)
 
 hasPrivilegedIP :: Action e s Bool
 hasPrivilegedIP = guardWriteOk (PrivilegedIP %% PrivilegedIP)

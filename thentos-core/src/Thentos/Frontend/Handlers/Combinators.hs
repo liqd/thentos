@@ -54,9 +54,9 @@ renderDashboard' :: (User -> [Group] -> FAction H.Html) -> FAction H.Html
 renderDashboard' pageletBuilder = do
     runAsUserOrLogin $ \fsd sessionLoginData -> do
         (uid, user) <- lookupConfirmedUser (sessionLoginData ^. fslUserId)
-        roles       <- agentRoles (UserA uid)
+        groups      <- agentGroups (UserA uid)
         clearAllFrontendMsgs
-        dashboardPagelet fsd roles <$> pageletBuilder user roles
+        dashboardPagelet fsd groups <$> pageletBuilder user groups
 
 
 -- * authentication

@@ -470,44 +470,44 @@ endServiceSession token =
     checkUnique NoSuchServiceSession "endServiceSession: multiple service sessions with same token"
 
 
--- * agents and roles
+-- * agents and groups
 
--- | Add a new role to the roles defined for an 'Agent'.  If 'Group' is already assigned to
+-- | Add a new group to the groups defined for an 'Agent'.  If 'Group' is already assigned to
 -- 'Agent', do nothing.
-assignRole :: Agent -> Group -> ThentosQuery e ()
-assignRole agent role = case agent of
+assignGroup :: Agent -> Group -> ThentosQuery e ()
+assignGroup agent group = case agent of
     ServiceA sid -> catchViolation catcher' $
-        void $ execT [sql| INSERT INTO service_roles (sid, role)
-                           VALUES (?, ?) |] (sid, role)
+        void $ execT [sql| INSERT INTO service_groups (sid, group)
+                           VALUES (?, ?) |] (sid, group)
     UserA uid  -> do
         catchViolation catcher' $ void $
-            execT [sql| INSERT INTO user_roles (uid, role)
-                        VALUES (?, ?) |] (uid, role)
+            execT [sql| INSERT INTO user_groups (uid, group)
+                        VALUES (?, ?) |] (uid, group)
   where
-    catcher' _ (UniqueViolation "user_roles_uid_role_key") = return ()
-    catcher' _ (UniqueViolation "service_roles_sid_role_key") = return ()
+    catcher' _ (UniqueViolation "user_groups_uid_group_key") = return ()
+    catcher' _ (UniqueViolation "service_groups_sid_group_key") = return ()
     catcher' e _                                           = throwIO e
 
--- | Remove a 'Group' from the roles defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
+-- | Remove a 'Group' from the groups defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
 -- do nothing.
-unassignRole :: Agent -> Group -> ThentosQuery e ()
-unassignRole agent role = case agent of
+unassignGroup :: Agent -> Group -> ThentosQuery e ()
+unassignGroup agent group = case agent of
     ServiceA sid -> void $ execT
-        [sql| DELETE FROM service_roles WHERE sid = ? AND role = ? |] (sid, role)
+        [sql| DELETE FROM service_groups WHERE sid = ? AND group = ? |] (sid, group)
     UserA uid  -> do
-        void $ execT [sql| DELETE FROM user_roles WHERE uid = ? AND role = ? |]
-                           (uid, role)
+        void $ execT [sql| DELETE FROM user_groups WHERE uid = ? AND group = ? |]
+                           (uid, group)
 
--- | All 'Group's of an 'Agent'.  If 'Agent' does not exist or has no roles, return an empty list.
-agentRoles :: Agent -> ThentosQuery e [Group]
-agentRoles agent = case agent of
+-- | All 'Group's of an 'Agent'.  If 'Agent' does not exist or has no groups, return an empty list.
+agentGroups :: Agent -> ThentosQuery e [Group]
+agentGroups agent = case agent of
     ServiceA sid -> do
-        roles <- queryT [sql| SELECT role FROM service_roles WHERE sid = ? |]
+        groups <- queryT [sql| SELECT group FROM service_groups WHERE sid = ? |]
                         (Only sid)
-        return $ map fromOnly roles
+        return $ map fromOnly groups
     UserA uid  -> do
-        roles <- queryT [sql| SELECT role FROM user_roles WHERE uid = ? |] (Only uid)
-        return $ map fromOnly roles
+        groups <- queryT [sql| SELECT group FROM user_groups WHERE uid = ? |] (Only uid)
+        return $ map fromOnly groups
 
 
 -- * Sybil attack prevention

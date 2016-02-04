@@ -103,7 +103,7 @@ csrfProofForm _ v action = form v action . (<> csrfField)
 -- caller's responsibility to make sure that dashboard state and body
 -- correspond.
 dashboardPagelet :: FrontendSessionData -> [Group] -> Html -> Html
-dashboardPagelet fsd availableRoles body =
+dashboardPagelet fsd availableGroups body =
     basePagelet fsd "Thentos Dashboard" $ do
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
         H.div H.! A.class_ "dashboard_body" $ body
@@ -114,7 +114,7 @@ dashboardPagelet fsd availableRoles body =
             H.td $ H.div ! A.class_ className $ H.a ! A.href urlt $ linkt
       where
         available :: Bool
-        available = all (`elem` availableRoles) (needsRoles tab)
+        available = all (`elem` availableGroups) (needsGroups tab)
 
         className :: H.AttributeValue
         className = if ((fsd ^. fsdLogin) >>= (^. fslDashboardTab)) == Just tab
@@ -127,12 +127,12 @@ dashboardPagelet fsd availableRoles body =
         urlt :: H.AttributeValue
         urlt = H.textValue $ linkUrl tab
 
-    needsRoles :: DashboardTab -> [Group]
-    needsRoles DashboardTabDetails = []
-    needsRoles DashboardTabServices = [GroupUser]
-    needsRoles DashboardTabOwnServices = [GroupServiceAdmin]
-    needsRoles DashboardTabUsers = [GroupUserAdmin]
-    needsRoles DashboardTabLogout = []
+    needsGroups :: DashboardTab -> [Group]
+    needsGroups DashboardTabDetails = []
+    needsGroups DashboardTabServices = [GroupUser]
+    needsGroups DashboardTabOwnServices = [GroupServiceAdmin]
+    needsGroups DashboardTabUsers = [GroupUserAdmin]
+    needsGroups DashboardTabLogout = []
 
     linkText :: DashboardTab -> ST
     linkText DashboardTabDetails     = "details"

@@ -645,7 +645,7 @@ instance ToJSON Timeout
     toJSON = Aeson.toJSON . timeoutToString
 
 
--- * role, agent, lio
+-- * group, agent, lio
 
 -- | Some thing or body that deals with (and can authenticate itself before) thentos.  Examples:
 -- 'User' or 'Service'.  (We could have called this 'Principal', but that name is in use by LIO

@@ -72,9 +72,9 @@ module Thentos.Action
 
     , sendEmail
 
-    , assignRole
-    , unassignRole
-    , agentRoles
+    , assignGroup
+    , unassignGroup
+    , agentGroups
 
     , makeCaptcha
     , makeAudioCaptcha
@@ -416,7 +416,7 @@ addService owner name desc = do
 addServicePrim ::
     UserId -> ServiceId -> ServiceName -> ServiceDescription -> Action e s (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
-    assertAuth (hasUserId owner <||> hasRole GroupAdmin)
+    assertAuth (hasUserId owner <||> hasGroup GroupAdmin)
     key <- freshServiceKey
     hashedKey <- U.unsafeAction $ U.hashServiceKey key
     queryA $ T.addService owner sid hashedKey name desc
@@ -425,7 +425,7 @@ addServicePrim owner sid name desc = do
 deleteService :: ServiceId -> Action e s ()
 deleteService sid = do
     owner <- (^. serviceOwner) . snd <$> lookupService sid
-    assertAuth (hasUserId owner <||> hasRole GroupAdmin)
+    assertAuth (hasUserId owner <||> hasGroup GroupAdmin)
     queryA $ T.deleteService sid
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. Moreover, if no contexts
@@ -541,7 +541,7 @@ startThentosSessionByAgent_ agent = do
 -- 'GroupAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e s [ServiceName]
 serviceNamesFromThentosSession tok = do
-    assertAuth $ hasRole GroupAdmin
+    assertAuth $ hasGroup GroupAdmin
             <||> (hasAgent . (^. thSessAgent) =<< lookupThentosSession tok)
     queryA $ T.serviceNamesFromThentosSession tok
 
@@ -651,14 +651,14 @@ sendEmail req = do
 -- Only the user owning the persona or an admin may do this.
 addPersona :: PersonaName -> UserId -> Maybe Uri -> Action e s Persona
 addPersona name uid mExternalUrl = do
-    assertAuth (hasUserId uid <||> hasRole GroupAdmin)
+    assertAuth (hasUserId uid <||> hasGroup GroupAdmin)
     queryA $ T.addPersona name uid mExternalUrl
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 -- Only the user owning the persona or an admin may do this.
 deletePersona :: Persona -> Action e s ()
 deletePersona persona = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasGroup GroupAdmin)
     queryA . T.deletePersona $ persona ^. personaId
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
@@ -666,14 +666,14 @@ deletePersona persona = do
 -- Only the service or an admin may do this.
 addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri -> Action e s Context
 addContext sid name desc mUrl = do
-    assertAuth (hasServiceId sid <||> hasRole GroupAdmin)
+    assertAuth (hasServiceId sid <||> hasGroup GroupAdmin)
     queryA $ T.addContext sid name desc mUrl
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 -- Only the service owning the context or an admin may do this.
 deleteContext :: Context -> Action e s ()
 deleteContext context = do
-    assertAuth (hasServiceId (context ^. contextService) <||> hasRole GroupAdmin)
+    assertAuth (hasServiceId (context ^. contextService) <||> hasGroup GroupAdmin)
     queryA $ T.deleteContext (context ^. contextService) (context ^. contextName)
 
 -- | Connect a persona with a context. Throws an error if the persona is already registered for the
@@ -683,21 +683,21 @@ deleteContext context = do
 -- Only the user owning the persona or an admin may do this.
 registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> Action e s ()
 registerPersonaWithContext persona sid cname = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasGroup GroupAdmin)
     queryA $ T.registerPersonaWithContext persona sid cname
 
 -- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
 unregisterPersonaFromContext :: Persona -> ServiceId -> ContextName -> Action e s ()
 unregisterPersonaFromContext persona sid cname = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasGroup GroupAdmin)
     queryA $ T.unregisterPersonaFromContext (persona ^. personaId) sid cname
 
 -- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
 findPersona :: UserId -> ServiceId -> ContextName -> Action e s (Maybe Persona)
 findPersona uid sid cname = do
-    assertAuth (hasUserId uid <||> hasRole GroupAdmin)
+    assertAuth (hasUserId uid <||> hasGroup GroupAdmin)
     queryA $ T.findPersona uid sid cname
 
 -- | List all contexts owned by a service. Anybody may do this.
@@ -708,14 +708,14 @@ contextsForService sid = queryA $ T.contextsForService sid
 -- Only a GroupAdmin may do this.
 addPersonaToGroup :: PersonaId -> ServiceGroup -> Action e s ()
 addPersonaToGroup pid group = do
-    assertAuth $ hasRole GroupGroupAdmin
+    assertAuth $ hasGroup GroupGroupAdmin
     queryA $ T.addPersonaToGroup pid group
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
 -- Only a GroupAdmin may do this.
 removePersonaFromGroup :: PersonaId -> ServiceGroup -> Action e s ()
 removePersonaFromGroup pid group = do
-    assertAuth $ hasRole GroupGroupAdmin
+    assertAuth $ hasGroup GroupGroupAdmin
     queryA $ T.removePersonaFromGroup pid group
 
 -- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
@@ -724,14 +724,14 @@ removePersonaFromGroup pid group = do
 -- Only a GroupAdmin may do this.
 addGroupToGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 addGroupToGroup subgroup supergroup = do
-    assertAuth $ hasRole GroupGroupAdmin
+    assertAuth $ hasGroup GroupGroupAdmin
     queryA $ T.addGroupToGroup subgroup supergroup
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing. Only a GroupAdmin may do this.
 removeGroupFromGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 removeGroupFromGroup subgroup supergroup = do
-    assertAuth $ hasRole GroupGroupAdmin
+    assertAuth $ hasGroup GroupGroupAdmin
     queryA $ T.removeGroupFromGroup subgroup supergroup
 
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
@@ -739,26 +739,26 @@ removeGroupFromGroup subgroup supergroup = do
 -- Only the user owning the persona or a GroupAdmin may do this.
 personaGroups :: Persona -> Action e s [ServiceGroup]
 personaGroups persona = do
-    assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole GroupGroupAdmin
+    assertAuth $ hasUserId (persona ^. personaUid) <||> hasGroup GroupGroupAdmin
     queryA $ T.personaGroups (persona ^. personaId)
 
 
--- * agents and roles
+-- * agents and groups
 
-assignRole :: Agent -> Group -> Action e s ()
-assignRole agent role = do
-    guardWriteMsg "assignRole" (GroupAdmin %% GroupAdmin)
-    queryA $ T.assignRole agent role
+assignGroup :: Agent -> Group -> Action e s ()
+assignGroup agent group = do
+    guardWriteMsg "assignGroup" (GroupAdmin %% GroupAdmin)
+    queryA $ T.assignGroup agent group
 
-unassignRole :: Agent -> Group -> Action e s ()
-unassignRole agent role = do
-    guardWriteMsg "unassignRole" (GroupAdmin %% GroupAdmin)
-    queryA $ T.unassignRole agent role
+unassignGroup :: Agent -> Group -> Action e s ()
+unassignGroup agent group = do
+    guardWriteMsg "unassignGroup" (GroupAdmin %% GroupAdmin)
+    queryA $ T.unassignGroup agent group
 
-agentRoles :: Agent -> Action e s [Group]
-agentRoles agent = do
-    taintMsg "agentRoles" (GroupAdmin \/ agent %% GroupAdmin /\ agent)
-    queryA (T.agentRoles agent)
+agentGroups :: Agent -> Action e s [Group]
+agentGroups agent = do
+    taintMsg "agentGroups" (GroupAdmin \/ agent %% GroupAdmin /\ agent)
+    queryA (T.agentGroups agent)
 
 
 -- * Sybil attack prevention

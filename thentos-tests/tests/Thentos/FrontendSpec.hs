@@ -155,8 +155,8 @@ spec_updateSelf = describe "update self" $ do
         -}
 
 
--- manageRoles :: SpecWith ActionState
--- manageRoles = describe "manage roles" $ do ...
+-- manageGroups :: SpecWith ActionState
+-- manageGroups = describe "manage groups" $ do ...
 
 
 spec_logIntoThentos :: SpecWith ActionState

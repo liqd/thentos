@@ -61,7 +61,7 @@ spec = do
     describe "Thentos.Action" . around b $ do
         spec_user
         spec_service
-        spec_agentsAndRoles
+        spec_agentsAndGroups
         spec_session
         spec_captcha
 
@@ -278,35 +278,35 @@ spec_service = describe "service" $ do
             allSids' <- runPrivs [GroupAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
-spec_agentsAndRoles :: SpecWith ActionState
-spec_agentsAndRoles = describe "agentsAndRoles" $ do
-    describe "agents and roles" $ do
+spec_agentsAndGroups :: SpecWith ActionState
+spec_agentsAndGroups = describe "agentsAndGroups" $ do
+    describe "agents and groups" $ do
         describe "assign" $ do
             it "can be called by admins" $ \sta -> do
                 [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
-                result <- runPrivsE [GroupAdmin] sta $ assignRole targetAgent GroupAdmin
+                result <- runPrivsE [GroupAdmin] sta $ assignGroup targetAgent GroupAdmin
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \sta -> do
                 [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
-                result <- runPrivsE [targetAgent] sta $ assignRole targetAgent GroupAdmin
+                result <- runPrivsE [targetAgent] sta $ assignGroup targetAgent GroupAdmin
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
             it "can be called by admins" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runPrivsE [GroupAdmin] sta $ agentRoles targetAgent
+                result <- runPrivsE [GroupAdmin] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can be called by user for her own roles" $ \sta -> do
+            it "can be called by user for her own groups" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runPrivsE [targetAgent] sta $ agentRoles targetAgent
+                result <- runPrivsE [targetAgent] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by other users" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
-                result <- runPrivsE [askingAgent] sta $ agentRoles targetAgent
+                result <- runPrivsE [askingAgent] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isLeft
 
 
