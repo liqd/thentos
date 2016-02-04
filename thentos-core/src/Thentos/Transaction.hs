@@ -477,36 +477,36 @@ endServiceSession token =
 assignGroup :: Agent -> Group -> ThentosQuery e ()
 assignGroup agent group = case agent of
     ServiceA sid -> catchViolation catcher' $
-        void $ execT [sql| INSERT INTO service_groups (sid, group)
+        void $ execT [sql| INSERT INTO service_groups (sid, grp)
                            VALUES (?, ?) |] (sid, group)
     UserA uid  -> do
         catchViolation catcher' $ void $
-            execT [sql| INSERT INTO user_groups (uid, group)
+            execT [sql| INSERT INTO user_groups (uid, grp)
                         VALUES (?, ?) |] (uid, group)
   where
-    catcher' _ (UniqueViolation "user_groups_uid_group_key") = return ()
-    catcher' _ (UniqueViolation "service_groups_sid_group_key") = return ()
-    catcher' e _                                           = throwIO e
+    catcher' _ (UniqueViolation "user_groups_uid_grp_key")    = return ()
+    catcher' _ (UniqueViolation "service_groups_sid_grp_key") = return ()
+    catcher' e _                                              = throwIO e
 
 -- | Remove a 'Group' from the groups defined for an 'Agent'.  If 'Group' is not assigned to 'Agent',
 -- do nothing.
 unassignGroup :: Agent -> Group -> ThentosQuery e ()
 unassignGroup agent group = case agent of
     ServiceA sid -> void $ execT
-        [sql| DELETE FROM service_groups WHERE sid = ? AND group = ? |] (sid, group)
+        [sql| DELETE FROM service_groups WHERE sid = ? AND grp = ? |] (sid, group)
     UserA uid  -> do
-        void $ execT [sql| DELETE FROM user_groups WHERE uid = ? AND group = ? |]
+        void $ execT [sql| DELETE FROM user_groups WHERE uid = ? AND grp = ? |]
                            (uid, group)
 
 -- | All 'Group's of an 'Agent'.  If 'Agent' does not exist or has no groups, return an empty list.
 agentGroups :: Agent -> ThentosQuery e [Group]
 agentGroups agent = case agent of
     ServiceA sid -> do
-        groups <- queryT [sql| SELECT group FROM service_groups WHERE sid = ? |]
+        groups <- queryT [sql| SELECT grp FROM service_groups WHERE sid = ? |]
                         (Only sid)
         return $ map fromOnly groups
     UserA uid  -> do
-        groups <- queryT [sql| SELECT group FROM user_groups WHERE uid = ? |] (Only uid)
+        groups <- queryT [sql| SELECT grp FROM user_groups WHERE uid = ? |] (Only uid)
         return $ map fromOnly groups
 
 

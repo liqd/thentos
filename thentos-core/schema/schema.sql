@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS email_change_tokens (
 
 CREATE TABLE IF NOT EXISTS user_groups (
     uid   bigint NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    group text   NOT NULL,
-    UNIQUE (uid, group)
+    grp   text   NOT NULL,
+    UNIQUE (uid, grp)
 );
 
 CREATE TABLE IF NOT EXISTS services (
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS services (
 
 CREATE TABLE IF NOT EXISTS service_groups (
     sid         text       REFERENCES services (id) ON DELETE CASCADE,
-    group       text       NOT NULL,
-    UNIQUE (sid, group)
+    grp         text       NOT NULL,
+    UNIQUE (sid, grp)
 );
 
 CREATE TABLE IF NOT EXISTS user_services (
