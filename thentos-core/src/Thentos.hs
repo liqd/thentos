@@ -63,7 +63,7 @@ makeMain commandSwitch =
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
     createDefaultUser actionState
-    _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState
+    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState
         (autocreateMissingServices config :: Action Void () ())
 
     let mBeConfig :: Maybe HttpConfig
@@ -96,7 +96,7 @@ makeActionState config connPool = do
 runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
-    _ <- runActionWithPrivs [toCNF RoleAdmin] () actionState (collectGarbage :: Action Void () ())
+    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState (collectGarbage :: Action Void () ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
@@ -121,9 +121,7 @@ createDefaultUser as = createDefaultUser'
     (Tagged <$> as ^. aStConfig >>. (Proxy :: Proxy '["default_user"]))
 
 createDefaultUser' :: Pool Connection -> Maybe DefaultUserConfig -> IO ()
-createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
-                                    -- FIXME: 'roles' should be called 'groups' now.
-                                    -- FIXME: git grep roles and see what else is still named wrong.
+createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, groups)) -> do
     let failHard :: String -> IO ()
         failHard msg = logger ERROR msg >> throwIO (ErrorCall msg)
 
@@ -141,13 +139,13 @@ createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, roles)) -> do
                 Right uid -> do
                     logger DEBUG $ "Default user created: " ++ ppShow (user, uid)
 
-                    -- roles
-                    logger DEBUG $ "Adding default user to roles: " ++ ppShow roles
+                    -- groups
+                    logger DEBUG $ "Adding default user to groups: " ++ ppShow groups
                     (result :: [Either (ThentosError Void) ()]) <-
-                         mapM (runThentosQuery conn . T.assignRole (UserA uid)) roles
+                         mapM (runThentosQuery conn . T.assignGroup (UserA uid)) groups
                     if all isRight result
                         then logger DEBUG $ "Ok."
-                        else failHard $ "Failed: " ++ ppShow (result, uid, user, roles)
+                        else failHard $ "Failed: " ++ ppShow (result, uid, user, groups)
 
                 Left err -> do
                     failHard $ "Failed to create default user: " ++ ppShow (user, err)

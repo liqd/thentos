@@ -85,7 +85,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "    name: \"god\"" :
     "    password: \"god\"" :
     "    email: \"postmaster@localhost\"" :
-    "    roles: [\"roleAdmin\", \"roleUser\", \"roleServiceAdmin\", \"roleUserAdmin\"]" :
+    "    groups: [\"groupAdmin\", \"groupUser\", \"groupServiceAdmin\", \"groupUserAdmin\"]" :
     "" :
     "user_reg_expiration: 30m" :
     "pw_reset_expiration: 30m" :

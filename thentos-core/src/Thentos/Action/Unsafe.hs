@@ -55,7 +55,7 @@ extendClearanceOnPrincipals principals = mapM_ extendClearanceOnLabel $ [ p %% p
 extendClearanceOnAgent :: Agent -> Action e s ()
 extendClearanceOnAgent agent = do
     extendClearanceOnPrincipals [agent]
-    unsafeAction (query $ T.agentRoles agent) >>= extendClearanceOnPrincipals
+    unsafeAction (query $ T.agentGroups agent) >>= extendClearanceOnPrincipals
 
 extendClearanceOnThentosSession :: ThentosSessionToken -> Action e s ()
 extendClearanceOnThentosSession tok = do

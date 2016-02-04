@@ -98,8 +98,8 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
 type UserRegisterConfirmH = "register_confirm" :>
     QueryParam "token" ConfirmationToken :> Get
 
-defaultUserRoles :: [Group]
-defaultUserRoles = [RoleUser, RoleUserAdmin, RoleServiceAdmin]
+defaultUserGroups :: [Group]
+defaultUserGroups = [GroupUser, GroupUserAdmin, GroupServiceAdmin]
 
 userRegisterConfirmH :: ServerT UserRegisterConfirmH FAction
 userRegisterConfirmH Nothing = crash FActionErrorNoToken
@@ -109,8 +109,8 @@ userRegisterConfirmH (Just token) = do
         (uid_, sessTok_) <- confirmNewUser token
         loggerF $ "registered new user: " ++ show uid_
         -- FIXME: we need a 'withAccessRights' for things like this.
-        U.extendClearanceOnPrincipals [RoleAdmin]
-        for_ defaultUserRoles (assignRole (UserA uid_))
+        U.extendClearanceOnPrincipals [GroupAdmin]
+        for_ defaultUserGroups (assignGroup (UserA uid_))
         return (uid_, sessTok_)
 
     sendFrontendMsg $ FrontendMsgSuccess "Registration complete.  Welcome to Thentos!"

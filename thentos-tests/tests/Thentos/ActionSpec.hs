@@ -61,7 +61,7 @@ spec = do
     describe "Thentos.Action" . around b $ do
         spec_user
         spec_service
-        spec_agentsAndRoles
+        spec_agentsAndGroups
         spec_session
         spec_captcha
 
@@ -71,19 +71,19 @@ spec_user = describe "user" $ do
     describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
             let (userForm:_) = testUserForms
-            uid <- runPrivs [RoleAdmin] sta $ addUser userForm
+            uid <- runPrivs [GroupAdmin] sta $ addUser userForm
 
             Left (ActionErrorThentos NoSuchUser)
                 <- runClearanceE dcBottom sta $ lookupConfirmedUser uid
             (uid', user')
-                <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
+                <- runPrivs [GroupAdmin] sta $ lookupConfirmedUser uid
             uid' `shouldBe` uid
             let clearPassword = userPassword .~ testHashedUserPass
                 in clearPassword user' `shouldBe` clearPassword (mkUser userForm)
 
-            void . runPrivs [RoleAdmin] sta $ deleteUser uid
+            void . runPrivs [GroupAdmin] sta $ deleteUser uid
             Left (ActionErrorThentos NoSuchUser) <-
-                runPrivsE [RoleAdmin] sta $ lookupConfirmedUser uid
+                runPrivsE [GroupAdmin] sta $ lookupConfirmedUser uid
             return ()
 
         it "guarantee that user names are unique" $ \sta -> do
@@ -91,7 +91,7 @@ spec_user = describe "user" $ do
             let userFormData = UserFormData (user ^. userName)
                                             (UserPass "foo")
                                             (forceUserEmail "new@one.com")
-            Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $
+            Left (ActionErrorThentos e) <- runPrivsE [GroupAdmin] sta $
                 addUser userFormData
             e `shouldBe` UserNameAlreadyExists
 
@@ -100,7 +100,7 @@ spec_user = describe "user" $ do
             let userFormData = UserFormData (UserName "newOne")
                                             (UserPass "foobar")
                                             (user ^. userEmail)
-            Left (ActionErrorThentos e) <- runPrivsE [RoleAdmin] sta $ addUser userFormData
+            Left (ActionErrorThentos e) <- runPrivsE [GroupAdmin] sta $ addUser userFormData
             e `shouldBe` UserEmailAlreadyExists
 
     describe "addUnconfirmedUserWithCaptcha" $ do
@@ -135,7 +135,7 @@ spec_user = describe "user" $ do
                 _ <- createCaptcha sta
                 let userCreationRequest = UserCreationRequest userData captchaSolution
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "secret"
-                Right _ <- runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
+                Right _ <- runPrivsE [GroupAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 True <- aliceExists sta
                 checkSignupLog sta CaptchaCorrect
 
@@ -144,7 +144,7 @@ spec_user = describe "user" $ do
                 let userCreationRequest = UserCreationRequest userData captchaSolution
                     captchaSolution = CaptchaSolution (CaptchaId "cid") "wrong"
                 Left (ActionErrorThentos InvalidCaptchaSolution) <-
-                    runPrivsE [RoleAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
+                    runPrivsE [GroupAdmin] sta $ addUnconfirmedUserWithCaptcha userCreationRequest
                 False <- aliceExists sta
                 checkSignupLog sta CaptchaIncorrect
 
@@ -169,7 +169,7 @@ spec_user = describe "user" $ do
         it "changes user email after change request" $ \sta -> do
             let newEmail = forceUserEmail "changed@example.com"
                 checkEmail uid p = do
-                    (_, user) <- runPrivs [RoleAdmin] sta $ lookupConfirmedUser uid
+                    (_, user) <- runPrivs [GroupAdmin] sta $ lookupConfirmedUser uid
                     user ^. userEmail `shouldSatisfy` p
             [(uid, _, _)] <- createTestUsers (sta ^. aStDb) 1
             checkEmail uid $ not . (==) newEmail
@@ -184,7 +184,7 @@ spec_user = describe "user" $ do
         context "if user exists" $ do
             it "sends email with PasswordResetToken and stores token" $ \sta -> do
                 let userData = head testUserForms
-                uid <- runPrivs [RoleAdmin] sta $ addUser userData
+                uid <- runPrivs [GroupAdmin] sta $ addUser userData
                 void . runWithoutPrivs sta . sendPasswordResetMail Nothing . udEmail $ userData
                 [Only token] <- doQuery (sta ^. aStDb)
                     [sql| SELECT token FROM password_reset_tokens WHERE uid = ?|] (Only uid)
@@ -203,7 +203,7 @@ spec_user = describe "user" $ do
             it "changes password, logs user in, deletes token" $ \sta -> do
                 let userData = head testUserForms
                     email    = udEmail userData
-                uid <- runPrivs [RoleAdmin] sta $ addUser userData
+                uid <- runPrivs [GroupAdmin] sta $ addUser userData
                 resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
                 void . runWithoutPrivs sta $ resetPasswordAndLogin resetTok "newpass"
                 rowCountShouldBe (sta ^. aStDb) "password_reset_tokens" 0
@@ -221,7 +221,7 @@ spec_user = describe "user" $ do
             it "fails with PasswordTooShort" $ \sta -> do
                 let userData = head testUserForms
                     email    = udEmail userData
-                void . runPrivs [RoleAdmin] sta $ addUser userData
+                void . runPrivs [GroupAdmin] sta $ addUser userData
                 resetTok <- snd <$> runWithoutPrivs sta (addPasswordResetToken email)
                 Left (ActionErrorThentos err) <-
                     runClearanceE dcBottom sta $ resetPasswordAndLogin resetTok "short"
@@ -250,63 +250,63 @@ spec_service = describe "service" $ do
                     $ addService godUid name desc
             Right (service1_id, _s1_key) <- addsvc "fake name" "fake description"
             Right (service2_id, _s2_key) <- addsvc "different name" "different description"
-            service1 <- runPrivs [RoleAdmin] sta $ lookupService service1_id
-            service2 <- runPrivs [RoleAdmin] sta $ lookupService service2_id
+            service1 <- runPrivs [GroupAdmin] sta $ lookupService service1_id
+            service2 <- runPrivs [GroupAdmin] sta $ lookupService service2_id
             service1 `shouldBe` service1 -- sanity check for reflexivity of Eq
             service1 `shouldSatisfy` (/= service2) -- should have different keys
-            void . runPrivs [RoleAdmin] sta $ deleteService service1_id
+            void . runPrivs [GroupAdmin] sta $ deleteService service1_id
             Left (ActionErrorThentos NoSuchService) <-
-                runPrivsE [RoleAdmin] sta $ lookupService service1_id
+                runPrivsE [GroupAdmin] sta $ lookupService service1_id
             return ()
 
     describe "autocreateServiceIfMissing" $ do
         it "adds service if missing" $ \sta -> do
             (godUid, _, _) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
-            sid <- runPrivs [RoleAdmin] sta $ freshServiceId
-            allSids <- runPrivs [RoleAdmin] sta allServiceIds
+            sid <- runPrivs [GroupAdmin] sta $ freshServiceId
+            allSids <- runPrivs [GroupAdmin] sta allServiceIds
             allSids `shouldNotContain` [sid]
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing godUid sid
-            allSids' <- runPrivs [RoleAdmin] sta allServiceIds
+            runPrivs [GroupAdmin] sta $ autocreateServiceIfMissing godUid sid
+            allSids' <- runPrivs [GroupAdmin] sta allServiceIds
             allSids' `shouldContain` [sid]
 
         it "does nothing if service exists" $ \sta -> do
             (godUid, _, _) <- getDefaultUser (sta ^. aStConfig) (sta ^. aStDb)
-            (sid, _) <- runPrivs [RoleAdmin] sta
+            (sid, _) <- runPrivs [GroupAdmin] sta
                             $ addService godUid "fake name" "fake description"
-            allSids <- runPrivs [RoleAdmin] sta allServiceIds
-            runPrivs [RoleAdmin] sta $ autocreateServiceIfMissing godUid sid
-            allSids' <- runPrivs [RoleAdmin] sta allServiceIds
+            allSids <- runPrivs [GroupAdmin] sta allServiceIds
+            runPrivs [GroupAdmin] sta $ autocreateServiceIfMissing godUid sid
+            allSids' <- runPrivs [GroupAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
-spec_agentsAndRoles :: SpecWith ActionState
-spec_agentsAndRoles = describe "agentsAndRoles" $ do
-    describe "agents and roles" $ do
+spec_agentsAndGroups :: SpecWith ActionState
+spec_agentsAndGroups = describe "agentsAndGroups" $ do
+    describe "agents and groups" $ do
         describe "assign" $ do
             it "can be called by admins" $ \sta -> do
                 [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
-                result <- runPrivsE [RoleAdmin] sta $ assignRole targetAgent RoleAdmin
+                result <- runPrivsE [GroupAdmin] sta $ assignGroup targetAgent GroupAdmin
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by any non-admin agents" $ \sta -> do
                 [(UserA -> targetAgent, _, _)] <- createTestUsers (sta ^. aStDb) 1
-                result <- runPrivsE [targetAgent] sta $ assignRole targetAgent RoleAdmin
+                result <- runPrivsE [targetAgent] sta $ assignGroup targetAgent GroupAdmin
                 result `shouldSatisfy` isLeft
 
         describe "lookup" $ do
             it "can be called by admins" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runPrivsE [RoleAdmin] sta $ agentRoles targetAgent
+                result <- runPrivsE [GroupAdmin] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isRight
 
-            it "can be called by user for her own roles" $ \sta -> do
+            it "can be called by user for her own groups" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
-                result <- runPrivsE [targetAgent] sta $ agentRoles targetAgent
+                result <- runPrivsE [targetAgent] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isRight
 
             it "can NOT be called by other users" $ \sta -> do
                 let targetAgent = UserA $ UserId 1
                     askingAgent = UserA $ UserId 2
-                result <- runPrivsE [askingAgent] sta $ agentRoles targetAgent
+                result <- runPrivsE [askingAgent] sta $ agentGroups targetAgent
                 result `shouldSatisfy` isLeft
 
 

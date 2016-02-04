@@ -645,7 +645,7 @@ instance ToJSON Timeout
     toJSON = Aeson.toJSON . timeoutToString
 
 
--- * role, agent, lio
+-- * group, agent, lio
 
 -- | Some thing or body that deals with (and can authenticate itself before) thentos.  Examples:
 -- 'User' or 'Service'.  (We could have called this 'Principal', but that name is in use by LIO
@@ -658,21 +658,21 @@ instance ToJSON Agent where toJSON = Aeson.gtoJson
 
 -- | Thentos-internal authorization classes.  (See 'ServiceGroup' for service-side authorization classes.)
 data Group =
-    RoleAdmin
+    GroupAdmin
     -- ^ Can do anything.  (There may be no difference in behaviour from 'allowEverything'
     -- resp. 'thentosPublic', but if we ever want to restrict privileges, it's easier if it is a
     -- 'Group'.)
 
-  | RoleUser
+  | GroupUser
     -- ^ Can sign up with services
 
-  | RoleUserAdmin
+  | GroupUserAdmin
     -- ^ Can create (and manage her own) users
 
-  | RoleServiceAdmin
+  | GroupServiceAdmin
     -- ^ Can create (and manage her own) services
 
-  | RoleGroupAdmin
+  | GroupGroupAdmin
     -- ^ Can add personas and groups to groups and remove them
   deriving (Eq, Ord, Show, Read, Enum, Bounded, Typeable, Generic)
 
