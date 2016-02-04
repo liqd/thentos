@@ -255,7 +255,7 @@ setupBackend' extraCfg = do
     as@(ActionState cfg _ _) <- thentosTestConfig' extraCfg >>= createActionState'
     mgr <- newManager defaultManagerSettings
     createDefaultUser as
-    ((), ()) <- runActionWithPrivs [toCNF RoleAdmin] () as $ autocreateMissingServices cfg
+    ((), ()) <- runActionWithPrivs [toCNF GroupAdmin] () as $ autocreateMissingServices cfg
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
     return (serveApi mgr beConfig as, cfg)
 

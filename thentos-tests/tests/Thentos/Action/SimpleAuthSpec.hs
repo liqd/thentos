@@ -46,11 +46,11 @@ spec = do
 type Act = Action (ActionError Void) ()
 
 setTwoRoles :: Action e s ()
-setTwoRoles = extendClearanceOnPrincipals [RoleAdmin, RoleUser]
+setTwoRoles = extendClearanceOnPrincipals [GroupAdmin, GroupUser]
 
 setClearanceUid :: Integer -> Action e s ()
 setClearanceUid uid = extendClearanceOnPrincipals [UserA $ UserId uid]
-                   >> extendClearanceOnPrincipals [RoleUser]
+                   >> extendClearanceOnPrincipals [GroupUser]
 
 setClearanceSid :: Integer -> Action e s ()
 setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . show $ sid]
@@ -99,13 +99,13 @@ specWithActionState = before mkActionState $ do
 
     describe "hasRole" $ do
         it "returns True if role is present" $ \sta -> do
-            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasRole RoleUser :: Act Bool)
-            (True, ()) <- runAction () sta (setClearanceUid 5 >> hasRole RoleUser :: Act Bool)
-            (True, ()) <- runAction () sta (setTwoRoles >> hasRole RoleUser :: Act Bool)
+            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasRole GroupUser :: Act Bool)
+            (True, ()) <- runAction () sta (setClearanceUid 5 >> hasRole GroupUser :: Act Bool)
+            (True, ()) <- runAction () sta (setTwoRoles >> hasRole GroupUser :: Act Bool)
             return ()
         it "returns False if role is missing" $ \sta -> do
-            (False, ()) <- runAction () sta (hasRole RoleUser :: Act Bool)
-            (False, ()) <- runAction () sta (setTwoRoles >> hasRole RoleServiceAdmin :: Act Bool)
+            (False, ()) <- runAction () sta (hasRole GroupUser :: Act Bool)
+            (False, ()) <- runAction () sta (setTwoRoles >> hasRole GroupServiceAdmin :: Act Bool)
             return ()
 
 

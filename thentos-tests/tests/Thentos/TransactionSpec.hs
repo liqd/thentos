@@ -283,41 +283,41 @@ assignRoleSpec :: SpecWith (Pool Connection)
 assignRoleSpec = describe "assignRole" $ do
     it "adds a role" $ \connPool -> do
         [(uid, _, _)] <- createTestUsers connPool 1
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupAdmin
         Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
-        roles `shouldBe` [RoleAdmin]
+        roles `shouldBe` [GroupAdmin]
 
         addTestService connPool uid
-        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupAdmin
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` [RoleAdmin]
+        serviceRoles `shouldBe` [GroupAdmin]
 
     it "silently allows adding a duplicate role" $ \connPool -> do
         [(uid, _, _)] <- createTestUsers connPool 1
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
-        x <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupAdmin
+        x <- runVoidedQuery connPool $ assignRole (UserA uid) GroupAdmin
         x `shouldBe` Right ()
         Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
-        roles `shouldBe` [RoleAdmin]
+        roles `shouldBe` [GroupAdmin]
 
         addTestService connPool uid
-        Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
-        Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
+        Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupAdmin
+        Right () <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupAdmin
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` [RoleAdmin]
+        serviceRoles `shouldBe` [GroupAdmin]
 
     it "adds a second role" $ \connPool -> do
         [(uid, _, _)] <- createTestUsers connPool 1
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleUser
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupUser
         Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
-        Set.fromList roles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+        Set.fromList roles `shouldBe` Set.fromList [GroupAdmin, GroupUser]
 
         addTestService connPool uid
-        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleUser
+        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupUser
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
-        Set.fromList serviceRoles `shouldBe` Set.fromList [RoleAdmin, RoleUser]
+        Set.fromList serviceRoles `shouldBe` Set.fromList [GroupAdmin, GroupUser]
 
   where
     sid = "sid"
@@ -328,27 +328,27 @@ unassignRoleSpec :: SpecWith (Pool Connection)
 unassignRoleSpec = describe "unassignRole" $ do
     it "silently allows removing a non-assigned role" $ \connPool -> do
         [(uid, _, _)] <- createTestUsers connPool 1
-        x <- runVoidedQuery connPool $ unassignRole (UserA uid) RoleAdmin
+        x <- runVoidedQuery connPool $ unassignRole (UserA uid) GroupAdmin
         x `shouldBe` Right ()
 
         addTestService connPool uid
-        res <- runVoidedQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
+        res <- runVoidedQuery connPool $ unassignRole (ServiceA sid) GroupAdmin
         res `shouldBe` Right ()
 
     it "removes the specified role" $ \connPool -> do
         [(uid, _, _)] <- createTestUsers connPool 1
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) RoleUser
-        Right _ <- runVoidedQuery connPool $ unassignRole (UserA uid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (UserA uid) GroupUser
+        Right _ <- runVoidedQuery connPool $ unassignRole (UserA uid) GroupAdmin
         Right roles <- runVoidedQuery connPool $ agentRoles (UserA uid)
-        roles `shouldBe` [RoleUser]
+        roles `shouldBe` [GroupUser]
 
         addTestService connPool uid
-        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleAdmin
-        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) RoleUser
-        Right _ <- runVoidedQuery connPool $ unassignRole (ServiceA sid) RoleAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupAdmin
+        Right _ <- runVoidedQuery connPool $ assignRole (ServiceA sid) GroupUser
+        Right _ <- runVoidedQuery connPool $ unassignRole (ServiceA sid) GroupAdmin
         Right serviceRoles <- runVoidedQuery connPool $ agentRoles (ServiceA sid)
-        serviceRoles `shouldBe` [RoleUser]
+        serviceRoles `shouldBe` [GroupUser]
 
   where
     sid = "sid"

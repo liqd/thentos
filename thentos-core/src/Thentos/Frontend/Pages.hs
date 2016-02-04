@@ -129,9 +129,9 @@ dashboardPagelet fsd availableRoles body =
 
     needsRoles :: DashboardTab -> [Group]
     needsRoles DashboardTabDetails = []
-    needsRoles DashboardTabServices = [RoleUser]
-    needsRoles DashboardTabOwnServices = [RoleServiceAdmin]
-    needsRoles DashboardTabUsers = [RoleUserAdmin]
+    needsRoles DashboardTabServices = [GroupUser]
+    needsRoles DashboardTabOwnServices = [GroupServiceAdmin]
+    needsRoles DashboardTabUsers = [GroupUserAdmin]
     needsRoles DashboardTabLogout = []
 
     linkText :: DashboardTab -> ST

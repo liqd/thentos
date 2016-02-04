@@ -167,7 +167,7 @@ lookupConfirmedUser uid = lookupUser_ $ T.lookupConfirmedUser uid
 lookupUser_ :: ThentosQuery e (UserId, User) -> Action e s (UserId, User)
 lookupUser_ transaction = do
     val@(uid, _) <- queryA transaction
-    tryTaint (RoleAdmin \/ UserA uid %% False)
+    tryTaint (GroupAdmin \/ UserA uid %% False)
         (return val)
         (\ (AnyLabelError _) -> throwError NoSuchUser)
 
@@ -179,18 +179,18 @@ lookupConfirmedUserByName name = lookupUser_ $ T.lookupConfirmedUserByName name
 lookupConfirmedUserByEmail :: UserEmail -> Action e s (UserId, User)
 lookupConfirmedUserByEmail email = lookupUser_ $ T.lookupConfirmedUserByEmail email
 
--- | Add a user based on its form data.  Requires 'RoleAdmin'.  For creating users with e-mail
+-- | Add a user based on its form data.  Requires 'GroupAdmin'.  For creating users with e-mail
 -- verification, see 'addUnconfirmedUser', 'confirmNewUser'.
 addUser :: UserFormData -> Action e s UserId
 addUser userData = do
-    guardWriteMsg "addUser" (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "addUser" (GroupAdmin %% GroupAdmin)
     U.unsafeAction $ U.makeUserFromFormData userData >>= U.query . T.addUser
 
 -- | Delete user.  Requires or privileges of admin or the user that is looked up.  If no user is
 -- found or access is not granted, throw 'NoSuchUser'.
 deleteUser :: UserId -> Action e s ()
 deleteUser uid = do
-    guardWriteMsg "deleteUser" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "deleteUser" (GroupAdmin \/ UserA uid %% GroupAdmin /\ UserA uid)
     queryA $ T.deleteUser uid
 
 
@@ -365,16 +365,16 @@ changePassword uid old new = do
     passwordAcceptable new
     _ <- lookupUserCheckPassword_ (T.lookupAnyUser uid) old
     hashedPw <- U.unsafeAction $ U.hashUserPass new
-    guardWriteMsg "changePassword" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "changePassword" (GroupAdmin \/ UserA uid %% GroupAdmin /\ UserA uid)
     queryA $ T.changePassword uid hashedPw
 
 -- | Initiate email change by creating and storing a token and sending it out by email to the old
--- address of the user.  This requires 'RoleAdmin' or privs of email address owner, but the address
+-- address of the user.  This requires 'GroupAdmin' or privs of email address owner, but the address
 -- is only changed after a call to 'confirmUserEmailChange' with the correct token.
 requestUserEmailChange ::
     UserId -> UserEmail -> (ConfirmationToken -> ST) -> Action e s ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
-    guardWriteMsg "requestUserEmailChange" (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+    guardWriteMsg "requestUserEmailChange" (GroupAdmin \/ UserA uid %% GroupAdmin /\ UserA uid)
 
     tok <- freshConfirmationToken
     queryA $ T.addUserEmailChangeRequest uid newEmail tok
@@ -401,7 +401,7 @@ confirmUserEmailChange token = do
 
 allServiceIds :: Action e s [ServiceId]
 allServiceIds = do
-    taintMsg "allServiceIds" (RoleAdmin %% False)
+    taintMsg "allServiceIds" (GroupAdmin %% False)
     queryA T.allServiceIds
 
 lookupService :: ServiceId -> Action e s (ServiceId, Service)
@@ -416,7 +416,7 @@ addService owner name desc = do
 addServicePrim ::
     UserId -> ServiceId -> ServiceName -> ServiceDescription -> Action e s (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
-    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
+    assertAuth (hasUserId owner <||> hasRole GroupAdmin)
     key <- freshServiceKey
     hashedKey <- U.unsafeAction $ U.hashServiceKey key
     queryA $ T.addService owner sid hashedKey name desc
@@ -425,7 +425,7 @@ addServicePrim owner sid name desc = do
 deleteService :: ServiceId -> Action e s ()
 deleteService sid = do
     owner <- (^. serviceOwner) . snd <$> lookupService sid
-    assertAuth (hasUserId owner <||> hasRole RoleAdmin)
+    assertAuth (hasUserId owner <||> hasRole GroupAdmin)
     queryA $ T.deleteService sid
 
 -- | Autocreate a service with a specific ID if it doesn't exist yet. Moreover, if no contexts
@@ -461,7 +461,7 @@ defaultSessionTimeout = fromDays 14
 lookupThentosSession :: ThentosSessionToken -> Action e s ThentosSession
 lookupThentosSession tok = do
     session <- lookupThentosSession_ tok
-    tryTaint (RoleAdmin \/ session ^. thSessAgent %% False)
+    tryTaint (GroupAdmin \/ session ^. thSessAgent %% False)
         (return session)
         (\ (AnyLabelError _) -> throwError NoSuchThentosSession)
 
@@ -538,10 +538,10 @@ startThentosSessionByAgent_ agent = do
     return tok
 
 -- | For a thentos session, look up all service sessions and return their service names.  Requires
--- 'RoleAdmin', service, or user privs.
+-- 'GroupAdmin', service, or user privs.
 serviceNamesFromThentosSession :: ThentosSessionToken -> Action e s [ServiceName]
 serviceNamesFromThentosSession tok = do
-    assertAuth $ hasRole RoleAdmin
+    assertAuth $ hasRole GroupAdmin
             <||> (hasAgent . (^. thSessAgent) =<< lookupThentosSession tok)
     queryA $ T.serviceNamesFromThentosSession tok
 
@@ -567,7 +567,7 @@ thentosSessionAndUserIdByToken_ tok = do
         UserA uid -> return (session, uid)
         ServiceA sid -> throwError $ NeedUserA tok sid
 
--- | Register a user with a service.  Requires 'RoleAdmin' or user privs.
+-- | Register a user with a service.  Requires 'GroupAdmin' or user privs.
 --
 -- FIXME: We do not ask for any authorization from 'ServiceId' as of now.  It is enough to know a
 -- 'ServiceId' to register with the resp. service.  This probably violates integrity of the view of
@@ -578,14 +578,14 @@ addServiceRegistration tok sid = do
     (_, uid) <- thentosSessionAndUserIdByToken_ tok
     queryA $ T.registerUserWithService uid sid newServiceAccount
 
--- | Undo registration of a user with a service.  Requires 'RoleAdmin' or user privs.
+-- | Undo registration of a user with a service.  Requires 'GroupAdmin' or user privs.
 --
 -- See FIXME in 'addServiceRegistration'.
 dropServiceRegistration :: ThentosSessionToken -> ServiceId -> Action e s ()
 dropServiceRegistration tok sid = do
     (_, uid) <- thentosSessionAndUserIdByToken_ tok
     guardWriteMsg "dropServiceRegistration"
-        (RoleAdmin \/ UserA uid %% RoleAdmin /\ UserA uid)
+        (GroupAdmin \/ UserA uid %% GroupAdmin /\ UserA uid)
     queryA $ T.unregisterUserFromService uid sid
 
 -- | Login user running the current thentos session into service.  If user is not registered with
@@ -651,14 +651,14 @@ sendEmail req = do
 -- Only the user owning the persona or an admin may do this.
 addPersona :: PersonaName -> UserId -> Maybe Uri -> Action e s Persona
 addPersona name uid mExternalUrl = do
-    assertAuth (hasUserId uid <||> hasRole RoleAdmin)
+    assertAuth (hasUserId uid <||> hasRole GroupAdmin)
     queryA $ T.addPersona name uid mExternalUrl
 
 -- | Delete a persona. Throw 'NoSuchPersona' if the persona does not exist in the DB.
 -- Only the user owning the persona or an admin may do this.
 deletePersona :: Persona -> Action e s ()
 deletePersona persona = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
     queryA . T.deletePersona $ persona ^. personaId
 
 -- | Add a new context. The first argument identifies the service to which the context belongs.
@@ -666,14 +666,14 @@ deletePersona persona = do
 -- Only the service or an admin may do this.
 addContext :: ServiceId -> ContextName -> ContextDescription -> Maybe ProxyUri -> Action e s Context
 addContext sid name desc mUrl = do
-    assertAuth (hasServiceId sid <||> hasRole RoleAdmin)
+    assertAuth (hasServiceId sid <||> hasRole GroupAdmin)
     queryA $ T.addContext sid name desc mUrl
 
 -- | Delete a context. Throw an error if the context does not exist in the DB.
 -- Only the service owning the context or an admin may do this.
 deleteContext :: Context -> Action e s ()
 deleteContext context = do
-    assertAuth (hasServiceId (context ^. contextService) <||> hasRole RoleAdmin)
+    assertAuth (hasServiceId (context ^. contextService) <||> hasRole GroupAdmin)
     queryA $ T.deleteContext (context ^. contextService) (context ^. contextName)
 
 -- | Connect a persona with a context. Throws an error if the persona is already registered for the
@@ -683,21 +683,21 @@ deleteContext context = do
 -- Only the user owning the persona or an admin may do this.
 registerPersonaWithContext :: Persona -> ServiceId -> ContextName -> Action e s ()
 registerPersonaWithContext persona sid cname = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
     queryA $ T.registerPersonaWithContext persona sid cname
 
 -- | Unregister a persona from accessing a context. No-op if the persona was not registered for the
 -- context. Only the user owning the persona or an admin may do this.
 unregisterPersonaFromContext :: Persona -> ServiceId -> ContextName -> Action e s ()
 unregisterPersonaFromContext persona sid cname = do
-    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole RoleAdmin)
+    assertAuth (hasUserId (persona ^. personaUid) <||> hasRole GroupAdmin)
     queryA $ T.unregisterPersonaFromContext (persona ^. personaId) sid cname
 
 -- | Find the persona that a user wants to use for a context (if any).
 -- Only the user owning the persona or an admin may do this.
 findPersona :: UserId -> ServiceId -> ContextName -> Action e s (Maybe Persona)
 findPersona uid sid cname = do
-    assertAuth (hasUserId uid <||> hasRole RoleAdmin)
+    assertAuth (hasUserId uid <||> hasRole GroupAdmin)
     queryA $ T.findPersona uid sid cname
 
 -- | List all contexts owned by a service. Anybody may do this.
@@ -708,14 +708,14 @@ contextsForService sid = queryA $ T.contextsForService sid
 -- Only a GroupAdmin may do this.
 addPersonaToGroup :: PersonaId -> ServiceGroup -> Action e s ()
 addPersonaToGroup pid group = do
-    assertAuth $ hasRole RoleGroupAdmin
+    assertAuth $ hasRole GroupGroupAdmin
     queryA $ T.addPersonaToGroup pid group
 
 -- | Remove a persona from a group. If the persona is not a member of the group, do nothing.
 -- Only a GroupAdmin may do this.
 removePersonaFromGroup :: PersonaId -> ServiceGroup -> Action e s ()
 removePersonaFromGroup pid group = do
-    assertAuth $ hasRole RoleGroupAdmin
+    assertAuth $ hasRole GroupGroupAdmin
     queryA $ T.removePersonaFromGroup pid group
 
 -- | Add a group (subgroup) to another group (supergroup) so that all members of subgroup will also
@@ -724,14 +724,14 @@ removePersonaFromGroup pid group = do
 -- Only a GroupAdmin may do this.
 addGroupToGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 addGroupToGroup subgroup supergroup = do
-    assertAuth $ hasRole RoleGroupAdmin
+    assertAuth $ hasRole GroupGroupAdmin
     queryA $ T.addGroupToGroup subgroup supergroup
 
 -- | Remove a group (subgroup) from another group (supergroup). If subgroup is not a direct
 -- member of supergroup, do nothing. Only a GroupAdmin may do this.
 removeGroupFromGroup :: ServiceGroup -> ServiceGroup -> Action e s ()
 removeGroupFromGroup subgroup supergroup = do
-    assertAuth $ hasRole RoleGroupAdmin
+    assertAuth $ hasRole GroupGroupAdmin
     queryA $ T.removeGroupFromGroup subgroup supergroup
 
 -- | List all groups a persona belongs to, directly or indirectly. If p is a member of g1,
@@ -739,7 +739,7 @@ removeGroupFromGroup subgroup supergroup = do
 -- Only the user owning the persona or a GroupAdmin may do this.
 personaGroups :: Persona -> Action e s [ServiceGroup]
 personaGroups persona = do
-    assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole RoleGroupAdmin
+    assertAuth $ hasUserId (persona ^. personaUid) <||> hasRole GroupGroupAdmin
     queryA $ T.personaGroups (persona ^. personaId)
 
 
@@ -747,17 +747,17 @@ personaGroups persona = do
 
 assignRole :: Agent -> Group -> Action e s ()
 assignRole agent role = do
-    guardWriteMsg "assignRole" (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "assignRole" (GroupAdmin %% GroupAdmin)
     queryA $ T.assignRole agent role
 
 unassignRole :: Agent -> Group -> Action e s ()
 unassignRole agent role = do
-    guardWriteMsg "unassignRole" (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "unassignRole" (GroupAdmin %% GroupAdmin)
     queryA $ T.unassignRole agent role
 
 agentRoles :: Agent -> Action e s [Group]
 agentRoles agent = do
-    taintMsg "agentRoles" (RoleAdmin \/ agent %% RoleAdmin /\ agent)
+    taintMsg "agentRoles" (GroupAdmin \/ agent %% GroupAdmin /\ agent)
     queryA (T.agentRoles agent)
 
 
@@ -812,7 +812,7 @@ discardWhitespace = ST.concat . ST.words
 collectGarbage :: Exception (ActionError e) => Action e s ()
 collectGarbage = do
     loggerA DEBUG "starting garbage collection."
-    guardWriteMsg "collectGarbage" (RoleAdmin %% RoleAdmin)
+    guardWriteMsg "collectGarbage" (GroupAdmin %% GroupAdmin)
 
     queryA T.garbageCollectThentosSessions
     queryA T.garbageCollectServiceSessions
