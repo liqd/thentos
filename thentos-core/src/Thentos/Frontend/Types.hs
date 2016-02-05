@@ -1,20 +1,18 @@
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE ScopedTypeVariables    #-}
-{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE DeriveGeneric               #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE TemplateHaskell             #-}
 
 module Thentos.Frontend.Types where
 
-import Control.Lens (makeLenses)
-import Control.Monad (mzero)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.String.Conversions (ST, SBS, cs)
-import GHC.Generics (Generic)
 import URI.ByteString (RelativeRef, serializeRelativeRef, parseRelativeRef, laxURIParserOptions)
 
 import qualified Data.Aeson as Aeson
 import qualified Generics.Generic.Aeson as Aeson
 
+import Thentos.Prelude
 import Thentos.Types
 import Thentos.Action.Types (Action)
 
@@ -32,6 +30,8 @@ data FActionError =
   | FActionError500 String
   deriving (Eq, Show)
 
+crash :: FActionError -> FAction a
+crash = throwError . OtherError
 
 -- * session state
 
@@ -39,12 +39,13 @@ data FrontendSessionData =
     FrontendSessionData
         { _fsdLogin             :: Maybe FrontendSessionLoginData
         , _fsdServiceLoginState :: Maybe ServiceLoginState  -- ^ (see 'ServiceLoginState')
+        , _fsdCsrfToken         :: Maybe CsrfToken -- ^ (see 'CsrfToken')
         , _fsdMessages          :: [FrontendMsg]
         }
   deriving (Show, Eq, Generic)
 
 emptyFrontendSessionData :: FrontendSessionData
-emptyFrontendSessionData = FrontendSessionData Nothing Nothing []
+emptyFrontendSessionData = FrontendSessionData Nothing Nothing Nothing []
 
 data FrontendSessionLoginData =
     FrontendSessionLoginData
@@ -101,6 +102,19 @@ instance FromJSON ServiceLoginState where
                 (Right rr) -> return $ ServiceLoginState mSid rr
                 _ -> mzero
             _ -> mzero
+
+-- | This token is used to prevent CSRF (Cross Site Request Forgery).
+-- This token is part of 'FrontendSessionData' since it is required by the views which
+-- generates the forms with a special hidden field containing the value of this token.
+-- However this token is cleared before being serialized as a cookie.
+-- Indeed we have no need yet to have it on the client side nor to make it persistent.
+-- When processing requests this token is freshly generated from the 'CsrfSecret' and the
+-- 'ThentosSessionToken'. This token is only used by request which produce an HTML form.
+-- Upon POST requests the handlers are checking the validity of the CSRF token.
+-- This verification of this token can be done solely from the 'CsrfSecret' and
+-- the 'ThentosSessionToken'.
+newtype CsrfToken = CsrfToken { fromCsrfToken :: ST }
+    deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
 
 -- | If we want to communicate information from the last request to
 -- the user in the next one, we need to stash it in the state.  This

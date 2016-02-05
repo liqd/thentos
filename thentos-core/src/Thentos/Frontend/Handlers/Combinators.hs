@@ -17,7 +17,6 @@ import qualified Text.Blaze.Html5 as H
 import Thentos.Action
 import Thentos.Config
 import Thentos.Frontend.Pages
-import Thentos.Frontend.State (crash)
 import Thentos.Frontend.Types
 import Thentos.Types
 

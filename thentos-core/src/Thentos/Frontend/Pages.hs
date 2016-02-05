@@ -46,23 +46,18 @@ module Thentos.Frontend.Pages
     , confirmationMailSentSnippet
     ) where
 
-import Control.Lens ((^.))
-import Control.Monad (when)
-import Data.Foldable (for_)
-import Data.Monoid ((<>))
-import Data.String.Conversions (ST)
-import Data.String (IsString)
-import Text.Blaze.Html (Html, (!), ToValue(toValue))
+import Text.Blaze.Html (Html, (!))
 import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit, childErrorList)
 import Text.Digestive.Form (Form, check, validate, text, (.:))
 import Text.Digestive.Types (Result(Success, Error))
-import Text.Digestive.View (View)
+import Text.Digestive.View (View, absoluteRef)
 
 import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Thentos.Frontend.Types
+import Thentos.Prelude
 import Thentos.Types
 
 
@@ -78,22 +73,28 @@ basePagelet' :: FrontendSessionData -> ST -> Maybe Html -> Html -> Html
 basePagelet' fsd title mHeadings body = H.docTypeHtml $ do
     H.head $ do
         H.title $ H.text title
-        H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
+        H.link ! A.rel "stylesheet" ! A.href "/screen.css"
         sequence_ mHeadings
     H.body $ do
-        H.div . H.ul . mapM_ (H.li . H.string . show) $ (fsd ^. fsdMessages)
+        H.div . H.ul $ for_ (fsd ^. fsdMessages) (H.li . H.string . show)
         H.h1 $ H.text title
         body
 
 -- | Protect a form from CSRF attacks by including a secret token as a hidden field.
 csrfProofForm :: FrontendSessionData -> View Html -> ST -> Html -> Html
-csrfProofForm _ v action = form v action . (<> csrfField)
+csrfProofForm fsd v action f = do
+    childErrorList "" v
+    form v action $ f <> csrfField
   where
-    csrfToken :: ST
-    csrfToken = "wef"  -- BUG #400: get from state
-
-    csrfField :: Html
-    csrfField = H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
+    csrfField
+      | Just csrfToken <- fsd ^. fsdCsrfToken =
+          let name = H.toValue (absoluteRef "_csrf" v) in
+          H.input   ! A.type_ "hidden"
+                    ! A.id    name
+                    ! A.name  name
+                    ! A.value (H.toValue (fromCsrfToken csrfToken))
+      | otherwise =
+          mempty
 
 
 -- * dashboard
@@ -106,7 +107,7 @@ dashboardPagelet :: FrontendSessionData -> [Group] -> Html -> Html
 dashboardPagelet fsd availableGroups body =
     basePagelet fsd "Thentos Dashboard" $ do
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
-        H.div H.! A.class_ "dashboard_body" $ body
+        H.div ! A.class_ "dashboard_body" $ body
   where
     tabLink :: DashboardTab -> Html
     tabLink tab =
@@ -153,7 +154,6 @@ dashboardPagelet fsd availableGroups body =
 
 userRegisterPage :: FrontendSessionData -> View Html -> ST -> Html
 userRegisterPage fsd v formAction = basePagelet fsd "Create User" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "User name:"
@@ -190,7 +190,6 @@ userRegisterRequestedPage fsd = confirmationMailSentPage fsd "Create User"
 
 userLoginPage :: FrontendSessionData -> View Html -> ST -> Html
 userLoginPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.table $ do
             H.tr $ do
@@ -219,7 +218,6 @@ userLoginForm = (,)
 
 resetPasswordRequestPage :: FrontendSessionData -> View Html -> ST -> Html
 resetPasswordRequestPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             H.text "You can send yourself an email with a link to the password reset page."
@@ -237,7 +235,6 @@ resetPasswordRequestedPage fsd = confirmationMailSentPage fsd "Password Reset"
 
 resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
 resetPasswordPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "password1" v "New password: "
@@ -254,9 +251,8 @@ resetPasswordForm = validate validatePass $ (,)
 
 
 -- * logout (thentos)
-
-userLogoutConfirmSnippet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
-userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
+userLogoutConfirmSnippet :: [ServiceName] -> FrontendSessionData -> View Html -> ST -> u -> gs -> Html
+userLogoutConfirmSnippet serviceNames fsd v formAction _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -266,10 +262,8 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
         else H.ul . for_ serviceNames $ H.li . H.text . fromServiceName
     H.table . H.tr $ do
         H.td $ do
-            H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
-                H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
-                -- makeCsrfField csrfToken
-                -- BUG #401: do we need csrf protection here?  if so: did this ever work?
+            csrfProofForm fsd v formAction $ do
+                inputSubmit "Log Out" ! A.id "logout_submit"
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
@@ -328,7 +322,6 @@ userServicesDisplaySnippet _ _ = do
 
 emailUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 emailUpdateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "email" v "Email Address: "
@@ -341,7 +334,6 @@ emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 passwordUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 passwordUpdateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "old_password" v "Current Password: "
@@ -365,7 +357,6 @@ passwordUpdateForm = validate validatePassChange $ (,,)
 
 serviceCreateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 serviceCreateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "Service name:"
@@ -383,7 +374,6 @@ serviceCreateForm =
 
 serviceRegisterPage :: FrontendSessionData -> View Html -> ST -> ServiceId -> Service -> User -> Html
 serviceRegisterPage fsd v formAction sid service user = basePagelet fsd "Register with Service" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.hr
         H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)

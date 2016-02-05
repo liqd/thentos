@@ -49,10 +49,11 @@ import Data.String.Conversions (ST, (<>))
 import Control.Monad (void)
 import Network.Wai (Middleware, requestMethod)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
-import Servant.Missing (formH)
+import Text.Digestive.Form (Form, text, (.:))
+import Text.Digestive.View (View)
 
 import qualified Servant
-import qualified Servant.Missing as FormH
+import qualified Servant.Missing as UnprotectedFormH
 import qualified Text.Blaze.Html5 as H
 import Data.Foldable (for_)
 
@@ -60,6 +61,7 @@ import Thentos.Action hiding (sendPasswordResetMail)
 import Thentos.Action.Types
 import Thentos.Backend.Core (addHeadersToResponse)
 import Thentos.Ends.Types
+import Thentos.Frontend.CSRF
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State
@@ -72,8 +74,21 @@ import qualified Thentos.Action.Unsafe as U
 -- * helpers
 
 type Get = Servant.Get '[HTM] H.Html
-type Post = Servant.Post '[HTM] H.Html
-type FormH a = FormH.FormH HTM H.Html a
+
+-- All Post request should go through FormH (which handles both Get and Post) such that common
+-- verification such as CSRF protection is enabled.
+type FormH a = UnprotectedFormH.FormH HTM H.Html a
+
+formH :: forall payload.
+     ST                                     -- ^ formAction
+  -> Form H.Html FAction payload            -- ^ processor1
+  -> (payload -> FAction H.Html)            -- ^ processor2
+  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
+  -> ServerT (FormH payload) FAction
+formH fa p1 p2 =
+    UnprotectedFormH.formH fa
+        ((,) <$> (CsrfToken <$> ("_csrf" .: text Nothing)) <*> p1)
+        (\(csrfToken, payload)-> checkCsrfToken csrfToken >> p2 payload)
 
 -- * register (thentos)
 
@@ -121,8 +136,10 @@ userRegisterConfirmH (Just token) = do
 
 type UserLoginH = "login" :> FormH (UserName, UserPass)
 
+-- | The login form is the only exception to the CSRF protection since there is no session yet.
+-- This thus the only one to use UnprotectedFormH.formH directly.
 userLoginH :: ServerT UserLoginH FAction
-userLoginH = formH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
+userLoginH = UnprotectedFormH.formH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
   where
     p :: (UserName, UserPass) -> FAction H.Html
     p (uname, passwd) =
@@ -198,22 +215,19 @@ resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
 
 -- * logout (thentos)
 
-type UserLogoutH = "logout" :> (Get :<|> Post)
+type UserLogoutH = "logout" :> FormH ()
 
 userLogoutH :: ServerT UserLogoutH FAction
-userLogoutH = userLogoutConfirmH :<|> userLogoutDoneH
-
-userLogoutConfirmH :: FAction H.Html
-userLogoutConfirmH = runAsUserOrLogin $ \_ fsl -> do
-    serviceNames <- serviceNamesFromThentosSession (fsl ^. fslToken)
-    -- BUG #403: do we need csrf protection for this?
-    switchTab' DashboardTabLogout (userLogoutConfirmSnippet "/user/logout" serviceNames "csrfToken")
-
-userLogoutDoneH :: FAction H.Html
-userLogoutDoneH = runAsUserOrLogin $ \_ fsl -> do
-    endThentosSession (fsl ^. fslToken)
-    fsdLogin .= Nothing
-    userLogoutDonePage <$> get
+userLogoutH = formH "/user/logout" (pure ()) (const p) r
+  where
+    r v a = runAsUserOrLogin $ \_ fsl -> do
+                serviceNames <- serviceNamesFromThentosSession (fsl ^. fslToken)
+                switchTab DashboardTabLogout (userLogoutConfirmSnippet serviceNames) v a
+    p = runAsUserOrLogin $ \_ fsl -> do
+            endThentosSession (fsl ^. fslToken)
+            fsdLogin .= Nothing
+            fsdCsrfToken .= Nothing
+            userLogoutDonePage <$> get
 
 
 -- * user update

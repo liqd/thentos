@@ -6,24 +6,16 @@
 
 module Thentos.Frontend.State where
 
-import Control.Monad.Except (throwError)
 import Control.Monad.Except.Missing (finally)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Control.Monad.State (get, put)
-import Control.Lens (_Left, _Just, preuse)
-import Data.Char (ord)
 import Data.Configifier (Tagged(Tagged), (>>.))
-import Data.Monoid ((<>))
-import Data.String.Conversions (SBS, ST, cs)
-import LIO (liftLIO)
 import LIO.TCB (ioTCB)
 import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
-import Servant (Proxy(Proxy), ServantErr, (:>), serve, HasServer, ServerT, Server)
+import Servant (ServantErr, (:>), serve, HasServer, ServerT, Server)
 import Servant.Server (errHTTPCode, errHeaders, errBody, err303, err404, err400, err500)
 import Servant.Server.Internal.Enter ((:~>)(Nat), Enter, enter)
 import Servant.Session (SSession)
-import System.Log (Priority(DEBUG, ERROR))
 import Text.Blaze.Html (Html)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
 import Web.Cookie (SetCookie, def, setCookieName)
@@ -32,12 +24,13 @@ import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
+import Thentos.Prelude
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Backend.Core
 import Thentos.Config
+import Thentos.Frontend.CSRF
 import Thentos.Frontend.Types
-import Thentos.Types (ThentosSessionToken, ThentosError(OtherError))
 
 import qualified Thentos.Frontend.Pages as Pages
 import qualified Thentos.Action.Unsafe as U
@@ -48,9 +41,6 @@ import qualified Thentos.Action.Unsafe as U
 
 
 -- * errors
-
-crash :: FActionError -> FAction a
-crash = throwError . OtherError
 
 fActionServantErr :: ActionError FActionError -> IO ServantErr
 fActionServantErr = errorInfoToServantErr mkServErr .
@@ -137,21 +127,21 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . r
     run fServer = fst <$> runActionE emptyFrontendSessionData aState fServer'
       where
         fServer' :: FAction a
-        fServer' = do
+        fServer' =
             case smap key of
-                Nothing -> error $ "enterFAction: internal error in servant-session: no cookie!"
+                Nothing ->
+                    -- Should really this be 'error' here.
+                    -- Can a misbehaving client trigger this error? Thus crashing the server?
+                    error "enterFAction: internal error in servant-session: no cookie!"
                 Just (lkup, ins) -> do
                     cookieToFSession (lkup ())
-                    updatePrivs
-                    fServer `finally`
-                        cookieFromFSession (ins ())
-
-    updatePrivs :: FAction ()
-    updatePrivs = preuse (fsdLogin . _Just . fslToken) >>= updatePrivs'
-
-    updatePrivs' :: Maybe ThentosSessionToken -> FAction ()
-    updatePrivs' = mapM_ U.extendClearanceOnThentosSession
-
+                    maybeSessionToken <- preuse (fsdLogin . _Just . fslToken)
+                    -- Update privileges and refresh the CSRF token if there is a session token
+                    mapM_ U.extendClearanceOnThentosSession maybeSessionToken
+                    when (isJust maybeSessionToken) refreshCsrfToken
+                    fServer `finally` (do
+                        clearCsrfToken -- could be replaced by 'refreshCsrfToken'
+                        cookieFromFSession (ins ()))
 
 -- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no
 -- state, do nothing.
