@@ -4,7 +4,14 @@
 {-# LANGUAGE PackageImports        #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeOperators         #-}
-module Thentos.Frontend.CSRF where
+module Thentos.Frontend.CSRF
+    ( CsrfSecret(CsrfSecret)
+    , genCsrfSecret
+    , validFormatCsrfSecretField
+    , checkCsrfToken
+    , refreshCsrfToken
+    , clearCsrfToken
+    ) where
 
 import "cryptonite" Crypto.Hash (SHA256)
 import "cryptonite" Crypto.MAC.HMAC (HMAC,hmac)
