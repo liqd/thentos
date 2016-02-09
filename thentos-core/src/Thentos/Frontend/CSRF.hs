@@ -24,7 +24,7 @@ newtype CsrfSecret = CsrfSecret SBS
     deriving (Show)
 newtype CsrfNonce  = CsrfNonce  SBS
 
--- | This ONLY checks the format of a given CSRF secret not if it has been randomly choosen (duh!).
+-- | This ONLY checks the format of a given CSRF secret, not if it has been randomly choosen (duh!).
 validFormatCsrfSecretField :: Maybe ST -> Bool
 validFormatCsrfSecretField ms
     | Just t <- ms
@@ -32,7 +32,7 @@ validFormatCsrfSecretField ms
     = SBS.length s' == 32
     | otherwise = False
 
--- | This ONLY checks the format of a given CSRF token not if it has been tempered with.
+-- | This ONLY checks the format of a given CSRF token, not if it has been tampered with.
 validFormatCsrfToken :: CsrfToken -> Bool
 validFormatCsrfToken (CsrfToken st)
     | Right s' <- convertFromBase Base16 (cs st :: SBS) = SBS.length s' == 64
@@ -54,9 +54,8 @@ makeCsrfToken (CsrfNonce rnd) = do
 csrfNonceFromCsrfToken :: CsrfToken -> CsrfNonce
 csrfNonceFromCsrfToken = CsrfNonce . SBS.take 64 . cs . fromCsrfToken
 
--- | Checks given a 'CsrfToken'.
--- This token should from the form data of the POST request.
--- NOT the one from the 'FrontendSessionData'.
+-- | Verify the authenticity of a given 'CsrfToken'.  This token should come from the form data of
+-- the POST request, NOT from 'FrontendSessionData'.
 checkCsrfToken :: CsrfToken -> FAction ()
 checkCsrfToken csrfToken
     | not (validFormatCsrfToken csrfToken) =
@@ -76,7 +75,7 @@ genCsrfSecret = CsrfSecret . (convertToBase Base16 :: SBS -> SBS) <$> getRandomB
 genCsrfNonce :: FAction CsrfNonce
 genCsrfNonce = CsrfNonce . convertToBase Base16 <$> U.unsafeAction (U.genRandomBytes 32)
 
--- | See 'CsrfToken'
+-- | See 'CsrfToken'.
 -- This function assigns a newly generated 'CsrfToken' to the 'FrontendSessionData'.
 refreshCsrfToken :: FAction ()
 refreshCsrfToken = do
