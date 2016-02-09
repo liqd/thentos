@@ -105,13 +105,13 @@ instance FromJSON ServiceLoginState where
 
 -- | This token is used to prevent CSRF (Cross Site Request Forgery).
 -- This token is part of 'FrontendSessionData' since it is required by the views which
--- generates the forms with a special hidden field containing the value of this token.
--- However this token is cleared before being serialized as a cookie.
+-- generate the forms with a special hidden field containing the value of this token.
+-- However, this token is cleared before being serialized as a cookie.
 -- Indeed we have no need yet to have it on the client side nor to make it persistent.
--- When processing requests this token is freshly generated from the 'CsrfSecret' and the
--- 'ThentosSessionToken'. This token is only used by request which produce an HTML form.
--- Upon POST requests the handlers are checking the validity of the CSRF token.
--- This verification of this token can be done solely from the 'CsrfSecret' and
+-- When processing requests, this token is freshly generated from the 'CsrfSecret' and the
+-- 'ThentosSessionToken'. This token is only used by requests that yield an HTML form.
+-- Upon POST requests on such forms, the handlers will check the validity of the CSRF token.
+-- Verification of this token can be done solely from the 'CsrfSecret' and
 -- the 'ThentosSessionToken'.
 newtype CsrfToken = CsrfToken { fromCsrfToken :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
