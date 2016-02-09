@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE ViewPatterns         #-}
 
@@ -8,33 +9,39 @@
 
 module Thentos.Frontend.StateSpec where
 
-import Control.Lens ((^.), (%~))
-import Control.Monad (when)
-import Control.Monad.State (modify, gets, liftIO)
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.String.Conversions (ST, LBS, SBS, cs)
-import Network.HTTP.Types (RequestHeaders, methodGet, methodPost)
+import Control.Exception (finally)
+import Data.Pool (destroyAllResources)
+import Network.HTTP.Types (Header, RequestHeaders, methodGet, methodPost)
 import Network.Wai (Application)
 import Network.Wai.Test (SResponse, simpleBody, simpleHeaders, simpleStatus)
-import Servant (Proxy(Proxy), ServerT, Capture, QueryParam, Post, Get, JSON, (:<|>)((:<|>)), (:>))
+import Servant (ServerT, Capture, QueryParam, Post, Get, JSON, (:<|>)((:<|>)), (:>))
 import Test.Hspec (Spec, hspec, before, around, describe, it,
                    shouldBe, shouldContain, shouldSatisfy, shouldNotSatisfy, pendingWith)
-import Test.Hspec.Wai (request)
+import Test.Hspec.Wai (request) --, shouldRespondWith)
+import Text.Blaze.Html (Html)
+import Text.Digestive.Blaze.Html5 (inputText, label, inputSubmit)
+import Text.Digestive.Form (Form, text, (.:))
+import Text.Digestive.View (View)
 import Servant.Server.Internal.ServantErr (errHTTPCode, errHeaders, errBody)
 
 import qualified Data.Attoparsec.ByteString.Char8 as AP
 import qualified Network.HTTP.Types.Status as HT
 import qualified Network.Wreq as Wreq
+import qualified Test.Hspec.Wai as HW
+import qualified Text.Xml.Lens as HL
 
+import Thentos (createDefaultUser)
 import Thentos.Action.Types
 import Thentos.Config
-import Thentos.Frontend.Handlers.Combinators (redirect')
+import Thentos.Frontend.Handlers.Combinators
+import Thentos.Frontend.Pages.Core
 import Thentos.Frontend.State
 import Thentos.Frontend.Types
+import Thentos.Prelude
+import Thentos.Test.Core
 import Thentos.Types
 
-import Thentos.Test.Core
-
+import Debug.Trace
 
 tests :: IO ()
 tests = hspec spec
@@ -56,13 +63,13 @@ spec_frontendState = do
             errHTTPCode e `shouldBe` 404
             cs (errBody e) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
-    describe "the FAction monad, via hspec-wai" . before testApp $ do
+    describe "the FAction monad, on a test API, via hspec-wai" . before testApp $ do
         it "is initialized with empty message queue" $ do
-            resp <- request methodGet "" [] ""
+            resp <- HW.get ""
             liftIO $ simpleBody resp `shouldBe` "[]"
 
         it "posts accumulate into message queue" $ do
-            presp <- request methodPost "heya" [] ""
+            presp <- HW.post "heya" ""
             gresp <- request methodGet "" (getCookie presp) ""
             liftIO $ simpleBody gresp `shouldBe`
                 (cs . show . fmap show $ [FrontendMsgSuccess "heya"])
@@ -73,13 +80,13 @@ spec_frontendState = do
                 (cs . show . fmap show $ [FrontendMsgSuccess "ping", FrontendMsgSuccess "heya"])
 
         it "keeps state even when exceptions are thrown" $ do
-            presp <- request methodPost "heya?crash=True" [] ""
+            presp <- HW.post "heya?crash=True" ""
             gresp <- request methodGet "" (getCookie presp) ""
             liftIO $ simpleBody gresp `shouldBe`
                 (cs . show . fmap show $ [FrontendMsgSuccess "heya"])
 
         it "renders 404 correctly." $ do
-            resp <- request methodGet "/wef/yo" [] ""
+            resp <- HW.get "/wef/yo"
             liftIO $ HT.statusCode (simpleStatus resp) `shouldBe` 404
             liftIO $ pendingWith "rendering of implicit servant 404 (thrown by `HasServer (:>)`) cannot be customized."
             -- FIXME: it would be easy to get this to work with a catch-all combinator
@@ -135,6 +142,19 @@ spec_frontendState = do
             resp <- post astate (Just "god") (Just "god")
             cs (resp ^. Wreq.responseBody) `shouldContain` ("FrontendMsgSuccess" :: String)
 
+    describe "the CSRF protection, on a test API, via hspec-wai" . around withTestApp $ do
+        it "returns a valid CSRF token" $ \(hdr :: Header) -> do
+            presp <- HW.post "heya" ""
+            gresp <- request methodGet "csrf" (getCookie presp) ""
+            let part = simpleBody gresp ^. -- HL.html . HL.node "form" . HL.text
+                            HL.html . HL.node "body" . HL.node "form" .
+                            HL.node "input" . HL.attributed (ix "type".only "submit") .
+                            HL.attr "value" . _Just
+            trace (show hdr) (return ())
+            trace (show (getCookie presp)) (return ())
+            trace (show (simpleBody gresp)) (return ())
+            trace (show part) (return ())
+            liftIO $ cs part `shouldContain` ("_csrf=" :: String)
 
 getCookie :: SResponse -> RequestHeaders
 getCookie = fmap f . simpleHeaders
@@ -146,14 +166,55 @@ getCookie = fmap f . simpleHeaders
 type TestApi =
        Capture "id" ST :> QueryParam "crash" Bool :> Post '[JSON] ()
   :<|> Get '[JSON] [ST]
+  :<|> "csrf" :> FormH [FrontendMsg]
+
+csrfApi :: ServerT (FormH [FrontendMsg]) FAction
+csrfApi = formH "/csrf" p1 p2 r
+  where
+    p1 :: Form Html FAction [FrontendMsg]
+    p1 = (pure . FrontendMsgSuccess) <$> "message" .: text Nothing
+
+    csrfPage :: FrontendSessionData -> View Html -> ST -> Html
+    csrfPage fsd v formAction = basePagelet fsd "Add message" $ do
+        csrfProofForm fsd v formAction $ do
+            label "message" v "Message:"
+            inputText "message" v
+            inputSubmit "Post message"
+
+    p2 :: [FrontendMsg] -> FAction Html
+    p2 messages = do
+        fsdMessages %= (messages <>)
+        fsd <- get
+        pure $ basePagelet fsd "Messages" (pure ())
+
+    r :: View Html -> ST -> FAction Html
+    r = showPageWithMessages csrfPage
 
 testApi :: ServerT TestApi FAction
-testApi = post_ :<|> read_
+testApi = post_ :<|> read_ :<|> csrfApi
   where
     post_ msg (fromMaybe False -> crash_) = do
-        modify $ fsdMessages %~ (FrontendMsgSuccess msg :)
+        fsdMessages %= (FrontendMsgSuccess msg :)
         when crash_ $ redirect' "/wef"
-    read_ = gets ((cs . show <$>) . (^. fsdMessages))
+    read_ = uses fsdMessages (cs . show <$>)
 
 testApp :: IO Application
 testApp = createActionState >>= serveFAction (Proxy :: Proxy TestApi) testApi
+
+{-
+testAppWithLogin :: IO ([String], Application)
+testAppWithLogin = do
+    as <- createActionState
+    (thentosSession, hdr) <- loginAsDefaultUser as
+    app <- serveFAction (Proxy :: Proxy TestApi) testApi
+    return (hdr, app)
+-}
+
+--withTestApp :: MonadIO m => (Header -> m r) -> m r
+withTestApp :: (Header -> IO Application) -> IO Application -- HW.WaiSession r) -> HW.WaiSession r
+withTestApp test = do
+    st@(ActionState _ _ connPool) <- liftIO createActionState
+    _app <- liftIO $ serveFAction (Proxy :: Proxy TestApi) testApi st
+    liftIO (createDefaultUser st)
+    (_thentosSession, hdr) <- liftIO $ loginAsDefaultUser st
+    test hdr

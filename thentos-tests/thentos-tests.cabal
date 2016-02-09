@@ -150,6 +150,7 @@ test-suite tests
     , webdriver >=0.6.2.1 && <0.7
     , word8 >=0.1 && <0.2
     , wreq >=0.4 && <0.5
+    , xml-html-conduit-lens >=0.3 && <0.4
 
 benchmark load-test
   default-language:

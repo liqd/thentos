@@ -9,12 +9,12 @@ import Data.String.Conversions (LBS)
 import Servant hiding (serveDirectory)
 import System.Log.Logger (Priority(INFO))
 
-import qualified Text.Blaze.Html5 as H
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Network.Wai as Wai
 
 import System.Log.Missing (logger)
 import Thentos.Action.Types (ActionState)
-import Thentos.Backend.Core
+import Thentos.Backend.Core (addHeadersToResponse, runWarpWithCfg)
 import Thentos.Config
 import Thentos.Ends.Types
 import Thentos.Frontend.Handlers
@@ -32,7 +32,7 @@ runFrontend config aState = do
     serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
 
 type FrontendH =
-       Get '[HTM] H.Html
+       GetH
   :<|> "user" :> UserH
   :<|> "service" :> ServiceH
   :<|> "dashboard" :> DashboardH
@@ -99,3 +99,32 @@ serviceH =
        serviceLoginH
   :<|> serviceRegisterH
   :<|> serviceCreateH
+
+
+-- * Cache control
+
+-- | Disable response caching. The wrapped handler can overwrite this by
+-- setting its own cache control headers.
+--
+-- Cache-control headers are only added to GET and HEAD responses since other request methods
+-- are considered uncachable by default.
+--
+-- According to the HTTP 1.1 Spec, GET/HEAD responses with the following error codes (>= 400) may
+-- be cached unless forbidded by cache-control headers:
+--
+-- * 404 Not Found
+-- * 405 Method Not Allowed
+-- * 410 Gone
+-- * 414 Request-URI Too Long
+-- * 501 Not Implemented
+disableCaching :: Wai.Middleware
+disableCaching app req cont = app req $
+    cont . (if relevantMeth then addHeadersToResponse cacheHeaders else id)
+  where
+    cacheHeaders =
+        [ ("Cache-Control", "no-cache, no-store, must-revalidate")
+        , ("Expires", "0")
+        ]
+
+    relevantMeth :: Bool
+    relevantMeth = Wai.requestMethod req `elem` ["GET", "HEAD"]

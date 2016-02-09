@@ -8,15 +8,13 @@
 module Thentos.Frontend.Handlers.CombinatorsSpec where
 
 import Data.Proxy (Proxy(Proxy))
-import Network.Wai  (Application)
-import Network.Wai.Test (simpleHeaders, simpleStatus)
+import Network.Wai (Application)
 import Servant.API ((:>), Get)
 import Servant.HTML.Blaze (HTML)
 import Servant.Server (ServerT)
-import Test.Hspec (Spec, describe, it, shouldBe, shouldContain, hspec)
-import Test.Hspec.Wai (with, request, liftIO)
+import Test.Hspec (Spec, describe, it, hspec)
+import Test.Hspec.Wai (with, get, shouldRespondWith, matchHeaders, (<:>))
 
-import qualified Network.HTTP.Types.Status as C
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Frontend.Handlers.Combinators
@@ -31,8 +29,7 @@ tests :: IO ()
 tests = hspec spec
 
 spec :: Spec
-spec = describe "Thentos.Frontend.Handlers.CombinatorsSpec" $ do
-    specRedirect
+spec = describe "Thentos.Frontend.Handlers.CombinatorsSpec" specRedirect
 
 
 type ApiRedirect = "here" :> Get '[HTML] H.Html
@@ -44,9 +41,7 @@ appRedirect :: IO Application
 appRedirect = createActionState >>= serveFAction (Proxy :: Proxy ApiRedirect) apiRedirect
 
 specRedirect :: Spec
-specRedirect = do
-    describe "redirect'" . with appRedirect $ do
-        it "gets you there" $ do
-            resp <- request "GET" "/here" [] ""
-            liftIO $ C.statusCode (simpleStatus resp) `shouldBe` 303
-            liftIO $ simpleHeaders resp `shouldContain` [("Location", "/there")]
+specRedirect =
+    describe "redirect'" . with appRedirect $
+        it "gets you there" $
+            get "/here" `shouldRespondWith` 303 { matchHeaders = ["Location" <:> "/there"] }

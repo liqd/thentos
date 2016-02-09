@@ -87,6 +87,7 @@ library
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
+    , Thentos.Frontend.Pages.Core
     , Thentos.Frontend.State
     , Thentos.Frontend.TH
     , Thentos.Frontend.Types

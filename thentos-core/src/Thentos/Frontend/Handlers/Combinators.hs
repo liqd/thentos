@@ -1,27 +1,40 @@
+{-# LANGUAGE DataKinds              #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE RankNTypes             #-}
 
 module Thentos.Frontend.Handlers.Combinators where
 
-import Control.Lens ((^.), (%=), (.~), (?=), use, _Just)
-import Control.Monad.State.Class (get, gets, state)
 import Data.ByteString.Builder (toLazyByteString)
-import Data.String.Conversions (SBS, ST, cs)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
-import System.Log (Priority(DEBUG))
+import Servant (Get, Post, ServerT)
+import Text.Digestive.Form (Form, text, (.:))
 import Text.Digestive.View (View)
 import URI.ByteString (serializeURI, serializeRelativeRef, URI(..), RelativeRef(..), Query(..))
 
+import qualified Servant.Missing as UnprotectedFormH
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Action
 import Thentos.Config
+import Thentos.Ends.Types
+import Thentos.Frontend.CSRF
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
+import Thentos.Prelude
 import Thentos.Types
 
 import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Action.SimpleAuth as U
+
+-- * types
+
+type GetH  = Get  '[HTM] H.Html
+type PostH = Post '[HTM] H.Html
+
+-- All Post request should go through FormH (which handles both Get and Post) such that common
+-- verification such as CSRF protection is enabled.
+type FormH a = UnprotectedFormH.FormH HTM H.Html a
 
 
 -- * helpers
@@ -35,8 +48,29 @@ loggerF :: (Show v) => v -> FAction ()
 loggerF = U.unsafeAction . loggerU
 
 loggerU :: (Show v) => v -> U.UnsafeAction FActionError s ()
-loggerU = U.logger System.Log.DEBUG . show
+loggerU = U.logger DEBUG . show
 
+
+-- * form construction
+
+formH :: forall payload.
+     ST                                     -- ^ formAction
+  -> Form H.Html FAction payload            -- ^ processor1
+  -> (payload -> FAction H.Html)            -- ^ processor2
+  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
+  -> ServerT (FormH payload) FAction
+formH fa p1 p2 =
+    UnprotectedFormH.formH fa
+        ((,) <$> (CsrfToken <$> ("_csrf" .: text Nothing)) <*> p1)
+        (\(csrfToken, payload)-> checkCsrfToken csrfToken >> p2 payload)
+
+unprotectedFormH :: forall payload.
+     ST                                     -- ^ formAction
+  -> Form H.Html FAction payload            -- ^ processor1
+  -> (payload -> FAction H.Html)            -- ^ processor2
+  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
+  -> ServerT (FormH payload) FAction
+unprotectedFormH = UnprotectedFormH.formH
 
 -- * dashboard construction
 
@@ -97,15 +131,18 @@ sendFrontendMsgs msgs = do
 sendFrontendMsg :: FrontendMsg -> FAction ()
 sendFrontendMsg = sendFrontendMsgs . (:[])
 
+--pullAllFrontendMsgs :: FAction [FrontendMsg]
+--pullAllFrontendMsgs = state $ \s -> (s ^. fsdMessages, s & fsdMessages .~ [])
+
 clearAllFrontendMsgs :: FAction ()
-clearAllFrontendMsgs = state $ \s -> ((), fsdMessages .~ [] $ s)
+clearAllFrontendMsgs = state $ \s -> ((), s & fsdMessages .~ [])
 
 showPageWithMessages :: (FrontendSessionData -> View H.Html -> ST -> H.Html)
     -> View H.Html -> ST -> FAction H.Html
 showPageWithMessages page v a = do
-    html <- gets $ \fsd -> page fsd v a
+    fsd <- get
     clearAllFrontendMsgs
-    return html
+    return $ page fsd v a
 
 
 -- * uri manipulation
