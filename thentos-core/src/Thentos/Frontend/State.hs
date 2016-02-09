@@ -130,9 +130,9 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . r
         fServer' =
             case smap key of
                 Nothing ->
-                    -- Should really this be 'error' here.
-                    -- Can a misbehaving client trigger this error? Thus crashing the server?
-                    error "enterFAction: internal error in servant-session: no cookie!"
+                    -- FIXME: this case should not be code 500, as it can (probably) be provoked by
+                    -- the client.
+                    crash . FActionError500 $ "Could not read cookie."
                 Just (lkup, ins) -> do
                     cookieToFSession (lkup ())
                     maybeSessionToken <- preuse (fsdLogin . _Just . fslToken)
