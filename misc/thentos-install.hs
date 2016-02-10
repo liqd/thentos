@@ -89,6 +89,7 @@ submoduleSources = map ("submodules" </>)
     , "servant/servant-client"
     , "servant/servant-docs"
     , "servant/servant-blaze"
+    , "servant/servant-lucid"
     , "servant/servant-js"
     , "servant/servant-foreign"
     , "pronk"
