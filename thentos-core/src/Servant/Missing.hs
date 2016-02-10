@@ -75,6 +75,7 @@ formH :: forall payload m htm html.
   -> ServerT (FormH htm html payload) m
 formH formAction processor1 processor2 renderer = getH :<|> postH
   where
+    getH :: m html
     getH = do
         v <- getForm formAction processor1
         renderer v formAction

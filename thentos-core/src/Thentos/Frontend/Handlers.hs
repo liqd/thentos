@@ -38,30 +38,15 @@ module Thentos.Frontend.Handlers
   , serviceRegisterH
   , serviceLoginH
 
-  , disableCaching
   )
 where
 
-import Control.Lens ((^.), (.=))
-import Control.Monad.Except (catchError, throwError)
-import Control.Monad.State (get)
-import Data.String.Conversions (ST, (<>))
-import Control.Monad (void)
-import Network.Wai (Middleware, requestMethod)
 import Servant (QueryParam, (:<|>)((:<|>)), (:>), ServerT)
-import Text.Digestive.Form (Form, text, (.:))
-import Text.Digestive.View (View)
-
-import qualified Servant
-import qualified Servant.Missing as UnprotectedFormH
-import qualified Text.Blaze.Html5 as H
-import Data.Foldable (for_)
+import Text.Blaze.Html (Html)
 
 import Thentos.Action hiding (sendPasswordResetMail)
 import Thentos.Action.Types
-import Thentos.Backend.Core (addHeadersToResponse)
-import Thentos.Ends.Types
-import Thentos.Frontend.CSRF
+import Thentos.Prelude
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages
 import Thentos.Frontend.State
@@ -70,26 +55,6 @@ import Thentos.Types
 
 import qualified Thentos.Action.Unsafe as U
 
-
--- * helpers
-
-type Get = Servant.Get '[HTM] H.Html
-
--- All Post request should go through FormH (which handles both Get and Post) such that common
--- verification such as CSRF protection is enabled.
-type FormH a = UnprotectedFormH.FormH HTM H.Html a
-
-formH :: forall payload.
-     ST                                     -- ^ formAction
-  -> Form H.Html FAction payload            -- ^ processor1
-  -> (payload -> FAction H.Html)            -- ^ processor2
-  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
-  -> ServerT (FormH payload) FAction
-formH fa p1 p2 =
-    UnprotectedFormH.formH fa
-        ((,) <$> (CsrfToken <$> ("_csrf" .: text Nothing)) <*> p1)
-        (\(csrfToken, payload)-> checkCsrfToken csrfToken >> p2 payload)
-
 -- * register (thentos)
 
 type UserRegisterH = "register" :> FormH UserFormData
@@ -97,7 +62,7 @@ type UserRegisterH = "register" :> FormH UserFormData
 userRegisterH :: ServerT UserRegisterH FAction
 userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages userRegisterPage)
   where
-    p :: UserFormData -> FAction H.Html
+    p :: UserFormData -> FAction Html
     p userFormData = do
         loggerF ("registering new user: " ++ show (udName userFormData))
         addUnconfirmedUser userFormData
@@ -111,7 +76,7 @@ userRegisterH = formH "/user/register" userRegisterForm p (showPageWithMessages 
 
 
 type UserRegisterConfirmH = "register_confirm" :>
-    QueryParam "token" ConfirmationToken :> Get
+    QueryParam "token" ConfirmationToken :> GetH
 
 defaultUserGroups :: [Group]
 defaultUserGroups = [GroupUser, GroupUserAdmin, GroupServiceAdmin]
@@ -136,25 +101,26 @@ userRegisterConfirmH (Just token) = do
 
 type UserLoginH = "login" :> FormH (UserName, UserPass)
 
--- | The login form is the only exception to the CSRF protection since there is no session yet.
--- This thus the only one to use UnprotectedFormH.formH directly.
+-- | The login form does not need to be protected against CSRF moreover since we have no session
+-- yet we couldn't
 userLoginH :: ServerT UserLoginH FAction
-userLoginH = UnprotectedFormH.formH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
+userLoginH = unprotectedFormH "/user/login" userLoginForm p (showPageWithMessages userLoginPage)
   where
-    p :: (UserName, UserPass) -> FAction H.Html
+    p :: (UserName, UserPass) -> FAction Html
     p (uname, passwd) =
         (startThentosSessionByUserName uname passwd >>= userFinishLogin)
             `catchError` userFailLogin
 
 -- | If action yields uid and session token, login.  Otherwise, redirect to login page with a
 -- message that asks to try again.
-userFinishLogin :: (UserId, ThentosSessionToken) -> FAction H.Html
+userFinishLogin :: (UserId, ThentosSessionToken) -> FAction Html
 userFinishLogin (uid, tok) = do
     fsdLogin .= Just (FrontendSessionLoginData tok uid (Just DashboardTabDetails))
+--    fsdCsrfToken .= Just
     sendFrontendMsg $ FrontendMsgSuccess "Login successful.  Welcome to Thentos!"
     redirectToDashboardOrService
 
-userFailLogin :: ThentosError FActionError -> FAction H.Html
+userFailLogin :: ThentosError FActionError -> FAction Html
 userFailLogin BadCredentials = do
     sendFrontendMsgs [FrontendMsgError "Bad username or password."]
     redirect' "/user/login"
@@ -170,7 +136,7 @@ resetPasswordRequestH =
     formH "/user/reset_password_request" resetPasswordRequestForm p
                                 (showPageWithMessages resetPasswordRequestPage)
   where
-    p :: UserEmail -> FAction H.Html
+    p :: UserEmail -> FAction Html
     p uemail = do
         fcfg <- getFrontendCfg
         loggerF ("password reset request: " ++ show uemail)
@@ -198,7 +164,7 @@ resetPasswordH :: ServerT ResetPasswordH FAction
 resetPasswordH mTok = formH "/usr/reset_password" resetPasswordForm (p mTok)
                                             (showPageWithMessages resetPasswordPage)
   where
-    p :: Maybe PasswordResetToken -> UserPass -> FAction H.Html
+    p :: Maybe PasswordResetToken -> UserPass -> FAction Html
     p Nothing _ = crash FActionErrorNoToken
     p (Just tok) password = do
         void $ resetPassword tok password
@@ -240,7 +206,7 @@ emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
   where
     r = switchTab DashboardTabDetails emailUpdateSnippet
 
-    p :: UserEmail -> FAction H.Html
+    p :: UserEmail -> FAction Html
     p uemail = do
         loggerF ("email change request: " ++ show uemail)
         fcfg <- getFrontendCfg
@@ -262,7 +228,7 @@ emailUpdateH = formH "/user/reset_password_request" emailUpdateForm p r
 
 
 type EmailUpdateConfirmH = "update_email_confirm" :>
-    QueryParam "token" ConfirmationToken :> Get
+    QueryParam "token" ConfirmationToken :> GetH
 
 emailUpdateConfirmH :: ServerT EmailUpdateConfirmH FAction
 emailUpdateConfirmH Nothing = crash FActionErrorNoToken
@@ -285,7 +251,7 @@ passwordUpdateH = formH "/user/update_password" p1 p2 r
 
     p1 = passwordUpdateForm
 
-    p2 :: (UserPass, UserPass) -> FAction H.Html
+    p2 :: (UserPass, UserPass) -> FAction Html
     p2 (oldPass, newPass) = do
         loggerF ("password change request." :: String)
         let go = runAsUserOrLogin $ \_ fsl -> changePassword (fsl ^. fslUserId) oldPass newPass
@@ -302,11 +268,11 @@ passwordUpdateH = formH "/user/update_password" p1 p2 r
 -- * dashboard
 
 type DashboardH =
-       Get
-  :<|> "details"     :> Get
-  :<|> "services"    :> Get
-  :<|> "ownservices" :> Get
-  :<|> "users"       :> Get
+       GetH
+  :<|> "details"     :> GetH
+  :<|> "services"    :> GetH
+  :<|> "ownservices" :> GetH
+  :<|> "users"       :> GetH
 
 dashboardH :: ServerT DashboardH FAction
 dashboardH =
@@ -322,16 +288,16 @@ dashboardH =
 -- (FIXME: the whole way tabs are switched could use a bit more work.
 -- At least switching tab is now factored at a single place.)
 switchTab  :: DashboardTab
-           -> (FrontendSessionData -> v -> a -> User -> [Group] -> H.Html)
-           -> v -> a -> Action FActionError FrontendSessionData H.Html
+           -> (FrontendSessionData -> v -> a -> User -> [Group] -> Html)
+           -> v -> a -> Action FActionError FrontendSessionData Html
 switchTab tab snippet v a = do
     setTab tab
     fsd <- get
     renderDashboard $ snippet fsd v a
 
 switchTab'  :: DashboardTab
-            -> (User -> [Group] -> H.Html)
-            -> Action FActionError FrontendSessionData H.Html
+            -> (User -> [Group] -> Html)
+            -> Action FActionError FrontendSessionData Html
 switchTab' tab snippet = setTab tab >> renderDashboard snippet
 
 -- FIXME: this route should be something more like @/service/create@.
@@ -343,7 +309,7 @@ serviceCreateH = formH "/service/create" serviceCreateForm p r
   where
     r = switchTab DashboardTabDetails serviceCreateSnippet
 
-    p :: (ServiceName, ServiceDescription) -> FAction H.Html
+    p :: (ServiceName, ServiceDescription) -> FAction Html
     p (name, description) = do
         loggerF ("service creation request." :: String)
         (sid, key) <- runAsUserOrLogin $ \_ fsl -> addService (fsl ^. fslUserId) name description
@@ -373,7 +339,7 @@ serviceRegisterH = formH "/service/register" serviceRegisterForm (\() -> p) r
         (_, user) <- runAsUserOrLogin $ \_ fsl -> lookupConfirmedUser $ fsl ^. fslUserId
         pure $ serviceRegisterPage fsd v a sid service user
 
-    p :: FAction H.Html
+    p :: FAction Html
     p = do
         ServiceLoginState sid rr <- getServiceLoginState
         runAsUserOrLogin $ \_ fsl -> addServiceRegistration (fsl ^. fslToken) sid
@@ -383,7 +349,7 @@ serviceRegisterH = formH "/service/register" serviceRegisterForm (\() -> p) r
 type ServiceLoginH = "login"
                   :> QueryParam "serviceId" ServiceId
                   :> QueryParam "redirect" RelRef
-                  :> Get
+                  :> GetH
 
 -- | Coming from a service site, handle the authentication and redirect to service with valid
 -- session token.  This may happen in a series of redirects through the thentos frontend; the state
@@ -423,38 +389,9 @@ serviceLoginH (Just sid) (Just (RelRef rr)) = do
 
 -- | If a service login state exists, consume it, jump back to the
 -- service, and log in.  If not, jump to `/dashboard`.
-redirectToDashboardOrService :: FAction H.Html
+redirectToDashboardOrService :: FAction Html
 redirectToDashboardOrService = do
     mCallback <- popServiceLoginState
     case mCallback of
         Just sls -> redirectRR $ sls ^. fslRR
         Nothing  -> redirect' "/dashboard"
-
-
--- * Cache control
-
--- | Disable response caching. The wrapped handler can overwrite this by
--- setting its own cache control headers.
---
--- Cache-control headers are only added to GET and HEAD responses since other request methods
--- are considered uncachable by default.
---
--- According to the HTTP 1.1 Spec, GET/HEAD responses with the following error codes (>= 400) may
--- be cached unless forbidded by cache-control headers:
---
--- * 404 Not Found
--- * 405 Method Not Allowed
--- * 410 Gone
--- * 414 Request-URI Too Long
--- * 501 Not Implemented
-disableCaching :: Middleware
-disableCaching app req cont = app req $
-    cont . (if relevantMeth then addHeadersToResponse cacheHeaders else id)
-  where
-    cacheHeaders =
-        [ ("Cache-Control", "no-cache, no-store, must-revalidate")
-        , ("Expires", "0")
-        ]
-
-    relevantMeth :: Bool
-    relevantMeth = requestMethod req `elem` ["GET", "HEAD"]

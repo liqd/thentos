@@ -32,7 +32,7 @@ import Thentos.Config
 import Thentos.Frontend.CSRF
 import Thentos.Frontend.Types
 
-import qualified Thentos.Frontend.Pages as Pages
+import qualified Thentos.Frontend.Pages.Core as Pages
 import qualified Thentos.Action.Unsafe as U
 
 
