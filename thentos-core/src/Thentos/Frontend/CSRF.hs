@@ -8,6 +8,7 @@ module Thentos.Frontend.CSRF
     ( CsrfSecret(CsrfSecret)
     , genCsrfSecret
     , validFormatCsrfSecretField
+    , validFormatCsrfToken
     , checkCsrfToken
     , refreshCsrfToken
     , clearCsrfToken
