@@ -60,7 +60,8 @@ import Data.Void (Void)
 import Database.PostgreSQL.Simple (Connection)
 import Network.HTTP.Types.Header (Header)
 import System.Directory (getCurrentDirectory, setCurrentDirectory)
-import System.Process (callCommand)
+import System.Exit (ExitCode(ExitSuccess))
+import System.Process (system)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -223,11 +224,16 @@ createActionState' cfg = ActionState cfg <$> (drgNew >>= newMVar) <*> createDb c
 
 -- | Create a connection to a DB.  Whipes the DB.
 createDb :: ThentosConfig -> IO (Pool Connection)
-createDb cfg = callCommand (createCmd <> " && " <> wipeCmd) >> createConnPoolAndInitDb cfg
+createDb cfg = do
+    _           <- system createCmd
+    ExitSuccess <- system wipeCmd
+    createConnPoolAndInitDb cfg
   where
+    verbose   = False
+    stdouterr = if verbose then "" else " >/dev/null 2>/dev/null"
     dbname    = cs $ cfg >>. (Proxy :: Proxy '["database", "name"])
-    createCmd = "createdb " <> dbname <> " 2>/dev/null || true"
-    wipeCmd   = "psql --quiet --file=" <> wipeFile <> " " <> dbname <> " >/dev/null 2>&1"
+    createCmd = "createdb " <> dbname <> stdouterr
+    wipeCmd   = "psql --file=" <> wipeFile <> " " <> dbname <> stdouterr
 
 loginAsDefaultUser :: ActionState -> IO (ThentosSessionToken, Header)
 loginAsDefaultUser actionState = do
