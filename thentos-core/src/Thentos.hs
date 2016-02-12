@@ -84,8 +84,12 @@ makeMain commandSwitch =
           , "I just securely generated such a secret for you:"
           , "  " <> show freshCsrfSecret
           , ""
-          , "You can either use the field csrf_secret field from the configuration, or the"
-          , "CSRF_SECRET environement variable, or the command line flag --CSRF_SECRET."
+          , "You can either add the following line to the configuration:"
+          , "csrf_secret: " <> show freshCsrfSecret
+          , "or set the following environement variable:"
+          , "THENTOS_CSRF_SECRET=" <> show freshCsrfSecret
+          , "or pass the follwing command line flag:"
+          , "--csrf-secret=" <> show freshCsrfSecret
           , "Beware of keeping this value private, hence you might not want to put it in"
           , "a configuration file which is version controlled."
           ]
