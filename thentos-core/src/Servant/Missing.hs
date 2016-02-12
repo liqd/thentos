@@ -94,6 +94,8 @@ formH formAction processor1 processor2 renderer = getH :<|> postH
 -- 'processor2' responds to a @POST@, handles the validated input values, calculates the redirection address.
 -- Note that the renderer is monadic so that it can have effects (such as e.g. flushing a
 -- message queue in the session state).
+--
+-- FIXME: see github issue #494.
 formRedirectH :: forall payload m htm html.
      (Monad m, MonadError ServantErr m)
   => ST                              -- ^ formAction
