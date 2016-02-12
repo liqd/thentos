@@ -13,15 +13,18 @@
 module Servant.Missing
   (FormH
   ,FormReqBody
-  ,formH) where
+  ,formH
+  ,formRedirectH) where
 
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Identity (Identity, runIdentity)
 import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST)
+import Data.String.Conversions (ST, cs)
 import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
 import Network.Wai (Request)
 import Servant ((:<|>)((:<|>)), (:>), ServerT)
+import Servant.Server (ServantErr(..))
 import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
                                 route, addBodyCheck)
 import Text.Digestive (Env, Form, FormInput(TextInput), View, fromPath, getForm, postForm)
@@ -83,3 +86,32 @@ formH formAction processor1 processor2 renderer = getH :<|> postH
     postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
         \case (_,              Just payload) -> processor2 payload
               (v :: View html, Nothing)      -> renderer v formAction
+
+-- | Handle a route of type @'FormH' htm html payload@ and redirect afterwards.
+-- 'formAction' is used by digestive-functors as submit path for the HTML @FORM@ element.
+-- 'processor1' constructs the form, either as empty in response to a @GET@, or displaying validation
+-- errors in response to a @POST@.
+-- 'processor2' responds to a @POST@, handles the validated input values, calculates the redirection address.
+-- Note that the renderer is monadic so that it can have effects (such as e.g. flushing a
+-- message queue in the session state).
+--
+-- FIXME: see github issue #494.
+formRedirectH :: forall payload m htm html.
+     (Monad m, MonadError ServantErr m)
+  => ST                              -- ^ formAction
+  -> Form html m payload             -- ^ processor1
+  -> (payload -> m ST)               -- ^ processor2
+  -> (View html -> ST -> m html)     -- ^ renderer
+  -> ServerT (FormH htm html payload) m
+formRedirectH formAction processor1 processor2 renderer = getH :<|> postH
+  where
+    getH = do
+        v <- getForm formAction processor1
+        renderer v formAction
+
+    postH :: Env Identity -> m html
+    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
+        \case (_,              Just payload) -> processor2 payload >>= redirect
+              (v :: View html, Nothing)      -> renderer v formAction
+
+    redirect uri = throwError $ Servant.err303 { errHeaders = ("Location", cs uri) : errHeaders Servant.err303 }
