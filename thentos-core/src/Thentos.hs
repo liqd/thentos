@@ -31,6 +31,7 @@ import Thentos.Action.Core (runActionWithPrivs)
 import Thentos.Action.Types (Action, ActionState(..), aStDb, aStConfig)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
+import Thentos.Frontend.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
 import Thentos.Smtp (checkSendmail)
 import Thentos.Transaction.Core (createDB, runThentosQuery)
 import Thentos.Types
@@ -71,6 +72,27 @@ makeMain commandSwitch =
 
         mFeConfig :: Maybe HttpConfig
         mFeConfig = Tagged <$> config >>. (Proxy :: Proxy '["frontend"])
+
+        csrfSecret :: Maybe ST
+        csrfSecret = config >>. (Proxy :: Proxy '["csrf_secret"])
+
+    when (isJust mFeConfig && not (validFormatCsrfSecretField csrfSecret)) $ do
+        CsrfSecret freshCsrfSecret <- genCsrfSecret
+        throwIO . ErrorCall . unlines $
+          [ "The field csrf_secret is currently " <>
+            if isNothing csrfSecret then "missing." else "invalid."
+          , "I just securely generated such a secret for you:"
+          , "  " <> show freshCsrfSecret
+          , ""
+          , "You can either add the following line to the configuration:"
+          , "csrf_secret: " <> show freshCsrfSecret
+          , "or set the following environement variable:"
+          , "THENTOS_CSRF_SECRET=" <> show freshCsrfSecret
+          , "or pass the follwing command line flag:"
+          , "--csrf-secret=" <> show freshCsrfSecret
+          , "Beware of keeping this value private, hence you might not want to put it in"
+          , "a configuration file which is version controlled."
+          ]
 
     logger INFO "Press ^C to abort."
     let run = do

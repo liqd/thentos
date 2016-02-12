@@ -37,24 +37,11 @@ module Thentos.Frontend.Pages
     , serviceCreateForm
     , serviceRegisterPage
     , serviceRegisterForm
-
-    , errorPage
-    , errorPagelet
-    , permissionDeniedPage
-    , notFoundPage
-    , confirmationMailSentPage
-    , confirmationMailSentSnippet
     ) where
 
-import Control.Lens ((^.))
-import Control.Monad (when)
-import Data.Foldable (for_)
-import Data.Monoid ((<>))
-import Data.String.Conversions (ST)
-import Data.String (IsString)
-import Text.Blaze.Html (Html, (!), ToValue(toValue))
-import Text.Digestive.Blaze.Html5 (form, inputText, inputPassword, label, inputSubmit, childErrorList)
-import Text.Digestive.Form (Form, check, validate, text, (.:))
+import Text.Blaze.Html (Html, (!))
+import Text.Digestive.Blaze.Html5 (inputText, inputPassword, label, inputSubmit)
+import Text.Digestive.Form (Form, validate, text, (.:))
 import Text.Digestive.Types (Result(Success, Error))
 import Text.Digestive.View (View)
 
@@ -62,39 +49,10 @@ import qualified Data.Text as ST
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
+import Thentos.Frontend.Pages.Core
 import Thentos.Frontend.Types
+import Thentos.Prelude
 import Thentos.Types
-
-
--- * base
-
--- | Call 'basePagelet'' without optional headings.
-basePagelet :: FrontendSessionData -> ST -> Html -> Html
-basePagelet fsd title = basePagelet' fsd title Nothing
-
--- | Create an html document with default headings from title,
--- optional headings, and body.
-basePagelet' :: FrontendSessionData -> ST -> Maybe Html -> Html -> Html
-basePagelet' fsd title mHeadings body = H.docTypeHtml $ do
-    H.head $ do
-        H.title $ H.text title
-        H.link H.! A.rel "stylesheet" H.! A.href "/screen.css"
-        sequence_ mHeadings
-    H.body $ do
-        H.div . H.ul . mapM_ (H.li . H.string . show) $ (fsd ^. fsdMessages)
-        H.h1 $ H.text title
-        body
-
--- | Protect a form from CSRF attacks by including a secret token as a hidden field.
-csrfProofForm :: FrontendSessionData -> View Html -> ST -> Html -> Html
-csrfProofForm _ v action = form v action . (<> csrfField)
-  where
-    csrfToken :: ST
-    csrfToken = "wef"  -- BUG #400: get from state
-
-    csrfField :: Html
-    csrfField = H.input H.! A.type_ "hidden" H.! A.name "_csrf" H.! A.value (toValue csrfToken)
-
 
 -- * dashboard
 
@@ -106,7 +64,7 @@ dashboardPagelet :: FrontendSessionData -> [Group] -> Html -> Html
 dashboardPagelet fsd availableGroups body =
     basePagelet fsd "Thentos Dashboard" $ do
         H.div . H.table . H.tr $ mapM_ tabLink [minBound..]
-        H.div H.! A.class_ "dashboard_body" $ body
+        H.div ! A.class_ "dashboard_body" $ body
   where
     tabLink :: DashboardTab -> Html
     tabLink tab =
@@ -153,7 +111,6 @@ dashboardPagelet fsd availableGroups body =
 
 userRegisterPage :: FrontendSessionData -> View Html -> ST -> Html
 userRegisterPage fsd v formAction = basePagelet fsd "Create User" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "User name:"
@@ -190,7 +147,6 @@ userRegisterRequestedPage fsd = confirmationMailSentPage fsd "Create User"
 
 userLoginPage :: FrontendSessionData -> View Html -> ST -> Html
 userLoginPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.table $ do
             H.tr $ do
@@ -219,7 +175,6 @@ userLoginForm = (,)
 
 resetPasswordRequestPage :: FrontendSessionData -> View Html -> ST -> Html
 resetPasswordRequestPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             H.text "You can send yourself an email with a link to the password reset page."
@@ -237,7 +192,6 @@ resetPasswordRequestedPage fsd = confirmationMailSentPage fsd "Password Reset"
 
 resetPasswordPage :: FrontendSessionData -> View Html -> ST -> Html
 resetPasswordPage fsd v formAction = basePagelet fsd "Thentos Login" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "password1" v "New password: "
@@ -254,9 +208,8 @@ resetPasswordForm = validate validatePass $ (,)
 
 
 -- * logout (thentos)
-
-userLogoutConfirmSnippet :: ST -> [ServiceName] -> ST -> u -> rs -> Html
-userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
+userLogoutConfirmSnippet :: [ServiceName] -> FrontendSessionData -> View Html -> ST -> u -> gs -> Html
+userLogoutConfirmSnippet serviceNames fsd v formAction _ _ = do
     H.p . H.text . ST.unlines $
         "You are about to logout from thentos." :
         "This will log you out from the following services/sites:" :
@@ -266,10 +219,8 @@ userLogoutConfirmSnippet formAction serviceNames _ _ _ = do
         else H.ul . for_ serviceNames $ H.li . H.text . fromServiceName
     H.table . H.tr $ do
         H.td $ do
-            H.form ! A.method "POST" ! A.action (H.textValue formAction) $ do
-                H.input ! A.type_ "submit" ! A.value "Log Out" ! A.id "logout_submit"
-                -- makeCsrfField csrfToken
-                -- BUG #401: do we need csrf protection here?  if so: did this ever work?
+            csrfProofForm fsd v formAction $ do
+                inputSubmit "Log Out" ! A.id "logout_submit"
         H.td $ do
             H.a ! A.href "/dashboard" $ "Back to dashboard"
 
@@ -328,7 +279,6 @@ userServicesDisplaySnippet _ _ = do
 
 emailUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 emailUpdateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "email" v "Email Address: "
@@ -341,7 +291,6 @@ emailUpdateForm = "email" .: validateEmail (text Nothing)
 
 passwordUpdateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 passwordUpdateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "old_password" v "Current Password: "
@@ -365,7 +314,6 @@ passwordUpdateForm = validate validatePassChange $ (,,)
 
 serviceCreateSnippet :: FrontendSessionData -> View Html -> ST -> u -> rs -> Html
 serviceCreateSnippet fsd v formAction _ _ = do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.p $ do
             label "name" v "Service name:"
@@ -383,7 +331,6 @@ serviceCreateForm =
 
 serviceRegisterPage :: FrontendSessionData -> View Html -> ST -> ServiceId -> Service -> User -> Html
 serviceRegisterPage fsd v formAction sid service user = basePagelet fsd "Register with Service" $ do
-    childErrorList "" v
     csrfProofForm fsd v formAction $ do
         H.hr
         H.p $ "Your name: " <> H.text (fromUserName $ user ^. userName)
@@ -397,63 +344,3 @@ serviceRegisterPage fsd v formAction sid service user = basePagelet fsd "Registe
 
 serviceRegisterForm :: Monad m => Form Html m ()
 serviceRegisterForm = pure ()
-
-
--- * util
-
--- ** error / status reports to the user
-
-errorPage :: String -> Html
-errorPage = basePagelet fsd "Error" . errorHtml
-  where
-    fsd = emptyFrontendSessionData
-
-errorPagelet :: u -> rs -> String -> Html
-errorPagelet _ _ = errorHtml
-
-errorHtml :: String -> Html
-errorHtml = H.string . ("*** error: " ++) . show
-
-permissionDeniedPage :: Html
-permissionDeniedPage = basePagelet' fsd "Permission Denied" Nothing
-    (H.a ! A.href "/dashboard" $ "Back to dashboard")
-  where
-    fsd = emptyFrontendSessionData
-
-notFoundPage :: Html
-notFoundPage = basePagelet fsd "Not Found" $ H.p "The requested page does not exist."
-  where
-    fsd = emptyFrontendSessionData
-
-confirmationMailSentPage :: FrontendSessionData -> ST -> ST -> ST -> Html
-confirmationMailSentPage fsd title msg1 msg2 =
-    basePagelet fsd title $ confirmationMailSentBody msg1 msg2
-
-confirmationMailSentSnippet :: ST -> ST -> u -> rs -> Html
-confirmationMailSentSnippet msg1 msg2 _ _ = confirmationMailSentBody msg1 msg2
-
-confirmationMailSentBody :: ST -> ST -> Html
-confirmationMailSentBody msg1 msg2 = H.p . H.text . ST.unlines $
-    msg1 :
-    "Please check your email (don't forget the spam folder)" :
-    "and complete " <> msg2 <> " by following the link we sent you." :
-    []
-
-
--- ** form field validation
-
-validateNonEmpty :: (Monoid v, IsString v, Monad m) => v -> Form v m ST -> Form v m ST
-validateNonEmpty fieldName = check (fieldName <> " must not be empty") (not . ST.null)
-
-validateEmail :: (Monoid v, IsString v, Monad m) => Form v m ST -> Form v m UserEmail
-validateEmail = validate $ maybe (Error "email address invalid") Success . parseUserEmail
-
-validatePass :: (UserPass, UserPass) -> Result Html UserPass
-validatePass (p1, p2)
-    | p1 == p2  = Success p1
-    | otherwise = Error "passwords don't match"
-
-validatePassChange :: (UserPass, UserPass, UserPass) -> Result Html (UserPass, UserPass)
-validatePassChange (old, new1, new2)
-    | new1 == new2 = Success (old, new1)
-    | otherwise    = Error "passwords don't match"

@@ -122,6 +122,7 @@ thentosTestConfigYaml = YamlString . cs . unlines $
     "            please use the link below to reset your password." :
     "" :
     "            {{reset_url}}" :
+    "csrf_secret: 1daf3741e8a9ae1b39fd7e9cc7bab44ee31b6c3119ab5c3b05ac33cbb543289c" :
     []
 
 -- | Force a Text to be parsed as email address, throwing an error if it fails.

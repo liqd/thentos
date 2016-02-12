@@ -76,6 +76,7 @@ type ThentosConfig' =
   :*>       ("log"          :> LogConfig'            :>: "Logging")
   :*> Maybe ("signup_log"   :> ST                    :>: "Path of signup log file")
   :*>       ("email_templates" :> EmailTemplates'    :>: "Mail templates")
+  :*> Maybe ("csrf_secret" :> ST                     :>: "The secret necessary to prevent CSRF attacks")
 
 defaultThentosConfig :: ToConfig (ToConfigCode ThentosConfig') Maybe
 defaultThentosConfig =
@@ -97,6 +98,7 @@ defaultThentosConfig =
   :*> Nothing
   :*> NothingO
   :*> Just defaultEmailTemplates
+  :*> NothingO
 
 type HttpConfig = Tagged (ToConfigCode HttpConfig')
 type HttpConfig' =

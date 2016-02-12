@@ -43,6 +43,7 @@ extra-deps:
 - servant-session-0.5
 - wai-digestive-functors-0.3
 - wai-util-0.8
+- xml-html-conduit-lens-0.3.2.1
 
 # Override default flag values for local packages and extra-deps
 flags: {}
