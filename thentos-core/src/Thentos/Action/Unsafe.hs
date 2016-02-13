@@ -2,7 +2,6 @@
 
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 
 module Thentos.Action.Unsafe
