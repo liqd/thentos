@@ -70,6 +70,7 @@ library
     , Thentos.Action.Core
     , Thentos.Action.SimpleAuth
     , Thentos.Action.Types
+    , Thentos.Action.TCB
     , Thentos.Action.Unsafe
     , Thentos.Backend.Api.Auth
     , Thentos.Backend.Api.Auth.Types

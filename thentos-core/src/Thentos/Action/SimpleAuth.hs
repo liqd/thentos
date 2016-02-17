@@ -1,12 +1,12 @@
 {- Safe -}
 
+{-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
 
 -- | Simplified access to 'Action' with guarded exits.
 module Thentos.Action.SimpleAuth
-  ( UnsafeAction(..)
-  , assertAuth
+  ( assertAuth
   , hasAgent
   , hasUserId
   , hasServiceId
@@ -19,27 +19,27 @@ import LIO.Core (liftLIO, taint)
 import LIO.DCLabel ((%%))
 
 import LIO.Missing
-import Thentos.Action.Types
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Types
+import Thentos.Action.Types (MonadThentosIO)
 
 
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.
-assertAuth :: Action e s Bool -> Action e s ()
+assertAuth :: MonadThentosIO m => m Bool -> m ()
 assertAuth utest = ifM utest (pure ()) (liftLIO $ taint dcTop)
 
-hasAgent :: Agent -> Action e s Bool
+hasAgent :: MonadThentosIO m => Agent -> m Bool
 hasAgent (UserA u) = hasUserId u
 hasAgent (ServiceA s) = hasServiceId s
 
-hasUserId :: UserId -> Action e s Bool
+hasUserId :: MonadThentosIO m => UserId -> m Bool
 hasUserId uid = guardWriteOk (UserA uid %% UserA uid)
 
-hasServiceId :: ServiceId -> Action e s Bool
+hasServiceId :: MonadThentosIO m => ServiceId -> m Bool
 hasServiceId sid = guardWriteOk (ServiceA sid %% ServiceA sid)
 
-hasGroup :: Group -> Action e s Bool
+hasGroup :: MonadThentosIO m => Group -> m Bool
 hasGroup g = guardWriteOk (g %% g)
 
-hasPrivilegedIP :: Action e s Bool
+hasPrivilegedIP :: MonadThentosIO m => m Bool
 hasPrivilegedIP = guardWriteOk (PrivilegedIP %% PrivilegedIP)

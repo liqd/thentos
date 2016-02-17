@@ -34,6 +34,7 @@ import Safe (readMay)
 import URI.ByteString (URIParseError)
 
 import Thentos.Backend.Api.Docs.Proxy ()
+import Thentos.Action.Types (ActionStack)
 import Thentos.Types
 import Thentos.Util
 
@@ -41,7 +42,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as ST
-import qualified Thentos.Action.Types (Action)
 import qualified Thentos.Backend.Api.Simple ()
 
 
@@ -89,7 +89,7 @@ instance ToJSON A3ErrorMessage where
 instance FromJSON A3ErrorMessage where
     parseJSON = withObject "A3-style error message" $ \v -> A3ErrorMessage <$> (v .: "errors")
 
-type A3Action = Thentos.Action.Types.Action ThentosA3Error ()
+type A3Action = ActionStack ThentosA3Error ()
 
 
 -- * data types

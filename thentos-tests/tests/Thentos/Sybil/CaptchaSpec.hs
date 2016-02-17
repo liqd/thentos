@@ -73,7 +73,7 @@ spec = describe "Thentos.Sybil.Captcha" $ do
 generateAudioCaptcha' :: String -> Random20 -> IO (SBS, ST)
 generateAudioCaptcha' voice rnd = fst <$> do
     as <- createActionState
-    runAction () as $ (generateAudioCaptcha voice rnd :: Action Void () (SBS, ST))
+    runAction () as $ (generateAudioCaptcha voice rnd :: ActionStack Void () (SBS, ST))
 
 mkRandom20' :: IO Random20
 mkRandom20' = do

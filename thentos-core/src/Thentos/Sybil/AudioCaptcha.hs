@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ViewPatterns         #-}
 
@@ -28,7 +29,7 @@ checkEspeak = void $ readProcess "espeak" ["--version"] ""
 -- | Generate a captcha. Returns a pair of the binary audio data in WAV format and the correct
 -- solution to the captcha.  (Return value is wrapped in 'Action' for access to 'IO' and for
 -- throwing 'ThentosError'.)
-generateAudioCaptcha :: String -> Random20 -> Action e s (SBS, ST)
+generateAudioCaptcha :: (MonadThentosIO m, MonadThentosError e m) => String -> Random20 -> m (SBS, ST)
 generateAudioCaptcha eSpeakVoice rnd = do
     let solution = mkAudioSolution rnd
     challenge <- mkAudioChallenge eSpeakVoice solution
@@ -41,7 +42,7 @@ mkAudioSolution = ST.intercalate " "
                 . (cs . show . (`mod` 10) <$>)
                 . take 6 . SBS.unpack . fromRandom20
 
-mkAudioChallenge :: String -> ST -> Action e s SBS
+mkAudioChallenge :: (MonadThentosIO m, MonadThentosError e m) => String -> ST -> m SBS
 mkAudioChallenge eSpeakVoice solution = do
     unless (validateLangCode eSpeakVoice) $ do
         throwError $ AudioCaptchaVoiceNotFound eSpeakVoice

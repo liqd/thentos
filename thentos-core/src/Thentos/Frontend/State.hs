@@ -8,7 +8,7 @@ module Thentos.Frontend.State where
 
 import Control.Monad.Except.Missing (finally)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Configifier (Tagged(Tagged))
 import LIO.TCB (ioTCB)
 import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
@@ -27,13 +27,13 @@ import qualified Network.Wai.Session.Map as SessionMap
 import Thentos.Prelude
 import Thentos.Action.Core
 import Thentos.Action.Types
+import Thentos.Action.TCB
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.CSRF
 import Thentos.Frontend.Types
 
 import qualified Thentos.Frontend.Pages.Core as Pages
-import qualified Thentos.Action.Unsafe as U
 
 
 -- BUG #406: EU-required user notifications about cookies
@@ -100,11 +100,14 @@ thentosSessionMiddleware = do
 
 -- * frontend action monad
 
+type FActionStack = ActionStack FActionError FrontendSessionData
+
+-- FIXME: Using MonadFAction instead of FActionStack leads to an ambiguity here.
 serveFAction :: forall api.
         ( HasServer api
-        , Enter (ServerT api FAction) (FAction :~> ExceptT ServantErr IO) (Server api)
+        , Enter (ServerT api FActionStack) (FActionStack :~> ExceptT ServantErr IO) (Server api)
         )
-     => Proxy api -> ServerT api FAction -> ActionState -> IO Application
+     => Proxy api -> ServerT api FActionStack -> ActionState -> IO Application
 serveFAction _ fServer aState = (\(mw, key) -> mw $ app key) <$> thentosSessionMiddleware
   where
     app :: Vault.Key FSession -> Application
@@ -113,21 +116,23 @@ serveFAction _ fServer aState = (\(mw, key) -> mw $ app key) <$> thentosSessionM
     server' :: Vault.Key FSession -> FSessionMap -> Server api
     server' key smap = enter nt fServer
       where
-        nt :: FAction :~> ExceptT ServantErr IO
+        nt :: FActionStack :~> ExceptT ServantErr IO
         nt = enterFAction aState key smap
 
+-- FIXME: As long as runActionE is using Action, using MonadFAction instead of FActionStack
+-- is impossible here.
 enterFAction ::
        ActionState
     -> Vault.Key FSession
     -> FSessionMap
-    -> FAction :~> ExceptT ServantErr IO
+    -> FActionStack :~> ExceptT ServantErr IO
 enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . run
   where
-    run :: forall a. FAction a -> IO (Either (ActionError FActionError) a)
+    run :: forall a. FActionStack a -> IO (Either (ActionError FActionError) a)
     run fServer = fst <$> runActionE emptyFrontendSessionData aState fServer'
       where
-        fServer' :: FAction a
-        fServer' =
+        fServer' :: FActionStack a
+        fServer' = do
             case smap key of
                 Nothing ->
                     -- FIXME: this case should not be code 500, as it can (probably) be provoked by
@@ -137,24 +142,22 @@ enterFAction aState key smap = Nat $ ExceptT . (>>= _Left fActionServantErr) . r
                     cookieToFSession (lkup ())
                     maybeSessionToken <- preuse (fsdLogin . _Just . fslToken)
                     -- Update privileges and refresh the CSRF token if there is a session token
-                    mapM_ U.extendClearanceOnThentosSession maybeSessionToken
+                    mapM_ extendClearanceOnThentosSession maybeSessionToken
                     when (isJust maybeSessionToken) refreshCsrfToken
                     fServer `finally` (do
                         clearCsrfToken -- could be replaced by 'refreshCsrfToken'
                         cookieFromFSession (ins ()))
 
--- | Write 'FrontendSessionData' from the servant-session state to 'FAction' state.  If there is no
--- state, do nothing.
-cookieToFSession :: IO (Maybe FrontendSessionData) -> FAction ()
+-- | Write 'FrontendSessionData' from the servant-session state to 'MonadFAction' state.  If there
+-- is no state, do nothing.
+cookieToFSession :: (MonadThentosIO m, MonadThentosFState m) => IO (Maybe FrontendSessionData) -> m ()
 cookieToFSession r = liftLIO (ioTCB r) >>= mapM_ put
 
--- | Read 'FrontendSessionData' from 'FAction' and write back into servant-session state.
-cookieFromFSession :: (FrontendSessionData -> IO ()) -> FAction ()
+-- | Read 'FrontendSessionData' from 'MonadFAction' and write back into servant-session state.
+cookieFromFSession :: (MonadThentosIO m, MonadThentosFState m) => (FrontendSessionData -> IO ()) -> m ()
 cookieFromFSession w = get >>= liftLIO . ioTCB . w
 
-getFrontendCfg :: FAction HttpConfig
+getFrontendCfg :: (MonadThentosIO m, MonadThentosReader m) => m HttpConfig
 getFrontendCfg = do
-    Just (feConfig :: HttpConfig)
-        <- (\c -> Tagged <$> c >>. (Proxy :: Proxy '["frontend"]))
-            <$> U.unsafeAction U.getConfig
+    Just (feConfig :: HttpConfig) <- (Tagged <$>) <$> getConfigField (Proxy :: Proxy '["frontend"])
     return feConfig

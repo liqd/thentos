@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE ViewPatterns         #-}
 
@@ -20,7 +21,7 @@ import Test.Hspec.Wai (request, shouldRespondWith)
 import Test.Hspec.Wai.Internal (WaiSession(..), runWaiSession)
 import Text.Blaze.Html (Html)
 import Text.Digestive.Blaze.Html5 (inputText, label, inputSubmit)
-import Text.Digestive.Form (Form, text, (.:))
+import Text.Digestive.Form (text, (.:))
 import Text.Digestive.View (View)
 import Servant.Server.Internal.ServantErr (errHTTPCode, errHeaders, errBody)
 
@@ -219,10 +220,9 @@ type TestApi =
   :<|> Capture "id" ST :> QueryParam "crash" Bool :> Post '[JSON] ()
   :<|> Get '[JSON] [ST]
 
-csrfApi :: ServerT (FormH [FrontendMsg]) FAction
+csrfApi :: FormHandler (ServerT (FormH [FrontendMsg]))
 csrfApi = formH "/csrf" p1 p2 r
   where
-    p1 :: Form Html FAction [FrontendMsg]
     p1 = (pure . FrontendMsgSuccess) <$> "message" .: text Nothing
 
     csrfPage :: FrontendSessionData -> View Html -> ST -> Html
@@ -241,7 +241,7 @@ csrfApi = formH "/csrf" p1 p2 r
     r :: View Html -> ST -> FAction Html
     r = showPageWithMessages csrfPage
 
-testApi :: Maybe FrontendSessionLoginData -> ServerT TestApi FAction
+testApi :: Maybe FrontendSessionLoginData -> FormHandler (ServerT TestApi)
 testApi mfsl = session :<|> csrfApi :<|> post_ :<|> read_
   where
     session = fsdLogin .= mfsl

@@ -26,10 +26,12 @@ import qualified Data.Text as ST
 import qualified URI.ByteString as URI
 
 import Thentos.Adhocracy3.Action.Types
+import Thentos.Action.TCB (loggerA)
 import Thentos.Config
 import Thentos.Types
 
 import qualified Thentos.Action as A
+import qualified Thentos.Action.TCB as A
 import qualified Thentos.Action.Unsafe as U
 import qualified Thentos.Adhocracy3.Action.Unsafe as U
 
@@ -38,11 +40,11 @@ import qualified Thentos.Adhocracy3.Action.Unsafe as U
 -- (confirmed), a persona is created in thentos together with a corresponding adhocracy user in A3
 -- that corresponds to that persona.
 addUser :: A3UserWithPass -> A3Action TypedPathWithCacheControl
-addUser (A3UserWithPass user) = U.logIfError' $ do
-    U.unsafeAction . U.logger DEBUG . ("route addUser: " <>) . cs .
+addUser (A3UserWithPass user) = A.logIfError $ do
+    loggerA DEBUG . ("route addUser: " <>) . cs .
         Aeson.encodePretty $ A3UserNoPass user
     A.addUnconfirmedUser user
-    config <- U.unsafeAction U.getConfig
+    config <- A.getConfig
     let dummyPath = a3backendPath config ""
     return $ TypedPathWithCacheControl (TypedPath dummyPath CTUser) [] [] [] []
 
@@ -62,8 +64,8 @@ addUser (A3UserWithPass user) = U.logIfError' $ do
 -- so that the user is able to log into A3. The user's actual password and email address are
 -- only stored in Thentos and NOT exposed to A3.
 activate :: ActivationRequest -> A3Action RequestResult
-activate ar@(ActivationRequest confToken) = U.logIfError' $ do
-    U.unsafeAction . U.logger DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
+activate ar@(ActivationRequest confToken) = A.logIfError $ do
+    loggerA DEBUG . ("route activate:" <>) . cs $ Aeson.encodePretty ar
     (uid, stok) <- A.confirmNewUser confToken
     -- Promote access rights so we can look up the user and create a persona
     U.extendClearanceOnAgent (UserA uid)
@@ -86,7 +88,7 @@ makeExternalUrl pn = U.createUserInA3 pn >>= f
         | ST.null localPath = do
             throwError . OtherError . A3UriParseError . URI.OtherError $ "bad A3 user uri: " <> cs path
         | otherwise = do
-            config <- U.unsafeAction U.getConfig
+            config <- A.getConfig
             let (Path fullPath) = a3backendPath config localPath
             case parseUri $ cs fullPath  of
                 Left err  -> throwError . OtherError $ A3UriParseError err
@@ -94,8 +96,8 @@ makeExternalUrl pn = U.createUserInA3 pn >>= f
 
 -- | Log a user in.
 login :: LoginRequest -> A3Action RequestResult
-login r = U.logIfError' $ do
-    U.unsafeAction $ U.logger DEBUG "/login/"
+login r = A.logIfError $ do
+    loggerA DEBUG "/login/"
     (uid, stok) <- case r of
         LoginByName  uname pass -> A.startThentosSessionByUserName uname pass
         LoginByEmail email pass -> A.startThentosSessionByUserEmail email pass
@@ -104,8 +106,8 @@ login r = U.logIfError' $ do
 
 -- | Finish password reset with email confirmation and open a new ThentosSession for the user.
 resetPassword :: PasswordResetRequest -> A3Action RequestResult
-resetPassword (PasswordResetRequest resetTok pass) = U.logIfError' $ do
-    U.unsafeAction . U.logger DEBUG $ "route password_reset for token: " <> show resetTok
+resetPassword (PasswordResetRequest resetTok pass) = A.logIfError $ do
+    loggerA DEBUG $ "route password_reset for token: " <> show resetTok
     uid <- A.resetPassword resetTok pass
     sessTok <- A.startThentosSessionByUserId uid pass
     userUrl <- externalUrlOfDefaultPersona uid
@@ -125,7 +127,7 @@ a3backendPath config localPath = Path $ cs (exposeUrl beHttp) <//> localPath
 -- | Find the ServiceId of the A3 backend, which should be registered as default proxied app.
 a3ServiceId :: A3Action ServiceId
 a3ServiceId = do
-    config  <- U.unsafeAction U.getConfig
+    config  <- A.getConfig
     maybe (error "a3ServiceId: A3 proxy not configured") return $
         ServiceId <$> config >>. (Proxy :: Proxy '["proxy", "service_id"])
 

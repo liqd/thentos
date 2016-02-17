@@ -18,7 +18,6 @@ import Control.Monad.Except (catchError, throwError)
 import Control.Monad (when)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
-import Data.Void (Void)
 import Network.HTTP.Types (methodOptions)
 import Network.HTTP.Types.Status (ok200)
 import Network.Wai (Application)
@@ -35,7 +34,7 @@ import qualified Servant.Foreign.Internal as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState, Action)
+import Thentos.Action.Types (ActionState, MonadQuery)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -125,26 +124,26 @@ type ThentosCaptchaFrontend =
 type ThentosCaptchaBackend =
        "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool) -- FIXME: this should return status 200, not 201
 
-thentosCaptchaFrontend :: ServerT ThentosCaptchaFrontend (Action Void ())
+thentosCaptchaFrontend :: MonadQuery e m => ServerT ThentosCaptchaFrontend m
 thentosCaptchaFrontend =
        preflightH
   :<|> captchaImgH
-  :<|> (\_ -> preflightH)
+  :<|> const preflightH
   :<|> captchaWavH
 
-thentosCaptchaBackend :: ServerT ThentosCaptchaBackend (Action Void ())
+thentosCaptchaBackend :: MonadQuery e m => ServerT ThentosCaptchaBackend m
 thentosCaptchaBackend = captchaSolveH
 
-preflightH :: Action Void () (Headers CaptchaOptionsHeaders ())
+preflightH :: Applicative m => m (Headers CaptchaOptionsHeaders ())
 preflightH = pure $ addCaptchaOptionsHeaders ()
 
-captchaImgH :: Action Void () (Headers CaptchaHeaders ImageData)
-captchaImgH = (\(cid, img) -> addCaptchaHeaders cid img) <$> makeCaptcha
+captchaImgH :: MonadQuery e m => m (Headers CaptchaHeaders ImageData)
+captchaImgH = uncurry addCaptchaHeaders <$> makeCaptcha
 
-captchaWavH :: ST -> Action Void () (Headers CaptchaHeaders SBS)
-captchaWavH voice = (\(cid, wav) -> addCaptchaHeaders cid wav) <$> makeAudioCaptcha (cs voice)
+captchaWavH :: MonadQuery e m => ST -> m (Headers CaptchaHeaders SBS)
+captchaWavH voice = uncurry addCaptchaHeaders <$> makeAudioCaptcha (cs voice)
 
-captchaSolveH :: CaptchaSolution -> Action Void () (JsonTop Bool)
+captchaSolveH :: MonadQuery e m => CaptchaSolution -> m (JsonTop Bool)
 captchaSolveH (CaptchaSolution cid solution) = JsonTop <$> do
     correct <- solveCaptcha cid solution `catchError` h
     when correct $

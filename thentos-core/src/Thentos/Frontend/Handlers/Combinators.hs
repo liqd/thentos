@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds              #-}
+{-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE RankNTypes             #-}
 
@@ -16,6 +17,7 @@ import qualified Servant.Missing as UnprotectedFormH
 import qualified Text.Blaze.Html5 as H
 
 import Thentos.Action
+import Thentos.Action.TCB
 import Thentos.Config
 import Thentos.Ends.Types
 import Thentos.Frontend.CSRF
@@ -23,9 +25,6 @@ import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
 import Thentos.Prelude
 import Thentos.Types
-
-import qualified Thentos.Action.Unsafe as U
-import qualified Thentos.Action.SimpleAuth as U
 
 -- * types
 
@@ -37,39 +36,25 @@ type PostH = Post '[HTM] H.Html
 type FormH a = UnprotectedFormH.FormH HTM H.Html a
 
 
--- * helpers
-
--- FIXME: these need to be replaced.
-
-liftU :: U.UnsafeAction FActionError FrontendSessionData a -> FAction a
-liftU = U.unsafeAction
-
-loggerF :: (Show v) => v -> FAction ()
-loggerF = U.unsafeAction . loggerU
-
-loggerU :: (Show v) => v -> U.UnsafeAction FActionError s ()
-loggerU = U.logger DEBUG . show
-
-
 -- * form construction
 
-formH :: forall payload.
-     ST                                     -- ^ formAction
-  -> Form H.Html FAction payload            -- ^ processor1
-  -> (payload -> FAction H.Html)            -- ^ processor2
-  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
-  -> ServerT (FormH payload) FAction
+formH :: MonadFAction m
+  => ST                               -- ^ formAction
+  -> Form H.Html m payload            -- ^ processor1
+  -> (payload -> m H.Html)            -- ^ processor2
+  -> (View H.Html -> ST -> m H.Html)  -- ^ renderer
+  -> ServerT (FormH payload) m
 formH fa p1 p2 =
     UnprotectedFormH.formH fa
         ((,) <$> (CsrfToken <$> ("_csrf" .: text Nothing)) <*> p1)
         (\(csrfToken, payload)-> checkCsrfToken csrfToken >> p2 payload)
 
-unprotectedFormH :: forall payload.
-     ST                                     -- ^ formAction
-  -> Form H.Html FAction payload            -- ^ processor1
-  -> (payload -> FAction H.Html)            -- ^ processor2
-  -> (View H.Html -> ST -> FAction H.Html)  -- ^ renderer
-  -> ServerT (FormH payload) FAction
+unprotectedFormH :: MonadFAction m
+  => ST                               -- ^ formAction
+  -> Form H.Html m payload            -- ^ processor1
+  -> (payload -> m H.Html)            -- ^ processor2
+  -> (View H.Html -> ST -> m H.Html)  -- ^ renderer
+  -> ServerT (FormH payload) m
 unprotectedFormH = UnprotectedFormH.formH
 
 -- * dashboard construction
@@ -125,7 +110,7 @@ getServiceLoginState = use fsdServiceLoginState >>= maybe err pure
 
 sendFrontendMsgs :: [FrontendMsg] -> FAction ()
 sendFrontendMsgs msgs = do
-    loggerF msgs
+    loggerD msgs
     fsdMessages %= (++ msgs)
 
 sendFrontendMsg :: FrontendMsg -> FAction ()

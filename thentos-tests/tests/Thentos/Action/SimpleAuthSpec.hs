@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -7,19 +8,17 @@ module Thentos.Action.SimpleAuthSpec where
 
 import Control.Concurrent (forkIO, killThread)
 import Control.Exception (bracket)
-import Control.Lens ((^.))
 import Data.Configifier (Source(YamlString), Tagged(Tagged), (>>.))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (cs, (<>))
-import Data.Void (Void)
+import LIO (LIO)
 import Network.Wai (Application)
 import Servant.API ((:>), Get, JSON)
 import Servant.Server (serve, enter)
-import Test.Hspec (Spec, describe, context, it, before, around, hspec, shouldBe)
+import Test.Hspec (Spec, describe, context, it, around, hspec, shouldBe)
 
 import qualified Data.Aeson as Aeson
 import qualified Network.Wreq as Wreq
 
+import Thentos.Prelude
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Action.SimpleAuth
@@ -28,7 +27,6 @@ import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Types
-import Thentos (createDefaultUser)
 
 import Thentos.Test.Arbitrary ()
 import Thentos.Test.Config
@@ -43,69 +41,62 @@ spec = do
     specWithActionState
     specWithBackends
 
-type Act = Action (ActionError Void) ()
+type Act = LIO DCLabel -- ActionStack (ActionError Void) ()
 
-setTwoGroups :: Action e s ()
+runActE :: Act a -> IO (Either (ActionError Void) a)
+runActE = runLIOE
+runAct :: Act a -> IO a
+runAct = ioExc' . runActE
+
+setTwoGroups :: MonadThentosIO m => m ()
 setTwoGroups = extendClearanceOnPrincipals [GroupAdmin, GroupUser]
 
-setClearanceUid :: Integer -> Action e s ()
+setClearanceUid :: MonadThentosIO m => Integer -> m ()
 setClearanceUid uid = extendClearanceOnPrincipals [UserA $ UserId uid]
                    >> extendClearanceOnPrincipals [GroupUser]
 
-setClearanceSid :: Integer -> Action e s ()
+setClearanceSid :: MonadThentosIO m => Integer -> m ()
 setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . show $ sid]
 
-
-mkActionState :: IO ActionState
-mkActionState = do
-    actionState <- createActionState
-    createDefaultUser actionState
-    return actionState
-
 specWithActionState :: Spec
-specWithActionState = before mkActionState $ do
+specWithActionState = do
     describe "assertAuth" $ do
-        it "throws an error on False" $ \sta -> do
-            (Left (ActionErrorAnyLabel _), ())
-                <- runActionE () sta (assertAuth $ pure False :: Act ())
+        it "throws an error on False" $ do
+            Left (ActionErrorAnyLabel _) <- runActE (assertAuth $ pure False :: Act ())
             return ()
-        it "returns () on True" $ \sta -> do
-            fst <$> runAction () sta (assertAuth $ pure True :: Act ())
+        it "returns () on True" $ do
+            runAct (assertAuth $ pure True :: Act ())
 
     describe "hasUserId" $ do
-        it "returns True on if uid matches" $ \sta -> do
-            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasUserId (UserId 3) :: Act Bool)
+        it "returns True on if uid matches" $ do
+            True <- runAct (setClearanceUid 3 >> hasUserId (UserId 3) :: Act Bool)
             return ()
-        it "returns False on if uid does not match" $ \sta -> do
-            (False, ()) <- runAction () sta (hasUserId (UserId 3) :: Act Bool)
-            (False, ()) <- runAction () sta (setClearanceUid 5 >> hasUserId (UserId 3) :: Act Bool)
+        it "returns False on if uid does not match" $ do
+            False <- runAct (hasUserId (UserId 3) :: Act Bool)
+            False <- runAct (setClearanceUid 5 >> hasUserId (UserId 3) :: Act Bool)
             return ()
 
     describe "hasServiceId" $ do
-        it "returns True on if sid matches" $ \sta -> do
-            (True, ()) <- runAction () sta
-                (setClearanceSid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
+        it "returns True on if sid matches" $ do
+            True <- runAct (setClearanceSid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
-        it "returns False on if sid does not match" $ \sta -> do
-            (False, ()) <- runAction () sta
-                (hasServiceId (ServiceId "3") :: Act Bool)
-            (False, ()) <- runAction () sta
-                (setClearanceSid 5 >> hasServiceId (ServiceId "3") :: Act Bool)
+        it "returns False on if sid does not match" $ do
+            False <- runAct (hasServiceId (ServiceId "3") :: Act Bool)
+            False <- runAct (setClearanceSid 5 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
-        it "can distinguish uid and sid" $ \sta -> do
-            (False, ()) <- runAction () sta
-                (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
+        it "can distinguish uid and sid" $ do
+            False <- runAct (setClearanceUid 3 >> hasServiceId (ServiceId "3") :: Act Bool)
             return ()
 
     describe "hasGroup" $ do
-        it "returns True if group is present" $ \sta -> do
-            (True, ()) <- runAction () sta (setClearanceUid 3 >> hasGroup GroupUser :: Act Bool)
-            (True, ()) <- runAction () sta (setClearanceUid 5 >> hasGroup GroupUser :: Act Bool)
-            (True, ()) <- runAction () sta (setTwoGroups >> hasGroup GroupUser :: Act Bool)
+        it "returns True if group is present" $ do
+            True <- runAct (setClearanceUid 3 >> hasGroup GroupUser :: Act Bool)
+            True <- runAct (setClearanceUid 5 >> hasGroup GroupUser :: Act Bool)
+            True <- runAct (setTwoGroups >> hasGroup GroupUser :: Act Bool)
             return ()
-        it "returns False if group is missing" $ \sta -> do
-            (False, ()) <- runAction () sta (hasGroup GroupUser :: Act Bool)
-            (False, ()) <- runAction () sta (setTwoGroups >> hasGroup GroupServiceAdmin :: Act Bool)
+        it "returns False if group is missing" $ do
+            False <- runAct (hasGroup GroupUser :: Act Bool)
+            False <- runAct (setTwoGroups >> hasGroup GroupServiceAdmin :: Act Bool)
             return ()
 
 

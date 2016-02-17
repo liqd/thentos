@@ -28,6 +28,7 @@ import Data.Maybe (isJust)
 import Data.Monoid ((<>))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (LBS, ST, cs)
+import Data.Void (Void)
 import GHC.Stack (CallStack)
 import LIO.DCLabel (toCNF)
 import Network.HTTP.Client (newManager, defaultManagerSettings)
@@ -255,7 +256,7 @@ setupBackend' extraCfg = do
     as@(ActionState cfg _ _) <- thentosTestConfig' extraCfg >>= createActionState'
     mgr <- newManager defaultManagerSettings
     createDefaultUser as
-    ((), ()) <- runActionWithPrivs [toCNF GroupAdmin] () as $ autocreateMissingServices cfg
+    ((), ()) <- runActionWithPrivs [toCNF GroupAdmin] () as $ (autocreateMissingServices cfg :: ActionStack Void () ())
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
     return (serveApi mgr beConfig as, cfg)
 

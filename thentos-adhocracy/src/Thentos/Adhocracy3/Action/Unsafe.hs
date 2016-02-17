@@ -6,7 +6,7 @@ module Thentos.Adhocracy3.Action.Unsafe
     ( createUserInA3
     ) where
 
-import Control.Monad.Except (MonadError, throwError)
+import Control.Monad.Except (throwError)
 import Control.Monad (when)
 import Data.Aeson (ToJSON)
 import Data.Configifier ((>>.), Tagged(Tagged))
@@ -21,18 +21,17 @@ import qualified Data.Aeson as Aeson
 import qualified Network.HTTP.Client as Client
 import qualified Network.HTTP.Types.Status as Status
 
+import Thentos.Action.TCB
 import Thentos.Adhocracy3.Action.Types
 import Thentos.Config
 import Thentos.Types
 import Thentos.Util
 
-import qualified Thentos.Action.Unsafe as U
-
 
 -- | Create a user in A3 from a persona name and return the user path.
 createUserInA3 :: PersonaName -> A3Action Path
 createUserInA3 persName = do
-    config <- U.unsafeAction U.getConfig
+    config <- getConfig
     let a3req = fromMaybe
                 (error "createUserInA3: mkUserCreationRequestForA3 failed, check config!") $
                 mkUserCreationRequestForA3 config persName
@@ -80,7 +79,7 @@ mkRequestForA3 config route dat = do
 
 -- | Extract the user path from an A3 response received for a user creation request.
 -- FIXME: make use of servant-client for all rest communication with A3 backend!
-extractUserPath :: (MonadError (ThentosError ThentosA3Error) m) => Client.Response LBS -> m Path
+extractUserPath :: MonadThentosError ThentosA3Error m => Client.Response LBS -> m Path
 extractUserPath resp = do
     resource <- either (throwError . OtherError . A3BackendInvalidJson) return $
         (Aeson.eitherDecode . Client.responseBody $ resp :: Either String TypedPath)

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeOperators         #-}
 module Thentos.Frontend.CSRF
@@ -17,16 +18,14 @@ module Thentos.Frontend.CSRF
 import "cryptonite" Crypto.Hash (SHA256)
 import "cryptonite" Crypto.MAC.HMAC (HMAC,hmac)
 import "cryptonite" Crypto.Random (MonadRandom(getRandomBytes))
-import Data.Configifier ((>>.))
 import Data.ByteArray.Encoding (convertToBase, convertFromBase, Base(Base16))
 
 import qualified Data.ByteString as SBS
 
+import Thentos.Action.TCB
 import Thentos.Prelude hiding (MonadRandom)
 import Thentos.Frontend.Types
 import Thentos.Types (ThentosSessionToken(fromThentosSessionToken))
-
-import qualified Thentos.Action.Unsafe as U
 
 newtype CsrfSecret = CsrfSecret SBS
     deriving (Show)
@@ -81,7 +80,7 @@ genCsrfSecret = CsrfSecret . (convertToBase Base16 :: SBS -> SBS) <$> getRandomB
 
 -- | Generates a random 'CsrfNonce'.
 genCsrfNonce :: FAction CsrfNonce
-genCsrfNonce = CsrfNonce . convertToBase Base16 <$> U.unsafeAction (U.genRandomBytes 32)
+genCsrfNonce = CsrfNonce . convertToBase Base16 <$> genRandomBytes 32
 
 -- | See 'CsrfToken'.
 -- This function assigns a newly generated 'CsrfToken' to the 'FrontendSessionData'.
@@ -101,6 +100,6 @@ clearCsrfToken = fsdCsrfToken .= Nothing
 -- | Get the 'CsrfSecret' from the configuration.
 getCsrfSecret :: FAction CsrfSecret
 getCsrfSecret = do
-    Just (secret :: ST) <- (>>. (Proxy :: Proxy '["csrf_secret"])) <$> U.unsafeAction U.getConfig
+    Just (secret :: ST) <- getConfigField (Proxy :: Proxy '["csrf_secret"])
     let Right sbs = convertFromBase Base16 (cs secret :: SBS)
     return $ CsrfSecret sbs

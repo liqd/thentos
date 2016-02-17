@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -38,7 +39,7 @@ type FrontendH =
   :<|> "dashboard" :> DashboardH
   :<|> StaticContent
 
-frontendH :: ServerT FrontendH FAction
+frontendH :: FormHandler (ServerT FrontendH)
 frontendH =
        redirect' "/dashboard"
   :<|> userH
@@ -74,7 +75,7 @@ type UserH =
   :<|> EmailUpdateConfirmH
   :<|> PasswordUpdateH
 
-userH :: ServerT UserH FAction
+userH :: FormHandler (ServerT UserH)
 userH =
        userRegisterH
   :<|> userRegisterConfirmH
@@ -94,7 +95,7 @@ type ServiceH =
   :<|> ServiceRegisterH
   :<|> ServiceCreateH
 
-serviceH :: ServerT ServiceH FAction
+serviceH :: FormHandler (ServerT ServiceH)
 serviceH =
        serviceLoginH
   :<|> serviceRegisterH

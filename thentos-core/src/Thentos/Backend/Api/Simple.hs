@@ -14,7 +14,6 @@ module Thentos.Backend.Api.Simple where
 import Control.Lens ((^.), (&), (<>~))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, cs)
-import Data.Void (Void)
 import Servant.API.Header (Header)
 import Network.Wai (Application)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
@@ -26,7 +25,7 @@ import qualified Servant.Docs as Docs
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState, Action, aStConfig)
+import Thentos.Action.Types (MonadQuery, ActionState, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -69,7 +68,7 @@ type ThentosBasic =
   :<|> "service_session" :> ThentosServiceSession
   :<|> "email" :> SendEmail
 
-thentosBasic :: ServerT ThentosBasic (Action Void ())
+thentosBasic :: MonadQuery e m => ServerT ThentosBasic m
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -99,7 +98,7 @@ type ThentosUser =
   :<|> "password_reset" :> ReqBody '[JSON] PasswordResetRequest
                         :> Post '[JSON] (JsonTop ThentosSessionToken)
 
-thentosUser :: ServerT ThentosUser (Action Void ())
+thentosUser :: MonadQuery e m => ServerT ThentosUser m
 thentosUser =
        (JsonTop <$>) . addUser
   :<|> addUnconfirmedUserWithCaptcha
@@ -126,7 +125,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: ServerT ThentosService (Action Void ())
+thentosService :: MonadQuery e m => ServerT ThentosService m
 thentosService =
          (\ (uid, sn, sd) -> addService uid sn sd)
     :<|> deleteService
@@ -140,7 +139,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken :> Delete '[JSON] ()
 
-thentosThentosSession :: ServerT ThentosThentosSession (Action Void ())
+thentosThentosSession :: MonadQuery e m => ServerT ThentosThentosSession m
 thentosThentosSession =
        startThentosSession
   :<|> existsThentosSession
@@ -156,7 +155,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: ServerT ThentosServiceSession (Action Void ())
+thentosServiceSession :: MonadQuery e m => ServerT ThentosServiceSession m
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
