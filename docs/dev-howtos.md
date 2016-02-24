@@ -3,20 +3,6 @@
 This document describes some of our development practices. Please help it
 grow!
 
-## Source comment keywords
-
-We use the following greppable keywords in the source code with the
-resp.  specific meaning:
-
-- *TODO*: note to self to developer currently working on this piece of
-   code.  to be fixed before merge.  should never appear in master.
-- *FIXME*: this code is not elegant, but it is believed to work.
-   FIXME comments may appear on master and can be fixed, removed, or
-   ignored indefinitely without causing production issues.
-- *FUTUREWORK*: a less urgent sibling of *FIXME*.
-- *UPSTREAM*: could benefit from some work on the libraries we depend
-   on.  one common example for this are: `*.Missing` modules.
-
 ## Setup
 
 Please follow the instructions from the README file to initialize a cabal
