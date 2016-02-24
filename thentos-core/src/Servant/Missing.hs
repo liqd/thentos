@@ -17,7 +17,6 @@ module Servant.Missing
   ,formRedirectH) where
 
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Identity (Identity, runIdentity)
 import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, cs)
@@ -39,21 +38,21 @@ type FormH htm html payload =
 data FormReqBody
 
 instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
-  type ServerT (FormReqBody :> sublayout) m = Env Identity -> ServerT sublayout m
+  type ServerT (FormReqBody :> sublayout) m = Env m -> ServerT sublayout m
 
   route Proxy subserver = WithRequest $ \request ->
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver (bodyCheck request))
     where
       -- FIXME: honor accept header
       -- FIXME: file upload.  shouldn't be hard!
-      bodyCheck :: Request -> IO (RouteResult (Env Identity))
+      bodyCheck :: forall m. Monad m => Request -> IO (RouteResult (Env m))
       bodyCheck req = do
           q :: [Param]
               <- parseRequestBody lbsBackEnd req >>=
                   \case (q, []) -> return q
                         (_, _:_) -> error "servant-digestive-functors: file upload not implemented!"
 
-          let env :: Env Identity
+          let env :: Env m
               env query = return
                         . map (TextInput . STE.decodeUtf8 . snd)
                         . filter ((== fromPath query) . fst)
@@ -83,8 +82,8 @@ formH formAction processor1 processor2 renderer = getH :<|> postH
         v <- getForm formAction processor1
         renderer v formAction
 
-    postH :: Env Identity -> m html
-    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
+    postH :: Env m -> m html
+    postH env = postForm formAction processor1 (\_ -> return env) >>=
         \case (_,              Just payload) -> processor2 payload
               (v :: View html, Nothing)      -> renderer v formAction
 
@@ -110,8 +109,8 @@ formRedirectH formAction processor1 processor2 renderer = getH :<|> postH
         v <- getForm formAction processor1
         renderer v formAction
 
-    postH :: Env Identity -> m html
-    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
+    postH :: Env m -> m html
+    postH env = postForm formAction processor1 (\_ -> return env) >>=
         \case (_,              Just payload) -> processor2 payload >>= redirect
               (v :: View html, Nothing)      -> renderer v formAction
 
