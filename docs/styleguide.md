@@ -3,6 +3,15 @@
 (Will be re-structured as it grows.)
 
 
+## Changing the rules
+
+If you are contributing to the code under this policy document, or
+plan to contribute, but don't like any of the rules, you please send
+us a pull request with a change.  The pull request can then be
+discussed, and if an agreement can be reached, the change will come
+into effect.
+
+
 ## Source comment keywords
 
 We use the following greppable keywords in the source code with the
