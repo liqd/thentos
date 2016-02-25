@@ -38,6 +38,9 @@ type FormH htm html payload =
 
 data FormReqBody
 
+fromEnvIdentity :: Applicative m => Env Identity -> Env m
+fromEnvIdentity env = pure . runIdentity . env
+
 instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
   type ServerT (FormReqBody :> sublayout) m = Env Identity -> ServerT sublayout m
 
@@ -54,7 +57,7 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
                         (_, _:_) -> error "servant-digestive-functors: file upload not implemented!"
 
           let env :: Env Identity
-              env query = return
+              env query = pure
                         . map (TextInput . STE.decodeUtf8 . snd)
                         . filter ((== fromPath query) . fst)
                         . map (first STE.decodeUtf8)
@@ -84,7 +87,7 @@ formH formAction processor1 processor2 renderer = getH :<|> postH
         renderer v formAction
 
     postH :: Env Identity -> m html
-    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
+    postH env = postForm formAction processor1 (\_ -> pure $ fromEnvIdentity env) >>=
         \case (_,              Just payload) -> processor2 payload
               (v :: View html, Nothing)      -> renderer v formAction
 
@@ -111,7 +114,7 @@ formRedirectH formAction processor1 processor2 renderer = getH :<|> postH
         renderer v formAction
 
     postH :: Env Identity -> m html
-    postH env = postForm formAction processor1 (\_ -> return $ return . runIdentity . env) >>=
+    postH env = postForm formAction processor1 (\_ -> pure $ fromEnvIdentity env) >>=
         \case (_,              Just payload) -> processor2 payload >>= redirect
               (v :: View html, Nothing)      -> renderer v formAction
 
