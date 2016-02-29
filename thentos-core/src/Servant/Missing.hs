@@ -18,16 +18,18 @@ module Servant.Missing
 
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Identity (Identity, runIdentity)
+import Control.Monad.Trans.Resource (InternalState, createInternalState)
 import Data.Bifunctor (first)
 import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, cs)
-import Network.Wai.Parse (Param, parseRequestBody, lbsBackEnd)
+import Data.String.Conversions (ST, LBS, cs)
+import Network.Wai.Parse (Param, File, fileContent, parseRequestBody, tempFileBackEnd)
 import Network.Wai (Request)
 import Servant ((:<|>)((:<|>)), (:>), ServerT)
 import Servant.Server (ServantErr(..))
 import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
                                 route, addBodyCheck)
-import Text.Digestive (Env, Form, FormInput(TextInput), View, fromPath, getForm, postForm)
+import System.IO.Unsafe (unsafePerformIO)
+import Text.Digestive (Env, Form, FormInput(TextInput, FileInput), View, fromPath, getForm, postForm)
 
 import qualified Servant
 import qualified Data.Text.Encoding as STE
@@ -41,6 +43,12 @@ data FormReqBody
 fromEnvIdentity :: Applicative m => Env Identity -> Env m
 fromEnvIdentity env = pure . runIdentity . env
 
+-- | FIXME: not sure this is legal.  do we need to make the IORef thread safe?  by wrapping it into
+-- an STRef?  but it seems like we are using it exactly like it is intended to.
+tempFileState :: InternalState
+tempFileState = unsafePerformIO createInternalState
+{-# NOINLINE tempFileState #-}
+
 instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
   type ServerT (FormReqBody :> sublayout) m = Env Identity -> ServerT sublayout m
 
@@ -48,20 +56,27 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
       route (Proxy :: Proxy sublayout) (addBodyCheck subserver (bodyCheck request))
     where
       -- FIXME: honor accept header
-      -- FIXME: file upload.  shouldn't be hard!
+
+      -- FIXME: file upload:
+      --   - file deletion is the responsibility of the handler.
+      --   - content type and file name are lost in digestive-functors.
+      --   - remember to set upload size limit!
+
       bodyCheck :: Request -> IO (RouteResult (Env Identity))
       bodyCheck req = do
-          q :: [Param]
-              <- parseRequestBody lbsBackEnd req >>=
-                  \case (q, []) -> return q
-                        (_, _:_) -> error "servant-digestive-functors: file upload not implemented!"
+          (params, files) :: ([Param], [File FilePath])
+              <- parseRequestBody (tempFileBackEnd tempFileState) req
 
           let env :: Env Identity
-              env query = pure
-                        . map (TextInput . STE.decodeUtf8 . snd)
-                        . filter ((== fromPath query) . fst)
-                        . map (first STE.decodeUtf8)
-                        $ q
+              env query = pure $ ps ++ fs
+                where
+                  ps = map (TextInput . STE.decodeUtf8 . snd)
+                     . filter ((== fromPath query) . STE.decodeUtf8 . fst)
+                     $ params
+
+                  fs = map (FileInput . fileContent . snd)
+                     . filter ((== fromPath query) . STE.decodeUtf8 . fst)
+                     $ files
 
           return $ Route env
 
