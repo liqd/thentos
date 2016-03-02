@@ -13,7 +13,7 @@
 module Servant.Missing
   (FormH
   ,FormReqBody
-  ,FormData(..)
+  ,FormData, getFormDataEnv, releaseFormTempFiles
   ,formH
   ,formRedirectH
   ,fromEnvIdentity
@@ -23,7 +23,7 @@ import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Except.Missing (finally)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Resource (createInternalState, closeInternalState)
+import Control.Monad.Trans.Resource (InternalState, createInternalState, closeInternalState)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, ConvertibleStrings, cs)
 import Network.Wai.Parse (fileContent, parseRequestBody, tempFileBackEnd)
@@ -48,8 +48,14 @@ fromEnvIdentity env = pure . runIdentity . env
 
 data FormData = FormData
   { _formEnv :: Env Identity
-  , _formReleaseTmpFiles :: IO ()
+  , _formTmpFilesState :: InternalState
   }
+
+getFormDataEnv :: FormData -> Env Identity
+getFormDataEnv (FormData env _) = env
+
+releaseFormTempFiles :: FormData -> IO ()
+releaseFormTempFiles (FormData _ tmpFilesState) = closeInternalState tmpFilesState
 
 instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
   type ServerT (FormReqBody :> sublayout) m = FormData -> ServerT sublayout m
@@ -77,7 +83,7 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
                   f g = map (g . snd)
                       . filter ((== fromPath query) . STE.decodeUtf8 . fst)
 
-          return $ Route (FormData env $ closeInternalState tempFileState)
+          return $ Route (FormData env tempFileState)
 
 
 -- | Handle a route of type @'FormH' htm html payload@.  'formAction' is used by digestive-functors
@@ -102,12 +108,12 @@ formH liftIO' formAction processor1 processor2 renderer = getH :<|> postH
         renderer v formAction
 
     postH :: FormData -> m html
-    postH (FormData env releaseTmpFiles) = do
+    postH (FormData env tmpFilesState) = do
         (v, mpayload) <- postForm (cs formAction) processor1 (\_ -> pure $ fromEnvIdentity env)
         (case mpayload of
             Just payload -> processor2 payload
             Nothing      -> renderer v formAction)
-            `finally` unNat liftIO' releaseTmpFiles
+            `finally` unNat liftIO' (closeInternalState tmpFilesState)
 
 -- | Handle a route of type @'FormH' htm html payload@ and redirect afterwards.
 -- 'formAction' is used by digestive-functors as submit path for the HTML @FORM@ element.
