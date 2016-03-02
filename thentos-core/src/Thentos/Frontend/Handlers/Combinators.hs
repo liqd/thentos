@@ -8,7 +8,7 @@ module Thentos.Frontend.Handlers.Combinators where
 import Data.ByteString.Builder (toLazyByteString)
 import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (urlEncode)
-import Servant (Get, Post, ServerT)
+import Servant (Get, Post, ServerT, (:~>)(Nat))
 import Text.Digestive.Form (Form, text, (.:))
 import Text.Digestive.View (View)
 import URI.ByteString (serializeURI, serializeRelativeRef, URI(..), RelativeRef(..), Query(..))
@@ -18,6 +18,7 @@ import qualified Text.Blaze.Html5 as H
 
 import Thentos.Action
 import Thentos.Action.TCB
+import Thentos.Action.Unsafe (unsafeLiftIO)
 import Thentos.Config
 import Thentos.Ends.Types
 import Thentos.Frontend.CSRF
@@ -45,7 +46,7 @@ formH :: MonadFAction m
   -> (View H.Html -> ST -> m H.Html)  -- ^ renderer
   -> ServerT (FormH payload) m
 formH fa p1 p2 =
-    UnprotectedFormH.formH fa
+    unprotectedFormH fa
         ((,) <$> (CsrfToken <$> ("_csrf" .: text Nothing)) <*> p1)
         (\(csrfToken, payload)-> checkCsrfToken csrfToken >> p2 payload)
 
@@ -55,7 +56,7 @@ unprotectedFormH :: MonadFAction m
   -> (payload -> m H.Html)            -- ^ processor2
   -> (View H.Html -> ST -> m H.Html)  -- ^ renderer
   -> ServerT (FormH payload) m
-unprotectedFormH = UnprotectedFormH.formH
+unprotectedFormH = UnprotectedFormH.formH (Nat unsafeLiftIO)
 
 -- * dashboard construction
 
