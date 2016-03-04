@@ -80,12 +80,12 @@ instance MonadRandom (ActionStack e s) where
 
 type MonadThentosReader m = MonadReader ActionEnv m
 
-type MonadQuery e m =
+type MonadQuery e v m =
     (MonadThentosReader m,
      MonadThentosError e m,
      MonadThentosIO m)
 
-type MonadAction e m = (MonadQuery e m, MonadRandom m)
+type MonadAction e v m = (MonadQuery e v m, MonadRandom m)
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --

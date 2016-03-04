@@ -25,7 +25,7 @@ unsafeLiftIO = liftLIO . ioTCB
 
 -- * queries
 
-query :: MonadQuery e m => ThentosQuery e v -> m v
+query :: MonadQuery e v m => ThentosQuery e a -> m a
 query u = do
     connPool <- view aStDb
     unsafeLiftIO (runThentosQuery connPool u) >>= either throwError return
@@ -40,7 +40,7 @@ extendClearanceOnLabel label = liftLIO $ do
 extendClearanceOnPrincipals :: MonadThentosIO m => ToCNF cnf => [cnf] -> m ()
 extendClearanceOnPrincipals principals = mapM_ extendClearanceOnLabel $ [ p %% p | p <- principals ]
 
-extendClearanceOnAgent :: MonadQuery e m => Agent -> m ()
+extendClearanceOnAgent :: MonadQuery e v m => Agent -> m ()
 extendClearanceOnAgent agent = do
     extendClearanceOnPrincipals [agent]
     query (T.agentGroups agent) >>= extendClearanceOnPrincipals

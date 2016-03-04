@@ -157,7 +157,7 @@ findDefaultServiceIdAndTarget conf = do
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
-createCustomHeaders :: MonadQuery e m =>
+createCustomHeaders :: MonadQuery e v m =>
     ProxyAdapter m e -> Maybe ThentosSessionToken -> ServiceId -> m T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do

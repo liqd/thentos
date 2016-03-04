@@ -167,7 +167,7 @@ createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, groups)) -> do
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
-autocreateMissingServices :: MonadAction e m => ThentosConfig -> m ()
+autocreateMissingServices :: MonadAction e v m => ThentosConfig -> m ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing agent) allSids

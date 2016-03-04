@@ -93,12 +93,12 @@ renderTextTemplate template context = liftLIO . ioTCB $ hastacheStr hastacheCfg 
 defaultConfigIO :: MuConfig IO
 defaultConfigIO = defaultConfig
 
-extendClearanceOnThentosSession :: MonadQuery e m => ThentosSessionToken -> m ()
+extendClearanceOnThentosSession :: MonadQuery e v m => ThentosSessionToken -> m ()
 extendClearanceOnThentosSession tok = do
     (_, session) <- U.query . T.lookupThentosSession $ tok
     U.extendClearanceOnAgent $ session ^. thSessAgent
 
-extendClearanceOnThentosAuthCredentials :: MonadQuery e m => ThentosAuthCredentials -> m ()
+extendClearanceOnThentosAuthCredentials :: MonadQuery e v m => ThentosAuthCredentials -> m ()
 extendClearanceOnThentosAuthCredentials (ThentosAuthCredentials mTok origin) = do
     mapM_ extendClearanceOnThentosSession mTok
     allow_ips <- getConfigField (Proxy :: Proxy '["allow_ips"])

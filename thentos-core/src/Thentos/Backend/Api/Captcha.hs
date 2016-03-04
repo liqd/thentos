@@ -124,26 +124,26 @@ type ThentosCaptchaFrontend =
 type ThentosCaptchaBackend =
        "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool) -- FIXME: this should return status 200, not 201
 
-thentosCaptchaFrontend :: MonadAction e m => ServerT ThentosCaptchaFrontend m
+thentosCaptchaFrontend :: MonadAction e v m => ServerT ThentosCaptchaFrontend m
 thentosCaptchaFrontend =
        preflightH
   :<|> captchaImgH
   :<|> const preflightH
   :<|> captchaWavH
 
-thentosCaptchaBackend :: MonadQuery e m => ServerT ThentosCaptchaBackend m
+thentosCaptchaBackend :: MonadQuery e v m => ServerT ThentosCaptchaBackend m
 thentosCaptchaBackend = captchaSolveH
 
 preflightH :: Applicative m => m (Headers CaptchaOptionsHeaders ())
 preflightH = pure $ addCaptchaOptionsHeaders ()
 
-captchaImgH :: MonadAction e m => m (Headers CaptchaHeaders ImageData)
+captchaImgH :: MonadAction e v m => m (Headers CaptchaHeaders ImageData)
 captchaImgH = uncurry addCaptchaHeaders <$> makeCaptcha
 
-captchaWavH :: MonadAction e m => ST -> m (Headers CaptchaHeaders SBS)
+captchaWavH :: MonadAction e v m => ST -> m (Headers CaptchaHeaders SBS)
 captchaWavH voice = uncurry addCaptchaHeaders <$> makeAudioCaptcha (cs voice)
 
-captchaSolveH :: MonadQuery e m => CaptchaSolution -> m (JsonTop Bool)
+captchaSolveH :: MonadQuery e v m => CaptchaSolution -> m (JsonTop Bool)
 captchaSolveH (CaptchaSolution cid solution) = JsonTop <$> do
     correct <- solveCaptcha cid solution `catchError` h
     when correct $
