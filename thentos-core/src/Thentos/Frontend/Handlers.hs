@@ -282,19 +282,17 @@ dashboardH =
 
 -- (FIXME: the whole way tabs are switched could use a bit more work.
 -- At least switching tab is now factored at a single place.)
-switchTab  :: MonadFAction m
-           => DashboardTab
+switchTab  :: DashboardTab
            -> (FrontendSessionData -> v -> a -> User -> [Group] -> Html)
-           -> v -> a -> m Html
+           -> v -> a -> FAction Html
 switchTab tab snippet v a = do
     setTab tab
     fsd <- get
     renderDashboard $ snippet fsd v a
 
-switchTab'  :: MonadFAction m
-            => DashboardTab
+switchTab'  :: DashboardTab
             -> (User -> [Group] -> Html)
-            -> m Html
+            -> FAction Html
 switchTab' tab snippet = setTab tab >> renderDashboard snippet
 
 -- FIXME: this route should be something more like @/service/create@.
