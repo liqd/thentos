@@ -8,7 +8,7 @@ import Control.Concurrent.Async (concurrently)
 import Control.Exception (finally)
 import Data.Configifier ((>>.), Tagged(Tagged))
 
-import Thentos (createConnPoolAndInitDb, runGcLoop, makeActionState)
+import Thentos (createConnPoolAndInitDb, runGcLoop, makeActionEnv)
 import Thentos.Prelude
 import Thentos.Config
 import Thentos.Sybil.AudioCaptcha (checkEspeak)
@@ -21,7 +21,7 @@ main = do
     config :: ThentosConfig <- readConfig "devel.config"
     checkEspeak  -- Make sure that we can successfully generate audio captchas
     connPool <- createConnPoolAndInitDb config
-    actionState <- makeActionState config connPool
+    actionState <- makeActionEnv config connPool
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
 
     let backendCfg  = forceCfg "backend" $ Tagged <$> config >>. (Proxy :: Proxy '["backend"])

@@ -107,7 +107,7 @@ serveFAction :: forall api.
         ( HasServer api
         , Enter (ServerT api FActionStack) (FActionStack :~> ExceptT ServantErr IO) (Server api)
         )
-     => Proxy api -> ServerT api FActionStack -> ActionState -> IO Application
+     => Proxy api -> ServerT api FActionStack -> ActionEnv -> IO Application
 serveFAction _ fServer aState = (\(mw, key) -> mw $ app key) <$> thentosSessionMiddleware
   where
     app :: Vault.Key FSession -> Application
@@ -122,7 +122,7 @@ serveFAction _ fServer aState = (\(mw, key) -> mw $ app key) <$> thentosSessionM
 -- FIXME: As long as runActionE is using Action, using MonadFAction instead of FActionStack
 -- is impossible here.
 enterFAction ::
-       ActionState
+       ActionEnv
     -> Vault.Key FSession
     -> FSessionMap
     -> FActionStack :~> ExceptT ServantErr IO

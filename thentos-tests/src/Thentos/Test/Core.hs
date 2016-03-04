@@ -36,8 +36,8 @@ module Thentos.Test.Core
     , withFrontend
     , withBackend
     , withFrontendAndBackend
-    , createActionState
-    , createActionState'
+    , createActionEnv
+    , createActionEnv'
     , createDb
     , loginAsDefaultUser
     , (..=)
@@ -188,14 +188,14 @@ withWebDriverAt' host port action = WD.runSession wdConfig . WD.finallyClose $ d
 
 -- | Start and shutdown the frontend in the specified @HttpConfig@ and with the
 -- specified DB, running an action in between.
-withFrontend :: HttpConfig -> ActionState -> IO r -> IO r
+withFrontend :: HttpConfig -> ActionEnv -> IO r -> IO r
 withFrontend feConfig as action =
     bracket (forkIO $ Thentos.Frontend.runFrontend feConfig as)
             killThread
             (const action)
 
 -- | Run a @hspec-wai@ @Session@ with the backend @Application@.
-withBackend :: HttpConfig -> ActionState -> IO r -> IO r
+withBackend :: HttpConfig -> ActionEnv -> IO r -> IO r
 withBackend beConfig as action = do
     bracket (forkIO $ runWarpWithCfg beConfig $ Simple.serveApi beConfig as)
             killThread
@@ -203,9 +203,9 @@ withBackend beConfig as action = do
 
 -- | Sets up DB, frontend and backend, creates god user, runs an action that
 -- takes a DB, and tears down everything, returning the result of the action.
-withFrontendAndBackend :: (ActionState -> IO r) -> IO r
+withFrontendAndBackend :: (ActionEnv -> IO r) -> IO r
 withFrontendAndBackend test = do
-    st@(ActionState cfg _ connPool) <- createActionState
+    st@(ActionEnv cfg _ connPool) <- createActionEnv
     withFrontend (getFrontendConfig cfg) st
         $ withBackend (getBackendConfig cfg) st
             $ liftIO (createDefaultUser st) >> test st
@@ -214,13 +214,13 @@ withFrontendAndBackend test = do
 
 -- * set up state
 
--- | Create an @ActionState@ with default config and a connection to a DB.  Whipes the DB.
-createActionState :: IO ActionState
-createActionState = thentosTestConfig >>= createActionState'
+-- | Create an @ActionEnv@ with default config and a connection to a DB.  Whipes the DB.
+createActionEnv :: IO ActionEnv
+createActionEnv = thentosTestConfig >>= createActionEnv'
 
--- | Create an @ActionState@ with an explicit config and a connection to a DB.  Whipes the DB.
-createActionState' :: ThentosConfig -> IO ActionState
-createActionState' cfg = ActionState cfg <$> (drgNew >>= newMVar) <*> createDb cfg
+-- | Create an @ActionEnv@ with an explicit config and a connection to a DB.  Whipes the DB.
+createActionEnv' :: ThentosConfig -> IO ActionEnv
+createActionEnv' cfg = ActionEnv cfg <$> (drgNew >>= newMVar) <*> createDb cfg
 
 -- | Create a connection to a DB.  Whipes the DB.
 createDb :: ThentosConfig -> IO (Pool Connection)
@@ -235,7 +235,7 @@ createDb cfg = do
     createCmd = "createdb " <> dbname <> stdouterr
     wipeCmd   = "psql --file=" <> wipeFile <> " " <> dbname <> stdouterr
 
-loginAsDefaultUser :: ActionState -> IO (ThentosSessionToken, Header)
+loginAsDefaultUser :: ActionEnv -> IO (ThentosSessionToken, Header)
 loginAsDefaultUser actionState = do
     let action :: ActionStack Void () (UserId, ThentosSessionToken)
         action = startThentosSessionByUserName (UserName uname) (UserPass upass)

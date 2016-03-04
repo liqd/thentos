@@ -169,12 +169,12 @@ runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
     fst <$> Action.runActionWithClearance dcTop () runTokenBuilderState action
 
 {-# NOINLINE runTokenBuilderState #-}
-runTokenBuilderState :: Action.ActionState
+runTokenBuilderState :: Action.ActionEnv
 runTokenBuilderState = unsafePerformIO $ do
     rng  <- drgNew >>= newMVar
     conn <- pure $ error "runTokenBuilder: no db"
     cfg  <- pure $ error "runTokenBuilder: no config"
-    return $ Action.ActionState cfg rng conn
+    return $ Action.ActionEnv cfg rng conn
 
 
 -- * instances for servant-docs

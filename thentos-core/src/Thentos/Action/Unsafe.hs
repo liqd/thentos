@@ -27,7 +27,7 @@ unsafeLiftIO = liftLIO . ioTCB
 
 query :: MonadQuery e m => ThentosQuery e v -> m v
 query u = do
-    ActionState _ _ connPool <- ask
+    ActionEnv _ _ connPool <- ask
     unsafeLiftIO (runThentosQuery connPool u) >>= either throwError return
 
 

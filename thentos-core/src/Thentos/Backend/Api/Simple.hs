@@ -25,7 +25,7 @@ import qualified Servant.Docs as Docs
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (MonadQuery, ActionState, aStConfig)
+import Thentos.Action.Types (MonadQuery, ActionEnv, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -39,12 +39,12 @@ import qualified Thentos.Backend.Api.PureScript as Purs
 
 -- * main
 
-runApi :: HttpConfig -> ActionState -> IO ()
+runApi :: HttpConfig -> ActionEnv -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi cfg asg
 
-serveApi :: HttpConfig -> ActionState -> Application
+serveApi :: HttpConfig -> ActionEnv -> Application
 serveApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
     in serve p (restDocs cfg p :<|> api astate)
@@ -53,7 +53,7 @@ type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
   :<|> "js" :> Purs.Api
 
-api :: ActionState -> Server Api
+api :: ActionEnv -> Server Api
 api as =
        (\creds -> enter (enterAction () as baseActionErrorToServantErr creds) thentosBasic)
   :<|> Purs.api (as ^. aStConfig)

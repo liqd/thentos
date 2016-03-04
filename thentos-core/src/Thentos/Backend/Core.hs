@@ -50,7 +50,7 @@ import Thentos.Util
 -- * action
 
 enterAction :: forall s e. (Show e, Typeable e) =>
-    s -> ActionState ->
+    s -> ActionEnv ->
     (ActionError e -> IO ServantErr) ->
     ThentosAuthCredentials -> ActionStack e s :~> ExceptT ServantErr IO
 enterAction polyState actionState toServantErr creds = Nat $ ExceptT . run toServantErr

@@ -69,7 +69,7 @@ runSession havePurescript session = outsideTempDirectory $ \tmp -> do
 defaultApp :: Bool -> FilePath -> IO Application
 defaultApp havePurescript tmp = do
     cfg <- thentosTestConfig' [ YamlString $ "purescript: " <> cs tmp | havePurescript ]
-    as <- createActionState' cfg
+    as <- createActionEnv' cfg
     return $! serve (Proxy :: Proxy Api) (PureScript.api (as ^. aStConfig))
 
 type Api = "js" :> PureScript.Api

@@ -26,7 +26,7 @@ import qualified Data.ByteString as SBS
 import Thentos.Action.Core
 import Thentos.Action.Types
 import Thentos.Sybil
-import Thentos.Test.Core (createActionState)
+import Thentos.Test.Core (createActionEnv)
 import Thentos.Types
 
 
@@ -72,7 +72,7 @@ spec = describe "Thentos.Sybil.Captcha" $ do
 
 generateAudioCaptcha' :: String -> Random20 -> IO (SBS, ST)
 generateAudioCaptcha' voice rnd = fst <$> do
-    as <- createActionState
+    as <- createActionEnv
     runAction () as $ (generateAudioCaptcha voice rnd :: ActionStack Void () (SBS, ST))
 
 mkRandom20' :: IO Random20

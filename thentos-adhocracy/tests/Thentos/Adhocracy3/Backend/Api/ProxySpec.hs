@@ -49,7 +49,7 @@ spec = beforeAll setup . afterAll teardown $ tests
         let settings = setHost "127.0.0.1" . setPort 8001 $ defaultSettings
         dest <- startDaemon $ runSettings settings proxyDestServer
         mgr <- newManager defaultManagerSettings
-        as <- createActionState
+        as <- createActionEnv
         let application = serveApi mgr beConfig as
             Just beConfig = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
         (proxyPort, proxySocket) <- openTestSocket

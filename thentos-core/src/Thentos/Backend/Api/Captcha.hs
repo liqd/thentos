@@ -34,7 +34,7 @@ import qualified Servant.Foreign.Internal as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionState, MonadQuery)
+import Thentos.Action.Types (ActionEnv, MonadQuery)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -47,38 +47,38 @@ import qualified Paths_thentos_core__ as Paths (version)
 
 -- * main for frontend interface (called from browsers to generate captchas)
 
-runFrontendApi :: HttpConfig -> ActionState -> IO ()
+runFrontendApi :: HttpConfig -> ActionEnv -> IO ()
 runFrontendApi cfg asg = do
     logStart "ThentosCaptchaFrontend" cfg
     runWarpWithCfg cfg $ serveFrontendApi cfg asg
 
-serveFrontendApi :: HttpConfig -> ActionState -> Application
+serveFrontendApi :: HttpConfig -> ActionEnv -> Application
 serveFrontendApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs FrontendApi)
     in serve p (restDocs cfg p :<|> frontendApi astate)
 
 type FrontendApi = ThentosAuth :> ThentosCaptchaFrontend
 
-frontendApi :: ActionState -> Server FrontendApi
+frontendApi :: ActionEnv -> Server FrontendApi
 frontendApi as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds)
                            thentosCaptchaFrontend
 
 
 -- * main for backend interface (called as service from backends to validate solutions)
 
-runBackendApi :: HttpConfig -> ActionState -> IO ()
+runBackendApi :: HttpConfig -> ActionEnv -> IO ()
 runBackendApi cfg asg = do
     logStart "ThentosCaptchaBackend" cfg
     runWarpWithCfg cfg $ serveBackendApi cfg asg
 
-serveBackendApi :: HttpConfig -> ActionState -> Application
+serveBackendApi :: HttpConfig -> ActionEnv -> Application
 serveBackendApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs BackendApi)
     in serve p (restDocs cfg p :<|> backendApi astate)
 
 type BackendApi = ThentosAuth :> ThentosCaptchaBackend
 
-backendApi :: ActionState -> Server BackendApi
+backendApi :: ActionEnv -> Server BackendApi
 backendApi as = \creds -> enter (enterAction () as baseActionErrorToServantErr creds)
                                 thentosCaptchaBackend
 

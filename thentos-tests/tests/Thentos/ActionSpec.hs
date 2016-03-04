@@ -54,7 +54,7 @@ spec = do
                       , "  level: DEBUG"
                       , "  stdout: False"
                       , "  path: " ++ tmp </> "log" ]]
-          as <- createActionState' cfg
+          as <- createActionEnv' cfg
           createDefaultUser as
           action as
 
@@ -66,7 +66,7 @@ spec = do
         spec_captcha
 
 
-spec_user :: SpecWith ActionState
+spec_user :: SpecWith ActionEnv
 spec_user = describe "user" $ do
     describe "addUser, lookupConfirmedUser, deleteUser" $ do
         it "works" $ \sta -> do
@@ -241,7 +241,7 @@ spec_user = describe "user" $ do
   where
     runWithoutPrivs = runPrivs ([] :: [Bool])
 
-spec_service :: SpecWith ActionState
+spec_service :: SpecWith ActionEnv
 spec_service = describe "service" $ do
     describe "addService, lookupService, deleteService" $ do
         it "works" $ \sta -> do
@@ -278,7 +278,7 @@ spec_service = describe "service" $ do
             allSids' <- runPrivs [GroupAdmin] sta allServiceIds
             allSids `shouldBe` allSids'
 
-spec_agentsAndGroups :: SpecWith ActionState
+spec_agentsAndGroups :: SpecWith ActionEnv
 spec_agentsAndGroups = describe "agentsAndGroups" $ do
     describe "agents and groups" $ do
         describe "assign" $ do
@@ -310,7 +310,7 @@ spec_agentsAndGroups = describe "agentsAndGroups" $ do
                 result `shouldSatisfy` isLeft
 
 
-spec_session :: SpecWith ActionState
+spec_session :: SpecWith ActionEnv
 spec_session = describe "session" $ do
     describe "StartSession" $ do
         it "works" $ \sta -> do
@@ -334,7 +334,7 @@ spec_session = describe "session" $ do
 
             (v1, v2, v3, v4) `shouldBe` (True, False, False, False)
 
-spec_captcha :: SpecWith ActionState
+spec_captcha :: SpecWith ActionEnv
 spec_captcha = describe "captcha" $ do
     describe "solveCaptcha" $ do
         it "returns true but doesn't delete the captcha if the solution is correct" $ \sta -> do
@@ -356,24 +356,24 @@ spec_captcha = describe "captcha" $ do
     solution = "some-text"
 
 -- specialize to error type 'Void' and state '()'
-runA :: ActionState -> ActionStack Void () a -> IO a
+runA :: ActionEnv -> ActionStack Void () a -> IO a
 runA = (fst <$$>) . runAction ()
 
-runAE :: ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
+runAE :: ActionEnv -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runAE = (fst <$$>) . runActionE ()
 
-runAsAgent :: Agent -> ActionState -> ActionStack Void () a -> IO a
+runAsAgent :: Agent -> ActionEnv -> ActionStack Void () a -> IO a
 runAsAgent agent = (fst <$$>) . runActionAsAgent agent ()
 
-runPrivs :: ToCNF cnf => [cnf] -> ActionState -> ActionStack Void () a -> IO a
+runPrivs :: ToCNF cnf => [cnf] -> ActionEnv -> ActionStack Void () a -> IO a
 runPrivs xs = (fst <$$>) . runActionWithPrivs (toCNF <$> xs) ()
 
 runPrivsE :: ToCNF cnf
-        => [cnf] -> ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
+        => [cnf] -> ActionEnv -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runPrivsE xs = (fst <$$>) . runActionWithPrivsE (toCNF <$> xs) ()
 
-runClearanceE :: DCLabel -> ActionState -> ActionStack Void () a -> IO (Either (ActionError Void) a)
+runClearanceE :: DCLabel -> ActionEnv -> ActionStack Void () a -> IO (Either (ActionError Void) a)
 runClearanceE l = (fst <$$>) . runActionWithClearanceE l ()
 
-runClearance :: DCLabel -> ActionState -> ActionStack Void () a -> IO a
+runClearance :: DCLabel -> ActionEnv -> ActionStack Void () a -> IO a
 runClearance l = (fst <$$>) . runActionWithClearance l ()

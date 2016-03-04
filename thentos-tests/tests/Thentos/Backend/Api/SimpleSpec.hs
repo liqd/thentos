@@ -60,7 +60,7 @@ import Thentos.Test.Transaction
 -- | FIXME: This should be provided in a more general way from "Thentos.Test.Core".
 data ItsState = ItsState
     { itsApplication :: Application
-    , itsActionState :: ActionState
+    , itsActionEnv :: ActionEnv
     , itsGodHeader   :: Header
     }
 
@@ -78,7 +78,7 @@ setupIt mTmp = do
                         "  stdout: False" :
                         ["  path: " ++ maybe "/dev/null" (</> "log") mTmp] ]
     cfg <- thentosTestConfig' cfgExtra
-    as <- createActionState' cfg
+    as <- createActionEnv' cfg
     let Just becfg = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
         app = serveApi becfg as
     createDefaultUser as
@@ -174,7 +174,7 @@ specRest = do
             getCaptchaAndSolution its = do
                 crsp <- post "/user/captcha" ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                [Only solution] <- liftIO $ doQuery (itsActionState its ^. aStDb)
+                [Only solution] <- liftIO $ doQuery (itsActionEnv its ^. aStDb)
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
                 return (cid, solution)
 
@@ -182,7 +182,7 @@ specRest = do
             let grepLogFile :: ItsState -> String -> WaiSession String
                 grepLogFile its line = liftIO $ do
                     let logFile :: FilePath
-                        logFile = cs $ (itsActionState its ^. aStConfig)
+                        logFile = cs $ (itsActionEnv its ^. aStConfig)
                             >>. (Proxy :: Proxy '["log", "path"])
                     readProcess "grep" [line, logFile] ""
 
@@ -198,7 +198,7 @@ specRest = do
                 actLine <- grepLogFile its actPrefix
                 let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
                 [Only (actualTok :: ConfirmationToken)] <-
-                    liftIO $ doQuery (itsActionState its ^. aStDb)
+                    liftIO $ doQuery (itsActionEnv its ^. aStDb)
                         [sql| SELECT token FROM user_confirmation_tokens |] ()
                 liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
 
@@ -213,7 +213,7 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest user csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
                 -- Check that no confirmation token was generated
-                liftIO $ rowCountShouldBe (itsActionState its ^. aStDb) "user_confirmation_tokens" 0
+                liftIO $ rowCountShouldBe (itsActionEnv its ^. aStDb) "user_confirmation_tokens" 0
                 -- Check that "Attempted Signup" mail was sent
                 actLine <- grepLogFile its "Thentos: Attempted Signup"
                 liftIO $ actLine `shouldNotBe` ""
@@ -275,7 +275,7 @@ specRest = do
                 void $ request "POST" "/user/register" [jsonHeader] rreqBody
                 -- There should be just one token in the DB
                 [Only (confTok :: ConfirmationToken)] <-
-                    liftIO $ doQuery (itsActionState its ^. aStDb)
+                    liftIO $ doQuery (itsActionEnv its ^. aStDb)
                     [sql| SELECT token FROM user_confirmation_tokens |] ()
                 return confTok
 
@@ -369,7 +369,7 @@ specRest = do
             it "sends an email to an explicit email address." . runIt $ \_its -> do
                 sendEmail [udEmail defaultUserData] [] `shouldRespondWith` "" { matchStatus = 204 }
             it "sends an email to a persona id." . runIt $ \its -> do
-                let connPool = itsActionState its ^. aStDb
+                let connPool = itsActionEnv its ^. aStDb
                 (uid, _, _):_ <- createTestUsers connPool 2
                 Right _persona <- liftIO $ runThentosQuery connPool $ addPersona persName uid (Just uri)
                 sendEmail [] [uri] `shouldRespondWith` "" { matchStatus = 204 }

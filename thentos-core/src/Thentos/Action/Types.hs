@@ -32,15 +32,15 @@ import Thentos.Types
 import Thentos.Config
 
 
-data ActionState =
-    ActionState
+data ActionEnv =
+    ActionEnv
       { _aStConfig  :: ThentosConfig
       , _aStRandom  :: MVar ChaChaDRG
       , _aStDb      :: Pool Connection
       }
   deriving (Generic)
 
-makeLenses ''ActionState
+makeLenses ''ActionEnv
 
 
 -- | The 'Action' monad transformer stack.  It contains:
@@ -49,12 +49,12 @@ makeLenses ''ActionState
 --     - A state of polymorphic type (for use e.g. by the frontend handlers to store cookies etc.)
 --     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
 --       authorization errors that must not be catchable from inside an 'Action'.)
---     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
+--     - An 'ActionEnv' in a reader.  The state can be used by actions for calls to 'LIO', which
 --       will have authorized effect.  Since it is contained in a reader, actions do not have the
 --       power to corrupt it.
 newtype ActionStack e s a =
     ActionStack
-      { fromAction :: ReaderT ActionState
+      { fromAction :: ReaderT ActionEnv
                           (EitherT (ThentosError e)
                               (StateT s
                                   (LIO DCLabel))) a
@@ -69,7 +69,7 @@ instance Monad (ActionStack e s) where
     return = pure
     (ActionStack ua) >>= f = ActionStack $ ua >>= fromAction . f
 
-instance MonadReader ActionState (ActionStack e s) where
+instance MonadReader ActionEnv (ActionStack e s) where
     ask = ActionStack ask
     local f = ActionStack . local f . fromAction
 
@@ -84,7 +84,7 @@ instance MonadLIO DCLabel (ActionStack e s) where
     liftLIO lio = ActionStack . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
 type MonadThentosIO m = MonadLIO DCLabel m
-type MonadThentosReader m = MonadReader ActionState m
+type MonadThentosReader m = MonadReader ActionEnv m
 
 type MonadQuery e m =
     (MonadThentosReader m,

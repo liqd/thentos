@@ -32,7 +32,7 @@ import qualified Data.ByteString.Lazy as LBS
 
 backendApp :: IO Application
 backendApp = do
-    as@(ActionState cfg _ connPool) <- createActionState
+    as@(ActionEnv cfg _ connPool) <- createActionEnv
     void $ tryTakeMVar connPoolVar -- discard old value, if any
     putMVar connPoolVar connPool
     let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
@@ -40,7 +40,7 @@ backendApp = do
 
 frontendApp :: IO Application
 frontendApp = do
-    as@(ActionState cfg _ connPool) <- createActionState
+    as@(ActionEnv cfg _ connPool) <- createActionEnv
     void $ tryTakeMVar connPoolVar -- discard old value, if any
     putMVar connPoolVar connPool
     let Just feConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["frontend"])

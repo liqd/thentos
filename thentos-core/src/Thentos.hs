@@ -8,7 +8,7 @@
 module Thentos
     ( main
     , makeMain
-    , makeActionState
+    , makeActionEnv
     , createConnPoolAndInitDb
     , createDefaultUser
     , runGcLoop
@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 import Thentos.Prelude
 import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
-import Thentos.Action.Types (ActionStack, ActionState(..), aStDb, aStConfig, MonadQuery)
+import Thentos.Action.Types (ActionStack, ActionEnv(..), aStDb, aStConfig, MonadQuery)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Frontend.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
@@ -54,13 +54,13 @@ main = makeMain $ \ actionState mBeConfig mFeConfig -> do
 
 -- * main with abstract commands
 
-makeMain :: (ActionState -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO ()
+makeMain :: (ActionEnv -> Maybe HttpConfig -> Maybe HttpConfig -> IO ()) -> IO ()
 makeMain commandSwitch =
   do
     config :: ThentosConfig <- readConfig "devel.config"
     connPool <- createConnPoolAndInitDb config
 
-    actionState <- makeActionState config connPool
+    actionState <- makeActionEnv config connPool
     checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
 
     _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
@@ -107,16 +107,16 @@ makeMain commandSwitch =
 
 -- * helpers
 
--- | Initialise ActionState
-makeActionState :: ThentosConfig -> Pool Connection -> IO ActionState
-makeActionState config connPool = do
+-- | Initialise ActionEnv
+makeActionEnv :: ThentosConfig -> Pool Connection -> IO ActionEnv
+makeActionEnv config connPool = do
     rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    return $ ActionState config rng connPool
+    return $ ActionEnv config rng connPool
 
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
-runGcLoop :: ActionState -> Maybe Timeout -> IO ThreadId
+runGcLoop :: ActionEnv -> Maybe Timeout -> IO ThreadId
 runGcLoop _           Nothing         = forkIO $ return ()
 runGcLoop actionState (Just interval) = forkIO . forever $ do
     _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState (collectGarbage :: ActionStack Void () ())
@@ -138,7 +138,7 @@ createConnPoolAndInitDb cfg = do
 
 -- | If default user is 'Nothing' or user with 'UserId 0' exists, do
 -- nothing.  Otherwise, create default user.
-createDefaultUser :: ActionState -> IO ()
+createDefaultUser :: ActionEnv -> IO ()
 createDefaultUser as = createDefaultUser'
     (as ^. aStDb)
     (Tagged <$> as ^. aStConfig >>. (Proxy :: Proxy '["default_user"]))

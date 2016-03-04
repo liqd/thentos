@@ -82,13 +82,13 @@ import qualified Thentos.Backend.Api.PureScript
 
 -- * main
 
-runBackend :: HttpConfig -> AC.ActionState -> IO ()
+runBackend :: HttpConfig -> AC.ActionEnv -> IO ()
 runBackend cfg asg = do
     logger INFO $ "running rest api (a3 style) on " ++ show (bindUrl cfg) ++ "."
     manager <- Client.newManager Client.defaultManagerSettings
     runWarpWithCfg cfg $ serveApi manager cfg asg
 
-serveApi :: Client.Manager -> HttpConfig -> AC.ActionState -> Application
+serveApi :: Client.Manager -> HttpConfig -> AC.ActionEnv -> Application
 serveApi manager beConfig astate = addCorsHeaders a3corsPolicy . addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
     in serve p (restDocs beConfig p :<|> api manager astate)
@@ -138,7 +138,7 @@ type Api =
 emptyCreds :: ThentosAuthCredentials
 emptyCreds = ThentosAuthCredentials Nothing (SockAddrInet 0 0)
 
-thentosApi :: AC.ActionState -> Server ThentosApi
+thentosApi :: AC.ActionEnv -> Server ThentosApi
 thentosApi as = enter (enterAction () as a3ActionErrorToServantErr emptyCreds) $
        addUser
   :<|> activate
@@ -156,8 +156,8 @@ thentosApiWithWidgets =
   :<|> (\voice -> A.makeAudioCaptcha (cs voice) >>= \(cid, wav) -> return $ addHeader cid wav)
 
 
-api :: Client.Manager -> AC.ActionState -> Server Api
-api manager actionState@(AC.ActionState cfg _ _) =
+api :: Client.Manager -> AC.ActionEnv -> Server Api
+api manager actionState@(AC.ActionEnv cfg _ _) =
        thentosApi actionState
   :<|> Thentos.Backend.Api.PureScript.api cfg
   :<|> serviceProxy manager a3ProxyAdapter actionState

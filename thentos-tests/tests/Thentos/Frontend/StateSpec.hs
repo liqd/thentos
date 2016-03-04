@@ -96,10 +96,10 @@ spec_frontendState = do
             liftIO $ cs (simpleBody resp) `shouldContain` ("<!DOCTYPE HTML>" :: String)
 
     describe "the FAction monad, via warp" . around withFrontendAndBackend $ do
-        let mkurl :: ActionState -> ST -> String
+        let mkurl :: ActionEnv -> ST -> String
             mkurl as = cs . (exposeUrl (getFrontendConfig (as ^. aStConfig)) <//>)
 
-            post :: ActionState -> Maybe ST -> Maybe ST -> IO (Wreq.Response LBS)
+            post :: ActionEnv -> Maybe ST -> Maybe ST -> IO (Wreq.Response LBS)
             post astate name pass = liftIO . Wreq.post (mkurl astate "/user/login") . catMaybes $
                 [("/user/login.name" Wreq.:=) <$> name, ("/user/login.password" Wreq.:=) <$> pass]
 
@@ -251,11 +251,11 @@ testApi mfsl = session :<|> csrfApi :<|> post_ :<|> read_
     read_ = uses fsdMessages (cs . show <$>)
 
 testApp :: IO Application
-testApp = createActionState >>= serveFAction (Proxy :: Proxy TestApi) (testApi Nothing)
+testApp = createActionEnv >>= serveFAction (Proxy :: Proxy TestApi) (testApi Nothing)
 
 withTestApp :: WaiSession () -> IO ()
 withTestApp test = do
-    st@(ActionState cfg _ connPool) <- createActionState
+    st@(ActionEnv cfg _ connPool) <- createActionEnv
     (do createDefaultUser st
         (tok, _) <- loginAsDefaultUser st
         (uid, _, _) <- getDefaultUser cfg connPool
