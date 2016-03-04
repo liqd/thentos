@@ -23,6 +23,7 @@ import LIO.TCB (ioTCB)
 import Thentos.Types
 import Thentos.Config
 import Thentos.Prelude
+import Thentos.Frontend.CSRF
 
 
 data ActionEnv =
@@ -47,6 +48,9 @@ instance GetThentosConfig ActionEnv where
     getThentosConfig = aStConfig
 
 type MonadThentosConfig v m = (MonadReader v m, GetThentosConfig v)
+
+instance GetCsrfSecret ActionEnv where
+    csrfSecret = aStConfig . csrfSecret
 
 
 -- | The 'Action' monad transformer stack.  It contains:
