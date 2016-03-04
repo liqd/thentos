@@ -6,8 +6,9 @@
 {-# LANGUAGE TypeOperators         #-}
 
 module Thentos.Frontend.State
-    ( enterFAction
+    ( serveFActionStack
     , serveFAction
+    , enterFAction
     , getFrontendCfg
     , fActionServantErr
     )
@@ -112,33 +113,46 @@ sessionMiddleware Proxy setCookie = do
 -- * frontend action monad
 
 type FActionStack = ActionStack FActionError FrontendSessionData
+type ExtendClearanceOnSessionToken m = ThentosSessionToken -> m ()
 
--- FIXME: Using MonadFAction instead of FActionStack leads to an ambiguity here.
-serveFAction :: forall api.
+serveFActionStack :: forall api.
         ( HasServer api
         , Enter (ServerT api FActionStack) (FActionStack :~> ExceptT ServantErr IO) (Server api)
         )
      => Proxy api -> ServerT api FActionStack -> ActionEnv -> IO Application
-serveFAction _ fServer aState =
-    app <$> sessionMiddleware (Proxy :: Proxy FrontendSessionData) thentosSetCookie
+serveFActionStack proxy fServer aState =
+    serveFAction proxy (Proxy :: Proxy FrontendSessionData) extendClearanceOnThentosSession (Nat run) fServer
   where
-    app :: (Middleware, FSessionKey FrontendSessionData) -> Application
-    app (mw, key) = mw $ serve (Proxy :: Proxy (FServantSession FrontendSessionData :> api)) (server' key)
+    run :: FActionStack a -> ExceptT ServantErr IO a
+    run = ExceptT . (>>= _Left fActionServantErr) . (fst <$>)
+        . runActionE emptyFrontendSessionData aState
 
-    server' :: FSessionKey FrontendSessionData -> FSessionMap FrontendSessionData -> Server api
+serveFAction :: forall api m s e v.
+        ( HasServer api
+        , Enter (ServerT api m) (m :~> ExceptT ServantErr IO) (Server api)
+        , MonadRandom m, MonadThentosIO m, MonadError500 e m, MonadHasSessionCsrfToken s m
+        , MonadViewCsrfSecret v m, MonadUseThentosSessionToken s m
+        )
+     => Proxy api
+     -> Proxy s
+     -> ExtendClearanceOnSessionToken m
+     -> m :~> ExceptT ServantErr IO
+     -> ServerT api m -> IO Application
+serveFAction _ sProxy extendClearanceOnSessionToken nat fServer =
+    app <$> sessionMiddleware sProxy thentosSetCookie
+  where
+    app :: (Middleware, FSessionKey s) -> Application
+    app (mw, key) = mw $ serve (Proxy :: Proxy (FServantSession s :> api)) (server' key)
+
+    server' :: FSessionKey s -> FSessionMap s -> Server api
     server' key smap = enter nt fServer
       where
-        run :: FActionStack a -> ExceptT ServantErr IO a
-        run = ExceptT . (>>= _Left fActionServantErr) . (fst <$>)
-            . runActionE emptyFrontendSessionData aState
-        nt :: FActionStack :~> ExceptT ServantErr IO
-        nt = enterFAction key smap extendClearanceOnThentosSession (Nat run)
-
-type ExtendClearanceOnSessionToken m = ThentosSessionToken -> m ()
+        nt :: m :~> ExceptT ServantErr IO
+        nt = enterFAction key smap extendClearanceOnSessionToken nat
 
 enterFAction
-    :: ( MonadRandom m, MonadThentosIO m, MonadError500 err m, MonadHasSessionCsrfToken s m
-       , MonadViewCsrfSecret env m, MonadUseThentosSessionToken s m)
+    :: ( MonadRandom m, MonadThentosIO m, MonadError500 e m, MonadHasSessionCsrfToken s m
+       , MonadViewCsrfSecret v m, MonadUseThentosSessionToken s m)
     => FSessionKey s
     -> FSessionMap s
     -> ExtendClearanceOnSessionToken m

@@ -30,7 +30,7 @@ import Thentos.Frontend.Types
 runFrontend :: HttpConfig -> ActionEnv -> IO ()
 runFrontend config aState = do
     logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
-    serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
+    serveFActionStack (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
 
 type FrontendH =
        GetH
