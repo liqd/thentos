@@ -51,7 +51,7 @@ import Thentos.Test.Core
 
 main :: IO ()
 main = do
-    withFrontendAndBackend $ \as@(ActionEnv cfg _ _) -> do
+    withFrontendAndBackend $ \as@(ActionEnv cfg _) -> do
         threadDelay $ let s = (* (1000 * 1000)) in s 2
 
         Just sessToken <- getThentosSessionToken as
@@ -86,7 +86,7 @@ pronkConfig reqs = Pronk.Config {
     }
 
 getThentosSessionToken :: ActionEnv -> IO (Maybe ThentosSessionToken)
-getThentosSessionToken (ActionEnv cfg _ conn) = do
+getThentosSessionToken (ActionEnv cfg conn) = do
     let Just godName = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
         Just godPass = UserPass <$> cfg >>. (Proxy :: Proxy '["default_user", "password"])
     Right (godUid, _) <- runThentosQuery conn $ lookupConfirmedUserByName godName
@@ -266,7 +266,7 @@ loginGenTrans cfg (MachineState uid loginState) =
             }
 
 mkLoginGens :: ActionEnv -> IO [Pronk.RequestGenerator]
-mkLoginGens (ActionEnv cfg _ connPool) = do
+mkLoginGens (ActionEnv cfg connPool) = do
     uids <- getUIDs connPool
     -- take out god user so all users have the same password
     uids' <- do

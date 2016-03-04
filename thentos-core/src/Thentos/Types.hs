@@ -965,6 +965,7 @@ instance Error500 err => Error500 (ThentosError err) where
 
 type MonadError500 err m = (MonadError err m, Error500 err)
 
+
 -- * boilerplate
 
 makeLenses ''Persona
