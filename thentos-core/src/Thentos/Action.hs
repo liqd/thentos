@@ -804,7 +804,7 @@ discardWhitespace = ST.concat . ST.words
 
 -- * garbage collection
 
-collectGarbage :: (Exception (ActionError e), MonadQuery e v m) => m ()
+collectGarbage :: MonadQuery e v m => m ()
 collectGarbage = do
     loggerA DEBUG "starting garbage collection."
     guardWriteMsg "collectGarbage" (GroupAdmin %% GroupAdmin)

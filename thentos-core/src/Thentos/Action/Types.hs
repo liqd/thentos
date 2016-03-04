@@ -34,6 +34,20 @@ data ActionEnv =
 
 makeLenses ''ActionEnv
 
+class GetThentosDb a where
+    getThentosDb :: Getter a (Pool Connection)
+
+instance GetThentosDb ActionEnv where
+    getThentosDb = aStDb
+
+class GetThentosConfig a where
+    getThentosConfig :: Getter a ThentosConfig
+
+instance GetThentosConfig ActionEnv where
+    getThentosConfig = aStConfig
+
+type MonadThentosConfig v m = (MonadReader v m, GetThentosConfig v)
+
 
 -- | The 'Action' monad transformer stack.  It contains:
 --
@@ -78,10 +92,10 @@ instance MonadLIO DCLabel (ActionStack e s) where
 instance MonadRandom (ActionStack e s) where
     getRandomBytes = liftLIO . ioTCB . getRandomBytes
 
-type MonadThentosReader m = MonadReader ActionEnv m
-
 type MonadQuery e v m =
-    (MonadThentosReader m,
+    (GetThentosDb v,
+     GetThentosConfig v,
+     MonadReader v m,
      MonadThentosError e m,
      MonadThentosIO m)
 

@@ -33,10 +33,10 @@ import qualified System.Log.Missing as SLM
 
 -- | While getting the config does not involve the LIO monad, accessing the config should be done
 -- with care as it contains some sensitive bits.
-getConfig :: MonadThentosReader m => m ThentosConfig
-getConfig = (^. aStConfig) <$> ask
+getConfig :: MonadThentosConfig e m => m ThentosConfig
+getConfig = view getThentosConfig
 
-getConfigField :: (MonadThentosReader m,
+getConfigField :: (MonadThentosConfig e m,
                    cfg ~ ToConfigCode ThentosConfig',
                    Sel cfg ps,
                    ToValE cfg ps ~ 'Done r)
@@ -72,7 +72,7 @@ logSignupAttempt name email captchaAttempt = do
         logLevel = CRITICAL -- for some reason the entries aren't written to the file at INFO
     liftLIO . ioTCB $ logM signupLogger logLevel (init logLine)
 
-sendMail :: (MonadThentosIO m, MonadThentosReader m) => Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> m ()
+sendMail :: (MonadThentosIO m, MonadThentosConfig v m) => Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> m ()
 sendMail mName address subject body html = do
     config <- Tagged <$> getConfigField (Proxy :: Proxy '["smtp"])
     result <- liftLIO . ioTCB $ TS.sendMail config mName address subject body html

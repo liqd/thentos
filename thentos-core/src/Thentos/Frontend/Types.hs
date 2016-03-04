@@ -23,14 +23,13 @@ import Thentos.Action.Types
 type MonadThentosFError m = MonadThentosError FActionError m
 type MonadThentosFState m = MonadState FrontendSessionData m
 type MonadFAction m =
-    (MonadThentosReader m,
+    (MonadReader ActionEnv m,
      MonadThentosError FActionError m,
      MonadState FrontendSessionData m,
      MonadRandom m,
      MonadThentosIO m)
 type FAction a = forall m. MonadFAction m => m a
 type FormHandler f = forall m. MonadFAction m => f m
-
 -- * frontend errors
 
 data FActionError =

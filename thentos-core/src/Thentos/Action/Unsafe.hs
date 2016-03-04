@@ -27,7 +27,7 @@ unsafeLiftIO = liftLIO . ioTCB
 
 query :: MonadQuery e v m => ThentosQuery e a -> m a
 query u = do
-    connPool <- view aStDb
+    connPool <- view getThentosDb
     unsafeLiftIO (runThentosQuery connPool u) >>= either throwError return
 
 

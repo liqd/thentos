@@ -158,7 +158,7 @@ cookieToFSession r = liftLIO (ioTCB r) >>= mapM_ put
 cookieFromFSession :: (MonadThentosIO m, MonadThentosFState m) => (FrontendSessionData -> IO ()) -> m ()
 cookieFromFSession w = get >>= liftLIO . ioTCB . w
 
-getFrontendCfg :: (MonadThentosIO m, MonadThentosReader m) => m HttpConfig
+getFrontendCfg :: MonadThentosConfig e m => m HttpConfig
 getFrontendCfg = do
     Just (feConfig :: HttpConfig) <- (Tagged <$>) <$> getConfigField (Proxy :: Proxy '["frontend"])
     return feConfig
