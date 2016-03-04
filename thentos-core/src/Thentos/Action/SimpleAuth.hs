@@ -21,7 +21,6 @@ import LIO.DCLabel ((%%))
 import LIO.Missing
 import Thentos.Backend.Api.Auth.Types
 import Thentos.Types
-import Thentos.Action.Types (MonadThentosIO)
 
 
 -- | Run boolean authorization predicate.  Throw 'ActionErrorAnyLabel' if the result is 'False'.

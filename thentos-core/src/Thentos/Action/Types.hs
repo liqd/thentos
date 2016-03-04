@@ -6,36 +6,28 @@
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE TemplateHaskell             #-}
 
 module Thentos.Action.Types where
 
-import Control.Concurrent (MVar)
-import Control.Exception (Exception, SomeException)
-import Control.Lens (makeLenses)
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, ask, local)
-import Control.Monad.State (MonadState, StateT, state)
+import Control.Exception (SomeException)
+import Control.Monad.Reader (ReaderT(ReaderT))
+import Control.Monad.State (StateT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT))
-import "cryptonite" Crypto.Random (ChaChaDRG)
 import Database.PostgreSQL.Simple (Connection)
 import Data.Pool (Pool)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, liftLIO)
-import LIO.DCLabel (DCLabel)
-import LIO.Error (AnyLabelError)
+import LIO.Core (LIO)
+import LIO.TCB (ioTCB)
 
 import Thentos.Types
 import Thentos.Config
+import Thentos.Prelude
 
 
 data ActionEnv =
     ActionEnv
       { _aStConfig  :: ThentosConfig
-      , _aStRandom  :: MVar ChaChaDRG
       , _aStDb      :: Pool Connection
       }
   deriving (Generic)
@@ -83,7 +75,9 @@ instance MonadState s (ActionStack e s) where
 instance MonadLIO DCLabel (ActionStack e s) where
     liftLIO lio = ActionStack . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
-type MonadThentosIO m = MonadLIO DCLabel m
+instance MonadRandom (ActionStack e s) where
+    getRandomBytes = liftLIO . ioTCB . getRandomBytes
+
 type MonadThentosReader m = MonadReader ActionEnv m
 
 type MonadQuery e m =
@@ -91,11 +85,7 @@ type MonadQuery e m =
      MonadThentosError e m,
      MonadThentosIO m)
 
-type MonadAction e s m =
-    (MonadThentosReader m,
-     MonadThentosError e m,
-     MonadState s m,
-     MonadThentosIO m)
+type MonadAction e m = (MonadQuery e m, MonadRandom m)
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --

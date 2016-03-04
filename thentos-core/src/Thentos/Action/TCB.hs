@@ -1,16 +1,14 @@
 {-# LANGUAGE Unsafe                      #-}
 
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 
 module Thentos.Action.TCB
 where
 
-import Control.Concurrent (modifyMVar)
-import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.), Sel, ToValE, Exc(Done), ToConfigCode)
 import LIO.TCB (ioTCB)
 import Network.HostAddr (hostAddr, getHostAddr)
@@ -47,14 +45,6 @@ getConfigField p = (>>. p) <$> getConfig
 
 getCurrentTime :: MonadThentosIO m => m Timestamp
 getCurrentTime = Timestamp <$> liftLIO (ioTCB Thyme.getCurrentTime)
-
--- | A relative of 'cprgGenerate' from crypto-random.
-genRandomBytes :: (MonadThentosIO m, MonadThentosReader m) => Int -> m SBS
-genRandomBytes i = do
-    let f :: ChaChaDRG -> (ChaChaDRG, SBS)
-        f r = case randomBytesGenerate i r of (output, r') -> (r', output)
-    r <- view aStRandom
-    liftLIO . ioTCB . modifyMVar r $ return . f
 
 hashUserPass :: MonadThentosIO m => UserPass -> m (HashedSecret UserPass)
 hashUserPass = liftLIO . ioTCB . TU.hashUserPass

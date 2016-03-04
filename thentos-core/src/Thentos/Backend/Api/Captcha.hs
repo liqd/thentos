@@ -34,7 +34,7 @@ import qualified Servant.Foreign.Internal as Foreign
 
 import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (ActionEnv, MonadQuery)
+import Thentos.Action.Types (ActionEnv, MonadQuery, MonadAction)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
@@ -124,7 +124,7 @@ type ThentosCaptchaFrontend =
 type ThentosCaptchaBackend =
        "solve_captcha" :> ReqBody '[JSON] CaptchaSolution :> Post '[JSON] (JsonTop Bool) -- FIXME: this should return status 200, not 201
 
-thentosCaptchaFrontend :: MonadQuery e m => ServerT ThentosCaptchaFrontend m
+thentosCaptchaFrontend :: MonadAction e m => ServerT ThentosCaptchaFrontend m
 thentosCaptchaFrontend =
        preflightH
   :<|> captchaImgH
@@ -137,10 +137,10 @@ thentosCaptchaBackend = captchaSolveH
 preflightH :: Applicative m => m (Headers CaptchaOptionsHeaders ())
 preflightH = pure $ addCaptchaOptionsHeaders ()
 
-captchaImgH :: MonadQuery e m => m (Headers CaptchaHeaders ImageData)
+captchaImgH :: MonadAction e m => m (Headers CaptchaHeaders ImageData)
 captchaImgH = uncurry addCaptchaHeaders <$> makeCaptcha
 
-captchaWavH :: MonadQuery e m => ST -> m (Headers CaptchaHeaders SBS)
+captchaWavH :: MonadAction e m => ST -> m (Headers CaptchaHeaders SBS)
 captchaWavH voice = uncurry addCaptchaHeaders <$> makeAudioCaptcha (cs voice)
 
 captchaSolveH :: MonadQuery e m => CaptchaSolution -> m (JsonTop Bool)

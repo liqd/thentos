@@ -6,11 +6,8 @@
 module Thentos.Backend.Api.CaptchaSpec (spec) where
 
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, tryTakeMVar, readMVar)
-import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
-import Data.Configifier (Tagged(Tagged), (>>.))
+import Data.Configifier (ToConfig, Id, Tagged(Tagged), (>>.))
 import Data.Pool (Pool)
-import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Simple (Connection)
 import Database.PostgreSQL.Simple.SqlQQ (sql)
 import Network.Wai (Application)
@@ -21,8 +18,10 @@ import System.IO.Unsafe (unsafePerformIO)
 import Test.Hspec (Spec, SpecWith, describe, it, shouldBe)
 import Test.Hspec.Wai (with, request)
 
+import Thentos.Prelude
 import Thentos.Action.Types
 import Thentos.Backend.Api.Captcha (serveFrontendApi, serveBackendApi)
+import Thentos.Config (ThentosConfig)
 import Thentos.Test.Core
 import Thentos.Test.Transaction
 import Thentos.Types
@@ -30,22 +29,20 @@ import Thentos.Types
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
 
-backendApp :: IO Application
-backendApp = do
-    as@(ActionEnv cfg _ connPool) <- createActionEnv
+app :: (ThentosConfig -> Maybe (ToConfig cfg Id))
+    -> (Tagged cfg -> ActionEnv -> b) -> IO b
+app theConfig serveApi = do
+    st <- createActionEnv
     void $ tryTakeMVar connPoolVar -- discard old value, if any
-    putMVar connPoolVar connPool
-    let Just beConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["backend"])
-    return $! serveBackendApi beConfig as
+    putMVar connPoolVar $ st ^. aStDb
+    let Just beConfig = Tagged <$> theConfig (st ^. aStConfig)
+    return $! serveApi beConfig st
+
+backendApp :: IO Application
+backendApp = app (>>. (Proxy :: Proxy '["backend"])) serveBackendApi
 
 frontendApp :: IO Application
-frontendApp = do
-    as@(ActionEnv cfg _ connPool) <- createActionEnv
-    void $ tryTakeMVar connPoolVar -- discard old value, if any
-    putMVar connPoolVar connPool
-    let Just feConfig = Tagged <$> cfg >>. (Proxy :: Proxy '["frontend"])
-    return $! serveFrontendApi feConfig as
-
+frontendApp = app (>>. (Proxy :: Proxy '["frontend"])) serveFrontendApi
 
 spec :: Spec
 spec = describe "Thentos.Backend.Api.Captcha" $ do

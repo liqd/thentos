@@ -18,7 +18,6 @@ import qualified Data.ByteString as SBS
 
 import Thentos.Prelude
 import Thentos.Types
-import Thentos.Action.Types
 import Thentos.Action.Unsafe (unsafeLiftIO)
 
 -- | Test whether espeak is available on this system, throwing an error if it isn't.

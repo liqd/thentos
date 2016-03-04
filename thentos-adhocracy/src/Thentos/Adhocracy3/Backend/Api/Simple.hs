@@ -157,10 +157,10 @@ thentosApiWithWidgets =
 
 
 api :: Client.Manager -> AC.ActionEnv -> Server Api
-api manager actionState@(AC.ActionEnv cfg _ _) =
-       thentosApi actionState
+api manager actionEnv@(AC.ActionEnv cfg _) =
+       thentosApi actionEnv
   :<|> Thentos.Backend.Api.PureScript.api cfg
-  :<|> serviceProxy manager a3ProxyAdapter actionState
+  :<|> serviceProxy manager a3ProxyAdapter actionEnv
 
 
 -- * policy

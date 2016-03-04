@@ -10,6 +10,7 @@
 {-# LANGUAGE RankNTypes                               #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TupleSections                            #-}
+{-# LANGUAGE TemplateHaskell                          #-}
 {-# LANGUAGE TypeSynonymInstances                     #-}
 
 {-# OPTIONS_GHC #-}
@@ -17,7 +18,7 @@
 module Thentos.Backend.Api.SimpleSpec (spec, tests)
 where
 
-import Control.Lens ((^.))
+import Control.Lens
 import Control.Monad.State (liftIO)
 import Control.Monad (void)
 import Database.PostgreSQL.Simple (Only(..))
@@ -59,13 +60,15 @@ import Thentos.Test.Transaction
 
 -- | FIXME: This should be provided in a more general way from "Thentos.Test.Core".
 data ItsState = ItsState
-    { itsApplication :: Application
-    , itsActionEnv :: ActionEnv
-    , itsGodHeader   :: Header
+    { _itsApplication :: Application
+    , _itsActionEnv   :: ActionEnv
+    , _itsGodHeader   :: Header
     }
 
+makeLenses ''ItsState
+
 runIt :: (ItsState -> WaiSession a) -> ItsState -> IO a
-runIt session its = runWaiSession (session its) (itsApplication its)
+runIt session its = runWaiSession (session its) (its ^. itsApplication)
 
 withIt :: ActionWith ItsState -> IO ()
 withIt action = outsideTempDirectory $ (action =<<) . setupIt . Just
@@ -90,7 +93,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = describe "Thentos.Backend.Api.Simple" $ do
-    with (itsApplication <$> setupIt Nothing) specHasRestDocs
+    with (view itsApplication <$> setupIt Nothing) specHasRestDocs
     around withIt specRest
 
 specRest :: SpecWith ItsState
@@ -98,21 +101,21 @@ specRest = do
     describe "headers" $ do
         it "bad unknown headers matching /X-Thentos-*/ yields an error response." . runIt $
           \its -> do
-            let headers = [("X-Thentos-No-Such-Header", "3"), jsonHeader, itsGodHeader its]
+            let headers = [("X-Thentos-No-Such-Header", "3"), jsonHeader, its ^. itsGodHeader]
             request "GET" "/user/0/email" headers "" `shouldRespondWith` 400
 
     describe "user" $ do
         describe "Capture \"userid\" UserId :> \"name\" :> Get (JsonTop UserName)" $ do
             let resource = "/user/1/name"
             it "yields a name" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 request "GET" resource hdr "" `shouldRespondWith` "{\"data\":\"god\"}"
 
             it "can be called by user herself" . runIt $ \_its -> do
                 pendingWith "test missing."
 
             it "can be called by admin" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 request "GET" resource hdr "" `shouldRespondWith` 200
 
             it "can not be called by other (non-admin) users" . runIt $ \_its -> do
@@ -121,12 +124,12 @@ specRest = do
         describe "Capture \"userid\" UserId :> \"email\" :> Get (JsonTop UserEmail)" $ do
             let resource = "/user/1/email"
             it "yields an email address" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 request "GET" resource hdr "" `shouldRespondWith` 200
 
         describe "ReqBody UserFormData :> Post (JsonTop UserId)" $ do
             it "writes a new user to the database" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 response1 <- postDefaultUser its
                 return response1 `shouldRespondWith` 201
 
@@ -141,7 +144,7 @@ specRest = do
 
         describe "Capture \"userid\" UserId :> Delete" $ do
             it "removes an existing user from the database" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 response1 <- postDefaultUser its
                 let Right (uid :: Int) = decodeJsonTop $ simpleBody response1
                 request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
@@ -154,7 +157,7 @@ specRest = do
                 pendingWith "test missing."
 
             it "if user does not exist, responds with a 404" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 request "DELETE" "/user/1797" hdr "" `shouldRespondWith` 404
 
         describe "captcha POST" $ do
@@ -174,7 +177,7 @@ specRest = do
             getCaptchaAndSolution its = do
                 crsp <- post "/user/captcha" ""
                 let Just cid = lookup "Thentos-Captcha-Id" $ simpleHeaders crsp
-                [Only solution] <- liftIO $ doQuery (itsActionEnv its ^. aStDb)
+                [Only solution] <- liftIO $ doQuery (its ^. itsActionEnv . aStDb)
                     [sql| SELECT solution FROM captchas WHERE id = ? |] (Only cid)
                 return (cid, solution)
 
@@ -182,7 +185,7 @@ specRest = do
             let grepLogFile :: ItsState -> String -> WaiSession String
                 grepLogFile its line = liftIO $ do
                     let logFile :: FilePath
-                        logFile = cs $ (itsActionEnv its ^. aStConfig)
+                        logFile = cs $ (its ^. itsActionEnv . aStConfig)
                             >>. (Proxy :: Proxy '["log", "path"])
                     readProcess "grep" [line, logFile] ""
 
@@ -198,7 +201,7 @@ specRest = do
                 actLine <- grepLogFile its actPrefix
                 let sentToken = ST.take 24 . snd $ ST.breakOnEnd (cs actPrefix) (cs actLine)
                 [Only (actualTok :: ConfirmationToken)] <-
-                    liftIO $ doQuery (itsActionEnv its ^. aStDb)
+                    liftIO $ doQuery (its ^. itsActionEnv . aStDb)
                         [sql| SELECT token FROM user_confirmation_tokens |] ()
                 liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
 
@@ -213,7 +216,7 @@ specRest = do
                     reqBody = Aeson.encode $ UserCreationRequest user csol
                 request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
                 -- Check that no confirmation token was generated
-                liftIO $ rowCountShouldBe (itsActionEnv its ^. aStDb) "user_confirmation_tokens" 0
+                liftIO $ rowCountShouldBe (its ^. itsActionEnv . aStDb) "user_confirmation_tokens" 0
                 -- Check that "Attempted Signup" mail was sent
                 actLine <- grepLogFile its "Thentos: Attempted Signup"
                 liftIO $ actLine `shouldNotBe` ""
@@ -275,7 +278,7 @@ specRest = do
                 void $ request "POST" "/user/register" [jsonHeader] rreqBody
                 -- There should be just one token in the DB
                 [Only (confTok :: ConfirmationToken)] <-
-                    liftIO $ doQuery (itsActionEnv its ^. aStDb)
+                    liftIO $ doQuery (its ^. itsActionEnv . aStDb)
                     [sql| SELECT token FROM user_confirmation_tokens |] ()
                 return confTok
 
@@ -342,7 +345,7 @@ specRest = do
     describe "thentos_session" $ do
         describe "ReqBody '[JSON] ThentosSessionToken :> Get Bool" $ do
             it "returns true if session is active" . runIt $ \its -> do
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 response1 <- postDefaultUser its
                 let Right uid = decodeJsonTop $ simpleBody response1
                 response2 <- request "POST" "/thentos_session" hdr $
@@ -352,7 +355,7 @@ specRest = do
 
             it "returns false if session is does not exist" . runIt $ \its -> do
                 void $ postDefaultUser its
-                let hdr = [jsonHeader, itsGodHeader its]
+                let hdr = [jsonHeader, its ^. itsGodHeader]
                 request "GET" "/thentos_session/" hdr (Aeson.encode ("x" :: ThentosSessionToken))
                     `shouldRespondWith` "false" { matchStatus = 200 }
 
@@ -369,7 +372,7 @@ specRest = do
             it "sends an email to an explicit email address." . runIt $ \_its -> do
                 sendEmail [udEmail defaultUserData] [] `shouldRespondWith` "" { matchStatus = 204 }
             it "sends an email to a persona id." . runIt $ \its -> do
-                let connPool = itsActionEnv its ^. aStDb
+                let connPool = its ^. itsActionEnv . aStDb
                 (uid, _, _):_ <- createTestUsers connPool 2
                 Right _persona <- liftIO $ runThentosQuery connPool $ addPersona persName uid (Just uri)
                 sendEmail [] [uri] `shouldRespondWith` "" { matchStatus = 204 }
@@ -387,7 +390,7 @@ decodeJsonTop bs = fromJsonTop <$> Aeson.eitherDecode bs
 
 postDefaultUser :: ItsState -> WaiSession SResponse
 postDefaultUser its = do
-    request "POST" "/user" [jsonHeader, itsGodHeader its] (Aeson.encode defaultUserData)
+    request "POST" "/user" [jsonHeader, its ^. itsGodHeader] (Aeson.encode defaultUserData)
 
 -- | Set content type to JSON.
 jsonHeader :: Header

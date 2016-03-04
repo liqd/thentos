@@ -17,16 +17,21 @@ import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Prelude
 import Thentos.Types
-import Thentos.Action.Types (MonadAction)
+import Thentos.Action.Types
 
-
--- * frontend actions
 
 type MonadThentosFError m = MonadThentosError FActionError m
 type MonadThentosFState m = MonadState FrontendSessionData m
-type MonadFAction m = MonadAction FActionError FrontendSessionData m
+type MonadFAction m =
+    (MonadThentosReader m,
+     MonadThentosError FActionError m,
+     MonadState FrontendSessionData m,
+     MonadRandom m,
+     MonadThentosIO m)
 type FAction a = forall m. MonadFAction m => m a
 type FormHandler f = forall m. MonadFAction m => f m
+
+-- * frontend errors
 
 data FActionError =
     FActionError303 SBS

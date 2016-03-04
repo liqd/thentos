@@ -15,7 +15,7 @@
 -- >>>             -> ServerT api (Action)
 -- >>>             -> Maybe ThentosSessionToken
 -- >>>             -> Server api
--- >>> thentosAuth actionState api mTok = enter (enterAction actionState mTok) api
+-- >>> thentosAuth actionEnv api mTok = enter (enterAction actionEnv mTok) api
 --
 -- because then here we could write:
 --
@@ -31,7 +31,7 @@
 -- So instead, you will have to write something like this:
 --
 -- >>> api :: ActionEnv -> Server (ThentosAuth :> MyApi)
--- >>> api actionState mTok = enter (enterAction actionState mTok) myApi
+-- >>> api actionEnv mTok = enter (enterAction actionEnv mTok) myApi
 module Thentos.Backend.Api.Auth (module Thentos.Backend.Api.Auth.Types) where
 
 import Control.Lens ((&), (<>~))

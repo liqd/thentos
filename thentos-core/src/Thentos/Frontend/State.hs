@@ -32,6 +32,7 @@ import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.CSRF
 import Thentos.Frontend.Types
+import Thentos.Types
 
 import qualified Thentos.Frontend.Pages.Core as Pages
 

@@ -255,10 +255,11 @@ testApp = createActionEnv >>= serveFAction (Proxy :: Proxy TestApi) (testApi Not
 
 withTestApp :: WaiSession () -> IO ()
 withTestApp test = do
-    st@(ActionEnv cfg _ connPool) <- createActionEnv
+    st <- createActionEnv
+    let connPool = st ^. aStDb
     (do createDefaultUser st
         (tok, _) <- loginAsDefaultUser st
-        (uid, _, _) <- getDefaultUser cfg connPool
+        (uid, _, _) <- getDefaultUser (st ^. aStConfig) connPool
         let mfsl = Just (FrontendSessionLoginData tok uid (Just DashboardTabDetails))
         app <- serveFAction (Proxy :: Proxy TestApi) (testApi mfsl) st
         runWaiSession test app) `finally` destroyAllResources connPool

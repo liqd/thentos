@@ -6,6 +6,8 @@ module Thentos.Sybil.GraphicCaptcha (generateCaptcha) where
 import Data.Elocrypt (mkPassword)
 
 import Codec.Picture (PixelRGBA8(PixelRGBA8), encodePng)
+import Control.Monad.Random.Class (MonadRandom, getRandomR)
+import Control.Monad.Random (evalRand, mkStdGen)
 import Graphics.Rasterific
     ( Drawing, PointSize(PointSize), Point
     , withTransformation, withTexture, printTextAt, rectangle, renderDrawing, fill
@@ -15,7 +17,7 @@ import Graphics.Rasterific.Texture (uniformTexture, patternTexture, transformTex
 import Graphics.Rasterific.Transformations (translate)
 import Graphics.Text.TrueType (Font, loadFontFile)
 
-import Thentos.Prelude
+import Thentos.Prelude hiding (MonadRandom)
 import Thentos.Types
 
 

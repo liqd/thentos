@@ -1,14 +1,12 @@
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module Thentos
     ( main
     , makeMain
-    , makeActionEnv
     , createConnPoolAndInitDb
     , createDefaultUser
     , runGcLoop
@@ -16,10 +14,8 @@ module Thentos
     ) where
 
 import Control.Concurrent.Async (concurrently)
-import Control.Concurrent.MVar (MVar, newMVar)
 import Control.Concurrent (ThreadId, threadDelay, forkIO)
 import Control.Exception (finally)
-import "cryptonite" Crypto.Random (ChaChaDRG, drgNew)
 import Database.PostgreSQL.Simple (Connection, connectPostgreSQL, close)
 import Data.Configifier ((>>.), Tagged(Tagged))
 import Data.Pool (Pool, createPool, withResource)
@@ -29,7 +25,7 @@ import qualified Data.Map as Map
 import Thentos.Prelude
 import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
-import Thentos.Action.Types (ActionStack, ActionEnv(..), aStDb, aStConfig, MonadQuery)
+import Thentos.Action.Types (ActionStack, ActionEnv(..), aStDb, aStConfig, MonadAction)
 import Thentos.Config
 import Thentos.Frontend (runFrontend)
 import Thentos.Frontend.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
@@ -45,9 +41,9 @@ import qualified Thentos.Transaction as T
 -- * main
 
 main :: IO ()
-main = makeMain $ \ actionState mBeConfig mFeConfig -> do
-    let backend = mapM_ (`Simple.runApi` actionState) mBeConfig
-    let frontend = mapM_ (`runFrontend` actionState) mFeConfig
+main = makeMain $ \ actionEnv mBeConfig mFeConfig -> do
+    let backend = mapM_ (`Simple.runApi` actionEnv) mBeConfig
+    let frontend = mapM_ (`runFrontend` actionEnv) mFeConfig
 
     void $ concurrently backend frontend
 
@@ -60,12 +56,12 @@ makeMain commandSwitch =
     config :: ThentosConfig <- readConfig "devel.config"
     connPool <- createConnPoolAndInitDb config
 
-    actionState <- makeActionEnv config connPool
+    let actionEnv = ActionEnv config connPool
     checkSendmail . Tagged $ config >>. (Proxy :: Proxy '["smtp"])
 
-    _ <- runGcLoop actionState $ config >>. (Proxy :: Proxy '["gc_interval"])
-    createDefaultUser actionState
-    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState
+    _ <- runGcLoop actionEnv $ config >>. (Proxy :: Proxy '["gc_interval"])
+    createDefaultUser actionEnv
+    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionEnv
         (autocreateMissingServices config :: ActionStack Void () ())
 
     let mBeConfig :: Maybe HttpConfig
@@ -97,7 +93,7 @@ makeMain commandSwitch =
 
     logger INFO "Press ^C to abort."
     let run = do
-            commandSwitch actionState mBeConfig mFeConfig
+            commandSwitch actionEnv mBeConfig mFeConfig
         finalize = do
             announceAction "shutting down hslogger" $
                 removeAllHandlers
@@ -107,19 +103,13 @@ makeMain commandSwitch =
 
 -- * helpers
 
--- | Initialise ActionEnv
-makeActionEnv :: ThentosConfig -> Pool Connection -> IO ActionEnv
-makeActionEnv config connPool = do
-    rng :: MVar ChaChaDRG <- drgNew >>= newMVar
-    return $ ActionEnv config rng connPool
-
 -- | Garbage collect DB type.  (In this module because 'Thentos.Util' doesn't have 'Thentos.Action'
 -- yet.  It takes the time interval in such a weird type so that it's easier to call with the
 -- config.  This function should move and change in the future.)
 runGcLoop :: ActionEnv -> Maybe Timeout -> IO ThreadId
-runGcLoop _           Nothing         = forkIO $ return ()
-runGcLoop actionState (Just interval) = forkIO . forever $ do
-    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionState (collectGarbage :: ActionStack Void () ())
+runGcLoop _         Nothing         = forkIO $ return ()
+runGcLoop actionEnv (Just interval) = forkIO . forever $ do
+    _ <- runActionWithPrivs [toCNF GroupAdmin] () actionEnv (collectGarbage :: ActionStack Void () ())
     threadDelay $ toMilliseconds interval * 1000
 
 -- | Create a connection pool and initialize the DB by creating all tables, indexes etc. if the DB
@@ -177,7 +167,7 @@ createDefaultUser' conn = mapM_ $ \(getDefaultUser -> (userData, groups)) -> do
 
 -- | Autocreate any services that are listed in the config but don't exist in the DB.
 -- Dies with an error if the default "proxy" service ID is repeated in the "proxies" section.
-autocreateMissingServices :: MonadQuery e m => ThentosConfig -> m ()
+autocreateMissingServices :: MonadAction e m => ThentosConfig -> m ()
 autocreateMissingServices cfg = do
     dieOnDuplicates
     mapM_ (autocreateServiceIfMissing agent) allSids

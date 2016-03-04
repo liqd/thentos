@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances                        #-}
 {-# LANGUAGE MultiParamTypeClasses                    #-}
 {-# LANGUAGE OverloadedStrings                        #-}
-{-# LANGUAGE PackageImports                           #-}
 {-# LANGUAGE ScopedTypeVariables                      #-}
 {-# LANGUAGE TypeOperators                            #-}
 {-# LANGUAGE UndecidableInstances                     #-}
@@ -23,8 +22,6 @@ module Thentos.Backend.Api.Docs.Common
     )
 where
 
-import Control.Concurrent.MVar (newMVar)
-import "cryptonite" Crypto.Random (drgNew)
 import Data.Version (Version, showVersion)
 import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
@@ -171,10 +168,9 @@ runTokenBuilder action = unsafePerformIO $ Docs.singleSample <$> do
 {-# NOINLINE runTokenBuilderState #-}
 runTokenBuilderState :: Action.ActionEnv
 runTokenBuilderState = unsafePerformIO $ do
-    rng  <- drgNew >>= newMVar
     conn <- pure $ error "runTokenBuilder: no db"
     cfg  <- pure $ error "runTokenBuilder: no config"
-    return $ Action.ActionEnv cfg rng conn
+    return $ Action.ActionEnv cfg conn
 
 
 -- * instances for servant-docs

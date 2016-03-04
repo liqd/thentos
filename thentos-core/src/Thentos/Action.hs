@@ -121,35 +121,35 @@ queryA = U.query
 -- RFC 4648 also has a "URL Safe Alphabet" which additionally replaces @+@ by @-@. But that's
 -- problematic, since @-@ at the end of URLs is not recognized as part of the URL by some programs
 -- such as Thunderbird.
-freshRandomName :: (MonadThentosIO m, MonadThentosReader m) => m ST
-freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> genRandomBytes 18
+freshRandomName :: MonadRandom m => m ST
+freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> getRandomBytes 18
 
-freshConfirmationToken :: (MonadThentosIO m, MonadThentosReader m) => m ConfirmationToken
+freshConfirmationToken :: MonadRandom m => m ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
 
 -- | Generate 20 bytes of random data.
 -- For comparison: an UUID has 16 bytes, so that should be enough for all practical purposes.
-freshRandom20 :: (MonadThentosIO m, MonadThentosReader m) => m Random20
+freshRandom20 :: MonadRandom m => m Random20
 freshRandom20 = do
-    bytes <- genRandomBytes 20
+    bytes <- getRandomBytes 20
     maybe (error "freshRandom20: internal error") pure $ mkRandom20 bytes
 
-freshPasswordResetToken :: (MonadThentosIO m, MonadThentosReader m) => m PasswordResetToken
+freshPasswordResetToken :: MonadRandom m => m PasswordResetToken
 freshPasswordResetToken = PasswordResetToken <$> freshRandomName
 
-freshServiceId :: (MonadThentosIO m, MonadThentosReader m) => m ServiceId
+freshServiceId :: MonadRandom m => m ServiceId
 freshServiceId = ServiceId <$> freshRandomName
 
-freshServiceKey :: (MonadThentosIO m, MonadThentosReader m) => m ServiceKey
+freshServiceKey :: MonadRandom m => m ServiceKey
 freshServiceKey = ServiceKey <$> freshRandomName
 
-freshSessionToken :: (MonadThentosIO m, MonadThentosReader m) => m ThentosSessionToken
+freshSessionToken :: MonadRandom m => m ThentosSessionToken
 freshSessionToken = ThentosSessionToken <$> freshRandomName
 
-freshServiceSessionToken :: (MonadThentosIO m, MonadThentosReader m) => m ServiceSessionToken
+freshServiceSessionToken :: MonadRandom m => m ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
 
-freshCaptchaId :: (MonadThentosIO m, MonadThentosReader m) => m CaptchaId
+freshCaptchaId :: MonadRandom m => m CaptchaId
 freshCaptchaId = CaptchaId <$> freshRandomName
 
 
@@ -196,7 +196,7 @@ deleteUser uid = do
 -- | Initiate email-verified user creation.  Does not require any privileges.
 -- This also sends an email containing an activation link on which the user must click.
 -- See also: 'confirmNewUser'.
-addUnconfirmedUser :: MonadQuery e m => UserFormData -> m ()
+addUnconfirmedUser :: MonadAction e m => UserFormData -> m ()
 addUnconfirmedUser userData = do
     passwordAcceptable $ udPassword userData
     tok  <- freshConfirmationToken
@@ -243,7 +243,7 @@ sendUserExistsMail email = do
 -- created, the captcha is deleted to prevent an attacker from creating multiple users with
 -- the same captcha solution.  If user creation fails (e.g. because of a duplicate user name), the
 -- captcha remains in the DB to allow another attempt.  See also: 'makeCaptcha', 'confirmNewUser'.
-addUnconfirmedUserWithCaptcha :: MonadQuery e m => UserCreationRequest -> m ()
+addUnconfirmedUserWithCaptcha :: MonadAction e m => UserCreationRequest -> m ()
 addUnconfirmedUserWithCaptcha ucr = do
     captchaCorrect <- solveCaptcha (csId $ ucCaptcha ucr) (csSolution $ ucCaptcha ucr)
     let captchaAttempt = if captchaCorrect then CaptchaCorrect else CaptchaIncorrect
@@ -261,7 +261,7 @@ addUnconfirmedUserWithCaptcha ucr = do
 -- user has been created by calling this function.
 --
 -- See also: 'addUnconfirmedUser'.
-confirmNewUser :: MonadQuery e m => ConfirmationToken -> m (UserId, ThentosSessionToken)
+confirmNewUser :: MonadAction e m => ConfirmationToken -> m (UserId, ThentosSessionToken)
 confirmNewUser token = do
     expiryPeriod <- getConfigField (Proxy :: Proxy '["user_reg_expiration"])
     uid <- queryA $ T.finishUserRegistration expiryPeriod token
@@ -285,7 +285,7 @@ confirmNewUser token = do
 --   they registered with one address but actually used another one -- since we don't tell them that
 --   that the address is unkown and don't take any further action, it's very hard for them to figure
 --   out why they never receive the expected reset link.
-addPasswordResetToken :: MonadQuery e m => UserEmail -> m (User, PasswordResetToken)
+addPasswordResetToken :: MonadAction e m => UserEmail -> m (User, PasswordResetToken)
 addPasswordResetToken email = do
     tok <- freshPasswordResetToken
     user <- queryA $ T.addPasswordResetToken email tok
@@ -294,7 +294,7 @@ addPasswordResetToken email = do
 -- | Create a password reset token and send the link by email to the user.
 -- The first argument can be used to modify the reset link sent per email.
 -- No authentication required, obviously.
-sendPasswordResetMail :: MonadQuery e m => Maybe ST -> UserEmail -> m ()
+sendPasswordResetMail :: MonadAction e m => Maybe ST -> UserEmail -> m ()
 sendPasswordResetMail beforeToken email = do
     (user, PasswordResetToken tok) <- addPasswordResetToken email
     cfg <- getConfig
@@ -325,7 +325,7 @@ resetPassword token password = do
 -- | Finish password reset with email confirmation and open a new ThentosSession for the user.
 --
 -- SECURITY: See 'confirmNewUser'.
-resetPasswordAndLogin :: MonadQuery e m => PasswordResetToken -> UserPass -> m ThentosSessionToken
+resetPasswordAndLogin :: MonadAction e m => PasswordResetToken -> UserPass -> m ThentosSessionToken
 resetPasswordAndLogin token password = do
     uid <- resetPassword token password
     startThentosSessionByAgent_ (UserA uid)
@@ -369,7 +369,7 @@ changePassword uid old new = do
 -- address of the user.  This requires 'GroupAdmin' or privs of email address owner, but the address
 -- is only changed after a call to 'confirmUserEmailChange' with the correct token.
 requestUserEmailChange ::
-    MonadQuery e m => UserId -> UserEmail -> (ConfirmationToken -> ST) -> m ()
+    MonadAction e m => UserId -> UserEmail -> (ConfirmationToken -> ST) -> m ()
 requestUserEmailChange uid newEmail callbackUrlBuilder = do
     guardWriteMsg "requestUserEmailChange" (GroupAdmin \/ UserA uid %% GroupAdmin /\ UserA uid)
 
@@ -404,13 +404,13 @@ allServiceIds = do
 lookupService :: MonadQuery e m => ServiceId -> m (ServiceId, Service)
 lookupService sid = queryA $ T.lookupService sid
 
-addService :: MonadQuery e m =>
+addService :: MonadAction e m =>
     UserId -> ServiceName -> ServiceDescription -> m (ServiceId, ServiceKey)
 addService owner name desc = do
     sid <- freshServiceId
     addServicePrim owner sid name desc
 
-addServicePrim :: MonadQuery e m =>
+addServicePrim :: MonadAction e m =>
     UserId -> ServiceId -> ServiceName -> ServiceDescription -> m (ServiceId, ServiceKey)
 addServicePrim owner sid name desc = do
     assertAuth (hasUserId owner <||> hasGroup GroupAdmin)
@@ -431,7 +431,7 @@ deleteService sid = do
 --
 -- This allows adding services to the config which will automatically spring into life if the
 -- config is read.
-autocreateServiceIfMissing :: MonadQuery e m => UserId -> ServiceId -> m ()
+autocreateServiceIfMissing :: MonadAction e m => UserId -> ServiceId -> m ()
 autocreateServiceIfMissing owner sid = do
     void (lookupService sid) `catchError`
         \case NoSuchService -> do
@@ -475,26 +475,26 @@ existsThentosSession tok = (lookupThentosSession tok >> return True) `catchError
 
 -- | Check user credentials and create a session for user.  Requires 'lookupConfirmedUser' and
 -- '_startThentosSessionByAgent'.
-startThentosSessionByUserId :: MonadQuery e m => UserId -> UserPass -> m ThentosSessionToken
+startThentosSessionByUserId :: MonadAction e m => UserId -> UserPass -> m ThentosSessionToken
 startThentosSessionByUserId uid pass = do
     _ <- lookupUserCheckPassword_ (T.lookupConfirmedUser uid) pass
     startThentosSessionByAgent_ (UserA uid)
 
 -- | Like 'startThentosSessionByUserId', but based on 'UserName' as key.
-startThentosSessionByUserName :: MonadQuery e m =>
+startThentosSessionByUserName :: MonadAction e m =>
     UserName -> UserPass -> m (UserId, ThentosSessionToken)
 startThentosSessionByUserName name pass = do
     (uid, _) <- lookupUserCheckPassword_ (T.lookupConfirmedUserByName name) pass
     (,) uid <$> startThentosSessionByAgent_ (UserA uid)
 
-startThentosSessionByUserEmail :: MonadQuery e m =>
+startThentosSessionByUserEmail :: MonadAction e m =>
     UserEmail -> UserPass -> m (UserId, ThentosSessionToken)
 startThentosSessionByUserEmail email pass = do
     (uid, _) <- lookupUserCheckPassword_ (T.lookupConfirmedUserByEmail email) pass
     (,) uid <$> startThentosSessionByAgent_ (UserA uid)
 
 -- | Check service credentials and create a session for service.
-startThentosSessionByServiceId :: MonadQuery e m =>
+startThentosSessionByServiceId :: MonadAction e m =>
     ServiceId -> ServiceKey -> m ThentosSessionToken
 startThentosSessionByServiceId sid key = a `catchError` h
   where
@@ -527,7 +527,7 @@ validateThentosUserSession tok = do
 
 -- | Open a session for any agent. Also promotes the access rights accordingly.
 -- NOTE: This should only be called after verifying the agent's credentials
-startThentosSessionByAgent_ :: MonadQuery e m => Agent -> m ThentosSessionToken
+startThentosSessionByAgent_ :: MonadAction e m => Agent -> m ThentosSessionToken
 startThentosSessionByAgent_ agent = do
     tok <- freshSessionToken
     queryA $ T.startThentosSession tok agent defaultSessionTimeout
@@ -590,8 +590,7 @@ dropServiceRegistration tok sid = do
 --
 -- Inherits label and exception behavor from 'lookupThentosSession' and write-guards for thentos
 -- session owner.
-startServiceSession ::
-    MonadQuery e m => ThentosSessionToken -> ServiceId -> m ServiceSessionToken
+startServiceSession :: MonadAction e m => ThentosSessionToken -> ServiceId -> m ServiceSessionToken
 startServiceSession ttok sid = do
     _ <- lookupThentosSession ttok
     stok <- freshServiceSessionToken
@@ -761,7 +760,7 @@ agentGroups agent = do
 
 -- | Generate a captcha. Returns a pair of 'CaptchaId' and the binary image data in PNG format.
 -- The correct solution to the captcha is stored in the DB. Does not require any privileges.
-makeCaptcha :: MonadQuery e m => m (CaptchaId, ImageData)
+makeCaptcha :: MonadAction e m => m (CaptchaId, ImageData)
 makeCaptcha = do
     cid    <- freshCaptchaId
     random <- freshRandom20
@@ -772,7 +771,7 @@ makeCaptcha = do
 
 -- | Argument must be an espeak voice installed on the server system.  Try "en", "de", "fi", "ru" or
 -- call `espeak --voices` for a complete list.
-makeAudioCaptcha :: MonadQuery e m => String -> m (CaptchaId, SBS)
+makeAudioCaptcha :: MonadAction e m => String -> m (CaptchaId, SBS)
 makeAudioCaptcha eSpeakVoice = do
     cid    <- freshCaptchaId
     random <- freshRandom20

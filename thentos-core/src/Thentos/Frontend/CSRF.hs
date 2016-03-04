@@ -17,13 +17,12 @@ module Thentos.Frontend.CSRF
 
 import "cryptonite" Crypto.Hash (SHA256)
 import "cryptonite" Crypto.MAC.HMAC (HMAC,hmac)
-import "cryptonite" Crypto.Random (MonadRandom(getRandomBytes))
 import Data.ByteArray.Encoding (convertToBase, convertFromBase, Base(Base16))
 
 import qualified Data.ByteString as SBS
 
 import Thentos.Action.TCB
-import Thentos.Prelude hiding (MonadRandom)
+import Thentos.Prelude
 import Thentos.Frontend.Types
 import Thentos.Types (ThentosSessionToken(fromThentosSessionToken))
 
@@ -80,7 +79,7 @@ genCsrfSecret = CsrfSecret . (convertToBase Base16 :: SBS -> SBS) <$> getRandomB
 
 -- | Generates a random 'CsrfNonce'.
 genCsrfNonce :: FAction CsrfNonce
-genCsrfNonce = CsrfNonce . convertToBase Base16 <$> genRandomBytes 32
+genCsrfNonce = CsrfNonce . (convertToBase Base16 :: SBS -> SBS) <$> getRandomBytes 32
 
 -- | See 'CsrfToken'.
 -- This function assigns a newly generated 'CsrfToken' to the 'FrontendSessionData'.

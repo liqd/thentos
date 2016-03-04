@@ -76,6 +76,7 @@ module Thentos.Types
 
     , ThentosError(..)
     , MonadThentosError
+    , MonadThentosIO
 
     , personaId, personaName, personaUid, personaExternalUrl
     , contextDescription, contextId, contextName, contextService, contextUrl
@@ -941,6 +942,7 @@ data ThentosError e =
 instance (Show e, Typeable e) => Exception (ThentosError e)
 
 type MonadThentosError e m = MonadError (ThentosError e) m
+type MonadThentosIO m = MonadLIO DCLabel m
 
 
 -- * boilerplate

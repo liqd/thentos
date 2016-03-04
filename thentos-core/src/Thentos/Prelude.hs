@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 module Thentos.Prelude (module X) where
 
 import Control.Applicative         as X
@@ -12,11 +13,10 @@ import Control.Monad.Base          as X (MonadBase (liftBase), liftBaseDefault)
 -}
 import Control.Monad.Error.Class   as X (MonadError, catchError, throwError)
 import Control.Monad.IO.Class      as X (MonadIO (liftIO))
-import Control.Monad.Random        as X (evalRand, mkStdGen)
-import Control.Monad.Random.Class  as X (MonadRandom, getRandomR)
 import Control.Monad.Reader.Class  as X (MonadReader (ask, local, reader), asks)
 import Control.Monad.State.Class   as X (MonadState (put, get, state), gets, modify, modify')
 import Control.Monad.Trans.Control as X (MonadBaseControl)
+import "cryptonite" Crypto.Random  as X (MonadRandom(getRandomBytes))
 import Data.Bifunctor              as X (Bifunctor, bimap, first, second)
 import Data.Either                 as X (isLeft, isRight)
 import Data.Foldable               as X

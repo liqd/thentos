@@ -8,7 +8,6 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
@@ -45,11 +44,9 @@ module Thentos.Test.Core
 where
 
 import Control.Concurrent (forkIO, killThread)
-import Control.Concurrent.MVar (newMVar)
 import Control.Exception (bracket, finally)
 import Control.Lens ((^.))
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import "cryptonite" Crypto.Random (drgNew)
 import Crypto.Scrypt (Salt(Salt), scryptParams)
 import Data.Configifier ((>>.))
 import Data.Monoid ((<>))
@@ -205,11 +202,12 @@ withBackend beConfig as action = do
 -- takes a DB, and tears down everything, returning the result of the action.
 withFrontendAndBackend :: (ActionEnv -> IO r) -> IO r
 withFrontendAndBackend test = do
-    st@(ActionEnv cfg _ connPool) <- createActionEnv
+    st <- createActionEnv
+    let cfg = st ^. aStConfig
     withFrontend (getFrontendConfig cfg) st
         $ withBackend (getBackendConfig cfg) st
             $ liftIO (createDefaultUser st) >> test st
-                `finally` destroyAllResources connPool
+                `finally` destroyAllResources (st ^. aStDb)
 
 
 -- * set up state
@@ -220,7 +218,7 @@ createActionEnv = thentosTestConfig >>= createActionEnv'
 
 -- | Create an @ActionEnv@ with an explicit config and a connection to a DB.  Whipes the DB.
 createActionEnv' :: ThentosConfig -> IO ActionEnv
-createActionEnv' cfg = ActionEnv cfg <$> (drgNew >>= newMVar) <*> createDb cfg
+createActionEnv' cfg = ActionEnv cfg <$> createDb cfg
 
 -- | Create a connection to a DB.  Whipes the DB.
 createDb :: ThentosConfig -> IO (Pool Connection)
@@ -236,15 +234,15 @@ createDb cfg = do
     wipeCmd   = "psql --file=" <> wipeFile <> " " <> dbname <> stdouterr
 
 loginAsDefaultUser :: ActionEnv -> IO (ThentosSessionToken, Header)
-loginAsDefaultUser actionState = do
+loginAsDefaultUser actionEnv = do
     let action :: ActionStack Void () (UserId, ThentosSessionToken)
         action = startThentosSessionByUserName (UserName uname) (UserPass upass)
           where
             uname, upass :: ST
-            Just uname = actionState ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"])
-            Just upass = actionState ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"])
+            Just uname = actionEnv ^. aStConfig >>. (Proxy :: Proxy '["default_user", "name"])
+            Just upass = actionEnv ^. aStConfig >>. (Proxy :: Proxy '["default_user", "password"])
 
-    ((_, tok), _) <- runAction () actionState action
+    ((_, tok), _) <- runAction () actionEnv action
     let credentials :: Header = ("X-Thentos-Session", cs $ fromThentosSessionToken tok)
     return (tok, credentials)
 
