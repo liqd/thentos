@@ -211,6 +211,7 @@ or if you would like us to link to your GitHub handle / email.
 - Julian Arni
 - Matthias Fischmann
 - Robert Vollmert
+- Scott Sadler
 - Sönke Hahn
 
 If you want to get involved or have any questions, we would love to
