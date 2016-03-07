@@ -6,41 +6,51 @@
 {-# LANGUAGE FlexibleContexts            #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE TemplateHaskell             #-}
 
 module Thentos.Action.Types where
 
-import Control.Concurrent (MVar)
-import Control.Exception (Exception, SomeException)
-import Control.Lens (makeLenses)
-import Control.Monad.Except (MonadError, throwError, catchError)
-import Control.Monad.Reader (ReaderT(ReaderT), MonadReader, ask, local)
-import Control.Monad.State (MonadState, StateT, state)
+import Control.Exception (SomeException)
+import Control.Monad.Reader (ReaderT(ReaderT))
+import Control.Monad.State (StateT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT))
-import "cryptonite" Crypto.Random (ChaChaDRG)
 import Database.PostgreSQL.Simple (Connection)
 import Data.Pool (Pool)
-import Data.Typeable (Typeable)
-import GHC.Generics (Generic)
-import LIO.Core (MonadLIO, LIO, liftLIO)
-import LIO.DCLabel (DCLabel)
-import LIO.Error (AnyLabelError)
+import LIO.Core (LIO)
+import LIO.TCB (ioTCB)
 
 import Thentos.Types
 import Thentos.Config
+import Thentos.Prelude
+import Thentos.Frontend.CSRF
 
 
-data ActionState =
-    ActionState
+data ActionEnv =
+    ActionEnv
       { _aStConfig  :: ThentosConfig
-      , _aStRandom  :: MVar ChaChaDRG
       , _aStDb      :: Pool Connection
       }
   deriving (Generic)
 
-makeLenses ''ActionState
+makeLenses ''ActionEnv
+
+class GetThentosDb a where
+    getThentosDb :: Getter a (Pool Connection)
+
+instance GetThentosDb ActionEnv where
+    getThentosDb = aStDb
+
+class GetThentosConfig a where
+    getThentosConfig :: Getter a ThentosConfig
+
+instance GetThentosConfig ActionEnv where
+    getThentosConfig = aStConfig
+
+type MonadThentosConfig v m = (MonadReader v m, GetThentosConfig v)
+
+instance GetCsrfSecret ActionEnv where
+    csrfSecret = aStConfig . csrfSecret
 
 
 -- | The 'Action' monad transformer stack.  It contains:
@@ -49,12 +59,12 @@ makeLenses ''ActionState
 --     - A state of polymorphic type (for use e.g. by the frontend handlers to store cookies etc.)
 --     - The option of throwing @ThentosError e@.  (Not 'ActionError e', which contains
 --       authorization errors that must not be catchable from inside an 'Action'.)
---     - An 'ActionState' in a reader.  The state can be used by actions for calls to 'LIO', which
+--     - An 'ActionEnv' in a reader.  The state can be used by actions for calls to 'LIO', which
 --       will have authorized effect.  Since it is contained in a reader, actions do not have the
 --       power to corrupt it.
 newtype ActionStack e s a =
     ActionStack
-      { fromAction :: ReaderT ActionState
+      { fromAction :: ReaderT ActionEnv
                           (EitherT (ThentosError e)
                               (StateT s
                                   (LIO DCLabel))) a
@@ -69,7 +79,7 @@ instance Monad (ActionStack e s) where
     return = pure
     (ActionStack ua) >>= f = ActionStack $ ua >>= fromAction . f
 
-instance MonadReader ActionState (ActionStack e s) where
+instance MonadReader ActionEnv (ActionStack e s) where
     ask = ActionStack ask
     local f = ActionStack . local f . fromAction
 
@@ -83,19 +93,17 @@ instance MonadState s (ActionStack e s) where
 instance MonadLIO DCLabel (ActionStack e s) where
     liftLIO lio = ActionStack . ReaderT $ \_ -> EitherT (Right <$> lift lio)
 
-type MonadThentosIO m = MonadLIO DCLabel m
-type MonadThentosReader m = MonadReader ActionState m
+instance MonadRandom (ActionStack e s) where
+    getRandomBytes = liftLIO . ioTCB . getRandomBytes
 
-type MonadQuery e m =
-    (MonadThentosReader m,
+type MonadQuery e v m =
+    (GetThentosDb v,
+     GetThentosConfig v,
+     MonadReader v m,
      MonadThentosError e m,
      MonadThentosIO m)
 
-type MonadAction e s m =
-    (MonadThentosReader m,
-     MonadThentosError e m,
-     MonadState s m,
-     MonadThentosIO m)
+type MonadAction e v m = (MonadQuery e v m, MonadRandom m)
 
 -- | Errors known by 'runActionE', 'runAction', ....
 --

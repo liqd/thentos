@@ -14,7 +14,7 @@ import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Network.Wai as Wai
 
 import System.Log.Missing (logger)
-import Thentos.Action.Types (ActionState)
+import Thentos.Action.Types (ActionEnv)
 import Thentos.Backend.Core (addHeadersToResponse, runWarpWithCfg)
 import Thentos.Config
 import Thentos.Ends.Types
@@ -27,10 +27,10 @@ import Thentos.Frontend.Types
 
 -- * driver
 
-runFrontend :: HttpConfig -> ActionState -> IO ()
+runFrontend :: HttpConfig -> ActionEnv -> IO ()
 runFrontend config aState = do
     logger INFO $ "running frontend on " ++ show (bindUrl config) ++ "."
-    serveFAction (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
+    serveFActionStack (Proxy :: Proxy FrontendH) frontendH aState >>= runWarpWithCfg config . disableCaching
 
 type FrontendH =
        GetH

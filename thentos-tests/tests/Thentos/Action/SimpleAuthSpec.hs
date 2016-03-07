@@ -38,7 +38,7 @@ tests = hspec spec
 
 spec :: Spec
 spec = do
-    specWithActionState
+    specWithActionEnv
     specWithBackends
 
 type Act = LIO DCLabel -- ActionStack (ActionError Void) ()
@@ -58,8 +58,8 @@ setClearanceUid uid = extendClearanceOnPrincipals [UserA $ UserId uid]
 setClearanceSid :: MonadThentosIO m => Integer -> m ()
 setClearanceSid sid = extendClearanceOnPrincipals [ServiceA . ServiceId . cs . show $ sid]
 
-specWithActionState :: Spec
-specWithActionState = do
+specWithActionEnv :: Spec
+specWithActionEnv = do
     describe "assertAuth" $ do
         it "throws an error on False" $ do
             Left (ActionErrorAnyLabel _) <- runActE (assertAuth $ pure False :: Act ())
@@ -103,7 +103,7 @@ specWithActionState = do
 withPrivIpBackend :: [String] -> (HttpConfig -> IO r) -> IO r
 withPrivIpBackend allowIps testCase = do
     cfg <- thentosTestConfig' [YamlString . ("allow_ips: " <>) . cs . show $ allowIps]
-    as <- createActionState' cfg
+    as <- createActionEnv' cfg
 
     let Just becfg = Tagged <$> (as ^. aStConfig) >>. (Proxy :: Proxy '["backend"])
     bracket (forkIO $ runWarpWithCfg becfg $ serveApi as)
@@ -112,7 +112,7 @@ withPrivIpBackend allowIps testCase = do
 
 type Api = ThentosAuth :> Get '[JSON] Bool
 
-serveApi :: ActionState -> Application
+serveApi :: ActionEnv -> Application
 serveApi as = serve (Proxy :: Proxy Api) $
     (\creds -> enter (enterAction () as baseActionErrorToServantErr creds) hasPrivilegedIP)
 

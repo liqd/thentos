@@ -43,6 +43,8 @@ module Thentos.Types
     , Context(..)
 
     , ThentosSessionToken(..)
+    , GetThentosSessionToken(..)
+    , MonadUseThentosSessionToken
     , ThentosSession(..)
     , ServiceSessionToken(..)
     , ServiceSession(..)
@@ -76,6 +78,9 @@ module Thentos.Types
 
     , ThentosError(..)
     , MonadThentosError
+    , MonadThentosIO
+    , MonadError500
+    , Error500(..)
 
     , personaId, personaName, personaUid, personaExternalUrl
     , contextDescription, contextId, contextName, contextService, contextUrl
@@ -445,6 +450,11 @@ newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: S
     deriving ( Eq, Ord, Show, Read, Typeable, Generic, IsString
              , FromHttpApiData, FromJSON, ToJSON, FromField, ToField
              )
+
+class GetThentosSessionToken a where
+    getThentosSessionToken :: Getter a (Maybe ThentosSessionToken)
+
+type MonadUseThentosSessionToken s m = (MonadState s m, GetThentosSessionToken s)
 
 data ThentosSession =
     ThentosSession
@@ -937,10 +947,23 @@ data ThentosError e =
     | OtherError e
     deriving (Eq, Read, Show, Typeable)
 
+makePrisms ''ThentosError
 
 instance (Show e, Typeable e) => Exception (ThentosError e)
 
 type MonadThentosError e m = MonadError (ThentosError e) m
+type MonadThentosIO m = MonadLIO DCLabel m
+
+class Error500 err where
+    error500 :: Prism' err String
+
+    throwError500 :: MonadError err m => String -> m b
+    throwError500 err = throwError $ error500 # err
+
+instance Error500 err => Error500 (ThentosError err) where
+    error500 = _OtherError . error500
+
+type MonadError500 err m = (MonadError err m, Error500 err)
 
 
 -- * boilerplate

@@ -1,16 +1,14 @@
 {-# LANGUAGE Unsafe                      #-}
 
+{-# LANGUAGE ConstraintKinds             #-}
 {-# LANGUAGE TypeFamilies                #-}
 {-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE FlexibleContexts            #-}
-{-# LANGUAGE PackageImports              #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
 
 module Thentos.Action.TCB
 where
 
-import Control.Concurrent (modifyMVar)
-import "cryptonite" Crypto.Random (ChaChaDRG, DRG(randomBytesGenerate))
 import Data.Configifier (Tagged(Tagged), (>>.), Sel, ToValE, Exc(Done), ToConfigCode)
 import LIO.TCB (ioTCB)
 import Network.HostAddr (hostAddr, getHostAddr)
@@ -35,10 +33,10 @@ import qualified System.Log.Missing as SLM
 
 -- | While getting the config does not involve the LIO monad, accessing the config should be done
 -- with care as it contains some sensitive bits.
-getConfig :: MonadThentosReader m => m ThentosConfig
-getConfig = (^. aStConfig) <$> ask
+getConfig :: MonadThentosConfig e m => m ThentosConfig
+getConfig = view getThentosConfig
 
-getConfigField :: (MonadThentosReader m,
+getConfigField :: (MonadThentosConfig e m,
                    cfg ~ ToConfigCode ThentosConfig',
                    Sel cfg ps,
                    ToValE cfg ps ~ 'Done r)
@@ -47,14 +45,6 @@ getConfigField p = (>>. p) <$> getConfig
 
 getCurrentTime :: MonadThentosIO m => m Timestamp
 getCurrentTime = Timestamp <$> liftLIO (ioTCB Thyme.getCurrentTime)
-
--- | A relative of 'cprgGenerate' from crypto-random.
-genRandomBytes :: (MonadThentosIO m, MonadThentosReader m) => Int -> m SBS
-genRandomBytes i = do
-    let f :: ChaChaDRG -> (ChaChaDRG, SBS)
-        f r = case randomBytesGenerate i r of (output, r') -> (r', output)
-    r <- view aStRandom
-    liftLIO . ioTCB . modifyMVar r $ return . f
 
 hashUserPass :: MonadThentosIO m => UserPass -> m (HashedSecret UserPass)
 hashUserPass = liftLIO . ioTCB . TU.hashUserPass
@@ -82,7 +72,7 @@ logSignupAttempt name email captchaAttempt = do
         logLevel = CRITICAL -- for some reason the entries aren't written to the file at INFO
     liftLIO . ioTCB $ logM signupLogger logLevel (init logLine)
 
-sendMail :: (MonadThentosIO m, MonadThentosReader m) => Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> m ()
+sendMail :: (MonadThentosIO m, MonadThentosConfig v m) => Maybe UserName -> UserEmail -> ST -> ST -> Maybe ST -> m ()
 sendMail mName address subject body html = do
     config <- Tagged <$> getConfigField (Proxy :: Proxy '["smtp"])
     result <- liftLIO . ioTCB $ TS.sendMail config mName address subject body html
@@ -103,12 +93,12 @@ renderTextTemplate template context = liftLIO . ioTCB $ hastacheStr hastacheCfg 
 defaultConfigIO :: MuConfig IO
 defaultConfigIO = defaultConfig
 
-extendClearanceOnThentosSession :: MonadQuery e m => ThentosSessionToken -> m ()
+extendClearanceOnThentosSession :: MonadQuery e v m => ThentosSessionToken -> m ()
 extendClearanceOnThentosSession tok = do
     (_, session) <- U.query . T.lookupThentosSession $ tok
     U.extendClearanceOnAgent $ session ^. thSessAgent
 
-extendClearanceOnThentosAuthCredentials :: MonadQuery e m => ThentosAuthCredentials -> m ()
+extendClearanceOnThentosAuthCredentials :: MonadQuery e v m => ThentosAuthCredentials -> m ()
 extendClearanceOnThentosAuthCredentials (ThentosAuthCredentials mTok origin) = do
     mapM_ extendClearanceOnThentosSession mTok
     allow_ips <- getConfigField (Proxy :: Proxy '["allow_ips"])

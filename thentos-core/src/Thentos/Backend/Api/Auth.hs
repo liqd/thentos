@@ -11,15 +11,15 @@
 --
 -- A LESS RELEVANT OBSERVATION: It would be nice if we could provide this function:
 --
--- >>> thentosAuth :: ActionState
+-- >>> thentosAuth :: ActionEnv
 -- >>>             -> ServerT api (Action)
 -- >>>             -> Maybe ThentosSessionToken
 -- >>>             -> Server api
--- >>> thentosAuth actionState api mTok = enter (enterAction actionState mTok) api
+-- >>> thentosAuth actionEnv api mTok = enter (enterAction actionEnv mTok) api
 --
 -- because then here we could write:
 --
--- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
+-- >>> api :: ActionEnv -> Server (ThentosAuth :> MyApi)
 -- >>> api = (`thentosAuth` myApi)
 --
 -- But the signature of `thentosAuth` requires injectivity of `ServerT` (`api` needs to be inferred
@@ -30,8 +30,8 @@
 --
 -- So instead, you will have to write something like this:
 --
--- >>> api :: ActionState -> Server (ThentosAuth :> MyApi)
--- >>> api actionState mTok = enter (enterAction actionState mTok) myApi
+-- >>> api :: ActionEnv -> Server (ThentosAuth :> MyApi)
+-- >>> api actionEnv mTok = enter (enterAction actionEnv mTok) myApi
 module Thentos.Backend.Api.Auth (module Thentos.Backend.Api.Auth.Types) where
 
 import Control.Lens ((&), (<>~))

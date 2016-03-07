@@ -39,7 +39,7 @@ apiRedirect :: FormHandler (ServerT ApiRedirect)
 apiRedirect = redirect' "/there"
 
 appRedirect :: IO Application
-appRedirect = createActionState >>= serveFAction (Proxy :: Proxy ApiRedirect) apiRedirect
+appRedirect = createActionEnv >>= serveFActionStack (Proxy :: Proxy ApiRedirect) apiRedirect
 
 specRedirect :: Spec
 specRedirect =

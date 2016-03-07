@@ -253,7 +253,7 @@ setupBackend = fst <$> setupBackend' []
 
 setupBackend' :: [Source] -> IO (Application, ThentosConfig)
 setupBackend' extraCfg = do
-    as@(ActionState cfg _ _) <- thentosTestConfig' extraCfg >>= createActionState'
+    as@(ActionEnv cfg _) <- thentosTestConfig' extraCfg >>= createActionEnv'
     mgr <- newManager defaultManagerSettings
     createDefaultUser as
     ((), ()) <- runActionWithPrivs [toCNF GroupAdmin] () as $ (autocreateMissingServices cfg :: ActionStack Void () ())

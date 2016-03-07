@@ -37,7 +37,7 @@ import qualified Network.HTTP.LoadTest as Pronk
 import qualified Network.HTTP.LoadTest.Report as Pronk
 
 import Thentos.Config (ThentosConfig)
-import Thentos.Action.Types (ActionState(..))
+import Thentos.Action.Types (ActionEnv(..))
 import Thentos.Transaction
 import Thentos.Transaction.Core
 import Thentos.Types
@@ -51,7 +51,7 @@ import Thentos.Test.Core
 
 main :: IO ()
 main = do
-    withFrontendAndBackend $ \as@(ActionState cfg _ _) -> do
+    withFrontendAndBackend $ \as@(ActionEnv cfg _) -> do
         threadDelay $ let s = (* (1000 * 1000)) in s 2
 
         Just sessToken <- getThentosSessionToken as
@@ -66,7 +66,7 @@ runSignupBench cfg sessionToken = do
     let conf = pronkConfig $ mkSignupGens cfg gen sessionToken
     runBench "Signup Benchmark" conf
 
-runLoginBench :: ActionState -> IO ()
+runLoginBench :: ActionEnv -> IO ()
 runLoginBench as = do
     conf <- pronkConfig `fmap` mkLoginGens as
     runBench "Login Benchmark" conf
@@ -85,8 +85,8 @@ pronkConfig reqs = Pronk.Config {
     , requests = reqs
     }
 
-getThentosSessionToken :: ActionState -> IO (Maybe ThentosSessionToken)
-getThentosSessionToken (ActionState cfg _ conn) = do
+getThentosSessionToken :: ActionEnv -> IO (Maybe ThentosSessionToken)
+getThentosSessionToken (ActionEnv cfg conn) = do
     let Just godName = UserName <$> cfg >>. (Proxy :: Proxy '["default_user", "name"])
         Just godPass = UserPass <$> cfg >>. (Proxy :: Proxy '["default_user", "password"])
     Right (godUid, _) <- runThentosQuery conn $ lookupConfirmedUserByName godName
@@ -265,8 +265,8 @@ loginGenTrans cfg (MachineState uid loginState) =
             , requestBody = RequestBodyLBS $ Aeson.encode tok
             }
 
-mkLoginGens :: ActionState -> IO [Pronk.RequestGenerator]
-mkLoginGens (ActionState cfg _ connPool) = do
+mkLoginGens :: ActionEnv -> IO [Pronk.RequestGenerator]
+mkLoginGens (ActionEnv cfg connPool) = do
     uids <- getUIDs connPool
     -- take out god user so all users have the same password
     uids' <- do

@@ -32,29 +32,29 @@ ioExc act = do
     either throwIO (return . flip (,) s) e
 
 -- | Call 'runActionE' and throw 'Left' values.
-runAction :: (Show e, Typeable e) => s -> ActionState -> ActionStack e s a -> IO (a, s)
-runAction polyState actionState action = do
-    ioExc $ runActionE polyState actionState action
+runAction :: (Show e, Typeable e) => s -> ActionEnv -> ActionStack e s a -> IO (a, s)
+runAction polyState actionEnv action = do
+    ioExc $ runActionE polyState actionEnv action
 
 runActionWithPrivs :: (Show e, Typeable e) =>
-    [CNF] -> s -> ActionState -> ActionStack e s a -> IO (a, s)
-runActionWithPrivs ars polyState actionState action = do
-    ioExc $ runActionWithPrivsE ars polyState actionState action
+    [CNF] -> s -> ActionEnv -> ActionStack e s a -> IO (a, s)
+runActionWithPrivs ars polyState actionEnv action = do
+    ioExc $ runActionWithPrivsE ars polyState actionEnv action
 
 runActionWithClearance :: (Show e, Typeable e) =>
-    DCLabel -> s -> ActionState -> ActionStack e s a -> IO (a, s)
-runActionWithClearance label polyState actionState action = do
-    ioExc $ runActionWithClearanceE label polyState actionState action
+    DCLabel -> s -> ActionEnv -> ActionStack e s a -> IO (a, s)
+runActionWithClearance label polyState actionEnv action = do
+    ioExc $ runActionWithClearanceE label polyState actionEnv action
 
 runActionAsAgent :: (Show e, Typeable e) =>
-    Agent -> s -> ActionState -> ActionStack e s a -> IO (a, s)
-runActionAsAgent agent polyState actionState action = do
-    ioExc $ runActionAsAgentE agent polyState actionState action
+    Agent -> s -> ActionEnv -> ActionStack e s a -> IO (a, s)
+runActionAsAgent agent polyState actionEnv action = do
+    ioExc $ runActionAsAgentE agent polyState actionEnv action
 
 runActionInThentosSession :: (Show e, Typeable e) =>
-    ThentosSessionToken -> s -> ActionState -> ActionStack e s a -> IO (a, s)
-runActionInThentosSession tok polyState actionState action = do
-    ioExc $ runActionInThentosSessionE tok polyState actionState action
+    ThentosSessionToken -> s -> ActionEnv -> ActionStack e s a -> IO (a, s)
+runActionInThentosSession tok polyState actionEnv action = do
+    ioExc $ runActionInThentosSessionE tok polyState actionEnv action
 
 redirectLabelAndUnknownErrors :: MonadError (ActionError e) m => (m a -> IO b) -> IO b -> IO b
 redirectLabelAndUnknownErrors f m =
@@ -75,34 +75,34 @@ runLIOE = redirectLabelAndUnknownErrors return . fmap return . (`evalLIO` LIOSta
 -- exceptions or if a `ThentosError` is thrown, but NOT if any other exceptions (such as
 -- 'AnyLabelError') are thrown.
 runActionE :: forall s e a. (Show e, Typeable e) =>
-    s -> ActionState -> ActionStack e s a -> IO (Either (ActionError e) a, s)
-runActionE polyState actionState = redirectLabelAndUnknownErrors (\x-> return (x, polyState)) . inner
+    s -> ActionEnv -> ActionStack e s a -> IO (Either (ActionError e) a, s)
+runActionE polyState actionEnv = redirectLabelAndUnknownErrors (\x-> return (x, polyState)) . inner
   where
     inner :: ActionStack e s a -> IO (Either (ActionError e) a, s)
     inner = fmap (first (first ActionErrorThentos))
           . (`evalLIO` LIOState dcBottom dcBottom)
           . (`runStateT` polyState)
           . eitherT (return . Left) (return . Right)
-          . (`runReaderT` actionState)
+          . (`runReaderT` actionEnv)
           . fromAction
 
 runActionWithPrivsE :: (Show e, Typeable e) =>
-    [CNF] -> s -> ActionState -> ActionStack e s a -> IO (Either (ActionError e) a, s)
+    [CNF] -> s -> ActionEnv -> ActionStack e s a -> IO (Either (ActionError e) a, s)
 runActionWithPrivsE ars ps as =
     runActionE ps as . (U.extendClearanceOnPrincipals ars >>)
 
 runActionWithClearanceE :: (Show e, Typeable e) =>
-    DCLabel -> s -> ActionState -> ActionStack e s a -> IO (Either (ActionError e) a, s)
+    DCLabel -> s -> ActionEnv -> ActionStack e s a -> IO (Either (ActionError e) a, s)
 runActionWithClearanceE label ps as =
     runActionE ps as . (U.extendClearanceOnLabel label >>)
 
 runActionAsAgentE :: (Show e, Typeable e) =>
-    Agent -> s -> ActionState -> ActionStack e s a -> IO (Either (ActionError e) a, s)
+    Agent -> s -> ActionEnv -> ActionStack e s a -> IO (Either (ActionError e) a, s)
 runActionAsAgentE agent ps as =
     runActionE ps as . (U.extendClearanceOnAgent agent >>)
 
 runActionInThentosSessionE :: (Show e, Typeable e) =>
-    ThentosSessionToken -> s -> ActionState -> ActionStack e s a -> IO (Either (ActionError e) a, s)
+    ThentosSessionToken -> s -> ActionEnv -> ActionStack e s a -> IO (Either (ActionError e) a, s)
 runActionInThentosSessionE tok ps as =
     runActionE ps as . (extendClearanceOnThentosSession tok >>)
 

@@ -49,7 +49,7 @@ instance HasServer ServiceProxy where
     route Proxy = route (Proxy :: Proxy Raw)
 
 serviceProxy :: (Show e, Typeable e) =>
-      C.Manager -> ProxyAdapter (ActionStack e ()) e -> ActionState -> Server ServiceProxy
+      C.Manager -> ProxyAdapter (ActionStack e ()) e -> ActionEnv -> Server ServiceProxy
 serviceProxy manager adapter state
     = loggerMW $
       waiProxyTo (reverseProxyHandler adapter state)
@@ -58,7 +58,7 @@ serviceProxy manager adapter state
 
 -- | Proxy or respond based on request headers.
 reverseProxyHandler :: (Show e, Typeable e) =>
-      ProxyAdapter (ActionStack e ()) e -> ActionState -> S.Request -> IO WaiProxyResponse
+      ProxyAdapter (ActionStack e ()) e -> ActionEnv -> S.Request -> IO WaiProxyResponse
 reverseProxyHandler adapter state req = do
     eRqMod <- runActionE () state $ getRqMod adapter req
     case fst eRqMod of
@@ -157,7 +157,7 @@ findDefaultServiceIdAndTarget conf = do
 
 -- | Create headers identifying the user and their groups.
 -- Returns an empty list in case of an anonymous request.
-createCustomHeaders :: MonadQuery e m =>
+createCustomHeaders :: MonadQuery e v m =>
     ProxyAdapter m e -> Maybe ThentosSessionToken -> ServiceId -> m T.RequestHeaders
 createCustomHeaders _ Nothing _         = return []
 createCustomHeaders adapter (Just tok) _sid = do

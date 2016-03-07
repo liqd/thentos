@@ -11,26 +11,22 @@
 
 module Thentos.Backend.Api.Simple where
 
-import Control.Lens ((^.), (&), (<>~))
-import Data.Proxy (Proxy(Proxy))
-import Data.String.Conversions (ST, SBS, cs)
-import Servant.API.Header (Header)
 import Network.Wai (Application)
+import Servant.API.Header (Header)
 import Servant.API ((:<|>)((:<|>)), (:>), Get, Post, Delete, Capture, ReqBody, JSON)
 import Servant.Server (ServerT, Server, serve, enter)
 import Servant.API.ResponseHeaders (Headers, addHeader)
-import System.Log.Logger (Priority(INFO))
 
 import qualified Servant.Docs as Docs
 
-import System.Log.Missing (logger)
 import Thentos.Action
-import Thentos.Action.Types (MonadQuery, ActionState, aStConfig)
+import Thentos.Action.Types (MonadQuery, MonadAction, ActionEnv, aStConfig)
 import Thentos.Backend.Api.Auth
 import Thentos.Backend.Api.Docs.Common
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Ends.Types
+import Thentos.Prelude
 import Thentos.Types
 
 import qualified Paths_thentos_core__ as Paths (version)
@@ -39,12 +35,12 @@ import qualified Thentos.Backend.Api.PureScript as Purs
 
 -- * main
 
-runApi :: HttpConfig -> ActionState -> IO ()
+runApi :: HttpConfig -> ActionEnv -> IO ()
 runApi cfg asg = do
     logger INFO $ "running rest api Thentos.Backend.Api.Simple on " ++ show (bindUrl cfg) ++ "."
     runWarpWithCfg cfg $ serveApi cfg asg
 
-serveApi :: HttpConfig -> ActionState -> Application
+serveApi :: HttpConfig -> ActionEnv -> Application
 serveApi cfg astate = addCacheControlHeaders $
     let p = Proxy :: Proxy (RestDocs Api)
     in serve p (restDocs cfg p :<|> api astate)
@@ -53,7 +49,7 @@ type Api =
        ThentosAssertHeaders :> ThentosAuth :> ThentosBasic
   :<|> "js" :> Purs.Api
 
-api :: ActionState -> Server Api
+api :: ActionEnv -> Server Api
 api as =
        (\creds -> enter (enterAction () as baseActionErrorToServantErr creds) thentosBasic)
   :<|> Purs.api (as ^. aStConfig)
@@ -68,7 +64,7 @@ type ThentosBasic =
   :<|> "service_session" :> ThentosServiceSession
   :<|> "email" :> SendEmail
 
-thentosBasic :: MonadQuery e m => ServerT ThentosBasic m
+thentosBasic :: MonadAction e v m => ServerT ThentosBasic m
 thentosBasic =
        thentosUser
   :<|> thentosService
@@ -98,7 +94,7 @@ type ThentosUser =
   :<|> "password_reset" :> ReqBody '[JSON] PasswordResetRequest
                         :> Post '[JSON] (JsonTop ThentosSessionToken)
 
-thentosUser :: MonadQuery e m => ServerT ThentosUser m
+thentosUser :: MonadAction e v m => ServerT ThentosUser m
 thentosUser =
        (JsonTop <$>) . addUser
   :<|> addUnconfirmedUserWithCaptcha
@@ -125,7 +121,7 @@ type ThentosService =
   :<|> Capture "sid" ServiceId :> Delete '[JSON] ()
   :<|> Get '[JSON] [ServiceId]
 
-thentosService :: MonadQuery e m => ServerT ThentosService m
+thentosService :: MonadAction e v m => ServerT ThentosService m
 thentosService =
          (\ (uid, sn, sd) -> addService uid sn sd)
     :<|> deleteService
@@ -139,7 +135,7 @@ type ThentosThentosSession =
   :<|> ReqBody '[JSON] ThentosSessionToken :> Get '[JSON] Bool
   :<|> ReqBody '[JSON] ThentosSessionToken :> Delete '[JSON] ()
 
-thentosThentosSession :: MonadQuery e m => ServerT ThentosThentosSession m
+thentosThentosSession :: MonadAction e v m => ServerT ThentosThentosSession m
 thentosThentosSession =
        startThentosSession
   :<|> existsThentosSession
@@ -155,7 +151,7 @@ type ThentosServiceSession =
   :<|> ReqBody '[JSON] ServiceSessionToken :> "meta" :> Get '[JSON] ServiceSessionMetadata
   :<|> ReqBody '[JSON] ServiceSessionToken :> Delete '[JSON] ()
 
-thentosServiceSession :: MonadQuery e m => ServerT ThentosServiceSession m
+thentosServiceSession :: MonadQuery e v m => ServerT ThentosServiceSession m
 thentosServiceSession =
        existsServiceSession
   :<|> getServiceSessionMetadata
