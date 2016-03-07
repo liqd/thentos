@@ -9,7 +9,7 @@ homepage:            http://haskell-servant.github.io/
 Bug-reports:         http://github.com/haskell-servant/servant/issues
 license:             BSD3
 license-file:        LICENSE
-author:              Matthias Fischmann, Julian K. Arni
+author:              Julian K. Arni
 maintainer:          matthias.fischmann@liqd.net
 copyright:           liquid democracy e.V., Germany
 category:            Web
