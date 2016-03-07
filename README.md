@@ -210,6 +210,7 @@ or if you would like us to link to your GitHub handle / email.
 - Henning Thielemann
 - Julian Arni
 - Matthias Fischmann
+- Nicolas Pouillard
 - Robert Vollmert
 - Scott Sadler
 - Sönke Hahn
