@@ -1,5 +1,5 @@
 name:                thentos-adhocracy
-version:             0.3.0
+version:             0.4.0
 synopsis:            Thentos-binding for the adhocracy participation platform
 description:
   See https://github.com/liqd/adhocracy3.mercator and https://github.com/liqd/thentos.
@@ -66,7 +66,7 @@ library
     , servant-server ==0.5
     , string-conversions >=0.4 && <0.5
     , text >=1.2.1.3 && <1.3
-    , thentos-core ==0.3.0
+    , thentos-core ==0.4.0
     , thyme >=0.3.5.5 && <0.4
     , unordered-containers >=0.2.5.1 && <0.3
     , uri-bytestring >=0.1.8 && <0.2
@@ -132,9 +132,9 @@ test-suite tests
     , resource-pool >=0.2.3.2 && <0.3
     , string-conversions >=0.4 && <0.5
     , text >=1.2.1.3 && <1.3
-    , thentos-adhocracy ==0.3.0
-    , thentos-core ==0.3.0
-    , thentos-tests ==0.3.0
+    , thentos-adhocracy ==0.4.0
+    , thentos-core ==0.4.0
+    , thentos-tests ==0.4.0
     , transformers >=0.4.2.0 && <0.5
     , wai >=3.0.3.0 && <3.1
     , wai-extra >=3.0.10 && <3.1
