@@ -164,5 +164,6 @@ formRedirectH formAction processor1 processor2 renderer =
     formH (Nat liftIO) formAction processor1 (\p -> processor2 p >>= redirect) renderer
 
 
-redirect :: (MonadError ServantErr m, ConvertibleStrings uri SBS) => uri -> m a
-redirect uri = throwError $ Servant.err303 { errHeaders = ("Location", cs uri) : errHeaders Servant.err303 }
+redirect :: (MonadServantErr err m, ConvertibleStrings uri SBS) => uri -> m a
+redirect uri = throwServantErr $
+    Servant.err303 { errHeaders = ("Location", cs uri) : errHeaders Servant.err303 }
