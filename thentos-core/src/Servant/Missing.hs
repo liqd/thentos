@@ -1,5 +1,6 @@
 -- FIXME: create a package servant-digestive-functors and
 --        choose a different module name.
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -11,7 +12,11 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Servant.Missing
-  (FormH
+  (ThrowServantErr(..)
+  ,MonadServantErr
+  ,ThrowError500(..)
+  ,MonadError500
+  ,FormH
   ,FormReqBody
   ,FormData, getFormDataEnv, releaseFormTempFiles
   ,formH
@@ -19,6 +24,7 @@ module Servant.Missing
   ,fromEnvIdentity
   ,redirect) where
 
+import Control.Lens (prism, Prism', (#))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Except.Missing (finally)
 import Control.Monad.Identity (Identity, runIdentity)
@@ -29,13 +35,37 @@ import Data.String.Conversions (ST, SBS, ConvertibleStrings, cs)
 import Network.Wai.Parse (fileContent, parseRequestBody, tempFileBackEnd)
 import Network.Wai (Request)
 import Servant ((:<|>)((:<|>)), (:>), ServerT, (:~>)(Nat), unNat)
-import Servant.Server (ServantErr(..))
+import Servant.Server (ServantErr(..), err500)
 import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
                                 route, addBodyCheck)
 import Text.Digestive (Env, Form, FormInput(TextInput, FileInput), View, fromPath, getForm, postForm)
 
 import qualified Servant
 import qualified Data.Text.Encoding as STE
+
+class ThrowServantErr err where
+    _ServantErr :: Prism' err ServantErr
+    throwServantErr :: MonadError err m => ServantErr -> m any
+    throwServantErr err = throwError $ _ServantErr # err
+
+type MonadServantErr err m = (MonadError err m, ThrowServantErr err)
+
+instance ThrowServantErr ServantErr where
+    _ServantErr = id
+
+class ThrowError500 err where
+    error500 :: Prism' err String
+
+    throwError500 :: MonadError err m => String -> m b
+    throwError500 err = throwError $ error500 # err
+
+type MonadError500 err m = (MonadError err m, ThrowError500 err)
+
+-- FIXME: ORPHAN move
+instance ThrowError500 ServantErr where
+    error500 = prism (\msg -> err500 { errBody = cs msg })
+                     (\err -> if errHTTPCode err == 500 then Right (cs (errBody err)) else Left err)
+
 
 type FormH htm html payload =
          Servant.Get '[htm] html

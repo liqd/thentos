@@ -72,9 +72,10 @@ newtype CsrfToken = CsrfToken { fromCsrfToken :: ST }
     deriving (Eq, Ord, Show, Read, FromJSON, ToJSON, Typeable, Generic, IsString)
 
 newtype CsrfSecret = CsrfSecret SBS
-    deriving (Show)
+    deriving (Show, Eq)
 
 newtype CsrfNonce  = CsrfNonce  SBS
+    deriving (Show, Eq)
 
 class GetCsrfSecret a where
     csrfSecret :: Getter a (Maybe CsrfSecret)

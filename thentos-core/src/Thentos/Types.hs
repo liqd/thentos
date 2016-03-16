@@ -79,8 +79,11 @@ module Thentos.Types
     , ThentosError(..)
     , MonadThentosError
     , MonadThentosIO
+
+    -- Re-exported from Servant.Missing
     , MonadError500
-    , Error500(..)
+    , ThrowError500(..)
+    , Error500
 
     , personaId, personaName, personaUid, personaExternalUrl
     , contextDescription, contextId, contextName, contextService, contextUrl
@@ -113,6 +116,7 @@ import Data.Text.Encoding (decodeUtf8')
 import Data.Thyme.Time (fromThyme, toThyme)
 import Data.Thyme (UTCTime, formatTime, parseTime)
 import Servant.API (FromHttpApiData)
+import Servant.Missing (ThrowError500(..), MonadError500)
 import System.Exit (ExitCode)
 import System.Locale (defaultTimeLocale)
 import Text.Email.Validate (EmailAddress, emailAddress, toByteString)
@@ -130,6 +134,7 @@ import qualified Data.HashMap.Strict as H
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
 
+type Error500 = ThrowError500
 
 -- * JSON helpers
 
@@ -954,16 +959,8 @@ instance (Show e, Typeable e) => Exception (ThentosError e)
 type MonadThentosError e m = MonadError (ThentosError e) m
 type MonadThentosIO m = MonadLIO DCLabel m
 
-class Error500 err where
-    error500 :: Prism' err String
-
-    throwError500 :: MonadError err m => String -> m b
-    throwError500 err = throwError $ error500 # err
-
-instance Error500 err => Error500 (ThentosError err) where
+instance ThrowError500 err => ThrowError500 (ThentosError err) where
     error500 = _OtherError . error500
-
-type MonadError500 err m = (MonadError err m, Error500 err)
 
 
 -- * boilerplate

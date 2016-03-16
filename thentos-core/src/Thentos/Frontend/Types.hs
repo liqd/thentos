@@ -45,7 +45,7 @@ data FActionError =
 
 makePrisms ''FActionError
 
-instance Error500 FActionError where
+instance ThrowError500 FActionError where
     error500 = _FActionError500
 
 crash :: MonadThentosFError m => FActionError -> m a
