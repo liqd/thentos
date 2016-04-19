@@ -25,6 +25,7 @@ module Servant.Missing
   ,redirect) where
 
 import Control.Lens (prism, Prism', (#))
+import Control.Monad ((>=>))
 import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.Except.Missing (finally)
 import Control.Monad.Identity (Identity, runIdentity)
@@ -160,8 +161,8 @@ formRedirectH :: forall payload m htm html uri.
   -> (payload -> m uri)              -- ^ processor2
   -> (View html -> uri -> m html)    -- ^ renderer
   -> ServerT (FormH htm html payload) m
-formRedirectH formAction processor1 processor2 renderer =
-    formH (Nat liftIO) formAction processor1 (\p -> processor2 p >>= redirect) renderer
+formRedirectH formAction processor1 processor2 =
+    formH (Nat liftIO) formAction processor1 (processor2 >=> redirect)
 
 
 redirect :: (MonadServantErr err m, ConvertibleStrings uri SBS) => uri -> m a
