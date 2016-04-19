@@ -34,7 +34,7 @@ type PostH = Post '[HTM] H.Html
 
 -- All Post request should go through FormH (which handles both Get and Post) such that common
 -- verification such as CSRF protection is enabled.
-type FormH a = UnprotectedFormH.FormH HTM H.Html a
+type FormH a = UnprotectedFormH.FormH '[HTM] H.Html a
 
 
 -- * form construction
