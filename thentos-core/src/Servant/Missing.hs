@@ -67,9 +67,9 @@ instance ThrowError500 ServantErr where
                      (\err -> if errHTTPCode err == 500 then Right (cs (errBody err)) else Left err)
 
 
-type FormH htm html payload =
-         Servant.Get '[htm] html
-    :<|> FormReqBody :> Servant.Post '[htm] html
+type FormH (htm :: [*]) html payload =
+         Servant.Get htm html
+    :<|> FormReqBody :> Servant.Post htm html
 
 data FormReqBody
 
