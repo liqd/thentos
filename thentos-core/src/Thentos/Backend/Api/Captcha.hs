@@ -189,15 +189,15 @@ instance HasDocExtras (RestDocs BackendApi) where
 data Options a
 
 instance {-# OVERLAPPABLE #-} ( GetHeaders (Headers h ()) )
-        => HasServer (Options (Headers h ())) where
+        => HasServer (Options (Headers h ())) context where
     type ServerT (Options (Headers h ())) m = m (Headers h ())
-    route Proxy = methodRouterHeaders methodOptions (Proxy :: Proxy '[JSON]) ok200
+    route Proxy _context = methodRouterHeaders methodOptions (Proxy :: Proxy '[JSON]) ok200
 
-instance {-# OVERLAPPABLE #-} Foreign.HasForeign Foreign.NoTypes
+instance {-# OVERLAPPABLE #-} Foreign.HasForeign Foreign.NoTypes ()
         (Options (Headers CaptchaOptionsHeaders ())) where
-    type Foreign (Options (Headers CaptchaOptionsHeaders ())) = Foreign.Req
-    foreignFor Proxy Proxy req =
-        req & Foreign.funcName  %~ ("options" :)
+    type Foreign () (Options (Headers CaptchaOptionsHeaders ())) = Foreign.Req ()
+    foreignFor Proxy Proxy Proxy req =
+        req & Foreign.reqFuncName . Foreign._FunctionName %~ ("options" :)
             & Foreign.reqMethod .~ "OPTIONS"
 
 instance Docs.HasDocs (Options (Headers CaptchaOptionsHeaders ())) where

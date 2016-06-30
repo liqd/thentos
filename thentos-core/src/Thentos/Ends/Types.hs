@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 {-# LANGUAGE TypeFamilies           #-}
 
 -- | Types required by both backend and frontend.
@@ -19,12 +20,13 @@ import Control.Lens ((&), (%~), (.~))
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, LT, SBS, LBS, cs)
 import Network.HTTP.Media ((//), (/:))
-import Servant.API (Accept (..), MimeRender (..), Post)
+import Servant.API (Accept (..), MimeRender (..)) -- , Post)
 import Servant.HTML.Blaze (HTML)
 import Text.Blaze.Html (Html, ToMarkup, toHtml)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
 
-import qualified Servant.Foreign as Foreign
+import qualified Servant.Foreign as F
+import qualified Servant.Foreign.Internal as F
 
 import Thentos.Types
 
@@ -85,22 +87,43 @@ instance MimeRender WAV SBS where
 
 -- * servant foreign
 
--- | FIXME: Foreign.Elem is only exported since https://github.com/haskell-servant/servant/pull/265
--- which we don't have, so instead of:
---
--- >>> instance Elem JSON cts => HasForeign (Post200 cts a) where ...
--- >>> instance Elem PNG cts => HasForeign (Post200 cts a) where ...
---
--- we more / less restrictive instances.  We should merge servant master in our submodule branch,
--- though.
-instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[PNG] a) where
-    type Foreign (Post '[PNG] a) = Foreign.Req
-    foreignFor Proxy Proxy req =
-        req & Foreign.funcName  %~ ("post" :)
-            & Foreign.reqMethod .~ "POST"
+-- See https://github.com/haskell-servant/servant/issues/509
+-- See https://github.com/haskell-servant/servant/issues/290
+{-
+More generic instances for PNG and WAV would be better but this fails with the following
+error in Captcha.hs: `No instance for Foreign.NotFound arising from a use of `restDocs'`.
 
-instance {-# OVERLAPPING #-} Foreign.HasForeign Foreign.NoTypes (Post '[WAV] a) where
-    type Foreign (Post '[WAV] a) = Foreign.Req
-    foreignFor Proxy Proxy req =
-        req & Foreign.funcName  %~ ("post" :)
-            & Foreign.reqMethod .~ "POST"
+instance {-# OVERLAPPING #-} (F.Elem PNG list, F.HasForeignType lang ftype a, F.ReflectMethod method)
+  => F.HasForeign lang ftype (F.Verb method status list a) where
+  type Foreign ftype (F.Verb method status list a) = F.Req ftype
+
+  foreignFor lang Proxy Proxy req =
+    req & F.reqFuncName . F._FunctionName %~ (methodLC :)
+        & F.reqMethod .~ method
+        & F.reqReturnType .~ Just retType
+    where
+      retType  = F.typeFor lang (Proxy :: Proxy ftype) (Proxy :: Proxy a)
+      method   = F.reflectMethod (Proxy :: Proxy method)
+      methodLC = ST.toLower $ cs method
+-}
+instance {-# OVERLAPPING #-} F.HasForeignType lang ftype a
+  => F.HasForeign lang ftype (F.Verb 'F.POST status '[PNG] a) where
+  type Foreign ftype (F.Verb 'F.POST status '[PNG] a) = F.Req ftype
+
+  foreignFor lang Proxy Proxy req =
+    req & F.reqFuncName . F._FunctionName %~ ("post" :)
+        & F.reqMethod .~ "POST"
+        & F.reqReturnType .~ Just retType
+    where
+      retType  = F.typeFor lang (Proxy :: Proxy ftype) (Proxy :: Proxy a)
+
+instance {-# OVERLAPPING #-} F.HasForeignType lang ftype a
+  => F.HasForeign lang ftype (F.Verb 'F.POST status '[WAV] a) where
+  type Foreign ftype (F.Verb 'F.POST status '[WAV] a) = F.Req ftype
+
+  foreignFor lang Proxy Proxy req =
+    req & F.reqFuncName . F._FunctionName %~ ("post" :)
+        & F.reqMethod .~ "POST"
+        & F.reqReturnType .~ Just retType
+    where
+      retType  = F.typeFor lang (Proxy :: Proxy ftype) (Proxy :: Proxy a)

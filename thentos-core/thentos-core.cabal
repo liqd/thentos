@@ -165,13 +165,13 @@ library
     , safe >=0.3.9 && <0.4
     , sandi >=0.3.5 && <0.4
     , scrypt >=0.5.0 && <0.6
-    , servant ==0.5
-    , servant-blaze ==0.5
-    , servant-docs ==0.5
-    , servant-foreign ==0.5
-    , servant-js ==0.5
-    , servant-server ==0.5
-    , servant-session ==0.5
+    , servant >=0.7 && <0.8
+    , servant-blaze >=0.7 && <0.8
+    , servant-docs >=0.7 && <0.8
+    , servant-foreign >=0.7 && <0.8
+    , servant-js >=0.7 && <0.8
+    , servant-server >=0.7 && <0.8
+    , servant-session >=0.7 && <0.8
     , string-conversions >=0.4 && <0.5
     , template-haskell >=2.10 && <2.11
     , temporary >=1.2 && <1.3

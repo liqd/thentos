@@ -22,7 +22,7 @@ import Network.Wai (Middleware, Application)
 import Network.Wai.Session (SessionStore, Session, withSession)
 import Servant (ServantErr, (:>), serve, HasServer, ServerT, Server, (:~>)(Nat), unNat)
 import Servant.Server (errHTTPCode, errHeaders, errBody, err303, err404, err400, err500)
-import Servant.Server.Internal.Enter (Enter, enter)
+import Servant.Utils.Enter (Enter, enter)
 import Servant.Session (SSession)
 import Text.Blaze.Html (Html)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
@@ -116,7 +116,7 @@ type FActionStack = ActionStack FActionError FrontendSessionData
 type ExtendClearanceOnSessionToken m = ThentosSessionToken -> m ()
 
 serveFActionStack :: forall api.
-        ( HasServer api
+        ( HasServer api '[]
         , Enter (ServerT api FActionStack) (FActionStack :~> ExceptT ServantErr IO) (Server api)
         )
      => Proxy api -> ServerT api FActionStack -> ActionEnv -> IO Application
@@ -128,7 +128,7 @@ serveFActionStack proxy fServer aState =
         . runActionE emptyFrontendSessionData aState
 
 serveFAction :: forall api m s e v.
-        ( HasServer api
+        ( HasServer api '[]
         , Enter (ServerT api m) (m :~> ExceptT ServantErr IO) (Server api)
         , MonadRandom m, MonadThentosIO m, MonadError500 e m, MonadHasSessionCsrfToken s m
         , MonadViewCsrfSecret v m, MonadUseThentosSessionToken s m

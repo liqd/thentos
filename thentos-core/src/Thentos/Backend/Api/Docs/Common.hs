@@ -23,11 +23,10 @@ module Thentos.Backend.Api.Docs.Common
 where
 
 import Data.Version (Version, showVersion)
-import Servant.API (Capture, (:>), Post, Get, (:<|>)((:<|>)), MimeRender(mimeRender))
+import Servant.API (Capture, (:>), Get, (:<|>)((:<|>)), MimeRender(mimeRender))
 import Servant.API.Capture ()
-import Servant.API.ContentTypes (AllMimeRender, IsNonEmpty, PlainText)
+import Servant.API.ContentTypes (PlainText)
 import Servant.Docs.Internal.Pretty (Pretty)
-import Servant.Docs.Internal (response, respStatus)
 import Servant.Docs (ToCapture(..), DocCapture(DocCapture), ToSample(toSamples), HasDocs,
                      docsFor, pretty, emptyAPI)
 import Servant.Server (ServerT)
@@ -72,7 +71,7 @@ instance ToSample ST where
 -- | the 'Raw' endpoint has 'Foreign', but it is @Method -> Req@, which doesn't have a
 -- 'GenerateList' instance.  so, there.  you got one, type checker.  and since @F.Method@ is
 -- not exported, we keep it polymorphic.
-instance {-# OVERLAPPABLE #-} JS.GenerateList (a -> F.Req) where
+instance {-# OVERLAPPABLE #-} F.GenerateList ftype (a -> F.Req ftype) where
     generateList _ = []
 
 class HasDocs api => HasDocExtras api where
@@ -89,7 +88,7 @@ class HasDocs api => HasDocExtras api where
 
 type HasFullDocExtras api =
     ( HasDocs (RestDocs api), HasDocs (Pretty api), HasDocExtras (RestDocs api)
-    , F.HasForeign F.NoTypes api, JS.GenerateList (F.Foreign api)
+    , F.HasForeign F.NoTypes () api, F.GenerateList () (F.Foreign () api)
     )
 
 restDocs :: forall api m. (Monad m, HasFullDocExtras api)
@@ -295,16 +294,6 @@ instance HasDocs sublayout => HasDocs (ThentosAssertHeaders :> sublayout) where
       where
         intro = Docs.DocIntro "@@1.1@@Request Headers" [unlines desc]
         desc = ["If a request has an unknown header with prefix \"X-Thentos-\"."]
-
-
-instance {-# OVERLAPPABLE #-} (ToSample a, IsNonEmpty cts, AllMimeRender cts a)
-      => HasDocs (Post200 cts a) where
-    docsFor Proxy (endpoint, action) opts =
-        case docsFor (Proxy :: Proxy (Post cts a)) (endpoint, action) opts of
-            Docs.API intros singleton -> Docs.API intros $ mutate <$> singleton
-      where
-        mutate = (& response . respStatus .~ 200)
-
 
 instance ToSample SBS where
     toSamples _ = [("empty", "")]
