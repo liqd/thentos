@@ -5,6 +5,5 @@
 	ignore = dirty
 [submodule "submodules/configifier"]
 	path = submodules/configifier
-	url = https://github.com/np/configifier.git
-	branch = vector-11
+	url = https://github.com/zerobuzz/configifier.git
 	ignore = dirty
