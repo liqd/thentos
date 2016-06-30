@@ -57,7 +57,7 @@ specFrontend :: SpecWith Application
 specFrontend = do
     let f url = do
             res <- request "POST" url [] ""
-            liftIO $ statusCode (simpleStatus res) `shouldBe` 201
+            liftIO $ statusCode (simpleStatus res) `shouldBe` 200
             liftIO $ LBS.length (simpleBody res) > 0 `shouldBe` True
             connPool :: Pool Connection <- liftIO $ readMVar connPoolVar
             liftIO $ rowCountShouldBe connPool "captchas" 1
@@ -75,7 +75,7 @@ specBackend = do
                 let captchaSolution = Aeson.encode $ CaptchaSolution (CaptchaId "id") guess
                 res <- request "POST" "/solve_captcha" jsonHeaders captchaSolution
                 let Just (JsonTop (captchaCorrect :: Bool)) = Aeson.decode (simpleBody res)
-                liftIO $ statusCode (simpleStatus res) `shouldBe` 201
+                liftIO $ statusCode (simpleStatus res) `shouldBe` 200
                 liftIO $ captchaCorrect `shouldBe` good
 
             g = do

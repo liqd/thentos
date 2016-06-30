@@ -178,7 +178,7 @@ spec_frontendState = do
         it "should accept a valid CSRF token" . withTestApp $ do
             c <- newSession
             t <- getCsrf c
-            postCsrf c t "Hey" `shouldRespondWith` 201
+            postCsrf c t "Hey" `shouldRespondWith` 200
 
         it "should reject a post request with a tampered CSRF token" . withTestApp $ do
             c <- newSession
@@ -197,15 +197,15 @@ spec_frontendState = do
             c <- newSession
             t0 <- getCsrf c
             t1 <- getCsrf c
-            postCsrf c t0 "Hey" `shouldRespondWith` 201
-            postCsrf c t1 "Bye" `shouldRespondWith` 201
+            postCsrf c t0 "Hey" `shouldRespondWith` 200
+            postCsrf c t1 "Bye" `shouldRespondWith` 200
 
         it "should accept two requests in reverse order" . withTestApp $ do
             c <- newSession
             t0 <- getCsrf c
             t1 <- getCsrf c
-            postCsrf c t1 "Bye" `shouldRespondWith` 201
-            postCsrf c t0 "Hey" `shouldRespondWith` 201
+            postCsrf c t1 "Bye" `shouldRespondWith` 200
+            postCsrf c t0 "Hey" `shouldRespondWith` 200
 
 getCookie :: SResponse -> RequestHeaders
 getCookie = fmap f . simpleHeaders
