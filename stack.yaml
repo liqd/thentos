@@ -1,48 +1,25 @@
 # For more information, see: https://github.com/commercialhaskell/stack/blob/release/doc/yaml_configuration.md
 
 # Specifies the GHC version and set of packages available (e.g., lts-3.5, nightly-2015-09-21, ghc-7.10.2)
-resolver: lts-3.20
+resolver: lts-6.3
 
 # Local packages, usually specified by relative directory name
 packages:
+- submodules/configifier/
 - thentos-core/
-- thentos-adhocracy/
+#- thentos-adhocracy/
 - thentos-tests/
 - servant-session/
-- submodules/servant/servant/
-- submodules/servant/servant-blaze/
-- submodules/servant/servant-docs/
-- submodules/servant/servant-foreign/
-- submodules/servant/servant-js/
-- submodules/servant/servant-server/
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
-- attoparsec-0.13.0.1
-- diagrams-lib-1.3.0.8
-- configifier-0.1.0
-- control-monad-omega-0.3.1
-- digestive-functors-blaze-0.6.0.6
+- cond-0.4.1.1
+- configifier-0.1.1
 - elocrypt-0.4.1
-- engine-io-wai-1.0.5
-- email-validate-2.2.0
 - functor-infix-0.0.3
-- http-accept-0.2
-- http-api-data-0.1.1.1
-- linear-1.20.3
 - lio-0.11.5.0
-- memory-0.10
-- bcrypt-0.0.8
-- scrypt-0.5.0
-- servant-0.5
-- servant-blaze-0.5
-- servant-docs-0.5
-- servant-foreign-0.5
-- servant-js-0.5
-- servant-server-0.5
-- servant-session-0.5
 - wai-digestive-functors-0.3
-- wai-util-0.8
+- uri-bytestring-0.1.9.2
 - xml-html-conduit-lens-0.3.2.1
 
 # Override default flag values for local packages and extra-deps

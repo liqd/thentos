@@ -3,6 +3,8 @@
 	url = https://github.com/liqd/pronk.git
 	branch = thentos-patches
 	ignore = dirty
-[submodule "submodules/servant"]
-	path = submodules/servant
-	url = https://github.com/haskell-servant/servant
+[submodule "submodules/configifier"]
+	path = submodules/configifier
+	url = https://github.com/np/configifier.git
+	branch = vector-11
+	ignore = dirty
