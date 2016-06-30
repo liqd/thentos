@@ -82,6 +82,7 @@ library
     , Thentos.Backend.Api.Simple
     , Thentos.Backend.Core
     , Thentos.Config
+    , Thentos.Config.Reader
     , Thentos.Ends.Types
     , Thentos.Frontend
     , Thentos.Frontend.CSRF
