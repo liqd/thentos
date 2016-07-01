@@ -73,9 +73,11 @@ main = do
                           when (ec == ExitSuccess)
                               (system "cabal test" >>= storeResult)
 
+                  {-
                   -- compile benchmark tests
                   withCurrentDirectory (rootPath </> "thentos-tests") $ do
                       system "cabal exec -- ghc -isrc --make bench/Main.hs" >>= storeResult
+                  -}
 
     readMVar exitCode >>= exitWith
 
