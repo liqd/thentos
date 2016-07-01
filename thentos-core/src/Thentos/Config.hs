@@ -3,7 +3,6 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Config
     ( ThentosConfig
