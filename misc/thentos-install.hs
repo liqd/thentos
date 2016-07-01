@@ -223,11 +223,11 @@ runCabal args extraArgs = do
     let cmd = intercalate " " $
                   [ "cabal install"
                   , userArgs, extraArgs
-                  , "--enable-tests", "--enable-bench"
+                  , "--enable-tests" -- , "--enable-bench"
                   , "--max-backjumps -1", "--reorder-goals"
                   , "-fwith-thentos-executable"
                   , "-fwith-captcha-executable"
-                  , "-fwith-importa3u-executable"
+               -- , "-fwith-importa3u-executable"
                         -- (these should only be here for thentos-core source)
                   ] ++ sources
 
