@@ -6,6 +6,7 @@ resolver: lts-6.3
 # Local packages, usually specified by relative directory name
 packages:
 - submodules/configifier/
+- submodules/pronk/
 - thentos-core/
 #- thentos-adhocracy/
 - thentos-tests/
@@ -21,6 +22,7 @@ extra-deps:
 - wai-digestive-functors-0.3
 - uri-bytestring-0.1.9.2
 - xml-html-conduit-lens-0.3.2.1
+- meldable-heap-2.0.3
 
 # Override default flag values for local packages and extra-deps
 flags: {}

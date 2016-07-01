@@ -73,11 +73,9 @@ main = do
                           when (ec == ExitSuccess)
                               (system "cabal test" >>= storeResult)
 
-                  {-
                   -- compile benchmark tests
                   withCurrentDirectory (rootPath </> "thentos-tests") $ do
                       system "cabal exec -- ghc -isrc --make bench/Main.hs" >>= storeResult
-                  -}
 
     readMVar exitCode >>= exitWith
 
@@ -225,7 +223,7 @@ runCabal args extraArgs = do
     let cmd = intercalate " " $
                   [ "cabal install"
                   , userArgs, extraArgs
-                  , "--enable-tests" -- , "--enable-bench"
+                  , "--enable-tests", "--enable-bench"
                   , "--max-backjumps -1", "--reorder-goals"
                   , "-fwith-thentos-executable"
                   , "-fwith-captcha-executable"
