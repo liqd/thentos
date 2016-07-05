@@ -84,8 +84,7 @@ main = do
 
 submoduleSources :: [FilePath]
 submoduleSources = map ("submodules" </>)
-    [ "configifier"
-    , "pronk"
+    [ "pronk"
     ]
 
 sources :: [FilePath]
