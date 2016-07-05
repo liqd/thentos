@@ -26,7 +26,7 @@ import Servant.Utils.Enter (Enter, enter)
 import Servant.Session (SSession)
 import Text.Blaze.Html (Html)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
-import Web.Cookie (SetCookie, def, setCookieName)
+import Web.Cookie (SetCookie, def, setCookieName, setCookiePath)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
@@ -89,8 +89,13 @@ type FSessionStore   fsd = SessionStore IO () fsd
 type FServantSession fsd = SSession IO () fsd
 type FSessionKey     fsd = Vault.Key (FSession fsd)
 
+-- We set the path to "/" to keep the browser from setting the current path for the cookie and hence
+-- storing many cookies instead of only one.
+--
+-- FIXME: make 'SetCookie' configurable with configifier.
+-- At least some configuration is possible now, see the SetCookie parameter to serveFAction.
 thentosSetCookie :: SetCookie
-thentosSetCookie = def { setCookieName = "thentos" }  -- FIXME: make 'SetCookie' configurable with configifier.
+thentosSetCookie = def { setCookieName = "thentos", setCookiePath = Just "/" }
 
 cookieName :: SetCookie -> SBS
 cookieName setCookie =
@@ -121,7 +126,8 @@ serveFActionStack :: forall api.
         )
      => Proxy api -> ServerT api FActionStack -> ActionEnv -> IO Application
 serveFActionStack proxy fServer aState =
-    serveFAction proxy (Proxy :: Proxy FrontendSessionData) extendClearanceOnThentosSession (Nat run) fServer
+    serveFAction proxy (Proxy :: Proxy FrontendSessionData) thentosSetCookie
+                 extendClearanceOnThentosSession (Nat run) fServer
   where
     run :: FActionStack a -> ExceptT ServantErr IO a
     run = ExceptT . (>>= _Left fActionServantErr) . (fst <$>)
@@ -135,11 +141,12 @@ serveFAction :: forall api m s e v.
         )
      => Proxy api
      -> Proxy s
+     -> SetCookie
      -> ExtendClearanceOnSessionToken m
      -> m :~> ExceptT ServantErr IO
      -> ServerT api m -> IO Application
-serveFAction _ sProxy extendClearanceOnSessionToken nat fServer =
-    app <$> sessionMiddleware sProxy thentosSetCookie
+serveFAction _ sProxy setCookie extendClearanceOnSessionToken nat fServer =
+    app <$> sessionMiddleware sProxy setCookie
   where
     app :: (Middleware, FSessionKey s) -> Application
     app (mw, key) = mw $ serve (Proxy :: Proxy (FServantSession s :> api)) (server' key)
