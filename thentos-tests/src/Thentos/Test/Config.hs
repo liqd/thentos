@@ -26,6 +26,7 @@ import System.Directory (setCurrentDirectory, getCurrentDirectory)
 import System.IO.Unsafe (unsafePerformIO)
 
 import Thentos.Config hiding (getDefaultUser)
+import Thentos.Config.Reader (readConfigWithSources)
 import Thentos.Transaction.Core (runThentosQuery)
 import Thentos.Transaction (lookupConfirmedUserByName)
 import Thentos.Types

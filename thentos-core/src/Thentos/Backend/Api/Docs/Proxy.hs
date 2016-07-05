@@ -18,6 +18,7 @@ import Servant.Docs (HasDocs(..))
 
 import qualified Servant.Docs as Docs
 import qualified Servant.Foreign as F
+import qualified Servant.Foreign.Internal as F
 
 import Thentos.Backend.Api.Docs.Common ()
 import Thentos.Backend.Api.Proxy (ServiceProxy)
@@ -38,7 +39,7 @@ instance HasDocs sublayout => HasDocs (sublayout :<|> ServiceProxy) where
                , "service are returned unmodified."
                ]
 
-instance F.HasForeign F.NoTypes ServiceProxy where
-    type Foreign ServiceProxy = F.Req
-    foreignFor Proxy Proxy req =
-        req & F.funcName %~ ("ServiceProxy" :)
+instance F.HasForeign F.NoTypes () ServiceProxy where
+    type Foreign () ServiceProxy = F.Req ()
+    foreignFor Proxy Proxy Proxy req =
+        req & F.reqFuncName . F._FunctionName %~ ("ServiceProxy" :)

@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE TypeFamilies               #-}
 
@@ -44,7 +46,7 @@ import qualified Thentos.Action.Unsafe as U
 
 data ServiceProxy
 
-instance HasServer ServiceProxy where
+instance HasServer ServiceProxy context where
     type ServerT ServiceProxy m = S.Application
     route Proxy = route (Proxy :: Proxy Raw)
 

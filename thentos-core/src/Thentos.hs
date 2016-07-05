@@ -27,6 +27,7 @@ import Thentos.Action
 import Thentos.Action.Core (runActionWithPrivs)
 import Thentos.Action.Types (ActionStack, ActionEnv(..), aStDb, aStConfig, MonadAction)
 import Thentos.Config
+import Thentos.Config.Reader
 import Thentos.Frontend (runFrontend)
 import Thentos.Frontend.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
 import Thentos.Smtp (checkSendmail)

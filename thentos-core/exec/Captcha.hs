@@ -12,6 +12,7 @@ import Thentos (createConnPoolAndInitDb, runGcLoop)
 import Thentos.Action.Types (ActionEnv(ActionEnv))
 import Thentos.Prelude
 import Thentos.Config
+import Thentos.Config.Reader
 import Thentos.Sybil.AudioCaptcha (checkEspeak)
 
 import qualified Thentos.Backend.Api.Captcha as Captcha

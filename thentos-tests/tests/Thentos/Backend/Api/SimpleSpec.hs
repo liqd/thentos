@@ -131,7 +131,7 @@ specRest = do
             it "writes a new user to the database" . runIt $ \its -> do
                 let hdr = [jsonHeader, its ^. itsGodHeader]
                 response1 <- postDefaultUser its
-                return response1 `shouldRespondWith` 201
+                return response1 `shouldRespondWith` 200
 
                 let Right (uid :: Int) = decodeJsonTop $ simpleBody response1
                 response2 <- request "GET" ("/user/" <> (cs . show $ uid) <> "/name") hdr ""
@@ -163,7 +163,7 @@ specRest = do
         describe "captcha POST" $ do
             it "returns a PNG image with Thentos-Captcha-Id header" . runIt $ \_its -> do
                 rsp <- post "/user/captcha" ""
-                pure rsp `shouldRespondWith` 201
+                pure rsp `shouldRespondWith` 200
                 -- Check for magic bytes at start of PNG
                 liftIO $ LBS.take 4 (simpleBody rsp) `shouldBe` "\137PNG"
                 liftIO $ map fst (simpleHeaders rsp) `shouldContain` ["Thentos-Captcha-Id"]
@@ -189,13 +189,13 @@ specRest = do
                             >>. (Proxy :: Proxy '["log", "path"])
                     readProcess "grep" [line, logFile] ""
 
-            it "responds with 204 No Content and sends mail with confirmation token" . runIt $
+            it "responds with 200 and sends mail with confirmation token" . runIt $
               \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
+                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 200
                 -- Find token in sent email and make sure it's correct
                 let actPrefix = "/activate/"
                 actLine <- grepLogFile its actPrefix
@@ -205,7 +205,7 @@ specRest = do
                         [sql| SELECT token FROM user_confirmation_tokens |] ()
                 liftIO $ sentToken `shouldBe` fromConfirmationToken actualTok
 
-            it "responds with 204 No Content and sends warn mail if email is duplicate" . runIt $
+            it "responds with 200 and sends warn mail if email is duplicate" . runIt $
               \its -> do
                 (cid, solution) <- getCaptchaAndSolution its
                 -- Create user
@@ -214,7 +214,7 @@ specRest = do
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     user    = UserFormData "Another" "password" (udEmail defaultUserData)
                     reqBody = Aeson.encode $ UserCreationRequest user csol
-                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
+                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 200
                 -- Check that no confirmation token was generated
                 liftIO $ rowCountShouldBe (its ^. itsActionEnv . aStDb) "user_confirmation_tokens" 0
                 -- Check that "Attempted Signup" mail was sent
@@ -227,7 +227,7 @@ specRest = do
                 -- Register user
                 let csol    = CaptchaSolution (CaptchaId $ cs cid) solution
                     reqBody = Aeson.encode $ UserCreationRequest defaultUserData csol
-                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 204
+                request "POST" "/user/register" [jsonHeader] reqBody `shouldRespondWith` 200
                 -- Try to register another user
                 let user2 = UserFormData "name2" "password" $ forceUserEmail "another@example.org"
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
@@ -247,7 +247,7 @@ specRest = do
                 -- Try again using a new user name
                 let user2    = user { udName = "newname" }
                     reqBody2 = Aeson.encode $ UserCreationRequest user2 csol
-                request "POST" "/user/register" [jsonHeader] reqBody2 `shouldRespondWith` 204
+                request "POST" "/user/register" [jsonHeader] reqBody2 `shouldRespondWith` 200
 
             it "fails if called without correct captcha ID" . runIt $ \_its -> do
                 let csol    = CaptchaSolution "no-such-id" "dummy"
@@ -289,7 +289,7 @@ specRest = do
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
                 arsp <- request "POST" "/user/activate" [jsonHeader] areqBody
-                pure arsp `shouldRespondWith` 201
+                pure arsp `shouldRespondWith` 200
                 let Right (sessTok :: ThentosSessionToken) = decodeJsonTop $ simpleBody arsp
                 liftIO $ fromThentosSessionToken sessTok `shouldNotBe` ""
 
@@ -298,7 +298,7 @@ specRest = do
                 confTok <- registerUserAndGetConfirmationToken its (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
-                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 201
+                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 200
                 -- Try to activate again
                 request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 400
 
@@ -312,11 +312,11 @@ specRest = do
                 confTok <- registerUserAndGetConfirmationToken its (cid, solution)
                 -- Activate user
                 let areqBody = Aeson.encode $ JsonTop confTok
-                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 201
+                request "POST" "/user/activate" [jsonHeader] areqBody `shouldRespondWith` 200
                 -- Log them in
                 let loginData = LoginFormData (udName defaultUserData) (udPassword defaultUserData)
                 lrsp <- request "POST" "/user/login" [jsonHeader] $ Aeson.encode loginData
-                pure lrsp `shouldRespondWith` 201
+                pure lrsp `shouldRespondWith` 200
                 let Right (sessTok :: ThentosSessionToken) = decodeJsonTop $ simpleBody lrsp
                 liftIO $ fromThentosSessionToken sessTok `shouldNotBe` ""
 
@@ -370,12 +370,12 @@ specRest = do
                     request "POST" "/email" hdr (Aeson.encode $ SendEmailRequest recp subj body Nothing)
                 Just uri = toSample (Proxy :: Proxy Uri)
             it "sends an email to an explicit email address." . runIt $ \_its -> do
-                sendEmail [udEmail defaultUserData] [] `shouldRespondWith` "" { matchStatus = 204 }
+                sendEmail [udEmail defaultUserData] [] `shouldRespondWith` "[]" { matchStatus = 200 }
             it "sends an email to a persona id." . runIt $ \its -> do
                 let connPool = its ^. itsActionEnv . aStDb
                 (uid, _, _):_ <- createTestUsers connPool 2
                 Right _persona <- liftIO $ runThentosQuery connPool $ addPersona persName uid (Just uri)
-                sendEmail [] [uri] `shouldRespondWith` "" { matchStatus = 204 }
+                sendEmail [] [uri] `shouldRespondWith` "[]" { matchStatus = 200 }
             it "fails if the email is malformed." . runIt $ \_its ->
                 sendEmail [malformedUserEmail] [] `shouldRespondWith` 400
             it "fails if the persona does not exist." . runIt $ \_its ->

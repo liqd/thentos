@@ -38,12 +38,11 @@ import Control.Lens ((&), (<>~))
 import Data.CaseInsensitive (foldedCase)
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (cs)
-import Data.Text (empty)
 import Network.Wai (remoteHost)
 import Network.Socket (SockAddr)
 import Servant.API ((:>))
 import Servant.Server (HasServer, ServerT, route)
-import Servant.Server.Internal (Router'(WithRequest), passToServer)
+import Servant.Server.Internal (passToServer)
 import Servant.Utils.Links (HasLink(MkLink, toLink))
 
 import qualified Servant.Foreign as F
@@ -52,19 +51,22 @@ import Thentos.Backend.Api.Auth.Types
 import Thentos.Backend.Core
 
 
-instance HasServer sub => HasServer (ThentosAuth :> sub) where
+instance HasServer sub context => HasServer (ThentosAuth :> sub) context where
   type ServerT (ThentosAuth :> sub) m = ThentosAuthCredentials -> ServerT sub m
-  route Proxy sub = WithRequest $ \ request -> do
-      let mTok = lookupThentosHeaderSession renderThentosHeaderName request
-      let origin :: SockAddr = remoteHost request
-      route (Proxy :: Proxy sub) . passToServer sub $ ThentosAuthCredentials mTok origin
+  route Proxy context sub = route (Proxy :: Proxy sub) context $ passToServer sub go
+    where
+      go request =
+        let mTok = lookupThentosHeaderSession renderThentosHeaderName request in
+        let origin :: SockAddr = remoteHost request in
+        ThentosAuthCredentials mTok origin
 
 instance HasLink sub => HasLink (ThentosAuth :> sub) where
     type MkLink (ThentosAuth :> sub) = MkLink sub
     toLink _ = toLink (Proxy :: Proxy sub)
 
-instance F.HasForeign F.NoTypes sub => F.HasForeign F.NoTypes (ThentosAuth :> sub) where
-    type Foreign (ThentosAuth :> sub) = F.Foreign sub
-    foreignFor plang Proxy req = F.foreignFor plang (Proxy :: Proxy sub) $ req
-            & F.reqHeaders <>~
-                [F.HeaderArg (cs . foldedCase $ renderThentosHeaderName ThentosHeaderSession, empty)]
+instance F.HasForeign F.NoTypes () sub => F.HasForeign F.NoTypes () (ThentosAuth :> sub) where
+    type Foreign () (ThentosAuth :> sub) = F.Foreign () sub
+    foreignFor plang Proxy Proxy req = F.foreignFor plang Proxy (Proxy :: Proxy sub) $ req
+            & F.reqHeaders <>~ [F.HeaderArg (F.Arg headerName ())]
+      where
+        headerName = F.PathSegment . cs . foldedCase $ renderThentosHeaderName ThentosHeaderSession

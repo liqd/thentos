@@ -3,13 +3,10 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE ViewPatterns         #-}
 
 module Thentos.Config
     ( ThentosConfig
     , ThentosConfig'
-    , readConfig
-    , readConfigWithSources
 
     , HttpConfig
     , SmtpConfig
@@ -28,25 +25,18 @@ module Thentos.Config
     , getDefaultUser
     , buildEmailAddress
     , signupLogger
+    , defaultThentosConfig
     )
 where
 
 import Data.Configifier
-    ( (:>), (:*>)((:*>)), (:>:), (>>.), Source
-    , configifyWithDefault, renderConfigFile, docs, defaultSources'
-    , ToConfigCode, ToConfig, Tagged(Tagged), TaggedM(TaggedM), MaybeO(..), Error
+    ( (:>), (:*>)((:*>)), (:>:), (>>.)
+    , ToConfigCode, ToConfig, Tagged(Tagged), MaybeO(..)
     )
 import Network.Mail.Mime (Address(Address))
-import System.Directory (createDirectoryIfMissing, setCurrentDirectory, canonicalizePath)
-import System.FilePath (takeDirectory)
-import System.IO (stdout)
-import System.Log.Formatter (simpleLogFormatter, nullFormatter)
-import System.Log.Handler.Simple (formatter, fileHandler, streamHandler)
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
-import qualified Data.Text as ST
-import qualified Data.Text.IO as ST
 import qualified Generics.Generic.Aeson as Aeson
 
 import Thentos.Prelude
@@ -185,42 +175,7 @@ instance Aeson.ToJSON HttpSchema where toJSON = Aeson.gtoJson
 instance Aeson.FromJSON HttpSchema where parseJSON = Aeson.gparseJson
 
 
--- * driver
-
-printConfigUsage :: IO ()
-printConfigUsage = do
-    ST.putStrLn $ docs (Proxy :: Proxy (ToConfigCode ThentosConfig'))
-
-
-readConfig :: FilePath -> IO ThentosConfig
-readConfig configFile = defaultSources' "THENTOS_" [configFile] >>= readConfigWithSources
-
-readConfigWithSources :: [Source] -> IO ThentosConfig
-readConfigWithSources sources = do
-    logger DEBUG $ "config sources:\n" ++ ppShow sources
-
-    result <- try $ configifyWithDefault (TaggedM defaultThentosConfig) sources
-    case result of
-        Left (e :: Error) -> do
-            logger CRITICAL $ "error parsing config: " ++ ppShow e
-            printConfigUsage
-            throwIO e
-        Right cfg -> do
-            logger DEBUG $ "parsed config (yaml):\n" ++ cs (renderConfigFile cfg)
-            logger DEBUG $ "parsed config (raw):\n" ++ ppShow cfg
-            configLogger (Tagged $ cfg >>. (Proxy :: Proxy '["log"]))
-            configSignupLogger (cfg >>. (Proxy :: Proxy '["signup_log"]))
-            setRootPath (cfg >>. (Proxy :: Proxy '["root_path"]))
-            return cfg
-
-
 -- ** helpers
-
-setRootPath :: ST -> IO ()
-setRootPath (cs -> path) = do
-    canonicalizePath path >>= logger INFO . ("Current working directory: " ++) . show
-    setCurrentDirectory path
-
 
 -- this section contains code that works around missing features in
 -- the supported leaf types in the config structure.  we hope it'll
@@ -276,39 +231,5 @@ getUserData cfg = UserFormData
 getDefaultUser :: DefaultUserConfig -> (UserFormData, [Group])
 getDefaultUser cfg = (getUserData cfg, fromMaybe [] (cfg >>. (Proxy :: Proxy '["groups"])))
 
-
--- * logging
-
--- | Note: logging to stderr does not work very well together with multiple threads.  stdout is
--- line-buffered and works better that way.
---
--- FIXME: there should be a way to override an already-set log file with 'no log file' on e.g. the
--- command line.  (difficult with the current 'Maybe' solution; this may be a configifier patch.)
-configLogger :: LogConfig -> IO ()
-configLogger config = do
-    let logfile = ST.unpack $ config >>. (Proxy :: Proxy '["path"])
-        loglevel = fromPrio $ config >>. (Proxy :: Proxy '["level"])
-        logstdout :: Bool = config >>. (Proxy :: Proxy '["stdout"])
-    removeAllHandlers
-    createDirectoryIfMissing True $ takeDirectory logfile
-
-    let fmt = simpleLogFormatter "$utcTime *$prio* [$pid][$tid] -- $msg"
-        mkHandler f = (\h -> h { formatter = fmt }) <$> f loglevel
-
-    handlers <- sequence $ mkHandler <$> fileHandler logfile : [streamHandler stdout | logstdout]
-
-    updateGlobalLogger loggerName $
-        setLevel loglevel .
-        setHandlers handlers
-
 signupLogger :: String
 signupLogger = "signupLogger"
-
-configSignupLogger :: Maybe ST -> IO ()
-configSignupLogger Nothing = return ()
-configSignupLogger (Just path) = do
-    let logfile = ST.unpack path
-    createDirectoryIfMissing True $ takeDirectory logfile
-    handler <- fileHandler logfile DEBUG
-    let handler' = handler { formatter = nullFormatter }
-    updateGlobalLogger signupLogger (setHandlers [handler'])

@@ -84,15 +84,7 @@ main = do
 
 submoduleSources :: [FilePath]
 submoduleSources = map ("submodules" </>)
-    [ "servant/servant"
-    , "servant/servant-server"
-    , "servant/servant-client"
-    , "servant/servant-docs"
-    , "servant/servant-blaze"
-    , "servant/servant-lucid"
-    , "servant/servant-js"
-    , "servant/servant-foreign"
-    , "pronk"
+    [ "pronk"
     ]
 
 sources :: [FilePath]
@@ -100,7 +92,7 @@ sources =
     [ "servant-session"
     , "thentos-core"
     , "thentos-tests"
-    , "thentos-adhocracy"
+--  , "thentos-adhocracy"
     ]
 
 sandboxPath :: FilePath
@@ -234,7 +226,7 @@ runCabal args extraArgs = do
                   , "--max-backjumps -1", "--reorder-goals"
                   , "-fwith-thentos-executable"
                   , "-fwith-captcha-executable"
-                  , "-fwith-importa3u-executable"
+               -- , "-fwith-importa3u-executable"
                         -- (these should only be here for thentos-core source)
                   ] ++ sources
 

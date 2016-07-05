@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
@@ -34,11 +35,10 @@ import Control.Monad.Trans.Resource (InternalState, createInternalState, closeIn
 import Data.Proxy (Proxy(Proxy))
 import Data.String.Conversions (ST, SBS, ConvertibleStrings, cs)
 import Network.Wai.Parse (fileContent, parseRequestBody, tempFileBackEnd)
-import Network.Wai (Request)
 import Servant ((:<|>)((:<|>)), (:>), ServerT, (:~>)(Nat), unNat)
 import Servant.Server (ServantErr(..), err500)
-import Servant.Server.Internal (HasServer, Router'(WithRequest), RouteResult(Route),
-                                route, addBodyCheck)
+import Servant.Server.Internal (HasServer, route, addBodyCheck)
+import Servant.Server.Internal.RoutingApplication (withRequest)
 import Text.Digestive (Env, Form, FormInput(TextInput, FileInput), View, fromPath, getForm, postForm)
 
 import qualified Servant
@@ -88,11 +88,11 @@ getFormDataEnv (FormData env _) = env
 releaseFormTempFiles :: FormData -> IO ()
 releaseFormTempFiles (FormData _ tmpFilesState) = closeInternalState tmpFilesState
 
-instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
+instance HasServer sublayout context => HasServer (FormReqBody :> sublayout) context where
   type ServerT (FormReqBody :> sublayout) m = FormData -> ServerT sublayout m
 
-  route Proxy subserver = WithRequest $ \request ->
-      route (Proxy :: Proxy sublayout) (addBodyCheck subserver (bodyCheck request))
+  route Proxy context subserver =
+      route (Proxy :: Proxy sublayout) context (addBodyCheck subserver bodyCheck)
     where
       -- FIXME: honor accept header
 
@@ -101,10 +101,9 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
       --   - content type and file name are lost in digestive-functors.
       --   - remember to set upload size limit!
 
-      bodyCheck :: Request -> IO (RouteResult FormData)
-      bodyCheck req = do
-          tempFileState <- createInternalState
-          (params, files) <- parseRequestBody (tempFileBackEnd tempFileState) req
+      bodyCheck = withRequest $ \req -> do
+          tempFileState <- liftIO createInternalState
+          (params, files) <- liftIO $ parseRequestBody (tempFileBackEnd tempFileState) req
 
           let env :: Env Identity
               env query = pure $ f (TextInput . STE.decodeUtf8) params
@@ -114,7 +113,7 @@ instance (HasServer sublayout) => HasServer (FormReqBody :> sublayout) where
                   f g = map (g . snd)
                       . filter ((== fromPath query) . STE.decodeUtf8 . fst)
 
-          return $ Route (FormData env tempFileState)
+          return $ FormData env tempFileState
 
 
 -- | Handle a route of type @'FormH' htm html payload@.  'formAction' is used by digestive-functors
