@@ -24,6 +24,7 @@ addons:
             - xvfb
             - espeak
             - sox
+            - hlint
 
 before_install:
     - grep '\(MemTotal\|SwapTotal\)' /proc/meminfo
