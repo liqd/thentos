@@ -26,7 +26,7 @@ import Servant.Utils.Enter (Enter, enter)
 import Servant.Session (SSession)
 import Text.Blaze.Html (Html)
 import Text.Blaze.Html.Renderer.Pretty (renderHtml)
-import Web.Cookie (SetCookie, def, setCookieName)
+import Web.Cookie (SetCookie, def, setCookieName, setCookiePath)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
@@ -89,13 +89,13 @@ type FSessionStore   fsd = SessionStore IO () fsd
 type FServantSession fsd = SSession IO () fsd
 type FSessionKey     fsd = Vault.Key (FSession fsd)
 
--- FIXME: without setting a specific path (using setCookiePath with 'Just "/"') then
--- then the browser sets the current path for the cookie hence storing many cookies instead
--- of only one.
+-- We set the path to "/" to keep the browser from setting the current path for the cookie and hence
+-- storing many cookies instead of only one.
+--
 -- FIXME: make 'SetCookie' configurable with configifier.
 -- At least some configuration is possible now, see the SetCookie parameter to serveFAction.
 thentosSetCookie :: SetCookie
-thentosSetCookie = def { setCookieName = "thentos" }
+thentosSetCookie = def { setCookieName = "thentos", setCookiePath = Just "/" }
 
 cookieName :: SetCookie -> SBS
 cookieName setCookie =
