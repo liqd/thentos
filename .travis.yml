@@ -37,4 +37,5 @@ before_install:
     - cd ../..
 
 script:
+    - rm -rf $HOME/build/liqd/thentos/.cabal-sandbox
     - ./.travis/script.sh
