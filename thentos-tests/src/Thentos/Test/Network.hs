@@ -34,7 +34,7 @@ startDaemon = async
 stopDaemon :: Async () -> IO ()
 stopDaemon a = do
     cancel a
-    catch (wait a) (\ThreadKilled -> return ())
+    Control.Exception.catch (wait a) (\ThreadKilled -> return ())
 
 -- | Simple server that replies to all requests with the same response.
 -- Takes an optional status code (default: 200 OK), an optional content type (default:
