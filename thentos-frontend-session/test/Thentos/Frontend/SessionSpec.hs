@@ -7,7 +7,7 @@
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 
-module Servant.SessionSpec (spec) where
+module Thentos.Frontend.SessionSpec (spec) where
 
 import           Control.Monad              (replicateM_)
 import           Control.Monad.Trans.Except (ExceptT)
@@ -23,11 +23,11 @@ import           Test.Hspec.Wai             (with, request, liftIO)
 import           Web.Cookie                 (SetCookie, def, parseSetCookie,
                                              setCookieName, setCookieValue, setCookieMaxAge)
 
-import           Servant.Session
+import           Thentos.Frontend.Session
 
 
 spec :: Spec
-spec = describe "Servant.Session" . with server $ do
+spec = describe "Thentos.Frontend.Session" . with server $ do
 
   context "the cookie is set" $ do
 

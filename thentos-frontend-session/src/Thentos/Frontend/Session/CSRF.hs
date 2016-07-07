@@ -4,12 +4,11 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PackageImports             #-}
 {-# LANGUAGE RankNTypes                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
-module Thentos.Frontend.CSRF
+module Thentos.Frontend.Session.CSRF
     ( CsrfSecret(..)
     , CsrfToken(..)
     , CsrfNonce(..)
@@ -25,19 +24,25 @@ module Thentos.Frontend.CSRF
     , clearCsrfToken
     ) where
 
-import "cryptonite" Crypto.Hash (SHA256)
-import "cryptonite" Crypto.MAC.HMAC (HMAC,hmac)
+import Control.Lens
+import Control.Monad.Reader.Class (MonadReader)
+import Control.Monad.State.Class (MonadState)
+import Control.Monad (when)
+import Crypto.Hash (SHA256)
+import Crypto.MAC.HMAC (HMAC,hmac)
+import Crypto.Random (MonadRandom(..))
 import Data.Aeson (FromJSON, ToJSON)
 import Data.ByteArray.Encoding (convertToBase, convertFromBase, Base(Base16))
-import Data.Configifier ((>>.), Tagged, ToConfigCode)
+import Data.String.Conversions (SBS, ST, cs, (<>))
+import Data.String (IsString)
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 
-import Thentos.Config (ThentosConfig')
-import Thentos.Prelude
-import Thentos.Types (ThentosSessionToken(fromThentosSessionToken), MonadUseThentosSessionToken,
-                      MonadError500, throwError500, getThentosSessionToken)
+import Servant.Missing (MonadError500, throwError500)
+import Thentos.Frontend.Session.Types (ThentosSessionToken(fromThentosSessionToken), MonadUseThentosSessionToken, getThentosSessionToken)
 
 -- | This token is used to prevent CSRF (Cross Site Request Forgery).
 -- This token is part of 'FrontendSessionData' since it is required by the views which
@@ -80,9 +85,11 @@ newtype CsrfNonce  = CsrfNonce  SBS
 class GetCsrfSecret a where
     csrfSecret :: Getter a (Maybe CsrfSecret)
 
+{-
 instance a ~ ToConfigCode ThentosConfig' => GetCsrfSecret (Tagged a) where
     -- | Get the 'CsrfSecret' from the configuration.
     csrfSecret = pre $ to (>>. (Proxy :: Proxy '["csrf_secret"])) . _Just . csrfSecret . _Just
+    -}
 
 instance GetCsrfSecret ST.Text where
     csrfSecret = to $ \secret -> do

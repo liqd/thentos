@@ -21,7 +21,7 @@ import Thentos.Action.TCB
 import Thentos.Action.Unsafe (unsafeLiftIO)
 import Thentos.Config
 import Thentos.Ends.Types
-import Thentos.Frontend.CSRF
+import Thentos.Frontend.Session.CSRF
 import Thentos.Frontend.Pages
 import Thentos.Frontend.Types
 import Thentos.Prelude
