@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
+
 module Thentos.Frontend.Session.CSRF
     ( CsrfSecret(..)
     , CsrfToken(..)
@@ -84,12 +85,6 @@ newtype CsrfNonce  = CsrfNonce  SBS
 
 class GetCsrfSecret a where
     csrfSecret :: Getter a (Maybe CsrfSecret)
-
-{-
-instance a ~ ToConfigCode ThentosConfig' => GetCsrfSecret (Tagged a) where
-    -- | Get the 'CsrfSecret' from the configuration.
-    csrfSecret = pre $ to (>>. (Proxy :: Proxy '["csrf_secret"])) . _Just . csrfSecret . _Just
-    -}
 
 instance GetCsrfSecret ST.Text where
     csrfSecret = to $ \secret -> do

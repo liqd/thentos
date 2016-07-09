@@ -3,11 +3,7 @@ import "hint" HLint.Dollar
 import "hint" HLint.Generalise
 import "hint" HLint.HLint
 
--- some rules are disabled universally; some are ignored in some modules.  syntax:
---
--- >>> rule    ::= 'ignore' pattern [= module]
--- >>> module  ::= 'Thentos.Backend.Api.Adhocracy3'
--- >>> pattern ::= '"' string '"'
+-- how to tweak the rules: http://community.haskell.org/~ndm/darcs/hlint/hlint.htm
 
 ignore "Redundant lambda" = Thentos.Backend.Api.Simple
 ignore "Redundant bracket" = Thentos.Backend.Api.Simple
@@ -22,9 +18,3 @@ ignore "Use list literal"
 ignore "Use mappend"
 ignore "Use record patterns"
 ignore "Parse error"
-
--- FIXME: missing checks:
---
---  - can i find / write a lint rule that disallows -fdefer-type-errors in OPTIONS pragmas?
---  - check all modules for ghc options and move things to cabal file if appropriate.
---  - language extensions enabled in cabal file should not be re-enabled in modules.
