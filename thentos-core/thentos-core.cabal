@@ -1,5 +1,5 @@
 name:                thentos-core
-version:             0.7.0
+version:             0.8.0
 synopsis:            The swiss army knife of privacy-preserving identity management
 description:
   This is an experimental platform for identity management in web
@@ -57,13 +57,11 @@ library
   if flag(development)
     cpp-options: -DDEVELOPMENT
   exposed-modules:
-      Control.Monad.Except.Missing
-    , Database.PostgreSQL.Simple.Missing
+      Database.PostgreSQL.Simple.Missing
     , LIO.Missing
     , Network.HostAddr
     , Paths.TH
     , Paths_thentos_core__
-    , Servant.Missing
     , System.Log.Missing
     , Thentos
     , Thentos.Action
@@ -85,7 +83,6 @@ library
     , Thentos.Config.Reader
     , Thentos.Ends.Types
     , Thentos.Frontend
-    , Thentos.Frontend.CSRF
     , Thentos.Frontend.Handlers
     , Thentos.Frontend.Handlers.Combinators
     , Thentos.Frontend.Pages
@@ -164,7 +161,6 @@ library
     , Rasterific >=0.6 && <0.7
     , resource-pool >=0.2.3.2 && <0.3
     , safe >=0.3.9 && <0.4
-    , sandi >=0.3.5 && <0.4
     , scrypt >=0.5.0 && <0.6
     , servant >=0.7 && <0.8
     , servant-blaze >=0.7 && <0.8
@@ -172,8 +168,8 @@ library
     , servant-foreign >=0.7 && <0.8
     , servant-js >=0.7 && <0.8
     , servant-server >=0.7 && <0.8
-    , servant-session >=0.7 && <0.8
     , string-conversions >=0.4 && <0.5
+    , thentos-frontend-session ==0.8.0
     , template-haskell >=2.10 && <2.11
     , temporary >=1.2 && <1.3
     , text >=1.2.1.3 && <1.3

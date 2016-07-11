@@ -20,6 +20,5 @@ node_modules/
 output/
 .psci*
 log/*.log
-servant-session/dist/
 thentos-purescript/.browserify-cache.json
 thentos-purescript/static/thentos.js

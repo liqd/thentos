@@ -5,12 +5,11 @@ resolver: lts-6.3
 
 # Local packages, usually specified by relative directory name
 packages:
-- submodules/configifier/
 - submodules/pronk/
+- thentos-frontend-session/
 - thentos-core/
 #- thentos-adhocracy/
 - thentos-tests/
-- servant-session/
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:

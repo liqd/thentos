@@ -1,6 +1,7 @@
 {- Safe -}
 
 {-# LANGUAGE ConstraintKinds             #-}
+{-# LANGUAGE DataKinds                   #-}
 {-# LANGUAGE DeriveFunctor               #-}
 {-# LANGUAGE DeriveGeneric               #-}
 {-# LANGUAGE FlexibleContexts            #-}
@@ -15,6 +16,7 @@ import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.State (StateT)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(EitherT))
+import Data.Configifier ((>>.))
 import Database.PostgreSQL.Simple (Connection)
 import Data.Pool (Pool)
 import LIO.Core (LIO)
@@ -23,7 +25,7 @@ import LIO.TCB (ioTCB)
 import Thentos.Types
 import Thentos.Config
 import Thentos.Prelude
-import Thentos.Frontend.CSRF
+import Thentos.Frontend.Session.CSRF
 
 
 data ActionEnv =
@@ -50,7 +52,7 @@ instance GetThentosConfig ActionEnv where
 type MonadThentosConfig v m = (MonadReader v m, GetThentosConfig v)
 
 instance GetCsrfSecret ActionEnv where
-    csrfSecret = aStConfig . csrfSecret
+    csrfSecret = pre $ aStConfig . to (>>. (Proxy :: Proxy '["csrf_secret"])) . _Just . csrfSecret . _Just
 
 
 -- | The 'Action' monad transformer stack.  It contains:

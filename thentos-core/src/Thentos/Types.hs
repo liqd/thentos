@@ -4,10 +4,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 {-# LANGUAGE OverloadedStrings           #-}
 {-# LANGUAGE ScopedTypeVariables         #-}
+{-# LANGUAGE StandaloneDeriving          #-}
 {-# LANGUAGE TemplateHaskell             #-}
 {-# LANGUAGE ViewPatterns                #-}
 
-{-# OPTIONS_GHC  #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Thentos.Types
     ( JsonTop(..)
@@ -133,6 +134,11 @@ import qualified Data.ByteString as SBS
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
+
+import Thentos.Frontend.Session.Types
+
+deriving instance ToField ThentosSessionToken
+deriving instance FromField ThentosSessionToken
 
 type Error500 = ThrowError500
 
@@ -450,16 +456,6 @@ instance Ord Context where
 
 
 -- * thentos and service session
-
-newtype ThentosSessionToken = ThentosSessionToken { fromThentosSessionToken :: ST }
-    deriving ( Eq, Ord, Show, Read, Typeable, Generic, IsString
-             , FromHttpApiData, FromJSON, ToJSON, FromField, ToField
-             )
-
-class GetThentosSessionToken a where
-    getThentosSessionToken :: Getter a (Maybe ThentosSessionToken)
-
-type MonadUseThentosSessionToken s m = (MonadState s m, GetThentosSessionToken s)
 
 data ThentosSession =
     ThentosSession

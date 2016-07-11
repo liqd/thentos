@@ -38,7 +38,7 @@ import Thentos.Config hiding (getDefaultUser)
 import Thentos.Frontend.Handlers.Combinators
 import Thentos.Frontend.Pages.Core
 import Thentos.Frontend.State
-import Thentos.Frontend.CSRF
+import Thentos.Frontend.Session.CSRF
 import Thentos.Frontend.Types
 import Thentos.Prelude
 import Thentos.Test.Core

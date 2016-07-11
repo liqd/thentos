@@ -123,7 +123,9 @@ you can do this:
 $ sudo bash
 # add-apt-repository ppa:hvr/ghc
 # apt-get update
-# apt-get install ghc-7.10.2 happy-1.19.3 alex-3.1.4 cabal-install-1.22
+# apt-get install ghc-7.10.3 happy-1.19.5 alex-3.1.4 cabal-install-1.22
+# apt-get install libpq-dev git
+# apt-get install postgresql-client git
 # apt-get install xvfb  # (for selenium tests; see below).
 # apt-get install sox espeak  # (for audio captchas).
 ```

@@ -43,7 +43,7 @@ main = do
 
     printSectionHeading "building dependencies"
     ExitSuccess <- runCabal args "--dependencies-only"
-    -- FIXME: this will build thentos-core, thentos-test, and servant-session,
+    -- FIXME: this will build thentos-core, thentos-test, and thentos-frontend-session,
     -- as they are all dependencies of thentos-adhocracy.  not sure how to work
     -- around that, since we want to distinguish between deps (no -Werror) and
     -- targets (-Werror).  the only bad thing about the status quo is that those
@@ -89,7 +89,7 @@ submoduleSources = map ("submodules" </>)
 
 sources :: [FilePath]
 sources =
-    [ "servant-session"
+    [ "thentos-frontend-session"
     , "thentos-core"
     , "thentos-tests"
 --  , "thentos-adhocracy"

@@ -1,0 +1,87 @@
+name:                thentos-frontend-session
+version:             0.8.0
+synopsis:            All in one session handling for servant based frontends
+license:             AGPL
+license-file:        LICENSE
+homepage:            https://github.com/liqd/thentos
+author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes, Nicolas Pouillard
+maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net, np@nicolaspouillard.fr
+copyright:           liquid democracy e.V. (https://liqd.net/)
+category:            Web, Authentication
+build-type:          Simple
+cabal-version:       >= 1.18
+
+Source-Repository head
+  type: git
+  location: https://github.com/liqd/thentos
+
+flag profiling
+  default: False
+
+library
+  default-language:
+      Haskell2010
+  hs-source-dirs:
+      src
+  ghc-options:
+      -Wall -j1
+  if flag(profiling)
+      ghc-options:
+          -auto-all -caf-all -fforce-recomp
+  exposed-modules:
+      Thentos.Frontend.Session
+    , Thentos.Frontend.Session.CSRF
+    , Thentos.Frontend.Session.Types
+    , Control.Monad.Except.Missing
+    , Servant.Missing
+  build-depends:
+      aeson >=0.11 && <0.12
+    , base >=4.8 && <4.9
+    , bytestring >=0.10 && <0.11
+    , cookie >=0.4 && <0.5
+    , cryptonite >=0.15 && <0.16
+    , digestive-functors >=0.8 && <0.9
+    , lens >=4.13 && <4.14
+    , memory >=0.13 && <0.14
+    , mtl >=2.2 && <2.3
+    , resourcet >=1.1 && <1.2
+    , sandi >=0.3.5 && <0.4
+    , servant >=0.7 && <0.8
+    , servant-server >=0.7 && <0.8
+    , string-conversions >=0.4 && <0.5
+    , text >=1.2 && <1.3
+    , transformers >=0.4 && <0.5
+    , vault >=0.3 && <0.4
+    , wai >=3.2 && <3.3
+    , wai-extra >=3.0 && <3.1
+    , wai-session >=0.3 && <0.4
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  ghc-options:
+    -Wall -fno-warn-name-shadowing
+  default-language: Haskell2010
+  hs-source-dirs: test
+  main-is: Spec.hs
+  other-modules:
+      Thentos.Frontend.SessionSpec
+  build-depends:
+      base == 4.*
+    , aeson
+    , cookie
+    , bytestring
+    , clientsession
+    , containers
+    , hspec == 2.*
+    , hspec-wai
+    , http-types
+    , servant-server
+    , string-conversions
+    , text
+    , thentos-frontend-session
+    , time
+    , wai
+    , wai-extra
+    , wai-session
+    , transformers
+    , vault

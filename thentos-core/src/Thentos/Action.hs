@@ -90,7 +90,6 @@ import Data.Configifier ((>>.), Tagged(Tagged))
 import Text.Hastache.Context (mkStrContext)
 import Text.Hastache (MuType(MuVariable))
 
-import qualified Codec.Binary.Base64 as Base64
 import qualified Data.Text as ST
 
 import Thentos.Action.Core
@@ -98,6 +97,7 @@ import Thentos.Action.Types
 import Thentos.Action.TCB
 import Thentos.Action.SimpleAuth
 import Thentos.Config
+import Thentos.Frontend.Session.Types (freshRandomName, freshSessionToken)
 import Thentos.Transaction.Core (ThentosQuery)
 import Thentos.Types
 import Thentos.Util (verifyUserPass, verifyServiceKey)
@@ -111,18 +111,6 @@ queryA :: MonadQuery e v m => ThentosQuery e a -> m a
 queryA = U.query
 
 -- * randomness
-
--- | Return a base64 encoded random string of length 24 (18 bytes of entropy).
--- We use @_@ instead of @/@ as last letter of the base64 alphabet since it allows using names
--- within URLs without percent-encoding. Our Base64 alphabet thus consists of ASCII letters +
--- digits as well as @+@ and @_@. All of these are reliably recognized in URLs, even if they occur
--- at the end.
---
--- RFC 4648 also has a "URL Safe Alphabet" which additionally replaces @+@ by @-@. But that's
--- problematic, since @-@ at the end of URLs is not recognized as part of the URL by some programs
--- such as Thunderbird.
-freshRandomName :: MonadRandom m => m ST
-freshRandomName = ST.replace "/" "_" . cs . Base64.encode <$> getRandomBytes 18
 
 freshConfirmationToken :: MonadRandom m => m ConfirmationToken
 freshConfirmationToken = ConfirmationToken <$> freshRandomName
@@ -142,9 +130,6 @@ freshServiceId = ServiceId <$> freshRandomName
 
 freshServiceKey :: MonadRandom m => m ServiceKey
 freshServiceKey = ServiceKey <$> freshRandomName
-
-freshSessionToken :: MonadRandom m => m ThentosSessionToken
-freshSessionToken = ThentosSessionToken <$> freshRandomName
 
 freshServiceSessionToken :: MonadRandom m => m ServiceSessionToken
 freshServiceSessionToken = ServiceSessionToken <$> freshRandomName
