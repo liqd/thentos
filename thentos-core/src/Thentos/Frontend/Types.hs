@@ -29,7 +29,7 @@ import qualified Generics.Generic.Aeson as Aeson
 import Thentos.Prelude
 import Thentos.Types
 import Thentos.Action.Types
-import Thentos.Frontend.Session.CSRF
+import Thentos.CookieSession.CSRF
 
 
 -- * frontend errors

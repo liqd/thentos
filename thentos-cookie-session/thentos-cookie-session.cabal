@@ -35,9 +35,9 @@ library
       ghc-options:
           -auto-all -caf-all -fforce-recomp
   exposed-modules:
-      Thentos.Frontend.Session
-    , Thentos.Frontend.Session.CSRF
-    , Thentos.Frontend.Session.Types
+      Thentos.CookieSession
+    , Thentos.CookieSession.CSRF
+    , Thentos.CookieSession.Types
     , Control.Monad.Except.Missing
     , Servant.Missing
   build-depends:
@@ -70,7 +70,7 @@ test-suite spec
   hs-source-dirs: test
   main-is: Spec.hs
   other-modules:
-      Thentos.Frontend.SessionSpec
+      Thentos.CookieSessionSpec
   build-depends:
       base == 4.*
     , cookie

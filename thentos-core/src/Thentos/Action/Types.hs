@@ -25,7 +25,7 @@ import LIO.TCB (ioTCB)
 import Thentos.Types
 import Thentos.Config
 import Thentos.Prelude
-import Thentos.Frontend.Session.CSRF
+import Thentos.CookieSession.CSRF
 
 
 data ActionEnv =

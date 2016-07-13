@@ -32,7 +32,7 @@ import Thentos.Action.TCB
 import Thentos.Backend.Core
 import Thentos.Config
 import Thentos.Frontend.Types
-import Thentos.Frontend.Session
+import Thentos.CookieSession
 
 import qualified Thentos.Frontend.Pages.Core as Pages
 
