@@ -1,11 +1,17 @@
 name:                thentos-cookie-session
 version:             0.8.3
-synopsis:            All in one session handling for servant based frontends
+synopsis:            All-in-one session handling for servant-based frontends
+description:
+    Uses cookies to store session keys.
+    .
+    Offers CSRF protection.
+    .
+    Designed with HTML frontends in mind, but Suitable for any HTTP service.
 license:             AGPL
 license-file:        LICENSE
 homepage:            https://github.com/liqd/thentos
 author:              Matthias Fischmann, Florian Hartwig, Christian Siefkes, Nicolas Pouillard
-maintainer:          mf@zerobuzz.net, florian.hartwig@liqd.de, christian@siefkes.net, np@nicolaspouillard.fr
+maintainer:          mf@zerobuzz.net, np@nicolaspouillard.fr
 copyright:           liquid democracy e.V. (https://liqd.net/)
 category:            Web, Authentication
 build-type:          Simple
