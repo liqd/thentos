@@ -1,4 +1,4 @@
-name:                thentos-frontend-session
+name:                thentos-cookie-session
 version:             0.8.0
 synopsis:            All in one session handling for servant based frontends
 license:             AGPL
@@ -72,7 +72,7 @@ test-suite spec
     , hspec-wai
     , http-types
     , servant-server
-    , thentos-frontend-session
+    , thentos-cookie-session
     , wai
     , wai-extra
     , wai-session

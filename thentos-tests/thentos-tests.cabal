@@ -137,7 +137,7 @@ test-suite tests
     , servant-docs
     , string-conversions
     , text
-    , thentos-frontend-session ==0.8.0
+    , thentos-cookie-session ==0.8.2
     , thentos-core ==0.8.2
     , thentos-tests ==0.8.2
     , thyme

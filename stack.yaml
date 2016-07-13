@@ -6,7 +6,7 @@ resolver: lts-6.3
 # Local packages, usually specified by relative directory name
 packages:
 - submodules/pronk/
-- thentos-frontend-session/
+- thentos-cookie-session/
 - thentos-core/
 #- thentos-adhocracy/
 - thentos-tests/
