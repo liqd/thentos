@@ -135,7 +135,7 @@ import qualified Data.HashMap.Strict as H
 import qualified Data.Text as ST
 import qualified Generics.Generic.Aeson as Aeson
 
-import Thentos.Frontend.Session.Types
+import Thentos.CookieSession.Types
 
 deriving instance ToField ThentosSessionToken
 deriving instance FromField ThentosSessionToken

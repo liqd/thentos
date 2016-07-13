@@ -29,7 +29,7 @@ import Thentos.Action.Types (ActionStack, ActionEnv(..), aStDb, aStConfig, Monad
 import Thentos.Config
 import Thentos.Config.Reader
 import Thentos.Frontend (runFrontend)
-import Thentos.Frontend.Session.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
+import Thentos.CookieSession.CSRF (CsrfSecret(CsrfSecret), validFormatCsrfSecretField, genCsrfSecret)
 import Thentos.Smtp (checkSendmail)
 import Thentos.Transaction.Core (createDB, runThentosQuery)
 import Thentos.Types

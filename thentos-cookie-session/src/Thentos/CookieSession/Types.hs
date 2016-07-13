@@ -3,7 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PackageImports             #-}
-module Thentos.Frontend.Session.Types where
+
+module Thentos.CookieSession.Types where
 
 import Control.Lens (Getter)
 import Control.Monad.State.Class (MonadState)

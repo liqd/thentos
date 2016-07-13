@@ -137,7 +137,7 @@ test-suite tests
     , servant-docs
     , string-conversions
     , text
-    , thentos-cookie-session ==0.8.2
+    , thentos-cookie-session ==0.8.4
     , thentos-core ==0.8.4
     , thentos-tests ==0.8.4
     , thyme

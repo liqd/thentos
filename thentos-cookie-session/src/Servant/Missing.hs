@@ -1,5 +1,3 @@
--- FIXME: create a package servant-digestive-functors and
---        choose a different module name.
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -11,19 +9,21 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC #-}
+
 module Servant.Missing
-  (ThrowServantErr(..)
-  ,MonadServantErr
-  ,ThrowError500(..)
-  ,MonadError500
-  ,FormH
-  ,FormReqBody
-  ,FormData, getFormDataEnv, releaseFormTempFiles
-  ,formH
-  ,formRedirectH
-  ,fromEnvIdentity
-  ,redirect) where
+  ( ThrowServantErr(..)
+  , MonadServantErr
+  , ThrowError500(..)
+  , MonadError500
+  , FormH
+  , FormReqBody
+  , FormData, getFormDataEnv, releaseFormTempFiles
+  , formH
+  , formRedirectH
+  , fromEnvIdentity
+  , redirect
+  ) where
 
 import Control.Lens (prism, Prism', (#))
 import Control.Monad ((>=>))
@@ -62,7 +62,6 @@ class ThrowError500 err where
 
 type MonadError500 err m = (MonadError err m, ThrowError500 err)
 
--- FIXME: ORPHAN move
 instance ThrowError500 ServantErr where
     error500 = prism (\msg -> err500 { errBody = cs msg })
                      (\err -> if errHTTPCode err == 500 then Right (cs (errBody err)) else Left err)
@@ -124,11 +123,11 @@ instance HasServer sublayout context => HasServer (FormReqBody :> sublayout) con
 -- message queue in the session state).
 formH :: forall payload m err htm html uri.
      (Monad m, MonadError err m, ConvertibleStrings uri ST)
-  => IO :~> m                     -- ^ liftIO
-  -> uri                          -- ^ formAction
-  -> Form html m payload          -- ^ processor1
-  -> (payload -> m html)          -- ^ processor2
-  -> (View html -> uri -> m html) -- ^ renderer
+  => IO :~> m                     -- liftIO
+  -> uri                          -- formAction
+  -> Form html m payload          -- processor1
+  -> (payload -> m html)          -- processor2
+  -> (View html -> uri -> m html) -- renderer
   -> ServerT (FormH htm html payload) m
 formH liftIO' formAction processor1 processor2 renderer = getH :<|> postH
   where

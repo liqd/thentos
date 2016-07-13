@@ -97,7 +97,7 @@ import Thentos.Action.Types
 import Thentos.Action.TCB
 import Thentos.Action.SimpleAuth
 import Thentos.Config
-import Thentos.Frontend.Session.Types (freshRandomName, freshSessionToken)
+import Thentos.CookieSession.Types (freshRandomName, freshSessionToken)
 import Thentos.Transaction.Core (ThentosQuery)
 import Thentos.Types
 import Thentos.Util (verifyUserPass, verifyServiceKey)
