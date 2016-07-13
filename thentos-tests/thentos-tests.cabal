@@ -1,5 +1,5 @@
 name:                thentos-tests
-version:             0.8.1
+version:             0.8.2
 synopsis:            Test infrastructure for thentos-*
 description:
   See https://github.com/liqd/thentos.
@@ -72,7 +72,7 @@ library
     , template-haskell
     , temporary
     , text
-    , thentos-core ==0.8.1
+    , thentos-core ==0.8.2
     , transformers
     , transformers-base >=0.4.4 && <0.5
     , wai
@@ -138,8 +138,8 @@ test-suite tests
     , string-conversions
     , text
     , thentos-frontend-session ==0.8.0
-    , thentos-core ==0.8.1
-    , thentos-tests ==0.8.1
+    , thentos-core ==0.8.2
+    , thentos-tests ==0.8.2
     , thyme
     , transformers
     , vault
@@ -183,5 +183,5 @@ benchmark load-test
     , sandi
     , string-conversions
     , text
-    , thentos-core ==0.8.1
-    , thentos-tests ==0.8.1
+    , thentos-core ==0.8.2
+    , thentos-tests ==0.8.2
