@@ -1,5 +1,5 @@
 name:                thentos-cookie-session
-version:             0.8.0
+version:             0.8.3
 synopsis:            All in one session handling for servant based frontends
 license:             AGPL
 license-file:        LICENSE
