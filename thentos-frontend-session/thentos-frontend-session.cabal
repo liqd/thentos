@@ -67,19 +67,12 @@ test-suite spec
       Thentos.Frontend.SessionSpec
   build-depends:
       base == 4.*
-    , aeson
     , cookie
-    , bytestring
-    , clientsession
-    , containers
     , hspec == 2.*
     , hspec-wai
     , http-types
     , servant-server
-    , string-conversions
-    , text
     , thentos-frontend-session
-    , time
     , wai
     , wai-extra
     , wai-session
