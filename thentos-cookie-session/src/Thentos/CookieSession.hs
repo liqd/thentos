@@ -78,7 +78,7 @@ cookieName :: SetCookie -> SBS
 cookieName setCookie =
     if cookieNameValid n
         then n
-        else error $ "Thentos.Frontend.State: bad cookie name: " ++ show n
+        else error $ "Thentos.CookieSession: bad cookie name: " ++ show n
   where
     n = setCookieName setCookie
 
