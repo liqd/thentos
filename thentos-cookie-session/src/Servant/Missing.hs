@@ -1,5 +1,3 @@
--- FIXME: create a package servant-digestive-functors and
---        choose a different module name.
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -11,7 +9,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC #-}
+
 module Servant.Missing
   ( ThrowServantErr(..)
   , MonadServantErr
@@ -63,7 +62,6 @@ class ThrowError500 err where
 
 type MonadError500 err m = (MonadError err m, ThrowError500 err)
 
--- FIXME: ORPHAN move
 instance ThrowError500 ServantErr where
     error500 = prism (\msg -> err500 { errBody = cs msg })
                      (\err -> if errHTTPCode err == 500 then Right (cs (errBody err)) else Left err)
