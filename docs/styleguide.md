@@ -1,5 +1,7 @@
 # List of programming style rules
 
+where no other rules apply, https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md holds.
+
 (Will be re-structured as it grows.)
 
 
