@@ -147,11 +147,15 @@ enterFAction key smap extendClearanceOnSessionToken ioNat nat = Nat $ \fServer -
         Just (lkup, ins) -> do
             cookieToFSession ioNat (lkup ())
             maybeSessionToken <- use getThentosSessionToken
-            -- Update privileges and refresh the CSRF token if there is a session token
+
+            -- update privileges
             mapM_ extendClearanceOnSessionToken maybeSessionToken
+
+            -- refresh the CSRF token if there is a session token
             when (isJust maybeSessionToken) refreshCsrfToken
+
             fServer `finally` (do
-                clearCsrfToken -- could be replaced by 'refreshCsrfToken'
+                clearCsrfToken  -- could be replaced by 'refreshCsrfToken'
                 cookieFromFSession ioNat (ins ()))
 
 -- | Write 'FrontendSessionData' from the 'SSession' state to 'MonadFAction' state.  If there
