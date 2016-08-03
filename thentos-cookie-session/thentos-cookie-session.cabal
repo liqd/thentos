@@ -1,5 +1,5 @@
 name:                thentos-cookie-session
-version:             0.9.0
+version:             0.9.1
 synopsis:            All-in-one session handling for servant-based frontends
 description:
     Uses cookies to store session keys.

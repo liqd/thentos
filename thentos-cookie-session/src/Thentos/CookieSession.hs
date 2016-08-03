@@ -12,6 +12,7 @@
 module Thentos.CookieSession
     ( serveFAction
     , enterFAction
+    , noopExtendClearanceOnSessionToken
 
     -- * types
     , SSession
@@ -20,6 +21,7 @@ module Thentos.CookieSession
     , FSessionStore
     , FServantSession
     , FSessionKey
+    , ExtendClearanceOnSessionToken
     )
 where
 
@@ -96,6 +98,12 @@ sessionMiddleware Proxy setCookie = do
 
 type ExtendClearanceOnSessionToken m = ThentosSessionToken -> m ()
 
+noopExtendClearanceOnSessionToken :: Monad m => ExtendClearanceOnSessionToken m
+noopExtendClearanceOnSessionToken _ = pure ()
+
+-- | The 'ExtendClearanceOnSessionToken' argument can be used in combination with the lio package to
+-- write the access policy into the server monad state.  If your way of access restriction has no
+-- need for that, simply pass @noopExtendClearanceOnSessionToken@.
 serveFAction :: forall api m s e v.
         ( HasServer api '[]
         , Enter (ServerT api m) (m :~> ExceptT ServantErr IO) (Server api)
@@ -139,11 +147,15 @@ enterFAction key smap extendClearanceOnSessionToken ioNat nat = Nat $ \fServer -
         Just (lkup, ins) -> do
             cookieToFSession ioNat (lkup ())
             maybeSessionToken <- use getThentosSessionToken
-            -- Update privileges and refresh the CSRF token if there is a session token
+
+            -- update privileges
             mapM_ extendClearanceOnSessionToken maybeSessionToken
+
+            -- refresh the CSRF token if there is a session token
             when (isJust maybeSessionToken) refreshCsrfToken
+
             fServer `finally` (do
-                clearCsrfToken -- could be replaced by 'refreshCsrfToken'
+                clearCsrfToken  -- could be replaced by 'refreshCsrfToken'
                 cookieFromFSession ioNat (ins ()))
 
 -- | Write 'FrontendSessionData' from the 'SSession' state to 'MonadFAction' state.  If there
