@@ -12,6 +12,7 @@
 module Thentos.CookieSession
     ( serveFAction
     , enterFAction
+    , noopExtendClearanceOnSessionToken
 
     -- * types
     , SSession
@@ -20,6 +21,7 @@ module Thentos.CookieSession
     , FSessionStore
     , FServantSession
     , FSessionKey
+    , ExtendClearanceOnSessionToken
     )
 where
 
@@ -96,6 +98,12 @@ sessionMiddleware Proxy setCookie = do
 
 type ExtendClearanceOnSessionToken m = ThentosSessionToken -> m ()
 
+noopExtendClearanceOnSessionToken :: Monad m => ExtendClearanceOnSessionToken m
+noopExtendClearanceOnSessionToken _ = pure ()
+
+-- | The 'ExtendClearanceOnSessionToken' argument can be used in combination with the lio package to
+-- write the access policy into the server monad state.  If your way of access restriction has no
+-- need for that, simply pass @noopExtendClearanceOnSessionToken@.
 serveFAction :: forall api m s e v.
         ( HasServer api '[]
         , Enter (ServerT api m) (m :~> ExceptT ServantErr IO) (Server api)
