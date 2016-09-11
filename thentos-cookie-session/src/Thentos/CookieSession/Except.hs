@@ -1,4 +1,4 @@
-module Control.Monad.Except.Missing where
+module Thentos.CookieSession.Except where
 
 import Control.Monad.Except (MonadError(catchError, throwError))
 import Data.Functor (($>))

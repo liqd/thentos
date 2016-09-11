@@ -28,7 +28,6 @@ module Thentos.CookieSession.Servant
 import Control.Lens (prism, Prism', (#))
 import Control.Monad ((>=>))
 import Control.Monad.Except (MonadError, throwError)
-import Control.Monad.Except.Missing (finally)
 import Control.Monad.Identity (Identity, runIdentity)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Resource (InternalState, createInternalState, closeInternalState)
@@ -43,6 +42,9 @@ import Text.Digestive (Env, Form, FormInput(TextInput, FileInput), View, fromPat
 
 import qualified Servant
 import qualified Data.Text.Encoding as STE
+
+import Thentos.CookieSession.Except (finally)
+
 
 class ThrowServantErr err where
     _ServantErr :: Prism' err ServantErr

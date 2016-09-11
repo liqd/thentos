@@ -27,7 +27,6 @@ where
 
 import Control.Lens (use)
 import Control.Monad (when)
-import Control.Monad.Except.Missing (finally)
 import Control.Monad.State.Class (MonadState(..))
 import Control.Monad.Trans.Except (ExceptT)
 import Crypto.Random (MonadRandom(..))
@@ -47,8 +46,10 @@ import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
 import Thentos.CookieSession.CSRF
+import Thentos.CookieSession.Except (finally)
 import Thentos.CookieSession.Servant (throwError500)
 import Thentos.CookieSession.Types (ThentosSessionToken, getThentosSessionToken)
+
 
 -- * servant integration
 
