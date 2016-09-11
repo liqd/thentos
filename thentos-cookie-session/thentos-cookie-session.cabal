@@ -30,7 +30,7 @@ library
   hs-source-dirs:
       src
   ghc-options:
-      -Wall -j1
+      -Wall -Werror
   if flag(profiling)
       ghc-options:
           -auto-all -caf-all -fforce-recomp
