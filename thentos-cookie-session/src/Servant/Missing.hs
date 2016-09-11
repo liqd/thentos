@@ -164,5 +164,7 @@ formRedirectH formAction processor1 processor2 =
 
 
 redirect :: (MonadServantErr err m, ConvertibleStrings uri SBS) => uri -> m a
-redirect uri = throwServantErr $
-    Servant.err303 { errHeaders = ("Location", cs uri) : errHeaders Servant.err303 }
+redirect = throwServantErr . err303With
+
+err303With :: ConvertibleStrings uri SBS => uri -> ServantErr
+err303With uri = Servant.err303 { errHeaders = ("Location", cs uri) : errHeaders Servant.err303 }
