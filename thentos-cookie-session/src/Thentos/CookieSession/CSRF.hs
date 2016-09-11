@@ -44,7 +44,7 @@ import Servant (ServantErr(..), err412)
 import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 
-import Servant.Missing (MonadError500, MonadServantErr, throwError500, throwServantErr)
+import Thentos.CookieSession.Servant (MonadError500, MonadServantErr, throwError500, throwServantErr)
 import Thentos.CookieSession.Types (ThentosSessionToken(fromThentosSessionToken), MonadUseThentosSessionToken, getThentosSessionToken)
 
 

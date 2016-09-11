@@ -46,8 +46,8 @@ import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
-import Servant.Missing (throwError500)
 import Thentos.CookieSession.CSRF
+import Thentos.CookieSession.Servant (throwError500)
 import Thentos.CookieSession.Types (ThentosSessionToken, getThentosSessionToken)
 
 -- * servant integration

@@ -37,9 +37,9 @@ library
   exposed-modules:
       Thentos.CookieSession
     , Thentos.CookieSession.CSRF
+    , Thentos.CookieSession.Servant
     , Thentos.CookieSession.Types
     , Control.Monad.Except.Missing
-    , Servant.Missing
   build-depends:
       aeson >=0.11 && <0.12
     , base >=4.8 && <4.9

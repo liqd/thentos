@@ -11,7 +11,7 @@
 
 {-# OPTIONS_GHC #-}
 
-module Servant.Missing
+module Thentos.CookieSession.Servant
   ( ThrowServantErr(..)
   , MonadServantErr
   , ThrowError500(..)
