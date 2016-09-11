@@ -17,6 +17,7 @@ module Thentos.CookieSession.CSRF
     , HasSessionCsrfToken(..)
     , MonadHasSessionCsrfToken
     , MonadViewCsrfSecret
+    , MonadCsrf
     , genCsrfSecret
     , validFormatCsrfSecretField
     , validFormatCsrfToken
@@ -28,7 +29,7 @@ module Thentos.CookieSession.CSRF
 import Control.Lens
 import Control.Monad.Reader.Class (MonadReader)
 import Control.Monad.State.Class (MonadState)
-import Control.Monad (when)
+import Control.Monad (unless)
 import Crypto.Hash (SHA256)
 import Crypto.MAC.HMAC (HMAC,hmac)
 import Crypto.Random (MonadRandom(..))
@@ -38,12 +39,14 @@ import Data.String.Conversions (SBS, ST, cs, (<>))
 import Data.String (IsString)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
+import Servant (ServantErr(..), err412)
 
 import qualified Data.ByteString as SBS
 import qualified Data.Text as ST
 
-import Servant.Missing (MonadError500, throwError500)
+import Servant.Missing (MonadError500, MonadServantErr, throwError500, throwServantErr)
 import Thentos.CookieSession.Types (ThentosSessionToken(fromThentosSessionToken), MonadUseThentosSessionToken, getThentosSessionToken)
+
 
 -- | This token is used to prevent CSRF (Cross Site Request Forgery).
 -- This token is part of 'FrontendSessionData' since it is required by the views which
@@ -96,7 +99,13 @@ class HasSessionCsrfToken a where
 
 type MonadHasSessionCsrfToken s m = (MonadState s m, HasSessionCsrfToken s)
 
-type MonadViewCsrfSecret e m = (MonadReader e m, GetCsrfSecret e)
+type MonadViewCsrfSecret v m = (MonadReader v m, GetCsrfSecret v)
+
+type MonadCsrf s v m =
+    ( MonadServantErr ServantErr m
+    , MonadViewCsrfSecret v m
+    , MonadUseThentosSessionToken s m
+    )
 
 -- | This ONLY checks the format of a given CSRF secret, not if it has been randomly choosen (duh!).
 validFormatCsrfSecretField :: Maybe ST -> Bool
@@ -118,7 +127,7 @@ makeCsrfToken :: (MonadError500 err m, MonadViewCsrfSecret e m, MonadUseThentosS
 makeCsrfToken (CsrfNonce rnd) = do
     maySessionToken <- use getThentosSessionToken
     case maySessionToken of
-        Nothing -> throwError500 "No session token"
+        Nothing -> throwError500 "internal error: no session token"
         Just sessionToken -> do
             Just (CsrfSecret key) <- view csrfSecret
             return $ CsrfToken . cs $ rnd <> convertToBase Base16 (hmac key (tok <> rnd) :: HMAC SHA256)
@@ -129,18 +138,21 @@ makeCsrfToken (CsrfNonce rnd) = do
 csrfNonceFromCsrfToken :: CsrfToken -> CsrfNonce
 csrfNonceFromCsrfToken = CsrfNonce . SBS.take 64 . cs . fromCsrfToken
 
--- | Verify the authenticity of a given 'CsrfToken'.  This token should come from the form data of
+-- | Verify the authenticity of a given 'CsrfToken'.  This token must come from the form data of
 -- the POST request, NOT from 'FrontendSessionData'.
-checkCsrfToken :: (MonadError500 err m, MonadViewCsrfSecret e m, MonadUseThentosSessionToken s m) => CsrfToken -> m ()
-checkCsrfToken csrfToken
-    | not (validFormatCsrfToken csrfToken) =
-        throwError500 $ "Ill-formatted CSRF Token " <> show csrfToken
-    | otherwise = do
-        -- Here we essentially re-create the second half of the CSRF token.
-        -- If it was made with the same sessionToken and csrfSecret then it will match.
-        csrfToken' <- makeCsrfToken (csrfNonceFromCsrfToken csrfToken)
-        when (csrfToken /= csrfToken') $
-            throwError500 "Invalid CSRF token"
+--
+-- Verifiation works by re-creating the second half of the CSRF token.
+-- If it was made with the same sessionToken and csrfSecret then it will match.
+--
+-- In case of failure, respond with status code 412 (precondition failed).
+checkCsrfToken :: MonadCsrf s v m => CsrfToken -> m ()
+checkCsrfToken csrfToken = do
+    let failUnless cond = unless cond $
+          throwServantErr err412 { errBody = "CSRF token validation failed." }
+
+    failUnless (validFormatCsrfToken csrfToken)
+    csrfToken' <- makeCsrfToken $ csrfNonceFromCsrfToken csrfToken
+    failUnless (csrfToken == csrfToken')
 
 -- | Generates a random 'CsrfSecret'.
 genCsrfSecret :: MonadRandom m => m CsrfSecret
@@ -152,8 +164,7 @@ genCsrfNonce = CsrfNonce . (convertToBase Base16 :: SBS -> SBS) <$> getRandomByt
 
 -- | See 'CsrfToken'.
 -- This function assigns a newly generated 'CsrfToken' to the 'FrontendSessionData'.
-refreshCsrfToken :: (MonadError500 err m, MonadHasSessionCsrfToken s m,
-                     MonadRandom m, MonadViewCsrfSecret e m, MonadUseThentosSessionToken s m) => m ()
+refreshCsrfToken :: (MonadCsrf s v m, MonadHasSessionCsrfToken s m, MonadRandom m) => m ()
 refreshCsrfToken = do
     csrfToken <- makeCsrfToken =<< genCsrfNonce
     sessionCsrfToken .= Just csrfToken

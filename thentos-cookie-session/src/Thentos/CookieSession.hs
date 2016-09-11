@@ -46,9 +46,9 @@ import qualified Data.ByteString as SBS
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Session.Map as SessionMap
 
-import Servant.Missing (MonadError500, throwError500)
+import Servant.Missing (throwError500)
 import Thentos.CookieSession.CSRF
-import Thentos.CookieSession.Types (ThentosSessionToken, MonadUseThentosSessionToken, getThentosSessionToken)
+import Thentos.CookieSession.Types (ThentosSessionToken, getThentosSessionToken)
 
 -- * servant integration
 
@@ -104,11 +104,10 @@ noopExtendClearanceOnSessionToken _ = pure ()
 -- | The 'ExtendClearanceOnSessionToken' argument can be used in combination with the lio package to
 -- write the access policy into the server monad state.  If your way of access restriction has no
 -- need for that, simply pass @noopExtendClearanceOnSessionToken@.
-serveFAction :: forall api m s e v.
+serveFAction :: forall api m s v.
         ( HasServer api '[]
         , Enter (ServerT api m) (m :~> ExceptT ServantErr IO) (Server api)
-        , MonadRandom m, MonadError500 e m, MonadHasSessionCsrfToken s m
-        , MonadViewCsrfSecret v m, MonadUseThentosSessionToken s m
+        , MonadRandom m, MonadCsrf s v m, MonadHasSessionCsrfToken s m
         )
      => Proxy api
      -> Proxy s
@@ -130,8 +129,10 @@ serveFAction _ sProxy setCookie extendClearanceOnSessionToken ioNat nat fServer 
         nt = enterFAction key smap extendClearanceOnSessionToken ioNat nat
 
 enterFAction
-    :: ( MonadRandom m, MonadError500 e m, MonadHasSessionCsrfToken s m
-       , MonadViewCsrfSecret v m, MonadUseThentosSessionToken s m)
+    :: ( MonadRandom m
+       , MonadCsrf s v m
+       , MonadHasSessionCsrfToken s m
+       )
     => FSessionKey s
     -> FSessionMap s
     -> ExtendClearanceOnSessionToken m
