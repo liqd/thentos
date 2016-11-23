@@ -3,7 +3,9 @@
 
 ## Status
 
-EXPERIMENTAL.
+DEPRECATED.
+
+we will release some libraries that have come out of this project in the future.  updates on that will be posted here.
 
 
 ## Philosophy
